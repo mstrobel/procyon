@@ -1,0 +1,12 @@
+<project name="perf" default="test">
+  <target name="test">
+    <java classname="org.objectweb.asm.ASMMemTest" fork="yes">
+      <classpath>
+        <pathelement location="${out.build}"/>
+        <pathelement location="${out.test}"/>
+      </classpath>
+      <arg value="${java.home}/lib/rt.jar"/>
+      <arg value="2000"/>
+    </java>
+  </target>
+</project>

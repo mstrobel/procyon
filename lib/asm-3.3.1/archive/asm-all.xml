@@ -1,0 +1,43 @@
+<project name="asm-all" default="dist">
+  
+  <target name="dist" depends="build-jar,build-snapshot"/>
+
+  <target name="build-jar">
+    <mkdir dir="${out.dist.lib}/all"/>
+    <jar jarfile="${out.dist.lib}/all/${ant.project.name}-${product.artifact}.jar"
+         basedir="${out.build}">
+      <include name="org/objectweb/asm/**/*.class"/>
+      <exclude name="org/objectweb/asm/optimizer/*.class"/>
+      <manifest>
+        <attribute name="Implementation-Title" value="ASM all classes"/>
+        <attribute name="Implementation-Version" value="${product.artifact}"/> 
+        <attribute name="Implementation-Vendor" value="France Telecom R&amp;D"/>
+
+        <attribute name="Bundle-ManifestVersion" value="2"/>
+        <attribute name="Bundle-Name"      value="ASM all classes"/>
+        <attribute name="Bundle-Vendor"    value="France Telecom R&amp;D"/>
+        <attribute name="Bundle-Version"   value="${product.artifact}"/>
+        <attribute name="Bundle-DocURL"    value="http://asm.objectweb.org"/>
+        <attribute name="Bundle-SymbolicName" value="org.objectweb.asm.all"/>
+        <attribute name="Export-Package" value="org.objectweb.asm;version=${product.artifact},org.objectweb.asm.signature;version=${product.artifact},org.objectweb.asm.commons;version=${product.artifact},org.objectweb.asm.tree;version=${product.artifact},org.objectweb.asm.tree.analysis;version=${product.artifact},org.objectweb.asm.util;version=${product.artifact},org.objectweb.asm.xml;version=${product.artifact}"/>
+        <attribute name="Bundle-RequiredExecutionEnvironment" value="J2SE-1.3"/>
+      </manifest>
+    </jar>
+
+    <copy file="${archive}/asm-all.pom" toFile="${out.dist.lib}/all/${ant.project.name}-${product.artifact}.pom"/>
+    <replace file="${out.dist.lib}/all/${ant.project.name}-${product.artifact}.pom" token="@product.name@" value="${ant.project.name}"/>
+    <replace file="${out.dist.lib}/all/${ant.project.name}-${product.artifact}.pom" token="@product.artifact@" value="${product.artifact}"/>
+
+    <echo file="${out.dist.lib}/all/README.txt">It is highly recommended to use only the necessary ASM jars for your
+application instead of using the asm-all jar, unless you really need
+all ASM packages.</echo>
+  </target>
+
+  <target name="build-snapshot" if="product.snapshot">
+    <mkdir dir="${out.dist.lib}/all"/>
+    <copy file="${out.dist.lib}/all/${ant.project.name}-${product.artifact}.jar" toFile="${out.dist.lib}/${ant.project.name}-SNAPSHOT.jar"/>
+    <copy file="${out.dist.lib}/all/${ant.project.name}-${product.artifact}.pom" toFile="${out.dist.lib}/${ant.project.name}-SNAPSHOT.pom"/>
+    <echo file="${out.dist.lib}/all/${ant.project.name}-snapshot-version" message="${product.build.time}"/>
+  </target>
+
+</project>

@@ -1,0 +1,22 @@
+<project name="perf" default="test">
+  <target name="test">
+    <java classname="org.objectweb.asm.GenPerfTest" fork="yes">
+      <classpath>
+        <pathelement location="${out.build}"/>
+        <pathelement location="${out.test}"/>
+        <fileset dir="${test}">
+          <include name="lib/csg-bytecode.jar"/>
+          <include name="lib/kawa-1.9.1.jar"/>
+          <include name="lib/cojen-2.0.jar"/>
+          <include name="lib/jbet3-R1.jar"/>
+          <include name="lib/jclasslib.jar"/>
+          <include name="lib/jiapi.jar"/>
+          <include name="lib/log4j-1.2.9.jar"/>
+          <include name="lib/rhino1_7R1.jar"/>
+          <include name="lib/bcel-5.2.jar"/>
+          <include name="lib/aspectjweaver-1.5.3.jar"/>
+        </fileset>
+      </classpath>
+    </java>
+  </target>
+</project>

@@ -1,0 +1,28 @@
+<project name="asm" default="dist">
+  
+  <target name="dist" depends="build-jar,build-snapshot"/>
+
+  <target name="build-jar">
+    <jar jarfile="${out.dist.lib}/${ant.project.name}-${product.artifact}.jar"
+         basedir="${out.build}">
+      <include name="org/objectweb/asm/*.class"/>
+      <include name="org/objectweb/asm/signature/*.class"/>
+      <manifest>
+        <attribute name="Implementation-Title" value="ASM"/>
+        <attribute name="Implementation-Version" value="${product.artifact}"/> 
+        <attribute name="Implementation-Vendor" value="France Telecom R&amp;D"/>
+      </manifest>
+    </jar>
+
+    <copy file="${archive}/asm.pom" toFile="${out.dist.lib}/${ant.project.name}-${product.artifact}.pom"/>
+    <replace file="${out.dist.lib}/${ant.project.name}-${product.artifact}.pom" token="@product.name@" value="${ant.project.name}"/>
+    <replace file="${out.dist.lib}/${ant.project.name}-${product.artifact}.pom" token="@product.artifact@" value="${product.artifact}"/>
+  </target>
+
+  <target name="build-snapshot" if="product.snapshot">
+    <copy file="${out.dist.lib}/${ant.project.name}-${product.artifact}.jar" toFile="${out.dist.lib}/${ant.project.name}-SNAPSHOT.jar"/>
+    <copy file="${out.dist.lib}/${ant.project.name}-${product.artifact}.pom" toFile="${out.dist.lib}/${ant.project.name}-SNAPSHOT.pom"/>
+    <echo file="${out.dist.lib}/${ant.project.name}-snapshot-version" message="${product.build.time}"/>
+  </target>
+
+</project>

@@ -1,0 +1,40 @@
+<project name="asm" default="dist.jdoc">
+
+  <property name="jdoc.name" value="user"/>
+  <property name="jdoc.dir" value="${out.dist.jdoc}/${jdoc.name}"/>
+
+  <target name="dist.jdoc">
+    <uptodate property="jdoc.required" targetfile="${jdoc.dir}/index.html">
+      <srcfiles dir="${src}" includes="**/*.java,**/*.html"/>
+    </uptodate>
+    <antcall target="dist.jdoc.${jdoc.name}"/>
+  </target>
+
+  <target name="dist.jdoc.user" unless="jdoc.required">
+    <mkdir dir="${jdoc.dir}"/>
+    <javadoc destdir="${jdoc.dir}"
+             windowtitle="ASM ${product.version} Documentation"
+             doctitle="ASM ${product.version} Documentation"
+             use="true">
+
+      <sourcepath path="${src}"/>
+      <package name="org.objectweb.asm"/>
+      <package name="org.objectweb.asm.attrs"/>
+      <package name="org.objectweb.asm.commons"/>
+      <package name="org.objectweb.asm.signature"/>
+      <package name="org.objectweb.asm.tree"/>
+      <package name="org.objectweb.asm.tree.analysis"/>
+      <package name="org.objectweb.asm.util"/>
+      <package name="org.objectweb.asm.util.attrs"/>
+      <package name="org.objectweb.asm.xml"/>
+
+      <link href="${jdk.url}" offline="true" packagelistLoc="${jdoc}"/>
+
+    </javadoc>
+
+    <copy todir="${jdoc.dir}">
+      <fileset dir="${src}" includes="**/*.dtd"/>
+    </copy>
+  </target>
+
+</project>

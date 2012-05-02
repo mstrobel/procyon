@@ -1,0 +1,66 @@
+<project name="conform" default="test">
+
+  <target name="test.normal" unless="coverage">
+    <junit fork="yes" 
+           printsummary="yes"
+           errorproperty="test.failed"
+           failureproperty="test.failed">
+      <test name="org.objectweb.asm.tree.analysis.SimpleVerifierTest" 
+            fork="yes" 
+            todir="${out.test}/reports"
+            outfile="TEST-org.objectweb.asm.tree.analysis.SimpleVerifierTest-1">
+      </test>
+      <formatter type="xml"/>
+      <classpath refid="test.classpath"/>
+      <classpath>
+          <pathelement location="${out.test}/cases"/>
+      </classpath>
+      <jvmarg value="-Dasm.test=${asm.test}"/>
+      <jvmarg value="-Dasm.test.class=${asm.test.class}"/>
+      <jvmarg value="-Dparts=2"/>
+      <jvmarg value="-Dpart=0"/>      
+    </junit>  
+    <junit fork="yes" 
+           printsummary="yes"
+           errorproperty="test.failed"
+           failureproperty="test.failed">
+      <test name="org.objectweb.asm.tree.analysis.SimpleVerifierTest" 
+            fork="yes" 
+            todir="${out.test}/reports"
+            outfile="TEST-org.objectweb.asm.tree.analysis.SimpleVerifierTest-2">
+      </test>
+      <formatter type="xml"/>
+      <classpath refid="test.classpath"/>
+      <classpath>
+          <pathelement location="${out.test}/cases"/>
+      </classpath>
+      <jvmarg value="-Dasm.test=${asm.test}"/>
+      <jvmarg value="-Dasm.test.class=${asm.test.class}"/>
+      <jvmarg value="-Dparts=2"/>
+      <jvmarg value="-Dpart=1"/>      
+    </junit>  
+  </target>
+
+  <target name="test.coverage" if="coverage">
+    <junit fork="yes" 
+           printsummary="yes"
+           errorproperty="test.failed"
+           failureproperty="test.failed">
+      <batchtest fork="yes" todir="${out.test}/reports">
+        <fileset dir="${test}/conform">
+          <include name="**/SimpleVerifierTest.java"/>
+        </fileset>
+      </batchtest>
+      <formatter type="xml"/>
+      <classpath refid="test.classpath"/>
+      <classpath>
+          <pathelement location="${out.test}/cases"/>
+      </classpath>
+      <jvmarg value="-Dasm.test=${asm.test}"/>
+      <jvmarg value="-Dasm.test.class=${asm.test.class}"/>
+    </junit>  
+  </target>
+
+  <target name="test" depends="test.normal,test.coverage"/>
+
+</project>

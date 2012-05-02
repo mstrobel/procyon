@@ -1,0 +1,208 @@
+<!--
+ ! ASM: a very small and fast Java bytecode manipulation framework
+ ! Copyright (c) 2000-2005 INRIA, France Telecom
+ ! All rights reserved.
+ !
+ ! Redistribution and use in source and binary forms, with or without
+ ! modification, are permitted provided that the following conditions
+ ! are met:
+ ! 1. Redistributions of source code must retain the above copyright
+ !    notice, this list of conditions and the following disclaimer.
+ ! 2. Redistributions in binary form must reproduce the above copyright
+ !    notice, this list of conditions and the following disclaimer in the
+ !    documentation and/or other materials provided with the distribution.
+ ! 3. Neither the name of the copyright holders nor the names of its
+ !    contributors may be used to endorse or promote products derived from
+ !    this software without specific prior written permission.
+ !
+ ! THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ ! AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ ! IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ ! ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ ! LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ ! CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ ! SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ ! INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ ! CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ ! ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ ! THE POSSIBILITY OF SUCH DAMAGE.
+-->
+
+<project name="test" default="test">
+
+  <!-- ==================================== -->
+  <!-- ======== PROPERTY DEFINITION ======= -->
+  <!-- ==================================== -->
+
+  <property name="test.conform"   value="${test}/conform"/>
+  <property name="test.perf"      value="${test}/perf"/>
+
+  <target name="properties">
+    <condition property="asm.test.class" value="">
+      <not><isset property="asm.test.class"/></not>
+    </condition>
+
+    <condition property="java5">
+      <available classname="java.lang.annotation.Annotation"/> 
+    </condition>
+    
+    <condition property="test-all">
+      <and>
+        <not><isset property="test.type"/></not>
+        <not><isset property="test.group"/></not>
+      </and>
+    </condition>
+
+    <condition property="test-conform">
+      <or>
+        <equals arg1="${test.type}" arg2="conform"/>
+        <isset property="test-all"/>
+      </or>  
+    </condition>
+
+    <condition property="test-perf">
+      <or>
+        <equals arg1="${test.type}" arg2="perf"/>
+        <isset property="test-all"/>
+      </or>  
+    </condition>
+
+    <condition property="test.paths.configured">
+      <and>
+        <isset property="bcel.path"/>
+        <isset property="aspectj.path"/>
+        <isset property="serp.path"/>
+        <isset property="javassist.path"/>
+        <isset property="janino.path"/>
+        <isset property="cobertura.path"/>
+        <isset property="cobertura.runtime.path"/>
+        <isset property="kawa.runtime.path"/>
+        <isset property="csg-bytecode.runtime.path"/>
+        <isset property="cojen.runtime.path"/>
+        <isset property="jbet.runtime.path"/>
+        <isset property="jclasslib.runtime.path"/>
+        <isset property="jiapi.runtime.path"/>
+        <isset property="rhino.runtime.path"/>
+      </and>
+    </condition>
+  </target>
+
+  <!-- ================================== -->
+  <!-- ========  INITIALIZATION   ======= -->
+  <!-- ================================== -->
+  
+  <target name="check" unless="test.paths.configured">
+    <echo message="The 'build.properties' file must be configured"/>
+    <fail/>
+  </target>
+  
+  <target name="init" depends="properties,check">  
+    <mkdir dir="${out.test}"/>
+    <mkdir dir="${out.test}/cases"/>
+    <mkdir dir="${out.test}/reports"/>
+    <path id="test.classpath">
+      <pathelement location="${classes}"/>
+      <pathelement location="${out.test}"/>
+      <pathelement path="${bcel.path}"/>
+      <pathelement path="${aspectj.path}"/>
+      <pathelement path="${serp.path}"/>  
+      <pathelement path="${javassist.path}"/>
+      <pathelement path="${janino.path}"/>
+      <pathelement path="${cobertura.runtime.path}"/>
+      <pathelement path="${kawa.runtime.path}"/>
+      <pathelement path="${csg-bytecode.runtime.path}"/>
+      <pathelement path="${cojen.runtime.path}"/>
+      <pathelement path="${jbet.runtime.path}"/>
+      <pathelement path="${jclasslib.runtime.path}"/>
+      <pathelement path="${jiapi.runtime.path}"/>
+      <pathelement path="${rhino.runtime.path}"/>
+    </path>
+  </target>
+  
+  <!-- ==================================== -->
+  <!-- =========== COMPILATION ============ -->
+  <!-- ==================================== -->
+
+  <target name="compile.test.conform" depends="init">
+    <javac srcdir="${test.conform}" destdir="${out.test}" 
+        debug="on" debuglevel="lines,vars,source">
+      <classpath refid="test.classpath"/>
+      <include name="**/*.java"/>
+    </javac>
+    <delete dir="${out.test}/cases"/>
+    <java classname="org.objectweb.asm.test.cases.Generator">
+      <classpath>
+        <pathelement location="${out.build}"/>
+        <pathelement location="${out.test}"/>
+      </classpath>
+      <arg value="${out.test}/cases"/>
+    </java>
+  </target>
+
+  <target name="compile.test.perf" depends="init">
+    <javac srcdir="${test.perf}" destdir="${out.test}" debug="on" source="1.3" target="1.2">
+      <classpath refid="test.classpath"/>
+      <include name="**/*.java"/>
+      <exclude name="**/xml/*.java"/>
+    </javac>
+  </target>
+
+  <target name="compile" depends="compile.test.conform,compile.test.perf"/>
+
+  <!-- ============================= -->
+  <!-- =========== TEST ============ -->
+  <!-- ============================= -->
+
+  <target name="testConform" depends="compile" if="test-conform">
+    <ant antfile="${test.conform}/adviceadapter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/analyzeradapter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/annotations.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/asmifier.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/basicinterpreter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/basicverifier.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/checkclassadapter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/checksignatureadapter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/classadapter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/classnode.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/classreader.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/classwriter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/classwritercomputeframes.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/classwritercomputemaxs.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/classwritercopypool.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/classwriterresizeinsns.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/codesizeevaluator.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/gasmifier.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/jsrinlineradapter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/localvariablessorter2.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/localvariablessorter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/remappingadapter2.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/remappingadapter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/saxadapter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/signaturewriter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/sourceinterpreter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/staticinitmerger.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/svuidadder.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/traceclassadapter.xml" inheritRefs="true"/>
+    <ant antfile="${test.conform}/unit.xml" inheritRefs="true"/>
+  </target>
+
+  <target name="testPerf" depends="compile" if="test-perf">
+    <ant antfile="${test.perf}/all.xml" inheritRefs="true"/>
+    <ant antfile="${test.perf}/gen.xml" inheritRefs="true"/>
+    <ant antfile="${test.perf}/mem.xml" inheritRefs="true"/>
+  </target>
+
+  <target name="testGroup" depends="compile" if="test.group">
+    <ant antfile="test/${test.group}.xml" inheritRefs="true"/>
+  </target>
+
+  <target name="test" depends="testConform,testPerf,testGroup">
+    <!--junitreport todir="${out.test}/reports">
+      <fileset dir="${out.test}/reports">
+        <include name="TEST-*.xml"/>
+      </fileset>
+      <report todir="${out.test}/reports"/>
+    </junitreport-->
+  </target>
+  
+</project>

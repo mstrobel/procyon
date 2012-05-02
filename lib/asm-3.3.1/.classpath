@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry excluding="annotations/**|org/objectweb/asm/AnnotationTest.java" kind="src" path="test/conform"/>
+	<classpathentry kind="src" path="test/perf"/>
+	<classpathentry kind="src" path="examples/adapt/src"/>
+	<classpathentry kind="src" path="examples/analysis/src"/>
+	<classpathentry kind="src" path="examples/annotations/src"/>
+	<classpathentry kind="src" path="examples/attributes/src"/>
+	<classpathentry kind="src" path="examples/compile/src"/>
+	<classpathentry kind="src" path="examples/dependencies/src"/>
+	<classpathentry kind="src" path="examples/helloworld/src"/>
+	<classpathentry kind="src" path="examples/jbfc/src"/>
+	<classpathentry kind="src" path="examples/xml"/>
+	<classpathentry kind="src" path="examples/jasmin/src"/>
+	<classpathentry kind="src" path="examples/jasmin/test"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/J2SE-1.5"/>
+	<classpathentry kind="lib" path="test/lib/jd.xslt-1.5.5.jar"/>
+	<classpathentry kind="lib" path="test/lib/saxon7.jar"/>
+	<classpathentry kind="lib" path="test/lib/xalan-2.6.0.jar"/>
+	<classpathentry kind="lib" path="test/lib/csg-bytecode.jar"/>
+	<classpathentry kind="lib" path="test/lib/kawa-1.9.1.jar"/>
+	<classpathentry kind="lib" path="test/lib/cojen-2.0.jar"/>
+	<classpathentry kind="lib" path="test/lib/jbet3-R1.jar"/>
+	<classpathentry kind="lib" path="test/lib/jclasslib.jar"/>
+	<classpathentry kind="lib" path="test/lib/jiapi.jar"/>
+	<classpathentry kind="lib" path="test/lib/log4j-1.2.9.jar"/>
+	<classpathentry kind="lib" path="test/lib/rhino1_7R1.jar"/>
+	<classpathentry kind="lib" path="test/lib/bcel-5.2.jar"/>
+	<classpathentry kind="lib" path="test/lib/janino-2.5.11.jar"/>
+	<classpathentry kind="lib" path="test/lib/javassist.3.6.GA.jar"/>
+	<classpathentry kind="lib" path="test/lib/serp-1.14.2.jar"/>
+	<classpathentry kind="lib" path="test/lib/aspectjweaver-1.5.3.jar"/>
+	<classpathentry kind="lib" path="examples/jasmin/test/jasmin.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/3"/>
+	<classpathentry kind="output" path="output/eclipse"/>
+</classpath>

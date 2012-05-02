@@ -1,0 +1,26 @@
+<project name="conform" default="test">
+
+  <target name="test">
+    <condition property="testclasses" value="${asm.test.class}">
+      <not><equals arg1="${asm.test.class}" arg2=""/></not>
+    </condition>
+    <condition property="testclasses" value="java.lang">
+      <equals arg1="${asm.test.class}" arg2=""/>
+    </condition>
+    <junit fork="yes" 
+           printsummary="yes"
+           errorproperty="test.failed"
+           failureproperty="test.failed">
+      <batchtest fork="yes" todir="${out.test}/reports">
+        <fileset dir="${test}/conform">
+          <include name="**/ASMifierTest.java"/>
+        </fileset>
+      </batchtest>
+      <formatter type="xml"/>
+      <classpath refid="test.classpath"/>
+      <jvmarg value="-Dasm.test=${asm.test}"/>
+      <jvmarg value="-Dasm.test.class=${testclasses}"/>
+    </junit>  
+  </target>
+
+</project>

@@ -1,0 +1,22 @@
+<project name="perf" default="test">
+  <target name="test">
+    <java classname="org.objectweb.asm.ALLPerfTest" fork="yes">
+      <classpath>
+        <pathelement location="${out.build}"/>
+        <pathelement location="${out.test}"/>
+        <fileset dir="${test}">
+          <include name="lib/bcel-5.2.jar"/>
+          <include name="lib/aspectjweaver-1.5.3.jar"/>
+          <include name="lib/serp-1.14.2.jar"/>
+          <include name="lib/javassist.3.6.GA.jar"/>
+          <!-- xslt engines -->
+          <include name="lib/jd.xslt-1.5.5.jar"/>
+          <include name="lib/saxon7.jar"/>
+          <include name="lib/xalan-2.6.0.jar"/>
+        </fileset>
+      </classpath>
+      <jvmarg value="-Dasm.test.class=${asm.test.class}" /> 
+      <jvmarg value="-Xmx512M" /> 
+    </java>
+  </target>
+</project>
