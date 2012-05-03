@@ -86,11 +86,6 @@ class ArrayType extends Type {
     }
 
     @Override
-    public String getName() {
-        return _elementType.getName() + "[]";
-    }
-
-    @Override
     public TypeCollection getGenericParameters() {
         return _elementType.getGenericParameters();
     }
@@ -123,6 +118,27 @@ class ArrayType extends Type {
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return new Annotation[0];
+    }
+
+    @Override
+    public StringBuilder appendSignature(final StringBuilder sb) {
+        sb.append('[');
+        return _elementType.appendSignature(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        sb.append('[');
+        return _elementType.appendErasedSignature(sb.append('['));
+    }
+
+    public StringBuilder appendBriefDescription(final StringBuilder sb)
+    {
+        return _elementType.appendBriefDescription(sb).append("[]");
+    }
+
+    public StringBuilder appendFullDescription(final StringBuilder sb) {
+        return appendBriefDescription(sb);
     }
 }
 
