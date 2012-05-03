@@ -6,6 +6,7 @@ import com.strobel.core.VerifyArgument;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
+import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -18,19 +19,80 @@ import static com.strobel.reflection.Flags.any;
  */
 final class ReflectedType<T> extends Type {
     private final Class<T> _class;
+    private final Type _baseType;
     private final FieldCollection _fields;
     private final MethodCollection _methods;
     private final ConstructorCollection _constructors;
+    private final TypeCollection _genericParameters;
+    private final TypeCollection _interfaces;
 
-    ReflectedType(final Class<T> clazz) {
-        _class = clazz;
+    ReflectedType(final Class<T> rawType, final TypeCollection genericParameters, final Type baseType, final TypeCollection interfaces) {
+        _class = VerifyArgument.notNull(rawType, "rawType");
+        _genericParameters = VerifyArgument.notNull(genericParameters, "genericParameters");
+
+        if (baseType == null && rawType != java.lang.Object.class) {
+            throw new IllegalArgumentException("Base type cannot be null.");
+        }
+
+        _baseType = baseType;
+        _interfaces = VerifyArgument.notNull(interfaces, "interfaces");
         _fields = FieldCollection.empty();
         _methods = MethodCollection.empty();
         _constructors = ConstructorCollection.empty();
     }
 
+    protected TypeCollection populateGenericParameters() {
+        final TypeVariable<Class<T>>[] typeParameters = _class.getTypeParameters();
+        final Type[] genericParameters = new Type[typeParameters.length];
+
+        for (int i = 0, n = typeParameters.length; i < n; i++) {
+            final TypeVariable<?> typeVariable = typeParameters[i];
+            genericParameters[i] = new GenericParameterType(typeVariable, this, i);
+        }
+
+        return new TypeCollection(genericParameters);
+    }
+
+    @Override
+    public Type makeGenericType(final Type... typeArguments) {
+        return new GenericType(this, typeArguments);
+    }
+
     public TypeContext getContext() {
         return TypeContext.SYSTEM;
+    }
+
+    @Override
+    public Type getBaseType() {
+        return _baseType;
+    }
+
+    @Override
+    public TypeCollection getInterfaces() {
+        return _interfaces;
+    }
+
+    @Override
+    public Class<?> getErasedClass() {
+        return _class;
+    }
+
+    @Override
+    public boolean isGenericType() {
+        return !_genericParameters.isEmpty();
+    }
+
+    @Override
+    public TypeCollection getGenericParameters() {
+        return _genericParameters;
+    }
+
+    @Override
+    public Type getGenericTypeDefinition() {
+        if (isGenericTypeDefinition()) {
+            return this;
+        }
+        throw Error.notGenericType(this);
     }
 
     @Override
@@ -64,7 +126,7 @@ final class ReflectedType<T> extends Type {
         MethodInfo[] methods = EmptyMethods;
         ConstructorInfo[] constructors = EmptyConstructors;
         FieldInfo[] fields = EmptyFields;
-        Type[] nestedTypes = EmptyTypes;
+        final Type[] nestedTypes = EmptyTypes;
 
         if (ArrayUtilities.contains(memberTypes, MemberType.Field)) {
             fields = getFieldCandidates(name, bindingFlags, true);
@@ -111,9 +173,9 @@ final class ReflectedType<T> extends Type {
 
         final ArrayList<MemberInfo> results = new ArrayList<>(
             fields.length +
-            methods.length +
-            constructors.length +
-            nestedTypes.length);
+                methods.length +
+                constructors.length +
+                nestedTypes.length);
 
         Collections.addAll(results, fields);
         Collections.addAll(results, methods);
@@ -206,11 +268,11 @@ final class ReflectedType<T> extends Type {
                 }
 
                 // All the methods have the exact same name and sig so return the most derived one.
-                return (MethodInfo)Binder.findMostDerivedNewSlotMethod(candidates, candidates.length);
+                return (MethodInfo) Binder.findMostDerivedNewSlotMethod(candidates, candidates.length);
             }
         }
 
-        return (MethodInfo)DefaultBinder.selectMethod(bindingFlags, candidates, parameterTypes);
+        return (MethodInfo) DefaultBinder.selectMethod(bindingFlags, candidates, parameterTypes);
     }
 
     @Override
@@ -246,11 +308,11 @@ final class ReflectedType<T> extends Type {
                 }
 
                 // All the methods have the exact same name and sig so return the most derived one.
-                return (ConstructorInfo)Binder.findMostDerivedNewSlotMethod(candidates, candidates.length);
+                return (ConstructorInfo) Binder.findMostDerivedNewSlotMethod(candidates, candidates.length);
             }
         }
 
-        return (ConstructorInfo)DefaultBinder.selectMethod(bindingFlags, candidates, parameterTypes);
+        return (ConstructorInfo) DefaultBinder.selectMethod(bindingFlags, candidates, parameterTypes);
     }
 
     @Override
@@ -425,9 +487,9 @@ final class ReflectedType<T> extends Type {
             return null;
         }
 
-        final T[] results = (T[])Array.newInstance(source.getMemberType(), candidates.size());
+        final T[] results = (T[]) Array.newInstance(source.getMemberType(), candidates.size());
 
-        candidates.toArray((Object[])results);
+        candidates.toArray((Object[]) results);
 
         return results;
     }
@@ -482,8 +544,7 @@ final class ReflectedType<T> extends Type {
         return candidates.toArray(results);
     }
 
-    private Type[] getNestedTypeCandidates(final String fullName, final int bindingFlags, final boolean allowPrefixLookup)
-    {
+    private Type[] getNestedTypeCandidates(final String fullName, final int bindingFlags, final boolean allowPrefixLookup) {
         final int flags = bindingFlags & ~BindingFlags.Static;
         final FilterOptions filterOptions = getFilterOptions(fullName, flags, allowPrefixLookup);
 

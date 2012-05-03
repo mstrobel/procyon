@@ -11,10 +11,10 @@ public final class MethodCollection extends MemberCollection<MethodInfo> {
     }
 
     public MethodCollection(final MethodInfo... elements) {
-        super(elements);
+        super(MethodInfo.class, elements);
     }
 
     public MethodCollection(final MethodInfo[] elements, final int offset, final int length) {
-        super(elements, offset, length);
+        super(MethodInfo.class, elements, offset, length);
     }
 }

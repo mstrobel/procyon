@@ -11,10 +11,10 @@ public final class FieldCollection extends MemberCollection<FieldInfo> {
     }
 
     public FieldCollection(final FieldInfo... elements) {
-        super(elements);
+        super(FieldInfo.class, elements);
     }
 
     public FieldCollection(final FieldInfo[] elements, final int offset, final int length) {
-        super(elements, offset, length);
+        super(FieldInfo.class, elements, offset, length);
     }
 }

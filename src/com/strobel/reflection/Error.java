@@ -6,7 +6,8 @@ import static java.lang.String.format;
  * @author Mike Strobel
  */
 final class Error {
-    private Error() {}
+    private Error() {
+    }
 
     public static RuntimeException notGenericParameter(final Type type) {
         throw new UnsupportedOperationException(
@@ -55,6 +56,49 @@ final class Error {
 
     public static RuntimeException ambiguousMatch() {
         throw new RuntimeException("Ambiguous match found.");
+
+    }
+
+    public static RuntimeException incorrectNumberOfTypeArguments() {
+        throw new UnsupportedOperationException(
+            "Incorrect number of type arguments provided."
+        );
+    }
+
+    public static RuntimeException incorrectNumberOfTypeArguments(final Type type) {
+        throw new UnsupportedOperationException(
+            format(
+                "Incorrect number of type arguments provided for generic type '%s'.",
+                type.getName()
+            )
+        );
+    }
+
+    public static RuntimeException notGenericTypeDefinition(final Type type) {
+        throw new UnsupportedOperationException(
+            format(
+                "Type '%s' is not a generic type definition.",
+                type.getName()
+            )
+        );
+    }
+
+    public static RuntimeException notPrimitiveType(final Class<?> type) {
+        throw new UnsupportedOperationException(
+            format(
+                "Type '%s' is not a primitive type.",
+                type.getName()
+            )
+        );
+    }
+
+    public static RuntimeException typeParameterNotDefined(final Type typeParameter) {
+        throw new UnsupportedOperationException(
+            format(
+                "Generic parameter '%' is not defined on this type.",
+                typeParameter.getName()
+            )
+        );
 
     }
 }

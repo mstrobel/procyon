@@ -11,10 +11,10 @@ public final class ConstructorCollection extends MemberCollection<ConstructorInf
     }
 
     public ConstructorCollection(final ConstructorInfo... elements) {
-        super(elements);
+        super(ConstructorInfo.class, elements);
     }
 
     public ConstructorCollection(final ConstructorInfo[] elements, final int offset, final int length) {
-        super(elements, offset, length);
+        super(ConstructorInfo.class, elements, offset, length);
     }
 }

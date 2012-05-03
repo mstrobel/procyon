@@ -3,7 +3,6 @@ package com.strobel.reflection;
 import com.strobel.util.ContractUtils;
 
 import java.lang.reflect.Modifier;
-import java.util.HashMap;
 
 import static com.strobel.reflection.Flags.all;
 import static com.strobel.reflection.Flags.any;
@@ -11,6 +10,7 @@ import static com.strobel.reflection.Flags.any;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings("ALL")
 public abstract class Type extends MemberInfo implements java.lang.reflect.Type {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -32,10 +32,17 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
     protected static final int DefaultLookup = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // STANDARD SYSTEM TYPES                                                                                              //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static final Type Object = new ReflectedType(java.lang.Object.class, TypeCollection.empty(), null, TypeCollection.empty());
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTORS                                                                                                       //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    Type() {}
+    protected Type() {
+    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // ATTRIBUTES                                                                                                         //
@@ -90,7 +97,19 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
     }
 
     public boolean isGenericTypeDefinition() {
-        return false;
+        if (!isGenericType()) {
+            return false;
+        }
+
+        final TypeCollection genericParameters = getGenericParameters();
+
+        for (int i = 0, n = genericParameters.size(); i < n; i++) {
+            if (!genericParameters.get(i).isGenericParameter()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public boolean isGenericParameter() {
@@ -113,6 +132,16 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
         return Type.of(Object.class);
     }
 
+    public TypeCollection getInterfaces() {
+        return TypeCollection.empty();
+    }
+
+    public abstract Class<?> getErasedClass();
+
+    public MethodInfo getDeclaringMethod() {
+        return null;
+    }
+
     public Type getElementType() {
         throw Error.noElementType(this);
     }
@@ -121,7 +150,7 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
         throw Error.notGenericParameter(this);
     }
 
-    public TypeCollection getGenericArguments() {
+    public TypeCollection getGenericParameters() {
         throw ContractUtils.unreachable();
     }
 
@@ -142,11 +171,11 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
             return false;
         }
 
-        final TypeCollection genericArguments = getGenericArguments();
+        final TypeCollection genericParameters = getGenericParameters();
 
         //noinspection ForLoopReplaceableByForEach
-        for (int i = 0; i < genericArguments.size(); i++) {
-            if (genericArguments.get(i).containsGenericParameters()) {
+        for (int i = 0; i < genericParameters.size(); i++) {
+            if (genericParameters.get(i).containsGenericParameters()) {
                 return true;
             }
         }
@@ -181,7 +210,7 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
 
     public boolean isInstance(final Object o) {
         return o != null &&
-               isAssignableFrom(of(o.getClass()));
+            isAssignableFrom(of(o.getClass()));
     }
 
     @SuppressWarnings("UnusedParameters")
@@ -306,7 +335,7 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public Type makeArrayType() {
-        throw Error.notArrayType(this);
+        return CACHE.getArrayType(this);
     }
 
     @SuppressWarnings("UnusedParameters")
@@ -398,23 +427,206 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // NAME AND SIGNATURE FORMATTING                                                                                      //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    @Override
+    public String getName() {
+        return _appendClassName(new StringBuilder(), true).toString();
+    }
+
+    /**
+     * Method that returns full generic signature of the type; suitable
+     * as signature for things like ASM package.
+     */
+    public String getSignature() {
+        return appendSignature(new StringBuilder()).toString();
+    }
+
+    /**
+     * Method that returns type erased signature of the type; suitable
+     * as non-generic signature some packages need
+     */
+    public String getErasedSignature() {
+        return appendErasedSignature(new StringBuilder()).toString();
+    }
+
+    /**
+     * Human-readable full description of type, which includes specification
+     * of super types (in brief format)
+     */
+    public String getFullDescription() {
+        return appendFullDescription(new StringBuilder()).toString();
+    }
+
+    /**
+     * Human-readable brief description of type, which does not include
+     * information about super types.
+     */
+    public String getBriefDescription() {
+        return appendBriefDescription(new StringBuilder()).toString();
+    }
+
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
+        return _appendClassDescription(sb);
+    }
+
+    public StringBuilder appendFullDescription(final StringBuilder sb) {
+        StringBuilder s = _appendClassDescription(sb);
+
+        final Type baseType = getBaseType();
+
+        if (baseType != null && baseType != Object) {
+            s.append(" extends ");
+            s = baseType.appendBriefDescription(s);
+        }
+
+        final TypeCollection interfaces = getInterfaces();
+        final int interfaceCount = interfaces.size();
+
+        if (interfaceCount > 0) {
+            s.append(" implements ");
+            for (int i = 0; i < interfaceCount; ++i) {
+                if (i != 0) {
+                    s.append(",");
+                }
+                s = interfaces.get(i).appendBriefDescription(s);
+            }
+        }
+
+        return s;
+    }
+
+    public StringBuilder appendSignature(final StringBuilder sb) {
+        return _appendClassSignature(sb);
+    }
+
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        return _appendErasedClassSignature(sb);
+    }
+
+    protected StringBuilder _appendClassSignature(final StringBuilder sb) {
+        StringBuilder s = sb;
+
+        s.append('L');
+        s = _appendClassName(s, false);
+
+        if (isGenericType()) {
+            final TypeCollection genericParameters = getGenericParameters();
+            final int count = genericParameters.size();
+
+            if (count > 0) {
+                s.append('<');
+                //noinspection ForLoopReplaceableByForEach
+                for (int i = 0; i < count; ++i) {
+                    s = genericParameters.get(i).appendErasedSignature(s);
+                }
+                s.append('>');
+            }
+        }
+
+        s.append(';');
+        return s;
+    }
+
+    protected StringBuilder _appendErasedClassSignature(StringBuilder sb) {
+        sb.append('L');
+        sb = _appendClassName(sb, false);
+        sb.append(';');
+        return sb;
+    }
+
+    protected StringBuilder _appendClassDescription(final StringBuilder sb) {
+        StringBuilder s = sb;
+
+        s.append(getErasedClass().getName());
+
+        if (isGenericType()) {
+            final TypeCollection genericParameters = getGenericParameters();
+            final int count = genericParameters.size();
+            if (count > 0) {
+                s.append('<');
+                //noinspection ForLoopReplaceableByForEach
+                for (int i = 0; i < count; ++i) {
+                    s = genericParameters.get(i)._appendErasedClassSignature(s);
+                }
+                s.append('>');
+            }
+        }
+
+        return s;
+    }
+
+    protected StringBuilder _appendClassName(final StringBuilder sb, final boolean dottedName) {
+
+        final Class<?> erasedClass = getErasedClass();
+        final Package classPackage = erasedClass.getPackage();
+        final String name = erasedClass.getName();
+
+        if (dottedName) {
+            return sb.append(name);
+        }
+
+        final int start;
+
+        if (classPackage != null) {
+            final String packageName = classPackage.getName();
+            if (packageName.length() != 0) {
+                for (int i = 0, n = packageName.length(); i < n; i++) {
+                    char c = name.charAt(i);
+                    if (c == '.') {
+                        c = '/';
+                    }
+                    sb.append(c);
+                }
+                sb.append('/');
+                start = packageName.length() + 1;
+            }
+            else {
+                start = 0;
+            }
+        }
+        else {
+            start = 0;
+        }
+
+        sb.append(name, start, name.length());
+
+        return sb;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // REFLECTED TYPE CACHE                                                                                               //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private final static HashMap<Class<?>, ReflectedType<?>> REFLECTED_TYPE_CACHE = new HashMap<>();
+    private final static TypeCache CACHE;
+    private final static TypeResolver TYPE_RESOLVER;
+
+    static {
+        CACHE = new TypeCache();
+
+        CACHE.add(PrimitiveTypes.Void);
+        CACHE.add(PrimitiveTypes.Boolean);
+        CACHE.add(PrimitiveTypes.Byte);
+        CACHE.add(PrimitiveTypes.Short);
+        CACHE.add(PrimitiveTypes.Character);
+        CACHE.add(PrimitiveTypes.Integer);
+        CACHE.add(PrimitiveTypes.Long);
+        CACHE.add(PrimitiveTypes.Float);
+        CACHE.add(PrimitiveTypes.Double);
+        CACHE.add(Object);
+
+        TYPE_RESOLVER = new TypeResolver(CACHE);
+    }
 
     @SuppressWarnings("unchecked")
     public synchronized static <T> Type of(final Class<T> clazz) {
-        final ReflectedType<T> reflectedType = (ReflectedType<T>)REFLECTED_TYPE_CACHE.get(clazz);
+        final ReflectedType<T> reflectedType = (ReflectedType<T>) CACHE.find(clazz);
 
         if (reflectedType != null) {
             return reflectedType;
         }
 
-        final ReflectedType<T> newReflectedType = new ReflectedType<>(clazz);
-
-        REFLECTED_TYPE_CACHE.put(clazz, newReflectedType);
-
-        return newReflectedType;
+        return TYPE_RESOLVER.resolve(clazz);
     }
 }
