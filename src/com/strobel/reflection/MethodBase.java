@@ -4,8 +4,8 @@ package com.strobel.reflection;
  * @author Mike Strobel
  */
 public abstract class MethodBase extends MemberInfo {
-    public ParameterCollection getParameters() {
-        return ParameterCollection.empty();
+    public ParameterList getParameters() {
+        return ParameterList.empty();
     }
 
     public CallingConvention getCallingConvention() {

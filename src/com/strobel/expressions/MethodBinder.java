@@ -1,17 +1,12 @@
 package com.strobel.expressions;
 
-import com.fasterxml.classmate.*;
-import com.fasterxml.classmate.members.RawMethod;
-import com.fasterxml.classmate.members.ResolvedMethod;
-import com.strobel.util.TypeUtils;
-
-import java.lang.reflect.*;
-import java.util.List;
+import java.lang.reflect.Method;
 
 /**
  * @author Mike Strobel
  */
 public final class MethodBinder {
+/*
     private MethodBinder() {}
 
         public static Method findMethod(
@@ -32,7 +27,7 @@ public final class MethodBinder {
             }
 
             for (int i = 0, n = args.size(); i < n; i++) {
-                argTypes[i] = typeResolver.resolve(args.get(i).getType());
+                argTypes[i] = typeResolver.resolve(args.getBoundType(i).getType());
             }
 
             final MemberResolver memberResolver = new MemberResolver(typeResolver);
@@ -77,6 +72,7 @@ public final class MethodBinder {
                 return candidates[bestMethod].getRawMember();
             }
         }
+*/
 /*
     public static Method findMethod(
         final Class type,
@@ -88,12 +84,13 @@ public final class MethodBinder {
         final Class[] argTypes = new Class[args.size()];
 
         for (int i = 0, n = args.size(); i < n; i++) {
-            argTypes[i] = args.get(i).getType();
+            argTypes[i] = args.getBoundType(i).getType();
         }
 
         return getMatchingAccessibleMethod(type, methodName, argTypes, Modifier.isStatic(flags));
     }
-*/
+*//*
+
 
     private static int findBestMethod(final ResolvedMethod[] candidates, final ResolvedType[] typeArgs, final ResolvedType[] args) {
         int count = 0;
@@ -152,7 +149,7 @@ public final class MethodBinder {
             return false;
         }
 
-        final TypeBindings typeBindings = TypeBindings.emptyBindings();
+        final TypeBindings typeBindings = TypeBindings.empty();
 
         for (int i = 0, n = typeParameters.length; i < n; i++) {
             final TypeVariable<Method> t = typeParameters[i];
@@ -224,6 +221,7 @@ public final class MethodBinder {
     private static boolean testLowerBond(final ResolvedType boundType, final ResolvedType argType) {
         return areAssignmentCompatible(argType.getErasedType(), boundType.getErasedType());
     }
+*/
 }
 
 interface IMethodFilter<T> {

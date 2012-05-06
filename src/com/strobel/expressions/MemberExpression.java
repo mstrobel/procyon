@@ -1,9 +1,7 @@
 package com.strobel.expressions;
 
+import com.strobel.reflection.MemberInfo;
 import com.strobel.util.ContractUtils;
-
-import java.lang.reflect.AccessibleObject;
-import java.lang.reflect.Field;
 
 /**
  * Represents accessing a field.
@@ -25,7 +23,7 @@ public abstract class MemberExpression extends Expression {
         return _target;
     }
 
-    AccessibleObject getMember() {
+    MemberInfo getMember() {
         throw ContractUtils.unreachable();
     }
 

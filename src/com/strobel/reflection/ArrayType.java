@@ -23,6 +23,16 @@ class ArrayType extends Type {
     }
 
     @Override
+    public Type getElementType() {
+        return _elementType;
+    }
+
+    @Override
+    public boolean isArray() {
+        return true;
+    }
+
+    @Override
     public boolean isGenericType() {
         return _elementType.isGenericType();
     }
@@ -36,8 +46,8 @@ class ArrayType extends Type {
     }
 
     @Override
-    public MemberCollection<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType... memberTypes) {
-        return MemberCollection.empty();
+    public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
+        return MemberList.empty();
     }
 
     @Override
@@ -56,28 +66,28 @@ class ArrayType extends Type {
     }
 
     @Override
-    public MemberCollection<? extends MemberInfo> getMembers(final int bindingFlags) {
-        return MemberCollection.empty();
+    public MemberList<? extends MemberInfo> getMembers(final int bindingFlags) {
+        return MemberList.empty();
     }
 
     @Override
-    public FieldCollection getFields(final int bindingFlags) {
-        return FieldCollection.empty();
+    public FieldList getFields(final int bindingFlags) {
+        return FieldList.empty();
     }
 
     @Override
-    public MethodCollection getMethods(final int bindingFlags, final CallingConvention callingConvention) {
-        return MethodCollection.empty();
+    public MethodList getMethods(final int bindingFlags, final CallingConvention callingConvention) {
+        return MethodList.empty();
     }
 
     @Override
-    public ConstructorCollection getConstructors(final int bindingFlags) {
-        return ConstructorCollection.empty();
+    public ConstructorList getConstructors(final int bindingFlags) {
+        return ConstructorList.empty();
     }
 
     @Override
-    public TypeCollection getNestedTypes(final int bindingFlags) {
-        return TypeCollection.empty();
+    public TypeList getNestedTypes(final int bindingFlags) {
+        return TypeList.empty();
     }
 
     @Override
@@ -86,8 +96,8 @@ class ArrayType extends Type {
     }
 
     @Override
-    public TypeCollection getGenericParameters() {
-        return _elementType.getGenericParameters();
+    public TypeBindings getTypeBindings() {
+        return _elementType.getTypeBindings();
     }
 
     @Override

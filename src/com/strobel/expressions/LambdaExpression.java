@@ -1,26 +1,25 @@
 package com.strobel.expressions;
 
+import com.strobel.reflection.Type;
 import com.strobel.reflection.emit.MethodBuilder;
-
-import java.util.List;
 
 /**
  * @author Mike Strobel
  */
-public class LambdaExpression extends Expression {
+public final class LambdaExpression<T> extends Expression {
     private final String _name;
     private final Expression _body;
-    private final List<ParameterExpression> _parameters;
-    private final Class _interfaceType;
+    private final ParameterExpressionList _parameters;
+    private final Type<T> _interfaceType;
     private final boolean _tailCall;
-    private final Class<?> _returnType;
+    private final Type _returnType;
 
     LambdaExpression(
-        final Class interfaceType,
+        final Type<T> interfaceType,
         final String name,
         final Expression body,
         final boolean tailCall,
-        final List<ParameterExpression> parameters) {
+        final ParameterExpressionList parameters) {
 
         assert interfaceType != null;
 
@@ -29,11 +28,11 @@ public class LambdaExpression extends Expression {
         _tailCall = tailCall;
         _parameters = parameters;
         _interfaceType = interfaceType;
-        _returnType = _interfaceType.getMethods()[0].getReturnType();
+        _returnType = _interfaceType.getMethods().get(0).getReturnType();
     }
 
     @Override
-    public final Class getType() {
+    public final Type getType() {
         return _interfaceType;
     }
 
@@ -50,11 +49,11 @@ public class LambdaExpression extends Expression {
         return _body;
     }
 
-    public final List<ParameterExpression> getParameters() {
+    public final ParameterExpressionList getParameters() {
         return _parameters;
     }
 
-    public final Class getReturnType() {
+    public final Type getReturnType() {
         return _returnType;
     }
 
@@ -62,11 +61,32 @@ public class LambdaExpression extends Expression {
         return _tailCall;
     }
 
-    public final Delegate compile() {
-        return LambdaCompiler.compileDelegate(this);
+    public final LambdaExpression<T> update(final Expression body, final ParameterExpressionList parameters) {
+        if (body == _body && parameters == _parameters) {
+            return this;
+        }
+        return Expression.lambda(_interfaceType, getName(), body, isTailCall(), parameters);
     }
 
-    public final void CompileToMethod(final MethodBuilder methodBuilder) {
+    @Override
+    protected Expression accept(final ExpressionVisitor visitor) {
+        return visitor.visitLambda(this);
+    }
+
+    @SuppressWarnings("unchecked")
+    protected LambdaExpression<T> accept(final StackSpiller spiller) {
+        return (LambdaExpression<T>)spiller.rewrite(this);
+    }
+
+    public final T compile() {
+        return compileDelegate().getTarget();
+    }
+
+    public final Delegate<T> compileDelegate() {
+        return LambdaCompiler.compile(this);
+    }
+
+    public final void compileToMethod(final MethodBuilder methodBuilder) {
         LambdaCompiler.compile(this, methodBuilder);
     }
 }

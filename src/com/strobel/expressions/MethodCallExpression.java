@@ -1,21 +1,19 @@
 package com.strobel.expressions;
 
+import com.strobel.reflection.MethodInfo;
 import com.strobel.util.ContractUtils;
-
-import java.lang.reflect.Method;
-import java.util.List;
 
 /**
  * @author Mike Strobel
  */
 public class MethodCallExpression extends Expression implements IArgumentProvider {
-    private final Method _method;
+    private final MethodInfo _method;
 
-    MethodCallExpression(final Method method) {
+    MethodCallExpression(final MethodInfo method) {
         _method = method;
     }
 
-    public final Method getMethod() {
+    public final MethodInfo getMethod() {
         return _method;
     }
 
@@ -23,11 +21,11 @@ public class MethodCallExpression extends Expression implements IArgumentProvide
         return null;
     }
 
-    public final List<Expression> getArguments() {
+    public final ExpressionList<? extends Expression> getArguments() {
         return getOrMakeArguments();
     }
 
-    List<Expression> getOrMakeArguments() {
+    ExpressionList<? extends Expression> getOrMakeArguments() {
         throw ContractUtils.unreachable();
     }
 
@@ -41,15 +39,15 @@ public class MethodCallExpression extends Expression implements IArgumentProvide
         throw ContractUtils.unreachable();
     }
 
-    MethodCallExpression rewrite(final Expression target, final List<Expression> arguments) {
+    MethodCallExpression rewrite(final Expression target, final ExpressionList<? extends Expression> arguments) {
         throw ContractUtils.unreachable();
     }
 }
 
 final class MethodCallExpressionN extends MethodCallExpression {
-    private List<Expression> _arguments;
+    private final ExpressionList<? extends Expression> _arguments;
 
-    MethodCallExpressionN(final Method method, final List<Expression> arguments) {
+    MethodCallExpressionN(final MethodInfo method, final ExpressionList<? extends Expression> arguments) {
         super(method);
         _arguments = arguments;
     }
@@ -65,12 +63,12 @@ final class MethodCallExpressionN extends MethodCallExpression {
     }
 
     @Override
-    final List<Expression> getOrMakeArguments() {
-        return (_arguments = ensureUnmodifiable(_arguments));
+    final ExpressionList<? extends Expression> getOrMakeArguments() {
+        return _arguments;
     }
 
     @Override
-    final MethodCallExpression rewrite(final Expression target, final List<Expression> arguments) {
+    final MethodCallExpression rewrite(final Expression target, final ExpressionList<? extends Expression> arguments) {
         assert target == null;
         assert arguments == null || arguments.size() == _arguments.size();
 
@@ -80,9 +78,9 @@ final class MethodCallExpressionN extends MethodCallExpression {
 
 final class InstanceMethodCallExpressionN extends MethodCallExpression {
     private final Expression _target;
-    private List<Expression> _arguments;
+    private final ExpressionList<? extends Expression> _arguments;
 
-    InstanceMethodCallExpressionN(final Method method, final Expression target, final List<Expression> arguments) {
+    InstanceMethodCallExpressionN(final MethodInfo method, final Expression target, final ExpressionList<? extends Expression> arguments) {
         super(method);
         _target = target;
         _arguments = arguments;
@@ -104,12 +102,12 @@ final class InstanceMethodCallExpressionN extends MethodCallExpression {
     }
 
     @Override
-    final List<Expression> getOrMakeArguments() {
-        return (_arguments = ensureUnmodifiable(_arguments));
+    final ExpressionList<? extends Expression> getOrMakeArguments() {
+        return _arguments;
     }
 
     @Override
-    final MethodCallExpression rewrite(final Expression target, final List<Expression> arguments) {
+    final MethodCallExpression rewrite(final Expression target, final ExpressionList<? extends Expression> arguments) {
         assert target != null;
         assert arguments == null || arguments.size() == _arguments.size();
 

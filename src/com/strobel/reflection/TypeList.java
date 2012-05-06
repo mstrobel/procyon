@@ -3,18 +3,18 @@ package com.strobel.reflection;
 /**
  * @author Mike Strobel
  */
-public final class TypeCollection extends MemberCollection<Type> {
-    private final static TypeCollection EMPTY = new TypeCollection();
+ public class TypeList extends MemberList<Type> {
+    private final static TypeList EMPTY = new TypeList();
 
-    public static TypeCollection empty() {
+    public static TypeList empty() {
         return EMPTY;
     }
 
-    public TypeCollection(final Type... elements) {
+    TypeList(final Type... elements) {
         super(Type.class, elements);
     }
 
-    public TypeCollection(final Type[] elements, final int offset, final int length) {
+    TypeList(final Type[] elements, final int offset, final int length) {
         super(Type.class, elements, offset, length);
     }
     

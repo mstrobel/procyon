@@ -1,6 +1,8 @@
 package com.strobel.util;
 
-import java.lang.reflect.Method;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.PrimitiveTypes;
+import com.strobel.reflection.Type;
 
 /**
  * @author Mike Strobel
@@ -8,140 +10,140 @@ import java.lang.reflect.Method;
 public final class TypeUtils {
     private TypeUtils() {}
 
-    public static boolean isAutoUnboxed(final Class type) {
-        return type == Integer.class ||
-               type == Long.class ||
-               type == Double.class ||
-               type == Float.class ||
-               type == Short.class ||
-               type == Byte.class ||
-               type == Boolean.class ||
-               type == Character.class;
+    public static boolean isAutoUnboxed(final Type type) {
+        return type == Type.of(Integer.class) ||
+               type == Type.of(Long.class) ||
+               type == Type.of(Double.class) ||
+               type == Type.of(Float.class) ||
+               type == Type.of(Short.class) ||
+               type == Type.of(Byte.class) ||
+               type == Type.of(Boolean.class) ||
+               type == Type.of(Character.class);
     }
 
-    public static Class getUnderlyingPrimitive(final Class type) {
-        if (type == Integer.class) {
-            return Integer.TYPE;
+    public static Type getUnderlyingPrimitive(final Type type) {
+        if (type == Type.of(Integer.class)) {
+            return PrimitiveTypes.Integer;
         }
-        if (type == Long.class) {
-            return Long.TYPE;
+        if (type == Type.of(Long.class)) {
+            return PrimitiveTypes.Long;
         }
-        if (type == Double.class) {
-            return Double.TYPE;
+        if (type == Type.of(Double.class)) {
+            return PrimitiveTypes.Double;
         }
-        if (type == Float.class) {
-            return Float.TYPE;
+        if (type == Type.of(Float.class)) {
+            return PrimitiveTypes.Float;
         }
-        if (type == Short.class) {
-            return Short.TYPE;
+        if (type == Type.of(Short.class)) {
+            return PrimitiveTypes.Short;
         }
-        if (type == Byte.class) {
-            return Byte.TYPE;
+        if (type == Type.of(Byte.class)) {
+            return PrimitiveTypes.Byte;
         }
-        if (type == Boolean.class) {
-            return Boolean.TYPE;
+        if (type == Type.of(Boolean.class)) {
+            return PrimitiveTypes.Boolean;
         }
-        if (type == Character.class) {
-            return Character.TYPE;
+        if (type == Type.of(Character.class)) {
+            return PrimitiveTypes.Character;
         }
         return null;
     }
 
-    public static Class getBoxedTypeOrSelf(final Class type) {
-        final Class boxedType = getBoxedType(type);
+    public static Type getBoxedTypeOrSelf(final Type type) {
+        final Type boxedType = getBoxedType(type);
         return boxedType != null ? boxedType : type;
     }
 
-    public static Class getUnderlyingPrimitiveOrSelf(final Class type) {
+    public static Type getUnderlyingPrimitiveOrSelf(final Type type) {
         if (isAutoUnboxed(type)) {
             return getUnderlyingPrimitive(type);
         }
         return type;
     }
 
-    public static Class getBoxedType(final Class type) {
+    public static Type getBoxedType(final Type type) {
         if (isAutoUnboxed(type)) {
             return type;
         }
         if (!type.isPrimitive()) {
             return null;
         }
-        if (type == Integer.TYPE) {
-            return Integer.class;
+        if (type == PrimitiveTypes.Integer) {
+            return Type.of(Integer.class);
         }
-        if (type == Long.TYPE) {
-            return Long.class;
+        if (type == PrimitiveTypes.Long) {
+            return Type.of(Long.class);
         }
-        if (type == Double.TYPE) {
-            return Double.class;
+        if (type == PrimitiveTypes.Double) {
+            return Type.of(Double.class);
         }
-        if (type == Float.TYPE) {
-            return Float.class;
+        if (type == PrimitiveTypes.Float) {
+            return Type.of(Float.class);
         }
-        if (type == Short.TYPE) {
-            return Short.class;
+        if (type == PrimitiveTypes.Short) {
+            return Type.of(Short.class);
         }
-        if (type == Byte.TYPE) {
-            return Byte.class;
+        if (type == PrimitiveTypes.Byte) {
+            return Type.of(Byte.class);
         }
-        if (type == Boolean.TYPE) {
-            return Boolean.class;
+        if (type == PrimitiveTypes.Boolean) {
+            return Type.of(Boolean.class);
         }
-        if (type == Character.TYPE) {
-            return Character.class;
+        if (type == PrimitiveTypes.Character) {
+            return Type.of(Character.class);
         }
         return null;
     }
 
-    public static boolean isArithmetic(final Class type) {
-        final Class underlyingPrimitive = getUnderlyingPrimitive(type);
-        final Class actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
+    public static boolean isArithmetic(final Type type) {
+        final Type underlyingPrimitive = getUnderlyingPrimitive(type);
+        final Type actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
 
-        return actualType == Integer.TYPE ||
-               actualType == Long.TYPE ||
-               actualType == Double.TYPE ||
-               actualType == Float.TYPE ||
-               actualType == Short.TYPE ||
-               actualType == Byte.TYPE ||
-               actualType == Character.TYPE;
+        return actualType == PrimitiveTypes.Integer ||
+               actualType == PrimitiveTypes.Long ||
+               actualType == PrimitiveTypes.Double ||
+               actualType == PrimitiveTypes.Float ||
+               actualType == PrimitiveTypes.Short ||
+               actualType == PrimitiveTypes.Byte ||
+               actualType == PrimitiveTypes.Character;
     }
 
-    public static boolean isIntegralOrBoolean(final Class type) {
-        final Class underlyingPrimitive = getUnderlyingPrimitive(type);
-        final Class actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
+    public static boolean isIntegralOrBoolean(final Type type) {
+        final Type underlyingPrimitive = getUnderlyingPrimitive(type);
+        final Type actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
 
-        return actualType == Integer.TYPE ||
-               actualType == Long.TYPE ||
-               actualType == Short.TYPE ||
-               actualType == Byte.TYPE ||
-               actualType == Character.TYPE ||
-               actualType == Boolean.TYPE;
+        return actualType == PrimitiveTypes.Integer ||
+               actualType == PrimitiveTypes.Long ||
+               actualType == PrimitiveTypes.Short ||
+               actualType == PrimitiveTypes.Byte ||
+               actualType == PrimitiveTypes.Character ||
+               actualType == PrimitiveTypes.Boolean;
     }
 
-    public static boolean isIntegral(final Class type) {
-        final Class underlyingPrimitive = getUnderlyingPrimitive(type);
-        final Class actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
+    public static boolean isIntegral(final Type type) {
+        final Type underlyingPrimitive = getUnderlyingPrimitive(type);
+        final Type actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
 
-        return actualType == Integer.TYPE ||
-               actualType == Long.TYPE ||
-               actualType == Short.TYPE ||
-               actualType == Byte.TYPE ||
-               actualType == Character.TYPE;
+        return actualType == PrimitiveTypes.Integer ||
+               actualType == PrimitiveTypes.Long ||
+               actualType == PrimitiveTypes.Short ||
+               actualType == PrimitiveTypes.Byte ||
+               actualType == PrimitiveTypes.Character;
     }
 
-    public static boolean isBoolean(final Class type) {
-        return type == Boolean.TYPE || type == Boolean.class;
+    public static boolean isBoolean(final Type type) {
+        return type == PrimitiveTypes.Boolean || type == Type.of(Boolean.class);
     }
 
-    public static boolean areEquivalent(final Class class1, final Class class2) {
+    public static boolean areEquivalent(final Type class1, final Type class2) {
         return class1 == class2;
     }
 
-    public static boolean hasIdentityPrimitiveOrBoxingConversion(final Class source, final Class destination) {
+    public static boolean hasIdentityPrimitiveOrBoxingConversion(final Type source, final Type destination) {
         assert source != null && destination != null;
 
         // Identity conversion
-        if (areEquivalent(source, destination)) {
+        if (source == destination || areEquivalent(source, destination)) {
             return true;
         }
 
@@ -150,17 +152,17 @@ public final class TypeUtils {
                isAutoUnboxed(destination) && areEquivalent(source, getUnderlyingPrimitive(destination));
     }
 
-    public static boolean hasReferenceConversion(final Class source, final Class destination) {
+    public static boolean hasReferenceConversion(final Type source, final Type destination) {
         assert source != null && destination != null;
 
         // void -> void conversion is handled elsewhere (it's an identity conversion) 
         // All other void conversions are disallowed.
-        if (source == Void.TYPE || destination == Void.TYPE) {
+        if (source == PrimitiveTypes.Void || destination == PrimitiveTypes.Void) {
             return false;
         }
 
-        final Class unboxedSourceType = isAutoUnboxed(source) ? getUnderlyingPrimitive(source) : source;
-        final Class unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
+        final Type unboxedSourceType = isAutoUnboxed(source) ? getUnderlyingPrimitive(source) : source;
+        final Type unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
 
         // Down conversion 
         if (unboxedSourceType.isAssignableFrom(unboxedDestinationType)) {
@@ -178,68 +180,64 @@ public final class TypeUtils {
         }
 
         // Object conversion 
-        return source == Object.class || destination == Object.class;
+        return source == Type.Object || destination == Type.Object;
     }
 
-    public static Method getCoercionMethod(final Class source, final Class destination) {
+    public static MethodInfo getCoercionMethod(final Type source, final Type destination) {
         // NOTE: If destination type is an autoboxing type, we will need an implicit box later.
-        final Class unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
+        final Type unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
 
         if (!destination.isPrimitive()) {
             return null;
         }
 
-        try {
-            final Method method;
+        final MethodInfo method;
 
-            if (destination == Integer.TYPE) {
-                method = source.getMethod("booleanValue");
-            }
-            else if (destination == Long.TYPE) {
-                method = source.getMethod("longValue");
-            }
-            else if (destination == Double.TYPE) {
-                method = source.getMethod("doubleValue");
-            }
-            else if (destination == Float.TYPE) {
-                method = source.getMethod("floatValue");
-            }
-            else if (destination == Short.TYPE) {
-                method = source.getMethod("shortValue");
-            }
-            else if (destination == Byte.TYPE) {
-                method = source.getMethod("byteValue");
-            }
-            else if (destination == Boolean.TYPE) {
-                method = source.getMethod("booleanValue");
-            }
-            else if (destination == Character.TYPE) {
-                method = source.getMethod("charValue");
-            }
-            else {
-                return null;
-            }
-
-            if (method.getReturnType() == unboxedDestinationType) {
-                return method;
-            }
+        if (destination == PrimitiveTypes.Integer) {
+            method = source.getMethod("booleanValue");
         }
-        catch (NoSuchMethodException ignored) {
+        else if (destination == PrimitiveTypes.Long) {
+            method = source.getMethod("longValue");
+        }
+        else if (destination == PrimitiveTypes.Double) {
+            method = source.getMethod("doubleValue");
+        }
+        else if (destination == PrimitiveTypes.Float) {
+            method = source.getMethod("floatValue");
+        }
+        else if (destination == PrimitiveTypes.Short) {
+            method = source.getMethod("shortValue");
+        }
+        else if (destination == PrimitiveTypes.Byte) {
+            method = source.getMethod("byteValue");
+        }
+        else if (destination == PrimitiveTypes.Boolean) {
+            method = source.getMethod("booleanValue");
+        }
+        else if (destination == PrimitiveTypes.Character) {
+            method = source.getMethod("charValue");
+        }
+        else {
+            return null;
+        }
+
+        if (method.getReturnType() == unboxedDestinationType) {
+            return method;
         }
 
         return null;
     }
 
-    public static boolean areReferenceAssignable(final Class destination, final Class source) {
-        if (destination == Object.class) {
+    public static boolean areReferenceAssignable(final Type destination, final Type source) {
+        if (destination == Type.Object) {
             return true;
         }
         // WARNING: This actually checks "is this identity assignable and/or reference assignable?"
-        return areEquivalent(destination, source) ||
+        return hasIdentityPrimitiveOrBoxingConversion(source, destination) ||
                !destination.isPrimitive() && !source.isPrimitive() && destination.isAssignableFrom(source);
     }
 
-    public static boolean hasReferenceEquality(final Class left, final Class right) {
+    public static boolean hasReferenceEquality(final Type left, final Type right) {
         if (left.isPrimitive() || right.isPrimitive()) {
             return false;
         }
@@ -255,7 +253,7 @@ public final class TypeUtils {
                areReferenceAssignable(right, left);
     }
 
-    public static boolean hasBuiltInEqualityOperator(final Class left, final Class right) {
+    public static boolean hasBuiltInEqualityOperator(final Type left, final Type right) {
         // If we have an interface and a reference type, then we can do reference equality.
         if (left.isInterface() && !right.isPrimitive()) {
             return true;
@@ -284,7 +282,7 @@ public final class TypeUtils {
         return true;
     }
 
-    public static boolean isValidInvocationTargetType(final Method method, final Class targetType) {
-        return areReferenceAssignable(method.getDeclaringClass(), targetType);
+    public static boolean isValidInvocationTargetType(final MethodInfo method, final Type targetType) {
+        return areReferenceAssignable(method.getDeclaringType(), targetType);
     }
 }

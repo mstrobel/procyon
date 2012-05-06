@@ -15,7 +15,7 @@ final class TypeCache {
         return new Key(simpleType);
     }
 
-    public Key key(final Class<?> simpleType, final TypeCollection typeArguments) {
+    public Key key(final Class<?> simpleType, final TypeList typeArguments) {
         return new Key(simpleType, typeArguments);
     }
 
@@ -67,13 +67,13 @@ final class TypeCache {
     }
 
     public void add(final Type type) {
-        final TypeCollection typeArguments;
+        final TypeList typeArguments;
 
         if (type.isGenericType()) {
-            typeArguments = type.getGenericParameters();
+            typeArguments = type.getTypeBindings().getBoundTypes();
         }
         else {
-            typeArguments = TypeCollection.empty();
+            typeArguments = TypeList.empty();
         }
 
         put(key(type.getErasedClass(), typeArguments), type);
@@ -81,14 +81,14 @@ final class TypeCache {
 
     static class Key {
         private final Class<?> _erasedType;
-        private final TypeCollection _typeParameters;
+        private final TypeList _typeParameters;
         private final int _hashCode;
 
         public Key(final Class<?> simpleType) {
             this(simpleType, null);
         }
 
-        public Key(final Class<?> erasedType, final TypeCollection typeArguments) {
+        public Key(final Class<?> erasedType, final TypeList typeArguments) {
             _erasedType = erasedType;
             _typeParameters = typeArguments;
 
@@ -122,7 +122,7 @@ final class TypeCache {
                 return false;
             }
 
-            final TypeCollection otherArguments = other._typeParameters;
+            final TypeList otherArguments = other._typeParameters;
 
             if (_typeParameters == null) {
                 return otherArguments == null;
@@ -146,6 +146,15 @@ final class TypeCache {
             }
 
             return true;
+        }
+
+        @Override
+        public String toString() {
+            return "Key{" +
+                   "_erasedType=" + _erasedType +
+                   ", _typeParameters=" + _typeParameters +
+                   ", _hashCode=" + _hashCode +
+                   '}';
         }
     }
 }

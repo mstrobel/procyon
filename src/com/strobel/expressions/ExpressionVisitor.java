@@ -1,9 +1,6 @@
 package com.strobel.expressions;
 
-import java.lang.reflect.Array;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import com.strobel.reflection.Type;
 
 /**
  * @author Mike Strobel
@@ -17,8 +14,12 @@ public abstract class ExpressionVisitor {
         return null;
     }
 
-    public Expression visitExtension(final Expression node) {
+    public Expression visitDefaultValue(final DefaultValueExpression node) {
         return node;
+    }
+
+    public Expression visitExtension(final Expression node) {
+        return node.visitChildren(this);
     }
 
     public Expression visitMember(final MemberExpression node) {
@@ -66,8 +67,7 @@ public abstract class ExpressionVisitor {
             }
         }
 
-        final List<ParameterExpression> v = visitAndConvertList(
-            ParameterExpression.class,
+        final ParameterExpressionList v = visitAndConvertList(
             node.getVariables(),
             "visitBlock"
         );
@@ -86,9 +86,9 @@ public abstract class ExpressionVisitor {
         return node.rewrite(v, nodes);
     }
 
-    public final Expression visitInvocation(final InvocationExpression node) {
+    public Expression visitInvocation(final InvocationExpression node) {
         final Expression e = visit(node.getExpression());
-        final Expression[] a = visitArguments(node);
+        final ExpressionList<? extends Expression> a = visitArguments(node);
 
         if (e == node.getExpression() && a == null) {
             return node;
@@ -97,11 +97,30 @@ public abstract class ExpressionVisitor {
         return node.rewrite(e, a);
     }
 
+    public Expression visitMethodCall(final MethodCallExpression node) {
+        final Expression target = visit(node.getTarget());
+        final ExpressionList<? extends Expression> arguments = visitArguments(node);
+
+        if (target == node.getTarget() && arguments == null) {
+            return node;
+        }
+
+        return node.rewrite(target, arguments);
+    }
+
+    public <T> LambdaExpression<T> visitLambda(final LambdaExpression<T> node) {
+        return node.update(visit(node.getBody()), visitAndConvertList(node.getParameters(), "visitLambda"));
+    }
+
+    public Expression visitConditional(final ConditionalExpression node) {
+        return node.update(visit(node.getTest()), visit(node.getIfTrue()), visit(node.getIfFalse()));
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // HELPER METHODS                                                                                                     //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    final Expression[] visitArguments(final IArgumentProvider nodes) {
+    final ExpressionList<? extends Expression> visitArguments(final IArgumentProvider nodes) {
         Expression[] newNodes = null;
         for (int i = 0, n = nodes.getArgumentCount(); i < n; i++) {
             final Expression curNode = nodes.getArgument(i);
@@ -118,7 +137,7 @@ public abstract class ExpressionVisitor {
                 newNodes[i] = node;
             }
         }
-        return newNodes;
+        return new ExpressionList<>(newNodes);
     }
 
     @SuppressWarnings("unchecked")
@@ -137,35 +156,55 @@ public abstract class ExpressionVisitor {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends Expression> List<T> visitAndConvertList(final Class<T> type, final List<T> nodes, final String callerName) {
+    public <T extends Expression> ExpressionList<T> visitAndConvertList(final ExpressionList<T> nodes, final String callerName) {
         T[] newNodes = null;
 
         for (int i = 0, n = nodes.size(); i < n; i++) {
             final T oldNode = nodes.get(i);
-
-            final T node = (T) visit(oldNode);
+            final T node = (T)visit(oldNode);
 
             if (node == null) {
-                throw Error.mustRewriteToSameNode(callerName, type, callerName);
+                throw Error.mustRewriteToSameNode(callerName, oldNode.getClass(), callerName);
             }
 
-            if (newNodes != null) {
-                newNodes[i] = node;
+            if (newNodes == null) {
+                newNodes = nodes.toArray();
             }
-            else if (node != oldNode) {
-                newNodes = (T[])Array.newInstance(type);
-                for (int j = 0; j < i; j++) {
-                    newNodes[j] = nodes.get(j);
-                }
-                newNodes[i] = node;
-            }
+
+            newNodes[i] = node;
         }
 
         if (newNodes == null) {
             return nodes;
         }
 
-        return Collections.unmodifiableList(Arrays.asList(newNodes));
+        return new ExpressionList<>(newNodes);
+    }
+
+    @SuppressWarnings("unchecked")
+    public ParameterExpressionList visitAndConvertList(final ParameterExpressionList nodes, final String callerName) {
+        ParameterExpression[] newNodes = null;
+
+        for (int i = 0, n = nodes.size(); i < n; i++) {
+            final ParameterExpression oldNode = nodes.get(i);
+            final ParameterExpression node = (ParameterExpression)visit(oldNode);
+
+            if (node == null) {
+                throw Error.mustRewriteToSameNode(callerName, oldNode.getClass(), callerName);
+            }
+
+            if (newNodes == null) {
+                newNodes = nodes.toArray();
+            }
+
+            newNodes[i] = node;
+        }
+
+        if (newNodes == null) {
+            return nodes;
+        }
+
+        return new ParameterExpressionList(newNodes);
     }
 
     private static UnaryExpression validateUnary(final UnaryExpression before, final UnaryExpression after) {
@@ -194,7 +233,7 @@ public abstract class ExpressionVisitor {
         return after;
     }
 
-    private static void validateChildType(final Class before, final Class after, final String methodName) {
+    private static void validateChildType(final Type before, final Type after, final String methodName) {
         if (before.isPrimitive()) {
             if (before == after) {
                 // types are the same value type

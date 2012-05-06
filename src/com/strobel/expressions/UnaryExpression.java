@@ -1,6 +1,7 @@
 package com.strobel.expressions;
 
-import java.lang.reflect.Method;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.Type;
 
 /**
  * Represents an expression that has a unary operator.
@@ -8,11 +9,11 @@ import java.lang.reflect.Method;
  */
 public final class UnaryExpression extends Expression {
     private final Expression _operand;
-    private final Method _method;
+    private final MethodInfo _method;
     private final ExpressionType _nodeType;
-    private final Class _type;
+    private final Type _type;
 
-    UnaryExpression(final ExpressionType nodeType, final Expression operand, final Class type, final Method method) {
+    UnaryExpression(final ExpressionType nodeType, final Expression operand, final Type type, final MethodInfo method) {
         _nodeType = nodeType;
         _operand = operand;
         _type = type;
@@ -29,14 +30,14 @@ public final class UnaryExpression extends Expression {
 
     /**
      * Gets the implementing method for the unary operation.
-     * @return the {@link Method} that represents the implementing method.
+     * @return the {@link MethodInfo} that represents the implementing method.
      */
-    public final Method getMethod() {
+    public final MethodInfo getMethod() {
         return _method;
     }
 
     @Override
-    public final Class getType() {
+    public final Type getType() {
         return _type;
     }
 

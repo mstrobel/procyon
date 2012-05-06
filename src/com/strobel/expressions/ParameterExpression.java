@@ -1,5 +1,8 @@
 package com.strobel.expressions;
 
+import com.strobel.reflection.PrimitiveTypes;
+import com.strobel.reflection.Type;
+
 import java.util.Date;
 
 /**
@@ -19,8 +22,8 @@ public class ParameterExpression extends Expression {
     }
 
     @Override
-    public Class getType() {
-        return Object.class;
+    public Type getType() {
+        return Type.Object;
     }
 
     @Override
@@ -33,50 +36,50 @@ public class ParameterExpression extends Expression {
         return visitor.visitParameter(this);
     }
 
-    static ParameterExpression make(final Class type, final String name) {
+    static ParameterExpression make(final Type type, final String name) {
         if (!type.isEnum()) {
             if (type.isPrimitive()) {
-                if (type == Boolean.TYPE) {
-                    return new PrimitiveParameterExpression(Boolean.TYPE, name);
+                if (type == PrimitiveTypes.Boolean) {
+                    return new PrimitiveParameterExpression(PrimitiveTypes.Boolean, name);
                 }
-                if (type == Byte.TYPE) {
-                    return new PrimitiveParameterExpression(Byte.TYPE, name);
+                if (type == PrimitiveTypes.Byte) {
+                    return new PrimitiveParameterExpression(PrimitiveTypes.Byte, name);
                 }
-                if (type == Character.TYPE) {
-                    return new PrimitiveParameterExpression(Character.TYPE, name);
+                if (type == PrimitiveTypes.Character) {
+                    return new PrimitiveParameterExpression(PrimitiveTypes.Character, name);
                 }
-                if (type == Float.TYPE) {
-                    return new PrimitiveParameterExpression(Float.TYPE, name);
+                if (type == PrimitiveTypes.Float) {
+                    return new PrimitiveParameterExpression(PrimitiveTypes.Float, name);
                 }
-                if (type == Double.TYPE) {
-                    return new PrimitiveParameterExpression(Double.TYPE, name);
+                if (type == PrimitiveTypes.Double) {
+                    return new PrimitiveParameterExpression(PrimitiveTypes.Double, name);
                 }
-                if (type == Short.TYPE) {
-                    return new PrimitiveParameterExpression(Short.TYPE, name);
+                if (type == PrimitiveTypes.Short) {
+                    return new PrimitiveParameterExpression(PrimitiveTypes.Short, name);
                 }
-                if (type == Integer.TYPE) {
-                    return new PrimitiveParameterExpression(Integer.TYPE, name);
+                if (type == PrimitiveTypes.Integer) {
+                    return new PrimitiveParameterExpression(PrimitiveTypes.Integer, name);
                 }
-                if (type == Long.TYPE) {
-                    return new PrimitiveParameterExpression(Long.TYPE, name);
+                if (type == PrimitiveTypes.Long) {
+                    return new PrimitiveParameterExpression(PrimitiveTypes.Long, name);
                 }
-                if (type == Float.TYPE) {
-                    return new PrimitiveParameterExpression(Float.TYPE, name);
+                if (type == PrimitiveTypes.Float) {
+                    return new PrimitiveParameterExpression(PrimitiveTypes.Float, name);
                 }
             }
-            else if (type == String.class) {
-                return new PrimitiveParameterExpression(String.class, name);
+            else if (type == Type.of(String.class)) {
+                return new PrimitiveParameterExpression(Type.of(String.class), name);
             }
-            else if (type == Date.class) {
-                return new PrimitiveParameterExpression(Date.class, name);
+            else if (type == Type.of(Date.class)) {
+                return new PrimitiveParameterExpression(Type.of(Date.class), name);
             }
-            else if (type == Object.class) {
-                return new PrimitiveParameterExpression(Object.class, name);
+            else if (type == Type.Object) {
+                return new PrimitiveParameterExpression(Type.Object, name);
             }
-            else if (type.isArray() && type.getComponentType() == Object.class) {
+            else if (type.isArray() && type.getElementType() == Type.Object) {
                 return new PrimitiveParameterExpression(type, name);
             }
-            else if (Throwable.class.isAssignableFrom(type)) {
+            else if (Type.of(Throwable.class).isAssignableFrom(type)) {
                 return new PrimitiveParameterExpression(type, name);
             }
         }
@@ -86,29 +89,29 @@ public class ParameterExpression extends Expression {
 }
 
 final class TypedParameterExpression extends ParameterExpression {
-    private final Class _type;
+    private final Type _type;
 
-    TypedParameterExpression(final Class type, final String name) {
+    TypedParameterExpression(final Type type, final String name) {
         super(name);
         _type = type;
     }
 
     @Override
-    public final Class getType() {
+    public final Type getType() {
         return _type;
     }
 }
 
 final class PrimitiveParameterExpression extends ParameterExpression {
-    private final Class _type;
+    private final Type _type;
 
-    PrimitiveParameterExpression(final Class type, final String name) {
+    PrimitiveParameterExpression(final Type type, final String name) {
         super(name);
         _type = type;
     }
 
     @Override
-    public final Class getType() {
+    public final Type getType() {
         return _type;
     }
 }

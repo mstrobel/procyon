@@ -22,26 +22,26 @@ final class TypeResolver {
 
     public Type resolve(final Class<?> rawType) {
         // with erased class, no bindings:
-        return _fromClass(null, rawType, TypeBindings.emptyBindings());
+        return _fromClass(null, rawType, TypeBindings.empty());
     }
 
     private Type _fromAny(final ClassStack context, final java.lang.reflect.Type mainType, final TypeBindings typeBindings) {
         if (mainType instanceof Class<?>) {
-            return _fromClass(context, (Class<?>) mainType, typeBindings);
+            return _fromClass(context, (Class<?>)mainType, typeBindings);
         }
         if (mainType instanceof ParameterizedType) {
-            return _fromParamType(context, (ParameterizedType) mainType, typeBindings);
+            return _fromParamType(context, (ParameterizedType)mainType, typeBindings);
         }
         if (mainType instanceof GenericArrayType) {
-            return _fromArrayType(context, (GenericArrayType) mainType, typeBindings);
+            return _fromArrayType(context, (GenericArrayType)mainType, typeBindings);
         }
         if (mainType instanceof TypeVariable<?>) {
-            return _fromVariable(context, (TypeVariable<?>) mainType, typeBindings);
+            return _fromVariable(context, (TypeVariable<?>)mainType, typeBindings);
         }
         if (mainType instanceof WildcardType) {
-            return _fromWildcard(context, (WildcardType) mainType, typeBindings);
+            return _fromWildcard(context, (WildcardType)mainType, typeBindings);
         }
-        // should never get here...
+        // should never getBoundType here...
         throw new IllegalArgumentException("Unrecognized type class: " + mainType.getClass().getName());
     }
 
@@ -70,7 +70,7 @@ final class TypeResolver {
         }
 
         // If not, already recently resolved?
-        final TypeCollection typeParameters = typeBindings.getBoundArguments();
+        final TypeList typeParameters = typeBindings.getBoundTypes();
         final TypeCache.Key key = _resolvedTypes.key(rawType, typeParameters);
 
         Type type = _resolvedTypes.find(key);
@@ -89,7 +89,7 @@ final class TypeResolver {
          * returns Type, not Class<?> as one might expect. But let's assume it is
          * always of type Class: if not, need to add more code to resolve it...
          */
-        final Class<?> rawType = (Class<?>) parameterizedType.getRawType();
+        final Class<?> rawType = (Class<?>)parameterizedType.getRawType();
         final java.lang.reflect.Type[] params = parameterizedType.getActualTypeArguments();
         final int length = params.length;
         final Type[] types = new Type[length];
@@ -101,11 +101,32 @@ final class TypeResolver {
         Type declaringType = _resolvedTypes.find(_resolvedTypes.key(rawType));
 
         if (declaringType == null) {
-            declaringType = resolve(rawType);
+            declaringType = _fromAny(context, rawType, parentBindings);
         }
 
         // Ok: this gives us current bindings for this type:
-        final TypeBindings newBindings = TypeBindings.create(declaringType, new TypeCollection(types));
+/*
+        TypeBindings newBindings = parentBindings;
+        final TypeList genericTypeParameters = declaringType.getGenericTypeParameters();
+        for (int i = 0, n = genericTypeParameters.size(); i < n; i++) {
+
+            final Type binding = types[i];
+            final Type typeParameter = genericTypeParameters.get(i);
+            final Type existingParameter = parentBindings.findGenericParameter(typeParameter.getName());
+
+            if (existingParameter != null) {
+                newBindings = newBindings.withAdditionalBinding(typeParameter, existingParameter);
+
+                if (!binding.isGenericParameter()) {
+                    newBindings = newBindings.withAdditionalBinding(existingParameter, binding);
+                }
+            }
+            else {
+                newBindings = newBindings.withAdditionalBinding(typeParameter, binding);
+            }
+        }
+*/
+        final TypeBindings newBindings = TypeBindings.create(declaringType.getGenericTypeParameters(), types);
         return _fromClass(context, rawType, newBindings);
     }
 
@@ -124,7 +145,7 @@ final class TypeResolver {
         return _fromAny(context, wildType.getUpperBounds()[0], typeBindings);
     }
 
-    private Type _fromVariable(final ClassStack context, final TypeVariable<?> variable, TypeBindings typeBindings) {
+    private Type _fromVariable(final ClassStack context, final TypeVariable<?> variable, final TypeBindings typeBindings) {
         // ideally should find it via bindings:
         final String name = variable.getName();
         final Type type = typeBindings.findBoundType(name);
@@ -133,24 +154,20 @@ final class TypeResolver {
             return type;
         }
 
-        /* but if not, use bounds... note that approach here is simplistics; not taking
-        * into account possible multiple bounds, nor consider upper bounds.
-        */
-        /* 02-Mar-2011, tatu: As per issue#4, need to avoid self-reference cycles here;
-         *   can be handled by (temporarily) adding binding:
-         */
-
+/*
         final TypeBindings newBindings;
         final Type genericParameter = typeBindings.findGenericParameter(name);
 
         if (genericParameter != null) {
-            typeBindings = typeBindings.withAdditionalBinding(
+            newBindings = typeBindings.withAdditionalBinding(
                 genericParameter,
-                Type.Object);
+                Type.Object
+            );
         }
         else {
             newBindings = typeBindings;
         }
+*/
 
         final java.lang.reflect.Type[] bounds = variable.getBounds();
         return _fromAny(context, bounds[0], typeBindings);
@@ -167,50 +184,53 @@ final class TypeResolver {
 
         final TypeVariable<? extends Class<?>>[] typeParameters = rawType.getTypeParameters();
         final RecursiveType selfReference;
-        final TypeBindings newBindings;
+        final TypeList genericParameterList;
+
+        TypeBindings newBindings = typeBindings;
 
         if (typeParameters.length != 0) {
-            selfReference = new RecursiveType(rawType, typeBindings);
+            selfReference = new RecursiveType(rawType, newBindings);
+            context.addSelfReference(selfReference);
             final Type[] genericParameters = new Type[typeParameters.length];
             for (int i = 0, n = typeParameters.length; i < n; i++) {
                 final TypeVariable<? extends Class<?>> typeParameter = typeParameters[i];
-                genericParameters[i] = new GenericParameterType(typeParameter, selfReference, i);
+
+                genericParameters[i] = typeBindings.findGenericParameter(typeParameter.getName());
+
+                if (genericParameters[i] == null) {
+                    genericParameters[i] = new GenericParameterType(typeParameter, selfReference, i);
+                }
             }
 
-            newBindings = TypeBindings.create(genericParameters);
+            genericParameterList = Type.list(genericParameters);
         }
         else {
-            newBindings = typeBindings;
-            selfReference = null;
+            genericParameterList = TypeList.empty();
         }
 
         // For other types super interfaces are needed...
         if (rawType.isInterface()) {
-            openType = new ReflectedType<>(rawType, newBindings.getParameters(),
+            return new ReflectedType<>(
+                rawType,
+                newBindings.bindingsFor(genericParameterList),
                 Type.Object,
-                _resolveSuperInterfaces(context, rawType, newBindings));
-        }
-        else {
-            openType = new ReflectedType<>(rawType, newBindings.getParameters(),
-                _resolveSuperClass(context, rawType, newBindings),
-                _resolveSuperInterfaces(context, rawType, newBindings));
-        }
-
-        if (newBindings.hasBoundArguments()) {
-            return new GenericType(
-                openType,
-                newBindings.getBoundArguments()
+                _resolveSuperInterfaces(context, rawType, newBindings)
             );
         }
 
-        return openType;
+        return new ReflectedType<>(
+            rawType,
+            newBindings.bindingsFor(genericParameterList),
+            _resolveSuperClass(context, rawType, newBindings),
+            _resolveSuperInterfaces(context, rawType, newBindings)
+        );
     }
 
-    private TypeCollection _resolveSuperInterfaces(final ClassStack context, final Class<?> rawType, final TypeBindings typeBindings) {
+    TypeList _resolveSuperInterfaces(final ClassStack context, final Class<?> rawType, final TypeBindings typeBindings) {
         final java.lang.reflect.Type[] types = rawType.getGenericInterfaces();
 
         if (types == null || types.length == 0) {
-            return TypeCollection.empty();
+            return TypeList.empty();
         }
 
         final int length = types.length;
@@ -220,10 +240,10 @@ final class TypeResolver {
             resolved[i] = _fromAny(context, types[i], typeBindings);
         }
 
-        return new TypeCollection(resolved);
+        return new TypeList(resolved);
     }
 
-    private Type _resolveSuperClass(final ClassStack context, final Class<?> rawType, final TypeBindings typeBindings) {
+    Type _resolveSuperClass(final ClassStack context, final Class<?> rawType, final TypeBindings typeBindings) {
         final java.lang.reflect.Type parent = rawType.getGenericSuperclass();
 
         if (parent == null) {
@@ -254,7 +274,7 @@ final class TypeResolver {
         }
 
         @Override
-        public MemberCollection<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType... memberTypes) {
+        public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
             return _referencedType.getMember(name, bindingFlags, memberTypes);
         }
 
@@ -269,27 +289,27 @@ final class TypeResolver {
         }
 
         @Override
-        public MemberCollection<? extends MemberInfo> getMembers(final int bindingFlags) {
+        public MemberList<? extends MemberInfo> getMembers(final int bindingFlags) {
             return _referencedType.getMembers(bindingFlags);
         }
 
         @Override
-        public FieldCollection getFields(final int bindingFlags) {
+        public FieldList getFields(final int bindingFlags) {
             return _referencedType.getFields(bindingFlags);
         }
 
         @Override
-        public MethodCollection getMethods(final int bindingFlags, final CallingConvention callingConvention) {
+        public MethodList getMethods(final int bindingFlags, final CallingConvention callingConvention) {
             return _referencedType.getMethods(bindingFlags, callingConvention);
         }
 
         @Override
-        public ConstructorCollection getConstructors(final int bindingFlags) {
+        public ConstructorList getConstructors(final int bindingFlags) {
             return _referencedType.getConstructors(bindingFlags);
         }
 
         @Override
-        public TypeCollection getNestedTypes(final int bindingFlags) {
+        public TypeList getNestedTypes(final int bindingFlags) {
             return _referencedType.getNestedTypes(bindingFlags);
         }
 
@@ -299,8 +319,8 @@ final class TypeResolver {
         }
 
         @Override
-        public TypeCollection getGenericParameters() {
-            return _referencedType.getGenericParameters();
+        public TypeBindings getTypeBindings() {
+            return _referencedType.getTypeBindings();
         }
 
         @Override
@@ -314,7 +334,7 @@ final class TypeResolver {
         }
 
         @Override
-        public TypeCollection getGenericParameterConstraints() {
+        public TypeList getGenericParameterConstraints() {
             return _referencedType.getGenericParameterConstraints();
         }
 
@@ -334,8 +354,8 @@ final class TypeResolver {
         }
 
         @Override
-        public boolean implementInterface(final Type interfaceType) {
-            return _referencedType.implementInterface(interfaceType);
+        public boolean implementsInterface(final Type interfaceType) {
+            return _referencedType.implementsInterface(interfaceType);
         }
 
         @Override
@@ -354,7 +374,7 @@ final class TypeResolver {
         }
 
         @Override
-        public TypeCollection getInterfaces() {
+        public TypeList getInterfaces() {
             return _referencedType.getInterfaces();
         }
 
@@ -375,6 +395,9 @@ final class TypeResolver {
 
         @Override
         public boolean isGenericParameter() {
+            if (_referencedType == null) {
+                return false;
+            }
             return _referencedType.isGenericParameter();
         }
 
@@ -419,8 +442,8 @@ final class TypeResolver {
         }
 
         @Override
-        public Type makeGenericType(final Type... typeArguments) {
-            return _referencedType.makeGenericType(typeArguments);
+        public Type makeGenericTypeCore(final TypeList typeArguments) {
+            return _referencedType.makeGenericTypeCore(typeArguments);
         }
 
         @Override
@@ -489,7 +512,7 @@ final class TypeResolver {
         }
     }
 
-    private final static class ClassStack {
+    final static class ClassStack {
         private final ClassStack _parent;
         private final Class<?> _current;
 
@@ -524,223 +547,14 @@ final class TypeResolver {
         }
 
         public ClassStack find(final Class<?> cls) {
-            if (_current == cls) return this;
+            if (_current == cls) {
+                return this;
+            }
             if (_parent != null) {
                 return _parent.find(cls);
             }
             return null;
         }
     }
-
 }
 
-final class TypeBindings {
-    private final static TypeBindings EMPTY = new TypeBindings(TypeCollection.empty(), TypeCollection.empty());
-
-    private final TypeCollection _parameters;
-    private final TypeCollection _bindings;
-    private final int _hashCode;
-
-    private TypeBindings(final TypeCollection parameters, final TypeCollection bindings) {
-        _parameters = VerifyArgument.notNull(parameters, "parameters");
-        _bindings = VerifyArgument.notNull(bindings, "bindings");
-
-        if (_parameters.size() != _bindings.size()) {
-            throw Error.incorrectNumberOfTypeArguments();
-        }
-
-        int hash = 1;
-
-        for (int i = 0, len = _bindings.size(); i < len; ++i) {
-            final Type binding = _bindings.get(i);
-            if (binding != null) {
-                hash = hash * 31 + binding.hashCode();
-            }
-        }
-
-        _hashCode = hash;
-    }
-
-    public static TypeBindings emptyBindings() {
-        return EMPTY;
-    }
-
-    public static TypeBindings create(final Type declaringType, final TypeCollection types) {
-        return new TypeBindings(declaringType.getGenericParameters(), types);
-    }
-
-    public static TypeBindings create(final Type... types) {
-        return new TypeBindings(
-            types != null && types.length != 0 ? new TypeCollection(types) : TypeCollection.empty(),
-            types != null && types.length != 0 ? new TypeCollection(new Type[types.length]) : TypeCollection.empty()
-        );
-    }
-
-    public TypeCollection getParameters() {
-        return _parameters;
-    }
-
-    public TypeCollection getBoundArguments() {
-        return _bindings;
-    }
-
-    public boolean hasBoundArguments() {
-        for (int i = 0, n = _bindings.size(); i < n; i++) {
-            final Type parameter = _bindings.get(i);
-            if (parameter != null) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public TypeBindings withAdditionalBinding(final Type genericParameter, final Type typeArgument) {
-        final Type[] types = _bindings.toArray();
-
-        TypeCollection parameters;
-        int index = _parameters.indexOf(genericParameter);
-
-        if (index == -1) {
-            final Type[] newParameters = new Type[_parameters.size() + 1];
-            _parameters.toArray(newParameters);
-            index = newParameters.length - 1;
-            newParameters[index] = genericParameter;
-            parameters = new TypeCollection(genericParameter);
-        }
-        else {
-            parameters = _parameters;
-        }
-
-        types[index] = typeArgument;
-
-        return new TypeBindings(parameters, new TypeCollection(types));
-    }
-
-    public Type findGenericParameter(final String name) {
-        for (int i = 0, n = _parameters.size(); i < n; i++) {
-            final Type parameter = _parameters.get(i);
-            if (parameter.getName().equals(name)) {
-                return parameter;
-            }
-        }
-        return null;
-    }
-
-    public Type findBoundType(final String name) {
-        for (int i = 0, n = _parameters.size(); i < n; i++) {
-            final Type parameter = _parameters.get(i);
-            if (parameter.getName().equals(name)) {
-                return _bindings.get(i);
-            }
-        }
-        return null;
-    }
-
-    public Type findBoundType(final Type genericParameter) {
-        final int index = _parameters.indexOf(genericParameter);
-
-        if (index == -1) {
-            throw Error.typeParameterNotDefined(genericParameter);
-        }
-
-        return _bindings.get(index);
-    }
-
-    public boolean isEmpty() {
-        return _bindings.isEmpty();
-    }
-
-    public int size() {
-        return _bindings.size();
-    }
-
-    public String getBoundName(final int index) {
-        if (index < 0 || index >= _bindings.size()) {
-            return null;
-        }
-
-        final Type boundType = _bindings.get(index);
-
-        if (boundType != null) {
-            return boundType.getName();
-        }
-
-        return null;
-    }
-
-    public Type getBoundType(final int index) {
-        if (index < 0 || index >= _bindings.size()) {
-            return null;
-        }
-
-        return _bindings.get(index);
-    }
-
-    @Override
-    public String toString() {
-        if (_bindings.isEmpty()) {
-            return "";
-        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append('<');
-
-        for (int i = 0, n = _bindings.size(); i < n; ++i) {
-            if (i > 0) {
-                sb.append(',');
-            }
-            final Type binding = _bindings.get(i);
-            if (binding == null) {
-                sb.append('<');
-                sb.append(i);
-                sb.append('>');
-            }
-            else {
-                sb = binding.appendBriefDescription(sb);
-            }
-        }
-
-        sb.append('>');
-        return sb.toString();
-    }
-
-    @Override
-    public int hashCode() {
-        return _hashCode;
-    }
-
-    @Override
-    public boolean equals(final Object o) {
-        if (o == this) {
-            return true;
-        }
-        if (o == null || o.getClass() != getClass()) {
-            return false;
-        }
-
-        final int size = size();
-        final TypeBindings other = (TypeBindings) o;
-
-        if (size != other.size()) {
-            return false;
-        }
-
-        final TypeCollection otherTypes = other._bindings;
-
-        for (int i = 0; i < size; ++i) {
-            final Type binding = _bindings.get(i);
-            final Type otherBinding = otherTypes.get(i);
-            
-            if (otherBinding == null) {
-                if (binding != null) {
-                    return false;
-                }
-            }
-            else if (!otherBinding.equals(binding)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-}

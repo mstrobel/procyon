@@ -1,6 +1,7 @@
 package com.strobel.expressions;
 
-import java.lang.reflect.Field;
+import com.strobel.reflection.FieldInfo;
+import com.strobel.reflection.Type;
 
 /**
  * Represents accessing a field.
@@ -8,20 +9,20 @@ import java.lang.reflect.Field;
  */
 class FieldExpression extends MemberExpression {
 
-    private final Field _field;
+    private final FieldInfo _field;
 
-    FieldExpression(final Expression target, final Field field) {
+    FieldExpression(final Expression target, final FieldInfo field) {
         super(target);
         _field = field;
     }
 
     @Override
-    Field getMember() {
+    FieldInfo getMember() {
         return _field;
     }
 
     @Override
-    public final Class getType() {
-        return _field.getType();
+    public final Type getType() {
+        return _field.getFieldType();
     }
 }

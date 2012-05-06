@@ -1,24 +1,23 @@
 package com.strobel.expressions;
 
-import java.util.Arrays;
-import java.util.List;
+import com.strobel.reflection.Type;
 
 /**
  * @author Mike Strobel
  */
 public final class InvocationExpression extends Expression implements IArgumentProvider {
-    private List<Expression> _arguments;
+    private final ExpressionList<? extends Expression> _arguments;
     private final Expression _lambda;
-    private final Class _returnType;
+    private final Type _returnType;
 
-    InvocationExpression(final Expression lambda, final List<Expression> arguments, final Class returnType) {
+    InvocationExpression(final Expression lambda, final ExpressionList<? extends Expression> arguments, final Type returnType) {
         _lambda = lambda;
         _arguments = arguments;
         _returnType = returnType;
     }
 
     @Override
-    public final Class getType() {
+    public final Type getType() {
         return _returnType;
     }
 
@@ -31,8 +30,8 @@ public final class InvocationExpression extends Expression implements IArgumentP
         return _lambda;
     }
 
-    public List<Expression> getArguments() {
-        return (_arguments = ensureUnmodifiable(_arguments));
+    public ExpressionList getArguments() {
+        return _arguments;
     }
 
     @Override
@@ -45,7 +44,7 @@ public final class InvocationExpression extends Expression implements IArgumentP
         return _arguments.get(index);
     }
 
-    public InvocationExpression update(final Expression lambda, final List<Expression> arguments) {
+    public InvocationExpression update(final Expression lambda, final ExpressionList<? extends Expression> arguments) {
         if (lambda == _lambda && arguments == _arguments) {
             return this;
         }
@@ -57,10 +56,10 @@ public final class InvocationExpression extends Expression implements IArgumentP
         return visitor.visitInvocation(this);
     }
 
-    InvocationExpression rewrite(final Expression lambda, final Expression[] arguments) {
+    InvocationExpression rewrite(final Expression lambda, final ExpressionList<? extends Expression> arguments) {
         assert lambda != null;
-        assert arguments == null || arguments.length == _arguments.size();
+        assert arguments == null || arguments.size() == _arguments.size();
 
-        return Expression.invoke(lambda, arguments != null ? Arrays.asList(arguments) : _arguments);
+        return Expression.invoke(lambda, arguments != null ? arguments : _arguments);
     }
 }

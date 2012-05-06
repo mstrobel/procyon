@@ -1,6 +1,8 @@
 package com.strobel.reflection;
 
+import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
+import com.strobel.util.TypeUtils;
 
 import java.lang.reflect.Modifier;
 
@@ -10,8 +12,8 @@ import static com.strobel.reflection.Flags.any;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings("ALL")
-public abstract class Type extends MemberInfo implements java.lang.reflect.Type {
+@SuppressWarnings("unchecked")
+public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Type {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CONSTANTS                                                                                                          //
@@ -35,7 +37,7 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
     // STANDARD SYSTEM TYPES                                                                                              //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static final Type Object = new ReflectedType(java.lang.Object.class, TypeCollection.empty(), null, TypeCollection.empty());
+    public static final Type Object = new ReflectedType(java.lang.Object.class, TypeBindings.empty(), null, TypeList.empty());
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTORS                                                                                                       //
@@ -84,10 +86,6 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
         return Modifier.isAbstract(getModifiers());
     }
 
-    public final boolean isFinal() {
-        return Modifier.isFinal(getModifiers());
-    }
-
     public boolean isArray() {
         return false;
     }
@@ -101,15 +99,10 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
             return false;
         }
 
-        final TypeCollection genericParameters = getGenericParameters();
+        final TypeBindings typeArguments = getTypeBindings();
 
-        for (int i = 0, n = genericParameters.size(); i < n; i++) {
-            if (!genericParameters.get(i).isGenericParameter()) {
-                return false;
-            }
-        }
-
-        return true;
+        return !typeArguments.isEmpty() &&
+               !typeArguments.hasConcreteParameters();
     }
 
     public boolean isGenericParameter() {
@@ -132,11 +125,11 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
         return Type.of(Object.class);
     }
 
-    public TypeCollection getInterfaces() {
-        return TypeCollection.empty();
+    public TypeList getInterfaces() {
+        return TypeList.empty();
     }
 
-    public abstract Class<?> getErasedClass();
+    public abstract Class<T> getErasedClass();
 
     public MethodInfo getDeclaringMethod() {
         return null;
@@ -150,8 +143,16 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
         throw Error.notGenericParameter(this);
     }
 
-    public TypeCollection getGenericParameters() {
-        throw ContractUtils.unreachable();
+    protected TypeBindings getTypeBindings() {
+        return TypeBindings.empty();
+    }
+
+    public TypeList getTypeArguments() {
+        return getTypeBindings().getBoundTypes();
+    }
+
+    public TypeList getGenericTypeParameters() {
+        return getTypeBindings().getGenericParameters();
     }
 
     public Type getGenericTypeDefinition() {
@@ -171,19 +172,12 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
             return false;
         }
 
-        final TypeCollection genericParameters = getGenericParameters();
+        final TypeBindings typeArguments = getTypeBindings();
 
-        //noinspection ForLoopReplaceableByForEach
-        for (int i = 0; i < genericParameters.size(); i++) {
-            if (genericParameters.get(i).containsGenericParameters()) {
-                return true;
-            }
-        }
-
-        return false;
+        return typeArguments.hasUnboundParameters();
     }
 
-    public TypeCollection getGenericParameterConstraints() {
+    public TypeList getGenericParameterConstraints() {
         throw Error.notGenericType(this);
     }
 
@@ -210,11 +204,26 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
 
     public boolean isInstance(final Object o) {
         return o != null &&
-            isAssignableFrom(of(o.getClass()));
+               isAssignableFrom(of(o.getClass()));
     }
 
     @SuppressWarnings("UnusedParameters")
-    public boolean implementInterface(final Type interfaceType) {
+    public boolean implementsInterface(final Type interfaceType) {
+        Type t = this;
+
+        while (t != null) {
+            final TypeList interfaces = t.getInterfaces();
+
+            for (int i = 0, n = interfaces.size(); i < n; i++) {
+                final Type type = interfaces.get(i);
+                if (type.isEquivalentTo(interfaceType) || type.implementsInterface(interfaceType)) {
+                    return true;
+                }
+            }
+
+            t = t.getBaseType();
+        }
+
         return false;
     }
 
@@ -223,20 +232,20 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
             return false;
         }
 
-        if (this == type) {
+        if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(this, type)) {
             return true;
         }
 
-        // If type is a subclass of this class, then type can be cast to this type.
         if (type.isSubclassOf(this)) {
             return true;
         }
 
         if (this.isInterface()) {
-            return type.implementInterface(this);
+            return type.implementsInterface(this);
         }
+
         else if (isGenericParameter()) {
-            final TypeCollection constraints = getGenericParameterConstraints();
+            final TypeList constraints = getGenericParameterConstraints();
 
             //noinspection ForLoopReplaceableByForEach
             for (int i = 0, constraintsSize = constraints.size(); i < constraintsSize; i++) {
@@ -256,11 +265,11 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
     // MEMBER INFO                                                                                                        //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public MemberCollection<? extends MemberInfo> getMember(final String name, final MemberType... memberTypes) {
+    public final MemberList<? extends MemberInfo> getMember(final String name, final MemberType... memberTypes) {
         return getMember(name, DefaultLookup, memberTypes);
     }
 
-    public abstract MemberCollection<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType... memberTypes);
+    public abstract MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType[] memberTypes);
 
     public FieldInfo getField(final String name) {
         return getField(name, DefaultLookup);
@@ -273,7 +282,7 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
     }
 
     public MethodInfo getMethod(final String name, final int bindingFlags, final Type... parameterTypes) {
-        return getMethod(name, DefaultLookup, parameterTypes);
+        return getMethod(name, bindingFlags, CallingConvention.Any, parameterTypes);
     }
 
     public abstract MethodInfo getMethod(final String name, final int bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes);
@@ -288,39 +297,39 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
 
     public abstract ConstructorInfo getConstructor(final int bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes);
 
-    public MemberCollection<? extends MemberInfo> getMembers() {
+    public MemberList<? extends MemberInfo> getMembers() {
         return getMembers(DefaultLookup);
     }
 
-    public abstract MemberCollection<? extends MemberInfo> getMembers(final int bindingFlags);
+    public abstract MemberList<? extends MemberInfo> getMembers(final int bindingFlags);
 
-    public FieldCollection getFields() {
+    public FieldList getFields() {
         return getFields(DefaultLookup);
     }
 
-    public abstract FieldCollection getFields(final int bindingFlags);
+    public abstract FieldList getFields(final int bindingFlags);
 
-    public MethodCollection getMethods() {
+    public MethodList getMethods() {
         return getMethods(DefaultLookup, CallingConvention.Any);
     }
 
-    public MethodCollection getMethods(final int bindingFlags) {
+    public MethodList getMethods(final int bindingFlags) {
         return getMethods(bindingFlags, CallingConvention.Any);
     }
 
-    public abstract MethodCollection getMethods(final int bindingFlags, final CallingConvention callingConvention);
+    public abstract MethodList getMethods(final int bindingFlags, final CallingConvention callingConvention);
 
-    public ConstructorCollection getConstructors() {
+    public ConstructorList getConstructors() {
         return getConstructors(DefaultLookup);
     }
 
-    public abstract ConstructorCollection getConstructors(final int bindingFlags);
+    public abstract ConstructorList getConstructors(final int bindingFlags);
 
-    public TypeCollection getNestedTypes() {
+    public TypeList getNestedTypes() {
         return getNestedTypes(DefaultLookup);
     }
 
-    public abstract TypeCollection getNestedTypes(final int bindingFlags);
+    public abstract TypeList getNestedTypes(final int bindingFlags);
 
     public Object[] getEnumConstants() {
         throw Error.notEnumType(this);
@@ -338,8 +347,17 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
         return CACHE.getArrayType(this);
     }
 
+    public final Type makeGenericType(final TypeList typeArguments) {
+        VerifyArgument.noNullElements(typeArguments, "typeArguments");
+        return makeGenericTypeCore(typeArguments);
+    }
+
+    public final Type makeGenericType(final Type... typeArguments) {
+        return makeGenericTypeCore(list(VerifyArgument.noNullElements(typeArguments, "typeArguments")));
+    }
+
     @SuppressWarnings("UnusedParameters")
-    public Type makeGenericType(final Type... typeArguments) {
+    protected Type makeGenericTypeCore(final TypeList typeArguments) {
         throw Error.notGenericType(this);
     }
 
@@ -378,7 +396,7 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
         }
 
         if (argumentTypes != null) {
-            final ParameterCollection parameters = method.getParameters();
+            final ParameterList parameters = method.getParameters();
 
             final int definedParameterCount = parameters.size();
             final int suppliedArgumentCount = argumentTypes.length;
@@ -481,7 +499,7 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
             s = baseType.appendBriefDescription(s);
         }
 
-        final TypeCollection interfaces = getInterfaces();
+        final TypeList interfaces = getInterfaces();
         final int interfaceCount = interfaces.size();
 
         if (interfaceCount > 0) {
@@ -512,7 +530,7 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
         s = _appendClassName(s, false);
 
         if (isGenericType()) {
-            final TypeCollection genericParameters = getGenericParameters();
+            final TypeList genericParameters = getTypeBindings().getBoundTypes();
             final int count = genericParameters.size();
 
             if (count > 0) {
@@ -542,13 +560,13 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
         s.append(getErasedClass().getName());
 
         if (isGenericType()) {
-            final TypeCollection genericParameters = getGenericParameters();
-            final int count = genericParameters.size();
+            final TypeList typeArguments = getTypeBindings().getBoundTypes();
+            final int count = typeArguments.size();
             if (count > 0) {
                 s.append('<');
                 //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < count; ++i) {
-                    s = genericParameters.get(i)._appendErasedClassSignature(s);
+                    s = typeArguments.get(i)._appendErasedClassSignature(s);
                 }
                 s.append('>');
             }
@@ -599,34 +617,30 @@ public abstract class Type extends MemberInfo implements java.lang.reflect.Type 
     // REFLECTED TYPE CACHE                                                                                               //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private final static TypeCache CACHE;
-    private final static TypeResolver TYPE_RESOLVER;
+    final static TypeCache CACHE;
+    final static TypeResolver TYPE_RESOLVER;
 
     static {
         CACHE = new TypeCache();
-
-        CACHE.add(PrimitiveTypes.Void);
-        CACHE.add(PrimitiveTypes.Boolean);
-        CACHE.add(PrimitiveTypes.Byte);
-        CACHE.add(PrimitiveTypes.Short);
-        CACHE.add(PrimitiveTypes.Character);
-        CACHE.add(PrimitiveTypes.Integer);
-        CACHE.add(PrimitiveTypes.Long);
-        CACHE.add(PrimitiveTypes.Float);
-        CACHE.add(PrimitiveTypes.Double);
-        CACHE.add(Object);
-
         TYPE_RESOLVER = new TypeResolver(CACHE);
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized static <T> Type of(final Class<T> clazz) {
-        final ReflectedType<T> reflectedType = (ReflectedType<T>) CACHE.find(clazz);
+    public synchronized static <T extends Class<?>> Type<T> of(final T clazz) {
+        final ReflectedType<T> reflectedType = (ReflectedType<T>)CACHE.find(clazz);
 
         if (reflectedType != null) {
             return reflectedType;
         }
 
         return TYPE_RESOLVER.resolve(clazz);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // LIST FACTORY METHODS                                                                                               //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static TypeList list(final Type... types) {
+        return new TypeList(types);
     }
 }

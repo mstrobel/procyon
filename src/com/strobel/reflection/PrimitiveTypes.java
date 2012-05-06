@@ -15,4 +15,18 @@ public final class PrimitiveTypes {
     public final static Type Long = new PrimitiveType(java.lang.Void.TYPE, 'J', "long");
     public final static Type Float = new PrimitiveType(java.lang.Void.TYPE, 'F', "float");
     public final static Type Double = new PrimitiveType(java.lang.Void.TYPE, 'D', "double");
+
+    static {
+        Type.CACHE.add(PrimitiveTypes.Void);
+        Type.CACHE.add(PrimitiveTypes.Boolean);
+        Type.CACHE.add(PrimitiveTypes.Byte);
+        Type.CACHE.add(PrimitiveTypes.Short);
+        Type.CACHE.add(PrimitiveTypes.Character);
+        Type.CACHE.add(PrimitiveTypes.Integer);
+        Type.CACHE.add(PrimitiveTypes.Long);
+        Type.CACHE.add(PrimitiveTypes.Float);
+        Type.CACHE.add(PrimitiveTypes.Double);
+        Type.CACHE.add(Type.Object);
+
+    }
 }

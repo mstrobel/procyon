@@ -5,14 +5,14 @@ import java.util.*;
 /**
  * @author Mike Strobel
  */
-public class ReadOnlyCollection<T> implements List<T>, RandomAccess {
+public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess {
     private final int _offset;
     private final int _length;
     private final T[] _elements;
 
     @SafeVarargs
     @SuppressWarnings("unchecked")
-    public ReadOnlyCollection(final T... elements) {
+    public ReadOnlyList(final T... elements) {
         VerifyArgument.notNull(elements, "elements");
 
         _offset = 0;
@@ -21,7 +21,7 @@ public class ReadOnlyCollection<T> implements List<T>, RandomAccess {
     }
 
     @SuppressWarnings("unchecked")
-    public ReadOnlyCollection(final T[] elements, final int offset, final int length) {
+    public ReadOnlyList(final T[] elements, final int offset, final int length) {
         VerifyArgument.notNull(elements, "elements");
 
         _elements = (T[])Arrays.copyOf(elements, elements.length, elements.getClass());
@@ -32,10 +32,10 @@ public class ReadOnlyCollection<T> implements List<T>, RandomAccess {
         _length = length;
     }
 
-    private ReadOnlyCollection(final ReadOnlyCollection<T> baseCollection, final int offset, final int length) {
-        VerifyArgument.notNull(baseCollection, "baseCollection");
+    private ReadOnlyList(final ReadOnlyList<T> baseList, final int offset, final int length) {
+        VerifyArgument.notNull(baseList, "baseList");
 
-        final T[] elements = baseCollection._elements;
+        final T[] elements = baseList._elements;
 
         subListRangeCheck(offset, offset + length, elements.length);
 
@@ -46,12 +46,23 @@ public class ReadOnlyCollection<T> implements List<T>, RandomAccess {
 
     @Override
     public final int size() {
-        return _length;
+        return _length - _offset;
     }
 
     @Override
     public final boolean isEmpty() {
         return size() == 0;
+    }
+
+    @Override
+    public boolean containsAll(final Iterable<? extends T> c) {
+        VerifyArgument.notNull(c, "c");
+        for (final T element : c) {
+            if (!ArrayUtilities.contains(_elements, element)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -226,7 +237,7 @@ public class ReadOnlyCollection<T> implements List<T>, RandomAccess {
     @Override
     public final List<T> subList(final int fromIndex, final int toIndex) {
         subListRangeCheck(fromIndex, toIndex, size());
-        return new ReadOnlyCollection<>(this, _offset + fromIndex, _offset + toIndex);
+        return new ReadOnlyList<>(this, _offset + fromIndex, _offset + toIndex);
     }
 
     private final class ReadOnlyCollectionIterator implements ListIterator<T> {
@@ -243,7 +254,7 @@ public class ReadOnlyCollection<T> implements List<T>, RandomAccess {
 
         @Override
         public final boolean hasNext() {
-            return _position + 1 <= size();
+            return _position + 1 < size();
         }
 
         @Override

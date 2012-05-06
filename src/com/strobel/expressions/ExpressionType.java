@@ -48,7 +48,7 @@ public enum ExpressionType {
     Block,
     LineInfo,
     Decrement,
-    Default,
+    DefaultValue,
     Extension,
     Goto,
     Increment,

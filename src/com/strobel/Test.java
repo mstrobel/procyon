@@ -1,15 +1,31 @@
 package com.strobel;
 
+import com.fasterxml.classmate.GenericType;
+import com.strobel.expressions.ConditionalExpression;
+import com.strobel.expressions.Expression;
+import com.strobel.expressions.LambdaExpression;
+import com.strobel.expressions.ParameterExpression;
+import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
+import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
+import java.lang.reflect.ParameterizedType;
 import java.util.HashMap;
 import java.util.UUID;
+
+import static com.strobel.expressions.Expression.*;
 
 /**
  * @author Mike Strobel
  */
 public class Test {
     public static void main(final String[] args) {
+        expressionTest();
+        final GenericType<?> gt = new GenericType<HashMap<String, UUID>>() {};
+        // ((ParameterizedTypeImpl) ((ParameterizedTypeImpl) ((ParameterizedType)gt.getClass().getGenericSuperclass())).actualTypeArguments[0]).rawType.getGenericInterfaces()
+        final java.lang.reflect.Type[] genericInterfaces =
+            ((ParameterizedTypeImpl)((ParameterizedType)gt.getClass().getGenericSuperclass()).getActualTypeArguments()[0]).getRawType().getGenericInterfaces();
+
         final Type hashMap = Type.of(HashMap.class);
 
         System.out.println(hashMap.getName());
@@ -26,6 +42,45 @@ public class Test {
         System.out.println(boundHashMap.getSignature());
         System.out.println(boundHashMap.getErasedSignature());
         System.out.println(boundHashMap.getBriefDescription());
-        System.out.println(boundHashMap.getFullDescription());
+
+        printTypeTree(boundHashMap);
     }
+
+    private static void expressionTest() {
+        final ParameterExpression number = parameter(PrimitiveTypes.Integer, "number");
+
+        final ConditionalExpression body = condition(
+            equal(number, constant(0)),
+            constant("zero"),
+            condition(
+                lessThan(number, constant(0)),
+                constant("negative"),
+                constant("positive")
+            )
+        );
+
+        final LambdaExpression<Class<ITest>> lambda = Expression.lambda(
+            Type.of(ITest.class),
+            body,
+            number
+        );
+    }
+
+    private static void printTypeTree(final Type type) {
+        final Type baseType = type.getBaseType();
+        if (baseType != null && baseType != Type.Object) {
+            printTypeTree(baseType);
+        }
+        System.out.println(type.getFullDescription());
+        for (final Type interfaceType : type.getInterfaces()) {
+            printTypeTree(interfaceType);
+        }
+        if (type.isArray()) {
+            printTypeTree(type.getElementType());
+        }
+    }
+}
+
+interface ITest {
+    String testNumber(final int number);
 }

@@ -1,14 +1,14 @@
 package com.strobel.expressions;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.*;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
-import java.lang.reflect.*;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static java.lang.String.format;
 
@@ -23,6 +23,8 @@ public abstract class Expression {
     // INSTANCE MEMBERS                                                                                                   //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    protected Expression() {}
+
     /**
      * Returns the node type of this {@link Expression}.
      * @return the {@link ExpressionType} that represents this expression.
@@ -33,9 +35,9 @@ public abstract class Expression {
 
     /**
      * Gets the static type of the expression that this {@link Expression} represents.
-     * @return the {@link Class} that represents the static type of the expression.
+     * @return the {@link Type} that represents the static type of the expression.
      */
-    public Class getType() {
+    public com.strobel.reflection.Type getType() {
         throw Error.extensionMustOverride("Expression.getType()");
     }
 
@@ -123,33 +125,107 @@ public abstract class Expression {
         return visitor.visit(reduceAndCheck());
     }
 
+    @Override
+    public String toString() {
+        return ExpressionStringBuilder.expressionToString(this);
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // FACTORY METHODS                                                                                                    //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static MemberExpression makeMemberAccess(final Expression target, final AccessibleObject member) {
+    public static Expression empty() {
+        return new DefaultValueExpression(PrimitiveTypes.Void);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // CONDITIONAL EXPRESSIONS                                                                                            //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static ConditionalExpression condition(
+        final Expression test,
+        final Expression ifTrue,
+        final Expression ifFalse) {
+
+        if (!TypeUtils.hasIdentityPrimitiveOrBoxingConversion(test.getType(), PrimitiveTypes.Boolean)) {
+            throw Error.argumentMustBeBoolean();
+        }
+
+        if (!TypeUtils.hasIdentityPrimitiveOrBoxingConversion(ifTrue.getType(), ifFalse.getType())) {
+            throw Error.argumentTypesMustMatch();
+        }
+
+        return condition(test, ifTrue, ifFalse, ifTrue.getType());
+    }
+
+    public static ConditionalExpression condition(
+        final Expression test,
+        final Expression ifTrue,
+        final Expression ifFalse,
+        final Type type) {
+
+        verifyCanRead(test, "test");
+        verifyCanRead(ifTrue, "ifTrue");
+        verifyCanRead(ifFalse, "ifFalse");
+
+        VerifyArgument.notNull(type, "type");
+
+        if (!TypeUtils.hasIdentityPrimitiveOrBoxingConversion(test.getType(), PrimitiveTypes.Boolean)) {
+            throw Error.argumentMustBeBoolean();
+        }
+
+        if (type != PrimitiveTypes.Void &&
+            (!TypeUtils.areReferenceAssignable(type, ifTrue.getType()) ||
+             !TypeUtils.areReferenceAssignable(type, ifFalse.getType()))) {
+
+            throw Error.argumentTypesMustMatch();
+        }
+
+        return ConditionalExpression.make(test, ifTrue, ifFalse, type);
+    }
+
+    public static ConditionalExpression ifThen(
+        final Expression test,
+        final Expression ifTrue) {
+
+        return condition(test, ifTrue, empty(), PrimitiveTypes.Void);
+    }
+
+    public static ConditionalExpression ifThenElse(
+        final Expression test,
+        final Expression ifTrue,
+        final Expression ifFalse) {
+
+        return condition(test, ifTrue, ifFalse, PrimitiveTypes.Void);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // MEMBER ACCESS EXPRESSIONS                                                                                          //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static MemberExpression makeMemberAccess(final Expression target, final MemberInfo member) {
         VerifyArgument.notNull(member, "member");
 
-        if (member instanceof Field) {
-            return Expression.field(target, (Field)member);
+        if (member instanceof FieldInfo) {
+            return Expression.field(target, (FieldInfo)member);
         }
 
         throw Error.memberNotField(member);
     }
 
-    public static MemberExpression field(final Expression target, final Field field) {
+    public static MemberExpression field(final Expression target, final FieldInfo field) {
         return new FieldExpression(target, field);
     }
 
-    //
-    // CONSTANTS
-    //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // CONSTANT EXPRESSIONS                                                                                              //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static ConstantExpression constant(final Object value) {
-        return ConstantExpression.make(value, value == null ? Object.class : value.getClass());
+        return ConstantExpression.make(value, value == null ? Type.Object : Type.of(value.getClass()));
     }
 
-    public static ConstantExpression constant(final Object value, final Class type) {
+    public static ConstantExpression constant(final Object value, final Type type) {
         VerifyArgument.notNull(type, "type");
 
         if (value == null && type.isPrimitive()) {
@@ -167,28 +243,32 @@ public abstract class Expression {
     // PARAMETERS AND VARIABLES
     //
 
-    public static ParameterExpression parameter(final Class type) {
+    public static ParameterExpressionList parameters(final ParameterExpression... parameters) {
+        return new ParameterExpressionList(parameters);
+    }
+
+    public static ParameterExpression parameter(final Type type) {
         return parameter(type, null);
     }
 
-    public static ParameterExpression variable(final Class type) {
+    public static ParameterExpression variable(final Type type) {
         return variable(type, null);
     }
 
-    public static ParameterExpression parameter(final Class type, final String name) {
+    public static ParameterExpression parameter(final Type type, final String name) {
         VerifyArgument.notNull(type, "type");
 
-        if (type == Void.TYPE) {
+        if (type == PrimitiveTypes.Void) {
             throw Error.argumentCannotBeOfTypeVoid();
         }
 
         return ParameterExpression.make(type, name);
     }
 
-    public static ParameterExpression variable(final Class type, final String name) {
+    public static ParameterExpression variable(final Type type, final String name) {
         VerifyArgument.notNull(type, "type");
 
-        if (type == Void.TYPE) {
+        if (type == PrimitiveTypes.Void) {
             throw Error.argumentCannotBeOfTypeVoid();
         }
 
@@ -202,7 +282,7 @@ public abstract class Expression {
     public static UnaryExpression makeUnary(
         final ExpressionType unaryType,
         final Expression operand,
-        final Class type) {
+        final Type type) {
 
         return makeUnary(unaryType, operand, type, null);
     }
@@ -210,8 +290,8 @@ public abstract class Expression {
     public static UnaryExpression makeUnary(
         final ExpressionType unaryType,
         final Expression operand,
-        final Class type,
-        final Method method) {
+        final Type type,
+        final MethodInfo method) {
 
         switch (unaryType) {
             case Negate:
@@ -255,7 +335,7 @@ public abstract class Expression {
         return negate(expression, null);
     }
 
-    public static UnaryExpression negate(final Expression expression, final Method method) {
+    public static UnaryExpression negate(final Expression expression, final MethodInfo method) {
         verifyCanRead(expression, "expression");
 
         if (method == null) {
@@ -272,7 +352,7 @@ public abstract class Expression {
         return not(expression, null);
     }
 
-    public static UnaryExpression not(final Expression expression, final Method method) {
+    public static UnaryExpression not(final Expression expression, final MethodInfo method) {
         verifyCanRead(expression, "expression");
 
         if (method == null) {
@@ -289,7 +369,7 @@ public abstract class Expression {
         return isFalse(expression, null);
     }
 
-    public static UnaryExpression isFalse(final Expression expression, final Method method) {
+    public static UnaryExpression isFalse(final Expression expression, final MethodInfo method) {
         verifyCanRead(expression, "expression");
 
         if (method == null) {
@@ -306,7 +386,7 @@ public abstract class Expression {
         return isTrue(expression, null);
     }
 
-    public static UnaryExpression isTrue(final Expression expression, final Method method) {
+    public static UnaryExpression isTrue(final Expression expression, final MethodInfo method) {
         verifyCanRead(expression, "expression");
 
         if (method == null) {
@@ -323,7 +403,7 @@ public abstract class Expression {
         return not(expression, null);
     }
 
-    public static UnaryExpression onesComplement(final Expression expression, final Method method) {
+    public static UnaryExpression onesComplement(final Expression expression, final MethodInfo method) {
         verifyCanRead(expression, "expression");
 
         if (method == null) {
@@ -339,18 +419,18 @@ public abstract class Expression {
     public static UnaryExpression arrayLength(final Expression array) {
         VerifyArgument.notNull(array, "array");
 
-        if (!array.getType().isArray() || !Array.class.isAssignableFrom(array.getType())) {
+        if (!array.getType().isArray()) {
             throw Error.argumentMustBeArray();
         }
 
-        return new UnaryExpression(ExpressionType.ArrayLength, array, Integer.TYPE, null);
+        return new UnaryExpression(ExpressionType.ArrayLength, array, PrimitiveTypes.Integer, null);
     }
 
-    public static UnaryExpression convert(final Expression expression, final Class type) {
+    public static UnaryExpression convert(final Expression expression, final Type type) {
         return convert(expression, type, null);
     }
 
-    public static UnaryExpression convert(final Expression expression, final Class type, final Method method) {
+    public static UnaryExpression convert(final Expression expression, final Type type, final MethodInfo method) {
         verifyCanRead(expression, "expression");
 
         if (method == null) {
@@ -367,10 +447,10 @@ public abstract class Expression {
     }
 
     public static UnaryExpression makeThrow(final Expression expression) {
-        return makeThrow(expression, Void.class);
+        return makeThrow(expression, PrimitiveTypes.Void);
     }
 
-    public static UnaryExpression makeThrow(final Expression value, final Class type) {
+    public static UnaryExpression makeThrow(final Expression value, final Type type) {
         VerifyArgument.notNull(type, "type");
 
         if (value != null) {
@@ -388,7 +468,7 @@ public abstract class Expression {
         return negate(expression, null);
     }
 
-    public static UnaryExpression unaryPlus(final Expression expression, final Method method) {
+    public static UnaryExpression unaryPlus(final Expression expression, final MethodInfo method) {
         verifyCanRead(expression, "expression");
 
         if (method == null) {
@@ -401,10 +481,10 @@ public abstract class Expression {
         return getMethodBasedUnaryOperator(ExpressionType.UnaryPlus, expression, method);
     }
 
-    public static UnaryExpression unbox(final Expression expression, final Class type) {
+    public static UnaryExpression unbox(final Expression expression, final Type type) {
         verifyCanRead(expression, "expression");
         VerifyArgument.notNull(type, "type");
-        if (!TypeUtils.isAutoUnboxed(type) && type != Object.class) {
+        if (!TypeUtils.isAutoUnboxed(type) && type != Type.Object) {
             throw Error.invalidUnboxType();
         }
         return new UnaryExpression(ExpressionType.Unbox, expression, type, null);
@@ -414,7 +494,7 @@ public abstract class Expression {
         return negate(expression, null);
     }
 
-    public static UnaryExpression increment(final Expression expression, final Method method) {
+    public static UnaryExpression increment(final Expression expression, final MethodInfo method) {
         verifyCanRead(expression, "expression");
 
         if (method == null) {
@@ -431,7 +511,7 @@ public abstract class Expression {
         return negate(expression, null);
     }
 
-    public static UnaryExpression decrement(final Expression expression, final Method method) {
+    public static UnaryExpression decrement(final Expression expression, final MethodInfo method) {
         verifyCanRead(expression, "expression");
 
         if (method == null) {
@@ -448,7 +528,7 @@ public abstract class Expression {
         return makeOpAssignUnary(ExpressionType.PreIncrementAssign, expression, null);
     }
 
-    public static UnaryExpression preIncrementAssign(final Expression expression, final Method method) {
+    public static UnaryExpression preIncrementAssign(final Expression expression, final MethodInfo method) {
         return makeOpAssignUnary(ExpressionType.PreIncrementAssign, expression, method);
     }
 
@@ -456,7 +536,7 @@ public abstract class Expression {
         return makeOpAssignUnary(ExpressionType.PostIncrementAssign, expression, null);
     }
 
-    public static UnaryExpression postIncrementAssign(final Expression expression, final Method method) {
+    public static UnaryExpression postIncrementAssign(final Expression expression, final MethodInfo method) {
         return makeOpAssignUnary(ExpressionType.PostIncrementAssign, expression, method);
     }
 
@@ -464,7 +544,7 @@ public abstract class Expression {
         return makeOpAssignUnary(ExpressionType.PreDecrementAssign, expression, null);
     }
 
-    public static UnaryExpression preDecrementAssign(final Expression expression, final Method method) {
+    public static UnaryExpression preDecrementAssign(final Expression expression, final MethodInfo method) {
         return makeOpAssignUnary(ExpressionType.PreDecrementAssign, expression, method);
     }
 
@@ -472,7 +552,7 @@ public abstract class Expression {
         return makeOpAssignUnary(ExpressionType.PostDecrementAssign, expression, null);
     }
 
-    public static UnaryExpression postDecrementAssign(final Expression expression, final Method method) {
+    public static UnaryExpression postDecrementAssign(final Expression expression, final MethodInfo method) {
         return makeOpAssignUnary(ExpressionType.PostDecrementAssign, expression, method);
     }
 
@@ -526,7 +606,8 @@ public abstract class Expression {
     }
 
     public static BlockExpression block(final Expression... expressions) {
-        VerifyArgument.notNull(expressions, "expressions");
+        VerifyArgument.notEmpty(expressions, "expressions");
+        VerifyArgument.noNullElements(expressions, "expressions");
 
         switch (expressions.length) {
             case 2:
@@ -540,91 +621,96 @@ public abstract class Expression {
             default:
                 VerifyArgument.notEmpty(expressions, "expressions");
                 verifyCanRead(expressions, "expressions");
-                return new BlockN(ensureUnmodifiable(arrayToList(expressions)));
+                return new BlockN(arrayToList(expressions));
         }
     }
 
-    public static BlockExpression block(final List<Expression> expressions) {
-        return block(Collections.<ParameterExpression>emptyList(), expressions);
+    public static BlockExpression block(final ExpressionList<? extends Expression> expressions) {
+        return block(ParameterExpressionList.empty(), expressions);
     }
 
     public static BlockExpression block(final ParameterExpression[] variables, final Expression... expressions) {
-        VerifyArgument.notNull(expressions, "expressions");
+        VerifyArgument.notEmpty(expressions, "expressions");
+
         return block(arrayToList(variables), arrayToList(expressions));
     }
 
-    public static BlockExpression block(final List<ParameterExpression> variables, final Expression... expressions) {
-        VerifyArgument.notNull(expressions, "expressions");
+    public static BlockExpression block(final ParameterExpressionList variables, final Expression... expressions) {
+        VerifyArgument.notEmpty(expressions, "expressions");
+
         return block(variables, arrayToList(expressions));
     }
 
-    public static BlockExpression block(final List<ParameterExpression> variables, final List<Expression> expressions) {
-        VerifyArgument.notNull(expressions, "expressions");
-        final List<Expression> expressionsList = ensureUnmodifiable(expressions);
-        VerifyArgument.notEmpty(expressionsList, "expressions");
-        verifyCanRead(expressionsList, "expressions");
+    public static BlockExpression block(final ParameterExpressionList variables, final ExpressionList<? extends Expression> expressions) {
+        VerifyArgument.notEmpty(expressions, "expressions");
+        VerifyArgument.noNullElements(expressions, "expressions");
+
+        verifyCanRead(expressions, "expressions");
 
         return block(
-            expressionsList.get(expressionsList.size() - 1).getType(),
-            ensureUnmodifiable(variables),
-            expressionsList
+            expressions.get(0).getType(),
+            variables,
+            expressions
         );
     }
 
-    public static BlockExpression block(final Class type, final Expression... expressions) {
-        VerifyArgument.notNull(expressions, "expressions");
-        return block(type, arrayToList(expressions));
+    public static BlockExpression block(final Type type, final Expression... expressions) {
+        VerifyArgument.notEmpty(expressions, "expressions");
+
+        return block(type, ParameterExpressionList.empty(), arrayToList(expressions));
     }
 
-    public static BlockExpression block(final Class type, final List<Expression> expressions) {
-        VerifyArgument.notNull(expressions, "expressions");
-        return block(type, Collections.<ParameterExpression>emptyList(), expressions);
+    public static BlockExpression block(final Type type, final ExpressionList<? extends Expression> expressions) {
+        VerifyArgument.notEmpty(expressions, "expressions");
+        VerifyArgument.noNullElements(expressions, "expressions");
+
+        return block(type, ParameterExpressionList.empty(), expressions);
     }
 
-    public static BlockExpression block(final Class type, final ParameterExpression[] variables, final Expression... expressions) {
-        VerifyArgument.notNull(expressions, "expressions");
+    public static BlockExpression block(final Type type, final ParameterExpression[] variables, final Expression... expressions) {
+        VerifyArgument.notEmpty(expressions, "expressions");
+
         return block(type, arrayToList(variables), arrayToList(expressions));
     }
 
-    public static BlockExpression block(final Class type, final List<ParameterExpression> variables, final Expression... expressions) {
-        VerifyArgument.notNull(expressions, "expressions");
+    public static BlockExpression block(final Type type, final ParameterExpressionList variables, final Expression... expressions) {
+        VerifyArgument.notEmpty(expressions, "expressions");
+
         return block(type, variables, arrayToList(expressions));
     }
 
-    public static BlockExpression block(final Class type, final List<ParameterExpression> variables, final List<Expression> expressions) {
+    public static BlockExpression block(final Type type, final ParameterExpressionList variables, final ExpressionList<? extends Expression> expressions) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notEmpty(expressions, "expressions");
+        VerifyArgument.noNullElements(expressions, "expressions");
 
-        final List<Expression> expressionList = ensureUnmodifiable(expressions);
-        final List<ParameterExpression> variableList = ensureUnmodifiable(variables);
+        verifyCanRead(expressions, "expressions");
+        validateVariables(variables, "variables");
 
-        verifyCanRead(expressionList, "expressions");
-        validateVariables(variableList, "variables");
+        final Expression last = expressions.get(expressions.size() - 1);
 
-        final Expression last = expressionList.get(expressionList.size() - 1);
-
-        if (type != Void.TYPE) {
+        if (type != PrimitiveTypes.Void) {
             if (!type.isAssignableFrom(last.getType())) {
                 throw Error.argumentTypesMustMatch();
             }
         }
 
         if (type != last.getType()) {
-            return new ScopeWithType(variableList, expressionList, type);
+            return new ScopeWithType(variables, expressions, type);
         }
         else {
-            if (expressionList.size() == 1) {
-                return new Scope1(variableList, expressionList.get(0));
+            if (expressions.size() == 1) {
+                return new Scope1(variables, expressions.get(0));
             }
             else {
-                return new ScopeN(variableList, expressionList);
+                return new ScopeN(variables, expressions);
             }
         }
     }
 
-    //
-    // BINARY EXPRESSIONS
-    //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // BINARY EXPRESSIONS                                                                                                 //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static BinaryExpression makeBinary(
         final ExpressionType binaryType,
@@ -638,7 +724,7 @@ public abstract class Expression {
         final ExpressionType binaryType,
         final Expression left,
         final Expression right,
-        final Method method) {
+        final MethodInfo method) {
 
         return makeBinary(binaryType, left, right, method, null);
     }
@@ -647,7 +733,7 @@ public abstract class Expression {
         final ExpressionType binaryType,
         final Expression left,
         final Expression right,
-        final Method method,
+        final MethodInfo method,
         final LambdaExpression conversion) {
 
         switch (binaryType) {
@@ -669,7 +755,6 @@ public abstract class Expression {
                 return or(left, right, method);
             case OrElse:
                 return orElse(left, right, method);
-/*
             case LessThan:
                 return lessThan(left, right, method);
             case LessThanOrEqual:
@@ -716,7 +801,6 @@ public abstract class Expression {
                 return unsignedRightShiftAssign(left, right, method, conversion);
             case SubtractAssign:
                 return subtractAssign(left, right, method, conversion);
-*/
             default:
                 throw Error.unhandledBinary(binaryType);
         }
@@ -726,13 +810,13 @@ public abstract class Expression {
         return add(left, right, null);
     }
 
-    public static BinaryExpression add(final Expression left, final Expression right, final Method method) {
+    public static BinaryExpression add(final Expression left, final Expression right, final MethodInfo method) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
 
         if (method == null) {
-            final Class leftType = left.getType();
-            final Class rightType = right.getType();
+            final Type leftType = left.getType();
+            final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
                 return new SimpleBinaryExpression(ExpressionType.Add, left, right, leftType);
@@ -748,13 +832,13 @@ public abstract class Expression {
         return subtract(left, right, null);
     }
 
-    public static BinaryExpression subtract(final Expression left, final Expression right, final Method method) {
+    public static BinaryExpression subtract(final Expression left, final Expression right, final MethodInfo method) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
 
         if (method == null) {
-            final Class leftType = left.getType();
-            final Class rightType = right.getType();
+            final Type leftType = left.getType();
+            final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
                 return new SimpleBinaryExpression(ExpressionType.Subtract, left, right, leftType);
@@ -770,13 +854,13 @@ public abstract class Expression {
         return multiply(left, right, null);
     }
 
-    public static BinaryExpression multiply(final Expression left, final Expression right, final Method method) {
+    public static BinaryExpression multiply(final Expression left, final Expression right, final MethodInfo method) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
 
         if (method == null) {
-            final Class leftType = left.getType();
-            final Class rightType = right.getType();
+            final Type leftType = left.getType();
+            final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
                 return new SimpleBinaryExpression(ExpressionType.Multiply, left, right, leftType);
@@ -792,13 +876,13 @@ public abstract class Expression {
         return divide(left, right, null);
     }
 
-    public static BinaryExpression divide(final Expression left, final Expression right, final Method method) {
+    public static BinaryExpression divide(final Expression left, final Expression right, final MethodInfo method) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
 
         if (method == null) {
-            final Class leftType = left.getType();
-            final Class rightType = right.getType();
+            final Type leftType = left.getType();
+            final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
                 return new SimpleBinaryExpression(ExpressionType.Divide, left, right, leftType);
@@ -814,13 +898,13 @@ public abstract class Expression {
         return modulo(left, right, null);
     }
 
-    public static BinaryExpression modulo(final Expression left, final Expression right, final Method method) {
+    public static BinaryExpression modulo(final Expression left, final Expression right, final MethodInfo method) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
 
         if (method == null) {
-            final Class leftType = left.getType();
-            final Class rightType = right.getType();
+            final Type leftType = left.getType();
+            final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
                 return new SimpleBinaryExpression(ExpressionType.Modulo, left, right, leftType);
@@ -832,17 +916,83 @@ public abstract class Expression {
         return getMethodBasedBinaryOperator(ExpressionType.Modulo, left, right, method);
     }
 
-    public static BinaryExpression and(final Expression left, final Expression right) {
-        return and(left, right, null);
+    public static BinaryExpression leftShift(final Expression left, final Expression right) {
+        return leftShift(left, right, null);
     }
 
-    public static BinaryExpression and(final Expression left, final Expression right, final Method method) {
+    public static BinaryExpression leftShift(final Expression left, final Expression right, final MethodInfo method) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
 
         if (method == null) {
-            final Class leftType = left.getType();
-            final Class rightType = right.getType();
+            final Type leftType = left.getType();
+            final Type rightType = right.getType();
+
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
+                return new SimpleBinaryExpression(ExpressionType.LeftShift, left, right, leftType);
+            }
+
+            return getMethodBasedBinaryOperatorOrThrow(ExpressionType.LeftShift, "shiftLeft", left, right);
+        }
+
+        return getMethodBasedBinaryOperator(ExpressionType.LeftShift, left, right, method);
+    }
+
+    public static BinaryExpression rightShift(final Expression left, final Expression right) {
+        return rightShift(left, right, null);
+    }
+
+    public static BinaryExpression rightShift(final Expression left, final Expression right, final MethodInfo method) {
+        verifyCanRead(left, "left");
+        verifyCanRead(right, "right");
+
+        if (method == null) {
+            final Type leftType = left.getType();
+            final Type rightType = right.getType();
+
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
+                return new SimpleBinaryExpression(ExpressionType.RightShift, left, right, leftType);
+            }
+
+            return getMethodBasedBinaryOperatorOrThrow(ExpressionType.RightShift, "shiftRight", left, right);
+        }
+
+        return getMethodBasedBinaryOperator(ExpressionType.RightShift, left, right, method);
+    }
+
+    public static BinaryExpression unsignedRightShift(final Expression left, final Expression right) {
+        return unsignedRightShift(left, right, null);
+    }
+
+    public static BinaryExpression unsignedRightShift(final Expression left, final Expression right, final MethodInfo method) {
+        verifyCanRead(left, "left");
+        verifyCanRead(right, "right");
+
+        if (method == null) {
+            final Type leftType = left.getType();
+            final Type rightType = right.getType();
+
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
+                return new SimpleBinaryExpression(ExpressionType.RightShift, left, right, leftType);
+            }
+
+            throw Error.binaryOperatorNotDefined(ExpressionType.UnsignedRightShift, left.getType(), right.getType());
+        }
+
+        return getMethodBasedBinaryOperator(ExpressionType.RightShift, left, right, method);
+    }
+
+    public static BinaryExpression and(final Expression left, final Expression right) {
+        return and(left, right, null);
+    }
+
+    public static BinaryExpression and(final Expression left, final Expression right, final MethodInfo method) {
+        verifyCanRead(left, "left");
+        verifyCanRead(right, "right");
+
+        if (method == null) {
+            final Type leftType = left.getType();
+            final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isIntegralOrBoolean(leftType)) {
                 return new SimpleBinaryExpression(ExpressionType.And, left, right, leftType);
@@ -853,18 +1003,18 @@ public abstract class Expression {
 
         return getMethodBasedBinaryOperator(ExpressionType.And, left, right, method);
     }
-    
+
     public static BinaryExpression or(final Expression left, final Expression right) {
         return or(left, right, null);
     }
 
-    public static BinaryExpression or(final Expression left, final Expression right, final Method method) {
+    public static BinaryExpression or(final Expression left, final Expression right, final MethodInfo method) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
 
         if (method == null) {
-            final Class leftType = left.getType();
-            final Class rightType = right.getType();
+            final Type leftType = left.getType();
+            final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isIntegralOrBoolean(leftType)) {
                 return new SimpleBinaryExpression(ExpressionType.Or, left, right, leftType);
@@ -876,60 +1026,51 @@ public abstract class Expression {
         return getMethodBasedBinaryOperator(ExpressionType.Or, left, right, method);
     }
 
+    public static BinaryExpression exclusiveOr(final Expression left, final Expression right) {
+        return exclusiveOr(left, right, null);
+    }
+
+    public static BinaryExpression exclusiveOr(final Expression left, final Expression right, final MethodInfo method) {
+        verifyCanRead(left, "left");
+        verifyCanRead(right, "right");
+
+        if (method == null) {
+            final Type leftType = left.getType();
+            final Type rightType = right.getType();
+
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isIntegralOrBoolean(leftType)) {
+                return new SimpleBinaryExpression(ExpressionType.ExclusiveOr, left, right, leftType);
+            }
+
+            return getMethodBasedBinaryOperatorOrThrow(ExpressionType.ExclusiveOr, "xor", left, right);
+        }
+
+        return getMethodBasedBinaryOperator(ExpressionType.ExclusiveOr, left, right, method);
+    }
+
     public static BinaryExpression andAlso(final Expression left, final Expression right) {
         return andAlso(left, right, null);
     }
 
-    public static BinaryExpression andAlso(final Expression left, final Expression right, final Method method) {
+    public static BinaryExpression andAlso(final Expression left, final Expression right, final MethodInfo method) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
 
-        final Class leftType = left.getType();
-        final Class rightType = right.getType();
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
 
-        Class returnType;
+        Type returnType;
 
         if (method == null) {
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
-                TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), Boolean.TYPE)) {
+                TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), PrimitiveTypes.Boolean)) {
 
                 return new SimpleBinaryExpression(ExpressionType.AndAlso, left, right, leftType);
             }
 
-/*
-            final Method opMethod = getBinaryOperatorMethod(ExpressionType.AndAlso, leftType, rightType, "and");
-
-            if (opMethod != null) {
-                validateUserDefinedConditionalLogicOperator(ExpressionType.AndAlso, leftType, rightType, opMethod);
-
-                returnType = opMethod.getReturnType();
-
-                if (TypeUtils.isAutoUnboxed(leftType) &&
-                    TypeUtils.areEquivalent(returnType, TypeUtils.getUnderlyingPrimitive(leftType))) {
-
-                    returnType = leftType;
-                }
-
-                return new MethodBinaryExpression(ExpressionType.AndAlso, left, right, returnType, method);
-            }
-*/
-
             throw Error.binaryOperatorNotDefined(ExpressionType.AndAlso, leftType, rightType);
         }
 
-/*
-        validateUserDefinedConditionalLogicOperator(ExpressionType.AndAlso, leftType, rightType, method);
-
-        returnType = method.getReturnType();
-
-        if (TypeUtils.isAutoUnboxed(leftType) &&
-            TypeUtils.areEquivalent(returnType, TypeUtils.getUnderlyingPrimitive(leftType))) {
-
-            returnType = leftType;
-        }
-
-        return new MethodBinaryExpression(ExpressionType.AndAlso, left, right, returnType, method);
-*/
         throw Error.binaryOperatorNotDefined(ExpressionType.AndAlso, leftType, rightType);
     }
 
@@ -937,64 +1078,93 @@ public abstract class Expression {
         return orElse(left, right, null);
     }
 
-    public static BinaryExpression orElse(final Expression left, final Expression right, final Method method) {
+    public static BinaryExpression orElse(final Expression left, final Expression right, final MethodInfo method) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
 
-        final Class leftType = left.getType();
-        final Class rightType = right.getType();
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
 
-        Class returnType;
+        Type returnType;
 
         if (method == null) {
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
-                TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), Boolean.TYPE)) {
+                TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), PrimitiveTypes.Boolean)) {
 
                 return new SimpleBinaryExpression(ExpressionType.OrElse, left, right, leftType);
             }
 
-/*
-            final Method opMethod = getBinaryOperatorMethod(ExpressionType.OrElse, leftType, rightType, "and");
-
-            if (opMethod != null) {
-                validateUserDefinedConditionalLogicOperator(ExpressionType.OrElse, leftType, rightType, opMethod);
-
-                returnType = opMethod.getReturnType();
-
-                if (TypeUtils.isAutoUnboxed(leftType) &&
-                    TypeUtils.areEquivalent(returnType, TypeUtils.getUnderlyingPrimitive(leftType))) {
-
-                    returnType = leftType;
-                }
-
-                return new MethodBinaryExpression(ExpressionType.OrElse, left, right, returnType, method);
-            }
-*/
-
             throw Error.binaryOperatorNotDefined(ExpressionType.OrElse, leftType, rightType);
         }
 
-/*
-        validateUserDefinedConditionalLogicOperator(ExpressionType.OrElse, leftType, rightType, method);
-
-        returnType = method.getReturnType();
-
-        if (TypeUtils.isAutoUnboxed(leftType) &&
-            TypeUtils.areEquivalent(returnType, TypeUtils.getUnderlyingPrimitive(leftType))) {
-
-            returnType = leftType;
-        }
-
-        return new MethodBinaryExpression(ExpressionType.OrElse, left, right, returnType, method);
-*/
         throw Error.binaryOperatorNotDefined(ExpressionType.OrElse, leftType, rightType);
     }
 
-    public static BinaryExpression assign(final Expression left, final Expression right) {
-        throw ContractUtils.unreachable();
+    public static BinaryExpression lessThan(final Expression left, final Expression right) {
+        return lessThan(left, right, null);
     }
 
-    public static BinaryExpression equal(final Expression left, final Expression right, final Method method) {
+    public static BinaryExpression lessThan(final Expression left, final Expression right, final MethodInfo method) {
+        verifyCanRead(left, "left");
+        verifyCanRead(right, "right");
+
+        if (method == null) {
+            return getComparisonOperator(ExpressionType.LessThan, left, right);
+        }
+
+        return getMethodBasedBinaryOperator(ExpressionType.LessThan, left, right, method);
+    }
+
+    public static BinaryExpression lessThanOrEqual(final Expression left, final Expression right) {
+        return lessThanOrEqual(left, right, null);
+    }
+
+    public static BinaryExpression lessThanOrEqual(final Expression left, final Expression right, final MethodInfo method) {
+        verifyCanRead(left, "left");
+        verifyCanRead(right, "right");
+
+        if (method == null) {
+            return getComparisonOperator(ExpressionType.LessThanOrEqual, left, right);
+        }
+
+        return getMethodBasedBinaryOperator(ExpressionType.LessThanOrEqual, left, right, method);
+    }
+
+    public static BinaryExpression greaterThan(final Expression left, final Expression right) {
+        return greaterThan(left, right, null);
+    }
+
+    public static BinaryExpression greaterThan(final Expression left, final Expression right, final MethodInfo method) {
+        verifyCanRead(left, "left");
+        verifyCanRead(right, "right");
+
+        if (method == null) {
+            return getComparisonOperator(ExpressionType.GreaterThan, left, right);
+        }
+
+        return getMethodBasedBinaryOperator(ExpressionType.GreaterThan, left, right, method);
+    }
+
+    public static BinaryExpression greaterThanOrEqual(final Expression left, final Expression right) {
+        return greaterThanOrEqual(left, right, null);
+    }
+
+    public static BinaryExpression greaterThanOrEqual(final Expression left, final Expression right, final MethodInfo method) {
+        verifyCanRead(left, "left");
+        verifyCanRead(right, "right");
+
+        if (method == null) {
+            return getComparisonOperator(ExpressionType.GreaterThanOrEqual, left, right);
+        }
+
+        return getMethodBasedBinaryOperator(ExpressionType.GreaterThanOrEqual, left, right, method);
+    }
+
+    public static BinaryExpression equal(final Expression left, final Expression right) {
+        return equal(left, right, null);
+    }
+
+    public static BinaryExpression equal(final Expression left, final Expression right, final MethodInfo method) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
 
@@ -1003,6 +1173,21 @@ public abstract class Expression {
         }
 
         return getMethodBasedBinaryOperator(ExpressionType.Equal, left, right, method);
+    }
+
+    public static BinaryExpression notEqual(final Expression left, final Expression right) {
+        return equal(left, right, null);
+    }
+
+    public static BinaryExpression notEqual(final Expression left, final Expression right, final MethodInfo method) {
+        verifyCanRead(left, "left");
+        verifyCanRead(right, "right");
+
+        if (method == null) {
+            return getEqualityComparisonOperator(ExpressionType.NotEqual, null, left, right);
+        }
+
+        return getMethodBasedBinaryOperator(ExpressionType.NotEqual, left, right, method);
     }
 
     public static BinaryExpression referenceEqual(final Expression left, final Expression right) {
@@ -1027,50 +1212,541 @@ public abstract class Expression {
         throw Error.referenceEqualityNotDefined(left.getType(), right.getType());
     }
 
+    public static BinaryExpression arrayIndex(final Expression array, final Expression index) {
+        verifyCanRead(array, "array");
+        verifyCanRead(index, "index");
+
+        if (!TypeUtils.hasIdentityPrimitiveOrBoxingConversion(index.getType(), PrimitiveTypes.Integer)) {
+            throw Error.argumentMustBeArrayIndexType();
+        }
+
+        final Type arrayType = array.getType();
+
+        if (!arrayType.isArray()) {
+            throw Error.argumentMustBeArray();
+        }
+
+        return new SimpleBinaryExpression(ExpressionType.ArrayIndex, array, index, arrayType.getElementType());
+    }
+
+    public static BinaryExpression assign(final Expression left, final Expression right) {
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        if (!TypeUtils.areReferenceAssignable(left.getType(), right.getType())) {
+            throw Error.expressionTypeDoesNotMatchAssignment(right.getType(), left.getType());
+        }
+
+        return new AssignBinaryExpression(left, right);
+    }
+
+    public static BinaryExpression addAssign(final Expression left, final Expression right) {
+        return addAssign(left, right, null, null);
+    }
+
+    public static BinaryExpression addAssign(final Expression left, final Expression right, final MethodInfo method) {
+        return addAssign(left, right, method, null);
+    }
+
+    public static BinaryExpression addAssign(
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        verifyCanRead(left, "left");
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (method == null) {
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
+                TypeUtils.isArithmetic(leftType)) {
+                // conversion is not supported for binary ops on arithmetic types without operator overloading
+                if (conversion != null) {
+                    throw Error.conversionIsNotSupportedForArithmeticTypes();
+                }
+                return new SimpleBinaryExpression(ExpressionType.AddAssign, left, right, leftType);
+            }
+            return getMethodBasedAssignOperatorOrThrow(ExpressionType.AddAssign, "add", left, right, conversion);
+        }
+
+        return getMethodBasedAssignOperator(ExpressionType.AddAssign, left, right, method, conversion);
+    }
+
+    public static BinaryExpression subtractAssign(final Expression left, final Expression right) {
+        return subtractAssign(left, right, null, null);
+    }
+
+    public static BinaryExpression subtractAssign(final Expression left, final Expression right, final MethodInfo method) {
+        return subtractAssign(left, right, method, null);
+    }
+
+    public static BinaryExpression subtractAssign(
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        verifyCanRead(left, "left");
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (method == null) {
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
+                TypeUtils.isArithmetic(leftType)) {
+                // conversion is not supported for binary ops on arithmetic types without operator overloading
+                if (conversion != null) {
+                    throw Error.conversionIsNotSupportedForArithmeticTypes();
+                }
+                return new SimpleBinaryExpression(ExpressionType.SubtractAssign, left, right, leftType);
+            }
+            return getMethodBasedAssignOperatorOrThrow(ExpressionType.SubtractAssign, "subtract", left, right, conversion);
+        }
+
+        return getMethodBasedAssignOperator(ExpressionType.SubtractAssign, left, right, method, conversion);
+    }
+
+    public static BinaryExpression multiplyAssign(final Expression left, final Expression right) {
+        return multiplyAssign(left, right, null, null);
+    }
+
+    public static BinaryExpression multiplyAssign(final Expression left, final Expression right, final MethodInfo method) {
+        return multiplyAssign(left, right, method, null);
+    }
+
+    public static BinaryExpression multiplyAssign(
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        verifyCanRead(left, "left");
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (method == null) {
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
+                TypeUtils.isArithmetic(leftType)) {
+                // conversion is not supported for binary ops on arithmetic types without operator overloading
+                if (conversion != null) {
+                    throw Error.conversionIsNotSupportedForArithmeticTypes();
+                }
+                return new SimpleBinaryExpression(ExpressionType.MultiplyAssign, left, right, leftType);
+            }
+            return getMethodBasedAssignOperatorOrThrow(ExpressionType.MultiplyAssign, "multiply", left, right, conversion);
+        }
+
+        return getMethodBasedAssignOperator(ExpressionType.MultiplyAssign, left, right, method, conversion);
+    }
+
+    public static BinaryExpression divideAssign(final Expression left, final Expression right) {
+        return divideAssign(left, right, null, null);
+    }
+
+    public static BinaryExpression divideAssign(final Expression left, final Expression right, final MethodInfo method) {
+        return divideAssign(left, right, method, null);
+    }
+
+    public static BinaryExpression divideAssign(
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        verifyCanRead(left, "left");
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (method == null) {
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
+                TypeUtils.isArithmetic(leftType)) {
+                // conversion is not supported for binary ops on arithmetic types without operator overloading
+                if (conversion != null) {
+                    throw Error.conversionIsNotSupportedForArithmeticTypes();
+                }
+                return new SimpleBinaryExpression(ExpressionType.DivideAssign, left, right, leftType);
+            }
+            return getMethodBasedAssignOperatorOrThrow(ExpressionType.DivideAssign, "divide", left, right, conversion);
+        }
+
+        return getMethodBasedAssignOperator(ExpressionType.DivideAssign, left, right, method, conversion);
+    }
+
+    public static BinaryExpression moduloAssign(final Expression left, final Expression right) {
+        return moduloAssign(left, right, null, null);
+    }
+
+    public static BinaryExpression moduloAssign(final Expression left, final Expression right, final MethodInfo method) {
+        return moduloAssign(left, right, method, null);
+    }
+
+    public static BinaryExpression moduloAssign(
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        verifyCanRead(left, "left");
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (method == null) {
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
+                TypeUtils.isArithmetic(leftType)) {
+                // conversion is not supported for binary ops on arithmetic types without operator overloading
+                if (conversion != null) {
+                    throw Error.conversionIsNotSupportedForArithmeticTypes();
+                }
+                return new SimpleBinaryExpression(ExpressionType.ModuloAssign, left, right, leftType);
+            }
+            return getMethodBasedAssignOperatorOrThrow(ExpressionType.ModuloAssign, "modulo", left, right, conversion);
+        }
+
+        return getMethodBasedAssignOperator(ExpressionType.ModuloAssign, left, right, method, conversion);
+    }
+
+    public static BinaryExpression leftShiftAssign(final Expression left, final Expression right) {
+        return leftShiftAssign(left, right, null, null);
+    }
+
+    public static BinaryExpression leftShiftAssign(final Expression left, final Expression right, final MethodInfo method) {
+        return leftShiftAssign(left, right, method, null);
+    }
+
+    public static BinaryExpression leftShiftAssign(
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        verifyCanRead(left, "left");
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (method == null) {
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
+                TypeUtils.isArithmetic(leftType)) {
+                // conversion is not supported for binary ops on arithmetic types without operator overloading
+                if (conversion != null) {
+                    throw Error.conversionIsNotSupportedForArithmeticTypes();
+                }
+                return new SimpleBinaryExpression(ExpressionType.LeftShiftAssign, left, right, leftType);
+            }
+            return getMethodBasedAssignOperatorOrThrow(ExpressionType.LeftShiftAssign, "shiftLeft", left, right, conversion);
+        }
+
+        return getMethodBasedAssignOperator(ExpressionType.LeftShiftAssign, left, right, method, conversion);
+    }
+
+    public static BinaryExpression rightShiftAssign(final Expression left, final Expression right) {
+        return rightShiftAssign(left, right, null, null);
+    }
+
+    public static BinaryExpression rightShiftAssign(final Expression left, final Expression right, final MethodInfo method) {
+        return rightShiftAssign(left, right, method, null);
+    }
+
+    public static BinaryExpression rightShiftAssign(
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        verifyCanRead(left, "left");
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (method == null) {
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
+                TypeUtils.isArithmetic(leftType)) {
+                // conversion is not supported for binary ops on arithmetic types without operator overloading
+                if (conversion != null) {
+                    throw Error.conversionIsNotSupportedForArithmeticTypes();
+                }
+                return new SimpleBinaryExpression(ExpressionType.RightShiftAssign, left, right, leftType);
+            }
+            return getMethodBasedAssignOperatorOrThrow(ExpressionType.RightShiftAssign, "rightShift", left, right, conversion);
+        }
+
+        return getMethodBasedAssignOperator(ExpressionType.RightShiftAssign, left, right, method, conversion);
+    }
+
+    public static BinaryExpression unsignedRightShiftAssign(final Expression left, final Expression right) {
+        return unsignedRightShiftAssign(left, right, null, null);
+    }
+
+    public static BinaryExpression unsignedRightShiftAssign(final Expression left, final Expression right, final MethodInfo method) {
+        return unsignedRightShiftAssign(left, right, method, null);
+    }
+
+    public static BinaryExpression unsignedRightShiftAssign(
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        verifyCanRead(left, "left");
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (method == null) {
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
+                TypeUtils.isArithmetic(leftType)) {
+                // conversion is not supported for binary ops on arithmetic types without operator overloading
+                if (conversion != null) {
+                    throw Error.conversionIsNotSupportedForArithmeticTypes();
+                }
+                return new SimpleBinaryExpression(ExpressionType.UnsignedRightShiftAssign, left, right, leftType);
+            }
+
+            throw Error.binaryOperatorNotDefined(ExpressionType.UnsignedRightShiftAssign, left.getType(), right.getType());
+        }
+
+        return getMethodBasedAssignOperator(ExpressionType.UnsignedRightShiftAssign, left, right, method, conversion);
+    }
+
+    public static BinaryExpression orAssign(final Expression left, final Expression right) {
+        return orAssign(left, right, null, null);
+    }
+
+    public static BinaryExpression orAssign(final Expression left, final Expression right, final MethodInfo method) {
+        return orAssign(left, right, method, null);
+    }
+
+    public static BinaryExpression orAssign(
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        verifyCanRead(left, "left");
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (method == null) {
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
+                TypeUtils.isIntegralOrBoolean(leftType)) {
+                // conversion is not supported for binary ops on arithmetic types without operator overloading
+                if (conversion != null) {
+                    throw Error.conversionIsNotSupportedForArithmeticTypes();
+                }
+                return new SimpleBinaryExpression(ExpressionType.OrAssign, left, right, leftType);
+            }
+
+            return getMethodBasedAssignOperatorOrThrow(ExpressionType.OrAssign, "or", left, right, conversion);
+        }
+
+        return getMethodBasedAssignOperator(ExpressionType.OrAssign, left, right, method, conversion);
+    }
+
+    public static BinaryExpression andAssign(final Expression left, final Expression right) {
+        return andAssign(left, right, null, null);
+    }
+
+    public static BinaryExpression andAssign(final Expression left, final Expression right, final MethodInfo method) {
+        return andAssign(left, right, method, null);
+    }
+
+    public static BinaryExpression andAssign(
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        verifyCanRead(left, "left");
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (method == null) {
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
+                TypeUtils.isIntegralOrBoolean(leftType)) {
+                // conversion is not supported for binary ops on arithmetic types without operator overloading
+                if (conversion != null) {
+                    throw Error.conversionIsNotSupportedForArithmeticTypes();
+                }
+                return new SimpleBinaryExpression(ExpressionType.AndAssign, left, right, leftType);
+            }
+
+            return getMethodBasedAssignOperatorOrThrow(ExpressionType.AndAssign, "and", left, right, conversion);
+        }
+
+        return getMethodBasedAssignOperator(ExpressionType.AndAssign, left, right, method, conversion);
+    }
+
+    public static BinaryExpression exclusiveOrAssign(final Expression left, final Expression right) {
+        return exclusiveOrAssign(left, right, null, null);
+    }
+
+    public static BinaryExpression exclusiveOrAssign(final Expression left, final Expression right, final MethodInfo method) {
+        return exclusiveOrAssign(left, right, method, null);
+    }
+
+    public static BinaryExpression exclusiveOrAssign(
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        verifyCanRead(left, "left");
+        verifyCanWrite(left, "left");
+        verifyCanRead(right, "right");
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (method == null) {
+            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
+                TypeUtils.isIntegralOrBoolean(leftType)) {
+                // conversion is not supported for binary ops on arithmetic types without operator overloading
+                if (conversion != null) {
+                    throw Error.conversionIsNotSupportedForArithmeticTypes();
+                }
+                return new SimpleBinaryExpression(ExpressionType.ExclusiveOrAssign, left, right, leftType);
+            }
+
+            return getMethodBasedAssignOperatorOrThrow(ExpressionType.ExclusiveOrAssign, "xor", left, right, conversion);
+        }
+
+        return getMethodBasedAssignOperator(ExpressionType.ExclusiveOrAssign, left, right, method, conversion);
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // LAMBDA EXPRESSIONS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static <T> LambdaExpression<T> lambda(
+        final Type<T> interfaceType,
+        final Expression body,
+        final ParameterExpression... parameters) {
+
+        return lambda(interfaceType, null, body, false, arrayToList(parameters));
+    }
+
+    public static <T> LambdaExpression<T> lambda(
+        final Type<T> interfaceType,
+        final Expression body,
+        final boolean tailCall,
+        final ParameterExpression... parameters) {
+
+        return lambda(interfaceType, null, body, tailCall, arrayToList(parameters));
+    }
+
+    public static <T> LambdaExpression<T> lambda(
+        final Type<T> interfaceType,
+        final String name,
+        final Expression body,
+        final boolean tailCall,
+        final ParameterExpression... parameters) {
+
+        return lambda(interfaceType, name, body, false, arrayToList(parameters));
+    }
+
+    public static <T> LambdaExpression<T> lambda(
+        final Type<T> interfaceType,
+        final Expression body,
+        final ParameterExpressionList parameters) {
+
+        return lambda(interfaceType, null, body, false, parameters);
+    }
+
+    public static <T> LambdaExpression<T> lambda(
+        final Type<T> interfaceType,
+        final Expression body,
+        final boolean tailCall,
+        final ParameterExpressionList parameters) {
+
+        return lambda(interfaceType, null, body, tailCall, parameters);
+    }
+
+    public static <T> LambdaExpression<T> lambda(
+        final Type<T> interfaceType,
+        final String name,
+        final Expression body,
+        final boolean tailCall,
+        final ParameterExpressionList parameters) {
+
+        VerifyArgument.notNull(interfaceType, "interfaceType");
+        VerifyArgument.notNull(body, "body");
+        VerifyArgument.noNullElements(parameters, "parameters");
+
+        validateLambdaArgs(interfaceType, body, parameters);
+
+        return new LambdaExpression<>(interfaceType, name, body, tailCall, parameters);
+    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // INVOKE EXPRESSIONS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static InvocationExpression invoke(final Expression expression, final Expression... arguments) {
-        return invoke(expression, arrayToList(arguments));
+        VerifyArgument.noNullElements(arguments, "arguments");
+        return invoke(expression, new ExpressionList<>(arguments));
     }
 
-    public static InvocationExpression invoke(final Expression expression, final List<Expression> arguments) {
+    public static InvocationExpression invoke(final Expression expression, final ExpressionList<? extends Expression> arguments) {
         verifyCanRead(expression, "expression");
 
-        final List<Expression> args = ensureUnmodifiable(arguments);
-        final Method method = getInvokeMethod(expression);
+        final MethodInfo method = getInvokeMethod(expression);
 
-        return new InvocationExpression(expression, args, method.getReturnType());
+        return new InvocationExpression(expression, arguments, method.getReturnType());
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // METHOD CALL EXPRESSIONS                                                                                            //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static MethodCallExpression call(final Method method, final Expression... arguments) {
+    public static MethodCallExpression call(final MethodInfo method, final Expression... arguments) {
         return call(null, method, arrayToList(arguments));
     }
 
-    public static MethodCallExpression call(final Method method, final List<Expression> arguments) {
+    public static MethodCallExpression call(final MethodInfo method, final ExpressionList<? extends Expression> arguments) {
         return call(null, method, arguments);
     }
 
-    public static MethodCallExpression call(final Expression target, final Method method, final Expression... arguments) {
+    public static MethodCallExpression call(final Expression target, final MethodInfo method, final Expression... arguments) {
         return call(target, method, arrayToList(arguments));
     }
 
-    public static MethodCallExpression call(final Expression target, final Method method, final List<Expression> arguments) {
+    public static MethodCallExpression call(
+        final Expression target,
+        final MethodInfo method,
+        final ExpressionList<? extends Expression> arguments) {
+
         VerifyArgument.notNull(method, "method");
 
-        List<Expression> argumentList = ensureUnmodifiable(arguments);
-
         validateStaticOrInstanceMethod(target, method);
-        argumentList = validateArgumentTypes(method, ExpressionType.Call, argumentList);
+
+        final ExpressionList<?> argumentList = validateArgumentTypes(method, ExpressionType.Call, arguments);
 
         if (target == null) {
             return new MethodCallExpressionN(method, argumentList);
@@ -1082,7 +1758,7 @@ public abstract class Expression {
     public static MethodCallExpression call(
         final Expression target,
         final String methodName,
-        final Class[] typeArguments,
+        final Type[] typeArguments,
         final Expression... arguments) {
 
         return call(target, methodName, typeArguments, arrayToList(arguments));
@@ -1091,19 +1767,19 @@ public abstract class Expression {
     public static MethodCallExpression call(
         final Expression target,
         final String methodName,
-        final Class[] typeArguments,
-        final List<Expression> arguments) {
+        final Type[] typeArguments,
+        final ExpressionList<? extends Expression> arguments) {
 
         VerifyArgument.notNull(target, "target");
         VerifyArgument.notNull(methodName, "methodName");
 
-        final Method resolvedMethod = MethodBinder.findMethod(
+        final MethodInfo resolvedMethod = null; /*target.getType().getMethod(
             target.getType(),
             methodName,
             typeArguments,
             arguments,
             0
-        );
+        );*/
 
         return call(
             target,
@@ -1113,30 +1789,30 @@ public abstract class Expression {
     }
 
     public static MethodCallExpression call(
-        final Class declaringType,
+        final Type declaringType,
         final String methodName,
-        final Class[] typeArguments,
+        final Type[] typeArguments,
         final Expression... arguments) {
 
         return call(declaringType, methodName, typeArguments, arrayToList(arguments));
     }
 
     public static MethodCallExpression call(
-        final Class declaringType,
+        final Type declaringType,
         final String methodName,
-        final Class[] typeArguments,
-        final List<Expression> arguments) {
+        final Type[] typeArguments,
+        final ExpressionList<? extends Expression> arguments) {
 
         VerifyArgument.notNull(declaringType, "declaringType");
         VerifyArgument.notNull(methodName, "methodName");
 
-        final Method resolvedMethod = MethodBinder.findMethod(
+        final MethodInfo resolvedMethod = null; /*MethodBinder.findMethod(
             declaringType,
             methodName,
             typeArguments,
             arguments,
             0
-        );
+        );*/
 
         return call(
             resolvedMethod,
@@ -1144,6 +1820,14 @@ public abstract class Expression {
         );
     }
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // DEFAULT VALUE EXPRESSIONS                                                                                          //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static DefaultValueExpression defaultValue(final Type type) {
+        VerifyArgument.notNull(type, "type");
+        return new DefaultValueExpression(type);
+    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // HELPER METHODS                                                                                                     //
@@ -1166,11 +1850,24 @@ public abstract class Expression {
         UNMODIFIABLE_LIST_CLASS = unmodifiableListClass;
     }
 
-    private static <T extends Expression> List<T> arrayToList(final T[] expressions) {
+    static <T extends Expression> ExpressionList<T> arrayToList(final T[] expressions) {
         if (expressions == null || expressions.length == 0) {
-            return Collections.emptyList();
+            return ExpressionList.empty();
         }
-        return Arrays.asList(expressions);
+
+        VerifyArgument.noNullElements(expressions, "expressions");
+
+        return new ExpressionList<>(expressions);
+    }
+
+    static ParameterExpressionList arrayToList(final ParameterExpression[] parameters) {
+        if (parameters == null || parameters.length == 0) {
+            return ParameterExpressionList.empty();
+        }
+
+        VerifyArgument.noNullElements(parameters, "parameters");
+
+        return new ParameterExpressionList(parameters);
     }
 
     private static void verifyCanRead(final Expression expression, final String parameterName) {
@@ -1216,10 +1913,9 @@ public abstract class Expression {
 
             case MemberAccess:
                 final MemberExpression memberExpression = (MemberExpression)expression;
-                if (memberExpression.getMember() instanceof Field) {
-                    final Field field = (Field)memberExpression.getMember();
-                    canWrite = !field.isEnumConstant() &&
-                               (field.getModifiers() & Modifier.FINAL) == 0;
+                if (memberExpression.getMember() instanceof FieldInfo) {
+                    final FieldInfo field = (FieldInfo)memberExpression.getMember();
+                    canWrite = !field.isEnumConstant() && !field.isFinal();
                 }
                 break;
 
@@ -1251,7 +1947,7 @@ public abstract class Expression {
         }
     }
 
-    static void validateVariables(final List<ParameterExpression> varList, final String collectionName) {
+    static void validateVariables(final ParameterExpressionList varList, final String collectionName) {
         if (varList.isEmpty()) {
             return;
         }
@@ -1274,17 +1970,17 @@ public abstract class Expression {
     private static UnaryExpression getMethodBasedUnaryOperator(
         final ExpressionType unaryType,
         final Expression operand,
-        final Method method) {
+        final MethodInfo method) {
 
         validateOperator(method);
 
-        final Class<?>[] parameterTypes = method.getParameterTypes();
+        final ParameterList parameters = method.getParameters();
 
-        if (parameterTypes.length != 0) {
+        if (parameters.size() != 0) {
             throw Error.incorrectNumberOfMethodCallArguments(method);
         }
 
-        final Class<?> returnType = method.getReturnType();
+        final Type returnType = method.getReturnType();
 
         if (TypeUtils.areReferenceAssignable(operand.getType(), returnType)) {
             return new UnaryExpression(unaryType, operand, returnType, method);
@@ -1324,41 +2020,35 @@ public abstract class Expression {
         final String methodName,
         final Expression operand) {
 
-        final Class operandType = operand.getType();
+        final Type operandType = operand.getType();
 
         assert !operandType.isPrimitive();
 
-        final Method method;
+        final MethodInfo method = operandType.getMethod(methodName);
 
-        try {
-            method = operandType.getMethod(methodName);
-            return new UnaryExpression(unaryType, operand, method.getReturnType(), method);
-        }
-        catch (NoSuchMethodException e) {
-            return null;
-        }
+        return new UnaryExpression(unaryType, operand, method.getReturnType(), method);
     }
 
-    private static void validateOperator(final Method method) {
+    private static void validateOperator(final MethodInfo method) {
         assert method != null;
 
-        if ((method.getModifiers() & Modifier.STATIC) == Modifier.STATIC) {
+        if (method.isStatic()) {
             throw Error.operatorMethodMustNotBeStatic(method);
         }
 
-        final Class<?> returnType = method.getReturnType();
+        final Type returnType = method.getReturnType();
 
-        if (returnType == Void.TYPE) {
+        if (returnType == PrimitiveTypes.Void) {
             throw Error.operatorMethodMustNotReturnVoid(method);
         }
 
-        final Class<?>[] parameterTypes = method.getParameterTypes();
+        final ParameterList parameters = method.getParameters();
 
-        if (parameterTypes.length != 0) {
+        if (parameters.size() != 0) {
             throw Error.operatorMethodParametersMustMatchReturnValue(method);
         }
 
-        if (TypeUtils.areReferenceAssignable(method.getDeclaringClass(), returnType)) {
+        if (TypeUtils.areReferenceAssignable(method.getDeclaringType(), returnType)) {
             throw Error.methodBasedOperatorMustHaveValidReturnType(method);
         }
     }
@@ -1366,7 +2056,7 @@ public abstract class Expression {
     private static UnaryExpression getMethodBasedCoercionOrThrow(
         final ExpressionType coercionType,
         final Expression expression,
-        final Class convertToType) {
+        final Type convertToType) {
 
         final UnaryExpression u = getMethodBasedCoercion(coercionType, expression, convertToType);
 
@@ -1380,9 +2070,9 @@ public abstract class Expression {
     private static UnaryExpression getMethodBasedCoercion(
         final ExpressionType coercionType,
         final Expression expression,
-        final Class convertToType) {
+        final Type convertToType) {
 
-        final Method method = TypeUtils.getCoercionMethod(expression.getType(), convertToType);
+        final MethodInfo method = TypeUtils.getCoercionMethod(expression.getType(), convertToType);
 
         if (method != null) {
             return new UnaryExpression(coercionType, expression, convertToType, method);
@@ -1395,20 +2085,20 @@ public abstract class Expression {
     private static UnaryExpression getMethodBasedCoercionOperator(
         final ExpressionType unaryType,
         final Expression operand,
-        final Class convertToType,
-        final Method method) {
+        final Type convertToType,
+        final MethodInfo method) {
 
         assert method != null;
 
         validateOperator(method);
 
-        final Class<?>[] parameterTypes = method.getParameterTypes();
+        final ParameterList parameters = method.getParameters();
 
-        if (parameterTypes.length != 0) {
+        if (parameters.size() != 0) {
             throw Error.incorrectNumberOfMethodCallArguments(method);
         }
 
-        final Class<?> returnType = method.getReturnType();
+        final Type returnType = method.getReturnType();
 
         if (TypeUtils.areReferenceAssignable(convertToType, returnType)) {
             return new UnaryExpression(unaryType, operand, returnType, method);
@@ -1424,7 +2114,7 @@ public abstract class Expression {
         throw Error.methodBasedOperatorMustHaveValidReturnType(unaryType, method);
     }
 
-    private static UnaryExpression makeOpAssignUnary(final ExpressionType kind, final Expression expression, final Method method) {
+    private static UnaryExpression makeOpAssignUnary(final ExpressionType kind, final Expression expression, final MethodInfo method) {
         verifyCanRead(expression, "expression");
         verifyCanWrite(expression, "expression");
 
@@ -1458,9 +2148,45 @@ public abstract class Expression {
         return result;
     }
 
-    static boolean parameterIsAssignable(final Class parameterType, final Class argumentType) {
-        return argumentType.isPrimitive() && parameterType == Object.class ||
+    static boolean parameterIsAssignable(final Type parameterType, final Type argumentType) {
+        return argumentType.isPrimitive() && parameterType == Type.Object ||
                parameterType.isAssignableFrom(argumentType);
+    }
+
+    static MethodInfo getMethodValidated(
+        final Type type,
+        final String name,
+        final int bindingFlags,
+        final CallingConvention callingConvention,
+        final Type... parameterTypes) {
+
+        final MethodInfo method = type.getMethod(name, bindingFlags, callingConvention, parameterTypes);
+
+        return methodArgumentsMatch(method, parameterTypes) ? method : null;
+    }
+
+    static boolean methodArgumentsMatch(
+        final MethodInfo method,
+        final Type... argumentTypes) {
+
+        if (method == null || argumentTypes == null) {
+            return false;
+        }
+
+        final ParameterList parameters = method.getParameters();
+        final int parameterCount = parameters.size();
+
+        if (parameterCount != argumentTypes.length) {
+            return false;
+        }
+
+        for (int i = 0; i < parameterCount; i++) {
+            if (!parameterIsAssignable(parameters.get(i).getParameterType(), argumentTypes[i])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     static <T> List<T> ensureUnmodifiable(final List<T> list) {
@@ -1478,33 +2204,30 @@ public abstract class Expression {
         return ((List<T>)objectOrCollection).get(0);
     }
 
-    static Method getInvokeMethod(final Expression expression) {
-        final Class interfaceType = expression.getType();
-        final Method[] methods = interfaceType.getMethods();
+    static MethodInfo getInvokeMethod(final Expression expression) {
+        final Type interfaceType = expression.getType();
+        final MethodList methods = interfaceType.getMethods();
 
-        if (!interfaceType.isInterface() || methods.length != 1) {
+        if (!interfaceType.isInterface() || methods.size() != 1) {
             throw Error.expressionTypeNotInvokable(interfaceType);
         }
 
-        try {
-            return interfaceType.getMethod("Invoke");
-        }
-        catch (NoSuchMethodException ignored) {
-            return null;
-        }
+        return interfaceType.getMethod("Invoke");
     }
 
     private static BinaryExpression getEqualityComparisonOperator(
         final ExpressionType binaryType,
         final String opName,
         final Expression left,
-        final Expression right) {
+        final Expression right
+    ) {
 
         // Known comparison: numeric types, booleans, object, enums
-        if (left.getType() == right.getType() && (TypeUtils.isArithmetic(left.getType()) ||
-                                                  left.getType() == Object.class ||
-                                                  TypeUtils.isBoolean(left.getType()) ||
-                                                  left.getType().isEnum())) {
+        if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), right.getType()) &&
+            (TypeUtils.isArithmetic(left.getType()) ||
+             left.getType() == Type.Object ||
+             TypeUtils.isBoolean(left.getType()) ||
+             left.getType().isEnum())) {
 
             return new LogicalBinaryExpression(binaryType, left, right);
         }
@@ -1525,23 +2248,60 @@ public abstract class Expression {
         throw Error.binaryOperatorNotDefined(binaryType, left.getType(), right.getType());
     }
 
-    private static Method getBinaryOperatorMethod(
+    private static MethodInfo getBinaryOperatorMethod(
         final ExpressionType binaryType,
-        final Class leftType,
-        final Class rightType,
+        final Type leftType,
+        final Type rightType,
         final String name) {
 
-        try {
-            final Method method = leftType.getMethod(name, rightType);
+        final MethodInfo method = getMethodValidated(
+            leftType,
+            name,
+            BindingFlags.Instance | BindingFlags.Public,
+            CallingConvention.Standard,
+            rightType
+        );
 
-            if (TypeUtils.areReferenceAssignable(leftType, method.getReturnType())) {
-                return method;
-            }
-        }
-        catch (NoSuchMethodException ignored) {
+        if (method != null || TypeUtils.areEquivalent(leftType, rightType)) {
+            return method;
         }
 
-        return null;
+        return getMethodValidated(
+            rightType,
+            name,
+            BindingFlags.Instance | BindingFlags.Public,
+            CallingConvention.Standard,
+            leftType
+        );
+    }
+
+    private static MethodInfo getBinaryOperatorStaticMethod(
+        final ExpressionType binaryType,
+        final Type leftType,
+        final Type rightType,
+        final String name) {
+
+        final MethodInfo method = getMethodValidated(
+            leftType,
+            name,
+            BindingFlags.Static | BindingFlags.Public,
+            CallingConvention.Standard,
+            leftType,
+            rightType
+        );
+
+        if (method != null || TypeUtils.areEquivalent(leftType, rightType)) {
+            return method;
+        }
+
+        return getMethodValidated(
+            rightType,
+            name,
+            BindingFlags.Static | BindingFlags.Public,
+            CallingConvention.Standard,
+            leftType,
+            rightType
+        );
     }
 
     private static BinaryExpression getMethodBasedBinaryOperator(
@@ -1550,34 +2310,96 @@ public abstract class Expression {
         final Expression left,
         final Expression right) {
 
-        final Class leftType = left.getType();
-        final Class rightType = right.getType();
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
 
-        // try exact match first
-        Method method = getBinaryOperatorMethod(binaryType, leftType, rightType, name);
-
-        if (method != null) {
-            return new MethodBinaryExpression(binaryType, left, right, method.getReturnType(), method);
-        }
-
-        // try auto(un)boxing call
-        if (TypeUtils.isAutoUnboxed(rightType)) {
-            final Class unboxedRightType = TypeUtils.getUnderlyingPrimitive(rightType);
-
-            method = getBinaryOperatorMethod(binaryType, leftType, unboxedRightType, name);
+        if (name != null) {
+            // try exact match first
+            MethodInfo method = getBinaryOperatorMethod(binaryType, leftType, rightType, name);
 
             if (method != null) {
                 return new MethodBinaryExpression(binaryType, left, right, method.getReturnType(), method);
             }
-        }
-        else if (rightType.isPrimitive()) {
-            if (TypeUtils.isAutoUnboxed(rightType)) {
-                final Class boxedRightType = TypeUtils.getBoxedType(rightType);
 
-                method = getBinaryOperatorMethod(binaryType, leftType, boxedRightType, name);
+            // try auto(un)boxing call
+            if (TypeUtils.isAutoUnboxed(rightType)) {
+                final Type unboxedRightType = TypeUtils.getUnderlyingPrimitive(rightType);
+
+                method = getBinaryOperatorMethod(binaryType, leftType, unboxedRightType, name);
 
                 if (method != null) {
                     return new MethodBinaryExpression(binaryType, left, right, method.getReturnType(), method);
+                }
+            }
+            else if (rightType.isPrimitive()) {
+                if (TypeUtils.isAutoUnboxed(rightType)) {
+                    final Type boxedRightType = TypeUtils.getBoxedType(rightType);
+
+                    method = getBinaryOperatorMethod(binaryType, leftType, boxedRightType, name);
+
+                    if (method != null) {
+                        return new MethodBinaryExpression(binaryType, left, right, method.getReturnType(), method);
+                    }
+                }
+            }
+        }
+
+        switch (binaryType) {
+            case Equal:
+            case NotEqual:
+                return getEqualsMethodBasedBinaryOperator(binaryType, left, right);
+
+            case GreaterThan:
+            case GreaterThanOrEqual:
+            case LessThan:
+            case LessThanOrEqual:
+                return getCompareMethodBasedBinaryOperator(binaryType, left, right);
+        }
+
+        return null;
+    }
+
+    private static BinaryExpression getCompareMethodBasedBinaryOperator(
+        final ExpressionType binaryType,
+        final Expression left,
+        final Expression right) {
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        MethodInfo method;
+
+        if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType)) {
+            final Type comparable = Type.of(Comparable.class);
+            final Type leftComparable = comparable.makeGenericType(leftType);
+
+            if (leftType.implementsInterface(leftComparable)) {
+                method = getMethodValidated(
+                    leftType,
+                    "compareTo",
+                    BindingFlags.Instance | BindingFlags.Public,
+                    CallingConvention.Standard,
+                    leftType
+                );
+
+                if (method != null) {
+                    return new CompareMethodBasedLogicalBinaryExpression(binaryType, left, right, method);
+                }
+            }
+
+            final Type rightComparable = comparable.makeGenericType(leftType);
+
+            if (rightType.implementsInterface(rightComparable)) {
+                method = getMethodValidated(
+                    rightType,
+                    "compareTo",
+                    BindingFlags.Instance | BindingFlags.Public,
+                    CallingConvention.Standard,
+                    rightType
+                );
+
+                if (method != null) {
+                    return new CompareMethodBasedLogicalBinaryExpression(binaryType, left, right, method);
                 }
             }
         }
@@ -1585,37 +2407,64 @@ public abstract class Expression {
         return null;
     }
 
+    private static BinaryExpression getEqualsMethodBasedBinaryOperator(
+        final ExpressionType binaryType,
+        final Expression left,
+        final Expression right) {
+
+        return new EqualsMethodBasedLogicalBinaryExpression(binaryType, left, right, null);
+    }
+
     private static BinaryExpression getMethodBasedBinaryOperator(
         final ExpressionType binaryType,
         final Expression left,
         final Expression right,
-        final Method method) {
+        final MethodInfo method) {
 
         assert method != null;
 
-        final Class<?>[] parameterTypes = method.getParameterTypes();
+        final ParameterList parameters = method.getParameters();
 
-        if (parameterTypes.length != 1) {
+        if (parameters.size() != 1) {
             throw Error.incorrectNumberOfMethodCallArguments(method);
         }
 
-        final Class<?> returnType = method.getReturnType();
+        final Type returnType = method.getReturnType();
+        final Type parameterType = parameters.get(0).getParameterType();
+        final Type rightType = right.getType();
 
-        if (TypeUtils.areReferenceAssignable(left.getType(), returnType)) {
-            final Class rightType = right.getType();
+        if (parameterIsAssignable(parameters.get(0).getParameterType(), rightType)) {
+            return new MethodBinaryExpression(binaryType, left, right, returnType, method);
+        }
 
-            if (parameterIsAssignable(parameterTypes[0], rightType)) {
-                return new MethodBinaryExpression(binaryType, left, right, returnType, method);
-            }
+        throw Error.methodBasedOperatorMustHaveValidReturnType(binaryType, method);
+    }
 
-            // Check for auto(un)boxing call
-            if ((TypeUtils.isAutoUnboxed(rightType) &&
-                 parameterIsAssignable(parameterTypes[0], TypeUtils.getUnderlyingPrimitive(rightType))) ||
-                (returnType.isPrimitive() &&
-                 parameterIsAssignable(parameterTypes[0], TypeUtils.getBoxedType(returnType)))) {
+    private static BinaryExpression getStaticMethodBasedBinaryOperator(
+        final ExpressionType binaryType,
+        final Expression left,
+        final Expression right,
+        final MethodInfo method) {
 
-                return new MethodBinaryExpression(binaryType, left, right, returnType, method);
-            }
+        assert method != null;
+
+        final ParameterList parameters = method.getParameters();
+
+        if (parameters.size() != 2) {
+            throw Error.incorrectNumberOfMethodCallArguments(method);
+        }
+
+        final Type returnType = method.getReturnType();
+        final Type leftParameterType = parameters.get(0).getParameterType();
+        final Type rightParameterType = parameters.get(1).getParameterType();
+
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (parameterIsAssignable(parameters.get(0).getParameterType(), leftType) &&
+            parameterIsAssignable(parameters.get(1).getParameterType(), rightType)) {
+
+            return new MethodBinaryExpression(binaryType, left, right, returnType, method);
         }
 
         throw Error.methodBasedOperatorMustHaveValidReturnType(binaryType, method);
@@ -1636,6 +2485,131 @@ public abstract class Expression {
         throw Error.binaryOperatorNotDefined(binaryType, left.getType(), right.getType());
     }
 
+    private static BinaryExpression getMethodBasedAssignOperator(
+        final ExpressionType binaryType,
+        final String name,
+        final Expression left,
+        final Expression right,
+        final LambdaExpression conversion) {
+
+        final MethodInfo method = getBinaryOperatorMethod(binaryType, left.getType(), right.getType(), name);
+
+        if (method != null) {
+            return new MethodBinaryExpression(binaryType, left, right, method.getReturnType(), method);
+        }
+
+        return null;
+    }
+
+    private static BinaryExpression getMethodBasedAssignOperatorOrThrow(
+        final ExpressionType binaryType,
+        final String name,
+        final Expression left,
+        final Expression right,
+        final LambdaExpression conversion) {
+
+        BinaryExpression b = getMethodBasedBinaryOperatorOrThrow(binaryType, name, left, right);
+
+        if (conversion == null) {
+            if (!TypeUtils.areReferenceAssignable(left.getType(), right.getType())) {
+                throw Error.methodBasedOperatorMustHaveValidReturnType(binaryType, b.getMethod());
+            }
+        }
+        else {
+            validateOpAssignConversionLambda(conversion, b.getLeft(), b.getMethod(), b.getNodeType());
+
+            b = new OpAssignMethodConversionBinaryExpression(
+                b.getNodeType(),
+                b.getLeft(),
+                b.getRight(),
+                b.getLeft().getType(),
+                b.getMethod(),
+                conversion
+            );
+        }
+
+        return b;
+    }
+
+    private static BinaryExpression getMethodBasedAssignOperator(
+        final ExpressionType binaryType,
+        final Expression left,
+        final Expression right,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        BinaryExpression b = getMethodBasedBinaryOperator(binaryType, left, right, method);
+
+        if (conversion == null) {
+            if (!TypeUtils.areReferenceAssignable(left.getType(), right.getType())) {
+                throw Error.methodBasedOperatorMustHaveValidReturnType(binaryType, b.getMethod());
+            }
+        }
+        else {
+            validateOpAssignConversionLambda(conversion, b.getLeft(), b.getMethod(), b.getNodeType());
+
+            b = new OpAssignMethodConversionBinaryExpression(
+                b.getNodeType(),
+                b.getLeft(),
+                b.getRight(),
+                b.getLeft().getType(),
+                b.getMethod(),
+                conversion
+            );
+        }
+
+        return b;
+    }
+
+    private static void validateOpAssignConversionLambda(
+        final LambdaExpression conversion,
+        final Expression left,
+        final MethodInfo method,
+        final ExpressionType nodeType) {
+
+        final Type interfaceType = conversion.getType();
+        final MethodInfo invokeMethod = getInvokeMethod(conversion);
+        final ParameterList parameters = invokeMethod.getParameters();
+
+        if (parameters.size() != 1) {
+            throw Error.incorrectNumberOfMethodCallArguments(invokeMethod);
+        }
+
+        if (!TypeUtils.hasIdentityPrimitiveOrBoxingConversion(invokeMethod.getReturnType(), left.getType())) {
+            throw Error.operandTypesDoNotMatchParameters(nodeType, invokeMethod);
+        }
+
+        if (method != null) {
+            if (!TypeUtils.hasIdentityPrimitiveOrBoxingConversion(
+                parameters.get(0).getParameterType(),
+                method.getReturnType()
+            )) {
+
+                throw Error.overloadOperatorTypeDoesNotMatchConversionType(nodeType, method);
+            }
+        }
+    }
+
+    private static BinaryExpression getComparisonOperator(
+        final ExpressionType binaryType,
+        final Expression left,
+        final Expression right) {
+
+        if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), right.getType()) &&
+            TypeUtils.isArithmetic(left.getType())) {
+
+            return new LogicalBinaryExpression(binaryType, left, right);
+        }
+
+        final BinaryExpression b = getCompareMethodBasedBinaryOperator(binaryType, left, right);
+
+        if (b != null) {
+            return null;
+        }
+
+        throw Error.binaryOperatorNotDefined(binaryType, left.getType(), right.getType());
+    }
+
     private static boolean isNullConstant(final Expression e) {
         return e instanceof ConstantExpression &&
                ((ConstantExpression)e).getValue() == null;
@@ -1647,8 +2621,8 @@ public abstract class Expression {
                isNullConstant(right) && !isNullConstant(left) && !left.getType().isPrimitive();
     }
 
-    private static void validateStaticOrInstanceMethod(final Expression instance, final Method method) {
-        if (Modifier.isStatic(method.getModifiers())) {
+    private static void validateStaticOrInstanceMethod(final Expression instance, final MethodInfo method) {
+        if (method.isStatic()) {
             if (instance != null) {
                 throw Error.targetInvalidForStaticMethodCall(method);
             }
@@ -1662,58 +2636,55 @@ public abstract class Expression {
         }
     }
 
-    private static void validateCallTargetType(final Class targetType, final Method method) {
+    private static void validateCallTargetType(final Type targetType, final MethodInfo method) {
         if (!TypeUtils.isValidInvocationTargetType(method, targetType)) {
             throw Error.targetAndMethodTypeMismatch(method, targetType);
         }
     }
 
-    private static List<Expression> validateArgumentTypes(
-        final Method method,
+    private static <T extends Expression> ExpressionList<T> validateArgumentTypes(
+        final MethodInfo method,
         final ExpressionType nodeKind,
-        final List<Expression> arguments) {
+        final ExpressionList<T> arguments) {
 
-        assert  nodeKind == ExpressionType.Invoke ||
-                nodeKind == ExpressionType.Call ||
-                nodeKind == ExpressionType.New;
+        assert nodeKind == ExpressionType.Invoke ||
+               nodeKind == ExpressionType.Call ||
+               nodeKind == ExpressionType.New;
 
-        final Class<?>[] parameterTypes = method.getParameterTypes();
+        final ParameterList parameters = method.getParameters();
 
-        validateArgumentCount(method, nodeKind, arguments.size(), parameterTypes);
+        validateArgumentCount(method, nodeKind, arguments.size(), parameters);
 
-        Expression[] newArgs = null;
+        T[] newArgs = null;
 
-        for (int i = 0, n = parameterTypes.length; i < n; i++) {
-            final Class<?> parameterType = parameterTypes[i];
-            final Expression arg = validateOneArgument(method, nodeKind, arguments.get(i), parameterType);
+        for (int i = 0, n = parameters.size(); i < n; i++) {
+            final Type parameterType = parameters.get(i).getParameterType();
+            final T arg = validateOneArgument(method, nodeKind, arguments.get(i), parameterType);
 
-            if (newArgs == null && arg != arguments.get(i)) {
-                newArgs = new Expression[arguments.size()];
-                for (int j = 0; j < i; j++) {
-                    newArgs[j] = arguments.get(j);
+            if (arg != arguments.get(i)) {
+                if (newArgs == null) {
+                    newArgs = arguments.toArray();
                 }
-            }
-            if (newArgs != null) {
                 newArgs[i] = arg;
             }
         }
 
         if (newArgs != null) {
-            return ensureUnmodifiable(arrayToList(newArgs));
+            return arguments.newInstance(newArgs);
         }
 
         return arguments;
     }
 
-    private static Expression validateOneArgument(
-        final Method method,
+    private static <T extends Expression> T validateOneArgument(
+        final MethodInfo method,
         final ExpressionType nodeKind,
-        final Expression arg,
-        final Class<?> parameterType) {
+        final T arg,
+        final Type parameterType) {
 
         verifyCanRead(arg, "arguments");
 
-        final Class argType = arg.getType();
+        final Type argType = arg.getType();
 
         if (!TypeUtils.areReferenceAssignable(parameterType, argType)) {
             switch (nodeKind) {
@@ -1727,16 +2698,17 @@ public abstract class Expression {
                     throw ContractUtils.unreachable();
             }
         }
+
         return arg;
     }
 
     private static void validateArgumentCount(
-        final Method method,
+        final MethodInfo method,
         final ExpressionType nodeKind,
         final int count,
-        final Class<?>[] parameterTypes) {
+        final ParameterList parameterTypes) {
 
-        if (parameterTypes.length == count) {
+        if (parameterTypes.size() == count) {
             return;
         }
 
@@ -1750,6 +2722,60 @@ public abstract class Expression {
                 throw Error.incorrectNumberOfMethodCallArguments(method);
             default:
                 throw ContractUtils.unreachable();
+        }
+    }
+
+    private static <T> void validateLambdaArgs(
+        final Type<T> interfaceType,
+        final Expression body,
+        final ParameterExpressionList parameters) {
+
+        VerifyArgument.notNull(interfaceType, "interfaceType");
+        verifyCanRead(body, "body");
+
+        final MethodList methods = interfaceType.getMethods();
+
+        if (!interfaceType.isInterface() || methods.size() != 1) {
+            throw Error.lambdaTypeMustBeSingleMethodInterface();
+        }
+
+        final MethodInfo method = methods.get(0);
+        final ParameterList methodParameters = method.getParameters();
+
+        if (methodParameters.size() > 0) {
+            if (parameters.size() != methodParameters.size()) {
+                throw Error.incorrectNumberOfLambdaArguments();
+            }
+
+            final Set<ParameterExpression> set = new HashSet<>(parameters.size());
+
+            for (int i = 0, n = methodParameters.size(); i < n; i++) {
+                final ParameterExpression pex = parameters.get(i);
+                final ParameterInfo pi = methodParameters.get(i);
+
+                verifyCanRead(pex, "parameters");
+
+                final Type pType = pi.getParameterType();
+
+                if (!TypeUtils.areReferenceAssignable(pex.getType(), pType)) {
+                    throw Error.parameterExpressionNotValidForDelegate(pex.getType(), pType);
+                }
+
+                if (set.contains(pex)) {
+                    throw Error.duplicateVariable(pex);
+                }
+
+                set.add(pex);
+            }
+        }
+        else if (parameters.size() > 0) {
+            throw Error.incorrectNumberOfLambdaDeclarationParameters();
+        }
+
+        if (method.getReturnType() != PrimitiveTypes.Void &&
+            !TypeUtils.areReferenceAssignable(method.getReturnType(), body.getType())) {
+
+            throw Error.expressionTypeDoesNotMatchReturn(body.getType(), method.getReturnType());
         }
     }
 }

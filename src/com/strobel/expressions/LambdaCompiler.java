@@ -7,15 +7,11 @@ import com.strobel.util.ContractUtils;
  * @author Mike Strobel
  */
 class LambdaCompiler {
-    static Object compile(final LambdaExpression lambda) {
+    static <T> Delegate<T> compile(final LambdaExpression<T> lambda) {
         throw ContractUtils.unreachable();
     }
 
-    static Delegate compileDelegate(final LambdaExpression lambda) {
-        throw ContractUtils.unreachable();
-    }
-
-    static void compile(final LambdaExpression lambda, final MethodBuilder methodBuilder) {
+    static void compile(final LambdaExpression<?> lambda, final MethodBuilder methodBuilder) {
         throw ContractUtils.unreachable();
     }
 }

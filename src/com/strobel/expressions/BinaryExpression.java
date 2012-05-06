@@ -1,8 +1,10 @@
 package com.strobel.expressions;
 
+import com.strobel.reflection.BindingFlags;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.PrimitiveTypes;
+import com.strobel.reflection.Type;
 import com.strobel.util.TypeUtils;
-
-import java.lang.reflect.Method;
 
 /**
  * @author Mike Strobel
@@ -24,7 +26,7 @@ public class BinaryExpression extends Expression {
         return _left;
     }
 
-    public Method getMethod() {
+    public MethodInfo getMethod() {
         return null;
     }
 
@@ -35,6 +37,11 @@ public class BinaryExpression extends Expression {
     @Override
     public boolean canReduce() {
         return isOpAssignment(getNodeType());
+    }
+
+    @Override
+    protected Expression accept(final ExpressionVisitor visitor) {
+        return visitor.visitBinary(this);
     }
 
     @Override
@@ -49,6 +56,40 @@ public class BinaryExpression extends Expression {
             }
         }
         return this;
+    }
+
+    static Expression create(
+        final ExpressionType nodeType,
+        final Expression left,
+        final Expression right,
+        final Type type,
+        final MethodInfo method,
+        final LambdaExpression conversion) {
+
+        if (nodeType == ExpressionType.Assign) {
+            assert method == null &&
+                   TypeUtils.hasIdentityPrimitiveOrBoxingConversion(type, left.getType());
+
+            return new AssignBinaryExpression(left, right);
+        }
+
+        if (conversion != null) {
+            assert method == null &&
+                   TypeUtils.hasIdentityPrimitiveOrBoxingConversion(type, right.getType()) &&
+                   nodeType == ExpressionType.Coalesce;
+
+            return new CoalesceConversionBinaryExpression(left, right, conversion);
+        }
+
+        if (method != null) {
+            return new MethodBinaryExpression(nodeType, left, right, type, method);
+        }
+
+        if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(type, PrimitiveTypes.Boolean)) {
+            return new LogicalBinaryExpression(nodeType, left, right);
+        }
+
+        return new SimpleBinaryExpression(nodeType, left, right, type);
     }
 
     public BinaryExpression update(final Expression left, final LambdaExpression conversion, final Expression right) {
@@ -67,23 +108,10 @@ public class BinaryExpression extends Expression {
         return Expression.makeBinary(getNodeType(), left, right, getMethod(), conversion);
     }
 
-    boolean isLiftedLogical() {
-        final Class left = _left.getType();
-        final Class right = _right.getType();
-        final Method method = getMethod();
-        final ExpressionType kind = getNodeType();
-
-        return (kind == ExpressionType.AndAlso || kind == ExpressionType.OrElse) &&
-               TypeUtils.areEquivalent(right, left) &&
-               TypeUtils.isAutoUnboxed(left) &&
-               method != null &&
-               TypeUtils.areEquivalent(method.getReturnType(), TypeUtils.getUnderlyingPrimitive(left));
-    }
-
     boolean isReferenceComparison() {
-        final Class left = _left.getType();
-        final Class right = _right.getType();
-        final Method method = getMethod();
+        final Type left = _left.getType();
+        final Type right = _right.getType();
+        final MethodInfo method = getMethod();
         final ExpressionType kind = getNodeType();
 
         return (kind == ExpressionType.Equal || kind == ExpressionType.NotEqual) &&
@@ -217,8 +245,8 @@ class LogicalBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public final Class getType() {
-        return Boolean.TYPE;
+    public final Type getType() {
+        return PrimitiveTypes.Boolean;
     }
 
     @Override
@@ -229,13 +257,13 @@ class LogicalBinaryExpression extends BinaryExpression {
 
 final class CompareMethodBasedLogicalBinaryExpression extends BinaryExpression {
     private final ExpressionType _operator;
-    private final Method _method;
+    private final MethodInfo _method;
 
     public CompareMethodBasedLogicalBinaryExpression(
         final ExpressionType operator,
         final Expression left,
         final Expression right,
-        final Method method) {
+        final MethodInfo method) {
 
         super(left, right);
 
@@ -244,8 +272,8 @@ final class CompareMethodBasedLogicalBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public final Class getType() {
-        return Boolean.TYPE;
+    public final Type getType() {
+        return PrimitiveTypes.Boolean;
     }
 
     @Override
@@ -254,18 +282,46 @@ final class CompareMethodBasedLogicalBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public Method getMethod() {
+    public MethodInfo getMethod() {
         return _method;
     }
+}
 
-    @Override
-    public boolean canReduce() {
-        return super.canReduce();    //To change body of overridden methods use File | Settings | File Templates.
+final class EqualsMethodBasedLogicalBinaryExpression extends BinaryExpression {
+    private final ExpressionType _operator;
+    private final MethodInfo _method;
+
+    public EqualsMethodBasedLogicalBinaryExpression(
+        final ExpressionType operator,
+        final Expression left,
+        final Expression right,
+        final MethodInfo method) {
+
+        super(left, right);
+
+        _operator = operator;
+
+        if (method != null) {
+            _method = method;
+        }
+        else {
+            _method = Type.Object.getMethod("equals", BindingFlags.Instance | BindingFlags.Public, Type.Object);
+        }
     }
 
     @Override
-    public Expression reduce() {
-        return super.reduce();    //To change body of overridden methods use File | Settings | File Templates.
+    public final Type getType() {
+        return PrimitiveTypes.Boolean;
+    }
+
+    @Override
+    public final ExpressionType getNodeType() {
+        return _operator;
+    }
+
+    @Override
+    public MethodInfo getMethod() {
+        return _method;
     }
 }
 
@@ -278,7 +334,7 @@ final class AssignBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public final Class getType() {
+    public final Type getType() {
         return getLeft().getType();
     }
 
@@ -307,7 +363,7 @@ final class CoalesceConversionBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public final Class getType() {
+    public final Type getType() {
         return getRight().getType();
     }
 
@@ -324,8 +380,8 @@ final class OpAssignMethodConversionBinaryExpression extends MethodBinaryExpress
         final ExpressionType nodeType,
         final Expression left,
         final Expression right,
-        final Class type,
-        final Method method,
+        final Type type,
+        final MethodInfo method,
         final LambdaExpression conversion) {
 
         super(nodeType, left, right, type, method);
@@ -341,13 +397,13 @@ final class OpAssignMethodConversionBinaryExpression extends MethodBinaryExpress
 
 class SimpleBinaryExpression extends BinaryExpression {
     private final ExpressionType _nodeType;
-    private final Class _type;
+    private final Type _type;
 
     SimpleBinaryExpression(
         final ExpressionType nodeType,
         final Expression left,
         final Expression right,
-        final Class type) {
+        final Type type) {
 
         super(left, right);
 
@@ -361,27 +417,27 @@ class SimpleBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public final Class getType() {
+    public final Type getType() {
         return _type;
     }
 }
 
 class MethodBinaryExpression extends SimpleBinaryExpression {
-    private final Method _method;
+    private final MethodInfo _method;
 
     public MethodBinaryExpression(
         final ExpressionType operator,
         final Expression left,
         final Expression right,
-        final Class type,
-        final Method method) {
+        final Type type,
+        final MethodInfo method) {
 
         super(operator, left, right, type);
         _method = method;
     }
 
     @Override
-    public final Method getMethod() {
+    public final MethodInfo getMethod() {
         return _method;
     }
 }

@@ -13,6 +13,10 @@ import static java.lang.String.format;
 public final class VerifyArgument {
     private VerifyArgument() {}
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // GENERIC PRECONDITIONS                                                                                              //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     public static <T> T notNull(final T value, final String parameterName) {
         if (value != null) {
             return value;
@@ -22,23 +26,9 @@ public final class VerifyArgument {
         );
     }
 
-    public static String notNullOrEmpty(final String value, final String parameterName) {
-        if (!StringEx.isNullOrEmpty(value)) {
-            return value;
-        }
-        throw new IllegalArgumentException(
-            format("Argument '%s' must be a non-null, non-empty string.", parameterName)
-        );
-    }
-
-    public static String notNullOrWhitespace(final String value, final String parameterName) {
-        if (!StringEx.isNullOrWhitespace(value)) {
-            return value;
-        }
-        throw new IllegalArgumentException(
-            format("Argument '%s' must be a non-null, non-empty string.", parameterName)
-        );
-    }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ARRAY AND COLLECTION PRECONDITIONS                                                                                 //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static <T> T[] notEmpty(final T[] array, final String parameterName) {
         notNull(array, parameterName);
@@ -99,6 +89,8 @@ public final class VerifyArgument {
                     );
                 }
             }
+
+            return collection;
         }
 
         for (final Object item : collection) {
@@ -110,5 +102,184 @@ public final class VerifyArgument {
         }
 
         return collection;
+    }
+
+    public static <T> T[] elementsOfType(final Class<?> elementType, final T[] values, final String parameterName) {
+        VerifyArgument.notNull(elementType, "elementType");
+        VerifyArgument.notNull(values, "values");
+
+        for (final T value : values) {
+            if (!elementType.isInstance(value)) {
+                throw new IllegalArgumentException(
+                    format(
+                        "Argument '%s' must only contain elements of type '%s'.",
+                        parameterName,
+                        elementType
+                    )
+                );
+            }
+        }
+
+        return values;
+    }
+
+    public static <T> T[] elementsOfTypeOrNull(final Class<T> elementType, final T[] values, final String parameterName) {
+        VerifyArgument.notNull(elementType, "elementType");
+        VerifyArgument.notNull(values, "values");
+
+        for (final T value : values) {
+            if (value != null && !elementType.isInstance(value)) {
+                throw new IllegalArgumentException(
+                    format(
+                        "Argument '%s' must only contain elements of type '%s'.",
+                        parameterName,
+                        elementType
+                    )
+                );
+            }
+        }
+
+        return values;
+    }
+
+    public static <T> void validElementRange(final int size, final int startInclusive, final int endExclusive) {
+
+        if (startInclusive >= 0 && endExclusive <= size && endExclusive > startInclusive) {
+            return;
+        }
+        throw new IllegalArgumentException("The specified element range is not valid.");
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // STRING PRECONDITIONS                                                                                               //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static String notNullOrEmpty(final String value, final String parameterName) {
+        if (!StringEx.isNullOrEmpty(value)) {
+            return value;
+        }
+        throw new IllegalArgumentException(
+            format("Argument '%s' must be a non-null, non-empty string.", parameterName)
+        );
+    }
+
+    public static String notNullOrWhitespace(final String value, final String parameterName) {
+        if (!StringEx.isNullOrWhitespace(value)) {
+            return value;
+        }
+        throw new IllegalArgumentException(
+            format("Argument '%s' must be a non-null, non-empty string.", parameterName)
+        );
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // NUMERIC PRECONDITIONS                                                                                              //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static int isNonZero(final int value, final String parameterName) {
+        if (value != 0) {
+            return value;
+        }
+
+        throw new IllegalArgumentException(format("Argument '%s' must be non-zero.", parameterName));
+    }
+
+    public static int isPositive(final int value, final String parameterName) {
+        if (value > 0) {
+            return value;
+        }
+
+        throw new IllegalArgumentException(format("Argument '%s' must be positive.", parameterName));
+    }
+
+    public static int isNonNegative(final int value, final String parameterName) {
+        if (value >= 0) {
+            return value;
+        }
+
+        throw new IllegalArgumentException(format("Argument '%s' must be non-negative.", parameterName));
+    }
+
+    public static int isNegative(final int value, final String parameterName) {
+        if (value < 0) {
+            return value;
+        }
+
+        throw new IllegalArgumentException(format("Argument '%s' must be negative.", parameterName));
+    }
+
+    public static int inRange(final int minInclusive, final int maxInclusive, final int value, final String parameterName) {
+        if (maxInclusive < minInclusive) {
+            throw new IllegalArgumentException("The specified maximum value is less than the specified minimum value.");
+        }
+
+        if (value >= minInclusive && value <= maxInclusive) {
+            return value;
+        }
+
+        throw new IllegalArgumentException(
+            format(
+                "Argument '%s' must be in the range [%s, %s].",
+                parameterName,
+                minInclusive,
+                maxInclusive
+            )
+        );
+    }
+
+    public static double isNonZero(final double value, final String parameterName) {
+        if (value != 0) {
+            return value;
+        }
+
+        throw new IllegalArgumentException(format("Argument '%s' must be non-zero.", parameterName));
+    }
+
+    public static double isPositive(final double value, final String parameterName) {
+        if (value > 0) {
+            return value;
+        }
+
+        throw new IllegalArgumentException(format("Argument '%s' must be positive.", parameterName));
+    }
+
+    public static double isNonNegative(final double value, final String parameterName) {
+        if (value >= 0) {
+            return value;
+        }
+
+        throw new IllegalArgumentException(format("Argument '%s' must be non-negative.", parameterName));
+    }
+
+    public static double isNegative(final double value, final String parameterName) {
+        if (value < 0) {
+            return value;
+        }
+
+        throw new IllegalArgumentException(format("Argument '%s' must be negative.", parameterName));
+    }
+
+    public static double inRange(
+        final double minInclusive,
+        final double maxInclusive,
+        final double value,
+        final String parameterName) {
+
+        if (maxInclusive < minInclusive) {
+            throw new IllegalArgumentException("The specified maximum value is less than the specified minimum value.");
+        }
+
+        if (value >= minInclusive && value <= maxInclusive) {
+            return value;
+        }
+
+        throw new IllegalArgumentException(
+            format(
+                "Argument '%s' must be in the range [%s, %s].",
+                parameterName,
+                minInclusive,
+                maxInclusive
+            )
+        );
     }
 }

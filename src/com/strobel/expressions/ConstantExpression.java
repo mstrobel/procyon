@@ -1,5 +1,7 @@
 package com.strobel.expressions;
 
+import com.strobel.reflection.Type;
+
 /**
  * Represents an expression that has a constant value.
  *
@@ -17,11 +19,11 @@ public class ConstantExpression extends Expression {
     }
 
     @Override
-    public Class getType() {
+    public Type getType() {
         if (_value == null) {
-            return Object.class;
+            return Type.Object;
         }
-        return _value.getClass();
+        return Type.of(_value.getClass());
     }
 
     @Override
@@ -34,8 +36,8 @@ public class ConstantExpression extends Expression {
         return visitor.visitConstant(this);
     }
 
-    static ConstantExpression make(final Object value, final Class type) {
-        if ((value == null && type == Object.class) || (value != null && value.getClass() == type)) {
+    static ConstantExpression make(final Object value, final Type type) {
+        if ((value == null && type == Type.Object) || (value != null && Type.of(value.getClass()) == type)) {
             return new ConstantExpression(value);
         }
         else {
@@ -45,15 +47,15 @@ public class ConstantExpression extends Expression {
 }
 
 class TypedConstantExpression extends ConstantExpression {
-    private final Class _type;
+    private final Type _type;
 
-    TypedConstantExpression(final Object value, final Class type) {
+    TypedConstantExpression(final Object value, final Type type) {
         super(value);
         _type = type;
     }
 
     @Override
-    public final Class getType() {
+    public final Type getType() {
         return _type;
     }
 }

@@ -7,8 +7,8 @@ import com.strobel.util.ContractUtils;
  */
 public abstract class Binder {
     static boolean compareMethodSignatureAndName(final MethodBase m1, final MethodBase m2) {
-        final ParameterCollection p1 = m1.getParameters();
-        final ParameterCollection p2 = m2.getParameters();
+        final ParameterList p1 = m1.getParameters();
+        final ParameterList p2 = m2.getParameters();
 
         if (p1.size() != p2.size()) {
             return false;

@@ -20,15 +20,15 @@ import static com.strobel.reflection.Flags.any;
 final class ReflectedType<T> extends Type {
     private final Class<T> _class;
     private final Type _baseType;
-    private final FieldCollection _fields;
-    private final MethodCollection _methods;
-    private final ConstructorCollection _constructors;
-    private final TypeCollection _genericParameters;
-    private final TypeCollection _interfaces;
+    private final FieldList _fields;
+    private final MethodList _methods;
+    private final ConstructorList _constructors;
+    private final TypeBindings _typeArguments;
+    private final TypeList _interfaces;
 
-    ReflectedType(final Class<T> rawType, final TypeCollection genericParameters, final Type baseType, final TypeCollection interfaces) {
+    ReflectedType(final Class<T> rawType, final TypeBindings typeArguments, final Type baseType, final TypeList interfaces) {
         _class = VerifyArgument.notNull(rawType, "rawType");
-        _genericParameters = VerifyArgument.notNull(genericParameters, "genericParameters");
+        _typeArguments = VerifyArgument.notNull(typeArguments, "typeArguments");
 
         if (baseType == null && rawType != java.lang.Object.class) {
             throw new IllegalArgumentException("Base type cannot be null.");
@@ -36,12 +36,12 @@ final class ReflectedType<T> extends Type {
 
         _baseType = baseType;
         _interfaces = VerifyArgument.notNull(interfaces, "interfaces");
-        _fields = FieldCollection.empty();
-        _methods = MethodCollection.empty();
-        _constructors = ConstructorCollection.empty();
+        _fields = FieldList.empty();
+        _methods = MethodList.empty();
+        _constructors = ConstructorList.empty();
     }
 
-    protected TypeCollection populateGenericParameters() {
+    protected TypeList populateGenericParameters() {
         final TypeVariable<Class<T>>[] typeParameters = _class.getTypeParameters();
         final Type[] genericParameters = new Type[typeParameters.length];
 
@@ -50,11 +50,11 @@ final class ReflectedType<T> extends Type {
             genericParameters[i] = new GenericParameterType(typeVariable, this, i);
         }
 
-        return new TypeCollection(genericParameters);
+        return new TypeList(genericParameters);
     }
 
     @Override
-    public Type makeGenericType(final Type... typeArguments) {
+    public Type makeGenericTypeCore(final TypeList typeArguments) {
         return new GenericType(this, typeArguments);
     }
 
@@ -68,7 +68,7 @@ final class ReflectedType<T> extends Type {
     }
 
     @Override
-    public TypeCollection getInterfaces() {
+    public TypeList getInterfaces() {
         return _interfaces;
     }
 
@@ -79,12 +79,12 @@ final class ReflectedType<T> extends Type {
 
     @Override
     public boolean isGenericType() {
-        return !_genericParameters.isEmpty();
+        return !_typeArguments.isEmpty();
     }
 
     @Override
-    public TypeCollection getGenericParameters() {
-        return _genericParameters;
+    public TypeBindings getTypeBindings() {
+        return _typeArguments;
     }
 
     @Override
@@ -116,11 +116,11 @@ final class ReflectedType<T> extends Type {
     }
 
     @Override
-    public MemberCollection<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType... memberTypes) {
+    public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
         VerifyArgument.notNull(name, "name");
 
         if (memberTypes == null || memberTypes.length == 0) {
-            return MemberCollection.empty();
+            return MemberList.empty();
         }
 
         MethodInfo[] methods = EmptyMethods;
@@ -147,27 +147,27 @@ final class ReflectedType<T> extends Type {
             switch (memberTypes[0]) {
                 case Constructor:
                     if (constructors.length == 0) {
-                        return ConstructorCollection.empty();
+                        return ConstructorList.empty();
                     }
-                    return new ConstructorCollection(constructors);
+                    return new ConstructorList(constructors);
 
                 case Field:
                     if (fields.length == 0) {
-                        return FieldCollection.empty();
+                        return FieldList.empty();
                     }
-                    return new FieldCollection(fields);
+                    return new FieldList(fields);
 
                 case Method:
                     if (methods.length == 0) {
-                        return MethodCollection.empty();
+                        return MethodList.empty();
                     }
-                    return new MethodCollection(methods);
+                    return new MethodList(methods);
 
                 case NestedType:
                     if (nestedTypes.length == 0) {
-                        return TypeCollection.empty();
+                        return TypeList.empty();
                     }
-                    return new TypeCollection(nestedTypes);
+                    return new TypeList(nestedTypes);
             }
         }
 
@@ -186,7 +186,7 @@ final class ReflectedType<T> extends Type {
 
         results.toArray(array);
 
-        return new MemberCollection<>(MemberInfo.class, array);
+        return new MemberList<>(MemberInfo.class, array);
     }
 
     @Override
@@ -316,23 +316,23 @@ final class ReflectedType<T> extends Type {
     }
 
     @Override
-    public MemberCollection<? extends MemberInfo> getMembers(final int bindingFlags) {
-        return MemberCollection.empty();
+    public MemberList<? extends MemberInfo> getMembers(final int bindingFlags) {
+        return MemberList.empty();
     }
 
     @Override
-    public FieldCollection getFields(final int bindingFlags) {
+    public FieldList getFields(final int bindingFlags) {
         final FieldInfo[] candidates = getFieldCandidates(null, bindingFlags, false);
 
         if (candidates == null || candidates.length == 0) {
-            return FieldCollection.empty();
+            return FieldList.empty();
         }
 
-        return new FieldCollection(candidates);
+        return new FieldList(candidates);
     }
 
     @Override
-    public MethodCollection getMethods(final int bindingFlags, final CallingConvention callingConvention) {
+    public MethodList getMethods(final int bindingFlags, final CallingConvention callingConvention) {
         final MethodInfo[] candidates = getMethodBaseCandidates(
             _methods,
             null,
@@ -342,14 +342,14 @@ final class ReflectedType<T> extends Type {
             false);
 
         if (candidates == null || candidates.length == 0) {
-            return MethodCollection.empty();
+            return MethodList.empty();
         }
 
-        return new MethodCollection(candidates);
+        return new MethodList(candidates);
     }
 
     @Override
-    public ConstructorCollection getConstructors(final int bindingFlags) {
+    public ConstructorList getConstructors(final int bindingFlags) {
         final ConstructorInfo[] candidates = getMethodBaseCandidates(
             _constructors,
             null,
@@ -359,15 +359,15 @@ final class ReflectedType<T> extends Type {
             false);
 
         if (candidates == null || candidates.length == 0) {
-            return ConstructorCollection.empty();
+            return ConstructorList.empty();
         }
 
-        return new ConstructorCollection(candidates);
+        return new ConstructorList(candidates);
     }
 
     @Override
-    public TypeCollection getNestedTypes(final int bindingFlags) {
-        return TypeCollection.empty();
+    public TypeList getNestedTypes(final int bindingFlags) {
+        return TypeList.empty();
     }
 
     @Override
@@ -437,7 +437,7 @@ final class ReflectedType<T> extends Type {
 
     @SuppressWarnings("unchecked")
     private <T extends MethodBase> T[] getMethodBaseCandidates(
-        final MemberCollection<T> source,
+        final MemberList<T> source,
         final String name,
         final int bindingFlags,
         final CallingConvention callingConvention,
@@ -500,7 +500,7 @@ final class ReflectedType<T> extends Type {
         final int bindingFlags,
         final boolean allowPrefixLookup) {
 
-        final FieldCollection fields = _fields;
+        final FieldList fields = _fields;
         final int flags = bindingFlags ^ BindingFlags.DeclaredOnly;
         final FilterOptions filterOptions = getFilterOptions(name, flags, allowPrefixLookup);
 
