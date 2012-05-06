@@ -1,7 +1,7 @@
 package com.strobel.expressions;
 
 import com.strobel.reflection.MemberInfo;
-import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.Type;
 
 import static java.lang.String.format;
@@ -74,11 +74,11 @@ final class Error {
 
     public static RuntimeException mustRewriteChildToSameType(final Type before, final Type after, final String callerName) {
         return new RuntimeException(
-            format("MethodInfo '%s' performed an illegal type change from %s to %s.", callerName, before, after)
+            format("MethodBase '%s' performed an illegal type change from %s to %s.", callerName, before, after)
         );
     }
 
-    public static RuntimeException mustRewriteWithoutMethod(final MethodInfo method, final String callerName) {
+    public static RuntimeException mustRewriteWithoutMethod(final MethodBase method, final String callerName) {
         return new RuntimeException(
             format(
                 "Rewritten expression calls method '%s', but the original node had no method.  " +
@@ -141,30 +141,30 @@ final class Error {
         );
     }
 
-    public static RuntimeException operatorMethodMustNotBeStatic(final MethodInfo method) {
+    public static RuntimeException operatorMethodMustNotBeStatic(final MethodBase method) {
         return new RuntimeException(
             format(
-                "MethodInfo '%s.%s' cannot be used as an operator because it is static.",
+                "MethodBase '%s.%s' cannot be used as an operator because it is static.",
                 method.getDeclaringType().getName(),
                 method.getName()
             )
         );
     }
 
-    public static RuntimeException operatorMethodMustNotReturnVoid(final MethodInfo method) {
+    public static RuntimeException operatorMethodMustNotReturnVoid(final MethodBase method) {
         return new RuntimeException(
             format(
-                "MethodInfo '%s.%s' cannot be used as an operator because it returns void.",
+                "MethodBase '%s.%s' cannot be used as an operator because it returns void.",
                 method.getDeclaringType().getName(),
                 method.getName()
             )
         );
     }
 
-    public static RuntimeException operatorMethodParametersMustMatchReturnValue(final MethodInfo method) {
+    public static RuntimeException operatorMethodParametersMustMatchReturnValue(final MethodBase method) {
         return new RuntimeException(
             format(
-                "MethodInfo '%s.%s' cannot be used as an operator because its parameters do not match " +
+                "MethodBase '%s.%s' cannot be used as an operator because its parameters do not match " +
                 "its return value.",
                 method.getDeclaringType().getName(),
                 method.getName()
@@ -172,7 +172,7 @@ final class Error {
         );
     }
 
-    public static RuntimeException returnTypeDoesNotMatchOperandType(final ExpressionType expressionType, final MethodInfo method) {
+    public static RuntimeException returnTypeDoesNotMatchOperandType(final ExpressionType expressionType, final MethodBase method) {
         return new RuntimeException(
             format(
                 "The return type for operator '%s' does not match the declaring type of method '%s.%s'.",
@@ -183,7 +183,7 @@ final class Error {
         );
     }
 
-    public static RuntimeException returnTypeDoesNotMatchOperandType(final MethodInfo method) {
+    public static RuntimeException returnTypeDoesNotMatchOperandType(final MethodBase method) {
         return new RuntimeException(
             format(
                 "The return type of operator method '%s.%s' does not match the method's declaring type.",
@@ -205,7 +205,7 @@ final class Error {
         return new RuntimeException("Incorrect number of parameters supplied for lambda declaration.");
     }
 
-    public static RuntimeException incorrectNumberOfMethodCallArguments(final MethodInfo method) {
+    public static RuntimeException incorrectNumberOfMethodCallArguments(final MethodBase method) {
         return new RuntimeException(
             format(
                 "Incorrect number of arguments supplied for call to method '%s.%s'",
@@ -229,6 +229,14 @@ final class Error {
         return new RuntimeException("Argument must be a boolean.");
     }
 
+    public static RuntimeException argumentMustBeInteger() {
+        return new RuntimeException("Argument must be an integer.");
+    }
+
+    public static RuntimeException argumentMustBeIntegral() {
+        return new RuntimeException("Argument must be an integral numeric type.");
+    }
+
     public static RuntimeException coercionOperatorNotDefined(final Type sourceType, final Type destinationType) {
         return new RuntimeException(
             format(
@@ -245,7 +253,7 @@ final class Error {
         );
     }
 
-    public static RuntimeException methodBasedOperatorMustHaveValidReturnType(final MethodInfo method) {
+    public static RuntimeException methodBasedOperatorMustHaveValidReturnType(final MethodBase method) {
         return new RuntimeException(
             format(
                 "The operator method '%s.%s' must return the same type as its declaring type " +
@@ -256,7 +264,7 @@ final class Error {
         );
     }
 
-    public static RuntimeException methodBasedOperatorMustHaveValidReturnType(final ExpressionType operator, final MethodInfo method) {
+    public static RuntimeException methodBasedOperatorMustHaveValidReturnType(final ExpressionType operator, final MethodBase method) {
         return new RuntimeException(
             format(
                 "The operator method '%s.%s' for operator '%s' must return the same type as its " +
@@ -305,7 +313,7 @@ final class Error {
         );
     }
 
-    public static RuntimeException targetRequiredForNonStaticMethodCall(final MethodInfo method) {
+    public static RuntimeException targetRequiredForNonStaticMethodCall(final MethodBase method) {
         return new RuntimeException(
             format(
                 "An invocation target expression is required for a call to non-static " +
@@ -316,7 +324,7 @@ final class Error {
         );
     }
 
-    public static RuntimeException targetInvalidForStaticMethodCall(final MethodInfo method) {
+    public static RuntimeException targetInvalidForStaticMethodCall(final MethodBase method) {
         return new RuntimeException(
             format(
                 "An invocation target expression cannot be used to call static " +
@@ -327,7 +335,7 @@ final class Error {
         );
     }
 
-    public static RuntimeException targetAndMethodTypeMismatch(final MethodInfo method, final Type targetType) {
+    public static RuntimeException targetAndMethodTypeMismatch(final MethodBase method, final Type targetType) {
         return new RuntimeException(
             format(
                 "Expression of type '%s' is not a valid invocation target for instance " +
@@ -369,7 +377,7 @@ final class Error {
         );
     }
 
-    public static RuntimeException expressionTypeDoesNotMatchMethodParameter(final Type argType, final Type parameterType, final MethodInfo method) {
+    public static RuntimeException expressionTypeDoesNotMatchMethodParameter(final Type argType, final Type parameterType, final MethodBase method) {
         return new RuntimeException(
             format(
                 "Expression of type '%s' cannot be used for parameter of type '%s' of method '%s.%s'.",
@@ -444,7 +452,7 @@ final class Error {
         );
     }
 
-    public static RuntimeException operandTypesDoNotMatchParameters(final ExpressionType nodeType, final MethodInfo method) {
+    public static RuntimeException operandTypesDoNotMatchParameters(final ExpressionType nodeType, final MethodBase method) {
         return new RuntimeException(
             format(
                 "The operands for operator '%s' do not match the parameters of method '%s'.",
@@ -454,7 +462,7 @@ final class Error {
         );
     }
 
-    public static RuntimeException overloadOperatorTypeDoesNotMatchConversionType(final ExpressionType nodeType, final MethodInfo method) {
+    public static RuntimeException overloadOperatorTypeDoesNotMatchConversionType(final ExpressionType nodeType, final MethodBase method) {
         return new RuntimeException(
             format(
                 "The return type of overload method for operator '%s' does not match the parameter " +
@@ -477,5 +485,51 @@ final class Error {
                 delegateParameterType.getName()
             )
         );
+    }
+
+    public static RuntimeException labelMustBeVoidOrHaveExpression() {
+        return new RuntimeException("Label type must be void if an expression is not supplied.");
+    }
+
+    public static RuntimeException expressionTypeDoesNotMatchLabel(final Type valueType, final Type expectedType) {
+        return new RuntimeException(
+            format(
+                "Expression of type '%s' cannot be used for return type '%s'.",
+                valueType.getName(),
+                expectedType.getName()
+            )
+        );
+    }
+
+    public static RuntimeException labelTypeMustBeVoid() {
+        return new RuntimeException("Type must be void for this label argument.");
+    }
+
+    public static RuntimeException expressionTypeCannotInitializeArrayType(final Type itemType, final Type arrayElementType) {
+        return new RuntimeException(
+            format(
+                "An expression of type '%s' cannot be used to initialize an array of type '%s'.",
+                itemType.getName(),
+                arrayElementType.getName()
+            )
+        );
+    }
+
+    public static RuntimeException catchVariableMustBeCompatibleWithCatchType(final Type catchType, final Type variableType) {
+        return new RuntimeException(
+            format(
+                "A variable of type '%s' cannot be used with a catch block with filter type '%s'.",
+                variableType.getName(),
+                catchType.getName()
+            )
+        );
+    }
+
+    public static RuntimeException bodyOfCatchMustHaveSameTypeAsBodyOfTry() {
+        return new RuntimeException("Body of catch must have the same type as body of try.");
+    }
+
+    public static RuntimeException tryMustHaveCatchOrFinally() {
+        return new RuntimeException("A try expression must have at least one catch or finally clause.");
     }
 }

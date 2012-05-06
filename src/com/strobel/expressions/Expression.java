@@ -1,5 +1,6 @@
 package com.strobel.expressions;
 
+import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.*;
 import com.strobel.util.ContractUtils;
@@ -136,6 +137,313 @@ public abstract class Expression {
 
     public static Expression empty() {
         return new DefaultValueExpression(PrimitiveTypes.Void);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // LABELS                                                                                                             //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static LabelTarget label() {
+        return label(PrimitiveTypes.Void, null);
+    }
+
+    public static LabelTarget label(final String name) {
+        return label(PrimitiveTypes.Void, name);
+    }
+
+    public static LabelTarget label(final Type type) {
+        return label(type, null);
+    }
+
+    public static LabelTarget label(final Type type, final String name) {
+        VerifyArgument.notNull(type, "type");
+
+        return new LabelTarget(type, name);
+    }
+
+    public static LabelExpression label(final LabelTarget target) {
+        return label(target, null);
+    }
+
+    public static LabelExpression label(final LabelTarget target, final Expression defaultValue) {
+        validateGoto(target, defaultValue, "label", "defaultValue");
+        return new LabelExpression(target, defaultValue);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // GOTO, BREAK, CONTINUE, AND RETURN EXPRESSIONS                                                                      //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static GotoExpression makeBreak(final LabelTarget target) {
+        return makeGoto(GotoExpressionKind.Break, target, null, PrimitiveTypes.Void);
+    }
+
+    public static GotoExpression makeBreak(final LabelTarget target, final Expression value) {
+        return makeGoto(GotoExpressionKind.Break, target, value, PrimitiveTypes.Void);
+    }
+
+    public static GotoExpression makeBreak(final LabelTarget target, final Type type) {
+        return makeGoto(GotoExpressionKind.Break, target, null, type);
+    }
+
+    public static GotoExpression makeBreak(final LabelTarget target, final Expression value, final Type type) {
+        return makeGoto(GotoExpressionKind.Break, target, value, type);
+    }
+
+    public static GotoExpression makeContinue(final LabelTarget target) {
+        return makeGoto(GotoExpressionKind.Continue, target, null, PrimitiveTypes.Void);
+    }
+
+    public static GotoExpression makeContinue(final LabelTarget target, final Type type) {
+        return makeGoto(GotoExpressionKind.Continue, target, null, type);
+    }
+
+    public static GotoExpression makeReturn(final LabelTarget target) {
+        return makeGoto(GotoExpressionKind.Return, target, null, PrimitiveTypes.Void);
+    }
+
+    public static GotoExpression makeReturn(final LabelTarget target, final Type type) {
+        return makeGoto(GotoExpressionKind.Return, target, null, type);
+    }
+
+    public static GotoExpression makeReturn(final LabelTarget target, final Expression value) {
+        return makeGoto(GotoExpressionKind.Return, target, value, PrimitiveTypes.Void);
+    }
+
+    public static GotoExpression makeReturn(final LabelTarget target, final Expression value, final Type type) {
+        return makeGoto(GotoExpressionKind.Return, target, value, type);
+    }
+
+    public static GotoExpression makeGoto(final LabelTarget target) {
+        return makeGoto(GotoExpressionKind.Goto, target, null, PrimitiveTypes.Void);
+    }
+
+    public static GotoExpression makeGoto(final LabelTarget target, final Type type) {
+        return makeGoto(GotoExpressionKind.Goto, target, null, type);
+    }
+
+    public static GotoExpression makeGoto(final LabelTarget target, final Expression value) {
+        return makeGoto(GotoExpressionKind.Goto, target, value, PrimitiveTypes.Void);
+    }
+
+    public static GotoExpression makeGoto(final LabelTarget target, final Expression value, final Type type) {
+        return makeGoto(GotoExpressionKind.Goto, target, value, type);
+    }
+
+    public static GotoExpression makeGoto(final GotoExpressionKind kind, final LabelTarget target, final Expression value, final Type type) {
+        validateGoto(target, value, "target", "value");
+        return new GotoExpression(kind, target, value, type);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // LOOP EXPRESSIONS                                                                                                   //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static LoopExpression loop(final Expression body) {
+        return loop(body, null, null);
+    }
+
+    public static LoopExpression loop(final Expression body, final LabelTarget breakLabel) {
+        return loop(body, breakLabel, null);
+    }
+
+    public static LoopExpression loop(final Expression body, final LabelTarget breakLabel, final LabelTarget continueLabel) {
+        verifyCanRead(body, "body");
+
+        if (continueLabel != null && continueLabel.getType() != PrimitiveTypes.Void) {
+            throw Error.labelTypeMustBeVoid();
+        }
+
+        return new LoopExpression(body, breakLabel, continueLabel);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // NEW EXPRESSIONS                                                                                                    //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static NewExpression makeNew(final ConstructorInfo constructor) {
+        return makeNew(constructor, ExpressionList.empty());
+    }
+
+    public static NewExpression makeNew(final ConstructorInfo constructor, final Expression... parameters) {
+        return makeNew(constructor, arrayToList(parameters));
+    }
+
+    public static NewExpression makeNew(final ConstructorInfo constructor, final ExpressionList<? extends Expression> parameters) {
+        VerifyArgument.notNull(constructor, "constructor");
+        VerifyArgument.notNull(constructor.getDeclaringType(), "constructor.getDeclaringType()");
+
+        final ExpressionList<? extends Expression> arguments = validateArgumentTypes(constructor, ExpressionType.New, parameters);
+
+        return new NewExpression(constructor, arguments);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // NEW ARRAY EXPRESSIONS                                                                                              //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static NewArrayExpression newArrayInit(final Type type, final Expression... initializers) {
+        return newArrayInit(type, arrayToList(initializers));
+    }
+
+    public static NewArrayExpression newArrayInit(final Type type, final ExpressionList<? extends Expression> initializers) {
+        VerifyArgument.notNull(type, "type");
+        VerifyArgument.noNullElements(initializers, "initializers");
+
+        if (type.isEquivalentTo(PrimitiveTypes.Void)) {
+            throw Error.argumentCannotBeOfTypeVoid();
+        }
+
+        for (int i = 0, n = initializers.size(); i < n; i++) {
+            final Expression item = initializers.get(i);
+
+            verifyCanRead(item, "initializers");
+
+            if (!TypeUtils.areReferenceAssignable(type, item.getType())) {
+                throw Error.expressionTypeCannotInitializeArrayType(item.getType(), type);
+            }
+        }
+
+        return NewArrayInitExpression.make(ExpressionType.NewArrayInit, type, initializers);
+    }
+
+    public static NewArrayExpression newArrayBounds(final Type type, final Expression dimension) {
+        VerifyArgument.notNull(type, "type");
+        VerifyArgument.notNull(dimension, "dimension");
+        verifyCanRead(dimension, "dimension");
+
+        if (type.isEquivalentTo(PrimitiveTypes.Void)) {
+            throw Error.argumentCannotBeOfTypeVoid();
+        }
+
+        if (!TypeUtils.isIntegral(type)) {
+            throw Error.argumentMustBeIntegral();
+        }
+
+        final Expression convertedDimension;
+
+        if (TypeUtils.getUnderlyingPrimitiveOrSelf(type) != PrimitiveTypes.Integer) {
+            convertedDimension = convert(dimension, PrimitiveTypes.Integer);
+        }
+        else {
+            convertedDimension = dimension;
+        }
+
+        return NewArrayInitExpression.make(
+            ExpressionType.NewArrayBounds,
+            type,
+            new ExpressionList<>(convertedDimension)
+        );
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // TRY/CATCH EXPRESSIONS                                                                                              //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static CatchBlock makeCatch(final Type type, final Expression body) {
+        return makeCatch(type, null, body, null);
+    }
+
+    public static CatchBlock makeCatch(final ParameterExpression variable, final Expression body) {
+        VerifyArgument.notNull(variable, "variable");
+        return makeCatch(variable.getType(), variable, body, null);
+    }
+
+    public static CatchBlock makeCatch(final Type type, final Expression body, final Expression filter) {
+        return makeCatch(type, null, body, filter);
+    }
+
+    public static CatchBlock makeCatch(final ParameterExpression variable, final Expression body, final Expression filter) {
+        VerifyArgument.notNull(variable, "variable");
+        return makeCatch(variable.getType(), variable, body, filter);
+    }
+
+    public static CatchBlock makeCatch(
+        final Type type,
+        final ParameterExpression variable,
+        final Expression body,
+        final Expression filter) {
+
+        VerifyArgument.notNull(type, "type");
+
+        if (variable != null && !TypeUtils.areEquivalent(variable.getType(), type)) {
+            throw Error.catchVariableMustBeCompatibleWithCatchType(type, variable.getType());
+        }
+
+        verifyCanRead(body, "body");
+
+        if (filter != null) {
+            verifyCanRead(filter, "filter");
+            if (!TypeUtils.hasIdentityPrimitiveOrBoxingConversion(filter.getType(), PrimitiveTypes.Boolean)) {
+                throw Error.argumentMustBeBoolean();
+            }
+        }
+
+        return new CatchBlock(type, variable, body, filter);
+    }
+
+    public static TryExpression TryFinally(final Expression body, final Expression finallyBlock) {
+        return makeTry(null, body, finallyBlock);
+    }
+
+    public static TryExpression TryCatch(final Expression body, final CatchBlock... handlers) {
+        return makeTry(null, body, null, handlers);
+    }
+
+    public static TryExpression tryCatchFinally(final Expression body, final Expression finallyBlock, final CatchBlock... handlers) {
+        return makeTry(null, body, finallyBlock, handlers);
+    }
+
+    public static TryExpression makeTry(final Type type, final Expression body, final Expression finallyBlock, final CatchBlock... handlers) {
+        final ReadOnlyList<CatchBlock> catchBlocks;
+
+        if (handlers != null) {
+            catchBlocks = new ReadOnlyList<>(handlers);
+        }
+        else {
+            VerifyArgument.noNullElements(handlers, "handlers");
+            catchBlocks = ReadOnlyList.empty();
+        }
+
+        return makeTry(type, body, catchBlocks, finallyBlock);
+    }
+
+    public static TryExpression makeTry(
+        final Type type,
+        final Expression body,
+        final ReadOnlyList<CatchBlock> catchBlocks,
+        final Expression finallyBlock) {
+
+        verifyCanRead(body, "body");
+        VerifyArgument.noNullElements(catchBlocks, "catchBlocks");
+        validateTryAndCatchHaveSameType(type, body, catchBlocks);
+
+        if (finallyBlock != null) {
+            verifyCanRead(finallyBlock, "finallyBlock");
+        }
+        else if (catchBlocks.isEmpty()) {
+            throw Error.tryMustHaveCatchOrFinally();
+        }
+
+        return new TryExpression(
+            type != null ? type : body.getType(),
+            body,
+            catchBlocks,
+            finallyBlock);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // RUNTIME VARIABLES EXPRESSIONS                                                                                      //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static RuntimeVariablesExpression runtimeVariables(final ParameterExpression... variables) {
+        return runtimeVariables(arrayToList(variables));
+    }
+
+    public static RuntimeVariablesExpression runtimeVariables(final ParameterExpressionList variables) {
+        VerifyArgument.noNullElements(variables, "variables");
+
+        return new RuntimeVariablesExpression(variables);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1641,6 +1949,24 @@ public abstract class Expression {
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // TYPE BINARY EXPRESSIONS                                                                                            //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static TypeBinaryExpression instanceOf(final Expression expression, final Type type) {
+        verifyCanRead(expression, "expression");
+        VerifyArgument.notNull(type, "type");
+
+        return new TypeBinaryExpression(expression, type, ExpressionType.InstanceOf);
+    }
+
+    public static TypeBinaryExpression typeEqual(final Expression expression, final Type type) {
+        verifyCanRead(expression, "expression");
+        VerifyArgument.notNull(type, "type");
+
+        return new TypeBinaryExpression(expression, type, ExpressionType.TypeEqual);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // LAMBDA EXPRESSIONS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2643,7 +2969,7 @@ public abstract class Expression {
     }
 
     private static <T extends Expression> ExpressionList<T> validateArgumentTypes(
-        final MethodInfo method,
+        final MethodBase method,
         final ExpressionType nodeKind,
         final ExpressionList<T> arguments) {
 
@@ -2677,7 +3003,7 @@ public abstract class Expression {
     }
 
     private static <T extends Expression> T validateOneArgument(
-        final MethodInfo method,
+        final MethodBase method,
         final ExpressionType nodeKind,
         final T arg,
         final Type parameterType) {
@@ -2703,7 +3029,7 @@ public abstract class Expression {
     }
 
     private static void validateArgumentCount(
-        final MethodInfo method,
+        final MethodBase method,
         final ExpressionType nodeKind,
         final int count,
         final ParameterList parameterTypes) {
@@ -2776,6 +3102,72 @@ public abstract class Expression {
             !TypeUtils.areReferenceAssignable(method.getReturnType(), body.getType())) {
 
             throw Error.expressionTypeDoesNotMatchReturn(body.getType(), method.getReturnType());
+        }
+    }
+
+    private static void validateGoto(
+        final LabelTarget target,
+        final Expression value,
+        final String targetParameter,
+        final String valueParameter) {
+
+        VerifyArgument.notNull(target, targetParameter);
+
+        if (value == null) {
+            if (target.getType() != PrimitiveTypes.Void) {
+                throw Error.labelMustBeVoidOrHaveExpression();
+            }
+        }
+    }
+
+    private static void validateGotoType(final Type expectedType, final Expression value, final String valueParameter) {
+        verifyCanRead(value, valueParameter);
+
+        if (expectedType != PrimitiveTypes.Void &&
+            !TypeUtils.areReferenceAssignable(expectedType, value.getType())) {
+
+            throw Error.expressionTypeDoesNotMatchLabel(value.getType(), expectedType);
+        }
+    }
+
+    private static void validateTryAndCatchHaveSameType(
+        final Type type,
+        final Expression tryBody,
+        final ReadOnlyList<CatchBlock> handlers) {
+
+        // Type unification ... all parts must be reference assignable to "type"
+        if (type != null) {
+            if (type != PrimitiveTypes.Void) {
+                if (!TypeUtils.areReferenceAssignable(type, tryBody.getType())) {
+                    throw Error.argumentTypesMustMatch();
+                }
+
+                for (int i = 0, n = handlers.size(); i < n; i++) {
+                    final CatchBlock cb = handlers.get(i);
+                    if (!TypeUtils.areReferenceAssignable(type, cb.getBody().getType())) {
+                        throw Error.argumentTypesMustMatch();
+                    }
+                }
+            }
+        }
+        else if (tryBody == null || tryBody.getType() == PrimitiveTypes.Void) {
+            //The body of every try block must be null or have void type.
+            for (int i = 0, n = handlers.size(); i < n; i++) {
+                final Expression catchBody = handlers.get(i).getBody();
+                if (catchBody != null && catchBody.getType() != PrimitiveTypes.Void) {
+                    throw Error.bodyOfCatchMustHaveSameTypeAsBodyOfTry();
+                }
+            }
+        }
+        else {
+            //Body of every catch must have the same type of body of try.
+            final Type tryType = tryBody.getType();
+            for (int i = 0, n = handlers.size(); i < n; i++) {
+                final Expression catchBody = handlers.get(i).getBody();
+                if (catchBody == null || !TypeUtils.areEquivalent(catchBody.getType(), tryType)) {
+                    throw Error.bodyOfCatchMustHaveSameTypeAsBodyOfTry();
+                }
+            }
         }
     }
 }

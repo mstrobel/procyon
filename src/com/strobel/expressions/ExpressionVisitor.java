@@ -1,5 +1,6 @@
 package com.strobel.expressions;
 
+import com.strobel.core.ReadOnlyList;
 import com.strobel.reflection.Type;
 
 /**
@@ -20,6 +21,26 @@ public abstract class ExpressionVisitor {
 
     public Expression visitExtension(final Expression node) {
         return node.visitChildren(this);
+    }
+
+    public Expression visitLabel(final LabelExpression node) {
+        return node.update(this.visitLabelTarget(node.getTarget()), visit(node.getDefaultValue()));
+    }
+
+    protected LabelTarget visitLabelTarget(final LabelTarget node) {
+        return node;
+    }
+
+    public Expression visitGoto(final GotoExpression node) {
+        return node.update(visitLabelTarget(node.getTarget()), visit(node.getValue()));
+    }
+
+    public Expression visitLoop(final LoopExpression node) {
+        return node.update(
+            visitLabelTarget(node.getBreakLabel()),
+            visitLabelTarget(node.getContinueLabel()),
+            visit(node.getBody())
+        );
     }
 
     public Expression visitMember(final MemberExpression node) {
@@ -48,6 +69,10 @@ public abstract class ExpressionVisitor {
                 visit(node.getRight())
             )
         );
+    }
+
+    public Expression visitTypeBinary(final TypeBinaryExpression node) {
+        return node.update(visit(node.getOperand()));
     }
 
     public Expression visitBlock(final BlockExpression node) {
@@ -108,6 +133,14 @@ public abstract class ExpressionVisitor {
         return node.rewrite(target, arguments);
     }
 
+    public Expression visitNew(final NewExpression node) {
+        return node.update(visit(node.getArguments()));
+    }
+
+    public Expression visitNewArray(final NewArrayExpression node) {
+        return node.update(visit(node.getExpressions()));
+    }
+
     public <T> LambdaExpression<T> visitLambda(final LambdaExpression<T> node) {
         return node.update(visit(node.getBody()), visitAndConvertList(node.getParameters(), "visitLambda"));
     }
@@ -116,25 +149,89 @@ public abstract class ExpressionVisitor {
         return node.update(visit(node.getTest()), visit(node.getIfTrue()), visit(node.getIfFalse()));
     }
 
+    public Expression visitRuntimeVariables(final RuntimeVariablesExpression node) {
+        return node.update(visitAndConvertList(node.getVariables(), "visitRuntimeVariables"));
+    }
+
+    public Expression visitTry(final TryExpression node) {
+        return node.update(
+            visit(node.getBody()),
+            visit(
+                node.getHandlers(),
+                new ElementVisitor<CatchBlock>() {
+                    @Override
+                    public CatchBlock visit(final CatchBlock node) {
+                        return visitCatchBlock(node);
+                    }
+                }
+            ),
+            visit(node.getFinallyBlock())
+        );
+    }
+
+    public CatchBlock visitCatchBlock(final CatchBlock node) {
+        return node.update(
+            visitAndConvert(node.getVariable(), "visitCatchBlock"),
+            visit(node.getFilter()),
+            visit(node.getBody())
+        );
+    }
+
+    public static <T> ReadOnlyList<T> visit(final ReadOnlyList<T> nodes, final ElementVisitor<T> elementVisitor) {
+        T[] newNodes = null;
+
+        for (int i = 0, n = nodes.size(); i < n; i++) {
+            final T node = nodes.get(i);
+            final T newNode = elementVisitor.visit(node);
+
+            if (newNode != node) {
+                if (newNodes == null) {
+                    newNodes = nodes.toArray();
+                }
+                newNodes[i] = newNode;
+            }
+        }
+        if (newNodes == null) {
+            return nodes;
+        }
+        return new ReadOnlyList<>(newNodes);
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // HELPER METHODS                                                                                                     //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    final ExpressionList<? extends Expression> visit(final ExpressionList<? extends Expression> nodes) {
+        Expression[] newNodes = null;
+        for (int i = 0, n = nodes.size(); i < n; i++) {
+            final Expression node = nodes.get(i);
+            final Expression newNode = visit(node);
+
+            if (newNode != node) {
+                if (newNodes == null) {
+                    newNodes = nodes.toArray();
+                }
+                newNodes[i] = newNode;
+            }
+        }
+        return new ExpressionList<>(newNodes);
+    }
+
     final ExpressionList<? extends Expression> visitArguments(final IArgumentProvider nodes) {
         Expression[] newNodes = null;
         for (int i = 0, n = nodes.getArgumentCount(); i < n; i++) {
-            final Expression curNode = nodes.getArgument(i);
-            final Expression node = visit(curNode);
+            final Expression node = nodes.getArgument(i);
+            final Expression newNode = visit(node);
 
             if (newNodes != null) {
-                newNodes[i] = node;
+                newNodes[i] = newNode;
             }
-            else if (node != curNode) {
+            else if (newNode != node) {
                 newNodes = new Expression[n];
                 for (int j = 0; j < i; j++) {
                     newNodes[j] = nodes.getArgument(j);
                 }
-                newNodes[i] = node;
+                newNodes[i] = newNode;
             }
         }
         return new ExpressionList<>(newNodes);
@@ -247,5 +344,13 @@ public abstract class ExpressionVisitor {
 
         // Otherwise, it's an invalid type change.
         throw Error.mustRewriteChildToSameType(before, after, methodName);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // DEPENDENT TYPES                                                                                                    //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public interface ElementVisitor<T> {
+        T visit(final T node);
     }
 }

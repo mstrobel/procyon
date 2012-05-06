@@ -57,10 +57,17 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         return _out.toString();
     }
 
-    public static String expressionToString(final Expression node) {
+    static String expressionToString(final Expression node) {
         assert node != null;
         final ExpressionStringBuilder esb = new ExpressionStringBuilder();
         esb.visit(node);
+        return esb.toString();
+    }
+
+    static String catchBlockToString(final CatchBlock node) {
+        assert node != null;
+        final ExpressionStringBuilder esb = new ExpressionStringBuilder();
+        esb.visitCatchBlock(node);
         return esb.toString();
     }
 
@@ -470,6 +477,17 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         visit(node.getIfTrue());
 
         return super.visitConditional(node);    //To change body of overridden methods use File | Settings | File Templates.
+    }
+
+    @Override
+    public CatchBlock visitCatchBlock(final CatchBlock node) {
+        out("catch (" + node.getTest().getName());
+        if (node.getVariable() != null) {
+            final String variableName = node.getVariable().getName();
+            out(variableName != null ? variableName : "");
+        }
+        out(") { ... }");
+        return node;
     }
 
     @Override

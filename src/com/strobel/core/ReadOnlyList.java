@@ -6,6 +6,13 @@ import java.util.*;
  * @author Mike Strobel
  */
 public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess {
+    private final static ReadOnlyList<?> EMPTY = new ReadOnlyList<Object>();
+
+    @SuppressWarnings("unchecked")
+    public static <T> ReadOnlyList<T> empty() {
+        return (ReadOnlyList<T>)EMPTY;
+    }
+
     private final int _offset;
     private final int _length;
     private final T[] _elements;
