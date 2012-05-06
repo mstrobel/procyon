@@ -82,51 +82,6 @@ class GenericType extends Type {
     }
 
     @Override
-    public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
-        return _genericTypeDefinition.getMember(name, bindingFlags, memberTypes);
-    }
-
-    @Override
-    public FieldInfo getField(final String name, final int bindingFlags) {
-        return _genericTypeDefinition.getField(name, bindingFlags);
-    }
-
-    @Override
-    public MethodInfo getMethod(final String name, final int bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes) {
-        return _genericTypeDefinition.getMethod(name, bindingFlags, callingConvention, parameterTypes);
-    }
-
-    @Override
-    public ConstructorInfo getConstructor(final int bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes) {
-        return _genericTypeDefinition.getConstructor(bindingFlags, callingConvention, parameterTypes);
-    }
-
-    @Override
-    public MemberList<? extends MemberInfo> getMembers(final int bindingFlags) {
-        return _genericTypeDefinition.getMembers(bindingFlags);
-    }
-
-    @Override
-    public FieldList getFields(final int bindingFlags) {
-        return _genericTypeDefinition.getFields(bindingFlags);
-    }
-
-    @Override
-    public MethodList getMethods(final int bindingFlags, final CallingConvention callingConvention) {
-        return _genericTypeDefinition.getMethods(bindingFlags, callingConvention);
-    }
-
-    @Override
-    public ConstructorList getConstructors(final int bindingFlags) {
-        return _genericTypeDefinition.getConstructors(bindingFlags);
-    }
-
-    @Override
-    public TypeList getNestedTypes(final int bindingFlags) {
-        return _genericTypeDefinition.getNestedTypes(bindingFlags);
-    }
-
-    @Override
     public MemberType getMemberType() {
         return MemberType.TypeInfo;
     }

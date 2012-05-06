@@ -9,7 +9,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     private final static ReadOnlyList<?> EMPTY = new ReadOnlyList<Object>();
 
     @SuppressWarnings("unchecked")
-    public static <T> ReadOnlyList<T> empty() {
+    public static <T> ReadOnlyList<T> emptyList() {
         return (ReadOnlyList<T>)EMPTY;
     }
 
@@ -242,7 +242,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     }
 
     @Override
-    public final List<T> subList(final int fromIndex, final int toIndex) {
+    public final ReadOnlyList<T> subList(final int fromIndex, final int toIndex) {
         subListRangeCheck(fromIndex, toIndex, size());
         return new ReadOnlyList<>(this, _offset + fromIndex, _offset + toIndex);
     }

@@ -82,6 +82,11 @@ public final class ArrayUtilities {
     public static <T> T[] insert(final T[] array, final int index, final T... values) {
         VerifyArgument.notNull(array, "array");
         VerifyArgument.inRange(0, array.length, index, "index");
+
+        if (values == null || values.length == 0) {
+            return array;
+        }
+
         VerifyArgument.elementsOfType(array.getClass().getComponentType(), values, "values");
 
         final int newItemCount = values.length;
@@ -110,23 +115,55 @@ public final class ArrayUtilities {
 
     @SuppressWarnings("unchecked")
     public static <T> T[] append(final T[] array, final T value) {
+        if (array == null) {
+            if (value == null) {
+                throw new IllegalArgumentException("At least one value must be specified if 'array' is null.");
+            }
+            final T[] newArray = (T[])Array.newInstance(value.getClass(), 1);
+            newArray[0] = value;
+            return newArray;
+        }
         return insert(array, VerifyArgument.notNull(array, "array").length, value);
     }
 
     @SafeVarargs
     @SuppressWarnings("unchecked")
     public static <T> T[] append(final T[] array, final T... values) {
+        if (array == null) {
+            if (values == null || values.length == 0) {
+                throw new IllegalArgumentException("At least one value must be specified if 'array' is null.");
+            }
+            final T[] newArray = (T[])Array.newInstance(values.getClass().getComponentType(), values.length);
+            System.arraycopy(values, 0, newArray, 0, values.length);
+            return newArray;
+        }
         return insert(array, VerifyArgument.notNull(array, "array").length, values);
     }
 
     @SuppressWarnings("unchecked")
     public static <T> T[] prepend(final T[] array, final T value) {
+        if (array == null) {
+            if (value == null) {
+                throw new IllegalArgumentException("At least one value must be specified if 'array' is null.");
+            }
+            final T[] newArray = (T[])Array.newInstance(value.getClass(), 1);
+            newArray[0] = value;
+            return newArray;
+        }
         return insert(array, 0, value);
     }
 
     @SafeVarargs
     @SuppressWarnings("unchecked")
     public static <T> T[] prepend(final T[] array, final T... values) {
+        if (array == null) {
+            if (values == null || values.length == 0) {
+                throw new IllegalArgumentException("At least one value must be specified if 'array' is null.");
+            }
+            final T[] newArray = (T[])Array.newInstance(values.getClass().getComponentType(), values.length);
+            System.arraycopy(values, 0, newArray, 0, values.length);
+            return newArray;
+        }
         return insert(array, 0, values);
     }
 

@@ -1,13 +1,16 @@
 package com.strobel.reflection;
 
+import com.strobel.core.ArrayUtilities;
+import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
 
+import java.io.Serializable;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.TypeVariable;
-import java.lang.reflect.WildcardType;
+import java.lang.reflect.*;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * @author strobelm
@@ -18,6 +21,10 @@ final class TypeResolver {
 
     TypeResolver(final TypeCache resolvedTypes) {
         _resolvedTypes = VerifyArgument.notNull(resolvedTypes, "resolvedTypes");
+    }
+
+    public Type resolve(final java.lang.reflect.Type jdkType, final TypeBindings typeBindings) {
+        return _fromAny(null, jdkType, typeBindings);
     }
 
     public Type resolve(final Class<?> rawType) {
@@ -154,7 +161,8 @@ final class TypeResolver {
             return type;
         }
 
-/*
+        final java.lang.reflect.Type[] bounds = variable.getBounds();
+
         final TypeBindings newBindings;
         final Type genericParameter = typeBindings.findGenericParameter(name);
 
@@ -165,12 +173,13 @@ final class TypeResolver {
             );
         }
         else {
-            newBindings = typeBindings;
+            final int ordinal = ArrayUtilities.indexOf(variable.getGenericDeclaration().getTypeParameters(), variable);
+            newBindings = typeBindings.withAdditionalParameter(
+                new TypePlaceHolder(ordinal, variable.getName())
+            );
         }
-*/
 
-        final java.lang.reflect.Type[] bounds = variable.getBounds();
-        return _fromAny(context, bounds[0], typeBindings);
+        return _fromAny(context, bounds[0], newBindings);
     }
 
     private Type _constructType(final ClassStack context, final Class<?> rawType, final TypeBindings typeBindings) {
@@ -180,16 +189,12 @@ final class TypeResolver {
             return new ArrayType(elementType);
         }
 
-        final Type openType;
-
         final TypeVariable<? extends Class<?>>[] typeParameters = rawType.getTypeParameters();
         final RecursiveType selfReference;
         final TypeList genericParameterList;
 
-        TypeBindings newBindings = typeBindings;
-
         if (typeParameters.length != 0) {
-            selfReference = new RecursiveType(rawType, newBindings);
+            selfReference = new RecursiveType(rawType, typeBindings);
             context.addSelfReference(selfReference);
             final Type[] genericParameters = new Type[typeParameters.length];
             for (int i = 0, n = typeParameters.length; i < n; i++) {
@@ -212,17 +217,17 @@ final class TypeResolver {
         if (rawType.isInterface()) {
             return new ReflectedType<>(
                 rawType,
-                newBindings.bindingsFor(genericParameterList),
+                typeBindings.bindingsFor(genericParameterList),
                 Type.Object,
-                _resolveSuperInterfaces(context, rawType, newBindings)
+                _resolveSuperInterfaces(context, rawType, typeBindings)
             );
         }
 
         return new ReflectedType<>(
             rawType,
-            newBindings.bindingsFor(genericParameterList),
-            _resolveSuperClass(context, rawType, newBindings),
-            _resolveSuperInterfaces(context, rawType, newBindings)
+            typeBindings.bindingsFor(genericParameterList),
+            _resolveSuperClass(context, rawType, typeBindings),
+            _resolveSuperInterfaces(context, rawType, typeBindings)
         );
     }
 
@@ -274,7 +279,7 @@ final class TypeResolver {
         }
 
         @Override
-        public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
+        public MemberList getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
             return _referencedType.getMember(name, bindingFlags, memberTypes);
         }
 
@@ -289,7 +294,7 @@ final class TypeResolver {
         }
 
         @Override
-        public MemberList<? extends MemberInfo> getMembers(final int bindingFlags) {
+        public MemberList getMembers(final int bindingFlags) {
             return _referencedType.getMembers(bindingFlags);
         }
 
@@ -315,12 +320,12 @@ final class TypeResolver {
 
         @Override
         public Class<?> getErasedClass() {
-            return _referencedType.getErasedClass();
+            return _rawType;
         }
 
         @Override
         public TypeBindings getTypeBindings() {
-            return _referencedType.getTypeBindings();
+            return _typeBindings;
         }
 
         @Override
@@ -395,10 +400,8 @@ final class TypeResolver {
 
         @Override
         public boolean isGenericParameter() {
-            if (_referencedType == null) {
-                return false;
-            }
-            return _referencedType.isGenericParameter();
+            return _referencedType != null &&
+                   _referencedType.isGenericParameter();
         }
 
         @Override
@@ -558,3 +561,472 @@ final class TypeResolver {
     }
 }
 
+final class ClassKey implements Comparable<ClassKey>, Serializable {
+    private final String _className;
+    private final Class<?> _class;
+    private final int _hashCode;
+
+    public ClassKey(final Class<?> clazz) {
+        _class = clazz;
+        _className = clazz.getName();
+        _hashCode = _className.hashCode();
+    }
+
+    public int compareTo(final ClassKey other) {
+        return _className.compareTo(other._className);
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (o == null) {
+            return false;
+        }
+        if (o.getClass() != getClass()) {
+            return false;
+        }
+        final ClassKey other = (ClassKey)o;
+        return other._class == _class;
+    }
+
+    @Override
+    public int hashCode() { return _hashCode; }
+
+    @Override
+    public String toString() { return _className; }
+}
+
+abstract class RawMember {
+    private final Type _declaringType;
+
+    protected RawMember(final Type context) {
+        _declaringType = context;
+    }
+
+    public final Type getDeclaringType() {
+        return _declaringType;
+    }
+
+    public abstract Member getRawMember();
+
+    public String getName() {
+        return getRawMember().getName();
+    }
+
+    public boolean isStatic() {
+        return Modifier.isStatic(getModifiers());
+    }
+
+    public boolean isFinal() {
+        return Modifier.isFinal(getModifiers());
+    }
+
+    public boolean isPrivate() {
+        return Modifier.isPrivate(getModifiers());
+    }
+
+    public boolean isProtected() {
+        return Modifier.isProtected(getModifiers());
+    }
+
+    public boolean isPublic() {
+        return Modifier.isPublic(getModifiers());
+    }
+
+    @Override
+    public abstract boolean equals(Object o);
+
+    @Override
+    public abstract int hashCode();
+
+    @Override
+    public String toString() {
+        return getName();
+    }
+
+    protected final int getModifiers() { return getRawMember().getModifiers(); }
+}
+
+final class RawField extends RawMember {
+    private final Field _field;
+    private final int _hashCode;
+
+    public RawField(final Type context, final Field field) {
+        super(context);
+        _field = field;
+        _hashCode = (_field == null ? 0 : _field.hashCode());
+    }
+
+    public Field getRawMember() {
+        return _field;
+    }
+
+    public boolean isTransient() {
+        return Modifier.isTransient(getModifiers());
+    }
+
+    public boolean isVolatile() {
+        return Modifier.isVolatile(getModifiers());
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (o == null || o.getClass() != getClass()) {
+            return false;
+        }
+        final RawField other = (RawField)o;
+        return (other._field == _field);
+    }
+
+    @Override
+    public int hashCode() {
+        return _hashCode;
+    }
+}
+
+final class RawConstructor extends RawMember {
+    private final Constructor<?> _constructor;
+    private final int _hashCode;
+
+    public RawConstructor(final Type context, final Constructor<?> constructor) {
+        super(context);
+        _constructor = constructor;
+        _hashCode = (_constructor == null ? 0 : _constructor.hashCode());
+    }
+
+    public MethodKey createKey() {
+        final String name = "<init>";
+        final Class<?>[] argTypes = _constructor.getParameterTypes();
+        return new MethodKey(name, argTypes);
+    }
+
+    @Override
+    public Constructor<?> getRawMember() {
+        return _constructor;
+    }
+
+    @Override
+    public int hashCode() {
+        return _hashCode;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (o == null || o.getClass() != getClass()) {
+            return false;
+        }
+        final RawConstructor other = (RawConstructor)o;
+        return (other._constructor == _constructor);
+    }
+}
+
+final class RawMethod extends RawMember {
+    private final Method _method;
+    private final int _hashCode;
+
+    public RawMethod(final Type context, final Method method) {
+        super(context);
+        _method = method;
+        _hashCode = (_method == null ? 0 : _method.hashCode());
+    }
+
+    public Method getRawMember() {
+        return _method;
+    }
+
+    public boolean isAbstract() {
+        return Modifier.isAbstract(getModifiers());
+    }
+
+    public boolean isStrict() {
+        return Modifier.isStrict(getModifiers());
+    }
+
+    public boolean isNative() {
+        return Modifier.isNative(getModifiers());
+    }
+
+    public boolean isSynchronized() {
+        return Modifier.isSynchronized(getModifiers());
+    }
+
+    public MethodKey createKey() {
+        final String name = _method.getName();
+        final Class<?>[] argTypes = _method.getParameterTypes();
+        return new MethodKey(name, argTypes);
+    }
+
+    @Override
+    public int hashCode() {
+        return _hashCode;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (o == null || o.getClass() != getClass()) {
+            return false;
+        }
+        final RawMethod other = (RawMethod)o;
+        return (other._method == _method);
+    }
+}
+
+@SuppressWarnings("serial")
+final class MethodKey implements Serializable {
+    private static final Class<?>[] NO_CLASSES = new Class[0];
+    private final String _name;
+    private final Class<?>[] _argumentTypes;
+    private final int _hashCode;
+
+    public MethodKey(final String name) {
+        _name = name;
+        _argumentTypes = NO_CLASSES;
+        _hashCode = name.hashCode();
+    }
+
+    public MethodKey(final String name, final Class<?>[] argTypes) {
+        _name = name;
+        _argumentTypes = argTypes;
+        _hashCode = name.hashCode() + argTypes.length;
+    }
+
+    /**
+     * Equality means name is the same and argument type erasures as well.
+     */
+    @Override
+    public boolean equals(final Object o) {
+        if (o == this) {
+            return true;
+        }
+        if (o == null || o.getClass() != getClass()) {
+            return false;
+        }
+        final MethodKey other = (MethodKey)o;
+        final Class<?>[] otherArgs = other._argumentTypes;
+        final int argCount = _argumentTypes.length;
+        if (otherArgs.length != argCount) {
+            return false;
+        }
+        for (int i = 0; i < argCount; ++i) {
+            if (otherArgs[i] != _argumentTypes[i]) {
+                return false;
+            }
+        }
+        return _name.equals(other._name);
+    }
+
+    @Override
+    public int hashCode() { return _hashCode; }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append(_name);
+        sb.append('(');
+        for (int i = 0, len = _argumentTypes.length; i < len; ++i) {
+            if (i > 0) {
+                sb.append(',');
+            }
+            sb.append(_argumentTypes[i].getName());
+        }
+        sb.append(')');
+        return sb.toString();
+    }
+}
+
+@SuppressWarnings("ALL")
+final class MemberResolver {
+    final class Result {
+        final HierarchicType mainType;
+        final ReadOnlyList<HierarchicType> types;
+
+        Result(final HierarchicType mainType, final ReadOnlyList<HierarchicType> types) {
+            this.mainType = mainType;
+            this.types = types;
+        }
+    }
+
+    final Result resolve(final Type mainType) {
+        // First: flatten basic type hierarchy (highest to lowest precedence)
+        final HashSet<ClassKey> seenTypes = new HashSet<>();
+        final ArrayList<Type> types = new ArrayList<>();
+
+        _gatherTypes(mainType, seenTypes, types);
+
+        // Second step: inject mix-ins (keeping order from highest to lowest)
+        final HierarchicType[] hTypes;
+        HierarchicType mainHierarchicType = null;
+
+        // Third step: add mix-ins (if any), reverse order (lowest to highest precedence)
+        final int len = types.size();
+        hTypes = new HierarchicType[len];
+        for (int i = 0; i < len; ++i) {
+            // false -> not a mix-in
+            hTypes[i] = new HierarchicType(types.get(i), false, i);
+        }
+        mainHierarchicType = hTypes[0];
+
+        // And that's about all we need to do; rest computed lazily
+        return new Result(mainHierarchicType, new ReadOnlyList<>(hTypes));
+    }
+
+    private void _gatherTypes(final Type currentType, final Set<ClassKey> seenTypes, final List<Type> types) {
+        // may get called with null if no parent type
+        if (currentType == null) {
+            return;
+        }
+
+        final Class<?> raw = currentType.getErasedClass();
+
+        // Finally, only include first instance of an interface, so:
+        final ClassKey key = new ClassKey(raw);
+
+        if (seenTypes.contains(key)) {
+            return;
+        }
+
+        // If all good so far, append
+        seenTypes.add(key);
+        types.add(currentType);
+
+        /* And check superclasses; starting with interfaces. Why interfaces?
+         * So that "highest" interfaces get priority; otherwise we'd recurse
+         * super-class stack and actually start with the bottom. Usually makes
+         * little difference, but in cases where it does this seems like the
+         * correct order.
+         */
+        for (final Type t : currentType.getInterfaces()) {
+            _gatherTypes(t, seenTypes, types);
+        }
+
+        // and then superclass
+        _gatherTypes(currentType.getBaseType(), seenTypes, types);
+    }
+}
+
+final class TypePlaceHolder extends Type {
+    private final int _ordinal;
+    private final String _name;
+    private Type _actualType;
+
+    public TypePlaceHolder(final int ordinal, final String name) {
+        _ordinal = ordinal;
+        _name = name;
+    }
+
+    @Override
+    public String getName() {
+        return _name;
+    }
+
+    public Type getActualType() {
+        return _actualType;
+    }
+
+    public void setActualType(final Type actualType) {
+        _actualType = actualType;
+    }
+
+    @Override
+    public boolean isGenericType() {
+        return false;
+    }
+
+    @Override
+    public boolean isGenericTypeDefinition() {
+        return false;
+    }
+
+    @Override
+    public boolean isGenericParameter() {
+        return true;
+    }
+
+    @Override
+    public boolean hasElementType() {
+        return false;
+    }
+
+    @Override
+    public Type getBaseType() {
+        return Object;
+    }
+
+    @Override
+    public TypeList getInterfaces() {
+        return TypeList.empty();
+    }
+
+    @Override
+    public MethodInfo getDeclaringMethod() {
+        return null;
+    }
+
+    @Override
+    public Type getElementType() {
+        return null;
+    }
+
+    @Override
+    public int getGenericParameterPosition() {
+        return _ordinal;
+    }
+
+    @Override
+    public boolean isArray() { return false; }
+
+    @Override
+    public boolean isPrimitive() { return false; }
+
+    @Override
+    public Class getErasedClass() {
+        return java.lang.Object.class;
+    }
+
+    @Override
+    public StringBuilder appendSignature(final StringBuilder sb) {
+        return _appendClassSignature(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        return _appendErasedClassSignature(sb);
+    }
+
+    @Override
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
+        sb.append('<').append(_ordinal).append('>');
+        return sb;
+    }
+
+    @Override
+    public StringBuilder appendFullDescription(final StringBuilder sb) {
+        return appendBriefDescription(sb);
+    }
+
+    @Override
+    public MemberType getMemberType() {
+        return MemberType.TypeInfo;
+    }
+
+    @Override
+    public Type getDeclaringType() {
+        return null;
+    }
+
+    @Override
+    int getModifiers() {
+        return 0;
+    }
+}

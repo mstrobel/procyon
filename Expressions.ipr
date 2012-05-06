@@ -252,8 +252,10 @@
         <w>arraycopy</w>
         <w>booleans</w>
         <w>comparer</w>
+        <w>ctor</w>
         <w>goto</w>
         <w>initializers</w>
+        <w>recurse</w>
         <w>unary</w>
         <w>unbox</w>
         <w>unboxed</w>

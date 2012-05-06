@@ -142,14 +142,12 @@ public final class TypeUtils {
     public static boolean hasIdentityPrimitiveOrBoxingConversion(final Type source, final Type destination) {
         assert source != null && destination != null;
 
-        // Identity conversion
-        if (source == destination || areEquivalent(source, destination)) {
-            return true;
-        }
+        final Type unboxedSource = getUnderlyingPrimitiveOrSelf(source);
+        final Type unboxedDestination = getUnderlyingPrimitiveOrSelf(destination);
 
-        // Boxing conversions
-        return isAutoUnboxed(source) && areEquivalent(destination, getUnderlyingPrimitive(source)) ||
-               isAutoUnboxed(destination) && areEquivalent(source, getUnderlyingPrimitive(destination));
+        // Identity conversion
+        return unboxedSource == unboxedDestination ||
+               areEquivalent(unboxedSource, unboxedDestination);
     }
 
     public static boolean hasReferenceConversion(final Type source, final Type destination) {

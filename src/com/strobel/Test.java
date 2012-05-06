@@ -18,9 +18,14 @@ import static com.strobel.expressions.Expression.*;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings("UnusedDeclaration")
 public class Test {
     public static void main(final String[] args) {
         expressionTest();
+        testTypeResolution();
+    }
+
+    private static void testTypeResolution() {
         final GenericType<?> gt = new GenericType<HashMap<String, UUID>>() {};
         // ((ParameterizedTypeImpl) ((ParameterizedTypeImpl) ((ParameterizedType)gt.getClass().getGenericSuperclass())).actualTypeArguments[0]).rawType.getGenericInterfaces()
         final java.lang.reflect.Type[] genericInterfaces =
@@ -43,6 +48,8 @@ public class Test {
         System.out.println(boundHashMap.getErasedSignature());
         System.out.println(boundHashMap.getBriefDescription());
 
+        System.out.println(Type.of(Type.class).getMethods().toArray());
+
         printTypeTree(boundHashMap);
     }
 
@@ -58,6 +65,8 @@ public class Test {
                 constant("positive")
             )
         );
+
+        System.out.println(body);
 
         final LambdaExpression<Class<ITest>> lambda = Expression.lambda(
             Type.of(ITest.class),

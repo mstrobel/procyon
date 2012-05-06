@@ -402,7 +402,7 @@ public abstract class Expression {
         }
         else {
             VerifyArgument.noNullElements(handlers, "handlers");
-            catchBlocks = ReadOnlyList.empty();
+            catchBlocks = ReadOnlyList.emptyList();
         }
 
         return makeTry(type, body, catchBlocks, finallyBlock);
@@ -3059,7 +3059,7 @@ public abstract class Expression {
         VerifyArgument.notNull(interfaceType, "interfaceType");
         verifyCanRead(body, "body");
 
-        final MethodList methods = interfaceType.getMethods();
+        final MethodList methods = interfaceType.getMethods(BindingFlags.Public | BindingFlags.Instance);
 
         if (!interfaceType.isInterface() || methods.size() != 1) {
             throw Error.lambdaTypeMustBeSingleMethodInterface();
