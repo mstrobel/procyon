@@ -115,24 +115,29 @@ class ReflectedMethod extends MethodInfo {
         final TypeBindings bindings) {
         
         Type[] genericParameters = null;
-        
-        for (int i = 0, n = bindings.size(); i < n; i++) {
-            final GenericParameterType p = (GenericParameterType) bindings.getGenericParameter(i);
-            final TypeVariable<?> typeVariable = p.getRawTypeVariable();
-            
-            if (typeVariable.getGenericDeclaration() == rawMethod) {
-                p.setDeclaringMethod(this);
 
-                if (genericParameters == null) {
-                    genericParameters = new Type[] { p };
-                }
-                else {
-                    genericParameters = ArrayUtilities.append(genericParameters, p);
-                }
-                if (bindings.hasBoundParameter(p)) {
-                    throw new IllegalArgumentException(
-                        "ReflectedMethod cannot be used with bound generic method parameters.  " +
-                        "Use GenericMethod instead.");
+        for (int i = 0, n = bindings.size(); i < n; i++) {
+            final Type p = bindings.getGenericParameter(i);
+
+            if (p instanceof GenericParameterType) {
+                final GenericParameterType gp = (GenericParameterType) p;
+                final TypeVariable<?> typeVariable = gp.getRawTypeVariable();
+
+                if (typeVariable.getGenericDeclaration() == rawMethod) {
+                    gp.setDeclaringMethod(this);
+
+                    if (genericParameters == null) {
+                        genericParameters = new Type[]{gp};
+                    }
+                    else {
+                        genericParameters = ArrayUtilities.append(genericParameters, gp);
+                    }
+
+                    if (bindings.hasBoundParameter(gp)) {
+                        throw new IllegalArgumentException(
+                            "ReflectedMethod cannot be used with bound generic method parameters.  " +
+                                "Use GenericMethod instead.");
+                    }
                 }
             }
         }

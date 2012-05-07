@@ -12,6 +12,7 @@ import com.strobel.reflection.Type;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
 import java.lang.reflect.ParameterizedType;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -51,6 +52,8 @@ public class Test {
         System.out.println(boundHashMap.getErasedSignature());
         System.out.println(boundHashMap.getBriefDescription());
 
+        System.out.println(Arrays.toString(boundHashMap.getElementType().getMethods().toArray()));
+
         final MethodInfo[] genericMethodDefinitions = Type.of(GenericMethodTest.class)
                                                           .getMethods(
                                                               BindingFlags.DeclaredOnly |
@@ -59,7 +62,7 @@ public class Test {
                                                               BindingFlags.Static)
                                                           .toArray();
 
-        System.out.println(genericMethodDefinitions);
+        System.out.println(Arrays.toString(genericMethodDefinitions));
 
         final MethodInfo genericMethod = genericMethodDefinitions[0].makeGenericMethod(
             Type.list(Type.of(int[].class))
@@ -112,7 +115,7 @@ interface ITest {
 }
 
 final class GenericMethodTest {
-    public static <T> T of(final Class<T> clazz) throws IllegalAccessException, InstantiationException {
+    static <T> T of(final Class<T> clazz) throws IllegalAccessException, InstantiationException {
         return clazz.newInstance();
     }
 }

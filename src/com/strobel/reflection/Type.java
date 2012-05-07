@@ -91,18 +91,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         throw ContractUtils.unreachable();
     }
 
-    public final boolean isNonPublic() {
-        return !Modifier.isPublic(getModifiers());
-    }
-
-    public final boolean isPublic() {
-        return Modifier.isPublic(getModifiers());
-    }
-
-    public final boolean isPackagePrivate() {
-        return (getModifiers() & (Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE)) == 0;
-    }
-
     public final boolean isClass() {
         return (getModifiers() & (Modifier.INTERFACE | ENUM_MODIFIER)) == 0;
     }

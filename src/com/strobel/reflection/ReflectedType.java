@@ -25,10 +25,12 @@ final class ReflectedType<T> extends Type {
         final TypeList genericParameters = typeArguments.getGenericParameters();
 
         for (int i = 0, n = genericParameters.size(); i < n; i++) {
-            final GenericParameterType p = (GenericParameterType) genericParameters.get(i);
-
-            if (p.getRawTypeVariable().getGenericDeclaration() == rawType) {
-                p.setDeclaringType(this);
+            final Type p = genericParameters.get(i);
+            if (p instanceof GenericParameterType) {
+                final GenericParameterType gp = (GenericParameterType) p;
+                if (gp.getRawTypeVariable().getGenericDeclaration() == rawType) {
+                    gp.setDeclaringType(this);
+                }
             }
         }
 

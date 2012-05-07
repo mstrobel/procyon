@@ -22,6 +22,18 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
         return Modifier.isFinal(getModifiers());
     }
 
+    public final boolean isNonPublic() {
+        return !Modifier.isPublic(getModifiers());
+    }
+
+    public final boolean isPublic() {
+        return Modifier.isPublic(getModifiers());
+    }
+
+    public final boolean isPackagePrivate() {
+        return (getModifiers() & (Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE)) == 0;
+    }
+
     abstract int getModifiers();
 
     @Override

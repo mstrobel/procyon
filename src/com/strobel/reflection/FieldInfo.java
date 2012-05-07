@@ -18,7 +18,6 @@ public abstract class FieldInfo extends MemberInfo {
 }
 
 class ReflectedField extends FieldInfo {
-
     private final Type _declaringType;
     private final Field _rawField;
     private final Type _fieldType;
