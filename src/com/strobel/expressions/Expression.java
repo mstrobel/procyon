@@ -2034,12 +2034,12 @@ public abstract class Expression {
     // INVOKE EXPRESSIONS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static InvocationExpression invoke(final Expression expression, final Expression... arguments) {
+    public static InvocationExpression invoke(final LambdaExpression expression, final Expression... arguments) {
         VerifyArgument.noNullElements(arguments, "arguments");
         return invoke(expression, new ExpressionList<>(arguments));
     }
 
-    public static InvocationExpression invoke(final Expression expression, final ExpressionList<? extends Expression> arguments) {
+    public static InvocationExpression invoke(final LambdaExpression expression, final ExpressionList<? extends Expression> arguments) {
         verifyCanRead(expression, "expression");
 
         final MethodInfo method = getInvokeMethod(expression);
@@ -2156,6 +2156,165 @@ public abstract class Expression {
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // SWITCH EXPRESSIONS                                                                                                 //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static SwitchCase switchCase(final Expression body, final Expression... testValues) {
+        return switchCase(body, arrayToList(testValues));
+    }
+
+    public static SwitchCase switchCase(
+        final Expression body,
+        final ExpressionList<? extends Expression> testValues) {
+
+        verifyCanRead(body, "body");
+        verifyCanRead(testValues, "testValues");
+        
+        VerifyArgument.notEmpty(testValues, "testValues");
+
+        return new SwitchCase(body, testValues);
+    }
+
+    public static SwitchExpression makeSwitch(final Expression switchValue, final SwitchCase... cases) {
+        return makeSwitch(switchValue, null, null, arrayToReadOnlyList(cases));
+    }
+
+    public static SwitchExpression makeSwitch(
+        final Expression switchValue,
+        final Expression defaultBody,
+        final SwitchCase... cases) {
+
+        return makeSwitch(switchValue, defaultBody, null, arrayToReadOnlyList(cases));
+    }
+
+    public static SwitchExpression makeSwitch(
+        final Expression switchValue,
+        final Expression defaultBody,
+        final MethodInfo comparison,
+        final SwitchCase... cases) {
+
+        return makeSwitch(switchValue, defaultBody, comparison, arrayToReadOnlyList(cases));
+    }
+
+    public static SwitchExpression makeSwitch(
+        final Type type,
+        final Expression switchValue,
+        final Expression defaultBody,
+        final MethodInfo comparison,
+        final SwitchCase... cases) {
+
+        return makeSwitch(type, switchValue, defaultBody, comparison, arrayToReadOnlyList(cases));
+    }
+
+    public static SwitchExpression makeSwitch(
+        final Expression switchValue,
+        final Expression defaultBody,
+        final MethodInfo comparison,
+        final ReadOnlyList<SwitchCase> cases) {
+
+        return makeSwitch(null, switchValue, defaultBody, comparison, cases);
+    }
+
+    public static SwitchExpression makeSwitch(
+        final Type type,
+        final Expression switchValue,
+        final Expression defaultBody,
+        final MethodInfo comparison,
+        final ReadOnlyList<SwitchCase> cases) {
+
+        verifyCanRead(switchValue, "switchValue");
+        
+        if (switchValue.getType() == PrimitiveTypes.Void) {
+            throw Error.argumentCannotBeOfTypeVoid();
+        }
+
+        VerifyArgument.notEmpty(cases, "cases");
+        VerifyArgument.noNullElements(cases, "cases");
+
+        final boolean customType = type != null;
+        final Type resultType = type != null ? type : cases.get(0).getBody().getType();
+        final MethodInfo actualComparison;
+
+        if (comparison != null) {
+            final ParameterList parameters = comparison.getParameters();
+
+            if (parameters.size() != 2) {
+                throw Error.incorrectNumberOfMethodCallArguments(comparison);
+            }
+
+            // Validate that the switch value's type matches the comparison method's
+            // left hand side parameter type.
+            final ParameterInfo leftArg = parameters.get(0);
+            final ParameterInfo rightArg = parameters.get(1);
+
+            for (int i = 0, n = cases.size(); i < n; i++) {
+                final SwitchCase c = cases.get(i);
+
+                validateSwitchCaseType(c.getBody(), customType, resultType, "cases");
+
+                final ExpressionList<? extends Expression> testValues = c.getTestValues();
+                
+                for (int j = 0, m = testValues.size(); j < m; j++) {
+                    // When a comparison method is provided, test values can have different type but have to
+                    // be reference assignable to the right hand side parameter of the method.
+                    final Type rightOperandType = testValues.get(j).getType();
+
+                    if (!parameterIsAssignable(rightArg.getParameterType(), rightOperandType)) {
+                        throw Error.testValueTypeDoesNotMatchComparisonMethodParameter(
+                            rightOperandType,
+                            rightArg.getParameterType());
+                    }
+                }
+            }
+
+            actualComparison = comparison;
+        }
+        else {
+            // When comparison method is not present, all the test values must have
+            // the same type. Use the first test value's type as the baseline.
+            final Expression firstTestValue = cases.get(0).getTestValues().get(0);
+            for (int i = 0, n = cases.size(); i < n; i++) {
+                final SwitchCase c = cases.get(i);
+                
+                validateSwitchCaseType(c.getBody(), customType, resultType, "cases");
+
+                final ExpressionList<? extends Expression> testValues = c.getTestValues();
+                
+                // When no comparison method is provided, require all test values to have the same type.
+                for (int j = 0, m = testValues.size(); j < m; j++) {
+                    if (!TypeUtils.areReferenceAssignable(firstTestValue.getType(), testValues.get(j).getType())) {
+                        throw Error.allTestValuesMustHaveTheSameType();
+                    }
+                }
+            }
+
+            // Now we need to validate that switchValue.Type and testValueType make sense in an
+            // Equal node. Fortunately, Equal throws a reasonable error, so just call it.
+            final BinaryExpression equal = equal(switchValue, firstTestValue, comparison);
+
+            // Get the comparison function from equals node.
+            actualComparison = equal.getMethod();
+        }
+
+        if (defaultBody == null) {
+            if (resultType != PrimitiveTypes.Void) {
+                throw Error.defaultBodyMustBeSupplied();
+            }
+        } else {
+            validateSwitchCaseType(defaultBody, customType, resultType, "defaultBody");
+        }
+
+        // if we have a non-boolean user-defined equals, we don't want it.
+        if (comparison != null &&
+            TypeUtils.hasIdentityPrimitiveOrBoxingConversion(comparison.getReturnType(), PrimitiveTypes.Boolean)) {
+
+            throw Error.equalityMustReturnBoolean(comparison);
+        }
+
+        return new SwitchExpression(resultType, switchValue, defaultBody, actualComparison, cases);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // HELPER METHODS                                                                                                     //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2184,6 +2343,16 @@ public abstract class Expression {
         VerifyArgument.noNullElements(expressions, "expressions");
 
         return new ExpressionList<>(expressions);
+    }
+
+    static <T> ReadOnlyList<T> arrayToReadOnlyList(final T[] items) {
+        if (items == null || items.length == 0) {
+            return ReadOnlyList.emptyList();
+        }
+
+        VerifyArgument.noNullElements(items, "items");
+
+        return new ReadOnlyList<>(items);
     }
 
     static ParameterExpressionList arrayToList(final ParameterExpression[] parameters) {
@@ -3167,6 +3336,26 @@ public abstract class Expression {
                 if (catchBody == null || !TypeUtils.areEquivalent(catchBody.getType(), tryType)) {
                     throw Error.bodyOfCatchMustHaveSameTypeAsBodyOfTry();
                 }
+            }
+        }
+    }
+
+    private static void validateSwitchCaseType(
+        final Expression caseBody,
+        final boolean customType,
+        final Type resultType,
+        final String parameterName) {
+
+        if (customType) {
+            if (resultType != PrimitiveTypes.Void) {
+                if (!TypeUtils.areReferenceAssignable(resultType, caseBody.getType())) {
+                    throw Error.argumentTypesMustMatch();
+                }
+            }
+        }
+        else {
+            if (!TypeUtils.hasIdentityPrimitiveOrBoxingConversion(resultType, caseBody.getType())) {
+                throw Error.allCaseBodiesMustHaveSameType();
             }
         }
     }

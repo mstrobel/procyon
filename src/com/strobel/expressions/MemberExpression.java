@@ -1,10 +1,13 @@
 package com.strobel.expressions;
 
+import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.MemberInfo;
+import com.strobel.reflection.MemberType;
 import com.strobel.util.ContractUtils;
 
 /**
  * Represents accessing a field.
+ *
  * @author Mike Strobel
  */
 public abstract class MemberExpression extends Expression {
@@ -37,5 +40,13 @@ public abstract class MemberExpression extends Expression {
             return this;
         }
         return makeMemberAccess(target, getMember());
+    }
+
+    static MemberExpression make(final Expression expression, final MemberInfo member) {
+        if (member.getMemberType() == MemberType.Field) {
+            final FieldInfo fi = (FieldInfo) member;
+            return new FieldExpression(expression, fi);
+        }
+        throw Error.memberNotField(member);
     }
 }

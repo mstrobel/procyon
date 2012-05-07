@@ -9,7 +9,7 @@ import com.strobel.util.ContractUtils;
  */
 public class BlockExpression extends Expression {
 
-    public final ExpressionList getExpressions() {
+    public final ExpressionList<? extends Expression> getExpressions() {
         return getOrMakeExpressions();
     }
 
@@ -48,7 +48,7 @@ public class BlockExpression extends Expression {
         return 0;
     }
 
-    ExpressionList getOrMakeExpressions() {
+    ExpressionList<? extends Expression> getOrMakeExpressions() {
         throw ContractUtils.unreachable();
     }
 
@@ -69,12 +69,15 @@ public class BlockExpression extends Expression {
     }
 
     @SuppressWarnings("unchecked")
-    static ExpressionList returnReadOnlyExpressions(final BlockExpression provider, final Object expressionOrCollection) {
+    static ExpressionList<? extends Expression> returnReadOnlyExpressions(
+        final BlockExpression provider,
+        final Object expressionOrCollection) {
+
         if (expressionOrCollection instanceof Expression) {
             return new ExpressionList(provider, (Expression)expressionOrCollection);
         }
         // Return what is not guaranteed to be a readonly expressionOrCollection
-        return (ExpressionList)expressionOrCollection;
+        return (ExpressionList<? extends Expression>)expressionOrCollection;
     }
 }
 
@@ -106,8 +109,8 @@ final class Block2 extends BlockExpression {
 
     @SuppressWarnings("unchecked")
     @Override
-    final ExpressionList getOrMakeExpressions() {
-        return (ExpressionList)(_arg0 = returnReadOnlyExpressions(this, _arg0));
+    final ExpressionList<? extends Expression> getOrMakeExpressions() {
+        return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
     }
 }
 
@@ -143,8 +146,8 @@ final class Block3 extends BlockExpression {
 
     @SuppressWarnings("unchecked")
     @Override
-    final ExpressionList getOrMakeExpressions() {
-        return (ExpressionList)(_arg0 = returnReadOnlyExpressions(this, _arg0));
+    final ExpressionList<? extends Expression> getOrMakeExpressions() {
+        return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
     }
 }
 
@@ -184,8 +187,8 @@ final class Block4 extends BlockExpression {
 
     @SuppressWarnings("unchecked")
     @Override
-    final ExpressionList getOrMakeExpressions() {
-        return (ExpressionList)(_arg0 = returnReadOnlyExpressions(this, _arg0));
+    final ExpressionList<? extends Expression> getOrMakeExpressions() {
+        return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
     }
 }
 
@@ -229,15 +232,15 @@ final class Block5 extends BlockExpression {
 
     @SuppressWarnings("unchecked")
     @Override
-    final ExpressionList getOrMakeExpressions() {
-        return (ExpressionList)(_arg0 = returnReadOnlyExpressions(this, _arg0));
+    final ExpressionList<? extends Expression> getOrMakeExpressions() {
+        return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
     }
 }
 
-final class BlockN extends BlockExpression {
-    private final ExpressionList _expressions;
+class BlockN extends BlockExpression {
+    private final ExpressionList<? extends Expression> _expressions;
 
-    BlockN(final ExpressionList expressions) {
+    BlockN(final ExpressionList<? extends Expression> expressions) {
         VerifyArgument.notEmpty(expressions, "expressions");
         _expressions = expressions;
     }
@@ -253,7 +256,7 @@ final class BlockN extends BlockExpression {
     }
 
     @Override
-    final ExpressionList getOrMakeExpressions() {
+    final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return _expressions;
     }
 }
@@ -313,8 +316,8 @@ final class Scope1 extends ScopeExpression {
 
     @SuppressWarnings("unchecked")
     @Override
-    final ExpressionList getOrMakeExpressions() {
-        return (ExpressionList)(_body = returnReadOnlyExpressions(this, _body));
+    final ExpressionList<? extends Expression> getOrMakeExpressions() {
+        return (ExpressionList<? extends Expression>)(_body = returnReadOnlyExpressions(this, _body));
     }
 
     final BlockExpression rewrite(final ParameterExpressionList variables, final Expression[] args) {
@@ -326,9 +329,9 @@ final class Scope1 extends ScopeExpression {
 }
 
 class ScopeN extends ScopeExpression {
-    private final ExpressionList _body;
+    private final ExpressionList<? extends Expression> _body;
 
-    ScopeN(final ParameterExpressionList variables, final ExpressionList body) {
+    ScopeN(final ParameterExpressionList variables, final ExpressionList<? extends Expression> body) {
         super(variables);
         _body = body;
     }
@@ -344,7 +347,7 @@ class ScopeN extends ScopeExpression {
     }
 
     @Override
-    final ExpressionList getOrMakeExpressions() {
+    final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return _body;
     }
 
@@ -359,7 +362,7 @@ class ScopeN extends ScopeExpression {
 final class ScopeWithType extends ScopeN {
     private final Type _type;
 
-    ScopeWithType(final ParameterExpressionList variables, final ExpressionList expressions, final Type type) {
+    ScopeWithType(final ParameterExpressionList variables, final ExpressionList<? extends Expression> expressions, final Type type) {
         super(variables, expressions);
         _type = type;
     }

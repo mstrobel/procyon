@@ -15,15 +15,15 @@ public abstract class ExpressionVisitor {
         return null;
     }
 
-    public Expression visitDefaultValue(final DefaultValueExpression node) {
+    protected Expression visitDefaultValue(final DefaultValueExpression node) {
         return node;
     }
 
-    public Expression visitExtension(final Expression node) {
+    protected Expression visitExtension(final Expression node) {
         return node.visitChildren(this);
     }
 
-    public Expression visitLabel(final LabelExpression node) {
+    protected Expression visitLabel(final LabelExpression node) {
         return node.update(this.visitLabelTarget(node.getTarget()), visit(node.getDefaultValue()));
     }
 
@@ -31,11 +31,11 @@ public abstract class ExpressionVisitor {
         return node;
     }
 
-    public Expression visitGoto(final GotoExpression node) {
+    protected Expression visitGoto(final GotoExpression node) {
         return node.update(visitLabelTarget(node.getTarget()), visit(node.getValue()));
     }
 
-    public Expression visitLoop(final LoopExpression node) {
+    protected Expression visitLoop(final LoopExpression node) {
         return node.update(
             visitLabelTarget(node.getBreakLabel()),
             visitLabelTarget(node.getContinueLabel()),
@@ -43,19 +43,19 @@ public abstract class ExpressionVisitor {
         );
     }
 
-    public Expression visitMember(final MemberExpression node) {
+    protected Expression visitMember(final MemberExpression node) {
         return node.update(this.visit(node.getTarget()));
     }
 
-    public Expression visitConstant(final ConstantExpression node) {
+    protected Expression visitConstant(final ConstantExpression node) {
         return node;
     }
 
-    public Expression visitParameter(final ParameterExpression node) {
+    protected Expression visitParameter(final ParameterExpression node) {
         return node;
     }
 
-    public Expression visitUnary(final UnaryExpression node) {
+    protected Expression visitUnary(final UnaryExpression node) {
         return validateUnary(node, node.update(visit(node.getOperand())));
     }
 
@@ -71,11 +71,11 @@ public abstract class ExpressionVisitor {
         );
     }
 
-    public Expression visitTypeBinary(final TypeBinaryExpression node) {
+    protected Expression visitTypeBinary(final TypeBinaryExpression node) {
         return node.update(visit(node.getOperand()));
     }
 
-    public Expression visitBlock(final BlockExpression node) {
+    protected Expression visitBlock(final BlockExpression node) {
         final int count = node.getExpressionCount();
 
         Expression[] nodes = null;
@@ -111,7 +111,7 @@ public abstract class ExpressionVisitor {
         return node.rewrite(v, nodes);
     }
 
-    public Expression visitInvocation(final InvocationExpression node) {
+    protected Expression visitInvocation(final InvocationExpression node) {
         final Expression e = visit(node.getExpression());
         final ExpressionList<? extends Expression> a = visitArguments(node);
 
@@ -119,10 +119,10 @@ public abstract class ExpressionVisitor {
             return node;
         }
 
-        return node.rewrite(e, a);
+        return node.rewrite((LambdaExpression)e, a);
     }
 
-    public Expression visitMethodCall(final MethodCallExpression node) {
+    protected Expression visitMethodCall(final MethodCallExpression node) {
         final Expression target = visit(node.getTarget());
         final ExpressionList<? extends Expression> arguments = visitArguments(node);
 
@@ -133,11 +133,11 @@ public abstract class ExpressionVisitor {
         return node.rewrite(target, arguments);
     }
 
-    public Expression visitNew(final NewExpression node) {
+    protected Expression visitNew(final NewExpression node) {
         return node.update(visit(node.getArguments()));
     }
 
-    public Expression visitNewArray(final NewArrayExpression node) {
+    protected Expression visitNewArray(final NewArrayExpression node) {
         return node.update(visit(node.getExpressions()));
     }
 
@@ -145,15 +145,15 @@ public abstract class ExpressionVisitor {
         return node.update(visit(node.getBody()), visitAndConvertList(node.getParameters(), "visitLambda"));
     }
 
-    public Expression visitConditional(final ConditionalExpression node) {
+    protected Expression visitConditional(final ConditionalExpression node) {
         return node.update(visit(node.getTest()), visit(node.getIfTrue()), visit(node.getIfFalse()));
     }
 
-    public Expression visitRuntimeVariables(final RuntimeVariablesExpression node) {
+    protected Expression visitRuntimeVariables(final RuntimeVariablesExpression node) {
         return node.update(visitAndConvertList(node.getVariables(), "visitRuntimeVariables"));
     }
 
-    public Expression visitTry(final TryExpression node) {
+    protected Expression visitTry(final TryExpression node) {
         return node.update(
             visit(node.getBody()),
             visit(
@@ -169,11 +169,36 @@ public abstract class ExpressionVisitor {
         );
     }
 
-    public CatchBlock visitCatchBlock(final CatchBlock node) {
+    protected CatchBlock visitCatchBlock(final CatchBlock node) {
         return node.update(
             visitAndConvert(node.getVariable(), "visitCatchBlock"),
             visit(node.getFilter()),
             visit(node.getBody())
+        );
+    }
+
+    protected SwitchCase visitSwitchCase(final SwitchCase node) {
+        return node.update(
+            visit(node.getTestValues()),
+            visit(node.getBody())
+        );
+    }
+    
+    protected Expression visitSwitch(final SwitchExpression node) {
+        return validateSwitch(
+            node,
+            node.update(
+                visit(node.getSwitchValue()),
+                visit(
+                    node.getCases(),
+                    new ElementVisitor<SwitchCase>() {
+                        @Override
+                        public SwitchCase visit(final SwitchCase node) {
+                            return visitSwitchCase(node);
+                        }
+                    }),
+                visit(node.getDefaultBody())
+            )
         );
     }
 
@@ -238,7 +263,7 @@ public abstract class ExpressionVisitor {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends Expression> T visitAndConvert(final T node, final String callerName) {
+    protected <T extends Expression> T visitAndConvert(final T node, final String callerName) {
         if (node == null) {
             return null;
         }
@@ -253,7 +278,7 @@ public abstract class ExpressionVisitor {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends Expression> ExpressionList<T> visitAndConvertList(final ExpressionList<T> nodes, final String callerName) {
+    protected <T extends Expression> ExpressionList<T> visitAndConvertList(final ExpressionList<T> nodes, final String callerName) {
         T[] newNodes = null;
 
         for (int i = 0, n = nodes.size(); i < n; i++) {
@@ -279,7 +304,7 @@ public abstract class ExpressionVisitor {
     }
 
     @SuppressWarnings("unchecked")
-    public ParameterExpressionList visitAndConvertList(final ParameterExpressionList nodes, final String callerName) {
+    protected ParameterExpressionList visitAndConvertList(final ParameterExpressionList nodes, final String callerName) {
         ParameterExpression[] newNodes = null;
 
         for (int i = 0, n = nodes.size(); i < n; i++) {
@@ -344,6 +369,17 @@ public abstract class ExpressionVisitor {
 
         // Otherwise, it's an invalid type change.
         throw Error.mustRewriteChildToSameType(before, after, methodName);
+    }
+
+    private static SwitchExpression validateSwitch(final SwitchExpression before, final SwitchExpression after) {
+        // If we did not have a method, we don't want to bind to one,
+        // it might not be the right thing.
+
+        if (before.getComparison() == null && after.getComparison() != null) {
+            throw Error.mustRewriteWithoutMethod(after.getComparison(), "visitSwitch");
+        }
+
+        return after;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

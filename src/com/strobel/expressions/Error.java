@@ -10,7 +10,8 @@ import static java.lang.String.format;
  * @author Mike Strobel
  */
 final class Error {
-    private Error() {}
+    private Error() {
+    }
 
     public static RuntimeException extensionMustOverride(final String memberName) {
         return new RuntimeException(
@@ -82,7 +83,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "Rewritten expression calls method '%s', but the original node had no method.  " +
-                "If this is is intentional, override '%s' and change it to allow this rewrite.",
+                    "If this is is intentional, override '%s' and change it to allow this rewrite.",
                 callerName,
                 method
             )
@@ -97,7 +98,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "When called from '%s', rewriting a node of type '%s' must return a non-null value of the " +
-                "same type.  Alternatively, override '%s' and change it to not visit children of this type.",
+                    "same type.  Alternatively, override '%s' and change it to not visit children of this type.",
                 callerName,
                 type.getName(),
                 overrideMethodName
@@ -125,7 +126,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "Found duplicate variable '%s'.  Each ParameterExpression in the list " +
-                "must be a unique object.",
+                    "must be a unique object.",
                 variable.getName()
             )
         );
@@ -165,7 +166,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "MethodBase '%s.%s' cannot be used as an operator because its parameters do not match " +
-                "its return value.",
+                    "its return value.",
                 method.getDeclaringType().getName(),
                 method.getName()
             )
@@ -257,7 +258,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "The operator method '%s.%s' must return the same type as its declaring type " +
-                "or a derived type.",
+                    "or a derived type.",
                 method.getDeclaringType().getName(),
                 method.getName()
             )
@@ -268,7 +269,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "The operator method '%s.%s' for operator '%s' must return the same type as its " +
-                "declaring type or a derived type.",
+                    "declaring type or a derived type.",
                 method.getDeclaringType().getName(),
                 method.getName(),
                 operator
@@ -280,7 +281,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "Expression of type '%s' cannot be invoked.  Invokable types must be interfaces " +
-                "with exactly one method.",
+                    "with exactly one method.",
                 type
             )
         );
@@ -317,7 +318,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "An invocation target expression is required for a call to non-static " +
-                "method '%s.%s'.",
+                    "method '%s.%s'.",
                 method.getDeclaringType().getName(),
                 method.getName()
             )
@@ -328,7 +329,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "An invocation target expression cannot be used to call static " +
-                "method '%s.%s'.",
+                    "method '%s.%s'.",
                 method.getDeclaringType().getName(),
                 method.getName()
             )
@@ -339,7 +340,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "Expression of type '%s' is not a valid invocation target for instance " +
-                "method '%s.%s'.",
+                    "method '%s.%s'.",
                 targetType.getName(),
                 method.getDeclaringType().getName(),
                 method.getName()
@@ -413,7 +414,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "No generic method '%s' on type '%s' is compatible with the supplied type arguments and arguments.  " +
-                "No type arguments should be provided if the method is non-generic.",
+                    "No type arguments should be provided if the method is non-generic.",
                 methodName,
                 type.getName()
             )
@@ -466,7 +467,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "The return type of overload method for operator '%s' does not match the parameter " +
-                "type of conversion method '%s'.",
+                    "type of conversion method '%s'.",
                 nodeType,
                 method.getName()
             )
@@ -531,5 +532,51 @@ final class Error {
 
     public static RuntimeException tryMustHaveCatchOrFinally() {
         return new RuntimeException("A try expression must have at least one catch or finally clause.");
+    }
+
+    public static RuntimeException invalidLValue(final ExpressionType nodeType) {
+        return new RuntimeException(
+            format("Invalid lvalue for assignment: %s.", nodeType)
+        );
+    }
+
+    public static RuntimeException allCaseBodiesMustHaveSameType() {
+        return new RuntimeException(
+            "All case bodies and the default body must have the same type."
+        );
+    }
+
+    public static RuntimeException allTestValuesMustHaveTheSameType() {
+        return new RuntimeException(
+            "All test values must have the same type."
+        );
+    }
+
+    public static RuntimeException defaultBodyMustBeSupplied() {
+        return new RuntimeException(
+            "Default body must be supplied if case bodies are not void."
+        );
+    }
+
+    public static RuntimeException testValueTypeDoesNotMatchComparisonMethodParameter(
+        final Type testValueType,
+        final Type parameterType) {
+
+        return new RuntimeException(
+            format(
+                "Test value of type '%s' cannot be used for the comparison method parameter of type '%s'.",
+                testValueType.getName(),
+                parameterType.getName()
+            )
+        );
+    }
+
+    public static RuntimeException equalityMustReturnBoolean(final MethodBase method) {
+        return new RuntimeException(
+            format(
+                "The user-defined equality method '%s' must return a boolean value.",
+                method.getName()
+            )
+        );
     }
 }

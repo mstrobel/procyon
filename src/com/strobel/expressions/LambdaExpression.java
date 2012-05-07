@@ -32,7 +32,7 @@ public final class LambdaExpression<T> extends Expression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<T> getType() {
         return _interfaceType;
     }
 
@@ -74,7 +74,7 @@ public final class LambdaExpression<T> extends Expression {
     }
 
     @SuppressWarnings("unchecked")
-    protected LambdaExpression<T> accept(final StackSpiller spiller) {
+    final LambdaExpression<T> accept(final StackSpiller spiller) {
         return (LambdaExpression<T>)spiller.rewrite(this);
     }
 

@@ -71,6 +71,13 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         return esb.toString();
     }
 
+    static String switchCaseToString(final SwitchCase node) {
+        assert node != null;
+        final ExpressionStringBuilder esb = new ExpressionStringBuilder();
+        esb.visitSwitchCase(node);
+        return esb.toString();
+    }
+
     private <T extends Expression> void visitExpressions(final char open, final ExpressionList<T> expressions, final char close) {
         out(open);
         if (expressions != null) {
@@ -90,11 +97,11 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
 
     @Override
     public Expression visit(final Expression node) {
-        return super.visit(node);    //To change body of overridden methods use File | Settings | File Templates.
+        return super.visit(node);
     }
 
     @Override
-    public Expression visitDefaultValue(final DefaultValueExpression node) {
+    protected Expression visitDefaultValue(final DefaultValueExpression node) {
         out("default(");
         out(node.getType().getName());
         out(')');
@@ -102,7 +109,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
-    public Expression visitExtension(final Expression node) {
+    protected Expression visitExtension(final Expression node) {
         // Prefer a toString override, if available.
         final int flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.ExactBinding;
         final MethodInfo toString = node.getType().getMethod("toString", flags, null, Type.EmptyTypes);
@@ -126,13 +133,13 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
-    public Expression visitMember(final MemberExpression node) {
+    protected Expression visitMember(final MemberExpression node) {
         outMember(node.getTarget(), node.getMember());
         return node;
     }
 
     @Override
-    public Expression visitConstant(final ConstantExpression node) {
+    protected Expression visitConstant(final ConstantExpression node) {
         final Object value = node.getValue();
 
         if (value == null) {
@@ -160,7 +167,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
-    public Expression visitParameter(final ParameterExpression node) {
+    protected Expression visitParameter(final ParameterExpression node) {
         if (StringEx.isNullOrEmpty(node.getName())) {
             final int id = getParameterId(node);
             out("Param_" + id);
@@ -172,7 +179,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
-    public Expression visitUnary(final UnaryExpression node) {
+    protected Expression visitUnary(final UnaryExpression node) {
         switch (node.getNodeType()) {
             case Not:
                 out("Not(");
@@ -396,7 +403,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
-    public Expression visitBlock(final BlockExpression node) {
+    protected Expression visitBlock(final BlockExpression node) {
         out("{");
         for (final Expression v : node.getVariables()) {
             out("var ");
@@ -408,7 +415,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
-    public Expression visitInvocation(final InvocationExpression node) {
+    protected Expression visitInvocation(final InvocationExpression node) {
         final ExpressionList arguments = node.getArguments();
 
         out("Invoke(");
@@ -424,7 +431,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
-    public Expression visitMethodCall(final MethodCallExpression node) {
+    protected Expression visitMethodCall(final MethodCallExpression node) {
         final Expression target = node.getTarget();
 
         if (target != null) {
@@ -449,7 +456,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
-    public Expression visitConditional(final ConditionalExpression node) {
+    protected Expression visitConditional(final ConditionalExpression node) {
         if (node.getIfFalse().getType() != PrimitiveTypes.Void) {
             if (node.getType() != PrimitiveTypes.Void) {
                 out('(');
@@ -476,7 +483,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         out(") ");
         visit(node.getIfTrue());
 
-        return super.visitConditional(node);    //To change body of overridden methods use File | Settings | File Templates.
+        return super.visitConditional(node);
     }
 
     @Override
@@ -491,17 +498,34 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
+    public SwitchCase visitSwitchCase(final SwitchCase node) {
+        out("case ");
+        visitExpressions('(', node.getTestValues(), ')');
+        out(": ...");
+        return node;
+    }
+
+    @Override
+    protected Expression visitSwitch(final SwitchExpression node) {
+        out("switch ");
+        out("(");
+        visit(node.getSwitchValue());
+        out(") { ... }");
+        return node;
+    }
+
+    @Override
     public <T extends Expression> T visitAndConvert(final T node, final String callerName) {
-        return super.visitAndConvert(node, callerName);    //To change body of overridden methods use File | Settings | File Templates.
+        return super.visitAndConvert(node, callerName);
     }
 
     @Override
     public <T extends Expression> ExpressionList<T> visitAndConvertList(final ExpressionList<T> nodes, final String callerName) {
-        return super.visitAndConvertList(nodes, callerName);    //To change body of overridden methods use File | Settings | File Templates.
+        return super.visitAndConvertList(nodes, callerName);
     }
 
     @Override
     public ParameterExpressionList visitAndConvertList(final ParameterExpressionList nodes, final String callerName) {
-        return super.visitAndConvertList(nodes, callerName);    //To change body of overridden methods use File | Settings | File Templates.
+        return super.visitAndConvertList(nodes, callerName);
     }
 }
