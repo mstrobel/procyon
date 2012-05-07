@@ -135,7 +135,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final TypeBindings typeArguments = getTypeBindings();
 
         return !typeArguments.isEmpty() &&
-               !typeArguments.hasConcreteParameters();
+               !typeArguments.hasBoundParameters();
     }
 
     public boolean isGenericParameter() {
@@ -207,7 +207,13 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
         final TypeBindings typeArguments = getTypeBindings();
 
-        return typeArguments.hasUnboundParameters();
+        for (int i = 0, n = typeArguments.size(); i < n; i++) {
+            if (typeArguments.getBoundType(i).containsGenericParameters()) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     public TypeList getGenericParameterConstraints() {
@@ -325,7 +331,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             if (all(bindingFlags, BindingFlags.Static)) {
                 methods = ArrayUtilities.append(
                     methods,
-                    getMethodBaseCandidates(getResolvedInstanceMethods(), name, bindingFlags, CallingConvention.Any, null, true)
+                    getMethodBaseCandidates(getResolvedStaticMethods(), name, bindingFlags, CallingConvention.Any, null, true)
                 );
             }
         }
@@ -589,7 +595,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             );
         }
 
-        if (all(bindingFlags, BindingFlags.Instance)) {
+        if (all(bindingFlags, BindingFlags.Static)) {
             candidates = ArrayUtilities.append(
                 candidates,
                 getMethodBaseCandidates(
@@ -965,8 +971,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public static <T extends Class<?>> Type<T> of(final T clazz) {
+    public static <T> Type<T> of(final Class<T> clazz) {
         synchronized (CACHE_LOCK) {
             final Type<T> reflectedType = (Type<T>)CACHE.find(clazz);
 
@@ -982,7 +987,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public static Type resolve(final java.lang.reflect.Type jdkType, final TypeBindings bindings) {
         VerifyArgument.notNull(jdkType, "jdkType");
 
-        if (jdkType instanceof Class) {
+        if (jdkType instanceof Class && bindings.isEmpty()) {
             return of((Class<?>)jdkType);
         }
 
@@ -1106,7 +1111,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     protected ConstructorList resolveConstructors() {
         final LinkedHashMap<MethodKey, ConstructorInfo> constructors = new LinkedHashMap<>();
-        final Type mainType = _mainType.getType();
+        final Type mainType = getMainType().getType();
 
         for (final Constructor constructor : mainType.getErasedClass().getConstructors()) {
             final RawConstructor raw = new RawConstructor(mainType, constructor);
@@ -1125,8 +1130,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     protected FieldList resolveFields() {
         final LinkedHashMap<String, FieldInfo> fields = new LinkedHashMap<>();
 
-        for (int typeIndex = _typeHierarchy.size(); --typeIndex >= 0; ) {
-            final HierarchicType thisType = _typeHierarchy.get(typeIndex);
+        for (int typeIndex = getMainTypeAndOverrides().size(); --typeIndex >= 0; ) {
+            final HierarchicType thisType = getMainTypeAndOverrides().get(typeIndex);
             for (final Field jField : thisType.getType().getErasedClass().getFields()) {
                 final RawField raw = new RawField(thisType.getType(), jField);
                 fields.put(raw.getName(), resolveField(raw));
@@ -1146,9 +1151,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     protected MethodList resolveStaticMethods() {
         final LinkedHashMap<MethodKey, MethodInfo> methods = new LinkedHashMap<>();
 
-        for (final Method method : _mainType.getType().getErasedClass().getMethods()) {
+        for (final Method method : getMainType().getType().getErasedClass().getDeclaredMethods()) {
             if (Modifier.isStatic(method.getModifiers())) {
-                final RawMethod raw = new RawMethod(_mainType.getType(), method);
+                final RawMethod raw = new RawMethod(getMainType().getType(), method);
                 methods.put(raw.createKey(), resolveMethod(raw));
             }
         }
@@ -1224,22 +1229,39 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final TypeBindings bindings = context.getTypeBindings();
         final Method m = raw.getRawMember();
         final java.lang.reflect.Type rawType = m.getGenericReturnType();
-        final Type rt = (rawType == Void.TYPE) ? PrimitiveTypes.Void : resolve(rawType, bindings);
         final java.lang.reflect.Type[] rawTypes = m.getGenericParameterTypes();
+        final TypeVariable<Method>[] typeVariables = m.getTypeParameters();
         final ParameterList parameterList;
-
+        
+        TypeBindings methodTypeBindings = TypeBindings.empty();
+        TypeBindings resolveBindings = bindings;
+        
+        if (typeVariables != null && typeVariables.length != 0) {
+            final GenericParameterType[] genericParameters = new GenericParameterType[typeVariables.length];
+            
+            for (int i = 0; i < typeVariables.length; i++) {
+                final TypeVariable<Method> typeVariable = typeVariables[i];
+                genericParameters[i] = new GenericParameterType(typeVariable, i);
+            }
+            
+            methodTypeBindings = TypeBindings.createUnbound(list(genericParameters));
+            resolveBindings = methodTypeBindings.withAdditionalBindings(resolveBindings);
+        }
+        
         if (rawTypes == null || rawTypes.length == 0) {
             parameterList = ParameterList.empty();
         }
         else {
             final ParameterInfo[] parameters = new ParameterInfo[rawTypes.length];
             for (int i = 0, len = rawTypes.length; i < len; ++i) {
-                parameters[i] = new ParameterInfo("p" + i, resolve(rawTypes[i], bindings));
+                parameters[i] = new ParameterInfo("p" + i, resolve(rawTypes[i], resolveBindings));
             }
             parameterList = new ParameterList(parameters);
         }
 
-        return new ReflectedMethod(context, m, parameterList, rt);
+        final Type rt = (rawType == Void.TYPE) ? PrimitiveTypes.Void : resolve(rawType, resolveBindings);
+
+        return new ReflectedMethod(context, m, parameterList, rt, methodTypeBindings);
     }
 
     @SuppressWarnings("unchecked")

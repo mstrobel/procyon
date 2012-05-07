@@ -16,7 +16,7 @@ public enum CallingConvention {
         this.mask = mask;
     }
 
-    public static CallingConvention fromMethodModifiers(final int modifiers) {
+    static CallingConvention fromMethodModifiers(final int modifiers) {
         if (all(modifiers, Type.VARARGS_MODIFIER)) {
             return VarArgs;
         }

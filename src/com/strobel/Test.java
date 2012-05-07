@@ -5,6 +5,8 @@ import com.strobel.expressions.ConditionalExpression;
 import com.strobel.expressions.Expression;
 import com.strobel.expressions.LambdaExpression;
 import com.strobel.expressions.ParameterExpression;
+import com.strobel.reflection.BindingFlags;
+import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
@@ -26,10 +28,11 @@ public class Test {
     }
 
     private static void testTypeResolution() {
-        final GenericType<?> gt = new GenericType<HashMap<String, UUID>>() {};
+        final GenericType<?> gt = new GenericType<HashMap<String, UUID>>() {
+        };
         // ((ParameterizedTypeImpl) ((ParameterizedTypeImpl) ((ParameterizedType)gt.getClass().getGenericSuperclass())).actualTypeArguments[0]).rawType.getGenericInterfaces()
         final java.lang.reflect.Type[] genericInterfaces =
-            ((ParameterizedTypeImpl)((ParameterizedType)gt.getClass().getGenericSuperclass()).getActualTypeArguments()[0]).getRawType().getGenericInterfaces();
+            ((ParameterizedTypeImpl) ((ParameterizedType) gt.getClass().getGenericSuperclass()).getActualTypeArguments()[0]).getRawType().getGenericInterfaces();
 
         final Type hashMap = Type.of(HashMap.class);
 
@@ -48,7 +51,21 @@ public class Test {
         System.out.println(boundHashMap.getErasedSignature());
         System.out.println(boundHashMap.getBriefDescription());
 
-        System.out.println(Type.of(Type.class).getMethods().toArray());
+        final MethodInfo[] genericMethodDefinitions = Type.of(GenericMethodTest.class)
+                                                          .getMethods(
+                                                              BindingFlags.DeclaredOnly |
+                                                              BindingFlags.Public |
+                                                              BindingFlags.NonPublic |
+                                                              BindingFlags.Static)
+                                                          .toArray();
+
+        System.out.println(genericMethodDefinitions);
+
+        final MethodInfo genericMethod = genericMethodDefinitions[0].makeGenericMethod(
+            Type.list(Type.of(int[].class))
+        );
+
+        System.out.println(genericMethod.getSignature());
 
         printTypeTree(boundHashMap);
     }
@@ -68,7 +85,7 @@ public class Test {
 
         System.out.println(body);
 
-        final LambdaExpression<Class<ITest>> lambda = Expression.lambda(
+        final LambdaExpression<ITest> lambda = Expression.lambda(
             Type.of(ITest.class),
             body,
             number
@@ -92,4 +109,10 @@ public class Test {
 
 interface ITest {
     String testNumber(final int number);
+}
+
+final class GenericMethodTest {
+    public static <T> T of(final Class<T> clazz) throws IllegalAccessException, InstantiationException {
+        return clazz.newInstance();
+    }
 }

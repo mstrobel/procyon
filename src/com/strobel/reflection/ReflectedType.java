@@ -22,6 +22,16 @@ final class ReflectedType<T> extends Type {
             throw new IllegalArgumentException("Base type cannot be null.");
         }
 
+        final TypeList genericParameters = typeArguments.getGenericParameters();
+
+        for (int i = 0, n = genericParameters.size(); i < n; i++) {
+            final GenericParameterType p = (GenericParameterType) genericParameters.get(i);
+
+            if (p.getRawTypeVariable().getGenericDeclaration() == rawType) {
+                p.setDeclaringType(this);
+            }
+        }
+
         _baseType = baseType;
         _interfaces = VerifyArgument.notNull(interfaces, "interfaces");
     }
@@ -40,7 +50,7 @@ final class ReflectedType<T> extends Type {
 
     @Override
     public Type makeGenericTypeCore(final TypeList typeArguments) {
-        return new GenericType(this, typeArguments);
+        return resolve(_class, TypeBindings.create(getGenericTypeParameters(), typeArguments));
     }
 
     public TypeContext getContext() {

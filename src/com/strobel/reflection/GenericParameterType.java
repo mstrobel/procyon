@@ -11,16 +11,20 @@ import java.lang.reflect.TypeVariable;
 final class GenericParameterType extends Type {
     private final int _position;
     private final TypeVariable<?> _typeVariable;
-    private final Type _declaringType;
-    private final MethodInfo _declaringMethod;
-    private final Class<?> _erasedClass;
+    private Class<?> _erasedClass;
+    private MethodInfo _declaringMethod;
+    private Type _declaringType;
 
+    GenericParameterType(final TypeVariable<?> typeVariable, final int position) {
+        _typeVariable = VerifyArgument.notNull(typeVariable, "typeVariable");
+        _position = position;
+    }
+    
     GenericParameterType(final TypeVariable<?> typeVariable, final Type declaringType, final int position) {
         _typeVariable = VerifyArgument.notNull(typeVariable, "typeVariable");
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _declaringMethod = null;
         _position = position;
-        _erasedClass = resolveErasedClass();
     }
 
     GenericParameterType(final TypeVariable<?> typeVariable, final MethodInfo declaringMethod, final int position ) {
@@ -28,11 +32,60 @@ final class GenericParameterType extends Type {
         _declaringType = null;
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
         _position = position;
-        _erasedClass = resolveErasedClass();
     }
 
     private Class<?> resolveErasedClass() {
+        final TypeBindings bindings;
+        
+        if (_declaringMethod != null) {
+            if (_declaringType != null) {
+                bindings = _declaringMethod.getTypeBindings().withAdditionalBindings(_declaringType.getTypeBindings());
+            }
+            else {
+                bindings = _declaringMethod.getTypeBindings();
+            }
+        }
+        else {
+            if (_declaringType != null) {
+                bindings = _declaringType.getTypeBindings();
+            }
+            else {
+                bindings = TypeBindings.empty();
+            }
+        }
+        
+        Class classConstraint = null;
+        final java.lang.reflect.Type[] bounds = _typeVariable.getBounds();
+        
+        if (bounds.length == 0) {
+            return java.lang.Object.class; 
+        }
+        
+        if (bounds.length == 1) {
+            return TYPE_RESOLVER.resolve(bounds[0], bindings).getErasedClass(); 
+        }
+        
+        for (final java.lang.reflect.Type bound : bounds) {
+            final Class erasedClass = TYPE_RESOLVER.resolve(bound, bindings).getErasedClass();
+            
+            if (erasedClass.isInterface()) {
+                continue;
+            }
+            
+            if (classConstraint == null || classConstraint.isAssignableFrom(erasedClass)) {
+                classConstraint = erasedClass; 
+            }
+        }
+        
+        if (classConstraint == null) {
+            return classConstraint;
+        }
+
         return java.lang.Object.class;
+    }
+
+    public TypeVariable<?> getRawTypeVariable() {
+        return _typeVariable;
     }
 
     @Override
@@ -100,6 +153,14 @@ final class GenericParameterType extends Type {
         return _declaringMethod;
     }
 
+    public void setDeclaringMethod(final MethodInfo declaringMethod) {
+        _declaringMethod = declaringMethod;
+    }
+
+    public void setDeclaringType(final Type declaringType) {
+        _declaringType = declaringType;
+    }
+
     @Override
     public boolean isGenericParameter() {
         return true;
@@ -107,6 +168,13 @@ final class GenericParameterType extends Type {
 
     @Override
     public Class<?> getErasedClass() {
+        if (_erasedClass == null) {
+            synchronized (CACHE_LOCK) {
+                if (_erasedClass == null) {
+                    _erasedClass = resolveErasedClass();
+                }
+            }
+        }
         return _erasedClass;
     }
 
@@ -138,5 +206,10 @@ final class GenericParameterType extends Type {
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return new Annotation[0];
+    }
+
+    @Override
+    public String toString() {
+        return getName();
     }
 }

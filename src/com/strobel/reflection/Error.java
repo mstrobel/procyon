@@ -27,6 +27,24 @@ final class Error {
         );
     }
 
+    public static RuntimeException notGenericMethod(final MethodInfo method) {
+        throw new UnsupportedOperationException(
+            format(
+                "Type '%s' is not a generic method.",
+                method.getName()
+            )
+        );
+    }
+
+    public static RuntimeException notGenericMethodDefinition(final MethodInfo method) {
+        throw new UnsupportedOperationException(
+            format(
+                "Type '%s' is not a generic method definition.",
+                method.getName()
+            )
+        );
+    }
+
     public static RuntimeException noElementType(final Type type) {
         throw new UnsupportedOperationException(
             format(

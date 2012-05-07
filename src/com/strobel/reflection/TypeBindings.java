@@ -114,7 +114,8 @@ public final class TypeBindings {
 
     public boolean hasConcreteParameter(final Type genericParameter) {
         final int index = _genericParameters.indexOf(genericParameter);
-        return index != -1 && !_boundTypes.get(index).isGenericParameter();
+        return index != -1 &&
+               !_boundTypes.get(index).isGenericParameter();
     }
 
     public boolean hasConcreteParameters() {
@@ -131,6 +132,25 @@ public final class TypeBindings {
         for (int i = 0, n = size(); i < n; i++) {
             final Type parameter = getBoundType(i);
             if (parameter.isGenericParameter()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean hasBoundParameter(final Type genericParameter) {
+        final int index = _genericParameters.indexOf(genericParameter);
+        return index != -1 &&
+               _boundTypes.get(index) != genericParameter;
+    }
+
+
+    public boolean hasBoundParameters() {
+        for (int i = 0, n = size(); i < n; i++) {
+            final Type genericParameter = getGenericParameter(i);
+            final Type parameter = getBoundType(i);
+
+            if (parameter != genericParameter) {
                 return true;
             }
         }
@@ -229,7 +249,7 @@ public final class TypeBindings {
         if (index == -1) {
             throw Error.typeParameterNotDefined(genericParameter);
         }
-        return getGenericParameter(index);
+        return getBoundType(index);
     }
 
     @Override

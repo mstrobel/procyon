@@ -83,11 +83,17 @@ final class TypeResolver {
         Type type = _resolvedTypes.find(key);
 
         if (type == null) {
+            final TypeCache.Key genericDefinitionKey = _resolvedTypes.key(rawType);
+            final Type genericDefinition = _resolvedTypes.find(genericDefinitionKey);
+            if (genericDefinition != null) {
+                return new GenericType(genericDefinition, typeBindings);
+            }
             type = _constructType(c, rawType, typeBindings);
             _resolvedTypes.put(key, type);
         }
 
         c.resolveSelfReferences(type);
+
         return type;
     }
 
@@ -175,7 +181,7 @@ final class TypeResolver {
         else {
             final int ordinal = ArrayUtilities.indexOf(variable.getGenericDeclaration().getTypeParameters(), variable);
             newBindings = typeBindings.withAdditionalParameter(
-                new TypePlaceHolder(ordinal, variable.getName())
+                new GenericParameterType(variable, ordinal)
             );
         }
 
