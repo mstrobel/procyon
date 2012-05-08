@@ -2,6 +2,7 @@ package com.strobel.expressions;
 
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
+import com.strobel.reflection.Types;
 
 import java.util.Date;
 
@@ -23,7 +24,7 @@ public class ParameterExpression extends Expression {
 
     @Override
     public Type getType() {
-        return Type.Object;
+        return Types.Object;
     }
 
     @Override
@@ -67,16 +68,16 @@ public class ParameterExpression extends Expression {
                     return new PrimitiveParameterExpression(PrimitiveTypes.Float, name);
                 }
             }
-            else if (type == Type.of(String.class)) {
+            else if (type == Types.String) {
                 return new PrimitiveParameterExpression(Type.of(String.class), name);
             }
-            else if (type == Type.of(Date.class)) {
+            else if (type == Types.Date) {
                 return new PrimitiveParameterExpression(Type.of(Date.class), name);
             }
-            else if (type == Type.Object) {
-                return new PrimitiveParameterExpression(Type.Object, name);
+            else if (type == Types.Object) {
+                return new PrimitiveParameterExpression(Types.Object, name);
             }
-            else if (type.isArray() && type.getElementType() == Type.Object) {
+            else if (type.isArray() && type.getElementType() == Types.Object) {
                 return new PrimitiveParameterExpression(type, name);
             }
             else if (Type.of(Throwable.class).isAssignableFrom(type)) {

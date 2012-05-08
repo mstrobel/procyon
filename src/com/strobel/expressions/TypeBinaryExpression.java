@@ -1,6 +1,7 @@
 package com.strobel.expressions;
 
 import com.strobel.reflection.Type;
+import com.strobel.reflection.Types;
 import com.strobel.util.TypeUtils;
 
 /**
@@ -57,7 +58,7 @@ public final class TypeBinaryExpression extends Expression {
     }
 
     private Expression reduceParameterTypeEqual(final ParameterExpression value) {
-        final Expression getClass = call(value, Type.Object.getMethod("getClass"));
+        final Expression getClass = call(value, Types.Object.getMethod("getClass"));
 
         // We use reference equality when comparing to null for correctness, and reference equality
         // on types for performance.
@@ -99,13 +100,13 @@ public final class TypeBinaryExpression extends Expression {
         }
 
         // Create a temporary variable so we only evaluate the left side once.
-        final ParameterExpression parameter = variable(Type.Object);
+        final ParameterExpression parameter = variable(Types.Object);
 
         Expression operand = _operand;
 
         // Convert to Object if necessary.
-        if (!TypeUtils.areReferenceAssignable(Type.Object, cType)) {
-            operand = convert(operand, Type.Object);
+        if (!TypeUtils.areReferenceAssignable(Types.Object, cType)) {
+            operand = convert(operand, Types.Object);
         }
 
         return block(

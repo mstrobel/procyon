@@ -5,10 +5,7 @@ import com.strobel.expressions.ConditionalExpression;
 import com.strobel.expressions.Expression;
 import com.strobel.expressions.LambdaExpression;
 import com.strobel.expressions.ParameterExpression;
-import com.strobel.reflection.BindingFlags;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
+import com.strobel.reflection.*;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
 import java.lang.reflect.ParameterizedType;
@@ -24,8 +21,35 @@ import static com.strobel.expressions.Expression.*;
 @SuppressWarnings("UnusedDeclaration")
 public class Test {
     public static void main(final String[] args) {
-        expressionTest();
-        testTypeResolution();
+//        expressionTest();
+//        testTypeResolution();
+        genericMethodTest();
+        arrayTypeTest();
+    }
+
+    private static void genericMethodTest() {
+        final Type stringDateMap = Type.of(HashMap.class)
+                                       .makeGenericType(
+                                           Types.String,
+                                           Types.Date
+                                       );
+
+        final MethodInfo putMethod = stringDateMap.getMethod("put");
+
+        System.out.println("Full description: " + stringDateMap.getFullDescription());
+        System.out.println("Type signature: " + stringDateMap.getSignature());
+        System.out.println("Erased type signature: " + stringDateMap.getErasedSignature());
+        System.out.println("Method signature: " + putMethod.getSignature());
+        System.out.println("Erased method signature: " + putMethod.getErasedSignature());
+    }
+
+    private static void arrayTypeTest() {
+        final Type<String[]> stringArray = Types.String.makeArrayType();
+
+        System.out.println("Full description: " + stringArray.getFullDescription());
+        System.out.println("Type signature: " + stringArray.getSignature());
+        System.out.println("Erased type signature: " + stringArray.getSignature());
+        System.out.println("Element type signature: " + stringArray.getElementType().getSignature());
     }
 
     private static void testTypeResolution() {
@@ -33,7 +57,7 @@ public class Test {
         };
         // ((ParameterizedTypeImpl) ((ParameterizedTypeImpl) ((ParameterizedType)gt.getClass().getGenericSuperclass())).actualTypeArguments[0]).rawType.getGenericInterfaces()
         final java.lang.reflect.Type[] genericInterfaces =
-            ((ParameterizedTypeImpl) ((ParameterizedType) gt.getClass().getGenericSuperclass()).getActualTypeArguments()[0]).getRawType().getGenericInterfaces();
+            ((ParameterizedTypeImpl)((ParameterizedType)gt.getClass().getGenericSuperclass()).getActualTypeArguments()[0]).getRawType().getGenericInterfaces();
 
         final Type hashMap = Type.of(HashMap.class);
 
@@ -59,7 +83,8 @@ public class Test {
                                                               BindingFlags.DeclaredOnly |
                                                               BindingFlags.Public |
                                                               BindingFlags.NonPublic |
-                                                              BindingFlags.Static)
+                                                              BindingFlags.Static
+                                                          )
                                                           .toArray();
 
         System.out.println(Arrays.toString(genericMethodDefinitions));
@@ -76,15 +101,16 @@ public class Test {
     private static void expressionTest() {
         final ParameterExpression number = parameter(PrimitiveTypes.Integer, "number");
 
-        final ConditionalExpression body = condition(
-            equal(number, constant(0)),
-            constant("zero"),
+        final ConditionalExpression body =
             condition(
-                lessThan(number, constant(0)),
-                constant("negative"),
-                constant("positive")
-            )
-        );
+                equal(number, constant(0)),
+                constant("zero"),
+                condition(
+                    lessThan(number, constant(0)),
+                    constant("negative"),
+                    constant("positive")
+                )
+            );
 
         System.out.println(body);
 
@@ -97,7 +123,7 @@ public class Test {
 
     private static void printTypeTree(final Type type) {
         final Type baseType = type.getBaseType();
-        if (baseType != null && baseType != Type.Object) {
+        if (baseType != null && baseType != Types.Object) {
             printTypeTree(baseType);
         }
         System.out.println(type.getFullDescription());
@@ -115,7 +141,8 @@ interface ITest {
 }
 
 final class GenericMethodTest {
-    static <T> T of(final Class<T> clazz) throws IllegalAccessException, InstantiationException {
+    static <T> T of(final Class<T> clazz)
+        throws IllegalAccessException, InstantiationException {
         return clazz.newInstance();
     }
 }

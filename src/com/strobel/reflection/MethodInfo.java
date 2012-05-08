@@ -21,6 +21,8 @@ public abstract class MethodInfo extends MethodBase {
         return MemberType.Method;
     }
 
+    public abstract Method getRawMethod();
+
     @Override
     public StringBuilder appendDescription(final StringBuilder sb) {
         return getReturnType().appendSignature(super.appendDescription(sb));
@@ -28,6 +30,13 @@ public abstract class MethodInfo extends MethodBase {
 
     @Override
     public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        if (isGenericMethod() && !isGenericMethodDefinition()) {
+            return getGenericMethodDefinition().appendErasedDescription(sb);
+        }
+        final Type declaringType = getDeclaringType();
+        if (declaringType.isGenericType() && !declaringType.isGenericTypeDefinition()) {
+            return declaringType.getGenericTypeDefinition().getMethod(getRawMethod()).appendErasedDescription(sb);
+        }
         return getReturnType().appendErasedSignature(super.appendDescription(sb));
     }
 
@@ -166,6 +175,11 @@ class ReflectedMethod extends MethodInfo {
     }
 
     @Override
+    public Method getRawMethod() {
+        return _rawMethod;
+    }
+
+    @Override
     public String getName() {
         return _rawMethod.getName();
     }
@@ -263,9 +277,15 @@ final class GenericMethod extends MethodInfo {
         return _returnType;
     }
 
+    @Override
+    public Method getRawMethod() {
+        return _genericMethodDefinition.getRawMethod();
+    }
+
     private Type resolveBindings(final Type type) {
         if (type.isGenericType() || type.isGenericParameter()) {
-            final TypeBindings bindings = getDeclaringType().getTypeBindings().withAdditionalBindings(_typeBindings);
+            final Type declaringType = getDeclaringType();
+            final TypeBindings bindings = declaringType.getTypeBindings().withAdditionalBindings(_typeBindings);
             if (type.isGenericParameter() && bindings.hasBoundParameter(type)) {
                 return bindings.getBoundType(type);
             }

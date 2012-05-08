@@ -8,10 +8,7 @@ import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
 import java.lang.reflect.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.*;
 
 import static com.strobel.reflection.Flags.all;
 import static com.strobel.reflection.Flags.any;
@@ -39,12 +36,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     protected static final MemberInfo[] EmptyMembers = new MemberInfo[0];
 
     protected static final int DefaultLookup = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // STANDARD SYSTEM TYPES                                                                                              //
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    public static final Type Object = new ReflectedType(java.lang.Object.class, TypeBindings.empty(), null, TypeList.empty());
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTORS                                                                                                       //
@@ -426,6 +417,12 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return match;
     }
 
+    public MethodInfo getMethod(final Method rawMethod) {
+        getResolvedInstanceMethods();
+        getResolvedStaticMethods();
+        return _rawMethodMap.get(rawMethod);
+    }
+
     public MethodInfo getMethod(final String name, final Type... parameterTypes) {
         return getMethod(name, DefaultLookup, parameterTypes);
     }
@@ -645,7 +642,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     // TRANSFORMATION METHODS                                                                                             //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public Type makeArrayType() {
+    public Type<T[]> makeArrayType() {
         return CACHE.getArrayType(this);
     }
 
@@ -817,11 +814,11 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public StringBuilder appendFullDescription(final StringBuilder sb) {
-        StringBuilder s = _appendClassDescription(sb);
+        StringBuilder s = appendBriefDescription(sb);
 
         final Type baseType = getBaseType();
 
-        if (baseType != null && baseType != Object) {
+        if (baseType != null && baseType != Types.Object) {
             s.append(" extends ");
             s = baseType.appendBriefDescription(s);
         }
@@ -956,6 +953,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             MEMBER_RESOLVER = new MemberResolver();
 
             PrimitiveTypes.ensureRegistered();
+            Types.ensureRegistered();
         }
     }
 
@@ -996,9 +994,11 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     // TYPE HIERARCHY AND MEMBER RESOLUTION INFO                                                                          //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private HierarchicType _mainType;
-    private ReadOnlyList<HierarchicType> _typeHierarchy;
+    private final Map<Method, MethodInfo> _rawMethodMap = new HashMap<>();
 
+    private HierarchicType _mainType;
+
+    private ReadOnlyList<HierarchicType> _typeHierarchy;
     private ConstructorList _resolvedConstructors;
     private MethodList _resolvedInstanceMethods;
     private MethodList _resolvedStaticMethods;
@@ -1020,6 +1020,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             synchronized (CACHE_LOCK) {
                 if (_resolvedInstanceMethods == null) {
                     _resolvedInstanceMethods = resolveInstanceMethods();
+                    for (int i = 0, n = _resolvedInstanceMethods.size(); i < n; i++) {
+                        final MethodInfo method = _resolvedInstanceMethods.get(i);
+                        _rawMethodMap.put(method.getRawMethod(), method);
+                    }
                 }
             }
         }

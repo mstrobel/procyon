@@ -8,7 +8,7 @@ import java.lang.reflect.TypeVariable;
 /**
  * @author Mike Strobel
  */
-final class ReflectedType<T> extends Type {
+final class ReflectedType<T> extends Type<T> {
     private final Class<T> _class;
     private final Type _baseType;
     private final TypeBindings _typeArguments;
@@ -18,7 +18,7 @@ final class ReflectedType<T> extends Type {
         _class = VerifyArgument.notNull(rawType, "rawType");
         _typeArguments = VerifyArgument.notNull(typeArguments, "typeArguments");
 
-        if (baseType == null && rawType != java.lang.Object.class) {
+        if (baseType == null && rawType != java.lang.Object.class && !rawType.isInterface()) {
             throw new IllegalArgumentException("Base type cannot be null.");
         }
 
@@ -70,7 +70,7 @@ final class ReflectedType<T> extends Type {
     }
 
     @Override
-    public Class<?> getErasedClass() {
+    public Class<T> getErasedClass() {
         return _class;
     }
 

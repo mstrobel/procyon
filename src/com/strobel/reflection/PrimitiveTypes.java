@@ -26,11 +26,10 @@ public final class PrimitiveTypes {
         Type.CACHE.add(PrimitiveTypes.Long);
         Type.CACHE.add(PrimitiveTypes.Float);
         Type.CACHE.add(PrimitiveTypes.Double);
-        Type.CACHE.add(Type.Object);
     }
 
     static void ensureRegistered() {
-        if (Void != Type.CACHE.find(java.lang.Void.class)) {
+        if (Void != Type.CACHE.find(java.lang.Void.TYPE)) {
             throw new IllegalStateException("Primitive types were not successfully registered!");
         }
     }

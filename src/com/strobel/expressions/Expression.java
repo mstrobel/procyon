@@ -530,7 +530,7 @@ public abstract class Expression {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static ConstantExpression constant(final Object value) {
-        return ConstantExpression.make(value, value == null ? Type.Object : Type.of(value.getClass()));
+        return ConstantExpression.make(value, value == null ? Types.Object : Type.of(value.getClass()));
     }
 
     public static ConstantExpression constant(final Object value, final Type type) {
@@ -792,7 +792,7 @@ public abstract class Expression {
     public static UnaryExpression unbox(final Expression expression, final Type type) {
         verifyCanRead(expression, "expression");
         VerifyArgument.notNull(type, "type");
-        if (!TypeUtils.isAutoUnboxed(type) && type != Type.Object) {
+        if (!TypeUtils.isAutoUnboxed(type) && type != Types.Object) {
             throw Error.invalidUnboxType();
         }
         return new UnaryExpression(ExpressionType.Unbox, expression, type, null);
@@ -2644,7 +2644,7 @@ public abstract class Expression {
     }
 
     static boolean parameterIsAssignable(final Type parameterType, final Type argumentType) {
-        return argumentType.isPrimitive() && parameterType == Type.Object ||
+        return argumentType.isPrimitive() && parameterType == Types.Object ||
                parameterType.isAssignableFrom(argumentType);
     }
 
@@ -2720,7 +2720,7 @@ public abstract class Expression {
         // Known comparison: numeric types, booleans, object, enums
         if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), right.getType()) &&
             (TypeUtils.isArithmetic(left.getType()) ||
-             left.getType() == Type.Object ||
+             left.getType() == Types.Object ||
              TypeUtils.isBoolean(left.getType()) ||
              left.getType().isEnum())) {
 

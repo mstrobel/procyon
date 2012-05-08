@@ -175,7 +175,7 @@ final class TypeResolver {
         if (genericParameter != null) {
             newBindings = typeBindings.withAdditionalBinding(
                 genericParameter,
-                Type.Object
+                Types.Object
             );
         }
         else {
@@ -224,7 +224,7 @@ final class TypeResolver {
             return new ReflectedType<>(
                 rawType,
                 typeBindings.bindingsFor(genericParameterList),
-                Type.Object,
+                Types.Object,
                 _resolveSuperInterfaces(context, rawType, typeBindings)
             );
         }
@@ -966,7 +966,7 @@ final class TypePlaceHolder extends Type {
 
     @Override
     public Type getBaseType() {
-        return Object;
+        return Types.Object;
     }
 
     @Override

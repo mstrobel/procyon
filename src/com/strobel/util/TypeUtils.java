@@ -3,6 +3,7 @@ package com.strobel.util;
 import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
+import com.strobel.reflection.Types;
 
 /**
  * @author Mike Strobel
@@ -178,7 +179,7 @@ public final class TypeUtils {
         }
 
         // Object conversion 
-        return source == Type.Object || destination == Type.Object;
+        return source == Types.Object || destination == Types.Object;
     }
 
     public static MethodInfo getCoercionMethod(final Type source, final Type destination) {
@@ -227,7 +228,7 @@ public final class TypeUtils {
     }
 
     public static boolean areReferenceAssignable(final Type destination, final Type source) {
-        if (destination == Type.Object) {
+        if (destination == Types.Object) {
             return true;
         }
         // WARNING: This actually checks "is this identity assignable and/or reference assignable?"
