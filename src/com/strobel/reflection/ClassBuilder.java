@@ -1,7 +1,6 @@
-package com.strobel.reflection.emit;
+package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.Type;
 import net.sf.cglib.core.ClassEmitter;
 import org.objectweb.asm.ClassWriter;
 
@@ -90,7 +89,7 @@ public abstract class ClassBuilder extends Type {
         if (!m_isHiddenGlobalType)
         {
             //If this method is declared to be a constructor, increment our constructor count.
-            if ((method.Attributes & MethodAttributes.SpecialName) != 0 && method.Name.Equals(ConstructorInfo.ConstructorName))
+            if ((method.Attributes & MethodAttributes.SpecialName) != 0 && method.Name.equals(ConstructorInfo.ConstructorName))
             {
                 m_constructorCount++;
             }

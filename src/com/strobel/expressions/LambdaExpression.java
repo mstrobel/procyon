@@ -1,7 +1,7 @@
 package com.strobel.expressions;
 
+import com.strobel.reflection.MethodBuilder;
 import com.strobel.reflection.Type;
-import com.strobel.reflection.emit.MethodBuilder;
 
 /**
  * @author Mike Strobel

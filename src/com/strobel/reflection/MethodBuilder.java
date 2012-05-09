@@ -1,4 +1,4 @@
-package com.strobel.reflection.emit;
+package com.strobel.reflection;
 
 import org.objectweb.asm.MethodVisitor;
 

@@ -1,6 +1,5 @@
-package com.strobel.reflection.emit;
+package com.strobel.reflection;
 
-import com.strobel.reflection.TypeContext;
 import com.strobel.util.ContractUtils;
 
 /**

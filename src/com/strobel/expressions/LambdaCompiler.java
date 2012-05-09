@@ -1,6 +1,6 @@
 package com.strobel.expressions;
 
-import com.strobel.reflection.emit.MethodBuilder;
+import com.strobel.reflection.MethodBuilder;
 import com.strobel.util.ContractUtils;
 
 /**
