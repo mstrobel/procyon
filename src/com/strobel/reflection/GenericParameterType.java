@@ -144,6 +144,16 @@ final class GenericParameterType extends Type {
     }
 
     @Override
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
+        return sb.append(getName());
+    }
+
+    @Override
+    public StringBuilder appendFullDescription(final StringBuilder sb) {
+        return sb.append(getName());
+    }
+
+    @Override
     public Type getDeclaringType() {
         return _declaringType;
     }

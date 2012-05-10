@@ -8,6 +8,7 @@ import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
 import com.sun.tools.apt.mirror.type.TypeMaker;
 import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.comp.Resolve;
@@ -53,30 +54,42 @@ public class Test {
 
         final com.sun.tools.javac.code.Type.ClassType declaredType = (com.sun.tools.javac.code.Type.ClassType)
             javacTypes.getDeclaredType(
-                (TypeElement) mapType.asElement(),
+                (TypeElement)mapType.asElement(),
                 compiler.resolveIdent("java.lang.String").asType(),
-                compiler.resolveIdent("java.util.Date").asType());
+                compiler.resolveIdent("java.util.Date").asType()
+            );
 
-        final Symbol.MethodSymbol methodDefinition = (Symbol.MethodSymbol) declaredType.asElement().getEnclosedElements().get(49);
+        final Symbol.MethodSymbol methodDefinition = (Symbol.MethodSymbol)declaredType.asElement().getEnclosedElements().get(49);
 
         final com.sun.tools.javac.code.Type.MethodType genericMethod = (com.sun.tools.javac.code.Type.MethodType)
             javacTypes.asMemberOf(
                 declaredType,
-                methodDefinition);
+                methodDefinition
+            );
 
         final DeclaredType entryType = javacTypes.getDeclaredType(
-            (TypeElement) declaredType.asElement().getEnclosedElements().get(0),
-            (TypeMirror[]) declaredType.getTypeArguments().toArray(new TypeMirror[declaredType.getTypeArguments().size()]));
+            (TypeElement)declaredType.asElement().getEnclosedElements().get(0),
+            (TypeMirror[])declaredType.getTypeArguments().toArray(new TypeMirror[declaredType.getTypeArguments().size()])
+        );
 
         final Symbol put = resolve.resolveInternalMethod(
             null,
             new Env<>(null, new AttrContext()),
             declaredType,
             names.fromString("put"),
-            List.of(compiler.resolveIdent("java.lang.String").asType(),
-                    compiler.resolveIdent("java.sql.Timestamp").asType()),
-            List.<com.sun.tools.javac.code.Type>nil());
+            List.of(
+                compiler.resolveIdent("java.lang.String").asType(),
+                compiler.resolveIdent("java.sql.Timestamp").asType()
+            ),
+            List.<com.sun.tools.javac.code.Type>nil()
+        );
 
+        final MethodType putWithTypeArgs = ((com.sun.tools.javac.code.Type)javacTypes
+            .asMemberOf(declaredType, put))
+            .asMethodType();
+
+        System.out.println(declaredType);
+        System.out.println(putWithTypeArgs.asMethodType());
     }
 
     private static void primitiveTest() {

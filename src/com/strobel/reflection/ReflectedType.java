@@ -118,11 +118,6 @@ final class ReflectedType<T> extends Type<T> {
     }
 
     @Override
-    public String getName() {
-        return _class.getName();
-    }
-
-    @Override
     public Type getDeclaringType() {
         return of(_class.getDeclaringClass());
     }

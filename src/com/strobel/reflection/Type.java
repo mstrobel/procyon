@@ -754,7 +754,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     @Override
     public String getName() {
-        return _appendClassName(new StringBuilder(), true).toString();
+        return getBriefDescription();
     }
 
     /**
