@@ -1,5 +1,6 @@
 package com.strobel.core;
 
+import java.lang.reflect.Array;
 import java.util.*;
 
 /**
@@ -25,6 +26,16 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
         _offset = 0;
         _length = elements.length;
         _elements = (T[])Arrays.copyOf(elements, elements.length, elements.getClass());
+    }
+
+    @SuppressWarnings("unchecked")
+    public ReadOnlyList(final Class<T> elementType, final List<? extends T> elements) {
+        VerifyArgument.notNull(elementType, "elementType");
+        VerifyArgument.notNull(elements, "elements");
+
+        _offset = 0;
+        _length = elements.size();
+        _elements = elements.toArray((T[])Array.newInstance(elementType, _length));
     }
 
     @SuppressWarnings("unchecked")

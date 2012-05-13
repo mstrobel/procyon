@@ -1,5 +1,7 @@
 package com.strobel.reflection;
 
+import java.util.List;
+
 /**
  * @author Mike Strobel
  */
@@ -8,6 +10,10 @@ public final class MethodList extends MemberList<MethodInfo> {
 
     public static MethodList empty() {
         return EMPTY;
+    }
+
+    public MethodList(final List<? extends MethodInfo> elements) {
+        super(MethodInfo.class, elements);
     }
 
     public MethodList(final MethodInfo... elements) {

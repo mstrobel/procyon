@@ -11,6 +11,8 @@ public abstract class FieldInfo extends MemberInfo {
     public abstract Type getFieldType();
     public abstract boolean isEnumConstant();
 
+    public abstract Field getRawField();
+
     @Override
     public final MemberType getMemberType() {
         return MemberType.Field;
@@ -26,6 +28,11 @@ class ReflectedField extends FieldInfo {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _rawField = VerifyArgument.notNull(rawField, "rawField");
         _fieldType = VerifyArgument.notNull(fieldType, "fieldType");
+    }
+
+    @Override
+    public Field getRawField() {
+        return _rawField;
     }
 
     @Override

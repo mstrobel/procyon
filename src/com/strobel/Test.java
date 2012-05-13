@@ -2,27 +2,12 @@ package com.strobel;
 
 import com.strobel.expressions.LambdaExpression;
 import com.strobel.expressions.ParameterExpression;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.Types;
-import com.sun.tools.apt.mirror.type.TypeMaker;
-import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Type.MethodType;
-import com.sun.tools.javac.comp.AttrContext;
-import com.sun.tools.javac.comp.Env;
-import com.sun.tools.javac.comp.Resolve;
-import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.main.JavaCompiler;
-import com.sun.tools.javac.model.JavacTypes;
+import com.strobel.reflection.*;
+import com.sun.source.tree.TreeVisitor;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.List;
-import com.sun.tools.javac.util.Names;
 
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeMirror;
-import java.nio.charset.Charset;
+import java.util.Date;
 import java.util.HashMap;
 
 import static com.strobel.expressions.Expression.*;
@@ -33,63 +18,21 @@ import static com.strobel.expressions.Expression.*;
 @SuppressWarnings("UnusedDeclaration")
 public class Test {
     public static void main(final String[] args) {
-        primitiveTest();
-        expressionTest();
-        genericMethodTest();
-        arrayTypeTest();
+//        primitiveTest();
+//        expressionTest();
+//        genericMethodTest();
+//        arrayTypeTest();
         compilerToolsTest();
     }
 
     private static void compilerToolsTest() {
         final Context context = new Context();
-        final JavacFileManager fileManager = new JavacFileManager(context, true, Charset.defaultCharset());
-        final com.sun.tools.javac.code.Types types = com.sun.tools.javac.code.Types.instance(context);
-        final TypeMaker typeMaker = TypeMaker.instance(context);
-        final Resolve resolve = Resolve.instance(context);
-        final Names names = Names.instance(context);
-        final JavaCompiler compiler = JavaCompiler.instance(context);
-        final com.sun.tools.javac.code.Type mapType = compiler.resolveIdent("java.util.HashMap").asType();
-        final java.util.List<Symbol> elements = mapType.getTypeArguments().get(0).asElement().getEnclosingElement().getEnclosedElements();
-        final JavacTypes javacTypes = JavacTypes.instance(context);
+        final Type<?> mapType = Type.of(HashMap.class);
+        final Type<?> genericMapType = mapType.makeGenericType(Type.of(String.class), Type.of(Date.class));
 
-        final com.sun.tools.javac.code.Type.ClassType declaredType = (com.sun.tools.javac.code.Type.ClassType)
-            javacTypes.getDeclaredType(
-                (TypeElement)mapType.asElement(),
-                compiler.resolveIdent("java.lang.String").asType(),
-                compiler.resolveIdent("java.util.Date").asType()
-            );
-
-        final Symbol.MethodSymbol methodDefinition = (Symbol.MethodSymbol)declaredType.asElement().getEnclosedElements().get(49);
-
-        final com.sun.tools.javac.code.Type.MethodType genericMethod = (com.sun.tools.javac.code.Type.MethodType)
-            javacTypes.asMemberOf(
-                declaredType,
-                methodDefinition
-            );
-
-        final DeclaredType entryType = javacTypes.getDeclaredType(
-            (TypeElement)declaredType.asElement().getEnclosedElements().get(0),
-            (TypeMirror[])declaredType.getTypeArguments().toArray(new TypeMirror[declaredType.getTypeArguments().size()])
-        );
-
-        final Symbol put = resolve.resolveInternalMethod(
-            null,
-            new Env<>(null, new AttrContext()),
-            declaredType,
-            names.fromString("put"),
-            List.of(
-                compiler.resolveIdent("java.lang.String").asType(),
-                compiler.resolveIdent("java.sql.Timestamp").asType()
-            ),
-            List.<com.sun.tools.javac.code.Type>nil()
-        );
-
-        final MethodType putWithTypeArgs = ((com.sun.tools.javac.code.Type)javacTypes
-            .asMemberOf(declaredType, put))
-            .asMethodType();
-
-        System.out.println(declaredType);
-        System.out.println(putWithTypeArgs.asMethodType());
+        System.out.println(mapType);
+        System.out.println(genericMapType);
+        System.out.println(genericMapType.getMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).get(30));
     }
 
     private static void primitiveTest() {
@@ -137,6 +80,27 @@ public class Test {
         );
 
         System.out.println(lambda);
+    }
+
+    private static class NullTree extends JCTree {
+        @Override
+        public Tag getTag() {
+            return Tag.NULLCHK;
+        }
+
+        @Override
+        public void accept(final Visitor v) {
+        }
+
+        @Override
+        public <R, D> R accept(final TreeVisitor<R, D> v, final D d) {
+            return null;
+        }
+
+        @Override
+        public Kind getKind() {
+            return Kind.NULL_LITERAL;
+        }
     }
 }
 

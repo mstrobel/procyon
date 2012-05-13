@@ -3,6 +3,8 @@ package com.strobel.reflection;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
 
+import java.util.List;
+
 /**
  * @author Mike Strobel
  */
@@ -20,6 +22,11 @@ public class MemberList<T extends MemberInfo> extends ReadOnlyList<T> {
     MemberList(final Class<T> memberType, final T... members) {
         super(members);
         _memberType = VerifyArgument.notNull(memberType, "memberType");
+    }
+
+    MemberList(final Class<T> memberType, final List<? extends T> members) {
+        super(memberType, VerifyArgument.noNullElements(members, "members"));
+        _memberType = memberType;
     }
 
     MemberList(final Class<T> memberType, final T[] members, final int offset, final int length) {

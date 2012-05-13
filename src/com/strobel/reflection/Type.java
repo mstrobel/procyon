@@ -6,8 +6,16 @@ import com.strobel.core.StringEx;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.comp.Resolve;
+import com.sun.tools.javac.main.JavaCompiler;
+import com.sun.tools.javac.nio.JavacPathFileManager;
+import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.Names;
 
+import javax.lang.model.type.TypeKind;
 import java.lang.reflect.*;
+import java.nio.charset.Charset;
 import java.util.*;
 
 import static com.strobel.reflection.Flags.all;
@@ -27,6 +35,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public static final char Delimiter = '.';
     public static final Missing Value = new Missing();
     public static final Type[] EmptyTypes = new Type[0];
+
+    public static final Type NoType = new NoType();
+    public static final Type NullType = new NullType();
 
     protected static final Object[] EmptyObjects = new Object[0];
     protected static final String[] EmptyStrings = new String[0];
@@ -103,7 +114,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public boolean isGenericType() {
-        return false;
+        return !getTypeBindings().isEmpty();
     }
 
     public boolean isGenericTypeDefinition() {
@@ -191,7 +202,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 return true;
             }
         }
-        
+
         return false;
     }
 
@@ -199,18 +210,22 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         throw Error.notGenericType(this);
     }
 
+    public Type getLowerBound() {
+        return NoType;
+    }
+
     public boolean isEquivalentTo(final Type other) {
         return other == this;
     }
 
-    public boolean isSubclassOf(final Type type) {
+    public boolean isSubType(final Type type) {
         Type current = this;
 
         if (current == type) {
             return false;
         }
 
-        while (current != null) {
+        while (current != null && current != Type.NoType) {
             if (current.equals(type)) {
                 return true;
             }
@@ -229,7 +244,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public boolean implementsInterface(final Type interfaceType) {
         Type t = this;
 
-        while (t != null) {
+        while (t != null && t != Type.NoType) {
             final TypeList interfaces = t.getInterfaces();
 
             for (int i = 0, n = interfaces.size(); i < n; i++) {
@@ -254,7 +269,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             return true;
         }
 
-        if (type.isSubclassOf(this)) {
+        if (type.isSubType(this)) {
             return true;
         }
 
@@ -277,6 +292,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         return false;
+    }
+
+    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitUnknown(this, parameter);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -405,7 +424,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 }
             }
 
-            if (match == null || candidateDeclaringType.isSubclassOf(match.getDeclaringType()) || match.getDeclaringType().isInterface()) {
+            if (match == null || candidateDeclaringType.isSubType(match.getDeclaringType()) || match.getDeclaringType().isInterface()) {
                 match = candidate;
             }
         }
@@ -674,6 +693,16 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return rootElementType;
     }
 
+    Type getMostSpecificType(final Type t1, final Type t2) {
+        if (t1.isSubType(t2)) {
+            return t1;
+        }
+        if (t2.isSubType(t1)) {
+            return t2;
+        }
+        return null;
+    }
+
     boolean filterMethodBase(
         final MethodBase method,
         final int methodFlags,
@@ -802,7 +831,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < count; ++i) {
                     if (i != 0) {
-                        s.append(',');
+                        s.append(", ");
                     }
                     s = typeArguments.get(i).appendBriefDescription(s);
                 }
@@ -945,6 +974,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     final static TypeCache CACHE;
     final static TypeResolver TYPE_RESOLVER;
     final static MemberResolver MEMBER_RESOLVER;
+    final static Context CONTEXT;
+    final static Resolver RESOLVER;
+    final static JavaCompiler COMPILER;
+    final static Type<?>[] PRIMITIVE_TYPES;
 
     static {
         synchronized (CACHE_LOCK) {
@@ -952,7 +985,30 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             TYPE_RESOLVER = new TypeResolver(CACHE);
             MEMBER_RESOLVER = new MemberResolver();
 
+            final Context context = new Context();
+
+            new JavacPathFileManager(context, true, Charset.defaultCharset());
+            com.sun.tools.javac.code.Types.instance(context);
+            Resolve.instance(context);
+            Names.instance(context);
+
+            COMPILER = JavaCompiler.instance(context);
+            CONTEXT = context;
+            RESOLVER = new Resolver(context);
+            PRIMITIVE_TYPES = new PrimitiveType<?>[TypeKind.values().length];
+
             PrimitiveTypes.ensureRegistered();
+
+            PRIMITIVE_TYPES[TypeKind.VOID.ordinal()] = PrimitiveTypes.Void;
+            PRIMITIVE_TYPES[TypeKind.BOOLEAN.ordinal()] = PrimitiveTypes.Boolean;
+            PRIMITIVE_TYPES[TypeKind.BYTE.ordinal()] = PrimitiveTypes.Byte;
+            PRIMITIVE_TYPES[TypeKind.CHAR.ordinal()] = PrimitiveTypes.Character;
+            PRIMITIVE_TYPES[TypeKind.SHORT.ordinal()] = PrimitiveTypes.Short;
+            PRIMITIVE_TYPES[TypeKind.INT.ordinal()] = PrimitiveTypes.Integer;
+            PRIMITIVE_TYPES[TypeKind.LONG.ordinal()] = PrimitiveTypes.Long;
+            PRIMITIVE_TYPES[TypeKind.FLOAT.ordinal()] = PrimitiveTypes.Float;
+            PRIMITIVE_TYPES[TypeKind.DOUBLE.ordinal()] = PrimitiveTypes.Double;
+
             Types.ensureRegistered();
         }
     }
@@ -965,7 +1021,47 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 return reflectedType;
             }
 
-            return TYPE_RESOLVER.resolve(clazz);
+            final Symbol symbol = COMPILER.resolveIdent(clazz.getName());
+            final Resolver.Frame result = RESOLVER.visit(symbol, null);
+
+            return (Type<T>)result.getCurrentType();
+        }
+    }
+
+    static <T> Type<T> of(final com.sun.tools.javac.code.Type type) {
+        if (type instanceof com.sun.tools.javac.code.Type.ArrayType) {
+            return (Type<T>)of(((com.sun.tools.javac.code.Type.ArrayType)type).getComponentType()).makeArrayType();
+        }
+
+        final TypeKind typeKind = type.getKind();
+
+        if (typeKind == TypeKind.VOID || typeKind.isPrimitive()) {
+            return (Type<T>)PRIMITIVE_TYPES[typeKind.ordinal()];
+        }
+
+        synchronized (CACHE_LOCK) {
+            final Class<T> clazz;
+
+            try {
+                clazz = (Class<T>)Class.forName(type.asElement().flatName().toString());
+            }
+            catch (ClassNotFoundException e) {
+                throw Error.couldNotResolveType(type);
+            }
+
+            Type<?> resultType = (Type<?>)CACHE.find(clazz);
+
+            if (resultType != null) {
+                return (Type<T>)resultType;
+            }
+
+            resultType = RESOLVER.visit(type.asElement(), null).getCurrentType();
+
+            if (resultType != null) {
+                return (Type<T>) resultType;
+            }
+
+            throw Error.couldNotResolveType(type);
         }
     }
 
@@ -987,6 +1083,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static TypeList list(final Type... types) {
+        return new TypeList(types);
+    }
+
+    public static TypeList list(final List<? extends Type> types) {
         return new TypeList(types);
     }
 
@@ -1101,11 +1201,23 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getTypes().subList(0, index);
     }
 
+    protected List<Constructor<?>> getRawConstructors() {
+        return Arrays.asList(getErasedClass().getDeclaredConstructors());
+    }
+
+    protected List<Method> getRawMethods() {
+        return Arrays.asList(getErasedClass().getDeclaredMethods());
+    }
+
+    protected List<Field> getRawFields() {
+        return Arrays.asList(getErasedClass().getDeclaredFields());
+    }
+
     protected ConstructorList resolveConstructors() {
         final LinkedHashMap<MethodKey, ConstructorInfo> constructors = new LinkedHashMap<>();
         final Type mainType = getMainType().getType();
 
-        for (final Constructor constructor : mainType.getErasedClass().getConstructors()) {
+        for (final Constructor constructor : getRawConstructors()) {
             final RawConstructor raw = new RawConstructor(mainType, constructor);
             constructors.put(raw.createKey(), resolveConstructor(raw));
         }
@@ -1124,7 +1236,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
         for (int typeIndex = getMainTypeAndOverrides().size(); --typeIndex >= 0; ) {
             final HierarchicType thisType = getMainTypeAndOverrides().get(typeIndex);
-            for (final Field jField : thisType.getType().getErasedClass().getFields()) {
+            for (final Field jField : thisType.getType().getRawFields()) {
                 final RawField raw = new RawField(thisType.getType(), jField);
                 fields.put(raw.getName(), resolveField(raw));
             }
@@ -1143,7 +1255,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     protected MethodList resolveStaticMethods() {
         final LinkedHashMap<MethodKey, MethodInfo> methods = new LinkedHashMap<>();
 
-        for (final Method method : getMainType().getType().getErasedClass().getDeclaredMethods()) {
+        for (final Method method : getMainType().getType().getRawMethods()) {
             if (Modifier.isStatic(method.getModifiers())) {
                 final RawMethod raw = new RawMethod(getMainType().getType(), method);
                 methods.put(raw.createKey(), resolveMethod(raw));
@@ -1163,7 +1275,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final LinkedHashMap<MethodKey, MethodInfo> methods = new LinkedHashMap<>();
 
         for (final HierarchicType type : getMainTypeAndOverrides()) {
-            for (final Method method : type.getType().getErasedClass().getMethods()) {
+            for (final Method method : type.getType().getRawMethods()) {
                 if (Modifier.isStatic(method.getModifiers())) {
                     continue;
                 }
@@ -1205,7 +1317,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             }
             parameterList = new ParameterList(parameters);
         }
-        return new ReflectedConstructor(context, ctor, parameterList);
+        return new ReflectedConstructor(context, ctor, parameterList, TypeList.empty());
     }
 
     protected FieldInfo resolveField(final RawField raw) {
@@ -1224,22 +1336,22 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final java.lang.reflect.Type[] rawTypes = m.getGenericParameterTypes();
         final TypeVariable<Method>[] typeVariables = m.getTypeParameters();
         final ParameterList parameterList;
-        
+
         TypeBindings methodTypeBindings = TypeBindings.empty();
         TypeBindings resolveBindings = bindings;
-        
+
         if (typeVariables != null && typeVariables.length != 0) {
             final GenericParameterType[] genericParameters = new GenericParameterType[typeVariables.length];
-            
+
             for (int i = 0; i < typeVariables.length; i++) {
                 final TypeVariable<Method> typeVariable = typeVariables[i];
                 genericParameters[i] = new GenericParameterType(typeVariable, i);
             }
-            
+
             methodTypeBindings = TypeBindings.createUnbound(list(genericParameters));
             resolveBindings = methodTypeBindings.withAdditionalBindings(resolveBindings);
         }
-        
+
         if (rawTypes == null || rawTypes.length == 0) {
             parameterList = ParameterList.empty();
         }
@@ -1253,7 +1365,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
         final Type rt = (rawType == Void.TYPE) ? PrimitiveTypes.Void : resolve(rawType, resolveBindings);
 
-        return new ReflectedMethod(context, m, parameterList, rt, methodTypeBindings);
+        return new ReflectedMethod(context, m, parameterList, rt, TypeList.empty(), methodTypeBindings);
     }
 
     @SuppressWarnings("unchecked")

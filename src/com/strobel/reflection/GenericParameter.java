@@ -4,87 +4,93 @@ import com.strobel.core.VerifyArgument;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.TypeVariable;
+import java.util.ArrayList;
 
 /**
  * @author Mike Strobel
  */
-final class GenericParameterType extends Type {
+final class GenericParameter<T> extends Type<T> {
+    private final String _name;
     private final int _position;
-    private final TypeVariable<?> _typeVariable;
-    private Class<?> _erasedClass;
+    private final TypeList _constraints;
     private MethodInfo _declaringMethod;
     private Type _declaringType;
+    private Class<T> _erasedClass;
+    private TypeVariable<?> _typeVariable;
 
-    GenericParameterType(final TypeVariable<?> typeVariable, final int position) {
-        _typeVariable = VerifyArgument.notNull(typeVariable, "typeVariable");
-        _position = position;
-    }
-    
-    GenericParameterType(final TypeVariable<?> typeVariable, final Type declaringType, final int position) {
-        _typeVariable = VerifyArgument.notNull(typeVariable, "typeVariable");
+    GenericParameter(final String name, final Type declaringType, final TypeList constraints, final int position) {
+        _name = VerifyArgument.notNull(name, "name");
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
-        _declaringMethod = null;
+        _constraints = VerifyArgument.notNull(constraints, "constraints");
         _position = position;
     }
 
-    GenericParameterType(final TypeVariable<?> typeVariable, final MethodInfo declaringMethod, final int position ) {
-        _typeVariable = VerifyArgument.notNull(typeVariable, "typeVariable");
+    GenericParameter(final String name, final MethodInfo declaringMethod, final TypeList constraints, final int position) {
+        _name = VerifyArgument.notNull(name, "name");
         _declaringType = null;
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
+        _constraints = VerifyArgument.notNull(constraints, "constraints");
         _position = position;
+    }
+
+    private TypeVariable<?> resolveTypeVariable() {
+        for (final TypeVariable typeVariable : _declaringType.getErasedClass().getTypeParameters()) {
+            if (_name.equals(typeVariable.getName())) {
+                return typeVariable;
+            }
+        }
+        throw Error.couldNotResolveType(_name);
     }
 
     private Class<?> resolveErasedClass() {
-        final TypeBindings bindings;
-        
-        if (_declaringMethod != null) {
-            if (_declaringType != null) {
-                bindings = _declaringMethod.getTypeBindings().withAdditionalBindings(_declaringType.getTypeBindings());
-            }
-            else {
-                bindings = _declaringMethod.getTypeBindings();
-            }
-        }
-        else {
-            if (_declaringType != null) {
-                bindings = _declaringType.getTypeBindings();
-            }
-            else {
-                bindings = TypeBindings.empty();
-            }
-        }
-        
-        Class classConstraint = null;
-        final java.lang.reflect.Type[] bounds = _typeVariable.getBounds();
-        
-        if (bounds.length == 0) {
-            return java.lang.Object.class; 
-        }
-        
-        if (bounds.length == 1) {
-            return TYPE_RESOLVER.resolve(bounds[0], bindings).getErasedClass(); 
-        }
-        
-        for (final java.lang.reflect.Type bound : bounds) {
-            final Class erasedClass = TYPE_RESOLVER.resolve(bound, bindings).getErasedClass();
-            
-            if (erasedClass.isInterface()) {
-                continue;
-            }
-            
-            if (classConstraint == null || classConstraint.isAssignableFrom(erasedClass)) {
-                classConstraint = erasedClass; 
-            }
-        }
-        
-        if (classConstraint == null) {
-            return classConstraint;
+        if (_constraints.size() == 1) {
+            return _constraints.get(0).getErasedClass();
         }
 
-        return java.lang.Object.class;
+        for (final Type<?> type : _constraints) {
+            if (!type.isInterface()) {
+                return type.getErasedClass();
+            }
+        }
+
+        final ArrayList<Type> interfaceBounds = new ArrayList<>(_constraints);
+
+        outer:
+        while (interfaceBounds.size() > 1) {
+            final Type<?> a = interfaceBounds.get(0);
+
+            for (int i = 1, n = interfaceBounds.size(); i < n; i++) {
+                final Type<?> b = interfaceBounds.get(i);
+                final Type moreSpecific = getMostSpecificType(a, b);
+
+                if (moreSpecific == null) {
+                    return Object.class;
+                }
+
+                if (moreSpecific == a) {
+                    interfaceBounds.remove(0);
+                    continue outer;
+                }
+
+                interfaceBounds.remove(i--);
+            }
+        }
+
+        if (interfaceBounds.size() == 1) {
+            return interfaceBounds.get(0).getErasedClass();
+        }
+
+        return Object.class;
     }
 
     public TypeVariable<?> getRawTypeVariable() {
+        if (_typeVariable == null) {
+            synchronized (CACHE_LOCK) {
+                if (_typeVariable == null) {
+                    _typeVariable = resolveTypeVariable();
+                }
+            }
+        }
         return _typeVariable;
     }
 
@@ -177,11 +183,12 @@ final class GenericParameterType extends Type {
     }
 
     @Override
-    public Class<?> getErasedClass() {
+    @SuppressWarnings("unchecked")
+    public Class<T> getErasedClass() {
         if (_erasedClass == null) {
             synchronized (CACHE_LOCK) {
                 if (_erasedClass == null) {
-                    _erasedClass = resolveErasedClass();
+                    _erasedClass = (Class<T>)resolveErasedClass();
                 }
             }
         }
@@ -222,5 +229,9 @@ final class GenericParameterType extends Type {
     public String toString() {
         return getName();
     }
-}
 
+    @Override
+    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitTypeParameter(this, parameter);
+    }
+}

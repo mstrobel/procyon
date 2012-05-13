@@ -45,8 +45,8 @@ final class TypeResolver {
         if (mainType instanceof TypeVariable<?>) {
             return _fromVariable(context, (TypeVariable<?>)mainType, typeBindings);
         }
-        if (mainType instanceof WildcardType) {
-            return _fromWildcard(context, (WildcardType)mainType, typeBindings);
+        if (mainType instanceof java.lang.reflect.WildcardType) {
+            return _fromWildcard(context, (java.lang.reflect.WildcardType)mainType, typeBindings);
         }
         // should never getBoundType here...
         throw new IllegalArgumentException("Unrecognized type class: " + mainType.getClass().getName());
@@ -149,7 +149,7 @@ final class TypeResolver {
         return new ArrayType(elementType);
     }
 
-    private Type _fromWildcard(final ClassStack context, final WildcardType wildType, final TypeBindings typeBindings) {
+    private Type _fromWildcard(final ClassStack context, final java.lang.reflect.WildcardType wildType, final TypeBindings typeBindings) {
         /* Similar to challenges with TypeVariable, we may have multiple upper bounds.
          * But it is also possible that if upper bound defaults to Object, we might want to
          * consider lower bounds instead?
@@ -355,8 +355,8 @@ final class TypeResolver {
         }
 
         @Override
-        public boolean isSubclassOf(final Type type) {
-            return _referencedType.isSubclassOf(type);
+        public boolean isSubType(final Type type) {
+            return _referencedType.isSubType(type);
         }
 
         @Override
@@ -889,7 +889,7 @@ final class MemberResolver {
 
     private void _gatherTypes(final Type currentType, final Set<ClassKey> seenTypes, final List<Type> types) {
         // may get called with null if no parent type
-        if (currentType == null) {
+        if (currentType == null || currentType == Type.NoType) {
             return;
         }
 

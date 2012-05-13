@@ -8,17 +8,18 @@ import java.lang.reflect.Array;
 /**
  * @author strobelm
  */
-class ArrayType extends Type {
-    private final Type _elementType;
-    private final Class<?> _erasedClass;
+class ArrayType<T> extends Type<T> {
+    private final Type<?> _elementType;
+    private final Class<T> _erasedClass;
 
-    ArrayType(final Type elementType) {
+    @SuppressWarnings("unchecked")
+    ArrayType(final Type<?> elementType) {
         _elementType = VerifyArgument.notNull(elementType, "elementType");
-        _erasedClass = Array.newInstance(elementType.getErasedClass(), 0).getClass();
+        _erasedClass = (Class<T>)Array.newInstance(elementType.getErasedClass(), 0).getClass();
     }
 
     @Override
-    public Class<?> getErasedClass() {
+    public Class<T> getErasedClass() {
         return _erasedClass;
     }
 
@@ -149,6 +150,11 @@ class ArrayType extends Type {
 
     public StringBuilder appendFullDescription(final StringBuilder sb) {
         return appendBriefDescription(sb);
+    }
+
+    @Override
+    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitArrayType(this, parameter);
     }
 }
 

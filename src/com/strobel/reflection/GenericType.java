@@ -1,18 +1,24 @@
 package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
+import com.sun.tools.javac.util.List;
 
 import java.lang.annotation.Annotation;
 
 /**
  * @author strobelm
  */
-class GenericType extends Type {
+class GenericType<T> extends Type<T> {
 
     private final Type _genericTypeDefinition;
     private final TypeBindings _typeArguments;
     private final TypeList _interfaces;
     private final Type _baseType;
+
+    private List<FieldInfo> _fields = List.nil();
+    private List<ConstructorInfo> _constructors = List.nil();
+    private List<MethodInfo> _staticMethods = List.nil();
+    private List<MethodInfo> _instanceMethods = List.nil();
 
     GenericType(final Type genericTypeDefinition, final TypeBindings typeArguments) {
         _genericTypeDefinition = VerifyArgument.notNull(genericTypeDefinition, "genericTypeDefinition");
@@ -45,6 +51,25 @@ class GenericType extends Type {
         _baseType = resolveBaseType();
     }
 
+    void addField(final FieldInfo field) {
+        _fields = _fields.append(VerifyArgument.notNull(field, "field"));
+    }
+
+    void addConstructor(final ConstructorInfo constructor) {
+        _constructors = _constructors.append(constructor);
+    }
+
+    void addMethod(final MethodInfo method) {
+        VerifyArgument.notNull(method, "method");
+
+        if (method.isStatic()) {
+            _staticMethods = _staticMethods.append(method);
+        }
+        else {
+            _instanceMethods = _instanceMethods.append(method);
+        }
+    }
+
     private Type resolveBaseType() {
         return TYPE_RESOLVER._resolveSuperClass(
             new TypeResolver.ClassStack(_genericTypeDefinition.getErasedClass()),
@@ -62,8 +87,9 @@ class GenericType extends Type {
     }
 
     @Override
-    public Class<?> getErasedClass() {
-        return _genericTypeDefinition.getErasedClass();
+    @SuppressWarnings("unchecked")
+    public Class<T> getErasedClass() {
+        return (Class<T>) _genericTypeDefinition.getErasedClass();
     }
 
     @Override
@@ -124,5 +150,49 @@ class GenericType extends Type {
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return _genericTypeDefinition.getDeclaredAnnotations();
+    }
+
+    @Override
+    public <P, R> R accept(final TypeVisitor<P, R> typeVisitor, final P parameter) {
+        return typeVisitor.visitType(this, parameter);
+    }
+
+    @Override
+    ConstructorList getResolvedConstructors() {
+        if (_constructors.isEmpty()) {
+            return ConstructorList.empty();
+        }
+        return new ConstructorList(_constructors);
+    }
+
+    @Override
+    MethodList getResolvedInstanceMethods() {
+        if (_instanceMethods.isEmpty()) {
+            return MethodList.empty();
+        }
+        return new MethodList(_instanceMethods);
+    }
+
+    @Override
+    MethodList getResolvedStaticMethods() {
+        if (_staticMethods.isEmpty()) {
+            return MethodList.empty();
+        }
+        return new MethodList(_staticMethods);
+    }
+
+    @Override
+    FieldList getResolvedFields() {
+        if (_fields.isEmpty()) {
+            return FieldList.empty();
+        }
+        return new FieldList(_fields);
+    }
+
+    void complete() {
+        getResolvedFields();
+        getResolvedConstructors();
+        getResolvedStaticMethods();
+        getResolvedInstanceMethods();
     }
 }

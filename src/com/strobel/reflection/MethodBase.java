@@ -8,6 +8,10 @@ public abstract class MethodBase extends MemberInfo {
         return ParameterList.empty();
     }
 
+    public TypeList getThrownTypes() {
+        return TypeList.empty();
+    }
+
     public CallingConvention getCallingConvention() {
         return CallingConvention.fromMethodModifiers(getModifiers());
     }
@@ -41,7 +45,7 @@ public abstract class MethodBase extends MemberInfo {
 
         for (int i = 0, n = parameters.size(); i < n; ++i) {
             final ParameterInfo p = parameters.get(i);
-            s = p.getParameterType().appendSignature(s);
+            s = p.getParameterType().appendBriefDescription(s);
         }
 
         s.append(')');

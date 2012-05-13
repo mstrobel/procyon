@@ -14,7 +14,7 @@ final class HierarchicType {
         _priority = priority;
     }
 
-    public Type getType() { return _type; }
+    public Type<?> getType() { return _type; }
 
     public Class<?> getErasedType() { return getType().getErasedClass(); }
 

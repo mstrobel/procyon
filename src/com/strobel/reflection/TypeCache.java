@@ -23,14 +23,15 @@ final class TypeCache {
         return _map.get(key);
     }
 
-    public Type getArrayType(final Type elementType) {
-        Type arrayType = _arrayMap.get(elementType);
+    @SuppressWarnings("unchecked")
+    public <T> Type<T[]> getArrayType(final Type<T> elementType) {
+        Type<T[]> arrayType = (Type<T[]>) _arrayMap.get(elementType);
         
         if (arrayType != null) {
             return arrayType;
         }
 
-        arrayType = new ArrayType(elementType);
+        arrayType = new ArrayType<>(elementType);
         add(arrayType);
         
         return arrayType;
@@ -48,7 +49,7 @@ final class TypeCache {
         final Class<?> erasedType = key._erasedType;
 
         if (!_erasedMap.containsKey(erasedType)) {
-            if (type.isGenericType()) {
+            if (type.isGenericType() && !type.isGenericTypeDefinition()) {
                 _erasedMap.put(erasedType, type.getGenericTypeDefinition());
             }
             else {

@@ -7,13 +7,13 @@ import java.lang.annotation.Annotation;
 /**
  * @author strobelm
  */
-final class PrimitiveType extends Type {
+final class PrimitiveType<T> extends Type<T> {
 
-    private final Class<?> _class;
+    private final Class<T> _class;
     private final String _signature;
     private final String _description;
 
-    PrimitiveType(final Class<?> clazz, final char signature, final String description) {
+    PrimitiveType(final Class<T> clazz, final char signature, final String description) {
         _class = VerifyArgument.notNull(clazz, "clazz");
         
         if (!clazz.isPrimitive()) {
@@ -30,8 +30,13 @@ final class PrimitiveType extends Type {
     }
 
     @Override
-    public Class<?> getErasedClass() {
+    public Class<T> getErasedClass() {
         return _class;
+    }
+
+    @Override
+    protected TypeBindings getTypeBindings() {
+        return TypeBindings.empty();
     }
 
     @Override
@@ -117,6 +122,11 @@ final class PrimitiveType extends Type {
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return _class.getDeclaredAnnotations();
+    }
+
+    @Override
+    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitPrimitiveType(this, parameter);
     }
 
     @Override

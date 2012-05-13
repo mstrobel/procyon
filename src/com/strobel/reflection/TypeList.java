@@ -1,5 +1,7 @@
 package com.strobel.reflection;
 
+import java.util.List;
+
 /**
  * @author Mike Strobel
  */
@@ -8,6 +10,10 @@ package com.strobel.reflection;
 
     public static TypeList empty() {
         return EMPTY;
+    }
+
+    TypeList(final List<? extends Type> elements) {
+        super(Type.class, elements);
     }
 
     TypeList(final Type... elements) {

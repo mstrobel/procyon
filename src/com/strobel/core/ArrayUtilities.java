@@ -4,12 +4,23 @@ import com.strobel.util.EmptyArrayCache;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * @author Mike Strobel
  */
 public final class ArrayUtilities {
     private ArrayUtilities() {
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T[] makeArray(final Class<T> elementClass, final List<T> list) {
+        VerifyArgument.notNull(elementClass, "elementClass");
+        VerifyArgument.notNull(list, "list");
+
+        final T[] array = (T[])Array.newInstance(elementClass, list.size());
+
+        return list.toArray(array);
     }
 
     public static <T> boolean contains(final T[] array, final T value) {

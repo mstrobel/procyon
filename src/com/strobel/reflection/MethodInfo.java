@@ -24,8 +24,46 @@ public abstract class MethodInfo extends MethodBase {
     public abstract Method getRawMethod();
 
     @Override
+    public String getName() {
+        return getRawMethod().getName();
+    }
+
+    @Override
     public StringBuilder appendDescription(final StringBuilder sb) {
-        return getReturnType().appendSignature(super.appendDescription(sb));
+        StringBuilder s = new StringBuilder();
+
+        s = getReturnType().appendBriefDescription(s);
+        s.append(' ');
+        s.append(getName());
+        s.append('(');
+
+        final ParameterList parameters = getParameters();
+
+        for (int i = 0, n = parameters.size(); i < n; ++i) {
+            final ParameterInfo p = parameters.get(i);
+            if (i != 0) {
+                s.append(", ");
+            }
+            s = p.getParameterType().appendBriefDescription(s);
+        }
+
+        s.append(')');
+
+        final TypeList thrownTypes = getThrownTypes();
+
+        if (!thrownTypes.isEmpty()) {
+            s.append(" throws ");
+
+            for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
+                final Type t = thrownTypes.get(i);
+                if (i != 0) {
+                    s.append(", ");
+                }
+                s = t.appendBriefDescription(s);
+            }
+        }
+
+        return s;
     }
 
     @Override
@@ -78,7 +116,7 @@ public abstract class MethodInfo extends MethodBase {
     }
 
     public boolean containsGenericParameters() {
-        if (getReturnType().isGenericParameter()) {
+        if (getReturnType().containsGenericParameters()) {
             return true;
         }
 
@@ -86,7 +124,7 @@ public abstract class MethodInfo extends MethodBase {
         
         for (int i = 0, n = parameters.size(); i < n; i++) {
             final ParameterInfo parameter = parameters.get(i);
-            if (parameter.getParameterType().isGenericParameter()) {
+            if (parameter.getParameterType().containsGenericParameters()) {
                 return true;
             }
         }
@@ -115,14 +153,16 @@ class ReflectedMethod extends MethodInfo {
     private final ParameterList _parameters;
     private final Type _returnType;
     private final TypeBindings _bindings;
+    private final TypeList _thrownTypes;
 
     ReflectedMethod(
         final Type declaringType,
         final Method rawMethod,
         final ParameterList parameters,
         final Type returnType,
+        final TypeList thrownTypes,
         final TypeBindings bindings) {
-        
+
         Type[] genericParameters = null;
 
         for (int i = 0, n = bindings.size(); i < n; i++) {
@@ -151,10 +191,11 @@ class ReflectedMethod extends MethodInfo {
             }
         }
 
-        _declaringType = declaringType;
-        _rawMethod = rawMethod;
-        _parameters = parameters;
-        _returnType = returnType;
+        _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+        _rawMethod = VerifyArgument.notNull(rawMethod, "rawMethod");
+        _parameters = VerifyArgument.notNull(parameters, "parameters");
+        _returnType = VerifyArgument.notNull(returnType, "returnType");
+        _thrownTypes = VerifyArgument.notNull(thrownTypes, "thrownTypes");
 
         if (genericParameters == null) {
             _bindings = TypeBindings.empty();
@@ -180,11 +221,6 @@ class ReflectedMethod extends MethodInfo {
     }
 
     @Override
-    public String getName() {
-        return _rawMethod.getName();
-    }
-
-    @Override
     public Type getDeclaringType() {
         return _declaringType;
     }
@@ -197,6 +233,11 @@ class ReflectedMethod extends MethodInfo {
     @Override
     public ParameterList getParameters() {
         return _parameters;
+    }
+
+    @Override
+    public TypeList getThrownTypes() {
+        return _thrownTypes;
     }
 
     @Override

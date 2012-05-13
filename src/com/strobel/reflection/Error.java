@@ -74,7 +74,6 @@ final class Error {
 
     public static RuntimeException ambiguousMatch() {
         throw new RuntimeException("Ambiguous match found.");
-
     }
 
     public static RuntimeException incorrectNumberOfTypeArguments() {
@@ -113,10 +112,46 @@ final class Error {
     public static RuntimeException typeParameterNotDefined(final Type typeParameter) {
         throw new UnsupportedOperationException(
             format(
-                "Generic parameter '%' is not defined on this type.",
+                "Generic parameter '%s' is not defined on this type.",
                 typeParameter.getName()
             )
         );
+    }
 
+    public static RuntimeException couldNotResolveMethod(final Object signature) {
+        throw new RuntimeException(
+            format(
+                "Could not resolve method '%s'.",
+                signature
+            )
+        );
+    }
+
+    public static RuntimeException couldNotResolveMember(final MemberInfo member) {
+        throw new MemberResolutionException(member);
+    }
+
+    public static RuntimeException couldNotResolveType(final Object signature) {
+        throw new RuntimeException(
+            format(
+                "Could not resolve type '%s'.",
+                signature
+            )
+        );
+    }
+
+    public static RuntimeException couldNotResolveParameterType(final Object signature) {
+        throw new RuntimeException(
+            format(
+                "Could not resolve type for parameter '%s'.",
+                signature
+            )
+        );
+    }
+
+    public static RuntimeException typeArgumentsMustContainBoundType() {
+        throw new RuntimeException(
+            "Type arguments must bind at least one generic parameter."
+        );
     }
 }
