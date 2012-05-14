@@ -8,6 +8,7 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 
+import javax.lang.model.element.TypeParameterElement;
 import java.util.ArrayList;
 
 /**
@@ -57,6 +58,15 @@ class JavacType<T> extends Type<T> {
         for (final ClassMethod method : _methods) {
             if (Comparer.equals(method.getElement(), methodSymbol)) {
                 return method;
+            }
+        }
+        return null;
+    }
+
+    JavacGenericParameter findGenericParameter(final TypeParameterElement symbol) {
+        for (final JavacGenericParameter genericParameter : _genericParameters) {
+            if (Comparer.equals(genericParameter.getElement(), symbol)) {
+                return genericParameter;
             }
         }
         return null;
@@ -223,7 +233,9 @@ class JavacType<T> extends Type<T> {
 
     @Override
     protected Type makeGenericTypeCore(final TypeList typeArguments) {
-        return new GenericType(this, typeArguments);
+        synchronized (CACHE_LOCK) {
+            return CACHE.getGenericType(getGenericTypeDefinition(), typeArguments);
+        }
     }
 
     @Override

@@ -798,7 +798,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public Type<T[]> makeArrayType() {
-        return CACHE.getArrayType(this);
+        synchronized (CACHE_LOCK) {
+            return CACHE.getArrayType(this);
+        }
     }
 
     public final Type<T> makeGenericType(final TypeList typeArguments) {

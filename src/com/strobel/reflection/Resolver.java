@@ -251,18 +251,11 @@ public final class Resolver extends AbstractElementVisitor8<Type<?>, Resolver.Fr
                 return resolvePrimitive(kind);
             }
 
-            final Type<?> fromMap = _elementTypeMap.get(e);
-
-            if (fromMap != null) {
-                return fromMap;
-            }
-
-/*
             if (e.getKind() == ElementKind.TYPE_PARAMETER) {
                 Frame currentFrame = this;
 
                 while (currentFrame != null) {
-                    final TypeParameter tp = currentFrame._type.findGenericParameter(e);
+                    final JavacGenericParameter tp = currentFrame._type.findGenericParameter(e);
 
                     if (tp != null) {
                         return tp;
@@ -271,7 +264,12 @@ public final class Resolver extends AbstractElementVisitor8<Type<?>, Resolver.Fr
                     currentFrame = currentFrame._previous;
                 }
             }
-*/
+
+            final Type<?> fromMap = _elementTypeMap.get(e);
+
+            if (fromMap != null) {
+                return fromMap;
+            }
 
             if (e.getKind() == ElementKind.ENUM) {
                 try {
@@ -713,14 +711,14 @@ public final class Resolver extends AbstractElementVisitor8<Type<?>, Resolver.Fr
 
     @Override
     public Type<?> visitTypeParameter(final TypeParameterElement e, final Frame frame) {
-        final JavacGenericParameter genericParameter = new JavacGenericParameter(frame._type, (Symbol.TypeSymbol)e);
-
-        frame.addTypeArgument(e, genericParameter);
-
         if (e.getGenericElement() instanceof Symbol.MethodSymbol) {
+            final JavacGenericParameter genericParameter = new JavacGenericParameter(frame.currentMethod(), (Symbol.TypeSymbol)e);
+            frame.addTypeArgument(e, genericParameter);
             frame.currentMethod().addTypeParameter(genericParameter);
         }
         else {
+            final JavacGenericParameter genericParameter = new JavacGenericParameter(frame._type, (Symbol.TypeSymbol)e);
+            frame.addTypeArgument(e, genericParameter);
             frame.getCurrentType().addGenericParameter(genericParameter);
         }
 

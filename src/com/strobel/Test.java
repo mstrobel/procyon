@@ -41,7 +41,7 @@ public class Test {
         System.out.println(genericMapType);
         System.out.println(Type.of(ITest2.class));
         System.out.println(Arrays.toString(genericMapType.getMembers(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).toArray()));
-        System.out.println(genericMapType.getMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).get(30));
+//        System.out.println(genericMapType.getMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).get(30));
     }
 
     private static void primitiveTest() {

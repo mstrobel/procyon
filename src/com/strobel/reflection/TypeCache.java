@@ -25,16 +25,40 @@ final class TypeCache {
     }
 
     public <T> Type<T[]> getArrayType(final Type<T> elementType) {
-        Type<T[]> arrayType = (Type<T[]>) _arrayMap.get(elementType);
-        
+        Type<T[]> arrayType = (Type<T[]>)_arrayMap.get(elementType);
+
         if (arrayType != null) {
             return arrayType;
         }
 
         arrayType = new ArrayType<>(elementType);
         add(arrayType);
-        
+
         return arrayType;
+    }
+
+    public <T> Type<T> getGenericType(final Type<T> typeDefinition, final TypeList typeArguments) {
+        final Key key = key(
+            typeDefinition.getErasedClass(),
+            typeArguments
+        );
+
+        Type genericType = _map.get(key);
+
+        if (genericType == null) {
+            genericType = new GenericType(
+                typeDefinition.getGenericTypeDefinition(),
+                typeArguments
+            );
+
+            final Type existing = _map.put(key, genericType);
+
+            if (existing != null) {
+                return existing;
+            }
+        }
+
+        return genericType;
     }
 
     public <T> Type<T> find(final Class<T> clazz) {
@@ -117,7 +141,7 @@ final class TypeCache {
                 return false;
             }
 
-            final Key other = (Key) o;
+            final Key other = (Key)o;
 
             if (other._erasedType != _erasedType) {
                 return false;
