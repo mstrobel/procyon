@@ -169,9 +169,30 @@ class ReflectedMethod extends MethodInfo {
     private final Type _returnType;
     private final TypeBindings _bindings;
     private final TypeList _thrownTypes;
+    private final Type _reflectedType;
 
     ReflectedMethod(
         final Type declaringType,
+        final Method rawMethod,
+        final ParameterList parameters,
+        final Type returnType,
+        final TypeList thrownTypes,
+        final TypeBindings bindings) {
+
+        this(
+            declaringType,
+            declaringType,
+            rawMethod,
+            parameters,
+            returnType,
+            thrownTypes,
+            bindings
+        );
+    }
+
+    ReflectedMethod(
+        final Type declaringType,
+        final Type reflectedType,
         final Method rawMethod,
         final ParameterList parameters,
         final Type returnType,
@@ -183,8 +204,8 @@ class ReflectedMethod extends MethodInfo {
         for (int i = 0, n = bindings.size(); i < n; i++) {
             final Type p = bindings.getGenericParameter(i);
 
-            if (p instanceof GenericParameterType) {
-                final GenericParameterType gp = (GenericParameterType)p;
+            if (p instanceof GenericParameter<?>) {
+                final GenericParameter<?> gp = (GenericParameter<?>)p;
                 final TypeVariable<?> typeVariable = gp.getRawTypeVariable();
 
                 if (typeVariable.getGenericDeclaration() == rawMethod) {
@@ -208,6 +229,7 @@ class ReflectedMethod extends MethodInfo {
         }
 
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+        _reflectedType = VerifyArgument.notNull(reflectedType, "reflectedType");
         _rawMethod = VerifyArgument.notNull(rawMethod, "rawMethod");
         _parameters = VerifyArgument.notNull(parameters, "parameters");
         _returnType = VerifyArgument.notNull(returnType, "returnType");
@@ -239,6 +261,11 @@ class ReflectedMethod extends MethodInfo {
     @Override
     public Type getDeclaringType() {
         return _declaringType;
+    }
+
+    @Override
+    public Type getReflectedType() {
+        return _reflectedType;
     }
 
     @Override
@@ -341,18 +368,7 @@ final class GenericMethod extends MethodInfo {
     }
 
     private Type resolveBindings(final Type type) {
-        if (type.isGenericType() || type.isGenericParameter()) {
-            final Type declaringType = getDeclaringType();
-            final TypeBindings bindings = declaringType.getTypeBindings().withAdditionalBindings(_typeBindings);
-            if (type.isGenericParameter() && bindings.hasBoundParameter(type)) {
-                return bindings.getBoundType(type);
-            }
-            return Type.resolve(
-                type.getErasedClass(),
-                bindings
-            );
-        }
-        return type;
+        return GenericType.GenericBinder.visit(type, _typeBindings);
     }
 
     @Override

@@ -49,10 +49,7 @@ public final class Types {
     public static final Type<Cloneable> Cloneable;
 
     static {
-        Object = new ReflectedType<>(Object.class, TypeBindings.empty(), null, TypeList.empty());
-
-        Type.CACHE.add(Object);
-
+        Object = Type.of(Object.class);
         Number = Type.of(Number.class);
         Boolean = Type.of(Boolean.class);
         Byte = Type.of(Byte.class);

@@ -15,6 +15,7 @@ public abstract class TypeMapper<T> extends DefaultTypeVisitor<T, Type<?>> {
         for (int i = 0, n = types.size(); i < n; i++) {
             final Type oldType = types.get(i);
             final Type newType = visit(oldType, parameter);
+
             if (newType != oldType) {
                 if (newTypes == null) {
                     newTypes = types.toArray();

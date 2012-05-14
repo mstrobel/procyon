@@ -1,5 +1,6 @@
 package com.strobel.reflection;
 
+import com.strobel.core.VerifyArgument;
 import com.strobel.util.TypeUtils;
 
 import java.util.ArrayList;
@@ -7,13 +8,84 @@ import java.util.ArrayList;
 /**
  * @author Mike Strobel
  */
-final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
+class TypeBinder extends TypeMapper<TypeBindings> {
+    public ConstructorList visit(final Type<?> declaringType, final ConstructorList constructors, final TypeBindings bindings) {
+        VerifyArgument.notNull(constructors, "constructors");
+
+        ConstructorInfo[] newConstructors = null;
+
+        for (int i = 0, n = constructors.size(); i < n; i++) {
+            final ConstructorInfo oldConstructor = constructors.get(i);
+            final ConstructorInfo newConstructor = visitConstructor(declaringType, oldConstructor, bindings);
+
+            if (newConstructor != oldConstructor) {
+                if (newConstructors == null) {
+                    newConstructors = constructors.toArray();
+                }
+                newConstructors[i] = newConstructor;
+            }
+        }
+
+        if (newConstructors != null) {
+            return new ConstructorList(newConstructors);
+        }
+
+        return constructors;
+    }
+        
+    public FieldList visit(final Type<?> declaringType, final FieldList fields, final TypeBindings bindings) {
+        VerifyArgument.notNull(fields, "fields");
+
+        FieldInfo[] newFields = null;
+
+        for (int i = 0, n = fields.size(); i < n; i++) {
+            final FieldInfo oldField = fields.get(i);
+            final FieldInfo newField = visitField(declaringType, oldField, bindings);
+
+            if (newField != oldField) {
+                if (newFields == null) {
+                    newFields = fields.toArray();
+                }
+                newFields[i] = newField;
+            }
+        }
+
+        if (newFields != null) {
+            return new FieldList(newFields);
+        }
+
+        return fields;
+    }
+    public MethodList visit(final Type<?> declaringType, final MethodList methods, final TypeBindings bindings) {
+        VerifyArgument.notNull(methods, "methods");
+
+        MethodInfo[] newMethods = null;
+
+        for (int i = 0, n = methods.size(); i < n; i++) {
+            final MethodInfo oldMethod = methods.get(i);
+            final MethodInfo newMethod = visitMethod(declaringType, oldMethod, bindings);
+
+            if (newMethod != oldMethod) {
+                if (newMethods == null) {
+                    newMethods = methods.toArray();
+                }
+                newMethods[i] = newMethod;
+            }
+        }
+
+        if (newMethods != null) {
+            return new MethodList(newMethods);
+        }
+
+        return methods;
+    }
+    
     public TypeBindings visitTypeBindings(final TypeBindings typeBindings, final TypeBindings bindings) {
         TypeBindings newTypeBindings = typeBindings;
 
-        for (final Type genericParameter : typeBindings.getGenericParameters()) {
-            final Type oldBoundType = typeBindings.getBoundType(genericParameter);
-            final Type newBoundType = visit(oldBoundType, bindings);
+        for (final Type<?> genericParameter : typeBindings.getGenericParameters()) {
+            final Type<?> oldBoundType = typeBindings.getBoundType(genericParameter);
+            final Type<?> newBoundType = visit(oldBoundType, bindings);
 
             if (oldBoundType != newBoundType) {
                 newTypeBindings = newTypeBindings.withAdditionalBinding(
@@ -26,7 +98,7 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
         return newTypeBindings;
     }
 
-    public FieldInfo visitField(final Type declaringType, final FieldInfo field, final TypeBindings bindings) {
+    public FieldInfo visitField(final Type<?> declaringType, final FieldInfo field, final TypeBindings bindings) {
         final Type<?> oldFieldType = field.getFieldType();
         final Type<?> newFieldType = visit(field.getFieldType(), bindings);
 
@@ -43,8 +115,8 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
         );
     }
 
-    public MethodInfo visitMethod(final Type declaringType, final MethodInfo method, final TypeBindings bindings) {
-        final Type oldReturnType = method.getReturnType();
+    public MethodInfo visitMethod(final Type<?> declaringType, final MethodInfo method, final TypeBindings bindings) {
+        final Type<?> oldReturnType = method.getReturnType();
         final Type<?> returnType = visit(oldReturnType, bindings);
         final ParameterList parameters = method.getParameters();
         final TypeList thrown = method.getThrownTypes();
@@ -55,7 +127,7 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
         boolean thrownTypesChanged = false;
 
         for (int i = 0, n = parameterTypes.length; i < n; i++) {
-            final Type oldParameterType = parameters.get(i).getParameterType();
+            final Type<?> oldParameterType = parameters.get(i).getParameterType();
 
             parameterTypes[i] = visit(oldParameterType, bindings);
 
@@ -80,6 +152,7 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
         if (!hasChanged) {
             if (!TypeUtils.areEquivalent(method.getDeclaringType(), declaringType)) {
                 return new ReflectedMethod(
+                    method.getDeclaringType(),
                     declaringType,
                     method.getRawMethod(),
                     method.getParameters(),
@@ -103,6 +176,7 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
         }
 
         return new ReflectedMethod(
+            method.getDeclaringType(),
             declaringType,
             method.getRawMethod(),
             new ParameterList(newParameters),
@@ -112,7 +186,7 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
         );
     }
 
-    public ConstructorInfo visitConstructor(final Type declaringType, final ConstructorInfo constructor, final TypeBindings bindings) {
+    public ConstructorInfo visitConstructor(final Type<?> declaringType, final ConstructorInfo constructor, final TypeBindings bindings) {
         final ParameterList parameters = constructor.getParameters();
         final TypeList thrown = constructor.getThrownTypes();
         final Type<?>[] parameterTypes = new Type<?>[parameters.size()];
@@ -122,7 +196,7 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
         boolean thrownTypesChanged = false;
 
         for (int i = 0, n = parameterTypes.length; i < n; i++) {
-            final Type oldParameterType = parameters.get(i).getParameterType();
+            final Type<?> oldParameterType = parameters.get(i).getParameterType();
             parameterTypes[i] = visit(oldParameterType, bindings);
             if (!oldParameterType.isEquivalentTo(parameterTypes[i])) {
                 hasChanged = true;
@@ -184,7 +258,7 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
         final TypeBindings newTypeBindings = visitTypeBindings(oldTypeBindings, bindings);
 
         if (oldTypeBindings != newTypeBindings) {
-            final Type cachedType = Type.CACHE.find(
+            final Type<?> cachedType = Type.CACHE.find(
                 Type.CACHE.key(
                     type.getErasedClass(),
                     newTypeBindings.getBoundTypes()
@@ -202,26 +276,6 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
 
             Type.CACHE.add(genericType);
 
-            for (final FieldInfo field : type.getResolvedFields()) {
-                genericType.addField(visitField(genericType, field, bindings));
-            }
-
-            for (final ConstructorInfo constructor : type.getResolvedConstructors()) {
-                genericType.addConstructor(visitConstructor(genericType, constructor, bindings));
-            }
-
-            for (final MethodInfo method : type.getResolvedStaticMethods()) {
-                genericType.addMethod(visitMethod(genericType, method, bindings));
-            }
-
-            for (final MethodInfo method : type.getResolvedInstanceMethods()) {
-                genericType.addMethod(visitMethod(genericType, method, bindings));
-            }
-
-            for (final Type<?> nestedType : type.getResolvedNestedTypes()) {
-                genericType.addNestedType(visit(nestedType, bindings));
-            }
-
             return genericType;
         }
 
@@ -234,8 +288,8 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
             return bindings.getBoundType(type);
         }
 
-        final Type upperBound = type.getUpperBound();
-        final Type newUpperBound = visit(upperBound, bindings);
+        final Type<?> upperBound = type.getUpperBound();
+        final Type<?> newUpperBound = visit(upperBound, bindings);
 
         if (newUpperBound != upperBound) {
             return new GenericParameter(
@@ -257,7 +311,7 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
         final Type<?> newUpper = visit(oldUpper, bindings);
 
         if (newLower != oldLower || newUpper != oldUpper) {
-            return new WildcardType(newUpper, newLower);
+            return new WildcardType<>(newUpper, newLower);
         }
 
         return type;
@@ -274,14 +328,41 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
 
         return newElementType.makeArrayType();
     }
+}
 
+class TypeEraser extends TypeBinder {
     @Override
-    public Type<?> visitPrimitiveType(final Type<?> type, final TypeBindings parameter) {
-        return type;
+    public Type<?> visit(final Type<?> type) {
+        return visit(type, TypeBindings.empty());
     }
 
     @Override
-    public Type<?> visitType(final Type<?> type, final TypeBindings parameter) {
+    public Type<?> visitClassType(final Type<?> type, final TypeBindings bindings) {
+        if (type instanceof ErasedType<?>) {
+            return type;
+        }
+        return new ErasedType<>(type);
+    }
+
+    @Override
+    public Type<?> visitTypeParameter(final Type<?> type, final TypeBindings bindings) {
+        return visit(type.getUpperBound());
+    }
+
+    @Override
+    public Type<?> visitWildcardType(final Type<?> type, final TypeBindings bindings) {
+        return visit(type.getUpperBound());
+    }
+
+    @Override
+    public Type<?> visitArrayType(final Type<?> type, final TypeBindings bindings) {
+        final Type<?> oldElementType = type.getElementType();
+        final Type<?> newElementType = visit(oldElementType);
+
+        if (newElementType != oldElementType) {
+            return newElementType.makeArrayType();
+        }
+
         return type;
     }
 }

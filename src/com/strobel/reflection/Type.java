@@ -1,10 +1,10 @@
 package com.strobel.reflection;
 
 import com.strobel.core.ArrayUtilities;
-import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
+import com.strobel.util.EmptyArrayCache;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.main.JavaCompiler;
@@ -39,12 +39,12 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public static final Type NoType = new NoType();
     public static final Type NullType = new NullType();
 
-    protected static final Object[] EmptyObjects = new Object[0];
-    protected static final String[] EmptyStrings = new String[0];
-    protected static final MethodInfo[] EmptyMethods = new MethodInfo[0];
-    protected static final ConstructorInfo[] EmptyConstructors = new ConstructorInfo[0];
-    protected static final FieldInfo[] EmptyFields = new FieldInfo[0];
-    protected static final MemberInfo[] EmptyMembers = new MemberInfo[0];
+    protected static final Object[] EmptyObjects = EmptyArrayCache.fromElementType(Object.class);
+    protected static final String[] EmptyStrings = EmptyArrayCache.fromElementType(String.class);
+    protected static final MethodInfo[] EmptyMethods = EmptyArrayCache.fromElementType(MethodInfo.class);
+    protected static final ConstructorInfo[] EmptyConstructors = EmptyArrayCache.fromElementType(ConstructorInfo.class);
+    protected static final FieldInfo[] EmptyFields = EmptyArrayCache.fromElementType(FieldInfo.class);
+    protected static final MemberInfo[] EmptyMembers = EmptyArrayCache.fromElementType(MemberInfo.class);
 
     protected static final int DefaultLookup = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
 
@@ -365,39 +365,15 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         if (memberTypes.contains(MemberType.Method)) {
-            if (all(bindingFlags, BindingFlags.Instance)) {
-                methods = getMethodBaseCandidates(getResolvedInstanceMethods(), name, bindingFlags, CallingConvention.Any, null, true);
-            }
-            if (all(bindingFlags, BindingFlags.Static)) {
-                methods = ArrayUtilities.append(
-                    methods,
-                    getMethodBaseCandidates(getResolvedStaticMethods(), name, bindingFlags, CallingConvention.Any, null, true)
-                );
-            }
+            methods = getMethodBaseCandidates(getDeclaredMethods(), name, bindingFlags, CallingConvention.Any, null, true);
         }
 
         if (memberTypes.contains(MemberType.Constructor)) {
-            constructors = getMethodBaseCandidates(getResolvedConstructors(), name, bindingFlags, CallingConvention.Any, null, true);
+            constructors = getMethodBaseCandidates(getDeclaredConstructors(), name, bindingFlags, CallingConvention.Any, null, true);
         }
 
         if (memberTypes.contains(MemberType.NestedType)) {
             nestedTypes = getNestedTypeCandidates(name, bindingFlags, true);
-        }
-
-        if (fields == null) {
-            fields = EmptyFields;
-        }
-
-        if (methods == null) {
-            methods = EmptyMethods;
-        }
-
-        if (constructors == null) {
-            constructors = EmptyConstructors;
-        }
-
-        if (nestedTypes == null) {
-            nestedTypes = EmptyTypes;
         }
 
         if (memberTypes.size() == 1) {
@@ -497,8 +473,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public MethodInfo getMethod(final Method rawMethod) {
-        getResolvedInstanceMethods();
-        getResolvedStaticMethods();
+        getDeclaredMethods();
         return _rawMethodMap.get(rawMethod);
     }
 
@@ -516,32 +491,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final CallingConvention callingConvention,
         final Type... parameterTypes) {
 
-        MethodInfo[] candidates = EmptyMethods;
-
-        if (all(bindingFlags, BindingFlags.Instance)) {
-            candidates = getMethodBaseCandidates(
-                getResolvedInstanceMethods(),
-                name,
-                bindingFlags,
-                callingConvention,
-                parameterTypes,
-                false
-            );
-        }
-
-        if (all(bindingFlags, BindingFlags.Static)) {
-            candidates = ArrayUtilities.append(
-                candidates,
-                getMethodBaseCandidates(
-                    getResolvedStaticMethods(),
-                    name,
-                    bindingFlags,
-                    callingConvention,
-                    parameterTypes,
-                    false
-                )
-            );
-        }
+        final MethodInfo[] candidates = getMethodBaseCandidates(
+            getDeclaredMethods(),
+            name,
+            bindingFlags,
+            callingConvention,
+            parameterTypes,
+            false
+        );
 
         if (candidates.length == 0) {
             return null;
@@ -582,7 +539,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final Type... parameterTypes) {
 
         final ConstructorInfo[] candidates = getMethodBaseCandidates(
-            getResolvedConstructors(),
+            getDeclaredConstructors(),
             null,
             bindingFlags,
             callingConvention,
@@ -646,39 +603,15 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         if (memberTypes.contains(MemberType.Method)) {
-            if (all(bindingFlags, BindingFlags.Instance)) {
-                methods = getMethodBaseCandidates(getResolvedInstanceMethods(), null, bindingFlags, CallingConvention.Any, null, false);
-            }
-            if (all(bindingFlags, BindingFlags.Static)) {
-                methods = ArrayUtilities.append(
-                    methods,
-                    getMethodBaseCandidates(getResolvedStaticMethods(), null, bindingFlags, CallingConvention.Any, null, false)
-                );
-            }
+            methods = getMethodBaseCandidates(getDeclaredMethods(), null, bindingFlags, CallingConvention.Any, null, false);
         }
 
         if (memberTypes.contains(MemberType.Constructor)) {
-            constructors = getMethodBaseCandidates(getResolvedConstructors(), null, bindingFlags, CallingConvention.Any, null, false);
+            constructors = getMethodBaseCandidates(getDeclaredConstructors(), null, bindingFlags, CallingConvention.Any, null, false);
         }
 
         if (memberTypes.contains(MemberType.NestedType)) {
             nestedTypes = getNestedTypeCandidates(null, bindingFlags, false);
-        }
-
-        if (fields == null) {
-            fields = EmptyFields;
-        }
-
-        if (methods == null) {
-            methods = EmptyMethods;
-        }
-
-        if (constructors == null) {
-            constructors = EmptyConstructors;
-        }
-
-        if (nestedTypes == null) {
-            nestedTypes = EmptyTypes;
         }
 
         if (memberTypes.size() == 1) {
@@ -752,32 +685,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public MethodList getMethods(final int bindingFlags, final CallingConvention callingConvention) {
-        MethodInfo[] candidates = EmptyMethods;
-
-        if (all(bindingFlags, BindingFlags.Instance)) {
-            candidates = getMethodBaseCandidates(
-                getResolvedInstanceMethods(),
-                null,
-                bindingFlags,
-                callingConvention,
-                null,
-                false
-            );
-        }
-
-        if (all(bindingFlags, BindingFlags.Static)) {
-            candidates = ArrayUtilities.append(
-                candidates,
-                getMethodBaseCandidates(
-                    getResolvedStaticMethods(),
-                    null,
-                    bindingFlags,
-                    callingConvention,
-                    null,
-                    false
-                )
-            );
-        }
+        final MethodInfo[] candidates = getMethodBaseCandidates(
+            getDeclaredMethods(),
+            null,
+            bindingFlags,
+            callingConvention,
+            null,
+            false
+        );
 
         if (candidates == null || candidates.length == 0) {
             return MethodList.empty();
@@ -792,7 +707,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     public ConstructorList getConstructors(final int bindingFlags) {
         final ConstructorInfo[] candidates = getMethodBaseCandidates(
-            getResolvedConstructors(),
+            getDeclaredConstructors(),
             null,
             bindingFlags,
             CallingConvention.Any,
@@ -853,7 +768,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final int flags = bindingFlags & ~BindingFlags.Static;
         final FilterOptions filterOptions = getFilterOptions(name, flags, false);
 
-        final TypeList nestedTypes = getResolvedNestedTypes();
+        final TypeList nestedTypes = getDeclaredTypes();
 
         Type<?> match = null;
 
@@ -886,13 +801,26 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return CACHE.getArrayType(this);
     }
 
-    public final Type makeGenericType(final TypeList typeArguments) {
+    public final Type<T> makeGenericType(final TypeList typeArguments) {
         VerifyArgument.noNullElements(typeArguments, "typeArguments");
         return makeGenericTypeCore(typeArguments);
     }
 
-    public final Type makeGenericType(final Type... typeArguments) {
+    public final Type<T> makeGenericType(final Type<?>... typeArguments) {
         return makeGenericTypeCore(list(VerifyArgument.noNullElements(typeArguments, "typeArguments")));
+    }
+
+    private ErasedType<T> _erasedType;
+
+    public final Type<T> getErasedType() {
+        if (_erasedType == null) {
+            synchronized (CACHE_LOCK) {
+                if (_erasedType == null) {
+                    _erasedType = new ErasedType<>(this);
+                }
+            }
+        }
+        return _erasedType;
     }
 
     @SuppressWarnings("UnusedParameters")
@@ -900,14 +828,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         throw Error.notGenericType(this);
     }
 
-    public static <T> WildcardType<T> makeExtendsWildcard(final Type<T> bound) {
+    public static <T> Type<? extends T> makeExtendsWildcard(final Type<T> bound) {
         return new WildcardType<>(
             VerifyArgument.notNull(bound, "bound"),
             NoType
         );
     }
 
-    public static WildcardType<?> makeSuperWildcard(final Type<?> bound) {
+    public static <T> Type<? super T> makeSuperWildcard(final Type<T> bound) {
         return new WildcardType<>(
             Types.Object,
             bound
@@ -1218,8 +1146,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     final static Object CACHE_LOCK = new Object();
     final static TypeCache CACHE;
-    final static TypeResolver TYPE_RESOLVER;
-    final static MemberResolver MEMBER_RESOLVER;
     final static Context CONTEXT;
     final static Resolver RESOLVER;
     final static JavaCompiler COMPILER;
@@ -1228,8 +1154,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     static {
         synchronized (CACHE_LOCK) {
             CACHE = new TypeCache();
-            TYPE_RESOLVER = new TypeResolver(CACHE);
-            MEMBER_RESOLVER = new MemberResolver();
 
             final Context context = new Context();
 
@@ -1261,7 +1185,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     public static <T> Type<T> of(final Class<T> clazz) {
         synchronized (CACHE_LOCK) {
-            final Type<T> reflectedType = (Type<T>)CACHE.find(clazz);
+            final Type<T> reflectedType = CACHE.find(clazz);
 
             if (reflectedType != null) {
                 return reflectedType;
@@ -1307,18 +1231,18 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         synchronized (CACHE_LOCK) {
-            Type<?> resultType = tryFind(type);
+            Type<T> resultType = (Type<T>)tryFind(type);
 
             if (resultType != null) {
-                return (Type<T>)resultType;
+                return resultType;
             }
 
             loadAncestors((Symbol.ClassSymbol)type.asElement());
 
-            resultType = RESOLVER.visit(type.asElement(), null);
+            resultType = (Type<T>)RESOLVER.visit(type.asElement(), null);
 
             if (resultType != null) {
-                return (Type<T>)resultType;
+                return resultType;
             }
 
             throw Error.couldNotResolveType(type);
@@ -1347,20 +1271,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 throw Error.couldNotResolveType(className);
             }
 
-            return (Type<?>)CACHE.find(clazz);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    public static Type resolve(final java.lang.reflect.Type jdkType, final TypeBindings bindings) {
-        VerifyArgument.notNull(jdkType, "jdkType");
-
-        if (jdkType instanceof Class && bindings.isEmpty()) {
-            return of((Class<?>)jdkType);
-        }
-
-        synchronized (CACHE_LOCK) {
-            return TYPE_RESOLVER.resolve(jdkType, bindings != null ? bindings : TypeBindings.empty());
+            return CACHE.find(clazz);
         }
     }
 
@@ -1428,121 +1339,20 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     private final Map<Method, MethodInfo> _rawMethodMap = new HashMap<>();
 
-    private HierarchicType _mainType;
-
-    private ReadOnlyList<HierarchicType> _typeHierarchy;
-    private TypeList _resolvedNestedTypes;
-    private ConstructorList _resolvedConstructors;
-    private MethodList _resolvedInstanceMethods;
-    private MethodList _resolvedStaticMethods;
-    private FieldList _resolvedFields;
-
-    ConstructorList getResolvedConstructors() {
-        if (_resolvedConstructors == null) {
-            synchronized (CACHE_LOCK) {
-                if (_resolvedConstructors == null) {
-                    _resolvedConstructors = resolveConstructors();
-                }
-            }
-        }
-        return _resolvedConstructors;
+    protected ConstructorList getDeclaredConstructors() {
+        return ConstructorList.empty();
     }
 
-    MethodList getResolvedInstanceMethods() {
-        if (_resolvedInstanceMethods == null) {
-            synchronized (CACHE_LOCK) {
-                if (_resolvedInstanceMethods == null) {
-                    _resolvedInstanceMethods = resolveInstanceMethods();
-                    for (int i = 0, n = _resolvedInstanceMethods.size(); i < n; i++) {
-                        final MethodInfo method = _resolvedInstanceMethods.get(i);
-                        _rawMethodMap.put(method.getRawMethod(), method);
-                    }
-                }
-            }
-        }
-        return _resolvedInstanceMethods;
+    protected MethodList getDeclaredMethods() {
+        return MethodList.empty();
     }
 
-    MethodList getResolvedStaticMethods() {
-        if (_resolvedStaticMethods == null) {
-            synchronized (CACHE_LOCK) {
-                if (_resolvedStaticMethods == null) {
-                    _resolvedStaticMethods = resolveStaticMethods();
-                }
-            }
-        }
-        return _resolvedStaticMethods;
+    protected FieldList getDeclaredFields() {
+        return FieldList.empty();
     }
 
-    FieldList getResolvedFields() {
-        if (_resolvedFields == null) {
-            synchronized (CACHE_LOCK) {
-                if (_resolvedFields == null) {
-                    _resolvedFields = resolveFields();
-                }
-            }
-        }
-        return _resolvedFields;
-    }
-
-    TypeList getResolvedNestedTypes() {
-        if (_resolvedNestedTypes == null) {
-            synchronized (CACHE_LOCK) {
-                if (_resolvedNestedTypes == null) {
-                    _resolvedNestedTypes = resolveNestedTypes();
-                }
-            }
-        }
-        return _resolvedNestedTypes;
-    }
-
-    HierarchicType getMainType() {
-        if (_mainType != null) {
-            return _mainType;
-        }
-
-        synchronized (CACHE_LOCK) {
-            if (_mainType == null) {
-                final MemberResolver.Result result = MEMBER_RESOLVER.resolve(this);
-                _mainType = result.mainType;
-                _typeHierarchy = result.types;
-            }
-        }
-
-        return _mainType;
-    }
-
-    ReadOnlyList<HierarchicType> getTypes() {
-        if (_typeHierarchy != null) {
-            return _typeHierarchy;
-        }
-
-        synchronized (CACHE_LOCK) {
-            if (_typeHierarchy == null) {
-                final MemberResolver.Result result = MEMBER_RESOLVER.resolve(this);
-                _mainType = result.mainType;
-                _typeHierarchy = result.types;
-            }
-        }
-
-        return _typeHierarchy;
-    }
-
-    ReadOnlyList<HierarchicType> getMainTypeAndOverrides() {
-        ReadOnlyList<HierarchicType> l = getTypes();
-        final int end = getMainType().getPriority() + 1;
-        if (end < l.size()) {
-            l = l.subList(0, end);
-        }
-        return l;
-    }
-
-    ReadOnlyList<HierarchicType> getOverridesOnly() {
-        final int index = getMainType().getPriority();
-        if (index == 0) {
-            return ReadOnlyList.emptyList();
-        }
-        return getTypes().subList(0, index);
+    protected TypeList getDeclaredTypes() {
+        return TypeList.empty();
     }
 
     protected List<Constructor<?>> getRawConstructors() {
@@ -1555,165 +1365,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     protected List<Field> getRawFields() {
         return Arrays.asList(getErasedClass().getDeclaredFields());
-    }
-
-    protected TypeList resolveNestedTypes() {
-        return TypeList.empty();
-    }
-
-    protected ConstructorList resolveConstructors() {
-        final LinkedHashMap<MethodKey, ConstructorInfo> constructors = new LinkedHashMap<>();
-        final Type mainType = getMainType().getType();
-
-        for (final Constructor constructor : getRawConstructors()) {
-            final RawConstructor raw = new RawConstructor(mainType, constructor);
-            constructors.put(raw.createKey(), resolveConstructor(raw));
-        }
-
-        if (constructors.size() == 0) {
-            return ConstructorList.empty();
-        }
-
-        final ConstructorInfo[] constructorArray = new ConstructorInfo[constructors.size()];
-        constructors.values().toArray(constructorArray);
-        return new ConstructorList(constructorArray);
-    }
-
-    protected FieldList resolveFields() {
-        final LinkedHashMap<String, FieldInfo> fields = new LinkedHashMap<>();
-
-        for (int typeIndex = getMainTypeAndOverrides().size(); --typeIndex >= 0; ) {
-            final HierarchicType thisType = getMainTypeAndOverrides().get(typeIndex);
-            for (final Field jField : thisType.getType().getRawFields()) {
-                final RawField raw = new RawField(thisType.getType(), jField);
-                fields.put(raw.getName(), resolveField(raw));
-            }
-        }
-
-        // and that's it?
-        if (fields.size() == 0) {
-            return FieldList.empty();
-        }
-
-        final FieldInfo[] fieldArray = new FieldInfo[fields.size()];
-        fields.values().toArray(fieldArray);
-        return new FieldList(fieldArray);
-    }
-
-    protected MethodList resolveStaticMethods() {
-        final LinkedHashMap<MethodKey, MethodInfo> methods = new LinkedHashMap<>();
-
-        for (final Method method : getMainType().getType().getRawMethods()) {
-            if (Modifier.isStatic(method.getModifiers())) {
-                final RawMethod raw = new RawMethod(getMainType().getType(), method);
-                methods.put(raw.createKey(), resolveMethod(raw));
-            }
-        }
-
-        if (methods.size() == 0) {
-            return MethodList.empty();
-        }
-
-        final MethodInfo[] methodArray = new MethodInfo[methods.size()];
-        methods.values().toArray(methodArray);
-        return new MethodList(methodArray);
-    }
-
-    protected MethodList resolveInstanceMethods() {
-        final LinkedHashMap<MethodKey, MethodInfo> methods = new LinkedHashMap<>();
-
-        for (final HierarchicType type : getMainTypeAndOverrides()) {
-            for (final Method method : type.getType().getRawMethods()) {
-                if (Modifier.isStatic(method.getModifiers())) {
-                    continue;
-                }
-
-                final RawMethod raw = new RawMethod(type.getType(), method);
-
-                final MethodKey key = raw.createKey();
-                final MethodInfo old = methods.get(key);
-
-                if (old == null) {
-                    final MethodInfo newMethod = resolveMethod(raw);
-                    methods.put(key, newMethod);
-                }
-            }
-        }
-
-        if (methods.size() == 0) {
-            return MethodList.empty();
-        }
-
-        final MethodInfo[] methodArray = new MethodInfo[methods.size()];
-        methods.values().toArray(methodArray);
-        return new MethodList(methodArray);
-    }
-
-    protected ConstructorInfo resolveConstructor(final RawConstructor raw) {
-        final Type context = raw.getDeclaringType();
-        final TypeBindings bindings = context.getTypeBindings();
-        final Constructor<?> ctor = raw.getRawMember();
-        final java.lang.reflect.Type[] rawTypes = ctor.getGenericParameterTypes();
-        final ParameterList parameterList;
-        if (rawTypes == null || rawTypes.length == 0) {
-            parameterList = ParameterList.empty();
-        }
-        else {
-            final ParameterInfo[] parameters = new ParameterInfo[rawTypes.length];
-            for (int i = 0, len = rawTypes.length; i < len; ++i) {
-                parameters[i] = new ParameterInfo("p" + i, TYPE_RESOLVER.resolve(rawTypes[i], bindings));
-            }
-            parameterList = new ParameterList(parameters);
-        }
-        return new ReflectedConstructor(context, ctor, parameterList, TypeList.empty());
-    }
-
-    protected FieldInfo resolveField(final RawField raw) {
-        final Type context = raw.getDeclaringType();
-        final Field field = raw.getRawMember();
-        final Type type = TYPE_RESOLVER.resolve(field.getGenericType(), context.getTypeBindings());
-
-        return new ReflectedField(context, field, type);
-    }
-
-    protected MethodInfo resolveMethod(final RawMethod raw) {
-        final Type context = raw.getDeclaringType();
-        final TypeBindings bindings = context.getTypeBindings();
-        final Method m = raw.getRawMember();
-        final java.lang.reflect.Type rawType = m.getGenericReturnType();
-        final java.lang.reflect.Type[] rawTypes = m.getGenericParameterTypes();
-        final TypeVariable<Method>[] typeVariables = m.getTypeParameters();
-        final ParameterList parameterList;
-
-        TypeBindings methodTypeBindings = TypeBindings.empty();
-        TypeBindings resolveBindings = bindings;
-
-        if (typeVariables != null && typeVariables.length != 0) {
-            final GenericParameterType[] genericParameters = new GenericParameterType[typeVariables.length];
-
-            for (int i = 0; i < typeVariables.length; i++) {
-                final TypeVariable<Method> typeVariable = typeVariables[i];
-                genericParameters[i] = new GenericParameterType(typeVariable, i);
-            }
-
-            methodTypeBindings = TypeBindings.createUnbound(list(genericParameters));
-            resolveBindings = methodTypeBindings.withAdditionalBindings(resolveBindings);
-        }
-
-        if (rawTypes == null || rawTypes.length == 0) {
-            parameterList = ParameterList.empty();
-        }
-        else {
-            final ParameterInfo[] parameters = new ParameterInfo[rawTypes.length];
-            for (int i = 0, len = rawTypes.length; i < len; ++i) {
-                parameters[i] = new ParameterInfo("p" + i, resolve(rawTypes[i], resolveBindings));
-            }
-            parameterList = new ParameterList(parameters);
-        }
-
-        final Type rt = (rawType == Void.TYPE) ? PrimitiveTypes.Void : resolve(rawType, resolveBindings);
-
-        return new ReflectedMethod(context, m, parameterList, rt, TypeList.empty(), methodTypeBindings);
     }
 
     @SuppressWarnings("unchecked")
@@ -1784,7 +1435,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final int bindingFlags,
         final boolean allowPrefixLookup) {
 
-        final FieldList fields = getResolvedFields();
+        final FieldList fields = getDeclaredFields();
         final int flags = bindingFlags ^ BindingFlags.DeclaredOnly;
         final FilterOptions filterOptions = getFilterOptions(name, flags, allowPrefixLookup);
 
@@ -1819,7 +1470,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         if (candidates == null) {
-            return null;
+            return EmptyFields;
         }
 
         final FieldInfo[] results = new FieldInfo[candidates.size()];
@@ -1854,7 +1505,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final int flags = bindingFlags & ~BindingFlags.Static;
         final FilterOptions filterOptions = getFilterOptions(name, flags, allowPrefixLookup);
 
-        final TypeList nestedTypes = getResolvedNestedTypes();
+        final TypeList nestedTypes = getDeclaredTypes();
         final ListBuffer<Type<?>> candidates = new ListBuffer<>();
 
         for (int i = 0, n = nestedTypes.size(); i < n; i++) {

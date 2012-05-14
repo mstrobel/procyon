@@ -18,10 +18,7 @@ public final class Comparer {
 
     public static <T extends Comparable<? super T>> int compare(final T o1, final T o2) {
         if (o1 == null) {
-            if (o2 == null) {
-                return 0;
-            }
-            return -1;
+            return o2 == null ? 0 : -1;
         }
         return o1.compareTo(o2);
     }

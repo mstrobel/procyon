@@ -13,7 +13,7 @@ public class ArrayType<T> extends Type<T> {
     private final Type<?> _elementType;
     private final Class<T> _erasedClass;
     private final FieldList _fields = FieldList.empty();
-    private final MethodList _instanceMethods = MethodList.empty();
+    private final MethodList _methods = MethodList.empty();
 
     @SuppressWarnings("unchecked")
     ArrayType(final Type<?> elementType) {
@@ -75,12 +75,12 @@ public class ArrayType<T> extends Type<T> {
     }
 
     @Override
-    MethodList getResolvedInstanceMethods() {
-        return _instanceMethods;
+    protected MethodList getDeclaredMethods() {
+        return _methods;
     }
 
     @Override
-    FieldList getResolvedFields() {
+    public FieldList getDeclaredFields() {
         return _fields;
     }
 

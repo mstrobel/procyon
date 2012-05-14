@@ -5,11 +5,12 @@ import java.util.LinkedHashMap;
 /**
  * @author strobelm
  */
+@SuppressWarnings("unchecked")
 final class TypeCache {
 
     private final LinkedHashMap<Key, Type> _map = new LinkedHashMap<>();
-    private final LinkedHashMap<Class, Type> _erasedMap = new LinkedHashMap<>();
-    private final LinkedHashMap<Type, Type> _arrayMap = new LinkedHashMap<>();
+    private final LinkedHashMap<Class<?>, Type<?>> _erasedMap = new LinkedHashMap<>();
+    private final LinkedHashMap<Type<?>, Type<?>> _arrayMap = new LinkedHashMap<>();
 
     public Key key(final Class<?> simpleType) {
         return new Key(simpleType);
@@ -23,7 +24,6 @@ final class TypeCache {
         return _map.get(key);
     }
 
-    @SuppressWarnings("unchecked")
     public <T> Type<T[]> getArrayType(final Type<T> elementType) {
         Type<T[]> arrayType = (Type<T[]>) _arrayMap.get(elementType);
         
@@ -37,8 +37,8 @@ final class TypeCache {
         return arrayType;
     }
 
-    public Type find(final Class<?> clazz) {
-        return _erasedMap.get(clazz);
+    public <T> Type<T> find(final Class<T> clazz) {
+        return (Type<T>)_erasedMap.get(clazz);
     }
 
     public int size() {

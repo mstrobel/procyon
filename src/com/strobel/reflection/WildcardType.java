@@ -8,7 +8,7 @@ import javax.lang.model.type.TypeKind;
  * @author Mike Strobel
  */
 @SuppressWarnings("unchecked")
-public final class WildcardType<T> extends Type<T> {
+final class WildcardType<T> extends Type<T> {
     private final Type<T> _extendsBound;
     private final Type _superBound;
     private Class<T> _erasedClass;

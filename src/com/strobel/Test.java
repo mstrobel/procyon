@@ -119,4 +119,5 @@ interface ITest {
 
 interface ITest2<T extends String & Comparable<String> & Serializable, T2 extends T> {
     T2 test(final T t);
+    <X, Y> Y doSomething(X o);
 }

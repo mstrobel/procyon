@@ -73,16 +73,6 @@ final class InheritedMethod extends MethodInfo {
     }
 
     @Override
-    public StringBuilder appendDescription(final StringBuilder sb) {
-        return _method.appendDescription(sb);
-    }
-
-    @Override
-    public StringBuilder appendErasedDescription(final StringBuilder sb) {
-        return _method.appendErasedDescription(sb);
-    }
-
-    @Override
     public boolean isGenericMethod() {
         return _method.isGenericMethod();
     }
@@ -135,41 +125,6 @@ final class InheritedMethod extends MethodInfo {
     @Override
     public CallingConvention getCallingConvention() {
         return _method.getCallingConvention();
-    }
-
-    @Override
-    public String toString() {
-        return _method.toString();
-    }
-
-    @Override
-    public String getSignature() {
-        return _method.getSignature();
-    }
-
-    @Override
-    public String getErasedSignature() {
-        return _method.getErasedSignature();
-    }
-
-    @Override
-    public String getDescription() {
-        return _method.getDescription();
-    }
-
-    @Override
-    public String getErasedDescription() {
-        return _method.getErasedDescription();
-    }
-
-    @Override
-    public StringBuilder appendSignature(final StringBuilder sb) {
-        return _method.appendSignature(sb);
-    }
-
-    @Override
-    public StringBuilder appendErasedSignature(final StringBuilder sb) {
-        return _method.appendErasedSignature(sb);
     }
 
     @Override

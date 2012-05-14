@@ -58,25 +58,5 @@ final class NullType extends Type {
     public final StringBuilder appendBriefDescription(final StringBuilder sb) {
         return sb.append(getName());
     }
-
-    @Override
-    protected final FieldList resolveFields() {
-        return FieldList.empty();
-    }
-
-    @Override
-    protected final MethodList resolveInstanceMethods() {
-        return MethodList.empty();
-    }
-
-    @Override
-    protected final MethodList resolveStaticMethods() {
-        return MethodList.empty();
-    }
-
-    @Override
-    protected final ConstructorList resolveConstructors() {
-        return ConstructorList.empty();
-    }
 }
 

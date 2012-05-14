@@ -5,13 +5,12 @@ import com.strobel.core.VerifyArgument;
 import java.lang.annotation.Annotation;
 
 /**
- * @author strobelm
+ * @author Mike Strobel
  */
-final class GenericType<T> extends Type<T> {
-    final static TypeBinder GenericBinder = new TypeBinder();
+final class ErasedType<T> extends Type<T> {
+    final static TypeEraser GenericEraser = new TypeEraser();
 
-    private final Type _genericTypeDefinition;
-    private final TypeBindings _typeBindings;
+    private final Type _originalType;
 
     private TypeList _interfaces;
     private Type _baseType;
@@ -21,39 +20,21 @@ final class GenericType<T> extends Type<T> {
     private MethodList _methods;
     private TypeList _nestedTypes;
 
-    GenericType(final Type genericTypeDefinition, final TypeBindings typeBindings) {
-        _genericTypeDefinition = VerifyArgument.notNull(genericTypeDefinition, "genericTypeDefinition");
-        _typeBindings = VerifyArgument.notNull(typeBindings, "typeBindings");
-    }
-
-    GenericType(final Type genericTypeDefinition, final TypeList typeArguments) {
-        _genericTypeDefinition = VerifyArgument.notNull(genericTypeDefinition, "genericTypeDefinition");
-
-        _typeBindings = TypeBindings.create(
-            genericTypeDefinition.getTypeBindings().getGenericParameters(),
-            VerifyArgument.notNull(typeArguments, "typeArguments")
-        );
-    }
-
-    GenericType(final Type genericTypeDefinition, final Type... typeArguments) {
-        _genericTypeDefinition = VerifyArgument.notNull(genericTypeDefinition, "genericTypeDefinition");
-
-        _typeBindings = TypeBindings.create(
-            genericTypeDefinition.getTypeBindings().getGenericParameters(),
-            VerifyArgument.notNull(typeArguments, "typeArguments")
-        );
+    ErasedType(final Type baseType) {
+        VerifyArgument.notNull(baseType, "baseType");
+        _originalType = baseType.isGenericType() ? baseType.getGenericTypeDefinition() : baseType;
     }
 
     private void ensureBaseType() {
         if (_baseType == null) {
             synchronized (CACHE_LOCK) {
                 if (_baseType == null) {
-                    final Type genericBaseType = _genericTypeDefinition.getBaseType();
+                    final Type genericBaseType = _originalType.getBaseType();
                     if (genericBaseType == null || genericBaseType == NullType) {
                         _baseType = NullType;
                     }
                     else {
-                        _baseType = GenericBinder.visit(genericBaseType, _typeBindings);
+                        _baseType = GenericEraser.visit(genericBaseType);
                     }
                 }
             }
@@ -64,28 +45,69 @@ final class GenericType<T> extends Type<T> {
         if (_interfaces == null) {
             synchronized (CACHE_LOCK) {
                 if (_interfaces == null) {
-                    _interfaces = GenericBinder.visit(_genericTypeDefinition.getInterfaces(), _typeBindings);
+                    _interfaces = GenericEraser.visit(_originalType.getInterfaces());
                 }
             }
         }
     }
 
+    private final static TypeMapper<Void> UpperBoundMapper = new TypeMapper<Void>() {
+        @Override
+        public Type<?> visitCapturedType(final Type<?> type, final Void parameter) {
+            return super.visitCapturedType(((ICapturedType)type).getWildcard().getUpperBound(), parameter);
+        }
+
+        @Override
+        public Type<?> visitWildcardType(final Type<?> type, final Void parameter) {
+            return visit(type.getUpperBound());
+        }
+
+        @Override
+        public Type<?> visitTypeParameter(final Type<?> type, final Void parameter) {
+            return visit(type.getUpperBound());
+        }
+
+        @Override
+        public Type<?> visitArrayType(final Type<?> type, final Void parameter) {
+            final Type<?> oldElementType = type.getElementType();
+            final Type<?> newElementType = visit(oldElementType);
+
+            if (newElementType != oldElementType) {
+                return newElementType.makeArrayType();
+            }
+
+            return type;
+        }
+    };
+
     private void ensureFields() {
         if (_fields == null) {
             synchronized (CACHE_LOCK) {
                 if (_fields == null) {
-                    _fields = GenericBinder.visit(this, _genericTypeDefinition.getFields(), _typeBindings);
+                    _fields = GenericEraser.visit(
+                        this,
+                        _originalType.getFields(),
+                        TypeBindings.create(
+                            getGenericTypeParameters(),
+                            UpperBoundMapper.visit(getGenericTypeParameters())
+                        )
+                    );
                 }
             }
         }
     }
 
     private void ensureConstructors() {
-        if (_constructors == null) {
-            synchronized (CACHE_LOCK) {
-                if (_constructors == null) {
-                    _constructors = GenericBinder.visit(this, _genericTypeDefinition.getConstructors(), _typeBindings);
-                }
+        synchronized (CACHE_LOCK) {
+            if (_constructors == null) {
+                _constructors = GenericEraser.visit(
+                    this,
+                    _originalType.getConstructors(),
+                    TypeBindings.create(
+                        getGenericTypeParameters(),
+                        UpperBoundMapper.visit(getGenericTypeParameters())
+                    )
+                );
             }
         }
     }
@@ -94,7 +116,14 @@ final class GenericType<T> extends Type<T> {
         if (_methods == null) {
             synchronized (CACHE_LOCK) {
                 if (_methods == null) {
-                    _methods = GenericBinder.visit(this, _genericTypeDefinition.getMethods(), _typeBindings);
+                    _methods = GenericEraser.visit(
+                        this,
+                        _originalType.getMethods(),
+                        TypeBindings.create(
+                            getGenericTypeParameters(),
+                            UpperBoundMapper.visit(getGenericTypeParameters())
+                        )
+                    );
                 }
             }
         }
@@ -104,7 +133,9 @@ final class GenericType<T> extends Type<T> {
         if (_nestedTypes == null) {
             synchronized (CACHE_LOCK) {
                 if (_nestedTypes == null) {
-                    _nestedTypes = GenericBinder.visit(_genericTypeDefinition.getDeclaredTypes(), _typeBindings);
+                    _nestedTypes = GenericEraser.visit(
+                        _originalType.getDeclaredTypes()
+                    );
                 }
             }
         }
@@ -113,7 +144,7 @@ final class GenericType<T> extends Type<T> {
     @Override
     @SuppressWarnings("unchecked")
     public Class<T> getErasedClass() {
-        return (Class<T>)_genericTypeDefinition.getErasedClass();
+        return (Class<T>)_originalType.getErasedClass();
     }
 
     @Override
@@ -131,7 +162,7 @@ final class GenericType<T> extends Type<T> {
 
     @Override
     public Type getGenericTypeDefinition() {
-        return _genericTypeDefinition;
+        throw Error.notGenericType(this);
     }
 
     @Override
@@ -141,42 +172,42 @@ final class GenericType<T> extends Type<T> {
 
     @Override
     public Type getDeclaringType() {
-        return _genericTypeDefinition.getDeclaringType();
+        return _originalType.getDeclaringType();
     }
 
     @Override
     public final boolean isGenericType() {
-        return true;
+        return false;
     }
 
     @Override
     public TypeBindings getTypeBindings() {
-        return _typeBindings;
+        return TypeBindings.empty();
     }
 
     @Override
     int getModifiers() {
-        return _genericTypeDefinition.getModifiers();
+        return _originalType.getModifiers();
     }
 
     @Override
     public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
-        return _genericTypeDefinition.isAnnotationPresent(annotationClass);
+        return _originalType.isAnnotationPresent(annotationClass);
     }
 
     @Override
     public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
-        return _genericTypeDefinition.getAnnotation(annotationClass);
+        return _originalType.getAnnotation(annotationClass);
     }
 
     @Override
     public Annotation[] getAnnotations() {
-        return _genericTypeDefinition.getAnnotations();
+        return _originalType.getAnnotations();
     }
 
     @Override
     public Annotation[] getDeclaredAnnotations() {
-        return _genericTypeDefinition.getDeclaredAnnotations();
+        return _originalType.getDeclaredAnnotations();
     }
 
     @Override
@@ -208,4 +239,3 @@ final class GenericType<T> extends Type<T> {
         return _nestedTypes;
     }
 }
-

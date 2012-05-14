@@ -8,14 +8,13 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 
-import javax.lang.model.element.Element;
 import java.util.ArrayList;
 
 /**
  * @author Mike Strobel
  */
 @SuppressWarnings("unchecked")
-class ClassType<T> extends Type<T> {
+class JavacType<T> extends Type<T> {
     private final String _name;
     private final Context _context;
     private final Symbol.ClassSymbol _typeElement;
@@ -25,14 +24,14 @@ class ClassType<T> extends Type<T> {
     private boolean _completed;
     private Type<?> _declaringType;
     private Class<T> _erasedClass;
-    private List<TypeParameter> _genericParameters = List.nil();
-    private List<ClassType<?>> _nestedTypes = List.nil();
+    private List<JavacGenericParameter> _genericParameters = List.nil();
+    private List<JavacType<?>> _nestedTypes = List.nil();
     private List<ClassMethod> _methods = List.nil();
     private List<ClassField> _fields = List.nil();
     private List<ClassConstructor> _constructors = List.nil();
     private TypeBindings _typeBindings;
 
-    ClassType(final Context context, final Symbol.ClassSymbol typeElement) {
+    JavacType(final Context context, final Symbol.ClassSymbol typeElement) {
         _context = VerifyArgument.notNull(context, "context");
         _typeElement = VerifyArgument.notNull(typeElement, "typeElement");
         _name = typeElement.getQualifiedName().toString();
@@ -50,7 +49,7 @@ class ClassType<T> extends Type<T> {
         return _typeElement;
     }
 
-    List<TypeParameter> getGenericParameters() {
+    List<JavacGenericParameter> getGenericParameters() {
         return _genericParameters;
     }
 
@@ -67,21 +66,12 @@ class ClassType<T> extends Type<T> {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
     }
 
-    TypeParameter findGenericParameter(final Element element) {
-        for (final TypeParameter genericParameter : _genericParameters) {
-            if (genericParameter.getElement() == element) {
-                return genericParameter;
-            }
-        }
-        return null;
+    void addGenericParameter(final JavacGenericParameter genericParameter) {
+        VerifyArgument.notNull(genericParameter, "typeParameter");
+        _genericParameters = _genericParameters.append(genericParameter);
     }
 
-    void addGenericParameter(final TypeParameter typeParameter) {
-        VerifyArgument.notNull(typeParameter, "typeParameter");
-        _genericParameters = _genericParameters.append(typeParameter);
-    }
-
-    void addNestedType(final ClassType<?> nestedType) {
+    void addNestedType(final JavacType<?> nestedType) {
         VerifyArgument.notNull(nestedType, "nestedType");
         _nestedTypes = _nestedTypes.append(nestedType);
         _membersResolved = false;
@@ -144,7 +134,7 @@ class ClassType<T> extends Type<T> {
                         }
                     }
 
-                    for (final ClassType<?> nestedType : _nestedTypes) {
+                    for (final JavacType<?> nestedType : _nestedTypes) {
                         nestedType.complete();
                     }
                 }
@@ -153,87 +143,25 @@ class ClassType<T> extends Type<T> {
     }
 
     @Override
-    ConstructorList getResolvedConstructors() {
+    public ConstructorList getDeclaredConstructors() {
         ensureMembersResolved();
         return new ConstructorList(_constructors);
     }
-
+    
     @Override
-    MethodList getResolvedInstanceMethods() {
+    public MethodList getDeclaredMethods() {
         ensureMembersResolved();
-
-        final ArrayList<MethodInfo> allMethods = new ArrayList<>(_methods.size());
-
-        for (int i = 0, n = _methods.size(); i < n; i++) {
-            final ClassMethod method = _methods.get(i);
-            if (!method.isStatic()) {
-                allMethods.add(method);
-            }
-        }
-
-        Type<?> currentType = getBaseType();
-
-        while (currentType != null) {
-            List<MethodInfo> currentMethods = List.nil();
-
-            for (final MethodInfo method : currentType.getResolvedInstanceMethods()) {
-                if (method.getDeclaringType() != currentType || hasOverride(method, allMethods)) {
-                    continue;
-                }
-                currentMethods = currentMethods.append(new InheritedMethod(method, this));
-            }
-
-            allMethods.addAll(currentMethods);
-            currentType = currentType.getBaseType();
-        }
-
-        return new MethodList(allMethods);
-    }
-
-    private boolean hasOverride(final MethodInfo method, final ArrayList<MethodInfo> allMethods) {
-        for (final MethodInfo m : allMethods) {
-            if (Helper.overrides(m, method)) {
-                return true;
-            }
-        }
-        return false;
+        return new MethodList(_methods);
     }
 
     @Override
-    MethodList getResolvedStaticMethods() {
-        ensureMembersResolved();
-
-        final ArrayList<MethodInfo> methods = new ArrayList<>(_methods.size());
-
-        for (int i = 0, n = _methods.size(); i < n; i++) {
-            final MethodInfo method = _methods.get(i);
-            if (method.isStatic()) {
-                methods.add(method);
-            }
-        }
-
-        Type<?> currentType = getBaseType();
-
-        while (currentType != null) {
-            for (final MethodInfo method : currentType.getResolvedStaticMethods()) {
-                if (method.getDeclaringType() == currentType) {
-                    methods.add(new InheritedMethod(method, this));
-                }
-            }
-            currentType = currentType.getBaseType();
-        }
-
-        return new MethodList(methods);
-    }
-
-    @Override
-    FieldList getResolvedFields() {
+    public FieldList getDeclaredFields() {
         ensureMembersResolved();
         return new FieldList(_fields);
     }
 
     @Override
-    TypeList getResolvedNestedTypes() {
+    public TypeList getDeclaredTypes() {
         ensureMembersResolved();
         return new TypeList(_nestedTypes);
     }
@@ -253,17 +181,6 @@ class ClassType<T> extends Type<T> {
         }
 
         _completed = true;
-
-        if (_baseType != null) {
-            _baseType = Resolver.GenericPlaceholderResolver.visit(_baseType);
-        }
-
-        if (_interfaces == null) {
-            _interfaces = TypeList.empty();
-        }
-        else {
-            _interfaces = Resolver.GenericPlaceholderResolver.visit(_interfaces);
-        }
 
         if (_erasedClass == null) {
             _erasedClass = resolveErasedClass();
@@ -306,12 +223,7 @@ class ClassType<T> extends Type<T> {
 
     @Override
     protected Type makeGenericTypeCore(final TypeList typeArguments) {
-        ensureMembersResolved();
-
-        return new TypeBinder().visit(
-            this,
-            TypeBindings.create(getGenericTypeParameters(), typeArguments)
-        );
+        return new GenericType(this, typeArguments);
     }
 
     @Override
