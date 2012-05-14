@@ -23,7 +23,7 @@ import java.util.Stack;
  * @author Mike Strobel
  */
 @SuppressWarnings("unchecked")
-public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Resolver.Frame> {
+public final class Resolver extends AbstractElementVisitor8<Type<?>, Resolver.Frame> {
     private final Context _context;
 
     public Resolver(final Context context) {
@@ -296,13 +296,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             }
 */
 
-            final Frame frame = visit(e, this);
-
-            if (frame != null) {
-                return frame._type;
-            }
-
-            return null;
+            return visit(e, this);
         }
 
         private Type<?> resolvePrimitive(final TypeKind type) {
@@ -364,30 +358,47 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
     }
 
     @Override
-    public Frame visitPackage(final PackageElement e, final Frame frame) {
-        return frame;
+    public Type<?> visitPackage(final PackageElement e, final Frame frame) {
+        return null;
     }
 
     @Override
-    public Frame visitUnknown(final Element e, final Frame frame) {
+    public Type<?> visitUnknown(final Element e, final Frame frame) {
         if (e instanceof com.sun.tools.javac.code.Type.WildcardType) {
-            return frame;
+            final com.sun.tools.javac.code.Type.WildcardType w = (com.sun.tools.javac.code.Type.WildcardType)e;
+            if (w.isUnbound()) {
+                return Type.makeWildcard();
+            }
+            if (w.isExtendsBound()) {
+                return Type.makeExtendsWildcard(
+                    frame.resolveType(w.getExtendsBound())
+                );
+            }
+            return Type.makeSuperWildcard(
+                frame.resolveType(w.getSuperBound())
+            );
         }
-        return frame;
+        return null;
     }
 
     @Override
-    public Frame visitType(final TypeElement e, final Frame frame) {
+    public Type<?> visitType(final TypeElement e, final Frame frame) {
         if (e.getNestingKind() == NestingKind.ANONYMOUS ||
             e.getNestingKind() == NestingKind.LOCAL) {
 
-            return frame;
+            return null;
         }
 
-        Frame currentFrame = frame;
+        if (frame != null) {
+            final com.sun.tools.javac.code.Type t = (com.sun.tools.javac.code.Type)e.asType();
+            final Type<?> existingType = resolveExisting(frame, t, false);
 
-        currentFrame = new Frame(e, currentFrame);
+            if (existingType != null) {
+                return existingType;
+            }
+        }
 
+        final Frame currentFrame = new Frame(e, frame);
         final Element enclosingElement = e.getEnclosingElement();
 
         if (enclosingElement instanceof Symbol.ClassSymbol) {
@@ -404,7 +415,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
         final TypeMirror superclass = e.getSuperclass();
 
         if (superclass != e && superclass.getKind() != TypeKind.NONE) {
-            baseType = resolveAncestor(frame, currentFrame, (com.sun.tools.javac.code.Type)superclass);
+            baseType = resolveExisting(currentFrame, (com.sun.tools.javac.code.Type)superclass, true);
         }
         else if (((Symbol)e).isInterface()) {
             baseType = null;
@@ -419,7 +430,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
 
         for (int i = 0, n = interfaceElements.size(); i < n; i++) {
             final com.sun.tools.javac.code.Type t = (com.sun.tools.javac.code.Type)interfaceElements.get(i);
-            interfaceList = interfaceList.append(resolveAncestor(frame, currentFrame, t));
+            interfaceList = interfaceList.append(resolveExisting(currentFrame, t, true));
         }
 
         interfaces = interfaceList.isEmpty() ? TypeList.empty() : Type.list(interfaceList);
@@ -464,35 +475,35 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             Type.CACHE.add(currentType);
         }
 
-        return currentFrame;
+        return currentFrame.getCurrentType();
     }
 
-    private Type<?> resolveAncestor(final Frame frame, final Frame currentFrame, final com.sun.tools.javac.code.Type superclass) {
+    private Type<?> resolveExisting(final Frame frame, final com.sun.tools.javac.code.Type type, final boolean resolve) {
         final Type<?> result;
-        final com.sun.tools.javac.code.Type s = superclass;
 
-        Type<?> fromCacheOrFrame = Type.tryFind(s);
+        Type<?> fromCacheOrFrame = Type.tryFind(type);
 
         if (fromCacheOrFrame != null) {
             result = fromCacheOrFrame;
         }
         else {
             if (frame != null) {
-                fromCacheOrFrame = frame.findType(s.asElement());
+                fromCacheOrFrame = frame.findType(type.asElement());
             }
-            result = fromCacheOrFrame != null
-                     ? fromCacheOrFrame
-                     : visit(s.asElement(), currentFrame).getCurrentType();
+            if (!resolve) {
+                return fromCacheOrFrame;
+            }
+            result = fromCacheOrFrame != null ? fromCacheOrFrame : visit(type.asElement(), frame);
         }
 
-        final List<com.sun.tools.javac.code.Type> unresolvedTypeArguments = superclass.getTypeArguments();
+        final List<com.sun.tools.javac.code.Type> unresolvedTypeArguments = type.getTypeArguments();
         final TypeList typeArguments = result.getTypeArguments();
 
         Type[] newTypeArguments = null;
 
         for (int i = 0, n = typeArguments.size(); i < n; i++) {
-            final Type oldTypeArgument = typeArguments.get(i);
-            final Type newTypeArgument = currentFrame.findType(unresolvedTypeArguments.get(i).asElement());
+            final Type<?> oldTypeArgument = typeArguments.get(i);
+            final Type<?> newTypeArgument = resolveExisting(frame, unresolvedTypeArguments.get(i), false);
             if (newTypeArgument != null && newTypeArgument != oldTypeArgument) {
                 if (newTypeArguments == null) {
                     newTypeArguments = typeArguments.toArray();
@@ -515,7 +526,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
     }
 
     @Override
-    public Frame visitVariable(final VariableElement e, final Frame frame) {
+    public Type<?> visitVariable(final VariableElement e, final Frame frame) {
         if (e.getKind() == ElementKind.PARAMETER) {
             return doVisitParameter(e, frame, frame.currentMethod());
         }
@@ -533,13 +544,13 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             catch (MemberResolutionException ignored) {
             }
 
-            return frame;
+            return frame.getCurrentType();
         }
 
-        return frame;
+        return frame.getCurrentType();
     }
 
-    private Frame doVisitParameter(final VariableElement e, final Frame frame, final ClassMethod method) {
+    private Type<?> doVisitParameter(final VariableElement e, final Frame frame, final ClassMethod method) {
         final Type<?> parameterType = resolveType((com.sun.tools.javac.code.Type)e.asType(), frame);
 
         if (parameterType == null) {
@@ -553,10 +564,10 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             )
         );
 
-        return frame;
+        return frame.getCurrentType();
     }
 
-    private Frame doVisitParameter(final VariableElement e, final Frame frame, final ClassConstructor constructor) {
+    private Type<?> doVisitParameter(final VariableElement e, final Frame frame, final ClassConstructor constructor) {
         final Type<?> parameterType = frame.resolveType(e.asType());
 
         if (parameterType == null) {
@@ -570,11 +581,11 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             )
         );
 
-        return frame;
+        return frame.getCurrentType();
     }
 
     @Override
-    public Frame visitExecutable(final ExecutableElement e, final Frame frame) {
+    public Type<?> visitExecutable(final ExecutableElement e, final Frame frame) {
         if (e.getKind() == ElementKind.METHOD) {
             return doVisitMethod(e, frame);
         }
@@ -583,7 +594,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             return doVisitConstructor(e, frame);
         }
 
-        return frame;
+        return frame.getCurrentType();
     }
 
     private Type<?> resolveType(final com.sun.tools.javac.code.Type type, final Frame frame) {
@@ -629,9 +640,9 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
         return frame.resolveType(type);
     }
 
-    private Frame doVisitMethod(final ExecutableElement e, final Frame frame) {
+    private Type<?> doVisitMethod(final ExecutableElement e, final Frame frame) {
         if (e.getKind() != ElementKind.METHOD) {
-            return frame;
+            return frame.getCurrentType();
         }
 
         final Symbol.MethodSymbol methodSymbol = (Symbol.MethodSymbol)e;
@@ -670,12 +681,13 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
         finally {
             frame.popMethod();
         }
-        return frame;
+
+        return frame.getCurrentType();
     }
 
-    private Frame doVisitConstructor(final ExecutableElement e, final Frame frame) {
+    private Type<?> doVisitConstructor(final ExecutableElement e, final Frame frame) {
         if (e.getKind() != ElementKind.CONSTRUCTOR) {
-            return frame;
+            return frame.getCurrentType();
         }
 
         final Symbol.MethodSymbol constructorSymbol = (Symbol.MethodSymbol)e;
@@ -706,11 +718,11 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
 
         constructor.allParametersAdded();
 
-        return frame;
+        return frame.getCurrentType();
     }
 
     @Override
-    public Frame visitTypeParameter(final TypeParameterElement e, final Frame frame) {
+    public Type<?> visitTypeParameter(final TypeParameterElement e, final Frame frame) {
         final TypeParameter typeParameter = new TypeParameter(frame._type, (Symbol.TypeSymbol)e);
 
         frame.addTypeArgument(e, typeParameter);
@@ -722,7 +734,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             frame.getCurrentType().addGenericParameter(typeParameter);
         }
 
-        return frame;
+        return frame.getCurrentType();
     }
 
     final static TypeMapper<Void> GenericPlaceholderResolver = new TypeMapper<Void>() {
@@ -787,7 +799,7 @@ class TypeParameter extends Type {
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
         sb.append(getName());
 
-        if (_bound != null) {
+        if (_bound != null && _bound != Types.Object) {
             sb.append(" extends ");
             if (_bound.isGenericParameter()) {
                 return sb.append(_bound.getName());

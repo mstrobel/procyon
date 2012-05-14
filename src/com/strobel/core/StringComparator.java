@@ -6,7 +6,7 @@ import java.util.Comparator;
  * @author Mike Strobel
  */
 @SuppressWarnings("StringEquality")
-public abstract class StringComparator implements Comparator<String>, EqualityComparator<String> {
+public abstract class StringComparator implements Comparator<String>, IEqualityComparator<String> {
     private StringComparator() {}
 
     public static final StringComparator Ordinal = new StringComparator() {

@@ -384,7 +384,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             nestedTypes = getNestedTypeCandidates(name, bindingFlags, true);
         }
 
-
         if (fields == null) {
             fields = EmptyFields;
         }
@@ -915,6 +914,13 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         );
     }
 
+    public static WildcardType<?> makeWildcard() {
+        return new WildcardType<>(
+            Types.Object,
+            NoType
+        );
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // INTERNAL METHODS                                                                                                   //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1265,9 +1271,13 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
             loadAncestors(symbol);
 
-            final Resolver.Frame result = RESOLVER.visit(symbol, null);
+            final Type<T> resolvedType = (Type<T>)RESOLVER.visit(symbol, null);
 
-            return (Type<T>)result.getCurrentType();
+            if (resolvedType != null) {
+                return resolvedType;
+            }
+
+            throw Error.couldNotResolveType(clazz);
         }
     }
 
@@ -1305,7 +1315,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
             loadAncestors((Symbol.ClassSymbol)type.asElement());
 
-            resultType = RESOLVER.visit(type.asElement(), null).getCurrentType();
+            resultType = RESOLVER.visit(type.asElement(), null);
 
             if (resultType != null) {
                 return (Type<T>)resultType;
@@ -1322,14 +1332,19 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             return PRIMITIVE_TYPES[typeKind.ordinal()];
         }
 
+        if (typeKind != TypeKind.DECLARED) {
+            return null;
+        }
+
         synchronized (CACHE_LOCK) {
             final Class<?> clazz;
+            final String className = type.asElement().flatName().toString();
 
             try {
-                clazz = Class.forName(type.asElement().flatName().toString());
+                clazz = Class.forName(className);
             }
             catch (ClassNotFoundException e) {
-                throw Error.couldNotResolveType(type);
+                throw Error.couldNotResolveType(className);
             }
 
             return (Type<?>)CACHE.find(clazz);
@@ -1751,7 +1766,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
         if (candidates == null) {
             if (source instanceof ConstructorList) {
-                return (T[]) EmptyConstructors;
+                return (T[])EmptyConstructors;
             }
             return (T[])EmptyMethods;
         }

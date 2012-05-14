@@ -97,7 +97,7 @@ class GenericParameter<T> extends Type<T> {
 
         final Type<?> upperBound = getUpperBound();
 
-        if (upperBound != null) {
+        if (upperBound != null && upperBound != Types.Object) {
             sb.append(" extends ");
             if (upperBound.isGenericParameter()) {
                 return sb.append(upperBound.getName());

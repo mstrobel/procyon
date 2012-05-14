@@ -1,5 +1,6 @@
 package com.strobel.reflection;
 
+import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 import com.sun.tools.javac.code.Flags;
@@ -55,7 +56,7 @@ class ClassType<T> extends Type<T> {
 
     ClassMethod findMethod(final Symbol.MethodSymbol methodSymbol) {
         for (final ClassMethod method : _methods) {
-            if (method.getElement() == methodSymbol) {
+            if (Comparer.equals(method.getElement(), methodSymbol)) {
                 return method;
             }
         }
