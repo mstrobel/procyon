@@ -1504,15 +1504,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             name = null;
         }
 
-        final int flags = bindingFlags & ~BindingFlags.Static;
-        final FilterOptions filterOptions = getFilterOptions(name, flags, allowPrefixLookup);
+        final FilterOptions filterOptions = getFilterOptions(name, bindingFlags, allowPrefixLookup);
 
         final TypeList nestedTypes = getDeclaredTypes();
         final ListBuffer<Type<?>> candidates = new ListBuffer<>();
 
         for (int i = 0, n = nestedTypes.size(); i < n; i++) {
             final Type<?> nestedType = nestedTypes.get(i);
-            if (filterApplyType(nestedType, flags, name, filterOptions.prefixLookup)) {
+            if (filterApplyType(nestedType, bindingFlags, name, filterOptions.prefixLookup)) {
                 candidates.add(nestedType);
             }
         }
@@ -1532,7 +1531,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         VerifyArgument.notNull(type, "type");
 
         final boolean isPublic = type.isPublic();
-        final boolean isStatic = false;
+        final boolean isStatic = type.isStatic();
 
         return filterApplyCore(
             type,
@@ -1553,6 +1552,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final boolean isStatic,
         final String name,
         final boolean prefixLookup) {
+
         if (isPublic) {
             if (!any(bindingFlags, BindingFlags.Public)) {
                 return false;

@@ -971,11 +971,6 @@ class ClassMethod extends MethodInfo {
     }
 
     @Override
-    public boolean isStatic() {
-        return _element.isStatic();
-    }
-
-    @Override
     public Type getReturnType() {
         return _returnType;
     }

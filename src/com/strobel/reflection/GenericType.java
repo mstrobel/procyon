@@ -74,7 +74,7 @@ final class GenericType<T> extends Type<T> {
         if (_fields == null) {
             synchronized (CACHE_LOCK) {
                 if (_fields == null) {
-                    _fields = GenericBinder.visit(this, _genericTypeDefinition.getFields(), _typeBindings);
+                    _fields = GenericBinder.visit(this, _genericTypeDefinition.getDeclaredFields(), _typeBindings);
                 }
             }
         }
@@ -84,7 +84,7 @@ final class GenericType<T> extends Type<T> {
         if (_constructors == null) {
             synchronized (CACHE_LOCK) {
                 if (_constructors == null) {
-                    _constructors = GenericBinder.visit(this, _genericTypeDefinition.getConstructors(), _typeBindings);
+                    _constructors = GenericBinder.visit(this, _genericTypeDefinition.getDeclaredConstructors(), _typeBindings);
                 }
             }
         }
@@ -94,7 +94,7 @@ final class GenericType<T> extends Type<T> {
         if (_methods == null) {
             synchronized (CACHE_LOCK) {
                 if (_methods == null) {
-                    _methods = GenericBinder.visit(this, _genericTypeDefinition.getMethods(), _typeBindings);
+                    _methods = GenericBinder.visit(this, _genericTypeDefinition.getDeclaredMethods(), _typeBindings);
                 }
             }
         }

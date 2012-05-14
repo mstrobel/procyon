@@ -45,16 +45,6 @@ final class InheritedMethod extends MethodInfo {
     }
 
     @Override
-    public boolean isStatic() {
-        return _method.isStatic();
-    }
-
-    @Override
-    public boolean isAbstract() {
-        return _method.isAbstract();
-    }
-
-    @Override
     public Type getReturnType() {
         if (_returnTypeOverride != null) {
             return _returnTypeOverride;

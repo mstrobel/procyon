@@ -14,11 +14,7 @@ import java.lang.reflect.TypeVariable;
  * @author Mike Strobel
  */
 public abstract class MethodInfo extends MethodBase {
-    public boolean isStatic() {
-        return Modifier.isStatic(getModifiers());
-    }
-
-    public boolean isAbstract() {
+    public final boolean isAbstract() {
         return Modifier.isAbstract(getModifiers());
     }
 
@@ -244,11 +240,6 @@ class ReflectedMethod extends MethodInfo {
     }
 
     @Override
-    public boolean isStatic() {
-        return Modifier.isStatic(getModifiers());
-    }
-
-    @Override
     public Type getReturnType() {
         return _returnType;
     }
@@ -340,11 +331,6 @@ final class GenericMethod extends MethodInfo {
         }
 
         _returnType = resolveBindings(genericMethodDefinition.getReturnType());
-    }
-
-    @Override
-    public boolean isStatic() {
-        return _genericMethodDefinition.isStatic();
     }
 
     @Override
