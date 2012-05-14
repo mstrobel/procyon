@@ -2,18 +2,20 @@ package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
 
+import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.TypeVariable;
+import java.util.Set;
 
 /**
  * @author Mike Strobel
  */
-final class GenericParameterType extends Type {
+final class GenericParameterType<T> extends Type<T> {
     private final int _position;
     private final TypeVariable<?> _typeVariable;
-    private Class<?> _erasedClass;
+    private Class<T> _erasedClass;
     private MethodInfo _declaringMethod;
-    private Type _declaringType;
+    private Type<?> _declaringType;
 
     GenericParameterType(final TypeVariable<?> typeVariable, final int position) {
         _typeVariable = VerifyArgument.notNull(typeVariable, "typeVariable");
@@ -34,7 +36,8 @@ final class GenericParameterType extends Type {
         _position = position;
     }
 
-    private Class<?> resolveErasedClass() {
+    @SuppressWarnings("unchecked")
+    private Class<T> resolveErasedClass() {
         final TypeBindings bindings;
         
         if (_declaringMethod != null) {
@@ -58,7 +61,7 @@ final class GenericParameterType extends Type {
         final java.lang.reflect.Type[] bounds = _typeVariable.getBounds();
         
         if (bounds.length == 0) {
-            return java.lang.Object.class; 
+            return (Class<T>)Object.class;
         }
         
         if (bounds.length == 1) {
@@ -81,7 +84,7 @@ final class GenericParameterType extends Type {
             return classConstraint;
         }
 
-        return java.lang.Object.class;
+        return (Class<T>) java.lang.Object.class;
     }
 
     public TypeVariable<?> getRawTypeVariable() {
@@ -89,7 +92,7 @@ final class GenericParameterType extends Type {
     }
 
     @Override
-    public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
+    public MemberList getMember(final String name, final int bindingFlags, final Set<MemberType> memberTypes) {
         return MemberList.empty();
     }
 
@@ -109,7 +112,7 @@ final class GenericParameterType extends Type {
     }
 
     @Override
-    public MemberList<? extends MemberInfo> getMembers(final int bindingFlags) {
+    public MemberList getMembers(final int bindingFlags, final Set<MemberType> memberTypes) {
         return MemberList.empty();
     }
 
@@ -177,7 +180,12 @@ final class GenericParameterType extends Type {
     }
 
     @Override
-    public Class<?> getErasedClass() {
+    public TypeKind getKind() {
+        return TypeKind.TYPEVAR;
+    }
+
+    @Override
+    public Class<T> getErasedClass() {
         if (_erasedClass == null) {
             synchronized (CACHE_LOCK) {
                 if (_erasedClass == null) {

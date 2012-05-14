@@ -119,7 +119,11 @@ final class ReflectedType<T> extends Type<T> {
 
     @Override
     public Type getDeclaringType() {
-        return of(_class.getDeclaringClass());
+        final Class<?> declaringClass = _class.getDeclaringClass();
+        if (declaringClass != null) {
+            return of(declaringClass);
+        }
+        return null;
     }
 
     @Override
@@ -129,7 +133,7 @@ final class ReflectedType<T> extends Type<T> {
 
     @Override
     public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
-        return visitor.visitType(this, parameter);
+        return visitor.visitClassType(this, parameter);
     }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // MEMBER LOOKUP                                                                                                      //

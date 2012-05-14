@@ -15,6 +15,23 @@ public final class ParameterList extends ReadOnlyList<ParameterInfo> {
         return EMPTY;
     }
 
+    private TypeList _parameterTypes;
+
+    public TypeList getParameterTypes() {
+        if (_parameterTypes == null) {
+            synchronized (this) {
+                if (_parameterTypes == null) {
+                    final Type<?>[] types = new Type<?>[size()];
+                    for (int i = 0, n = size(); i < n; i++) {
+                        types[i] = get(i).getParameterType();
+                    }
+                    _parameterTypes = new TypeList(types);
+                }
+            }
+        }
+        return _parameterTypes;
+    }
+
     public ParameterList(final List<ParameterInfo> elements) {
         super(ParameterInfo.class, VerifyArgument.noNullElements(elements, "elements"));
     }

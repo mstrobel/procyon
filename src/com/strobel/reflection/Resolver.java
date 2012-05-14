@@ -1,12 +1,9 @@
 package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
-import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.main.JavaCompiler;
-import com.sun.tools.javac.model.JavacTypes;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 
@@ -18,7 +15,6 @@ import javax.lang.model.util.AbstractElementVisitor8;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
@@ -51,7 +47,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
         private final TypeElement _typeElement;
         private final Frame _previous;
         private final Map<Element, Type> _elementTypeMap;
-        private final Stack<BaseMethod> _methods;
+        private final Stack<ClassMethod> _methods;
 
         private List<Type<?>> _typeArguments = com.sun.tools.javac.util.List.nil();
 
@@ -59,7 +55,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             _typeElement = VerifyArgument.notNull(typeElement, "typeElement");
             _previous = previous;
             _elementTypeMap = previous != null ? previous._elementTypeMap : new HashMap<Element, Type>();
-            _methods = previous != null ? previous._methods : new Stack<BaseMethod>();
+            _methods = previous != null ? previous._methods : new Stack<ClassMethod>();
             _type = new ClassType<>(_context, (Symbol.ClassSymbol)typeElement);
             _elementTypeMap.put(typeElement, _type);
 
@@ -75,7 +71,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             _typeElement = type.getTypeElement();
             _previous = previous;
             _elementTypeMap = previous != null ? previous._elementTypeMap : new HashMap<Element, Type>();
-            _methods = previous != null ? previous._methods : new Stack<BaseMethod>();
+            _methods = previous != null ? previous._methods : new Stack<ClassMethod>();
             _elementTypeMap.put(_typeElement, _type);
 
             final Frame ownerFrame = findFrame(_typeElement.getEnclosingElement());
@@ -89,15 +85,15 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             return _type;
         }
 
-        void pushMethod(final BaseMethod method) {
+        void pushMethod(final ClassMethod method) {
             _methods.push(method);
         }
 
-        BaseMethod popMethod() {
+        ClassMethod popMethod() {
             return _methods.pop();
         }
 
-        BaseMethod currentMethod() {
+        ClassMethod currentMethod() {
             return _methods.peek();
         }
 
@@ -177,7 +173,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
                             final ClassType<?> declaringType = (ClassType<?>)resolveType((Symbol.TypeSymbol)genericElement.getEnclosingElement());
                             final Symbol.MethodSymbol methodSymbol = (Symbol.MethodSymbol)genericElement;
                             final int position = methodSymbol.getTypeParameters().indexOf(typeArg.asElement());
-                            final BaseMethod declaredMethod = declaringType.findMethod(methodSymbol);
+                            final ClassMethod declaredMethod = declaringType.findMethod(methodSymbol);
 
                             resolvedTypeArguments[i] = declaredMethod.getTypeArguments().get(position);
                         }
@@ -388,7 +384,10 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             return frame;
         }
 
-        final Frame currentFrame = new Frame(e, frame);
+        Frame currentFrame = frame;
+
+        currentFrame = new Frame(e, currentFrame);
+
         final Element enclosingElement = e.getEnclosingElement();
 
         if (enclosingElement instanceof Symbol.ClassSymbol) {
@@ -400,6 +399,34 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
             tpe.accept(this, currentFrame);
         }
 
+        final Type<?> baseType;
+        final TypeList interfaces;
+        final TypeMirror superclass = e.getSuperclass();
+
+        if (superclass != e && superclass.getKind() != TypeKind.NONE) {
+            baseType = resolveAncestor(frame, currentFrame, (com.sun.tools.javac.code.Type)superclass);
+        }
+        else if (((Symbol)e).isInterface()) {
+            baseType = null;
+        }
+        else {
+            baseType = Types.Object;
+        }
+
+        List<Type<?>> interfaceList = List.nil();
+
+        final java.util.List<? extends TypeMirror> interfaceElements = e.getInterfaces();
+
+        for (int i = 0, n = interfaceElements.size(); i < n; i++) {
+            final com.sun.tools.javac.code.Type t = (com.sun.tools.javac.code.Type)interfaceElements.get(i);
+            interfaceList = interfaceList.append(resolveAncestor(frame, currentFrame, t));
+        }
+
+        interfaces = interfaceList.isEmpty() ? TypeList.empty() : Type.list(interfaceList);
+
+        currentFrame.getCurrentType().setBaseType(baseType);
+        currentFrame.getCurrentType().setInterfaces(interfaces);
+
         for (final Element ee : e.getEnclosedElements()) {
             if (ee instanceof Symbol.ClassSymbol) {
                 this.visit(ee, currentFrame);
@@ -409,19 +436,82 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
         for (final TypeParameter typeParameter : currentFrame.getCurrentType().getGenericParameters()) {
             final java.util.List<? extends TypeMirror> bounds = typeParameter.getElement().getBounds();
 
-            for (final TypeMirror bound : bounds) {
-                final Type<?> boundType = currentFrame.resolveType(bound);
-                typeParameter.addBound(boundType);
+            if (bounds.isEmpty()) {
+                continue;
             }
+
+            final Type<?> boundType;
+
+            if (bounds.size() == 1) {
+                boundType = currentFrame.resolveType(bounds.get(0));
+            }
+            else {
+                final Type<?>[] resolvedBounds = new Type<?>[bounds.size()];
+                for (int i = 0, n = bounds.size(); i < n; i++) {
+                    resolvedBounds[i] = currentFrame.resolveType(bounds.get(i));
+                }
+                boundType = Type.makeCompoundType(Type.list(resolvedBounds));
+            }
+
+            typeParameter.setBound(boundType);
         }
 
-        currentFrame.getCurrentType().complete();
+        final ClassType<?> currentType = currentFrame.getCurrentType();
+
+        currentType.complete();
 
         if (!Flags.asModifierSet(((Symbol)e).flags()).contains(Modifier.PRIVATE)) {
-            Type.CACHE.add(currentFrame.getCurrentType());
+            Type.CACHE.add(currentType);
         }
 
         return currentFrame;
+    }
+
+    private Type<?> resolveAncestor(final Frame frame, final Frame currentFrame, final com.sun.tools.javac.code.Type superclass) {
+        final Type<?> result;
+        final com.sun.tools.javac.code.Type s = superclass;
+
+        Type<?> fromCacheOrFrame = Type.tryFind(s);
+
+        if (fromCacheOrFrame != null) {
+            result = fromCacheOrFrame;
+        }
+        else {
+            if (frame != null) {
+                fromCacheOrFrame = frame.findType(s.asElement());
+            }
+            result = fromCacheOrFrame != null
+                     ? fromCacheOrFrame
+                     : visit(s.asElement(), currentFrame).getCurrentType();
+        }
+
+        final List<com.sun.tools.javac.code.Type> unresolvedTypeArguments = superclass.getTypeArguments();
+        final TypeList typeArguments = result.getTypeArguments();
+
+        Type[] newTypeArguments = null;
+
+        for (int i = 0, n = typeArguments.size(); i < n; i++) {
+            final Type oldTypeArgument = typeArguments.get(i);
+            final Type newTypeArgument = currentFrame.findType(unresolvedTypeArguments.get(i).asElement());
+            if (newTypeArgument != null && newTypeArgument != oldTypeArgument) {
+                if (newTypeArguments == null) {
+                    newTypeArguments = typeArguments.toArray();
+                }
+                newTypeArguments[i] = newTypeArgument;
+            }
+        }
+
+        if (newTypeArguments != null) {
+            return new GenericTypePlaceholder(
+                result,
+                TypeBindings.create(
+                    result.getGenericTypeParameters(),
+                    newTypeArguments
+                )
+            );
+        }
+
+        return result;
     }
 
     @Override
@@ -449,7 +539,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
         return frame;
     }
 
-    private Frame doVisitParameter(final VariableElement e, final Frame frame, final BaseMethod method) {
+    private Frame doVisitParameter(final VariableElement e, final Frame frame, final ClassMethod method) {
         final Type<?> parameterType = resolveType((com.sun.tools.javac.code.Type)e.asType(), frame);
 
         if (parameterType == null) {
@@ -545,7 +635,7 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
         }
 
         final Symbol.MethodSymbol methodSymbol = (Symbol.MethodSymbol)e;
-        final BaseMethod method = new BaseMethod(frame.getCurrentType(), methodSymbol);
+        final ClassMethod method = new ClassMethod(frame.getCurrentType(), methodSymbol);
 
         frame.getCurrentType().addMethod(method);
         frame.pushMethod(method);
@@ -634,440 +724,16 @@ public final class Resolver extends AbstractElementVisitor8<Resolver.Frame, Reso
 
         return frame;
     }
-}
 
-@SuppressWarnings("unchecked")
-class ClassType<T> extends Type<T> {
-    private final String _name;
-    private final Context _context;
-    private final Symbol.ClassSymbol _typeElement;
-    private boolean _membersResolved;
-    private boolean _completed;
-    private Type<?> _declaringType;
-    private Class<T> _erasedClass;
-    private List<TypeParameter> _genericParameters = List.nil();
-    private List<ClassType<?>> _nestedTypes = List.nil();
-    private List<BaseMethod> _methods = List.nil();
-    private List<ClassField> _fields = List.nil();
-    private List<ClassConstructor> _constructors = List.nil();
-    private TypeBindings _typeBindings;
-    private TypeList _resolvedTypeArguments;
-
-    ClassType(final Context context, final Symbol.ClassSymbol typeElement) {
-        _context = VerifyArgument.notNull(context, "context");
-        _typeElement = VerifyArgument.notNull(typeElement, "typeElement");
-        _name = typeElement.getQualifiedName().toString();
-    }
-
-    Symbol.ClassSymbol getTypeElement() {
-        return _typeElement;
-    }
-
-    List<TypeParameter> getGenericParameters() {
-        return _genericParameters;
-    }
-
-    BaseMethod findMethod(final Symbol.MethodSymbol methodSymbol) {
-        for (final BaseMethod method : _methods) {
-            if (method.getElement() == methodSymbol) {
-                return method;
+    final static TypeMapper<Void> GenericPlaceholderResolver = new TypeMapper<Void>() {
+        @Override
+        public Type<?> visitClassType(final Type<?> type, final Void ignored) {
+            if (type instanceof GenericTypePlaceholder) {
+                return ((GenericTypePlaceholder)type).resolve();
             }
+            return type;
         }
-        return null;
-    }
-
-    void setDeclaringType(final Type<?> declaringType) {
-        _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
-    }
-
-    TypeParameter findGenericParameter(final Element element) {
-        for (final TypeParameter genericParameter : _genericParameters) {
-            if (genericParameter.getElement() == element) {
-                return genericParameter;
-            }
-        }
-        return null;
-    }
-
-    void addGenericParameter(final TypeParameter typeParameter) {
-        VerifyArgument.notNull(typeParameter, "typeParameter");
-        _genericParameters = _genericParameters.append(typeParameter);
-    }
-
-    void addNestedType(final ClassType<?> nestedType) {
-        VerifyArgument.notNull(nestedType, "nestedType");
-        _nestedTypes = _nestedTypes.append(nestedType);
-        _membersResolved = false;
-    }
-
-    void addMethod(final BaseMethod method) {
-        VerifyArgument.notNull(method, "method");
-        _methods = _methods.append(method);
-        _membersResolved = false;
-    }
-
-    void addConstructor(final ClassConstructor constructor) {
-        VerifyArgument.notNull(constructor, "constructor");
-        _constructors = _constructors.append(constructor);
-        _membersResolved = false;
-    }
-
-    void addField(final ClassField field) {
-        VerifyArgument.notNull(field, "field");
-        _fields = _fields.append(field);
-        _membersResolved = false;
-    }
-
-    private void completeIfNecessary() {
-        if (_erasedClass == null) {
-            synchronized (CACHE_LOCK) {
-                if (_erasedClass == null) {
-                    complete();
-                }
-            }
-        }
-    }
-
-    private void ensureMembersResolved() {
-        if (!_membersResolved) {
-            synchronized (CACHE_LOCK) {
-                if (!_membersResolved) {
-                    new Resolver(_context).resolveMembers(this);
-
-                    _membersResolved = true;
-
-                    for (final ClassField field : _fields) {
-                        field.complete();
-                    }
-
-                    for (final ClassConstructor constructor : _constructors) {
-                        constructor.complete();
-                    }
-
-                    for (final BaseMethod method : _methods) {
-                        method.complete();
-                    }
-                }
-            }
-        }
-    }
-
-    @Override
-    ConstructorList getResolvedConstructors() {
-        ensureMembersResolved();
-        return new ConstructorList(_constructors);
-    }
-
-    @Override
-    MethodList getResolvedInstanceMethods() {
-        ensureMembersResolved();
-
-        final ArrayList<BaseMethod> methods = new ArrayList<>(_methods.size());
-
-        for (int i = 0, n = _methods.size(); i < n; i++) {
-            final BaseMethod method = _methods.get(i);
-            if (!method.isStatic()) {
-                methods.add(method);
-            }
-        }
-
-        return new MethodList(methods);
-    }
-
-    @Override
-    MethodList getResolvedStaticMethods() {
-        ensureMembersResolved();
-
-        final ArrayList<BaseMethod> methods = new ArrayList<>(_methods.size());
-
-        for (int i = 0, n = _methods.size(); i < n; i++) {
-            final BaseMethod method = _methods.get(i);
-            if (method.isStatic()) {
-                methods.add(method);
-            }
-        }
-
-        return new MethodList(methods);
-    }
-
-    @Override
-    FieldList getResolvedFields() {
-        ensureMembersResolved();
-        return new FieldList(_fields);
-    }
-
-    void complete() {
-        if (_completed) {
-            return;
-        }
-
-        _completed = true;
-
-        final Class<T> clazz;
-
-        try {
-            clazz = (Class<T>)Class.forName(_typeElement.flatName().toString());
-        }
-        catch (ClassNotFoundException ignored) {
-            throw Error.couldNotResolveType(_typeElement.flatName());
-        }
-
-        _erasedClass = clazz;
-
-        if (_genericParameters.isEmpty()) {
-            _resolvedTypeArguments = TypeList.empty();
-            _typeBindings = TypeBindings.empty();
-        }
-        else {
-            for (final TypeParameter genericParameter : _genericParameters) {
-                genericParameter.complete();
-            }
-
-            _resolvedTypeArguments = list(_genericParameters);
-            _typeBindings = TypeBindings.createUnbound(_resolvedTypeArguments);
-        }
-
-        for (final ClassType<?> nestedType : _nestedTypes) {
-            nestedType.complete();
-        }
-
-        for (final ClassField field : _fields) {
-            field.complete();
-        }
-
-        for (final ClassConstructor constructor : _constructors) {
-            constructor.complete();
-        }
-
-        final ArrayList<BaseMethod> methods = new ArrayList<>(_methods);
-
-        for (int i = 0, n = methods.size(); i < n; i++) {
-            final BaseMethod method = methods.get(i);
-            try {
-                method.complete();
-            }
-            catch (MemberResolutionException e) {
-                --n;
-                methods.remove(i--);
-            }
-        }
-    }
-
-    @Override
-    protected TypeBindings getTypeBindings() {
-        completeIfNecessary();
-        return _typeBindings;
-    }
-
-    @Override
-    public Type getGenericTypeDefinition() {
-        if (!isGenericType()) {
-            throw Error.notGenericType(this);
-        }
-        if (!getTypeBindings().hasBoundParameters()) {
-            return this;
-        }
-        throw ContractUtils.unreachable();
-    }
-
-    @Override
-    protected Type makeGenericTypeCore(final TypeList typeArguments) {
-        ensureMembersResolved();
-
-        return new TypeBinder().visit(
-            this,
-            TypeBindings.create(getGenericTypeParameters(), typeArguments)
-        );
-    }
-
-    @Override
-    public Class<T> getErasedClass() {
-        completeIfNecessary();
-        return _erasedClass;
-    }
-
-    @Override
-    public MemberType getMemberType() {
-        return MemberType.TypeInfo;
-    }
-
-    @Override
-    public Type getDeclaringType() {
-        return _declaringType;
-    }
-
-    @Override
-    int getModifiers() {
-        return (int)(_typeElement.flags() & Flags.ModifierFlags);
-    }
-
-    @Override
-    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
-        return visitor.visitType(this, parameter);
-    }
-
-    @Override
-    protected StringBuilder _appendClassName(final StringBuilder sb, final boolean dottedName) {
-        if (dottedName) {
-            return sb.append(_name);
-        }
-        return super._appendClassName(sb, dottedName);
-    }
-}
-
-final class GenericClassType<T> extends Type<T> {
-    private final Context _context;
-    private final ClassType<T> _genericTypeDefinition;
-
-    private final TypeBindings _typeBindings;
-
-    private boolean _completed;
-    private List<ClassType<?>> _nestedTypes = List.nil();
-    private List<BaseMethod> _methods = List.nil();
-    private List<ClassField> _fields = List.nil();
-    private List<ClassConstructor> _constructors = List.nil();
-
-    GenericClassType(final Context context, final ClassType<T> genericTypeDefinition, final TypeBindings typeBindings) {
-        _context = VerifyArgument.notNull(context, "context");
-        _genericTypeDefinition = VerifyArgument.notNull(genericTypeDefinition, "genericTypeDefinition");
-        _typeBindings = VerifyArgument.notNull(typeBindings, "typeBindings");
-    }
-
-    @Override
-    ConstructorList getResolvedConstructors() {
-        completeIfNecessary();
-        return super.getResolvedConstructors();
-    }
-
-    private void completeIfNecessary() {
-        if (_completed) {
-            return;
-        }
-
-        synchronized (CACHE_LOCK) {
-            if (!_completed) {
-                complete();
-            }
-        }
-    }
-
-    void complete() {
-        if (_completed) {
-            return;
-        }
-
-        final JavacTypes jcTypes = JavacTypes.instance(_context);
-        final JavaCompiler compiler = JavaCompiler.instance(_context);
-        final com.sun.tools.javac.code.Types types = com.sun.tools.javac.code.Types.instance(_context);
-
-        final TypeMirror[] typeArgMirrors = new TypeMirror[_typeBindings.size()];
-
-        for (int i = 0, n = typeArgMirrors.length; i < n; i++) {
-            final Type boundType = _typeBindings.getBoundType(i);
-            if (boundType instanceof TypeParameter) {
-                typeArgMirrors[i] = ((TypeParameter)boundType).getElement().asType();
-            }
-            else {
-                typeArgMirrors[i] = compiler.resolveIdent(boundType.getName()).asType();
-            }
-        }
-
-        final com.sun.tools.javac.code.Type.ClassType declaredType = (com.sun.tools.javac.code.Type.ClassType)jcTypes.getDeclaredType(
-            (Symbol.ClassSymbol)_genericTypeDefinition.getTypeElement(),
-            typeArgMirrors
-        );
-
-        final FieldList resolvedFields = _genericTypeDefinition.getResolvedFields();
-
-        for (int i = 0, n = resolvedFields.size(); i < n; i++) {
-            final ClassField originalFieldInfo = (ClassField)resolvedFields.get(i);
-            final Type originalFieldType = originalFieldInfo.getFieldType();
-            final Symbol.VarSymbol originalElement = originalFieldInfo.getElement();
-
-            final com.sun.tools.javac.code.Type newFieldType = (com.sun.tools.javac.code.Type)
-                jcTypes.asMemberOf(declaredType, originalElement);
-
-            if (jcTypes.isSameType(newFieldType, originalElement.asType())) {
-                _fields = _fields.append(originalFieldInfo);
-                continue;
-            }
-
-            final Symbol.VarSymbol newFieldSymbol = (Symbol.VarSymbol)originalElement.asMemberOf(declaredType, types);
-
-            if (_typeBindings.containsGenericParameter(originalFieldType)) {
-                final Type<?> typeArgument = _typeBindings.getBoundType(originalFieldType);
-
-                final ClassField newField = new ClassField(
-                    newFieldSymbol,
-                    this,
-                    typeArgument
-                );
-
-                _fields = _fields.append(newField);
-            }
-            else {
-                final ClassField newField = new ClassField(
-                    newFieldSymbol,
-                    this,
-                    Type.of(newFieldType)
-                );
-
-                _fields = _fields.append(newField);
-            }
-        }
-
-        _completed = true;
-    }
-
-    @Override
-    MethodList getResolvedInstanceMethods() {
-        return super.getResolvedInstanceMethods();
-    }
-
-    @Override
-    MethodList getResolvedStaticMethods() {
-        return super.getResolvedStaticMethods();
-    }
-
-    @Override
-    FieldList getResolvedFields() {
-        return super.getResolvedFields();
-    }
-
-    @Override
-    public Class<T> getErasedClass() {
-        return _genericTypeDefinition.getErasedClass();
-    }
-
-    @Override
-    protected TypeBindings getTypeBindings() {
-        return _typeBindings;
-    }
-
-    @Override
-    public Type getGenericTypeDefinition() {
-        return _genericTypeDefinition;
-    }
-
-    @Override
-    public MemberType getMemberType() {
-        return MemberType.TypeInfo;
-    }
-
-    @Override
-    public Type getDeclaringType() {
-        return _genericTypeDefinition.getDeclaringType();
-    }
-
-    @Override
-    int getModifiers() {
-        return _genericTypeDefinition.getModifiers();
-    }
-
-    @Override
-    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
-        return visitor.visitTypeParameter(this, parameter);
-    }
+    };
 }
 
 class TypeParameter extends Type {
@@ -1076,9 +742,8 @@ class TypeParameter extends Type {
     private final ClassType<?> _declaringType;
     private final MethodInfo _declaringMethod;
     private final Symbol.TypeSymbol _element;
-    private List<Type<?>> _boundsList = List.nil();
     private Class<?> _erasedClass;
-    private TypeList _bounds;
+    private Type<?> _bound;
 
     TypeParameter(final ClassType<?> declaringType, final Symbol.TypeSymbol element) {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
@@ -1094,75 +759,23 @@ class TypeParameter extends Type {
         _name = _element.getSimpleName().toString();
     }
 
-    void addBound(final Type<?> bound) {
+    void setBound(final Type<?> bound) {
         VerifyArgument.notNull(bound, "bound");
-        _boundsList = _boundsList.append(bound);
+        _bound = bound;
     }
 
     TypeParameterElement getElement() {
         return _element;
     }
 
-    void complete() {
-        if (_bounds != null) {
-            return;
-        }
-
-        for (final Type<?> type : _boundsList) {
-            if (type instanceof ClassType<?>) {
-                ((ClassType)type).complete();
-            }
-        }
-
-        _bounds = list(_boundsList);
-
-        if (_boundsList.size() == 1) {
-            _erasedClass = _boundsList.head.getErasedClass();
-            return;
-        }
-
-        for (final Type<?> type : _boundsList) {
-            if (!type.isInterface()) {
-                _erasedClass = type.getErasedClass();
-                return;
-            }
-        }
-
-        final ArrayList<Type<?>> interfaceBounds = new ArrayList<>(_boundsList);
-
-        outer:
-        while (interfaceBounds.size() > 1) {
-            final Type<?> a = interfaceBounds.get(0);
-
-            for (int i = 1, n = interfaceBounds.size(); i < n; i++) {
-                final Type<?> b = interfaceBounds.get(i);
-                final Type moreSpecific = getMostSpecificType(a, b);
-
-                if (moreSpecific == null) {
-                    _erasedClass = Object.class;
-                    return;
-                }
-
-                if (moreSpecific == a) {
-                    interfaceBounds.remove(0);
-                    continue outer;
-                }
-
-                interfaceBounds.remove(i--);
-            }
-        }
-
-        if (interfaceBounds.size() == 1) {
-            _erasedClass = interfaceBounds.get(0).getErasedClass();
-            return;
-        }
-
-        _erasedClass = Object.class;
-    }
-
     @Override
     public boolean isGenericParameter() {
         return true;
+    }
+
+    @Override
+    public TypeKind getKind() {
+        return TypeKind.TYPEVAR;
     }
 
     @Override
@@ -1172,12 +785,27 @@ class TypeParameter extends Type {
 
     @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        return sb.append(getName());
+        sb.append(getName());
+
+        if (_bound != null) {
+            sb.append(" extends ");
+            if (_bound.isGenericParameter()) {
+                return sb.append(_bound.getName());
+            }
+            return _bound.appendBriefDescription(sb);
+        }
+
+        return sb;
+    }
+
+    @Override
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        return getUpperBound().appendErasedDescription(sb);
     }
 
     @Override
     public StringBuilder appendFullDescription(final StringBuilder sb) {
-        return sb.append(getName());
+        return appendBriefDescription(sb);
     }
 
     @Override
@@ -1185,7 +813,12 @@ class TypeParameter extends Type {
         if (_erasedClass == null) {
             synchronized (CACHE_LOCK) {
                 if (_erasedClass == null) {
-                    complete();
+                    if (_bound != null) {
+                        _erasedClass = _bound.getErasedClass();
+                    }
+                    else {
+                        _erasedClass = Object.class;
+                    }
                 }
             }
         }
@@ -1198,15 +831,11 @@ class TypeParameter extends Type {
     }
 
     @Override
-    public TypeList getGenericParameterConstraints() {
-        if (_bounds == null) {
-            synchronized (CACHE_LOCK) {
-                if (_bounds == null) {
-                    complete();
-                }
-            }
+    public Type<?> getUpperBound() {
+        if (_bound == null) {
+            return Types.Object;
         }
-        return _bounds;
+        return _bound;
     }
 
     @Override
@@ -1221,7 +850,7 @@ class TypeParameter extends Type {
 
     @Override
     int getModifiers() {
-        return (int)(Flags.ModifierFlags & _element.flags());
+        return (int)(Flags.StandardFlags & _element.flags());
     }
 
     @Override
@@ -1231,7 +860,7 @@ class TypeParameter extends Type {
     }
 }
 
-class BaseMethod extends MethodInfo {
+class ClassMethod extends MethodInfo {
     private final ClassType<?> _declaringType;
     private final Symbol.MethodSymbol _element;
     private List<Type> _thrownTypeList = List.nil();
@@ -1246,7 +875,7 @@ class BaseMethod extends MethodInfo {
     private final String _name;
     private CompletionState _completionState = CompletionState.AWAITING_PARAMETERS;
 
-    BaseMethod(final ClassType<?> declaringType, final Symbol.MethodSymbol element) {
+    ClassMethod(final ClassType<?> declaringType, final Symbol.MethodSymbol element) {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _element = VerifyArgument.notNull(element, "element");
         _name = element.getSimpleName().toString();
@@ -1404,7 +1033,7 @@ class BaseMethod extends MethodInfo {
 
     @Override
     int getModifiers() {
-        return (int)(_element.flags() & Flags.ModifierFlags);
+        return (int)(_element.flags() & Flags.StandardFlags);
     }
 }
 
@@ -1542,7 +1171,7 @@ class ClassConstructor extends ConstructorInfo {
 
     @Override
     int getModifiers() {
-        return (int)(_element.flags() & Flags.ModifierFlags);
+        return (int)(_element.flags() & Flags.StandardFlags);
     }
 }
 
@@ -1604,12 +1233,52 @@ class ClassField extends FieldInfo {
 
     @Override
     int getModifiers() {
-        return (int)(_element.flags() & Flags.ModifierFlags);
+        return (int)(_element.flags() & Flags.StandardFlags);
+    }
+}
+
+final class GenericTypePlaceholder extends Type {
+
+    private final Type<?> _genericTypeDefinition;
+    private final TypeBindings _typeBindings;
+
+    GenericTypePlaceholder(final Type<?> genericTypeDefinition, final TypeBindings typeBindings) {
+        _genericTypeDefinition = genericTypeDefinition;
+        _typeBindings = typeBindings;
+    }
+
+    final Type<?> resolve() {
+        return _genericTypeDefinition.makeGenericType(_typeBindings.getBoundTypes());
     }
 
     @Override
-    public String toString() {
-        return getName();
+    protected TypeBindings getTypeBindings() {
+        return _typeBindings;
+    }
+
+    @Override
+    public Type getGenericTypeDefinition() {
+        return _genericTypeDefinition;
+    }
+
+    @Override
+    public Class getErasedClass() {
+        return _genericTypeDefinition.getErasedClass();
+    }
+
+    @Override
+    public MemberType getMemberType() {
+        return MemberType.TypeInfo;
+    }
+
+    @Override
+    public Type getDeclaringType() {
+        return null;
+    }
+
+    @Override
+    int getModifiers() {
+        return _genericTypeDefinition.getModifiers();
     }
 }
 

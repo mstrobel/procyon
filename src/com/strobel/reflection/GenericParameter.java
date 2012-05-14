@@ -2,34 +2,54 @@ package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
 
+import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.TypeVariable;
-import java.util.ArrayList;
 
 /**
  * @author Mike Strobel
  */
-final class GenericParameter<T> extends Type<T> {
+class GenericParameter<T> extends Type<T> {
     private final String _name;
     private final int _position;
-    private final TypeList _constraints;
+    private final Type _upperBound;
+    private final Type _lowerBound;
     private MethodInfo _declaringMethod;
     private Type _declaringType;
     private Class<T> _erasedClass;
     private TypeVariable<?> _typeVariable;
 
-    GenericParameter(final String name, final Type declaringType, final TypeList constraints, final int position) {
+    GenericParameter(final String name, final Type declaringType, final Type upperBound, final int position) {
         _name = VerifyArgument.notNull(name, "name");
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
-        _constraints = VerifyArgument.notNull(constraints, "constraints");
+        _upperBound = upperBound != null ? upperBound : Types.Object;
+        _lowerBound = NoType;
         _position = position;
     }
 
-    GenericParameter(final String name, final MethodInfo declaringMethod, final TypeList constraints, final int position) {
+    GenericParameter(final String name, final MethodInfo declaringMethod, final Type upperBound, final int position) {
         _name = VerifyArgument.notNull(name, "name");
         _declaringType = null;
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
-        _constraints = VerifyArgument.notNull(constraints, "constraints");
+        _upperBound = upperBound != null ? upperBound : Types.Object;
+        _lowerBound = NoType;
+        _position = position;
+    }
+
+    protected GenericParameter(final String name, final Type declaringType, final Type upperBound, final Type lowerBound, final int position) {
+        _name = VerifyArgument.notNull(name, "name");
+        _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+        _upperBound = upperBound != null ? upperBound : Types.Object;
+        _lowerBound = lowerBound != null ? lowerBound : Type.NoType;
+        _position = position;
+    }
+
+    protected GenericParameter(final String name, final MethodInfo declaringMethod, final Type upperBound, final Type lowerBound, final int position) {
+        _name = VerifyArgument.notNull(name, "name");
+        _declaringType = null;
+        _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
+        _upperBound = upperBound != null ? upperBound : Types.Object;
+        _lowerBound = lowerBound != null ? lowerBound : Type.NoType;
         _position = position;
     }
 
@@ -43,41 +63,8 @@ final class GenericParameter<T> extends Type<T> {
     }
 
     private Class<?> resolveErasedClass() {
-        if (_constraints.size() == 1) {
-            return _constraints.get(0).getErasedClass();
-        }
-
-        for (final Type<?> type : _constraints) {
-            if (!type.isInterface()) {
-                return type.getErasedClass();
-            }
-        }
-
-        final ArrayList<Type> interfaceBounds = new ArrayList<>(_constraints);
-
-        outer:
-        while (interfaceBounds.size() > 1) {
-            final Type<?> a = interfaceBounds.get(0);
-
-            for (int i = 1, n = interfaceBounds.size(); i < n; i++) {
-                final Type<?> b = interfaceBounds.get(i);
-                final Type moreSpecific = getMostSpecificType(a, b);
-
-                if (moreSpecific == null) {
-                    return Object.class;
-                }
-
-                if (moreSpecific == a) {
-                    interfaceBounds.remove(0);
-                    continue outer;
-                }
-
-                interfaceBounds.remove(i--);
-            }
-        }
-
-        if (interfaceBounds.size() == 1) {
-            return interfaceBounds.get(0).getErasedClass();
+        if (_upperBound != Types.Object) {
+            return _upperBound.getErasedClass();
         }
 
         return Object.class;
@@ -95,68 +82,40 @@ final class GenericParameter<T> extends Type<T> {
     }
 
     @Override
-    public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
-        return MemberList.empty();
-    }
-
-    @Override
-    public FieldInfo getField(final String name, final int bindingFlags) {
-        return null;
-    }
-
-    @Override
-    public MethodInfo getMethod(final String name, final int bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes) {
-        return null;
-    }
-
-    @Override
-    public ConstructorInfo getConstructor(final int bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes) {
-        return null;
-    }
-
-    @Override
-    public MemberList<? extends MemberInfo> getMembers(final int bindingFlags) {
-        return MemberList.empty();
-    }
-
-    @Override
-    public FieldList getFields(final int bindingFlags) {
-        return FieldList.empty();
-    }
-
-    @Override
-    public MethodList getMethods(final int bindingFlags, final CallingConvention callingConvention) {
-        return MethodList.empty();
-    }
-
-    @Override
-    public ConstructorList getConstructors(final int bindingFlags) {
-        return ConstructorList.empty();
-    }
-
-    @Override
-    public TypeList getNestedTypes(final int bindingFlags) {
-        return TypeList.empty();
-    }
-
-    @Override
     public MemberType getMemberType() {
         return MemberType.TypeInfo;
     }
 
     @Override
     public String getName() {
-        return _typeVariable.getName();
+        return _name;
     }
 
     @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        return sb.append(getName());
+        sb.append(getName());
+
+        final Type<?> upperBound = getUpperBound();
+
+        if (upperBound != null) {
+            sb.append(" extends ");
+            if (upperBound.isGenericParameter()) {
+                return sb.append(upperBound.getName());
+            }
+            return upperBound.appendBriefDescription(sb);
+        }
+
+        return sb;
+    }
+
+    @Override
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        return getUpperBound().appendErasedDescription(sb);
     }
 
     @Override
     public StringBuilder appendFullDescription(final StringBuilder sb) {
-        return sb.append(getName());
+        return appendBriefDescription(sb);
     }
 
     @Override
@@ -180,6 +139,21 @@ final class GenericParameter<T> extends Type<T> {
     @Override
     public boolean isGenericParameter() {
         return true;
+    }
+
+    @Override
+    public TypeKind getKind() {
+        return TypeKind.TYPEVAR;
+    }
+
+    @Override
+    public Type<?> getLowerBound() {
+        return _lowerBound;
+    }
+
+    @Override
+    public Type<?> getUpperBound() {
+        return _upperBound;
     }
 
     @Override

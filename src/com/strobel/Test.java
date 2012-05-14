@@ -4,10 +4,13 @@ import com.strobel.expressions.LambdaExpression;
 import com.strobel.expressions.ParameterExpression;
 import com.strobel.reflection.*;
 import com.sun.source.tree.TreeVisitor;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.Context;
 
-import java.util.Date;
+import java.io.Serializable;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import static com.strobel.expressions.Expression.*;
@@ -28,10 +31,16 @@ public class Test {
     private static void compilerToolsTest() {
         final Context context = new Context();
         final Type<?> mapType = Type.of(HashMap.class);
-        final Type<?> genericMapType = mapType.makeGenericType(Type.of(String.class), Type.of(Date.class));
+        final Type<?> genericMapType = mapType.makeGenericType(Types.String, Types.Date);
+
+        final Symbol symbol = JavaCompiler.instance(context).resolveIdent(ITest2.class.getName());
+
+        final Class<? extends String> aClass = "".getClass();
 
         System.out.println(mapType);
         System.out.println(genericMapType);
+        System.out.println(Type.of(ITest2.class));
+        System.out.println(Arrays.toString(genericMapType.getMembers(BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).toArray()));
         System.out.println(genericMapType.getMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).get(30));
     }
 
@@ -106,4 +115,8 @@ public class Test {
 
 interface ITest {
     String testNumber(final int number);
+}
+
+interface ITest2<T extends String & Comparable<String> & Serializable, T2 extends T> {
+    T2 test(final T t);
 }

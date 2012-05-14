@@ -1,7 +1,6 @@
 package com.strobel.reflection;
 
 import com.strobel.util.TypeUtils;
-import com.sun.tools.javac.util.List;
 
 import java.util.ArrayList;
 
@@ -176,7 +175,7 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
     }
 
     @Override
-    public Type<?> visitType(final Type<?> type, final TypeBindings bindings) {
+    public Type<?> visitClassType(final Type<?> type, final TypeBindings bindings) {
         if (bindings.containsGenericParameter(type)) {
             return bindings.getBoundType(type);
         }
@@ -219,6 +218,10 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
                 genericType.addMethod(visitMethod(genericType, method, bindings));
             }
 
+            for (final Type<?> nestedType : type.getResolvedNestedTypes()) {
+                genericType.addNestedType(visit(nestedType, bindings));
+            }
+
             return genericType;
         }
 
@@ -231,27 +234,14 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
             return bindings.getBoundType(type);
         }
 
-        final TypeList bounds = type.getGenericParameterConstraints();
+        final Type upperBound = type.getUpperBound();
+        final Type newUpperBound = visit(upperBound, bindings);
 
-        boolean changed = false;
-        List<Type> newBounds = List.nil();
-
-        for (int i = 0, n = bounds.size(); i < n; i++) {
-            final Type constraint = bounds.get(i);
-            final Type newConstraint = visit(constraint, bindings);
-
-            newBounds = newBounds.append(newConstraint);
-
-            if (newConstraint != constraint) {
-                changed = true;
-            }
-        }
-
-        if (changed) {
+        if (newUpperBound != upperBound) {
             return new GenericParameter(
                 type.getName(),
                 type.getDeclaringType(),
-                Type.list(newBounds),
+                newUpperBound,
                 type.getGenericParameterPosition()
             );
         }
@@ -260,9 +250,9 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
     }
 
     @Override
-    public Type<?> visitWildcard(final Type<?> type, final TypeBindings bindings) {
+    public Type<?> visitWildcardType(final Type<?> type, final TypeBindings bindings) {
         final Type<?> oldLower = type.getLowerBound();
-        final Type<?> oldUpper = type.getGenericParameterConstraints().get(0);
+        final Type<?> oldUpper = type.getUpperBound();
         final Type<?> newLower = visit(oldLower, bindings);
         final Type<?> newUpper = visit(oldUpper, bindings);
 
@@ -291,7 +281,7 @@ final class TypeBinder extends TypeVisitor<TypeBindings, Type<?>> {
     }
 
     @Override
-    public Type<?> visitUnknown(final Type<?> type, final TypeBindings parameter) {
+    public Type<?> visitType(final Type<?> type, final TypeBindings parameter) {
         return type;
     }
 }

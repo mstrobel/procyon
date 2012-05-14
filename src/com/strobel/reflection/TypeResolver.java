@@ -68,7 +68,7 @@ final class TypeResolver {
             final ClassStack prev = c.find(rawType);
             if (prev != null) {
                 // Self-reference: needs special handling, then...
-                final RecursiveType selfRef = new RecursiveType(rawType, typeBindings);
+                final RecursiveType<?> selfRef = new RecursiveType<>(rawType, typeBindings);
                 prev.addSelfReference(selfRef);
                 return selfRef;
             }
@@ -80,7 +80,7 @@ final class TypeResolver {
         final TypeList typeParameters = typeBindings.getBoundTypes();
         final TypeCache.Key key = _resolvedTypes.key(rawType, typeParameters);
 
-        Type type = _resolvedTypes.find(key);
+        Type<?> type = _resolvedTypes.find(key);
 
         if (type == null) {
             final TypeCache.Key genericDefinitionKey = _resolvedTypes.key(rawType);
@@ -196,11 +196,11 @@ final class TypeResolver {
         }
 
         final TypeVariable<? extends Class<?>>[] typeParameters = rawType.getTypeParameters();
-        final RecursiveType selfReference;
+        final RecursiveType<?> selfReference;
         final TypeList genericParameterList;
 
         if (typeParameters.length != 0) {
-            selfReference = new RecursiveType(rawType, typeBindings);
+            selfReference = new RecursiveType<>(rawType, typeBindings);
             context.addSelfReference(selfReference);
             final Type[] genericParameters = new Type[typeParameters.length];
             for (int i = 0, n = typeParameters.length; i < n; i++) {
@@ -265,17 +265,17 @@ final class TypeResolver {
         return _fromAny(context, parent, typeBindings);
     }
 
-    private static final class RecursiveType extends Type {
-        private Type _referencedType;
-        private final Class<?> _rawType;
+    private static final class RecursiveType<T> extends Type<T> {
+        private Type<T> _referencedType;
+        private final Class<T> _rawType;
         private final TypeBindings _typeBindings;
 
-        public RecursiveType(final Class<?> rawType, final TypeBindings typeBindings) {
+        public RecursiveType(final Class<T> rawType, final TypeBindings typeBindings) {
             _rawType = VerifyArgument.notNull(rawType, "rawType");
             _typeBindings = VerifyArgument.notNull(typeBindings, "typeBindings");
         }
 
-        public void setReference(final Type referencedType) {
+        public void setReference(final Type<T> referencedType) {
             _referencedType = VerifyArgument.notNull(referencedType, "referencedType");
         }
 
@@ -285,7 +285,7 @@ final class TypeResolver {
         }
 
         @Override
-        public MemberList getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
+        public MemberList getMember(final String name, final int bindingFlags, final Set<MemberType> memberTypes) {
             return _referencedType.getMember(name, bindingFlags, memberTypes);
         }
 
@@ -300,7 +300,7 @@ final class TypeResolver {
         }
 
         @Override
-        public MemberList getMembers(final int bindingFlags) {
+        public MemberList getMembers(final int bindingFlags, final Set<MemberType> memberTypes) {
             return _referencedType.getMembers(bindingFlags);
         }
 
@@ -325,7 +325,7 @@ final class TypeResolver {
         }
 
         @Override
-        public Class<?> getErasedClass() {
+        public Class<T> getErasedClass() {
             return _rawType;
         }
 
@@ -345,8 +345,8 @@ final class TypeResolver {
         }
 
         @Override
-        public TypeList getGenericParameterConstraints() {
-            return _referencedType.getGenericParameterConstraints();
+        public Type<?> getUpperBound() {
+            return _referencedType.getUpperBound();
         }
 
         @Override
@@ -456,7 +456,7 @@ final class TypeResolver {
         }
 
         @Override
-        public Type makeArrayType() {
+        public Type<T[]> makeArrayType() {
             return _referencedType.makeArrayType();
         }
 
@@ -525,7 +525,7 @@ final class TypeResolver {
         private final ClassStack _parent;
         private final Class<?> _current;
 
-        private ArrayList<RecursiveType> _selfRefs;
+        private ArrayList<RecursiveType<?>> _selfRefs;
 
         public ClassStack(final Class<?> rootType) {
             this(null, rootType);
@@ -547,10 +547,11 @@ final class TypeResolver {
             _selfRefs.add(ref);
         }
 
-        public void resolveSelfReferences(final Type resolved) {
+        @SuppressWarnings("unchecked")
+        public <T> void resolveSelfReferences(final Type<T> resolved) {
             if (_selfRefs != null) {
-                for (final RecursiveType ref : _selfRefs) {
-                    ref.setReference(resolved);
+                for (final RecursiveType<?> ref : _selfRefs) {
+                    ((RecursiveType<T>)ref).setReference(resolved);
                 }
             }
         }

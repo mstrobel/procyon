@@ -155,7 +155,7 @@ public final class VerifyArgument {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static String notNullOrEmpty(final String value, final String parameterName) {
-        if (!StringEx.isNullOrEmpty(value)) {
+        if (!StringUtilities.isNullOrEmpty(value)) {
             return value;
         }
         throw new IllegalArgumentException(
@@ -164,7 +164,7 @@ public final class VerifyArgument {
     }
 
     public static String notNullOrWhitespace(final String value, final String parameterName) {
-        if (!StringEx.isNullOrWhitespace(value)) {
+        if (!StringUtilities.isNullOrWhitespace(value)) {
             return value;
         }
         throw new IllegalArgumentException(

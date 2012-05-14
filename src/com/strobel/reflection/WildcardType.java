@@ -1,92 +1,88 @@
 package com.strobel.reflection;
 
-import com.strobel.core.VerifyArgument;
 import com.sun.tools.javac.code.Flags;
+
+import javax.lang.model.type.TypeKind;
 
 /**
  * @author Mike Strobel
  */
-final class WildcardType extends Type {
-    private final TypeList _extendsBounds;
+@SuppressWarnings("unchecked")
+public final class WildcardType<T> extends Type<T> {
+    private final Type<T> _extendsBound;
     private final Type _superBound;
-    private Class<?> _erasedClass;
+    private Class<T> _erasedClass;
 
-    WildcardType(final Type extendsBound, final Type superBound) {
-        _extendsBounds = list(VerifyArgument.notNull(extendsBound, "extendsBound"));
-        _superBound = VerifyArgument.notNull(superBound, "superBound");
-    }
-
-    @Override
-    public String getName() {
-        if (_superBound != NoType) {
-            return "? super " + _superBound.getName();
-        }
-
-        final Type extendsBound = _extendsBounds.get(0);
-
-        if (extendsBound == Types.Object) {
-            return "?";
-        }
-
-        return "? extends " + extendsBound.getName();
+    WildcardType(final Type<T> extendsBound, final Type superBound) {
+        _extendsBound = extendsBound != null ? extendsBound : (Type<T>)Types.Object;
+        _superBound = superBound != null ? superBound : Type.NoType;
     }
 
     @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
         if (_superBound != NoType) {
-            return _superBound.appendBriefDescription(sb.append("? super "));
+            sb.append("? super ");
+            if (_superBound.isGenericParameter()) {
+                return sb.append(_superBound.getName());
+            }
+            return _superBound.appendErasedDescription(sb);
         }
 
-        final Type extendsBound = _extendsBounds.get(0);
-
-        if (extendsBound == Types.Object) {
+        if (_extendsBound == Types.Object) {
             return sb.append("?");
         }
 
-        return extendsBound.appendBriefDescription(sb.append("? extends "));
+        sb.append("? extends ");
+
+        if (_extendsBound.isGenericParameter()) {
+            return sb.append(_extendsBound.getName());
+        }
+
+        return _extendsBound.appendErasedDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        return appendBriefDescription(sb);
     }
 
     @Override
     public StringBuilder appendFullDescription(final StringBuilder sb) {
-        if (_superBound != NoType) {
-            return _superBound.appendFullDescription(sb.append("? super "));
-        }
-
-        final Type extendsBound = _extendsBounds.get(0);
-
-        if (extendsBound == Types.Object) {
-            return sb.append("?");
-        }
-
-        return extendsBound.appendFullDescription(sb.append("? extends "));
+        return appendBriefDescription(sb);
     }
 
-    private Class<?> resolveErasedClass() {
-        if (!_extendsBounds.isEmpty()) {
-            return _extendsBounds.get(0).getErasedClass();
-        }
-
-        return Object.class;
+    private Class<T> resolveErasedClass() {
+        return _extendsBound.getErasedClass();
     }
 
     @Override
-    public Type getLowerBound() {
+    public Type<?> getUpperBound() {
+        return _extendsBound;
+    }
+
+    @Override
+    public Type<?> getLowerBound() {
         return _superBound;
+    }
+
+    @Override
+    public boolean isWildcardType() {
+        return true;
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Object accept(final TypeVisitor visitor, final Object parameter) {
-        return visitor.visitWildcard(this, parameter);
+        return visitor.visitWildcardType(this, parameter);
     }
 
     @Override
-    public TypeList getGenericParameterConstraints() {
-        return _extendsBounds;
+    public TypeKind getKind() {
+        return TypeKind.WILDCARD;
     }
 
     @Override
-    public Class<?> getErasedClass() {
+    public Class<T> getErasedClass() {
         if (_erasedClass == null) {
             synchronized (CACHE_LOCK) {
                 if (_erasedClass == null) {
@@ -124,13 +120,13 @@ final class WildcardType extends Type {
 
         final WildcardType that = (WildcardType)o;
 
-        return _extendsBounds.get(0).equals(that._extendsBounds.get(0)) &&
+        return _extendsBound.equals(that._extendsBound) &&
                _superBound.equals(that._superBound);
     }
 
     @Override
     public int hashCode() {
-        int result = _extendsBounds.get(0).hashCode();
+        int result = _extendsBound.hashCode();
         result = 31 * result + _superBound.hashCode();
         return result;
     }

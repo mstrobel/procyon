@@ -1,6 +1,6 @@
 package com.strobel.expressions;
 
-import com.strobel.core.StringEx;
+import com.strobel.core.StringUtilities;
 import com.strobel.reflection.Type;
 
 /**
@@ -25,6 +25,6 @@ public final class LabelTarget {
     }
 
     public final String toString() {
-        return StringEx.isNullOrEmpty(_name) ? "UnnamedLabel" : _name;
+        return StringUtilities.isNullOrEmpty(_name) ? "UnnamedLabel" : _name;
     }
 }

@@ -2,7 +2,9 @@ package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
 
+import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
+import java.util.Set;
 
 /**
  * @author strobelm
@@ -12,16 +14,23 @@ final class PrimitiveType<T> extends Type<T> {
     private final Class<T> _class;
     private final String _signature;
     private final String _description;
+    private final TypeKind _kind;
 
-    PrimitiveType(final Class<T> clazz, final char signature, final String description) {
+    PrimitiveType(final Class<T> clazz, final char signature, final String description, final TypeKind kind) {
         _class = VerifyArgument.notNull(clazz, "clazz");
-        
+
         if (!clazz.isPrimitive()) {
             throw Error.notPrimitiveType(clazz);
         }
-        
+
+        _kind = VerifyArgument.notNull(kind, "kind");
         _signature = String.valueOf(signature);
         _description = VerifyArgument.notNull(description, "description");
+    }
+
+    @Override
+    public TypeKind getKind() {
+        return _kind;
     }
 
     @Override
@@ -40,7 +49,7 @@ final class PrimitiveType<T> extends Type<T> {
     }
 
     @Override
-    public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
+    public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final Set<MemberType> memberTypes) {
         return MemberList.empty();
     }
 
@@ -60,7 +69,7 @@ final class PrimitiveType<T> extends Type<T> {
     }
 
     @Override
-    public MemberList<? extends MemberInfo> getMembers(final int bindingFlags) {
+    public MemberList getMembers(final int bindingFlags, final Set<MemberType> memberTypes) {
         return MemberList.empty();
     }
 

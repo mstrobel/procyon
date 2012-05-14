@@ -19,6 +19,7 @@ class GenericType<T> extends Type<T> {
     private List<ConstructorInfo> _constructors = List.nil();
     private List<MethodInfo> _staticMethods = List.nil();
     private List<MethodInfo> _instanceMethods = List.nil();
+    private List<Type<?>> _nestedTypes = List.nil();
 
     GenericType(final Type genericTypeDefinition, final TypeBindings typeArguments) {
         _genericTypeDefinition = VerifyArgument.notNull(genericTypeDefinition, "genericTypeDefinition");
@@ -56,18 +57,20 @@ class GenericType<T> extends Type<T> {
     }
 
     void addConstructor(final ConstructorInfo constructor) {
-        _constructors = _constructors.append(constructor);
+        _constructors = _constructors.append(VerifyArgument.notNull(constructor, "constructor"));
     }
 
     void addMethod(final MethodInfo method) {
-        VerifyArgument.notNull(method, "method");
-
         if (method.isStatic()) {
-            _staticMethods = _staticMethods.append(method);
+            _staticMethods = _staticMethods.append(VerifyArgument.notNull(method, "method"));
         }
         else {
-            _instanceMethods = _instanceMethods.append(method);
+            _instanceMethods = _instanceMethods.append(VerifyArgument.notNull(method, "method"));
         }
+    }
+
+    void addNestedType(final Type<?> nestedType) {
+        _nestedTypes = _nestedTypes.append(VerifyArgument.notNull(nestedType, "nestedType"));
     }
 
     private Type resolveBaseType() {
@@ -154,7 +157,7 @@ class GenericType<T> extends Type<T> {
 
     @Override
     public <P, R> R accept(final TypeVisitor<P, R> typeVisitor, final P parameter) {
-        return typeVisitor.visitType(this, parameter);
+        return typeVisitor.visitClassType(this, parameter);
     }
 
     @Override
@@ -189,10 +192,19 @@ class GenericType<T> extends Type<T> {
         return new FieldList(_fields);
     }
 
+    @Override
+    TypeList getResolvedNestedTypes() {
+        if (_nestedTypes.isEmpty()) {
+            return TypeList.empty();
+        }
+        return new TypeList(_nestedTypes);
+    }
+
     void complete() {
         getResolvedFields();
         getResolvedConstructors();
         getResolvedStaticMethods();
         getResolvedInstanceMethods();
+        getResolvedNestedTypes();
     }
 }

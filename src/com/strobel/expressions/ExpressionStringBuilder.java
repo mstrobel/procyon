@@ -1,6 +1,6 @@
 package com.strobel.expressions;
 
-import com.strobel.core.StringEx;
+import com.strobel.core.StringUtilities;
 import com.strobel.reflection.*;
 import com.strobel.util.TypeUtils;
 
@@ -168,7 +168,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
 
     @Override
     protected Expression visitParameter(final ParameterExpression node) {
-        if (StringEx.isNullOrEmpty(node.getName())) {
+        if (StringUtilities.isNullOrEmpty(node.getName())) {
             final int id = getParameterId(node);
             out("Param_" + id);
         }

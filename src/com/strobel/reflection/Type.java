@@ -2,15 +2,15 @@ package com.strobel.reflection;
 
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ReadOnlyList;
-import com.strobel.core.StringEx;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
-import com.strobel.util.TypeUtils;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.nio.JavacPathFileManager;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Names;
 
 import javax.lang.model.type.TypeKind;
@@ -144,6 +144,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     // REFLECTION METHODS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public TypeKind getKind() {
+        return TypeKind.DECLARED;
+    }
+
     public Type getBaseType() {
         return Type.of(Object.class);
     }
@@ -206,11 +210,27 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return false;
     }
 
-    public TypeList getGenericParameterConstraints() {
-        throw Error.notGenericType(this);
+    public boolean isUnbound() {
+        return isWildcardType() &&
+               getLowerBound() == NoType &&
+               getUpperBound() == Types.Object;
     }
 
-    public Type getLowerBound() {
+    public boolean isExtendsBound() {
+        return isGenericParameter() ||
+               isWildcardType() && getLowerBound() == NoType;
+    }
+
+    public boolean isSuperBound() {
+        return isWildcardType() &&
+               (getLowerBound() != NoType || getUpperBound() == Types.Object);
+    }
+
+    public Type<?> getUpperBound() {
+        throw Error.notGenericParameter(this);
+    }
+
+    public Type<?> getLowerBound() {
         return NoType;
     }
 
@@ -261,8 +281,13 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public boolean isAssignableFrom(final Type type) {
+/*
         if (type == null) {
             return false;
+        }
+
+        if (type == NoType) {
+            return true;
         }
 
         if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(this, type)) {
@@ -276,53 +301,70 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         if (this.isInterface()) {
             return type.implementsInterface(this);
         }
-
         else if (isGenericParameter()) {
-            final TypeList constraints = getGenericParameterConstraints();
-
-            //noinspection ForLoopReplaceableByForEach
-            for (int i = 0, constraintsSize = constraints.size(); i < constraintsSize; i++) {
-                final Type constraint = constraints.get(i);
-                if (!constraint.isAssignableFrom(type)) {
-                    return false;
-                }
-            }
-
-            return true;
+            return getUpperBound().isAssignableFrom(type) &&
+                   type.isAssignableFrom(getLowerBound());
         }
 
+        return false;
+*/
+        return Helper.isAssignable(this, type);
+    }
+
+    public Package getPackage() {
+        return getErasedClass().getPackage();
+    }
+
+    public boolean isCompoundType() {
+        return false;
+    }
+
+    public boolean isWildcardType() {
+        return false;
+    }
+
+    public boolean isSynthetic() {
         return false;
     }
 
     public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
-        return visitor.visitUnknown(this, parameter);
+        return visitor.visitType(this, parameter);
+    }
+
+    @Override
+    public int hashCode() {
+        return Helper.hashCode(this);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // MEMBER INFO                                                                                                        //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public final MemberList getMember(final String name, final MemberType... memberTypes) {
-        return getMember(name, DefaultLookup, memberTypes);
+    public final MemberList getMember(final String name) {
+        return getMember(name, DefaultLookup, EnumSet.noneOf(MemberType.class));
     }
 
-    public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
+    public final MemberList getMember(final String name, final MemberType memberType, final MemberType... memberTypes) {
+        return getMember(name, DefaultLookup, EnumSet.of(memberType, memberTypes));
+    }
+
+    public MemberList getMember(final String name, final int bindingFlags, final Set<MemberType> memberTypes) {
         VerifyArgument.notNull(name, "name");
 
-        if (memberTypes == null || memberTypes.length == 0) {
+        if (memberTypes == null || memberTypes.isEmpty()) {
             return MemberList.empty();
         }
 
         MethodInfo[] methods = EmptyMethods;
         ConstructorInfo[] constructors = EmptyConstructors;
         FieldInfo[] fields = EmptyFields;
-        final Type[] nestedTypes = EmptyTypes;
+        Type[] nestedTypes = EmptyTypes;
 
-        if (ArrayUtilities.contains(memberTypes, MemberType.Field)) {
+        if (memberTypes.contains(MemberType.Field)) {
             fields = getFieldCandidates(name, bindingFlags, true);
         }
 
-        if (ArrayUtilities.contains(memberTypes, MemberType.Method)) {
+        if (memberTypes.contains(MemberType.Method)) {
             if (all(bindingFlags, BindingFlags.Instance)) {
                 methods = getMethodBaseCandidates(getResolvedInstanceMethods(), name, bindingFlags, CallingConvention.Any, null, true);
             }
@@ -334,15 +376,34 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             }
         }
 
-        if (ArrayUtilities.contains(memberTypes, MemberType.Constructor)) {
+        if (memberTypes.contains(MemberType.Constructor)) {
             constructors = getMethodBaseCandidates(getResolvedConstructors(), name, bindingFlags, CallingConvention.Any, null, true);
         }
 
-        if (ArrayUtilities.contains(memberTypes, MemberType.NestedType)) {
+        if (memberTypes.contains(MemberType.NestedType)) {
+            nestedTypes = getNestedTypeCandidates(name, bindingFlags, true);
         }
 
-        if (memberTypes.length == 1) {
-            switch (memberTypes[0]) {
+
+        if (fields == null) {
+            fields = EmptyFields;
+        }
+
+        if (methods == null) {
+            methods = EmptyMethods;
+        }
+
+        if (constructors == null) {
+            constructors = EmptyConstructors;
+        }
+
+        if (nestedTypes == null) {
+            nestedTypes = EmptyTypes;
+        }
+
+        if (memberTypes.size() == 1) {
+            final MemberType memberType = memberTypes.iterator().next();
+            switch (memberType) {
                 case Constructor:
                     if (constructors.length == 0) {
                         return ConstructorList.empty();
@@ -555,12 +616,118 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return (ConstructorInfo)DefaultBinder.selectMethod(bindingFlags, candidates, parameterTypes);
     }
 
-    public MemberList getMembers() {
-        return getMembers(DefaultLookup);
+    public final MemberList getMembers() {
+        return getMembers(DefaultLookup, EnumSet.allOf(MemberType.class));
     }
 
-    public MemberList<? extends MemberInfo> getMembers(final int bindingFlags) {
-        return MemberList.empty();
+    public final MemberList getMembers(final Set<MemberType> memberTypes) {
+        return getMembers(DefaultLookup, memberTypes);
+    }
+
+    public final MemberList getMembers(final MemberType memberType, final MemberType... memberTypes) {
+        return getMembers(DefaultLookup, EnumSet.of(memberType, memberTypes));
+    }
+
+    public final MemberList getMembers(final int bindingFlags) {
+        return getMembers(bindingFlags, EnumSet.allOf(MemberType.class));
+    }
+
+    public final MemberList getMembers(final int bindingFlags, final MemberType memberType, final MemberType... memberTypes) {
+        return getMembers(bindingFlags, EnumSet.of(memberType, memberTypes));
+    }
+
+    public MemberList getMembers(final int bindingFlags, final Set<MemberType> memberTypes) {
+        MethodInfo[] methods = EmptyMethods;
+        ConstructorInfo[] constructors = EmptyConstructors;
+        FieldInfo[] fields = EmptyFields;
+        Type[] nestedTypes = EmptyTypes;
+
+        if (memberTypes.contains(MemberType.Field)) {
+            fields = getFieldCandidates(null, bindingFlags, false);
+        }
+
+        if (memberTypes.contains(MemberType.Method)) {
+            if (all(bindingFlags, BindingFlags.Instance)) {
+                methods = getMethodBaseCandidates(getResolvedInstanceMethods(), null, bindingFlags, CallingConvention.Any, null, false);
+            }
+            if (all(bindingFlags, BindingFlags.Static)) {
+                methods = ArrayUtilities.append(
+                    methods,
+                    getMethodBaseCandidates(getResolvedStaticMethods(), null, bindingFlags, CallingConvention.Any, null, false)
+                );
+            }
+        }
+
+        if (memberTypes.contains(MemberType.Constructor)) {
+            constructors = getMethodBaseCandidates(getResolvedConstructors(), null, bindingFlags, CallingConvention.Any, null, false);
+        }
+
+        if (memberTypes.contains(MemberType.NestedType)) {
+            nestedTypes = getNestedTypeCandidates(null, bindingFlags, false);
+        }
+
+        if (fields == null) {
+            fields = EmptyFields;
+        }
+
+        if (methods == null) {
+            methods = EmptyMethods;
+        }
+
+        if (constructors == null) {
+            constructors = EmptyConstructors;
+        }
+
+        if (nestedTypes == null) {
+            nestedTypes = EmptyTypes;
+        }
+
+        if (memberTypes.size() == 1) {
+            final MemberType memberType = memberTypes.iterator().next();
+            switch (memberType) {
+                case Constructor:
+                    if (constructors.length == 0) {
+                        return ConstructorList.empty();
+                    }
+                    return new ConstructorList(constructors);
+
+                case Field:
+                    if (fields.length == 0) {
+                        return FieldList.empty();
+                    }
+                    return new FieldList(fields);
+
+                case Method:
+                    if (methods.length == 0) {
+                        return MethodList.empty();
+                    }
+                    return new MethodList(methods);
+
+                case NestedType:
+                    if (nestedTypes.length == 0) {
+                        return TypeList.empty();
+                    }
+                    return new TypeList(nestedTypes);
+            }
+        }
+
+        final ArrayList<MemberInfo> results = new ArrayList<>(
+            fields.length +
+            methods.length +
+            constructors.length +
+            nestedTypes.length
+        );
+
+        Collections.addAll(results, fields);
+        Collections.addAll(results, methods);
+        Collections.addAll(results, constructors);
+        Collections.addAll(results, nestedTypes);
+
+        final MemberInfo[] array = new MemberInfo[results.size()];
+
+        results.toArray(array);
+
+        return new MemberList<>(MemberInfo.class, array);
     }
 
     public FieldList getFields() {
@@ -646,7 +813,62 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public TypeList getNestedTypes(final int bindingFlags) {
-        return TypeList.empty();
+        final Type[] candidates = getNestedTypeCandidates(null, bindingFlags, false);
+
+        if (ArrayUtilities.isNullOrEmpty(candidates)) {
+            return TypeList.empty();
+        }
+
+        return list(candidates);
+    }
+
+    public Type<?> getNestedType(final String fullName) {
+        return getNestedType(fullName, DefaultLookup);
+    }
+
+    public Type<?> getNestedType(final String fullName, final int bindingFlags) {
+        VerifyArgument.notNull(fullName, "fullName");
+
+        final String name;
+
+        if (fullName != null) {
+            final String ownerName = getName();
+
+            final boolean isLongName = all(bindingFlags, BindingFlags.IgnoreCase)
+                                       ? StringUtilities.startsWithIgnoreCase(fullName, ownerName)
+                                       : fullName.startsWith(ownerName);
+            if (isLongName) {
+                if (fullName.length() == ownerName.length()) {
+                    return null;
+                }
+                name = fullName.substring(ownerName.length() + 1);
+            }
+            else {
+                name = fullName;
+            }
+        }
+        else {
+            name = null;
+        }
+
+        final int flags = bindingFlags & ~BindingFlags.Static;
+        final FilterOptions filterOptions = getFilterOptions(name, flags, false);
+
+        final TypeList nestedTypes = getResolvedNestedTypes();
+
+        Type<?> match = null;
+
+        for (int i = 0, n = nestedTypes.size(); i < n; i++) {
+            final Type<?> nestedType = nestedTypes.get(i);
+            if (filterApplyType(nestedType, bindingFlags, name, filterOptions.prefixLookup)) {
+                if (match != null) {
+                    throw Error.ambiguousMatch();
+                }
+                match = nestedType;
+            }
+        }
+
+        return match;
     }
 
     public Object[] getEnumConstants() {
@@ -677,6 +899,20 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     @SuppressWarnings("UnusedParameters")
     protected Type makeGenericTypeCore(final TypeList typeArguments) {
         throw Error.notGenericType(this);
+    }
+
+    public static <T> WildcardType<T> makeExtendsWildcard(final Type<T> bound) {
+        return new WildcardType<>(
+            VerifyArgument.notNull(bound, "bound"),
+            NoType
+        );
+    }
+
+    public static WildcardType<?> makeSuperWildcard(final Type<?> bound) {
+        return new WildcardType<>(
+            Types.Object,
+            bound
+        );
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -840,6 +1076,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         return s;
+    }
+
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        return sb.append(getErasedClass().getName());
     }
 
     public StringBuilder appendFullDescription(final StringBuilder sb) {
@@ -1021,10 +1261,27 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 return reflectedType;
             }
 
-            final Symbol symbol = COMPILER.resolveIdent(clazz.getName());
+            final Symbol.ClassSymbol symbol = (Symbol.ClassSymbol)COMPILER.resolveIdent(clazz.getName());
+
+            loadAncestors(symbol);
+
             final Resolver.Frame result = RESOLVER.visit(symbol, null);
 
             return (Type<T>)result.getCurrentType();
+        }
+    }
+
+    private static void loadAncestors(final Symbol.ClassSymbol symbol) {
+        final com.sun.tools.javac.code.Type superclass = symbol.getSuperclass();
+
+        if (superclass != null && superclass.getKind() != TypeKind.NONE && superclass.asElement() != symbol) {
+            of(superclass);
+        }
+
+        for (final com.sun.tools.javac.code.Type type : symbol.getInterfaces()) {
+            if (type != null && type.getKind() != TypeKind.NONE) {
+                of(type);
+            }
         }
     }
 
@@ -1040,28 +1297,42 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         synchronized (CACHE_LOCK) {
-            final Class<T> clazz;
-
-            try {
-                clazz = (Class<T>)Class.forName(type.asElement().flatName().toString());
-            }
-            catch (ClassNotFoundException e) {
-                throw Error.couldNotResolveType(type);
-            }
-
-            Type<?> resultType = (Type<?>)CACHE.find(clazz);
+            Type<?> resultType = tryFind(type);
 
             if (resultType != null) {
                 return (Type<T>)resultType;
             }
 
+            loadAncestors((Symbol.ClassSymbol)type.asElement());
+
             resultType = RESOLVER.visit(type.asElement(), null).getCurrentType();
 
             if (resultType != null) {
-                return (Type<T>) resultType;
+                return (Type<T>)resultType;
             }
 
             throw Error.couldNotResolveType(type);
+        }
+    }
+
+    static Type<?> tryFind(final com.sun.tools.javac.code.Type type) {
+        final TypeKind typeKind = type.getKind();
+
+        if (typeKind == TypeKind.VOID || typeKind.isPrimitive()) {
+            return PRIMITIVE_TYPES[typeKind.ordinal()];
+        }
+
+        synchronized (CACHE_LOCK) {
+            final Class<?> clazz;
+
+            try {
+                clazz = Class.forName(type.asElement().flatName().toString());
+            }
+            catch (ClassNotFoundException e) {
+                throw Error.couldNotResolveType(type);
+            }
+
+            return (Type<?>)CACHE.find(clazz);
         }
     }
 
@@ -1076,6 +1347,52 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         synchronized (CACHE_LOCK) {
             return TYPE_RESOLVER.resolve(jdkType, bindings != null ? bindings : TypeBindings.empty());
         }
+    }
+
+    public static CompoundType<?> makeCompoundType(final TypeList bounds) {
+        VerifyArgument.notEmpty(bounds, "bounds");
+        VerifyArgument.noNullElements(bounds, "bounds");
+
+        final Type<?> baseType;
+        final TypeList interfaces;
+
+        if (!bounds.get(0).isInterface()) {
+            baseType = bounds.get(0);
+            interfaces = bounds.subList(1, bounds.size());
+        }
+        else {
+            baseType = Types.Object;
+            interfaces = bounds;
+        }
+
+        return makeCompoundType(baseType, interfaces);
+    }
+
+    public static CompoundType<?> makeCompoundType(final Type<?> baseType, final TypeList interfaces) {
+        VerifyArgument.notNull(baseType, "baseType");
+        VerifyArgument.noNullElements(interfaces, "interfaces");
+
+        return makeCompoundTypeCore(baseType, interfaces);
+    }
+
+    private static <T> CompoundType<T> makeCompoundTypeCore(final Type<T> baseType, final TypeList interfaces) {
+        if (baseType.isGenericParameter()) {
+            throw Error.compoundTypeMayNotHaveGenericParameterBound();
+        }
+
+        for (int i = 0, n = interfaces.size(); i < n; i++) {
+            final Type type = interfaces.get(i);
+
+            if (type.isGenericParameter()) {
+                throw Error.compoundTypeMayNotHaveGenericParameterBound();
+            }
+
+            if (!type.isInterface()) {
+                throw Error.compoundTypeMayOnlyHaveOneClassBound();
+            }
+        }
+
+        return new CompoundType<>(interfaces, baseType);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1099,6 +1416,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     private HierarchicType _mainType;
 
     private ReadOnlyList<HierarchicType> _typeHierarchy;
+    private TypeList _resolvedNestedTypes;
     private ConstructorList _resolvedConstructors;
     private MethodList _resolvedInstanceMethods;
     private MethodList _resolvedStaticMethods;
@@ -1150,6 +1468,17 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             }
         }
         return _resolvedFields;
+    }
+
+    TypeList getResolvedNestedTypes() {
+        if (_resolvedNestedTypes == null) {
+            synchronized (CACHE_LOCK) {
+                if (_resolvedNestedTypes == null) {
+                    _resolvedNestedTypes = resolveNestedTypes();
+                }
+            }
+        }
+        return _resolvedNestedTypes;
     }
 
     HierarchicType getMainType() {
@@ -1211,6 +1540,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     protected List<Field> getRawFields() {
         return Arrays.asList(getErasedClass().getDeclaredFields());
+    }
+
+    protected TypeList resolveNestedTypes() {
+        return TypeList.empty();
     }
 
     protected ConstructorList resolveConstructors() {
@@ -1417,6 +1750,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         if (candidates == null) {
+            if (source instanceof ConstructorList) {
+                return (T[]) EmptyConstructors;
+            }
             return (T[])EmptyMethods;
         }
 
@@ -1477,34 +1813,147 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     private Type[] getNestedTypeCandidates(final String fullName, final int bindingFlags, final boolean allowPrefixLookup) {
+
+        final String name;
+
+        if (fullName != null) {
+            final String ownerName = getName();
+
+            final boolean isLongName = all(bindingFlags, BindingFlags.IgnoreCase)
+                                       ? StringUtilities.startsWithIgnoreCase(fullName, ownerName)
+                                       : fullName.startsWith(ownerName);
+            if (isLongName) {
+                if (fullName.length() == ownerName.length()) {
+                    return EmptyTypes;
+                }
+                name = fullName.substring(ownerName.length() + 1);
+            }
+            else {
+                name = fullName;
+            }
+        }
+        else {
+            name = null;
+        }
+
         final int flags = bindingFlags & ~BindingFlags.Static;
-        final FilterOptions filterOptions = getFilterOptions(fullName, flags, allowPrefixLookup);
+        final FilterOptions filterOptions = getFilterOptions(name, flags, allowPrefixLookup);
 
-/*
-        SplitName(fullname, out name, out ns);
-        RuntimeType.FilterHelper(bindingAttr, ref name, allowPrefixLookup, out prefixLookup, out ignoreCase, out listType);
+        final TypeList nestedTypes = getResolvedNestedTypes();
+        final ListBuffer<Type<?>> candidates = new ListBuffer<>();
 
-        CerArrayList<RuntimeType> cache = Cache.GetNestedTypeList(listType, name);
-
-        List<Type> candidates = new List<Type>(cache.Count);
-        for (int i = 0; i < cache.Count; i++)
-        {
-            RuntimeType nestedClass = cache[i];
-            if (RuntimeType.FilterApplyType(nestedClass, bindingAttr, name, prefixLookup, ns))
-            {
-                candidates.Add(nestedClass);
+        for (int i = 0, n = nestedTypes.size(); i < n; i++) {
+            final Type<?> nestedType = nestedTypes.get(i);
+            if (filterApplyType(nestedType, flags, name, filterOptions.prefixLookup)) {
+                candidates.add(nestedType);
             }
         }
 
-        return candidates.ToArray();
-*/
-        return EmptyTypes;
+        if (candidates.isEmpty()) {
+            return EmptyTypes;
+        }
+
+        return candidates.toArray(new Type[candidates.size()]);
+    }
+
+    private boolean filterApplyType(
+        final Type<?> type,
+        final int bindingFlags,
+        final String name,
+        final boolean prefixLookup) {
+        VerifyArgument.notNull(type, "type");
+
+        final boolean isPublic = type.isPublic();
+        final boolean isStatic = false;
+
+        return filterApplyCore(
+            type,
+            bindingFlags,
+            isPublic,
+            type.isNested() && type.isPackagePrivate(),
+            isStatic,
+            name,
+            prefixLookup
+        );
+    }
+
+    private boolean filterApplyCore(
+        final MemberInfo member,
+        final int bindingFlags,
+        final boolean isPublic,
+        final boolean isPackagePrivate,
+        final boolean isStatic,
+        final String name,
+        final boolean prefixLookup) {
+        if (isPublic) {
+            if (!any(bindingFlags, BindingFlags.Public)) {
+                return false;
+            }
+        }
+        else {
+            if (!any(bindingFlags, BindingFlags.NonPublic)) {
+                return false;
+            }
+        }
+
+        final boolean isInherited = member.getDeclaringType() != this;
+
+        if (isInherited && any(bindingFlags, BindingFlags.DeclaredOnly)) {
+            return false;
+        }
+
+        if (member.getMemberType() != MemberType.TypeInfo &&
+            member.getMemberType() != MemberType.NestedType) {
+            if (isStatic) {
+                if ((bindingFlags & BindingFlags.FlattenHierarchy) == 0 && isInherited) {
+                    return false;
+                }
+
+                if ((bindingFlags & BindingFlags.Static) == 0) {
+                    return false;
+                }
+            }
+            else {
+                if ((bindingFlags & BindingFlags.Instance) == 0) {
+                    return false;
+                }
+            }
+        }
+
+        if (prefixLookup) {
+            if (!filterApplyPrefixLookup(member, name, any(bindingFlags, BindingFlags.IgnoreCase))) {
+                return false;
+            }
+        }
+
+        /*
+            Asymmetry:
+
+             Package-private, inherited, instance, non-protected, non-virtual, non-abstract members returned iff
+             BindingFlags !DeclaredOnly, Instance and Public are present except for fields
+        */
+
+        //noinspection SimplifiableIfStatement
+        if (!any(bindingFlags, BindingFlags.DeclaredOnly) &&    // DeclaredOnly not present
+            isInherited &&                                      // Is inherited Member
+
+            isPackagePrivate &&                                 // Is package-private member
+            any(bindingFlags, BindingFlags.NonPublic) &&        // BindingFlag.NonPublic present
+
+            !isStatic &&                                        // Is instance member
+            any(bindingFlags, BindingFlags.Instance))           // BindingFlag.Instance present
+        {
+            return member instanceof MethodInfo &&
+                   !member.isFinal();
+        }
+
+        return true;
     }
 
     private boolean filterApplyPrefixLookup(final MemberInfo method, final String name, final boolean ignoreCase) {
         final String methodName = method.getName();
         if (ignoreCase) {
-            if (!StringEx.startsWithIgnoreCase(methodName.toLowerCase(), name)) {
+            if (!StringUtilities.startsWithIgnoreCase(methodName.toLowerCase(), name)) {
                 return false;
             }
         }

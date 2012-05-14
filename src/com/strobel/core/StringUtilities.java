@@ -3,11 +3,49 @@ package com.strobel.core;
 /**
  * @author Mike Strobel
  */
-public final class StringEx {
-    private StringEx() {}
+public final class StringUtilities {
+    private StringUtilities() {}
+
+    private final static StringComparator[] _comparators = new StringComparator[] { StringComparator.Ordinal, StringComparator.OrdinalIgnoreCase };
 
     public static boolean isNullOrEmpty(final String s) {
         return s == null || s.length() == 0;
+    }
+
+    public static boolean equals(final String s1, final String s2) {
+        return StringComparator.Ordinal.equals(s1, s2);
+    }
+    public static boolean equals(final String s1, final String s2, final StringComparison comparison) {
+        return _comparators[VerifyArgument.notNull(comparison, "comparison").ordinal()].equals(s1, s2);
+    }
+
+    public static int compare(final String s1, final String s2) {
+        return StringComparator.Ordinal.compare(s1, s2);
+    }
+
+    public static int compare(final String s1, final String s2, final StringComparison comparison) {
+        return _comparators[VerifyArgument.notNull(comparison, "comparison").ordinal()].compare(s1, s2);
+    }
+
+    public static int getHashCode(final String s) {
+        if (isNullOrEmpty(s)) {
+            return 0;
+        }
+        return s.hashCode();
+    }
+
+    public static int getHashCodeIgnoreCase(final String s) {
+        if (isNullOrEmpty(s)) {
+            return 0;
+        }
+
+        int hash = 0;
+
+        for (int i = 0, n = s.length(); i < n; i++) {
+            hash = 31 * hash + Character.toLowerCase(s.charAt(i));
+        }
+
+        return hash;
     }
 
     public static boolean isNullOrWhitespace(final String s) {

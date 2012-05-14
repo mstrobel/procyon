@@ -23,4 +23,18 @@ public final class MethodList extends MemberList<MethodInfo> {
     public MethodList(final MethodInfo[] elements, final int offset, final int length) {
         super(MethodInfo.class, elements, offset, length);
     }
+
+    @Override
+    public MethodList subList(final int fromIndex, final int toIndex) {
+        subListRangeCheck(fromIndex, toIndex, size());
+
+        final int offset = getOffset() + fromIndex;
+        final int length = toIndex - fromIndex;
+
+        if (length == 0) {
+            return empty();
+        }
+
+        return new MethodList(getElements(), offset, length);
+    }
 }

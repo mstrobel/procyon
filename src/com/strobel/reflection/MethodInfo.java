@@ -4,6 +4,8 @@ import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 
+import com.sun.tools.javac.code.Flags;
+
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.TypeVariable;
@@ -12,7 +14,13 @@ import java.lang.reflect.TypeVariable;
  * @author Mike Strobel
  */
 public abstract class MethodInfo extends MethodBase {
-    public abstract boolean isStatic();
+    public boolean isStatic() {
+        return Modifier.isStatic(getModifiers());
+    }
+
+    public boolean isAbstract() {
+        return Modifier.isAbstract(getModifiers());
+    }
 
     public abstract Type getReturnType();
 
@@ -31,6 +39,11 @@ public abstract class MethodInfo extends MethodBase {
     @Override
     public StringBuilder appendDescription(final StringBuilder sb) {
         StringBuilder s = new StringBuilder();
+
+        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
+            s.append(modifier.toString());
+            s.append(' ');
+        }
 
         s = getReturnType().appendBriefDescription(s);
         s.append(' ');
@@ -71,10 +84,12 @@ public abstract class MethodInfo extends MethodBase {
         if (isGenericMethod() && !isGenericMethodDefinition()) {
             return getGenericMethodDefinition().appendErasedDescription(sb);
         }
-        final Type declaringType = getDeclaringType();
-        if (declaringType.isGenericType() && !declaringType.isGenericTypeDefinition()) {
-            return declaringType.getGenericTypeDefinition().getMethod(getRawMethod()).appendErasedDescription(sb);
+
+        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
+            sb.append(modifier.toString());
+            sb.append(' ');
         }
+
         return getReturnType().appendErasedSignature(super.appendDescription(sb));
     }
 
@@ -121,28 +136,28 @@ public abstract class MethodInfo extends MethodBase {
         }
 
         final ParameterList parameters = getParameters();
-        
+
         for (int i = 0, n = parameters.size(); i < n; i++) {
             final ParameterInfo parameter = parameters.get(i);
             if (parameter.getParameterType().containsGenericParameters()) {
                 return true;
             }
         }
-        
+
         return false;
     }
-    
+
     public MethodInfo makeGenericMethod(final TypeList typeArguments) {
         if (!isGenericMethodDefinition()) {
             throw Error.notGenericMethodDefinition(this);
         }
 
         final TypeBindings bindings = TypeBindings.create(getGenericMethodParameters(), typeArguments);
-        
+
         if (!bindings.hasBoundParameters()) {
             throw new IllegalArgumentException("At least one generic parameter must be bound.");
         }
-        
+
         return new GenericMethod(bindings, this);
     }
 }
@@ -169,7 +184,7 @@ class ReflectedMethod extends MethodInfo {
             final Type p = bindings.getGenericParameter(i);
 
             if (p instanceof GenericParameterType) {
-                final GenericParameterType gp = (GenericParameterType) p;
+                final GenericParameterType gp = (GenericParameterType)p;
                 final TypeVariable<?> typeVariable = gp.getRawTypeVariable();
 
                 if (typeVariable.getGenericDeclaration() == rawMethod) {
@@ -185,7 +200,8 @@ class ReflectedMethod extends MethodInfo {
                     if (bindings.hasBoundParameter(gp)) {
                         throw new IllegalArgumentException(
                             "ReflectedMethod cannot be used with bound generic method parameters.  " +
-                                "Use GenericMethod instead.");
+                            "Use GenericMethod instead."
+                        );
                     }
                 }
             }
@@ -263,30 +279,31 @@ final class GenericMethod extends MethodInfo {
         _genericMethodDefinition = VerifyArgument.notNull(genericMethodDefinition, "genericMethodDefinition");
 
         final ParameterList definitionParameters = _genericMethodDefinition.getParameters();
-        
+
         if (definitionParameters.isEmpty()) {
             _parameters = definitionParameters;
         }
         else {
             ParameterInfo[] parameters = null;
-            
+
             for (int i = 0, n = definitionParameters.size(); i < n; i++) {
                 final ParameterInfo parameter = definitionParameters.get(i);
                 final Type parameterType = parameter.getParameterType();
-                
+
                 final Type resolvedParameterType = resolveBindings(parameterType);
-                
+
                 if (resolvedParameterType != parameterType) {
                     if (parameters == null) {
                         parameters = definitionParameters.toArray();
                     }
-                    
+
                     parameters[i] = new ParameterInfo(
                         parameter.getName(),
-                        resolveBindings(parameterType));
+                        resolveBindings(parameterType)
+                    );
                 }
             }
-            
+
             if (parameters != null) {
                 _parameters = new ParameterList(parameters);
             }
@@ -332,7 +349,8 @@ final class GenericMethod extends MethodInfo {
             }
             return Type.resolve(
                 type.getErasedClass(),
-                bindings);
+                bindings
+            );
         }
         return type;
     }
@@ -356,7 +374,7 @@ final class GenericMethod extends MethodInfo {
     public CallingConvention getCallingConvention() {
         return _genericMethodDefinition.getCallingConvention();
     }
-    
+
     @Override
     int getModifiers() {
         return _genericMethodDefinition.getModifiers();

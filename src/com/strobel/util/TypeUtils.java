@@ -12,39 +12,39 @@ public final class TypeUtils {
     private TypeUtils() {}
 
     public static boolean isAutoUnboxed(final Type type) {
-        return type == Type.of(Integer.class) ||
-               type == Type.of(Long.class) ||
-               type == Type.of(Double.class) ||
-               type == Type.of(Float.class) ||
-               type == Type.of(Short.class) ||
-               type == Type.of(Byte.class) ||
-               type == Type.of(Boolean.class) ||
-               type == Type.of(Character.class);
+        return type == Types.Integer ||
+               type == Types.Long ||
+               type == Types.Double ||
+               type == Types.Float ||
+               type == Types.Short ||
+               type == Types.Byte ||
+               type == Types.Boolean ||
+               type == Types.Character;
     }
 
     public static Type getUnderlyingPrimitive(final Type type) {
-        if (type == Type.of(Integer.class)) {
+        if (type == Types.Integer) {
             return PrimitiveTypes.Integer;
         }
-        if (type == Type.of(Long.class)) {
+        if (type == Types.Long) {
             return PrimitiveTypes.Long;
         }
-        if (type == Type.of(Double.class)) {
+        if (type == Types.Double) {
             return PrimitiveTypes.Double;
         }
-        if (type == Type.of(Float.class)) {
+        if (type == Types.Float) {
             return PrimitiveTypes.Float;
         }
-        if (type == Type.of(Short.class)) {
+        if (type == Types.Short) {
             return PrimitiveTypes.Short;
         }
-        if (type == Type.of(Byte.class)) {
+        if (type == Types.Byte) {
             return PrimitiveTypes.Byte;
         }
-        if (type == Type.of(Boolean.class)) {
+        if (type == Types.Boolean) {
             return PrimitiveTypes.Boolean;
         }
-        if (type == Type.of(Character.class)) {
+        if (type == Types.Character) {
             return PrimitiveTypes.Character;
         }
         return null;
@@ -70,28 +70,28 @@ public final class TypeUtils {
             return null;
         }
         if (type == PrimitiveTypes.Integer) {
-            return Type.of(Integer.class);
+            return Types.Integer;
         }
         if (type == PrimitiveTypes.Long) {
-            return Type.of(Long.class);
+            return Types.Long;
         }
         if (type == PrimitiveTypes.Double) {
-            return Type.of(Double.class);
+            return Types.Double;
         }
         if (type == PrimitiveTypes.Float) {
-            return Type.of(Float.class);
+            return Types.Float;
         }
         if (type == PrimitiveTypes.Short) {
-            return Type.of(Short.class);
+            return Types.Short;
         }
         if (type == PrimitiveTypes.Byte) {
-            return Type.of(Byte.class);
+            return Types.Byte;
         }
         if (type == PrimitiveTypes.Boolean) {
-            return Type.of(Boolean.class);
+            return Types.Boolean;
         }
         if (type == PrimitiveTypes.Character) {
-            return Type.of(Character.class);
+            return Types.Character;
         }
         return null;
     }
@@ -133,7 +133,7 @@ public final class TypeUtils {
     }
 
     public static boolean isBoolean(final Type type) {
-        return type == PrimitiveTypes.Boolean || type == Type.of(Boolean.class);
+        return type == PrimitiveTypes.Boolean || type == Types.Boolean;
     }
 
     public static boolean areEquivalent(final Type class1, final Type class2) {

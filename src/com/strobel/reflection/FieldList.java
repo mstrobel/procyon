@@ -23,4 +23,18 @@ public final class FieldList extends MemberList<FieldInfo> {
     public FieldList(final FieldInfo[] elements, final int offset, final int length) {
         super(FieldInfo.class, elements, offset, length);
     }
+
+    @Override
+    public FieldList subList(final int fromIndex, final int toIndex) {
+        subListRangeCheck(fromIndex, toIndex, size());
+
+        final int offset = getOffset() + fromIndex;
+        final int length = toIndex - fromIndex;
+
+        if (length == 0) {
+            return empty();
+        }
+
+        return new FieldList(getElements(), offset, length);
+    }
 }

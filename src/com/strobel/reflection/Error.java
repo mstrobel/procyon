@@ -154,4 +154,17 @@ final class Error {
             "Type arguments must bind at least one generic parameter."
         );
     }
+
+    public static RuntimeException compoundTypeMayOnlyHaveOneClassBound() {
+        throw new RuntimeException(
+            "Compound types may only be bounded by one class, and it must be the first type in " +
+            "the bound list.  All other bounds must be interface types."
+        );
+    }
+
+    public static RuntimeException compoundTypeMayNotHaveGenericParameterBound() {
+        throw new RuntimeException(
+            "Compound types may not be bounded by a generic parameter."
+        );
+    }
 }

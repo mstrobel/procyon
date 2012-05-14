@@ -1,21 +1,24 @@
 package com.strobel.reflection;
 
-import com.sun.tools.javac.code.Flags;
-
 import javax.lang.model.type.TypeKind;
 
 /**
  * @author Mike Strobel
  */
-final class NullType extends Type {
+final class NoType extends Type {
     @Override
     public TypeKind getKind() {
-        return TypeKind.NULL;
+        return TypeKind.NONE;
     }
 
     @Override
     public final Class getErasedClass() {
         return null;
+    }
+
+    @Override
+    public boolean isAssignableFrom(final Type type) {
+        return true;
     }
 
     @Override
@@ -26,7 +29,7 @@ final class NullType extends Type {
 
     @Override
     public final String getName() {
-        return "<nulltype>";
+        return "<any>";
     }
 
     @Override
@@ -41,7 +44,7 @@ final class NullType extends Type {
 
     @Override
     final int getModifiers() {
-        return Flags.PUBLIC;
+        return 0;
     }
 
     @Override
@@ -79,4 +82,3 @@ final class NullType extends Type {
         return ConstructorList.empty();
     }
 }
-

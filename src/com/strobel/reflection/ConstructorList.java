@@ -23,4 +23,18 @@ public final class ConstructorList extends MemberList<ConstructorInfo> {
     public ConstructorList(final ConstructorInfo[] elements, final int offset, final int length) {
         super(ConstructorInfo.class, elements, offset, length);
     }
+
+    @Override
+    public ConstructorList subList(final int fromIndex, final int toIndex) {
+        subListRangeCheck(fromIndex, toIndex, size());
+
+        final int offset = getOffset() + fromIndex;
+        final int length = toIndex - fromIndex;
+
+        if (length == 0) {
+            return empty();
+        }
+
+        return new ConstructorList(getElements(), offset, length);
+    }
 }

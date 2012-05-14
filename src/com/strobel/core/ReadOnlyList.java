@@ -62,9 +62,17 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
         _length = length;
     }
 
+    protected final int getOffset() {
+        return _offset;
+    }
+
+    protected final T[] getElements() {
+        return _elements;
+    }
+
     @Override
     public final int size() {
-        return _length - _offset;
+        return _length;
     }
 
     @Override
@@ -96,7 +104,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     @Override
     @SuppressWarnings("unchecked")
     public final T[] toArray() {
-        return (T[])Arrays.copyOfRange(_elements, _offset, _length, _elements.getClass());
+        return (T[])Arrays.copyOfRange(_elements, _offset, _offset + _length, _elements.getClass());
     }
 
     @Override
@@ -105,7 +113,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
         final int length = _length;
 
         if (a.length < length) {
-            return (T[])Arrays.copyOfRange(_elements, _offset, _length, _elements.getClass());
+            return (T[])Arrays.copyOfRange(_elements, _offset, _offset + _length, _elements.getClass());
         }
 
         System.arraycopy(_elements, _offset, a, 0, length);
@@ -253,7 +261,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     }
 
     @Override
-    public final ReadOnlyList<T> subList(final int fromIndex, final int toIndex) {
+    public ReadOnlyList<T> subList(final int fromIndex, final int toIndex) {
         subListRangeCheck(fromIndex, toIndex, size());
         return new ReadOnlyList<>(this, _offset + fromIndex, _offset + toIndex);
     }

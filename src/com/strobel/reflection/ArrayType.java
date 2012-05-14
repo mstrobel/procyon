@@ -2,20 +2,28 @@ package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
 
+import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
 
 /**
  * @author strobelm
  */
-class ArrayType<T> extends Type<T> {
+public class ArrayType<T> extends Type<T> {
     private final Type<?> _elementType;
     private final Class<T> _erasedClass;
+    private final FieldList _fields = FieldList.empty();
+    private final MethodList _instanceMethods = MethodList.empty();
 
     @SuppressWarnings("unchecked")
     ArrayType(final Type<?> elementType) {
         _elementType = VerifyArgument.notNull(elementType, "elementType");
         _erasedClass = (Class<T>)Array.newInstance(elementType.getErasedClass(), 0).getClass();
+    }
+
+    @Override
+    public TypeKind getKind() {
+        return TypeKind.ARRAY;
     }
 
     @Override
@@ -47,51 +55,6 @@ class ArrayType<T> extends Type<T> {
     }
 
     @Override
-    public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final MemberType[] memberTypes) {
-        return MemberList.empty();
-    }
-
-    @Override
-    public FieldInfo getField(final String name, final int bindingFlags) {
-        return null;
-    }
-
-    @Override
-    public MethodInfo getMethod(final String name, final int bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes) {
-        return null;
-    }
-
-    @Override
-    public ConstructorInfo getConstructor(final int bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes) {
-        return null;
-    }
-
-    @Override
-    public MemberList<? extends MemberInfo> getMembers(final int bindingFlags) {
-        return MemberList.empty();
-    }
-
-    @Override
-    public FieldList getFields(final int bindingFlags) {
-        return FieldList.empty();
-    }
-
-    @Override
-    public MethodList getMethods(final int bindingFlags, final CallingConvention callingConvention) {
-        return MethodList.empty();
-    }
-
-    @Override
-    public ConstructorList getConstructors(final int bindingFlags) {
-        return ConstructorList.empty();
-    }
-
-    @Override
-    public TypeList getNestedTypes(final int bindingFlags) {
-        return TypeList.empty();
-    }
-
-    @Override
     public MemberType getMemberType() {
         return MemberType.TypeInfo;
     }
@@ -109,6 +72,16 @@ class ArrayType<T> extends Type<T> {
     @Override
     int getModifiers() {
         return 0;
+    }
+
+    @Override
+    MethodList getResolvedInstanceMethods() {
+        return _instanceMethods;
+    }
+
+    @Override
+    FieldList getResolvedFields() {
+        return _fields;
     }
 
     @Override

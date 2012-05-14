@@ -34,6 +34,20 @@ public class MemberList<T extends MemberInfo> extends ReadOnlyList<T> {
         _memberType = VerifyArgument.notNull(memberType, "memberType");
     }
 
+    @Override
+    public MemberList<T> subList(final int fromIndex, final int toIndex) {
+        subListRangeCheck(fromIndex, toIndex, size());
+
+        final int offset = getOffset() + fromIndex;
+        final int length = toIndex - fromIndex;
+
+        if (length == 0) {
+            return empty();
+        }
+
+        return new MemberList<>(_memberType, getElements(), offset, length);
+    }
+
     Class<T> getMemberType() {
         return _memberType;
     }

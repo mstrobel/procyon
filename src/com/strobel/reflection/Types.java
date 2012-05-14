@@ -46,6 +46,7 @@ public final class Types {
     public static final Type<ClassLoader> ClassLoader;
 
     public static final Type<Serializable> Serializable;
+    public static final Type<Cloneable> Cloneable;
 
     static {
         Object = new ReflectedType<>(Object.class, TypeBindings.empty(), null, TypeList.empty());
@@ -82,6 +83,7 @@ public final class Types {
         ClassLoader = Type.of(ClassLoader.class);
 
         Serializable = Type.of(Serializable.class);
+        Cloneable = Type.of(Cloneable.class);
     }
 
     static void ensureRegistered() {
