@@ -815,6 +815,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     private ErasedType<T> _erasedType;
 
     public final Type<T> getErasedType() {
+        if (isGenericType() && !isGenericTypeDefinition()) {
+            return getGenericTypeDefinition().getErasedType();
+        }
         if (_erasedType == null) {
             synchronized (CACHE_LOCK) {
                 if (_erasedType == null) {

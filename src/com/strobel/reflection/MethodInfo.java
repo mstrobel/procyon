@@ -143,6 +143,10 @@ public abstract class MethodInfo extends MethodBase {
         return false;
     }
 
+    public MethodInfo makeGenericMethod(final Type<?>... typeArguments) {
+        return makeGenericMethod(Type.list(VerifyArgument.noNullElements(typeArguments, "typeArguments")));
+    }
+
     public MethodInfo makeGenericMethod(final TypeList typeArguments) {
         if (!isGenericMethodDefinition()) {
             throw Error.notGenericMethodDefinition(this);

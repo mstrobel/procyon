@@ -11,7 +11,7 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
-import javax.lang.model.util.AbstractElementVisitor8;
+import javax.lang.model.util.AbstractElementVisitor7;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -23,7 +23,7 @@ import java.util.Stack;
  * @author Mike Strobel
  */
 @SuppressWarnings("unchecked")
-public final class Resolver extends AbstractElementVisitor8<Type<?>, Resolver.Frame> {
+public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Frame> {
     private final Context _context;
 
     public Resolver(final Context context) {
@@ -114,6 +114,19 @@ public final class Resolver extends AbstractElementVisitor8<Type<?>, Resolver.Fr
         }
 
         Type<?> resolveType(final TypeMirror t) {
+            final Type<?> result = resolveTypeCore(t);
+            
+            if (result != null && 
+                result.isGenericType() && 
+                ((com.sun.tools.javac.code.Type)t).getTypeArguments().isEmpty()) {
+                
+                return result.getErasedType();
+            }
+            
+            return result;
+        }
+
+        private Type<?> resolveTypeCore(final TypeMirror t) {
             if (t instanceof com.sun.tools.javac.code.Type.ArrayType) {
                 final com.sun.tools.javac.code.Type componentTypeMirror = ((com.sun.tools.javac.code.Type.ArrayType)t).getComponentType();
                 final Type<?> componentType = resolveType(componentTypeMirror);
@@ -379,6 +392,9 @@ public final class Resolver extends AbstractElementVisitor8<Type<?>, Resolver.Fr
             final Type<?> existingType = resolveExisting(frame, t, false);
 
             if (existingType != null) {
+                if (existingType.isGenericType() && e.getTypeParameters().isEmpty()) {
+                    return existingType.getErasedType();
+                }
                 return existingType;
             }
         }
