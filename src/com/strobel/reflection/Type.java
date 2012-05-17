@@ -61,10 +61,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="Attributes">
+    // <editor-fold defaultstate="collapsed" desc="Type Information">
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // ATTRIBUTES                                                                                                         //
+    // REFLECTION METHODS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
@@ -129,14 +129,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public boolean hasElementType() {
         return false;
     }
-
-    // </editor-fold>
-
-    // <editor-fold defaultstate="collapsed" desc="Type Information">
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // REFLECTION METHODS                                                                                                 //
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public TypeKind getKind() {
         return TypeKind.DECLARED;
