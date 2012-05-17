@@ -13,7 +13,7 @@ final class Error {
         throw new UnsupportedOperationException(
             format(
                 "Type '%s' is not a generic parameter.",
-                type.getName()
+                type.getFullName()
             )
         );
     }
@@ -22,7 +22,7 @@ final class Error {
         throw new UnsupportedOperationException(
             format(
                 "Type '%s' is not a generic type.",
-                type.getName()
+                type.getFullName()
             )
         );
     }
@@ -49,7 +49,7 @@ final class Error {
         throw new UnsupportedOperationException(
             format(
                 "Type '%s' does not have an element type.",
-                type.getName()
+                type.getFullName()
             )
         );
     }
@@ -58,7 +58,7 @@ final class Error {
         throw new UnsupportedOperationException(
             format(
                 "Type '%s' is not an enum type.",
-                type.getName()
+                type.getFullName()
             )
         );
     }
@@ -67,7 +67,7 @@ final class Error {
         throw new UnsupportedOperationException(
             format(
                 "Type '%s' is not an array type.",
-                type.getName()
+                type.getFullName()
             )
         );
     }
@@ -86,7 +86,7 @@ final class Error {
         throw new UnsupportedOperationException(
             format(
                 "Incorrect number of type arguments provided for generic type '%s'.",
-                type.getName()
+                type.getFullName()
             )
         );
     }
@@ -95,7 +95,7 @@ final class Error {
         throw new UnsupportedOperationException(
             format(
                 "Type '%s' is not a generic type definition.",
-                type.getName()
+                type.getFullName()
             )
         );
     }
@@ -113,7 +113,7 @@ final class Error {
         throw new UnsupportedOperationException(
             format(
                 "Generic parameter '%s' is not defined on this type.",
-                typeParameter.getName()
+                typeParameter.getFullName()
             )
         );
     }

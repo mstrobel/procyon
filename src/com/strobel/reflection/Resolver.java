@@ -47,7 +47,7 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
         private final TypeElement _typeElement;
         private final Frame _previous;
         private final Map<Element, Type> _elementTypeMap;
-        private final Stack<ClassMethod> _methods;
+        private final Stack<JavacMethod> _methods;
 
         private List<Type<?>> _typeArguments = com.sun.tools.javac.util.List.nil();
 
@@ -55,7 +55,7 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
             _typeElement = VerifyArgument.notNull(typeElement, "typeElement");
             _previous = previous;
             _elementTypeMap = previous != null ? previous._elementTypeMap : new HashMap<Element, Type>();
-            _methods = previous != null ? previous._methods : new Stack<ClassMethod>();
+            _methods = previous != null ? previous._methods : new Stack<JavacMethod>();
             _type = new JavacType<>(_context, (Symbol.ClassSymbol)typeElement);
             _elementTypeMap.put(typeElement, _type);
 
@@ -71,7 +71,7 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
             _typeElement = type.getTypeElement();
             _previous = previous;
             _elementTypeMap = previous != null ? previous._elementTypeMap : new HashMap<Element, Type>();
-            _methods = previous != null ? previous._methods : new Stack<ClassMethod>();
+            _methods = previous != null ? previous._methods : new Stack<JavacMethod>();
             _elementTypeMap.put(_typeElement, _type);
 
             final Frame ownerFrame = findFrame(_typeElement.getEnclosingElement());
@@ -85,15 +85,15 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
             return _type;
         }
 
-        void pushMethod(final ClassMethod method) {
+        void pushMethod(final JavacMethod method) {
             _methods.push(method);
         }
 
-        ClassMethod popMethod() {
+        JavacMethod popMethod() {
             return _methods.pop();
         }
 
-        ClassMethod currentMethod() {
+        JavacMethod currentMethod() {
             return _methods.peek();
         }
 
@@ -115,14 +115,14 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
 
         Type<?> resolveType(final TypeMirror t) {
             final Type<?> result = resolveTypeCore(t);
-            
-            if (result != null && 
-                result.isGenericType() && 
+
+            if (result != null &&
+                result.isGenericType() &&
                 ((com.sun.tools.javac.code.Type)t).getTypeArguments().isEmpty()) {
-                
+
                 return result.getErasedType();
             }
-            
+
             return result;
         }
 
@@ -186,7 +186,7 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
                             final JavacType<?> declaringType = (JavacType<?>)resolveType((Symbol.TypeSymbol)genericElement.getEnclosingElement());
                             final Symbol.MethodSymbol methodSymbol = (Symbol.MethodSymbol)genericElement;
                             final int position = methodSymbol.getTypeParameters().indexOf(typeArg.asElement());
-                            final ClassMethod declaredMethod = declaringType.findMethod(methodSymbol);
+                            final JavacMethod declaredMethod = declaringType.findMethod(methodSymbol);
 
                             resolvedTypeArguments[i] = declaredMethod.getTypeArguments().get(position);
                         }
@@ -497,8 +497,12 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
             result = fromCacheOrFrame != null ? fromCacheOrFrame : visit(type.asElement(), frame);
         }
 
-        final List<com.sun.tools.javac.code.Type> unresolvedTypeArguments = type.getTypeArguments();
         final TypeList typeArguments = result.getTypeArguments();
+        final List<com.sun.tools.javac.code.Type> unresolvedTypeArguments = type.getTypeArguments();
+
+        if (unresolvedTypeArguments.isEmpty() && !typeArguments.isEmpty()) {
+            return result.getErasedType();
+        }
 
         Type[] newTypeArguments = null;
 
@@ -554,7 +558,7 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
         return frame.getCurrentType();
     }
 
-    private Type<?> doVisitParameter(final VariableElement e, final Frame frame, final ClassMethod method) {
+    private Type<?> doVisitParameter(final VariableElement e, final Frame frame, final JavacMethod method) {
         final Type<?> parameterType = resolveType((com.sun.tools.javac.code.Type)e.asType(), frame);
 
         if (parameterType == null) {
@@ -650,7 +654,7 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
         }
 
         final Symbol.MethodSymbol methodSymbol = (Symbol.MethodSymbol)e;
-        final ClassMethod method = new ClassMethod(frame.getCurrentType(), methodSymbol);
+        final JavacMethod method = new JavacMethod(frame.getCurrentType(), methodSymbol);
 
         frame.getCurrentType().addMethod(method);
         frame.pushMethod(method);
@@ -742,7 +746,7 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
     }
 }
 
-class JavacGenericParameter extends Type {
+final class JavacGenericParameter extends Type {
 
     private final String _name;
     private final JavacType<?> _declaringType;
@@ -785,20 +789,35 @@ class JavacGenericParameter extends Type {
     }
 
     @Override
-    public String getName() {
+    public String getFullName() {
         return _name;
     }
 
     @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        sb.append(getName());
+        sb.append(getFullName());
+
+        if (_bound != null && _bound != Types.Object) {
+            sb.append(" extends ");
+            if (_bound.isGenericParameter()) {
+                return sb.append(_bound.getFullName());
+            }
+            return _bound.appendBriefDescription(sb);
+        }
+
+        return sb;
+    }
+
+    @Override
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        sb.append(getFullName());
 
         if (_bound != null && _bound != Types.Object) {
             sb.append(" extends ");
             if (_bound.isGenericParameter()) {
                 return sb.append(_bound.getName());
             }
-            return _bound.appendBriefDescription(sb);
+            return _bound.appendSimpleDescription(sb);
         }
 
         return sb;
@@ -812,6 +831,11 @@ class JavacGenericParameter extends Type {
     @Override
     public StringBuilder appendFullDescription(final StringBuilder sb) {
         return appendBriefDescription(sb);
+    }
+
+    @Override
+    protected StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+        return sb.append(_name);
     }
 
     @Override
@@ -866,7 +890,7 @@ class JavacGenericParameter extends Type {
     }
 }
 
-class ClassMethod extends MethodInfo {
+class JavacMethod extends MethodInfo {
     private final JavacType<?> _declaringType;
     private final Symbol.MethodSymbol _element;
     private List<Type> _thrownTypeList = List.nil();
@@ -881,7 +905,7 @@ class ClassMethod extends MethodInfo {
     private final String _name;
     private CompletionState _completionState = CompletionState.AWAITING_PARAMETERS;
 
-    ClassMethod(final JavacType<?> declaringType, final Symbol.MethodSymbol element) {
+    JavacMethod(final JavacType<?> declaringType, final Symbol.MethodSymbol element) {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _element = VerifyArgument.notNull(element, "element");
         _name = element.getSimpleName().toString();
@@ -993,6 +1017,12 @@ class ClassMethod extends MethodInfo {
 
     @Override
     protected TypeBindings getTypeBindings() {
+        if (_typeBindings == null) {
+            if (_genericParameterList == null || _genericParameterList.isEmpty()) {
+                return TypeBindings.empty();
+            }
+            return TypeBindings.createUnbound(Type.list(_genericParameterList));
+        }
         return _typeBindings;
     }
 
@@ -1142,10 +1172,12 @@ class ClassConstructor extends ConstructorInfo {
         return _resolvedConstructor;
     }
 
+/*
     @Override
     public String getName() {
         return _name;
     }
+*/
 
     @Override
     public Type getDeclaringType() {

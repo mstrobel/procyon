@@ -64,7 +64,7 @@ final class GenericType<T> extends Type<T> {
         if (_interfaces == null) {
             synchronized (CACHE_LOCK) {
                 if (_interfaces == null) {
-                    _interfaces = GenericBinder.visit(_genericTypeDefinition.getInterfaces(), _typeBindings);
+                    _interfaces = GenericBinder.visit(_genericTypeDefinition.getExplicitInterfaces(), _typeBindings);
                 }
             }
         }
@@ -117,7 +117,7 @@ final class GenericType<T> extends Type<T> {
     }
 
     @Override
-    public TypeList getInterfaces() {
+    public TypeList getExplicitInterfaces() {
         ensureInterfaces();
         return _interfaces;
     }

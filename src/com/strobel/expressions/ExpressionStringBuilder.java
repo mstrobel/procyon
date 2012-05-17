@@ -5,6 +5,7 @@ import com.strobel.reflection.*;
 import com.strobel.util.TypeUtils;
 
 import java.util.HashMap;
+import java.util.Set;
 
 /**
  * @author Mike Strobel
@@ -48,7 +49,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         }
         else {
             // For static members, include the type name
-            out(member.getDeclaringType().getName() + "." + member.getName());
+            out(member.getDeclaringType().getFullName() + "." + member.getName());
         }
     }
 
@@ -103,7 +104,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     @Override
     protected Expression visitDefaultValue(final DefaultValueExpression node) {
         out("default(");
-        out(node.getType().getName());
+        out(node.getType().getFullName());
         out(')');
         return node;
     }
@@ -111,7 +112,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     @Override
     protected Expression visitExtension(final Expression node) {
         // Prefer a toString override, if available.
-        final int flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.ExactBinding;
+        final Set<BindingFlags> flags = BindingFlags.PublicInstanceExact;
         final MethodInfo toString = node.getType().getMethod("toString", flags, null, Type.EmptyTypes);
 
         if (toString.getDeclaringType() != Type.of(Expression.class)) {
@@ -122,7 +123,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         out("[");
 
         if (node.getNodeType() == ExpressionType.Extension) {
-            out(node.getType().getName());
+            out(node.getType().getFullName());
         }
         else {
             out(node.getNodeType().toString());
@@ -488,7 +489,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
 
     @Override
     public CatchBlock visitCatchBlock(final CatchBlock node) {
-        out("catch (" + node.getTest().getName());
+        out("catch (" + node.getTest().getFullName());
         if (node.getVariable() != null) {
             final String variableName = node.getVariable().getName();
             out(variableName != null ? variableName : "");

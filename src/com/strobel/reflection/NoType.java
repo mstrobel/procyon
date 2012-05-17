@@ -28,11 +28,6 @@ final class NoType extends Type {
     }
 
     @Override
-    public final String getName() {
-        return "<any>";
-    }
-
-    @Override
     public final MemberType getMemberType() {
         return MemberType.TypeInfo;
     }
@@ -48,17 +43,22 @@ final class NoType extends Type {
     }
 
     @Override
-    protected final StringBuilder _appendClassName(final StringBuilder sb, final boolean dottedName) {
-        return sb.append(getName());
+    protected final StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+        return sb.append("<any>");
     }
 
     @Override
     protected final StringBuilder _appendClassDescription(final StringBuilder sb) {
-        return sb.append(getName());
+        return sb.append("<any>");
     }
 
     @Override
     public final StringBuilder appendBriefDescription(final StringBuilder sb) {
-        return sb.append(getName());
+        return sb.append("<any>");
+    }
+
+    @Override
+    public final StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        return sb.append("<any>");
     }
 }

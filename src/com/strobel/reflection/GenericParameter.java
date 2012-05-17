@@ -53,6 +53,11 @@ class GenericParameter<T> extends Type<T> {
         _position = position;
     }
 
+    @Override
+    public TypeList getExplicitInterfaces() {
+        return TypeList.empty();
+    }
+
     private TypeVariable<?> resolveTypeVariable() {
         for (final TypeVariable typeVariable : _declaringType.getErasedClass().getTypeParameters()) {
             if (_name.equals(typeVariable.getName())) {
@@ -87,13 +92,30 @@ class GenericParameter<T> extends Type<T> {
     }
 
     @Override
-    public String getName() {
+    public String getFullName() {
         return _name;
     }
 
     @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        sb.append(getName());
+        sb.append(getFullName());
+
+        final Type<?> upperBound = getUpperBound();
+
+        if (upperBound != null && upperBound != Types.Object) {
+            sb.append(" extends ");
+            if (upperBound.isGenericParameter()) {
+                return sb.append(upperBound.getFullName());
+            }
+            return upperBound.appendBriefDescription(sb);
+        }
+
+        return sb;
+    }
+
+    @Override
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        sb.append(getFullName());
 
         final Type<?> upperBound = getUpperBound();
 
@@ -102,7 +124,7 @@ class GenericParameter<T> extends Type<T> {
             if (upperBound.isGenericParameter()) {
                 return sb.append(upperBound.getName());
             }
-            return upperBound.appendBriefDescription(sb);
+            return upperBound.appendSimpleDescription(sb);
         }
 
         return sb;
@@ -116,6 +138,11 @@ class GenericParameter<T> extends Type<T> {
     @Override
     public StringBuilder appendFullDescription(final StringBuilder sb) {
         return appendBriefDescription(sb);
+    }
+
+    @Override
+    protected final StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+        return sb.append(_name);
     }
 
     @Override
@@ -201,7 +228,7 @@ class GenericParameter<T> extends Type<T> {
 
     @Override
     public String toString() {
-        return getName();
+        return getFullName();
     }
 
     @Override

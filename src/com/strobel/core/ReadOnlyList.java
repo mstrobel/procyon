@@ -191,6 +191,41 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     }
 
     @Override
+    public int hashCode() {
+        int hash = 0;
+        
+        for (int i = _offset, n = _offset + _length; i < n ; i++) {
+            final T element = _elements[i];
+            
+            if (element != null) {
+                hash = hash * 31 + element.hashCode();
+            }
+        }
+        
+        return hash;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public boolean equals(final Object obj) {
+        if (obj == this) {
+            return true;
+        }
+
+        if (obj == null) {
+            return false;
+        }
+
+        if (!(obj instanceof ReadOnlyList)) {
+            return false;
+        }
+        
+        final ReadOnlyList<T> other = (ReadOnlyList<T>) obj;
+        
+        return Arrays.equals(_elements, other._elements);
+    }
+
+    @Override
     public final int indexOf(final Object o) {
         final T[] elements = _elements;
         final int start = _offset;

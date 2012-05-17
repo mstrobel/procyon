@@ -302,7 +302,7 @@ final class EqualsMethodBasedLogicalBinaryExpression extends BinaryExpression {
             _method = method;
         }
         else {
-            _method = Types.Object.getMethod("equals", BindingFlags.Instance | BindingFlags.Public, Types.Object);
+            _method = Types.Object.getMethod("equals", BindingFlags.PublicInstance, Types.Object);
         }
     }
 

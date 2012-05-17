@@ -15,6 +15,7 @@ public final class StringUtilities {
     public static boolean equals(final String s1, final String s2) {
         return StringComparator.Ordinal.equals(s1, s2);
     }
+
     public static boolean equals(final String s1, final String s2, final StringComparison comparison) {
         return _comparators[VerifyArgument.notNull(comparison, "comparison").ordinal()].equals(s1, s2);
     }

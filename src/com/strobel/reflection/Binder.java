@@ -2,6 +2,8 @@ package com.strobel.reflection;
 
 import com.strobel.util.ContractUtils;
 
+import java.util.Set;
+
 /**
  * @author Mike Strobel
  */
@@ -27,5 +29,5 @@ public abstract class Binder {
         throw ContractUtils.unreachable();
     }
 
-    public abstract MethodBase selectMethod(final int bindingFlags, final MethodBase[] matches, final Type[] parameterTypes);
+    public abstract MethodBase selectMethod(final Set<BindingFlags> bindingFlags, final MethodBase[] matches, final Type[] parameterTypes);
 }

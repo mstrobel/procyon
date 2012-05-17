@@ -23,7 +23,7 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
         return getDeclaringType();
     }
 
-    public boolean isFinal() {
+    public final boolean isFinal() {
         return Modifier.isFinal(getModifiers());
     }
 

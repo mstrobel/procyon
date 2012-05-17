@@ -146,7 +146,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "MethodBase '%s.%s' cannot be used as an operator because it is static.",
-                method.getDeclaringType().getName(),
+                method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
@@ -156,7 +156,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "MethodBase '%s.%s' cannot be used as an operator because it returns void.",
-                method.getDeclaringType().getName(),
+                method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
@@ -167,7 +167,7 @@ final class Error {
             format(
                 "MethodBase '%s.%s' cannot be used as an operator because its parameters do not match " +
                     "its return value.",
-                method.getDeclaringType().getName(),
+                method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
@@ -178,7 +178,7 @@ final class Error {
             format(
                 "The return type for operator '%s' does not match the declaring type of method '%s.%s'.",
                 expressionType,
-                method.getDeclaringType().getName(),
+                method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
@@ -188,7 +188,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "The return type of operator method '%s.%s' does not match the method's declaring type.",
-                method.getDeclaringType().getName(),
+                method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
@@ -210,7 +210,7 @@ final class Error {
         return new RuntimeException(
             format(
                 "Incorrect number of arguments supplied for call to method '%s.%s'",
-                method.getDeclaringType().getName(),
+                method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
@@ -259,7 +259,7 @@ final class Error {
             format(
                 "The operator method '%s.%s' must return the same type as its declaring type " +
                     "or a derived type.",
-                method.getDeclaringType().getName(),
+                method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
@@ -270,7 +270,7 @@ final class Error {
             format(
                 "The operator method '%s.%s' for operator '%s' must return the same type as its " +
                     "declaring type or a derived type.",
-                method.getDeclaringType().getName(),
+                method.getDeclaringType().getFullName(),
                 method.getName(),
                 operator
             )
@@ -319,7 +319,7 @@ final class Error {
             format(
                 "An invocation target expression is required for a call to non-static " +
                     "method '%s.%s'.",
-                method.getDeclaringType().getName(),
+                method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
@@ -330,7 +330,7 @@ final class Error {
             format(
                 "An invocation target expression cannot be used to call static " +
                     "method '%s.%s'.",
-                method.getDeclaringType().getName(),
+                method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
@@ -341,8 +341,8 @@ final class Error {
             format(
                 "Expression of type '%s' is not a valid invocation target for instance " +
                     "method '%s.%s'.",
-                targetType.getName(),
-                method.getDeclaringType().getName(),
+                targetType.getFullName(),
+                method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
@@ -352,8 +352,8 @@ final class Error {
         return new RuntimeException(
             format(
                 "Expression of type '%s' cannot be used for constructor parameter of type '%s'.",
-                parameterType.getName(),
-                argType.getName()
+                parameterType.getFullName(),
+                argType.getFullName()
             )
         );
     }
@@ -362,8 +362,8 @@ final class Error {
         return new RuntimeException(
             format(
                 "Expression of type '%s' cannot be used as the body of a lambda with return type '%s'.",
-                bodyType.getName(),
-                returnType.getName()
+                bodyType.getFullName(),
+                returnType.getFullName()
             )
         );
     }
@@ -372,8 +372,8 @@ final class Error {
         return new RuntimeException(
             format(
                 "Expression of type '%s' cannot be used for parameter of type '%s'.",
-                parameterType.getName(),
-                argType.getName()
+                parameterType.getFullName(),
+                argType.getFullName()
             )
         );
     }
@@ -382,9 +382,9 @@ final class Error {
         return new RuntimeException(
             format(
                 "Expression of type '%s' cannot be used for parameter of type '%s' of method '%s.%s'.",
-                parameterType.getName(),
-                argType.getName(),
-                method.getDeclaringType().getName(),
+                parameterType.getFullName(),
+                argType.getFullName(),
+                method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
@@ -394,8 +394,8 @@ final class Error {
         return new RuntimeException(
             format(
                 "Expression of type '%s' cannot be used for assignment to type '%s'.",
-                rightType.getName(),
-                leftType.getName()
+                rightType.getFullName(),
+                leftType.getFullName()
             )
         );
     }
@@ -405,7 +405,7 @@ final class Error {
             format(
                 "No method '%s' exists on type '%s'.",
                 methodName,
-                type.getName()
+                type.getFullName()
             )
         );
     }
@@ -416,7 +416,7 @@ final class Error {
                 "No generic method '%s' on type '%s' is compatible with the supplied type arguments and arguments.  " +
                     "No type arguments should be provided if the method is non-generic.",
                 methodName,
-                type.getName()
+                type.getFullName()
             )
         );
     }
@@ -426,7 +426,7 @@ final class Error {
             format(
                 "No method '%s' on type '%s' is compatible with the supplied arguments.",
                 methodName,
-                type.getName()
+                type.getFullName()
             )
         );
     }
@@ -436,7 +436,7 @@ final class Error {
             format(
                 "More than one method '%s' on type '%s' is compatible with the supplied arguments.",
                 methodName,
-                type.getName()
+                type.getFullName()
             )
         );
     }
@@ -482,8 +482,8 @@ final class Error {
         return new RuntimeException(
             format(
                 "ParameterExpression of type '%s' cannot be used for delegate parameter of type '%s'.",
-                parameterType.getName(),
-                delegateParameterType.getName()
+                parameterType.getFullName(),
+                delegateParameterType.getFullName()
             )
         );
     }
@@ -496,8 +496,8 @@ final class Error {
         return new RuntimeException(
             format(
                 "Expression of type '%s' cannot be used for return type '%s'.",
-                valueType.getName(),
-                expectedType.getName()
+                valueType.getFullName(),
+                expectedType.getFullName()
             )
         );
     }
@@ -510,8 +510,8 @@ final class Error {
         return new RuntimeException(
             format(
                 "An expression of type '%s' cannot be used to initialize an array of type '%s'.",
-                itemType.getName(),
-                arrayElementType.getName()
+                itemType.getFullName(),
+                arrayElementType.getFullName()
             )
         );
     }
@@ -520,8 +520,8 @@ final class Error {
         return new RuntimeException(
             format(
                 "A variable of type '%s' cannot be used with a catch block with filter type '%s'.",
-                variableType.getName(),
-                catchType.getName()
+                variableType.getFullName(),
+                catchType.getFullName()
             )
         );
     }
@@ -565,8 +565,8 @@ final class Error {
         return new RuntimeException(
             format(
                 "Test value of type '%s' cannot be used for the comparison method parameter of type '%s'.",
-                testValueType.getName(),
-                parameterType.getName()
+                testValueType.getFullName(),
+                parameterType.getFullName()
             )
         );
     }

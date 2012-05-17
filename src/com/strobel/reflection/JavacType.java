@@ -17,6 +17,7 @@ import java.util.ArrayList;
 @SuppressWarnings("unchecked")
 class JavacType<T> extends Type<T> {
     private final String _name;
+    private final String _simpleName;
     private final Context _context;
     private final Symbol.ClassSymbol _typeElement;
     private Type<?> _baseType;
@@ -27,7 +28,7 @@ class JavacType<T> extends Type<T> {
     private Class<T> _erasedClass;
     private List<JavacGenericParameter> _genericParameters = List.nil();
     private List<JavacType<?>> _nestedTypes = List.nil();
-    private List<ClassMethod> _methods = List.nil();
+    private List<JavacMethod> _methods = List.nil();
     private List<ClassField> _fields = List.nil();
     private List<ClassConstructor> _constructors = List.nil();
     private TypeBindings _typeBindings;
@@ -36,6 +37,7 @@ class JavacType<T> extends Type<T> {
         _context = VerifyArgument.notNull(context, "context");
         _typeElement = VerifyArgument.notNull(typeElement, "typeElement");
         _name = typeElement.getQualifiedName().toString();
+        _simpleName = typeElement.getSimpleName().toString();
     }
 
     void setBaseType(final Type<?> baseType) {
@@ -54,8 +56,8 @@ class JavacType<T> extends Type<T> {
         return _genericParameters;
     }
 
-    ClassMethod findMethod(final Symbol.MethodSymbol methodSymbol) {
-        for (final ClassMethod method : _methods) {
+    JavacMethod findMethod(final Symbol.MethodSymbol methodSymbol) {
+        for (final JavacMethod method : _methods) {
             if (Comparer.equals(method.getElement(), methodSymbol)) {
                 return method;
             }
@@ -87,7 +89,7 @@ class JavacType<T> extends Type<T> {
         _membersResolved = false;
     }
 
-    void addMethod(final ClassMethod method) {
+    void addMethod(final JavacMethod method) {
         VerifyArgument.notNull(method, "method");
         _methods = _methods.append(method);
         _membersResolved = false;
@@ -131,10 +133,10 @@ class JavacType<T> extends Type<T> {
                         constructor.complete();
                     }
 
-                    final ArrayList<ClassMethod> methods = new ArrayList<>(_methods);
+                    final ArrayList<JavacMethod> methods = new ArrayList<>(_methods);
 
                     for (int i = 0, n = methods.size(); i < n; i++) {
-                        final ClassMethod method = methods.get(i);
+                        final JavacMethod method = methods.get(i);
                         try {
                             method.complete();
                         }
@@ -210,7 +212,7 @@ class JavacType<T> extends Type<T> {
     }
 
     @Override
-    public TypeList getInterfaces() {
+    public TypeList getExplicitInterfaces() {
         return _interfaces;
     }
 
@@ -265,10 +267,13 @@ class JavacType<T> extends Type<T> {
     }
 
     @Override
-    protected StringBuilder _appendClassName(final StringBuilder sb, final boolean dottedName) {
+    protected StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+        if (!fullName) {
+            return sb.append(_simpleName);
+        }
         if (dottedName) {
             return sb.append(_name);
         }
-        return super._appendClassName(sb, dottedName);
+        return super._appendClassName(sb, fullName, dottedName);
     }
 }

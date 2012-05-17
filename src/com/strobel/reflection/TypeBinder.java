@@ -56,6 +56,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
         return fields;
     }
+
     public MethodList visit(final Type<?> declaringType, final MethodList methods, final TypeBindings bindings) {
         VerifyArgument.notNull(methods, "methods");
 
@@ -115,26 +116,41 @@ class TypeBinder extends TypeMapper<TypeBindings> {
         );
     }
 
+    public ParameterList visitParameters(final ParameterList parameters, final TypeBindings bindings) {
+        VerifyArgument.notNull(parameters, "parameters");
+
+        ParameterInfo[] newParameters = null;
+
+        for (int i = 0, n = parameters.size(); i < n; i++) {
+            final ParameterInfo oldParameter = parameters.get(i);
+            final Type<?> oldParameterType = oldParameter.getParameterType();
+            final Type<?> newParameterType = visit(oldParameterType, bindings);
+
+            if (newParameterType != oldParameterType) {
+                if (newParameters == null) {
+                    newParameters = parameters.toArray();
+                }
+                newParameters[i] = new ParameterInfo(oldParameter.getName(), newParameterType);
+            }
+        }
+
+        if (newParameters != null) {
+            return new ParameterList(newParameters);
+        }
+
+        return parameters;
+    }
+    
     public MethodInfo visitMethod(final Type<?> declaringType, final MethodInfo method, final TypeBindings bindings) {
         final Type<?> oldReturnType = method.getReturnType();
         final Type<?> returnType = visit(oldReturnType, bindings);
-        final ParameterList parameters = method.getParameters();
+        final ParameterList oldParameters = method.getParameters();
+        final ParameterList newParameters = visitParameters(oldParameters, bindings);
         final TypeList thrown = method.getThrownTypes();
-        final Type<?>[] parameterTypes = new Type<?>[parameters.size()];
         final Type<?>[] thrownTypes = new Type<?>[thrown.size()];
 
-        boolean hasChanged = !oldReturnType.isEquivalentTo(returnType);
+        boolean hasChanged = !oldReturnType.isEquivalentTo(returnType) || oldParameters != newParameters;
         boolean thrownTypesChanged = false;
-
-        for (int i = 0, n = parameterTypes.length; i < n; i++) {
-            final Type<?> oldParameterType = parameters.get(i).getParameterType();
-
-            parameterTypes[i] = visit(oldParameterType, bindings);
-
-            if (!oldParameterType.isEquivalentTo(parameterTypes[i])) {
-                hasChanged = true;
-            }
-        }
 
         for (int i = 0, n = thrownTypes.length; i < n; i++) {
             final Type<?> oldThrownType = thrown.get(i);
@@ -155,7 +171,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
                     method.getDeclaringType(),
                     declaringType,
                     method.getRawMethod(),
-                    method.getParameters(),
+                    oldParameters,
                     method.getReturnType(),
                     method.getThrownTypes(),
                     method.getTypeBindings()
@@ -164,22 +180,11 @@ class TypeBinder extends TypeMapper<TypeBindings> {
             return method;
         }
 
-        final ArrayList<ParameterInfo> newParameters = new ArrayList<>();
-
-        for (int i = 0, n = parameterTypes.length; i < n; i++) {
-            newParameters.add(
-                new ParameterInfo(
-                    parameters.get(i).getName(),
-                    parameterTypes[i]
-                )
-            );
-        }
-
         return new ReflectedMethod(
             method.getDeclaringType(),
             declaringType,
             method.getRawMethod(),
-            new ParameterList(newParameters),
+            newParameters,
             returnType,
             thrownTypesChanged ? new TypeList(thrownTypes) : thrown,
             visitTypeBindings(method.getTypeBindings(), bindings)
@@ -293,7 +298,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
         if (newUpperBound != upperBound) {
             return new GenericParameter(
-                type.getName(),
+                type.getFullName(),
                 type.getDeclaringType(),
                 newUpperBound,
                 type.getGenericParameterPosition()

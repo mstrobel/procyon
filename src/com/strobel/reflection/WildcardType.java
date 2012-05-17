@@ -23,9 +23,31 @@ final class WildcardType<T> extends Type<T> {
         if (_superBound != NoType) {
             sb.append("? super ");
             if (_superBound.isGenericParameter()) {
-                return sb.append(_superBound.getName());
+                return sb.append(_superBound.getFullName());
             }
             return _superBound.appendErasedDescription(sb);
+        }
+
+        if (_extendsBound == Types.Object) {
+            return sb.append("?");
+        }
+
+        sb.append("? extends ");
+
+        if (_extendsBound.isGenericParameter()) {
+            return sb.append(_extendsBound.getFullName());
+        }
+
+        return _extendsBound.appendErasedDescription(sb);
+    }
+    @Override
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        if (_superBound != NoType) {
+            sb.append("? super ");
+            if (_superBound.isGenericParameter()) {
+                return sb.append(_superBound.getName());
+            }
+            return _superBound.appendSimpleDescription(sb);
         }
 
         if (_extendsBound == Types.Object) {
@@ -38,7 +60,7 @@ final class WildcardType<T> extends Type<T> {
             return sb.append(_extendsBound.getName());
         }
 
-        return _extendsBound.appendErasedDescription(sb);
+        return _extendsBound.appendSimpleDescription(sb);
     }
 
     @Override

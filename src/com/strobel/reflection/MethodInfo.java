@@ -76,6 +76,49 @@ public abstract class MethodInfo extends MethodBase {
     }
 
     @Override
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        StringBuilder s = new StringBuilder();
+
+        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
+            s.append(modifier.toString());
+            s.append(' ');
+        }
+
+        s = getReturnType().appendSimpleDescription(s);
+        s.append(' ');
+        s.append(getName());
+        s.append('(');
+
+        final ParameterList parameters = getParameters();
+
+        for (int i = 0, n = parameters.size(); i < n; ++i) {
+            final ParameterInfo p = parameters.get(i);
+            if (i != 0) {
+                s.append(", ");
+            }
+            s = p.getParameterType().appendSimpleDescription(s);
+        }
+
+        s.append(')');
+
+        final TypeList thrownTypes = getThrownTypes();
+
+        if (!thrownTypes.isEmpty()) {
+            s.append(" throws ");
+
+            for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
+                final Type t = thrownTypes.get(i);
+                if (i != 0) {
+                    s.append(", ");
+                }
+                s = t.appendSimpleDescription(s);
+            }
+        }
+
+        return s;
+    }
+
+    @Override
     public StringBuilder appendErasedDescription(final StringBuilder sb) {
         if (isGenericMethod() && !isGenericMethodDefinition()) {
             return getGenericMethodDefinition().appendErasedDescription(sb);
@@ -86,7 +129,61 @@ public abstract class MethodInfo extends MethodBase {
             sb.append(' ');
         }
 
-        return getReturnType().appendErasedSignature(super.appendDescription(sb));
+        final Method rawMethod = getRawMethod();
+        final TypeList parameterTypes = Type.list(rawMethod.getParameterTypes());
+
+        StringBuilder s = Type.of(rawMethod.getReturnType()).appendErasedDescription(sb);
+        
+        s.append(' ');
+        s.append(getName());
+        s.append('(');
+
+        for (int i = 0, n = parameterTypes.size(); i < n; ++i) {
+            if (i != 0) {
+                s.append(", ");
+            }
+            s = parameterTypes.get(i).appendErasedDescription(s);
+        }
+
+        s.append(')');
+        return s;
+    }
+
+    @Override
+    public StringBuilder appendSignature(final StringBuilder sb) {
+        final ParameterList parameters = getParameters();
+
+        StringBuilder s = sb;
+        s.append('(');
+
+        for (int i = 0, n = parameters.size(); i < n; ++i) {
+            final ParameterInfo p = parameters.get(i);
+            s = p.getParameterType().appendSignature(s);
+        }
+
+        s.append(')');
+        s = getReturnType().appendSignature(s);
+
+        return s;
+
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        StringBuilder s = sb;
+        s.append('(');
+
+        final Method rawMethod = getRawMethod();
+        final TypeList parameterTypes = Type.list(rawMethod.getParameterTypes());
+
+        for (int i = 0, n = parameterTypes.size(); i < n; ++i) {
+            s = parameterTypes.get(i).appendErasedSignature(s);
+        }
+
+        s.append(')');
+        s = Type.of(rawMethod.getReturnType()).appendErasedSignature(s);
+
+        return s;
     }
 
     public boolean isGenericMethod() {

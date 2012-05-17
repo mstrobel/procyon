@@ -31,11 +31,6 @@ public final class CompoundType<T> extends Type<T> {
     }
 
     @Override
-    public MemberType getMemberType() {
-        return MemberType.TypeInfo;
-    }
-
-    @Override
     public Type getDeclaringType() {
         return null;
     }
@@ -51,7 +46,7 @@ public final class CompoundType<T> extends Type<T> {
     }
 
     @Override
-    public TypeList getInterfaces() {
+    public TypeList getExplicitInterfaces() {
         return _interfaces;
     }
 
@@ -89,6 +84,30 @@ public final class CompoundType<T> extends Type<T> {
                 s.append(" & ");
             }
             s = interfaces.get(i).appendBriefDescription(s);
+        }
+
+        return s;
+    }
+
+    @Override
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        final Type<T> baseType = _baseType;
+        final TypeList interfaces = _interfaces;
+
+        StringBuilder s = sb;
+
+        if (baseType != Types.Object) {
+            s = baseType.appendSimpleDescription(s);
+            if (!interfaces.isEmpty()) {
+                s.append(" & ");
+            }
+        }
+
+        for (int i = 0, n = interfaces.size(); i < n; i++) {
+            if (i != 0) {
+                s.append(" & ");
+            }
+            s = interfaces.get(i).appendSimpleDescription(s);
         }
 
         return s;

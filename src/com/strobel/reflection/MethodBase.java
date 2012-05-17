@@ -18,7 +18,7 @@ public abstract class MethodBase extends MemberInfo {
 
     @Override
     public String toString() {
-        return getSignature();
+        return getSimpleDescription();
     }
 
     public String getSignature() {
@@ -33,45 +33,17 @@ public abstract class MethodBase extends MemberInfo {
         return appendDescription(new StringBuilder()).toString();
     }
 
+    public String getSimpleDescription() {
+        return appendSimpleDescription(new StringBuilder()).toString();
+    }
+
     public String getErasedDescription() {
         return appendErasedDescription(new StringBuilder()).toString();
     }
 
-    public StringBuilder appendDescription(final StringBuilder sb) {
-        final ParameterList parameters = getParameters();
-
-        StringBuilder s = sb;
-        s.append('(');
-
-        for (int i = 0, n = parameters.size(); i < n; ++i) {
-            final ParameterInfo p = parameters.get(i);
-            s = p.getParameterType().appendBriefDescription(s);
-        }
-
-        s.append(')');
-        return s;
-    }
-
-    public StringBuilder appendErasedDescription(final StringBuilder sb) {
-        final ParameterList parameters = getParameters();
-
-        StringBuilder s = sb;
-        s.append('(');
-
-        for (int i = 0, n = parameters.size(); i < n; ++i) {
-            final ParameterInfo p = parameters.get(i);
-            s = p.getParameterType().appendErasedSignature(s);
-        }
-
-        s.append(')');
-        return s;
-    }
-
-    public StringBuilder appendSignature(final StringBuilder sb) {
-        return appendDescription(sb.append(getName()));
-    }
-
-    public StringBuilder appendErasedSignature(final StringBuilder sb) {
-        return appendErasedDescription(sb.append(getName()));
-    }
+    public abstract StringBuilder appendDescription(final StringBuilder sb);
+    public abstract StringBuilder appendSimpleDescription(final StringBuilder sb);
+    public abstract StringBuilder appendErasedDescription(final StringBuilder sb);
+    public abstract StringBuilder appendSignature(final StringBuilder sb);
+    public abstract StringBuilder appendErasedSignature(final StringBuilder sb);
 }

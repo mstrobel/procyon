@@ -2651,7 +2651,7 @@ public abstract class Expression {
     static MethodInfo getMethodValidated(
         final Type type,
         final String name,
-        final int bindingFlags,
+        final Set<BindingFlags> bindingFlags,
         final CallingConvention callingConvention,
         final Type... parameterTypes) {
 
@@ -2752,7 +2752,7 @@ public abstract class Expression {
         final MethodInfo method = getMethodValidated(
             leftType,
             name,
-            BindingFlags.Instance | BindingFlags.Public,
+            BindingFlags.PublicInstance,
             CallingConvention.Standard,
             rightType
         );
@@ -2764,7 +2764,7 @@ public abstract class Expression {
         return getMethodValidated(
             rightType,
             name,
-            BindingFlags.Instance | BindingFlags.Public,
+            BindingFlags.PublicInstance,
             CallingConvention.Standard,
             leftType
         );
@@ -2779,7 +2779,7 @@ public abstract class Expression {
         final MethodInfo method = getMethodValidated(
             leftType,
             name,
-            BindingFlags.Static | BindingFlags.Public,
+            BindingFlags.PublicStatic,
             CallingConvention.Standard,
             leftType,
             rightType
@@ -2792,7 +2792,7 @@ public abstract class Expression {
         return getMethodValidated(
             rightType,
             name,
-            BindingFlags.Static | BindingFlags.Public,
+            BindingFlags.PublicStatic,
             CallingConvention.Standard,
             leftType,
             rightType
@@ -2872,7 +2872,7 @@ public abstract class Expression {
                 method = getMethodValidated(
                     leftType,
                     "compareTo",
-                    BindingFlags.Instance | BindingFlags.Public,
+                    BindingFlags.PublicInstance,
                     CallingConvention.Standard,
                     leftType
                 );
@@ -2888,7 +2888,7 @@ public abstract class Expression {
                 method = getMethodValidated(
                     rightType,
                     "compareTo",
-                    BindingFlags.Instance | BindingFlags.Public,
+                    BindingFlags.PublicInstance,
                     CallingConvention.Standard,
                     rightType
                 );
@@ -3228,7 +3228,7 @@ public abstract class Expression {
         VerifyArgument.notNull(interfaceType, "interfaceType");
         verifyCanRead(body, "body");
 
-        final MethodList methods = interfaceType.getMethods(BindingFlags.Public | BindingFlags.Instance);
+        final MethodList methods = interfaceType.getMethods(BindingFlags.PublicInstance);
 
         if (!interfaceType.isInterface() || methods.size() != 1) {
             throw Error.lambdaTypeMustBeSingleMethodInterface();

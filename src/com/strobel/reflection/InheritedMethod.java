@@ -128,11 +128,6 @@ final class InheritedMethod extends MethodInfo {
     }
 
     @Override
-    public boolean isFinal() {
-        return _method.isFinal();
-    }
-
-    @Override
     public int getModifiers() {
         return _method.getModifiers();
     }

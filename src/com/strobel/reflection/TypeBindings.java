@@ -227,7 +227,7 @@ public final class TypeBindings {
     public Type findGenericParameter(final String genericParameterName) {
         for (int i = 0, n = _genericParameters.size(); i < n; i++) {
             final Type parameter = _genericParameters.get(i);
-            if (parameter.getName().equals(genericParameterName)) {
+            if (parameter.getFullName().equals(genericParameterName)) {
                 return parameter;
             }
         }
@@ -237,7 +237,7 @@ public final class TypeBindings {
     public Type findBoundType(final String genericParameterName) {
         for (int i = 0, n = _genericParameters.size(); i < n; i++) {
             final Type parameter = _genericParameters.get(i);
-            if (parameter.getName().equals(genericParameterName)) {
+            if (parameter.getFullName().equals(genericParameterName)) {
                 return getBoundType(i);
             }
         }

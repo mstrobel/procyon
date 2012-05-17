@@ -45,7 +45,7 @@ final class ErasedType<T> extends Type<T> {
         if (_interfaces == null) {
             synchronized (CACHE_LOCK) {
                 if (_interfaces == null) {
-                    _interfaces = GenericEraser.visit(_originalType.getInterfaces());
+                    _interfaces = GenericEraser.visit(_originalType.getExplicitInterfaces());
                 }
             }
         }
@@ -148,7 +148,7 @@ final class ErasedType<T> extends Type<T> {
     }
 
     @Override
-    public TypeList getInterfaces() {
+    public TypeList getExplicitInterfaces() {
         ensureInterfaces();
         return _interfaces;
     }
@@ -163,11 +163,6 @@ final class ErasedType<T> extends Type<T> {
     @Override
     public Type getGenericTypeDefinition() {
         throw Error.notGenericType(this);
-    }
-
-    @Override
-    public MemberType getMemberType() {
-        return MemberType.TypeInfo;
     }
 
     @Override

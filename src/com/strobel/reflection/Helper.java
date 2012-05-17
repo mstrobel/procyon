@@ -227,7 +227,7 @@ final class Helper {
                 return false;
             }
 
-            final TypeList interfaces = p.getInterfaces();
+            final TypeList interfaces = p.getExplicitInterfaces();
 
             for (int i = 0, n = interfaces.size(); i < n; i++) {
                 final Type type = interfaces.get(i);
@@ -289,7 +289,7 @@ final class Helper {
             final Type capturedDeclaringType = capture(declaringType);
 
             if (capturedDeclaringType != declaringType) {
-                final Type memberType = capturedDeclaringType.getNestedType(t.getName());
+                final Type memberType = capturedDeclaringType.getNestedType(t.getFullName());
                 t = substitute(memberType, memberType.getGenericTypeParameters(), t.getTypeArguments());
             }
         }
@@ -674,7 +674,7 @@ final class Helper {
         if (originIsClass && otherIsClass) {
             return rank(other) < rank(origin) ||
                    rank(other) == rank(origin) &&
-                   other.getName().compareTo(origin.getName()) < 0;
+                   other.getFullName().compareTo(origin.getFullName()) < 0;
         }
 
         return origin.isGenericParameter();
@@ -724,7 +724,7 @@ final class Helper {
                 }
             }
 
-            final TypeList interfaces = t.getInterfaces();
+            final TypeList interfaces = t.getExplicitInterfaces();
 
             for (int i = 0, n = interfaces.size(); i < n; i++) {
                 final Type ancestor = asSuper(interfaces.get(i), p);
@@ -781,7 +781,7 @@ final class Helper {
 
         @Override
         public Boolean visitTypeParameter(final Type type, final Type parameter) {
-            return type.getName().equals(parameter.getName()) &&
+            return type.getFullName().equals(parameter.getFullName()) &&
                    type.getDeclaringType() == parameter.getDeclaringType() &&
                    visit(type.getUpperBound(), parameter.getUpperBound());
         }
@@ -913,13 +913,13 @@ final class Helper {
 
         @Override
         public List<Type> visitClassType(final Type t, final Void ignored) {
-            final TypeList interfaces = t.getInterfaces();
+            final TypeList interfaces = t.getExplicitInterfaces();
 
             if (interfaces.isEmpty()) {
                 return List.nil();
             }
 
-            return List.from(t.getInterfaces().toArray());
+            return List.from(t.getExplicitInterfaces().toArray());
         }
 
         @Override
@@ -935,6 +935,11 @@ final class Helper {
             }
 
             return List.nil();
+        }
+
+        @Override
+        public List<Type> visitWildcardType(final Type<?> type, final Void parameter) {
+            return visit(type.getUpperBound());
         }
     };
 
@@ -1291,7 +1296,7 @@ final class Helper {
             }
 
             result *= 127;
-            result += t.getName().hashCode();
+            result += t.getFullName().hashCode();
 
             for (final Type s : t.getTypeArguments()) {
                 result *= 127;

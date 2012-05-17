@@ -49,47 +49,51 @@ final class PrimitiveType<T> extends Type<T> {
     }
 
     @Override
-    public MemberList<? extends MemberInfo> getMember(final String name, final int bindingFlags, final Set<MemberType> memberTypes) {
+    public MemberList<? extends MemberInfo> getMember(final String name, final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
         return MemberList.empty();
     }
 
     @Override
-    public FieldInfo getField(final String name, final int bindingFlags) {
+    public FieldInfo getField(final String name, final Set<BindingFlags> bindingFlags) {
         return null;
     }
 
     @Override
-    public MethodInfo getMethod(final String name, final int bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes) {
+    public MethodInfo getMethod(
+        final String name,
+        final Set<BindingFlags> bindingFlags,
+        final CallingConvention callingConvention,
+        final Type... parameterTypes) {
         return null;
     }
 
     @Override
-    public ConstructorInfo getConstructor(final int bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes) {
+    public ConstructorInfo getConstructor(final Set<BindingFlags> bindingFlags, final CallingConvention callingConvention, final Type... parameterTypes) {
         return null;
     }
 
     @Override
-    public MemberList getMembers(final int bindingFlags, final Set<MemberType> memberTypes) {
+    public MemberList getMembers(final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
         return MemberList.empty();
     }
 
     @Override
-    public FieldList getFields(final int bindingFlags) {
+    public FieldList getFields(final Set<BindingFlags> bindingFlags) {
         return FieldList.empty();
     }
 
     @Override
-    public MethodList getMethods(final int bindingFlags, final CallingConvention callingConvention) {
+    public MethodList getMethods(final Set<BindingFlags> bindingFlags, final CallingConvention callingConvention) {
         return MethodList.empty();
     }
 
     @Override
-    public ConstructorList getConstructors(final int bindingFlags) {
+    public ConstructorList getConstructors(final Set<BindingFlags> bindingFlags) {
         return ConstructorList.empty();
     }
 
     @Override
-    public TypeList getNestedTypes(final int bindingFlags) {
+    public TypeList getNestedTypes(final Set<BindingFlags> bindingFlags) {
         return TypeList.empty();
     }
 
@@ -99,7 +103,7 @@ final class PrimitiveType<T> extends Type<T> {
     }
 
     @Override
-    public String getName() {
+    public String getFullName() {
         return _class.getName();
     }
 
@@ -158,6 +162,12 @@ final class PrimitiveType<T> extends Type<T> {
 
     @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
+        sb.append(_description);
+        return sb;
+    }
+
+    @Override
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         sb.append(_description);
         return sb;
     }

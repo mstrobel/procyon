@@ -7,6 +7,22 @@
   <component name="AntConfiguration">
     <defaultAnt bundledAnt="true" />
   </component>
+  <component name="ArtifactManager">
+    <artifact type="jar" name="Expressions:jar">
+      <output-path>$PROJECT_DIR$/out/artifacts/Expressions_jar</output-path>
+      <root id="archive" name="Expressions.jar">
+        <element id="module-output" name="Expressions" />
+        <element id="extracted-dir" path="$PROJECT_DIR$/lib/asm-3.3.1.jar" path-in-jar="/" />
+        <element id="extracted-dir" path="$PROJECT_DIR$/lib/asm-commons-3.3.1.jar" path-in-jar="/" />
+        <element id="extracted-dir" path="$PROJECT_DIR$/lib/asm-util-3.3.1.jar" path-in-jar="/" />
+        <element id="extracted-dir" path="$PROJECT_DIR$/lib/cglib-2.2.2.jar" path-in-jar="/" />
+        <element id="extracted-dir" path="$PROJECT_DIR$/lib/cglib-docs-2.2.2.jar" path-in-jar="/" />
+        <element id="extracted-dir" path="$PROJECT_DIR$/lib/cglib-src-2.2.2.jar" path-in-jar="/" />
+        <element id="extracted-dir" path="$PROJECT_DIR$/lib/classmate.jar" path-in-jar="/" />
+        <element id="extracted-dir" path="$PROJECT_DIR$/lib/compilertools.jar" path-in-jar="/" />
+      </root>
+    </artifact>
+  </component>
   <component name="CompilerConfiguration">
     <option name="DEFAULT_COMPILER" value="Javac" />
     <resourceExtensions />
@@ -45,6 +61,37 @@
         <inspection_tool class="ForCanBeForeach" enabled="true" level="WARNING" enabled_by_default="true">
           <option name="REPORT_INDEXED_LOOP" value="false" />
           <option name="ignoreUntypedCollections" value="false" />
+        </inspection_tool>
+        <inspection_tool class="JavaDoc" enabled="false" level="WARNING" enabled_by_default="false">
+          <option name="TOP_LEVEL_CLASS_OPTIONS">
+            <value>
+              <option name="ACCESS_JAVADOC_REQUIRED_FOR" value="none" />
+              <option name="REQUIRED_TAGS" value="" />
+            </value>
+          </option>
+          <option name="INNER_CLASS_OPTIONS">
+            <value>
+              <option name="ACCESS_JAVADOC_REQUIRED_FOR" value="none" />
+              <option name="REQUIRED_TAGS" value="" />
+            </value>
+          </option>
+          <option name="METHOD_OPTIONS">
+            <value>
+              <option name="ACCESS_JAVADOC_REQUIRED_FOR" value="none" />
+              <option name="REQUIRED_TAGS" value="@return@param@throws or @exception" />
+            </value>
+          </option>
+          <option name="FIELD_OPTIONS">
+            <value>
+              <option name="ACCESS_JAVADOC_REQUIRED_FOR" value="none" />
+              <option name="REQUIRED_TAGS" value="" />
+            </value>
+          </option>
+          <option name="IGNORE_DEPRECATED" value="false" />
+          <option name="IGNORE_JAVADOC_PERIOD" value="true" />
+          <option name="IGNORE_DUPLICATED_THROWS" value="false" />
+          <option name="IGNORE_POINT_TO_ITSELF" value="false" />
+          <option name="myAdditionalJavadocTags" value="" />
         </inspection_tool>
         <inspection_tool class="LocalCanBeFinal" enabled="true" level="WARNING" enabled_by_default="true">
           <option name="REPORT_VARIABLES" value="true" />
@@ -195,10 +242,16 @@
   <component name="ProjectCodeStyleSettingsManager">
     <option name="PER_PROJECT_SETTINGS">
       <value>
+        <option name="FIELD_NAME_PREFIX" value="_" />
+        <option name="GENERATE_FINAL_LOCALS" value="true" />
+        <option name="GENERATE_FINAL_PARAMETERS" value="true" />
+        <option name="CLASS_COUNT_TO_USE_IMPORT_ON_DEMAND" value="9999" />
+        <option name="RIGHT_MARGIN" value="160" />
         <XML>
           <option name="XML_LEGACY_SETTINGS_IMPORTED" value="true" />
         </XML>
         <codeStyleSettings language="JAVA">
+          <option name="KEEP_CONTROL_STATEMENT_IN_ONE_LINE" value="false" />
           <option name="KEEP_BLANK_LINES_IN_DECLARATIONS" value="1" />
           <option name="KEEP_BLANK_LINES_IN_CODE" value="1" />
           <option name="KEEP_BLANK_LINES_BEFORE_RBRACE" value="0" />
@@ -215,6 +268,10 @@
           <option name="ALIGN_MULTILINE_EXTENDS_LIST" value="true" />
           <option name="ALIGN_MULTILINE_PARENTHESIZED_EXPRESSION" value="true" />
           <option name="ALIGN_MULTILINE_ARRAY_INITIALIZER_EXPRESSION" value="true" />
+          <option name="SPACE_WITHIN_ARRAY_INITIALIZER_BRACES" value="true" />
+          <option name="SPACE_AFTER_TYPE_CAST" value="false" />
+          <option name="SPACE_BEFORE_ARRAY_INITIALIZER_LBRACE" value="true" />
+          <option name="SPACE_BEFORE_ANNOTATION_ARRAY_INITIALIZER_LBRACE" value="true" />
           <option name="CALL_PARAMETERS_WRAP" value="5" />
           <option name="CALL_PARAMETERS_LPAREN_ON_NEXT_LINE" value="true" />
           <option name="CALL_PARAMETERS_RPAREN_ON_NEXT_LINE" value="true" />
@@ -223,10 +280,11 @@
           <option name="RESOURCE_LIST_WRAP" value="2" />
           <option name="EXTENDS_LIST_WRAP" value="5" />
           <option name="THROWS_LIST_WRAP" value="1" />
-          <option name="THROWS_KEYWORD_WRAP" value="2" />
+          <option name="EXTENDS_KEYWORD_WRAP" value="1" />
+          <option name="THROWS_KEYWORD_WRAP" value="1" />
           <option name="METHOD_CALL_CHAIN_WRAP" value="5" />
-          <option name="BINARY_OPERATION_WRAP" value="5" />
-          <option name="TERNARY_OPERATION_WRAP" value="5" />
+          <option name="BINARY_OPERATION_WRAP" value="1" />
+          <option name="TERNARY_OPERATION_WRAP" value="1" />
           <option name="TERNARY_OPERATION_SIGNS_ON_NEXT_LINE" value="true" />
           <option name="KEEP_SIMPLE_METHODS_IN_ONE_LINE" value="true" />
           <option name="KEEP_SIMPLE_CLASSES_IN_ONE_LINE" value="true" />
@@ -235,6 +293,8 @@
           <option name="ARRAY_INITIALIZER_LBRACE_ON_NEXT_LINE" value="true" />
           <option name="ARRAY_INITIALIZER_RBRACE_ON_NEXT_LINE" value="true" />
           <option name="ASSIGNMENT_WRAP" value="1" />
+          <option name="ASSERT_STATEMENT_WRAP" value="2" />
+          <option name="ASSERT_STATEMENT_COLON_ON_NEXT_LINE" value="true" />
           <option name="IF_BRACE_FORCE" value="3" />
           <option name="DOWHILE_BRACE_FORCE" value="3" />
           <option name="WHILE_BRACE_FORCE" value="3" />
@@ -245,8 +305,126 @@
         </codeStyleSettings>
       </value>
     </option>
+    <option name="USE_PER_PROJECT_SETTINGS" value="true" />
   </component>
   <component name="ProjectDictionaryState">
+    <dictionary name="strobelm">
+      <words>
+        <w>aaload</w>
+        <w>aastore</w>
+        <w>acmpeq</w>
+        <w>acmpne</w>
+        <w>aconst</w>
+        <w>aload</w>
+        <w>anewarray</w>
+        <w>areturn</w>
+        <w>arraylength</w>
+        <w>astore</w>
+        <w>athrow</w>
+        <w>baload</w>
+        <w>bastore</w>
+        <w>bipush</w>
+        <w>caload</w>
+        <w>castore</w>
+        <w>checkcast</w>
+        <w>dadd</w>
+        <w>daload</w>
+        <w>dastore</w>
+        <w>dcmpg</w>
+        <w>dcmpl</w>
+        <w>dconst</w>
+        <w>ddiv</w>
+        <w>dload</w>
+        <w>dmul</w>
+        <w>dneg</w>
+        <w>drem</w>
+        <w>dreturn</w>
+        <w>dstore</w>
+        <w>dsub</w>
+        <w>fadd</w>
+        <w>faload</w>
+        <w>fastore</w>
+        <w>fcmpg</w>
+        <w>fcmpl</w>
+        <w>fconst</w>
+        <w>fdiv</w>
+        <w>fload</w>
+        <w>fmul</w>
+        <w>fneg</w>
+        <w>frem</w>
+        <w>freturn</w>
+        <w>fstore</w>
+        <w>fsub</w>
+        <w>getfield</w>
+        <w>getstatic</w>
+        <w>iaload</w>
+        <w>iastore</w>
+        <w>icmpeq</w>
+        <w>icmpge</w>
+        <w>icmpgt</w>
+        <w>icmple</w>
+        <w>icmplt</w>
+        <w>icmpne</w>
+        <w>iconst</w>
+        <w>ifeq</w>
+        <w>ifge</w>
+        <w>ifgt</w>
+        <w>ifle</w>
+        <w>iflt</w>
+        <w>ifne</w>
+        <w>ifnonnull</w>
+        <w>ifnull</w>
+        <w>iinc</w>
+        <w>iload</w>
+        <w>ineg</w>
+        <w>inlined</w>
+        <w>inlining</w>
+        <w>instanceof</w>
+        <w>invokedynamic</w>
+        <w>invokeinterface</w>
+        <w>invokespecial</w>
+        <w>invokestatic</w>
+        <w>invokevirtual</w>
+        <w>irem</w>
+        <w>ireturn</w>
+        <w>ishl</w>
+        <w>ishr</w>
+        <w>istore</w>
+        <w>iushr</w>
+        <w>javac</w>
+        <w>ladd</w>
+        <w>laload</w>
+        <w>lastore</w>
+        <w>lcmp</w>
+        <w>lconst</w>
+        <w>lload</w>
+        <w>lmul</w>
+        <w>lneg</w>
+        <w>lookupswitch</w>
+        <w>lrem</w>
+        <w>lreturn</w>
+        <w>lshl</w>
+        <w>lshr</w>
+        <w>lstore</w>
+        <w>lsub</w>
+        <w>lushr</w>
+        <w>lxor</w>
+        <w>monitorenter</w>
+        <w>monitorexit</w>
+        <w>multianewarray</w>
+        <w>newarray</w>
+        <w>opcode</w>
+        <w>preallocation</w>
+        <w>putfield</w>
+        <w>putstatic</w>
+        <w>rewriter</w>
+        <w>saload</w>
+        <w>sastore</w>
+        <w>simplifiable</w>
+        <w>sipush</w>
+        <w>tableswitch</w>
+      </words>
+    </dictionary>
     <dictionary name="Mike Strobel">
       <words>
         <w>arraycopy</w>
@@ -271,7 +449,7 @@
   <component name="ProjectResources">
     <default-html-doctype>http://www.w3.org/1999/xhtml</default-html-doctype>
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_7" assert-keyword="true" jdk-15="true" project-jdk-name="1.8" project-jdk-type="JavaSDK">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_7" assert-keyword="true" jdk-15="true" project-jdk-name="1.7" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/out" />
   </component>
   <component name="VcsDirectoryMappings">
@@ -295,6 +473,7 @@
         <root url="jar://$PROJECT_DIR$/lib/cglib-src-2.2.2.jar!/src/proxy" />
         <root url="file://$PROJECT_DIR$/lib/asm-3.3.1/src" />
         <root url="file://$PROJECT_DIR$/../cowtowncoder-java-classmate-a5f941e/src/main/java" />
+        <root url="file://$PROJECT_DIR$/../langtools-ed00f61a5de8/src/share/classes" />
       </SOURCES>
       <jarDirectory url="file://$PROJECT_DIR$/lib" recursive="false" />
       <jarDirectory url="file://$PROJECT_DIR$/lib" recursive="false" type="SOURCES" />

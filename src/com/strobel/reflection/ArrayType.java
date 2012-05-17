@@ -55,11 +55,6 @@ public class ArrayType<T> extends Type<T> {
     }
 
     @Override
-    public MemberType getMemberType() {
-        return MemberType.TypeInfo;
-    }
-
-    @Override
     public TypeBindings getTypeBindings() {
         return _elementType.getTypeBindings();
     }
@@ -119,6 +114,11 @@ public class ArrayType<T> extends Type<T> {
     public StringBuilder appendBriefDescription(final StringBuilder sb)
     {
         return _elementType.appendBriefDescription(sb).append("[]");
+    }
+
+    public StringBuilder appendSimpleDescription(final StringBuilder sb)
+    {
+        return _elementType.appendSimpleDescription(sb).append("[]");
     }
 
     public StringBuilder appendFullDescription(final StringBuilder sb) {

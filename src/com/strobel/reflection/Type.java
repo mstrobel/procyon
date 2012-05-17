@@ -14,12 +14,14 @@ import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Names;
 
 import javax.lang.model.type.TypeKind;
-import java.lang.reflect.*;
+import java.lang.reflect.Array;
+import java.lang.reflect.Modifier;
 import java.nio.charset.Charset;
-import java.util.*;
-
-import static com.strobel.reflection.Flags.all;
-import static com.strobel.reflection.Flags.any;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * @author Mike Strobel
@@ -46,7 +48,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     protected static final FieldInfo[] EmptyFields = EmptyArrayCache.fromElementType(FieldInfo.class);
     protected static final MemberInfo[] EmptyMembers = EmptyArrayCache.fromElementType(MemberInfo.class);
 
-    protected static final int DefaultLookup = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+    protected static final Set<BindingFlags> DefaultLookup = BindingFlags.PublicAll;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CONSTRUCTORS                                                                                                       //
@@ -55,30 +57,68 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     protected Type() {
     }
 
-    private static FilterOptions getFilterOptions(final String name, final int bindingFlags, final boolean allowPrefixLookup) {
+    @Override
+    public MemberType getMemberType() {
+        if (getDeclaringType() == null) {
+            return MemberType.TypeInfo;
+        }
+        return MemberType.NestedType;
+    }
+
+    private static FilterOptions getFilterOptions(final String name, final Set<BindingFlags> bindingFlags, final boolean allowPrefixLookup) {
         String filterName = name;
         boolean prefixLookup = false;
         boolean ignoreCase = false;
-        MemberListOptions listOptions = MemberListOptions.All;
+        MemberListType listOptions = MemberListType.All;
 
         if (name != null) {
-            if (any(bindingFlags, BindingFlags.IgnoreCase)) {
+            if (bindingFlags.contains(BindingFlags.IgnoreCase)) {
                 filterName = name.toLowerCase();
                 ignoreCase = true;
-                listOptions = MemberListOptions.CaseInsensitive;
+                listOptions = MemberListType.CaseInsensitive;
             }
             else {
-                listOptions = MemberListOptions.CaseSensitive;
+                listOptions = MemberListType.CaseSensitive;
             }
 
             if (allowPrefixLookup && name.endsWith("*")) {
                 filterName = name.substring(0, name.length() - 1);
                 prefixLookup = true;
-                listOptions = MemberListOptions.All;
+                listOptions = MemberListType.All;
             }
         }
 
         return new FilterOptions(filterName, prefixLookup, ignoreCase, listOptions);
+    }
+    
+    static Set<BindingFlags> filterPreCalculate(
+        final boolean isPublic,
+        final boolean isInherited,
+        final boolean isStatic) {
+
+        int mask = isPublic ? BindingFlags.Public.getMask() : BindingFlags.NonPublic.getMask();
+
+        if (isInherited) {
+            // We arrange things so the DeclaredOnly flag means "include inherited members" 
+            mask |= BindingFlags.DeclaredOnly.getMask();
+
+            if (isStatic) {
+                mask |= BindingFlags.Static.getMask() | BindingFlags.FlattenHierarchy.getMask();
+            }
+            else {
+                mask |= BindingFlags.Instance.getMask();
+            }
+        }
+        else {
+            if (isStatic) {
+                mask |= BindingFlags.Static.getMask();
+            }
+            else {
+                mask |= BindingFlags.Instance.getMask();
+            }
+        }
+
+        return BindingFlags.fromMask(mask);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -155,8 +195,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public TypeList getInterfaces() {
         return TypeList.empty();
     }
+    
+    protected TypeList getExplicitInterfaces() {
+        return TypeList.empty();
+    }
 
-    public abstract Class<T> getErasedClass();
+    public Class<T> getErasedClass() {
+        return getCache().getErasedClass();
+    }
 
     public MethodInfo getDeclaringMethod() {
         return null;
@@ -265,7 +311,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         Type t = this;
 
         while (t != null && t != Type.NoType) {
-            final TypeList interfaces = t.getInterfaces();
+            final TypeList interfaces = t.getExplicitInterfaces();
 
             for (int i = 0, n = interfaces.size(); i < n; i++) {
                 final Type type = interfaces.get(i);
@@ -312,7 +358,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public Package getPackage() {
-        return getErasedClass().getPackage();
+        return getCache().getPackage();
     }
 
     public boolean isCompoundType() {
@@ -348,7 +394,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getMember(name, DefaultLookup, EnumSet.of(memberType, memberTypes));
     }
 
-    public MemberList getMember(final String name, final int bindingFlags, final Set<MemberType> memberTypes) {
+    public MemberList getMember(final String name, final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
         VerifyArgument.notNull(name, "name");
 
         if (memberTypes == null || memberTypes.isEmpty()) {
@@ -365,11 +411,23 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         if (memberTypes.contains(MemberType.Method)) {
-            methods = getMethodBaseCandidates(getDeclaredMethods(), name, bindingFlags, CallingConvention.Any, null, true);
+            methods = getMethodBaseCandidates(
+                MemberType.Method,
+                name,
+                bindingFlags,
+                CallingConvention.Any,
+                null,
+                true);
         }
 
         if (memberTypes.contains(MemberType.Constructor)) {
-            constructors = getMethodBaseCandidates(getDeclaredConstructors(), name, bindingFlags, CallingConvention.Any, null, true);
+            constructors = getMethodBaseCandidates(
+                MemberType.Constructor,
+                name,
+                bindingFlags,
+                CallingConvention.Any,
+                null,
+                true);
         }
 
         if (memberTypes.contains(MemberType.NestedType)) {
@@ -428,10 +486,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getField(name, DefaultLookup);
     }
 
-    public FieldInfo getField(final String name, final int bindingFlags) {
+    public FieldInfo getField(final String name, final Set<BindingFlags> bindingFlags) {
 
         final FieldInfo[] candidates = getFieldCandidates(
-            null,
+            name,
             bindingFlags,
             false
         );
@@ -472,27 +530,22 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return match;
     }
 
-    public MethodInfo getMethod(final Method rawMethod) {
-        getDeclaredMethods();
-        return _rawMethodMap.get(rawMethod);
-    }
-
     public MethodInfo getMethod(final String name, final Type... parameterTypes) {
         return getMethod(name, DefaultLookup, parameterTypes);
     }
 
-    public MethodInfo getMethod(final String name, final int bindingFlags, final Type... parameterTypes) {
+    public MethodInfo getMethod(final String name, final Set<BindingFlags> bindingFlags, final Type... parameterTypes) {
         return getMethod(name, bindingFlags, CallingConvention.Any, parameterTypes);
     }
 
     public MethodInfo getMethod(
         final String name,
-        final int bindingFlags,
+        final Set<BindingFlags> bindingFlags,
         final CallingConvention callingConvention,
         final Type... parameterTypes) {
 
         final MethodInfo[] candidates = getMethodBaseCandidates(
-            getDeclaredMethods(),
+            MemberType.Method,
             name,
             bindingFlags,
             callingConvention,
@@ -529,17 +582,17 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getConstructor(DefaultLookup, parameterTypes);
     }
 
-    public ConstructorInfo getConstructor(final int bindingFlags, final Type... parameterTypes) {
+    public ConstructorInfo getConstructor(final Set<BindingFlags> bindingFlags, final Type... parameterTypes) {
         return getConstructor(bindingFlags, CallingConvention.Any, parameterTypes);
     }
 
     public ConstructorInfo getConstructor(
-        final int bindingFlags,
+        final Set<BindingFlags> bindingFlags,
         final CallingConvention callingConvention,
         final Type... parameterTypes) {
 
         final ConstructorInfo[] candidates = getMethodBaseCandidates(
-            getDeclaredConstructors(),
+            MemberType.Constructor,
             null,
             bindingFlags,
             callingConvention,
@@ -576,7 +629,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getMembers(DefaultLookup, EnumSet.allOf(MemberType.class));
     }
 
-    public final MemberList getMembers(final Set<MemberType> memberTypes) {
+    public final MemberList getMembersOfType(final Set<MemberType> memberTypes) {
         return getMembers(DefaultLookup, memberTypes);
     }
 
@@ -584,15 +637,15 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getMembers(DefaultLookup, EnumSet.of(memberType, memberTypes));
     }
 
-    public final MemberList getMembers(final int bindingFlags) {
+    public final MemberList getMembers(final Set<BindingFlags> bindingFlags) {
         return getMembers(bindingFlags, EnumSet.allOf(MemberType.class));
     }
 
-    public final MemberList getMembers(final int bindingFlags, final MemberType memberType, final MemberType... memberTypes) {
+    public final MemberList getMembers(final Set<BindingFlags> bindingFlags, final MemberType memberType, final MemberType... memberTypes) {
         return getMembers(bindingFlags, EnumSet.of(memberType, memberTypes));
     }
 
-    public MemberList getMembers(final int bindingFlags, final Set<MemberType> memberTypes) {
+    public MemberList getMembers(final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
         MethodInfo[] methods = EmptyMethods;
         ConstructorInfo[] constructors = EmptyConstructors;
         FieldInfo[] fields = EmptyFields;
@@ -603,11 +656,23 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         if (memberTypes.contains(MemberType.Method)) {
-            methods = getMethodBaseCandidates(getDeclaredMethods(), null, bindingFlags, CallingConvention.Any, null, false);
+            methods = getMethodBaseCandidates(
+                MemberType.Method,
+                null,
+                bindingFlags,
+                CallingConvention.Any,
+                null,
+                false);
         }
 
         if (memberTypes.contains(MemberType.Constructor)) {
-            constructors = getMethodBaseCandidates(getDeclaredConstructors(), null, bindingFlags, CallingConvention.Any, null, false);
+            constructors = getMethodBaseCandidates(
+                MemberType.Constructor,
+                null,
+                bindingFlags,
+                CallingConvention.Any,
+                null,
+                false);
         }
 
         if (memberTypes.contains(MemberType.NestedType)) {
@@ -666,7 +731,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getFields(DefaultLookup);
     }
 
-    public FieldList getFields(final int bindingFlags) {
+    public FieldList getFields(final Set<BindingFlags> bindingFlags) {
         final FieldInfo[] candidates = getFieldCandidates(null, bindingFlags, false);
 
         if (candidates == null || candidates.length == 0) {
@@ -680,13 +745,13 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getMethods(DefaultLookup, CallingConvention.Any);
     }
 
-    public MethodList getMethods(final int bindingFlags) {
+    public MethodList getMethods(final Set<BindingFlags> bindingFlags) {
         return getMethods(bindingFlags, CallingConvention.Any);
     }
 
-    public MethodList getMethods(final int bindingFlags, final CallingConvention callingConvention) {
+    public MethodList getMethods(final Set<BindingFlags> bindingFlags, final CallingConvention callingConvention) {
         final MethodInfo[] candidates = getMethodBaseCandidates(
-            getDeclaredMethods(),
+            MemberType.Method,
             null,
             bindingFlags,
             callingConvention,
@@ -705,9 +770,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getConstructors(DefaultLookup);
     }
 
-    public ConstructorList getConstructors(final int bindingFlags) {
+    public ConstructorList getConstructors(final Set<BindingFlags> bindingFlags) {
         final ConstructorInfo[] candidates = getMethodBaseCandidates(
-            getDeclaredConstructors(),
+            MemberType.Constructor,
             null,
             bindingFlags,
             CallingConvention.Any,
@@ -726,7 +791,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getNestedTypes(DefaultLookup);
     }
 
-    public TypeList getNestedTypes(final int bindingFlags) {
+    public TypeList getNestedTypes(final Set<BindingFlags> bindingFlags) {
         final Type[] candidates = getNestedTypeCandidates(null, bindingFlags, false);
 
         if (ArrayUtilities.isNullOrEmpty(candidates)) {
@@ -740,15 +805,15 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getNestedType(fullName, DefaultLookup);
     }
 
-    public Type<?> getNestedType(final String fullName, final int bindingFlags) {
+    public Type<?> getNestedType(final String fullName, final Set<BindingFlags> bindingFlags) {
         VerifyArgument.notNull(fullName, "fullName");
 
         final String name;
 
         if (fullName != null) {
-            final String ownerName = getName();
+            final String ownerName = getFullName();
 
-            final boolean isLongName = all(bindingFlags, BindingFlags.IgnoreCase)
+            final boolean isLongName = bindingFlags.contains(BindingFlags.IgnoreCase)
                                        ? StringUtilities.startsWithIgnoreCase(fullName, ownerName)
                                        : fullName.startsWith(ownerName);
             if (isLongName) {
@@ -765,16 +830,19 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             name = null;
         }
 
-        final int flags = bindingFlags & ~BindingFlags.Static;
-        final FilterOptions filterOptions = getFilterOptions(name, flags, false);
-
-        final TypeList nestedTypes = getDeclaredTypes();
+        final FilterOptions filterOptions = getFilterOptions(name, bindingFlags, false);
+        final ArrayList<Type<?>> nestedTypes = getCache().getNestedTypeList(filterOptions.listOptions, name);
+        final Set<BindingFlags> flags = EnumSet.copyOf(bindingFlags);
+        
+        if (!flags.remove(BindingFlags.Static)) {
+            flags.add(BindingFlags.Static);
+        }
 
         Type<?> match = null;
 
         for (int i = 0, n = nestedTypes.size(); i < n; i++) {
             final Type<?> nestedType = nestedTypes.get(i);
-            if (filterApplyType(nestedType, bindingFlags, name, filterOptions.prefixLookup)) {
+            if (filterApplyType(nestedType, flags, name, filterOptions.prefixLookup)) {
                 if (match != null) {
                     throw Error.ambiguousMatch();
                 }
@@ -880,14 +948,12 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     boolean filterMethodBase(
         final MethodBase method,
-        final int methodFlags,
-        final int bindingFlags,
+        final Set<BindingFlags> methodFlags,
+        final Set<BindingFlags> bindingFlags,
         final CallingConvention callingConventions,
         final Type... argumentTypes) {
 
-        final int flags = bindingFlags ^ BindingFlags.DeclaredOnly;
-
-        if ((flags & methodFlags) != methodFlags) {
+        if (!bindingFlags.containsAll(methodFlags)) {
             return false;
         }
 
@@ -910,7 +976,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 // we are not filtering for a dynamic call, i.e., InvokeMethod or CreateInstance,
                 // then filter out the method.
 
-                if (any(flags, BindingFlags.InvokeMethod | BindingFlags.CreateInstance)) {
+                if (bindingFlags.contains(BindingFlags.InvokeMethod) || bindingFlags.contains(BindingFlags.CreateInstance)) {
                     return false;
                 }
 
@@ -933,7 +999,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                     }
                 }
             }
-            else if (all(flags, BindingFlags.ExactBinding) && !any(flags, BindingFlags.InvokeMethod)) {
+            else if (bindingFlags.contains(BindingFlags.ExactBinding) && !bindingFlags.contains(BindingFlags.InvokeMethod)) {
                 //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < definedParameterCount; i++) {
                     final Type parameterType = parameters.get(i).getParameterType();
@@ -958,7 +1024,11 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     @Override
     public String getName() {
-        return getBriefDescription();
+        return getCache().getName();
+    }
+    
+    public String getFullName() {
+        return getCache().getFullName();
     }
 
     /**
@@ -966,7 +1036,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
      * as signature for things like ASM package.
      */
     public String getSignature() {
-        return appendSignature(new StringBuilder()).toString();
+        return getCache().getSignature();
     }
 
     /**
@@ -974,7 +1044,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
      * as non-generic signature some packages need
      */
     public String getErasedSignature() {
-        return appendErasedSignature(new StringBuilder()).toString();
+        return getCache().getErasedSignature();
     }
 
     /**
@@ -982,7 +1052,16 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
      * of super types (in brief format)
      */
     public String getFullDescription() {
-        return appendFullDescription(new StringBuilder()).toString();
+        return getCache().getFullDescription();
+    }
+
+    /**
+     * Human-readable simple description, which does not include
+     * information about super types and uses simple type names instead
+     * of package-qualified names.
+     */
+    public String getSimpleDescription() {
+        return getCache().getSimpleDescription();
     }
 
     /**
@@ -990,13 +1069,18 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
      * information about super types.
      */
     public String getBriefDescription() {
-        return appendBriefDescription(new StringBuilder()).toString();
+        return getCache().getBriefDescription();
+    }
+
+    /**
+     * Human-readable erased description of type.
+     */
+    public String getErasedDescription() {
+        return getCache().getErasedDescription();
     }
 
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        StringBuilder s = sb;
-
-        s.append(getErasedClass().getName());
+        StringBuilder s = _appendClassName(sb, true, true);
 
         if (isGenericType()) {
             final TypeList typeArguments = getTypeBindings().getBoundTypes();
@@ -1017,12 +1101,50 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return s;
     }
 
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        StringBuilder s = _appendClassName(sb, false, false);
+
+        if (isGenericType()) {
+            final TypeList typeArguments = getTypeBindings().getBoundTypes();
+            final int count = typeArguments.size();
+            if (count > 0) {
+                s.append('<');
+                //noinspection ForLoopReplaceableByForEach
+                for (int i = 0; i < count; ++i) {
+                    if (i != 0) {
+                        s.append(", ");
+                    }
+                    s = typeArguments.get(i).appendSimpleDescription(s);
+                }
+                s.append('>');
+            }
+        }
+
+        return s;
+    }
+
     public StringBuilder appendErasedDescription(final StringBuilder sb) {
         return sb.append(getErasedClass().getName());
     }
 
     public StringBuilder appendFullDescription(final StringBuilder sb) {
-        StringBuilder s = appendBriefDescription(sb);
+        StringBuilder s = _appendClassName(sb, false, false);
+
+        if (isGenericType()) {
+            final TypeList typeArguments = getTypeBindings().getBoundTypes();
+            final int count = typeArguments.size();
+            if (count > 0) {
+                s.append('<');
+                //noinspection ForLoopReplaceableByForEach
+                for (int i = 0; i < count; ++i) {
+                    if (i != 0) {
+                        s.append(", ");
+                    }
+                    s = typeArguments.get(i).appendBriefDescription(s);
+                }
+                s.append('>');
+            }
+        }
 
         final Type baseType = getBaseType();
 
@@ -1031,7 +1153,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             s = baseType.appendBriefDescription(s);
         }
 
-        final TypeList interfaces = getInterfaces();
+        final TypeList interfaces = getExplicitInterfaces();
         final int interfaceCount = interfaces.size();
 
         if (interfaceCount > 0) {
@@ -1052,6 +1174,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        if (isGenericType() && !isGenericTypeDefinition()) {
+            return getGenericTypeDefinition().appendErasedSignature(sb);
+        }
         return _appendErasedClassSignature(sb);
     }
 
@@ -1059,7 +1184,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         StringBuilder s = sb;
 
         s.append('L');
-        s = _appendClassName(s, false);
+        s = _appendClassName(s, true, false);
 
         if (isGenericType()) {
             final TypeList genericParameters = getTypeBindings().getBoundTypes();
@@ -1081,7 +1206,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     protected StringBuilder _appendErasedClassSignature(StringBuilder sb) {
         sb.append('L');
-        sb = _appendClassName(sb, false);
+        sb = _appendClassName(sb, true, false);
         sb.append(';');
         return sb;
     }
@@ -1107,10 +1232,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return s;
     }
 
-    protected StringBuilder _appendClassName(final StringBuilder sb, final boolean dottedName) {
-
+    protected StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
         final Class<?> erasedClass = getErasedClass();
         final Package classPackage = erasedClass.getPackage();
+        
+        if (!fullName) {
+            return sb.append(erasedClass.getSimpleName());
+        }
+        
         final String name = erasedClass.getName();
 
         if (dottedName) {
@@ -1330,6 +1459,20 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     // LIST FACTORY METHODS                                                                                               //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public static TypeList list(final Class<?>... classes) {
+        if (ArrayUtilities.isNullOrEmpty(classes)) {
+            return TypeList.empty();
+        }
+        
+        final Type<?>[] types = new Type<?>[classes.length];
+
+        for (int i = 0, n = classes.length; i < n; i++) {
+            types[i] = of(classes[i]);
+        }
+
+        return new TypeList(types);
+    }
+    
     public static TypeList list(final Type... types) {
         return new TypeList(types);
     }
@@ -1342,7 +1485,18 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     // TYPE HIERARCHY AND MEMBER RESOLUTION INFO                                                                          //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private final Map<Method, MethodInfo> _rawMethodMap = new HashMap<>();
+    private RuntimeTypeCache<T> _cache;
+
+    final RuntimeTypeCache<T> getCache() {
+        if (_cache == null) {
+            synchronized (CACHE_LOCK) {
+                if (_cache == null) {
+                    _cache = new RuntimeTypeCache<>(this);
+                }
+            }
+        }
+        return _cache;
+    }
 
     protected ConstructorList getDeclaredConstructors() {
         return ConstructorList.empty();
@@ -1360,39 +1514,50 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return TypeList.empty();
     }
 
-    protected List<Constructor<?>> getRawConstructors() {
-        return Arrays.asList(getErasedClass().getDeclaredConstructors());
-    }
-
-    protected List<Method> getRawMethods() {
-        return Arrays.asList(getErasedClass().getDeclaredMethods());
-    }
-
-    protected List<Field> getRawFields() {
-        return Arrays.asList(getErasedClass().getDeclaredFields());
-    }
-
     @SuppressWarnings("unchecked")
     private <T extends MethodBase> T[] getMethodBaseCandidates(
-        final MemberList<T> source,
+        final MemberType type,
         final String name,
-        final int bindingFlags,
+        final Set<BindingFlags> bindingFlags,
         final CallingConvention callingConvention,
         final Type[] parameterTypes,
         final boolean allowPrefixLookup) {
 
         final FilterOptions filterOptions = getFilterOptions(name, bindingFlags, allowPrefixLookup);
 
+        final ArrayList<T> source;
+        
+        if (type == MemberType.Constructor) {
+            source = (ArrayList<T>)getCache().getConstructorList(filterOptions.listOptions, name);
+        }
+        else {
+            source = (ArrayList<T>)getCache().getMethodList(filterOptions.listOptions, name);
+        }
+
+        final Set<BindingFlags> flags = EnumSet.copyOf(bindingFlags);
+
+        if (!flags.remove(BindingFlags.DeclaredOnly)) {
+            flags.add(BindingFlags.DeclaredOnly);
+        }
+        
         List<MethodBase> candidates = null;
 
         //noinspection ForLoopReplaceableByForEach
         for (int i = 0, n = source.size(); i < n; i++) {
             final MethodBase method = source.get(i);
-
+            final Set<BindingFlags> methodFlags;
+            
+            if (type == MemberType.Constructor) {
+                methodFlags = ((RuntimeConstructorInfo)method).getBindingFlags();
+            }
+            else {
+                methodFlags = ((RuntimeMethodInfo)method).getBindingFlags();
+            }
+            
             final boolean passesFilter = filterMethodBase(
                 method,
-                BindingFlags.fromMember(method),
-                bindingFlags,
+                methodFlags,
+                flags,
                 callingConvention,
                 parameterTypes
             );
@@ -1421,13 +1586,15 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         if (candidates == null) {
-            if (source instanceof ConstructorList) {
+            if (type == MemberType.Constructor) {
                 return (T[])EmptyConstructors;
             }
             return (T[])EmptyMethods;
         }
 
-        final T[] results = (T[])Array.newInstance(source.getMemberType(), candidates.size());
+        final T[] results = (T[])Array.newInstance(
+            type == MemberType.Constructor ? ConstructorInfo.class : MethodInfo.class,
+            candidates.size());
 
         candidates.toArray((Object[])results);
 
@@ -1437,21 +1604,26 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     @SuppressWarnings("unchecked")
     private FieldInfo[] getFieldCandidates(
         final String name,
-        final int bindingFlags,
+        final Set<BindingFlags> bindingFlags,
         final boolean allowPrefixLookup) {
 
-        final FieldList fields = getDeclaredFields();
-        final int flags = bindingFlags ^ BindingFlags.DeclaredOnly;
+        final Set<BindingFlags> flags = EnumSet.copyOf(bindingFlags);
+        
+        if (!flags.remove(BindingFlags.DeclaredOnly)) {
+            flags.add(BindingFlags.DeclaredOnly);
+        }
+        
         final FilterOptions filterOptions = getFilterOptions(name, flags, allowPrefixLookup);
-
+        final ArrayList<RuntimeFieldInfo> fields = getCache().getFieldList(filterOptions.listOptions, name);
+        
         List<FieldInfo> candidates = null;
 
         //noinspection ForLoopReplaceableByForEach
         for (int i = 0, n = fields.size(); i < n; i++) {
             final FieldInfo field = fields.get(i);
-            final int fieldFlags = BindingFlags.fromMember(field);
+            final Set<BindingFlags> fieldFlags = BindingFlags.fromMember(field);
 
-            if (!all(flags, fieldFlags)) {
+            if (!flags.containsAll(fieldFlags)) {
                 continue;
             }
 
@@ -1483,14 +1655,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return candidates.toArray(results);
     }
 
-    private Type[] getNestedTypeCandidates(final String fullName, final int bindingFlags, final boolean allowPrefixLookup) {
+    private Type[] getNestedTypeCandidates(final String fullName, final Set<BindingFlags> bindingFlags, final boolean allowPrefixLookup) {
 
         final String name;
 
         if (fullName != null) {
             final String ownerName = getName();
 
-            final boolean isLongName = all(bindingFlags, BindingFlags.IgnoreCase)
+            final boolean isLongName = bindingFlags.contains(BindingFlags.IgnoreCase)
                                        ? StringUtilities.startsWithIgnoreCase(fullName, ownerName)
                                        : fullName.startsWith(ownerName);
             if (isLongName) {
@@ -1509,7 +1681,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
         final FilterOptions filterOptions = getFilterOptions(name, bindingFlags, allowPrefixLookup);
 
-        final TypeList nestedTypes = getDeclaredTypes();
+        final ArrayList<Type<?>> nestedTypes = getCache().getNestedTypeList(filterOptions.listOptions, name);
         final ListBuffer<Type<?>> candidates = new ListBuffer<>();
 
         for (int i = 0, n = nestedTypes.size(); i < n; i++) {
@@ -1528,7 +1700,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     private boolean filterApplyType(
         final Type<?> type,
-        final int bindingFlags,
+        final Set<BindingFlags> bindingFlags,
         final String name,
         final boolean prefixLookup) {
         VerifyArgument.notNull(type, "type");
@@ -1549,7 +1721,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     private boolean filterApplyCore(
         final MemberInfo member,
-        final int bindingFlags,
+        final Set<BindingFlags> bindingFlags,
         final boolean isPublic,
         final boolean isPackagePrivate,
         final boolean isStatic,
@@ -1557,42 +1729,43 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final boolean prefixLookup) {
 
         if (isPublic) {
-            if (!any(bindingFlags, BindingFlags.Public)) {
+            if (!bindingFlags.contains(BindingFlags.Public)) {
                 return false;
             }
         }
         else {
-            if (!any(bindingFlags, BindingFlags.NonPublic)) {
+            if (!bindingFlags.contains(BindingFlags.NonPublic)) {
                 return false;
             }
         }
 
-        final boolean isInherited = member.getDeclaringType() != this;
+        final Type<?> thisType = isGenericType() ? getGenericTypeDefinition() : this;
+        final boolean isInherited = member.getDeclaringType() != thisType;
 
-        if (isInherited && any(bindingFlags, BindingFlags.DeclaredOnly)) {
+        if (isInherited && bindingFlags.contains(BindingFlags.DeclaredOnly)) {
             return false;
         }
 
         if (member.getMemberType() != MemberType.TypeInfo &&
             member.getMemberType() != MemberType.NestedType) {
             if (isStatic) {
-                if ((bindingFlags & BindingFlags.FlattenHierarchy) == 0 && isInherited) {
+                if (!bindingFlags.contains(BindingFlags.FlattenHierarchy) && isInherited) {
                     return false;
                 }
 
-                if ((bindingFlags & BindingFlags.Static) == 0) {
+                if (!bindingFlags.contains(BindingFlags.Static)) {
                     return false;
                 }
             }
             else {
-                if ((bindingFlags & BindingFlags.Instance) == 0) {
+                if (!bindingFlags.contains(BindingFlags.Instance)) {
                     return false;
                 }
             }
         }
 
         if (prefixLookup) {
-            if (!filterApplyPrefixLookup(member, name, any(bindingFlags, BindingFlags.IgnoreCase))) {
+            if (!filterApplyPrefixLookup(member, name, bindingFlags.contains(BindingFlags.IgnoreCase))) {
                 return false;
             }
         }
@@ -1605,14 +1778,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         */
 
         //noinspection SimplifiableIfStatement
-        if (!any(bindingFlags, BindingFlags.DeclaredOnly) &&    // DeclaredOnly not present
-            isInherited &&                                      // Is inherited Member
+        if (!bindingFlags.contains(BindingFlags.DeclaredOnly) &&    // DeclaredOnly not present
+            isInherited &&                                          // Is inherited Member
 
-            isPackagePrivate &&                                 // Is package-private member
-            any(bindingFlags, BindingFlags.NonPublic) &&        // BindingFlag.NonPublic present
+            isPackagePrivate &&                                     // Is package-private member
+            bindingFlags.contains(BindingFlags.NonPublic) &&        // BindingFlag.NonPublic present
 
-            !isStatic &&                                        // Is instance member
-            any(bindingFlags, BindingFlags.Instance))           // BindingFlag.Instance present
+            !isStatic &&                                            // Is instance member
+            bindingFlags.contains(BindingFlags.Instance))           // BindingFlag.Instance present
         {
             return member instanceof MethodInfo &&
                    !member.isFinal();
@@ -1641,9 +1814,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final String name;
         final boolean prefixLookup;
         final boolean ignoreCase;
-        final MemberListOptions listOptions;
+        final MemberListType listOptions;
 
-        FilterOptions(final String name, final boolean prefixLookup, final boolean ignoreCase, final MemberListOptions listOptions) {
+        FilterOptions(final String name, final boolean prefixLookup, final boolean ignoreCase, final MemberListType listOptions) {
             this.name = name;
             this.prefixLookup = prefixLookup;
             this.ignoreCase = ignoreCase;

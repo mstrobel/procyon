@@ -10,7 +10,7 @@ enum MemberListOptions {
 
     private final int mask;
 
-    private MemberListOptions(int mask) {
+    private MemberListOptions(final int mask) {
         this.mask = mask;
     }
 }
