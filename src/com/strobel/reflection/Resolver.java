@@ -1,5 +1,7 @@
 package com.strobel.reflection;
 
+import com.strobel.core.ArrayUtilities;
+import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.EmptyArrayCache;
 import com.sun.tools.javac.code.Flags;
@@ -7,7 +9,15 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 
-import javax.lang.model.element.*;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.NestingKind;
+import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
@@ -794,6 +804,11 @@ final class JavacGenericParameter extends Type {
     }
 
     @Override
+    public int getGenericParameterPosition() {
+        return _element.getGenericElement().getTypeParameters().indexOf(_element);
+    }
+
+    @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
         sb.append(getFullName());
 
@@ -887,6 +902,42 @@ final class JavacGenericParameter extends Type {
     @SuppressWarnings("unchecked")
     public Object accept(final TypeVisitor visitor, final Object parameter) {
         return visitor.visitTypeParameter(this, parameter);
+    }
+
+    @Override
+    public int hashCode() {
+        return getGenericParameterPosition();
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (obj == this) {
+            return true;
+        }
+
+        if (obj == null || !(obj instanceof Type<?>)) {
+            return false;
+        }
+
+        final Type<?> other = (Type<?>) obj;
+
+        if (!other.isGenericParameter() ||
+            other.getGenericParameterPosition() != this.getGenericParameterPosition()) {
+
+            return false;
+        }
+
+        if (_declaringMethod != null) {
+            final MethodInfo otherDeclaringMethod = other.getDeclaringMethod();
+            return otherDeclaringMethod != null &&
+                   Comparer.equals(_declaringMethod.getRawMethod(), otherDeclaringMethod.getRawMethod());
+
+        }
+
+        final Type<?> otherDeclaringType = other.getDeclaringType();
+
+        return otherDeclaringType != null &&
+               otherDeclaringType.isEquivalentTo(_declaringType);
     }
 }
 
@@ -1076,13 +1127,11 @@ class ClassConstructor extends ConstructorInfo {
     private TypeList _thrownTypes;
     private ParameterList _parameters;
     private Constructor<?> _resolvedConstructor;
-    private final String _name;
     private CompletionState _completionState = CompletionState.AWAITING_PARAMETERS;
 
     ClassConstructor(final JavacType<?> declaringType, final Symbol.MethodSymbol element) {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _element = VerifyArgument.notNull(element, "element");
-        _name = element.getSimpleName().toString();
     }
 
     Symbol.MethodSymbol getElement() {
@@ -1126,7 +1175,7 @@ class ClassConstructor extends ConstructorInfo {
             }
         }
 
-        final Class<?>[] parameterClasses;
+        Class<?>[] parameterClasses;
 
         if (_parameters.isEmpty()) {
             parameterClasses = EmptyArrayCache.fromElementType(Class.class);
@@ -1147,6 +1196,9 @@ class ClassConstructor extends ConstructorInfo {
         }
 
         try {
+            if (_declaringType.isEnum()) {
+                parameterClasses = ArrayUtilities.prepend(parameterClasses, String.class, Integer.TYPE);
+            }
             _resolvedConstructor = _declaringType.getErasedClass().getDeclaredConstructor(
                 parameterClasses
             );

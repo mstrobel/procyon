@@ -32,7 +32,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
         return constructors;
     }
-        
+
     public FieldList visit(final Type<?> declaringType, final FieldList fields, final TypeBindings bindings) {
         VerifyArgument.notNull(fields, "fields");
 
@@ -80,7 +80,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
         return methods;
     }
-    
+
     public TypeBindings visitTypeBindings(final TypeBindings typeBindings, final TypeBindings bindings) {
         TypeBindings newTypeBindings = typeBindings;
 
@@ -140,7 +140,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
         return parameters;
     }
-    
+
     public MethodInfo visitMethod(final Type<?> declaringType, final MethodInfo method, final TypeBindings bindings) {
         final Type<?> oldReturnType = method.getReturnType();
         final Type<?> returnType = visit(oldReturnType, bindings);
@@ -297,6 +297,14 @@ class TypeBinder extends TypeMapper<TypeBindings> {
         final Type<?> newUpperBound = visit(upperBound, bindings);
 
         if (newUpperBound != upperBound) {
+            if (type.getDeclaringMethod() != null) {
+                return new GenericParameter(
+                    type.getFullName(),
+                    type.getDeclaringMethod(),
+                    newUpperBound,
+                    type.getGenericParameterPosition()
+                );
+            }
             return new GenericParameter(
                 type.getFullName(),
                 type.getDeclaringType(),

@@ -138,8 +138,23 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return Type.of(Object.class);
     }
 
+    private TypeList _interfaces;
+    
     public TypeList getInterfaces() {
-        return TypeList.empty();
+        if (_interfaces == null) {
+            synchronized (CACHE_LOCK) {
+                if (_interfaces == null) {
+                    final ArrayList<Type<?>> interfaces = getCache().getInterfaceList(MemberListType.All, null);
+                    if (interfaces.isEmpty()) {
+                        _interfaces = TypeList.empty();
+                    }
+                    else {
+                        _interfaces = Type.list(interfaces);
+                    }
+                }
+            }
+        }
+        return _interfaces;
     }
 
     protected TypeList getExplicitInterfaces() {
@@ -227,7 +242,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public boolean isEquivalentTo(final Type other) {
-        return other == this;
+        return this.equals(other);
     }
 
     public boolean isSubType(final Type type) {

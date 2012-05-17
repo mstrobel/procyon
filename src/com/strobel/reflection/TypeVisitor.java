@@ -5,7 +5,6 @@ package com.strobel.reflection;
  */
 @SuppressWarnings("ALL")
 public class TypeVisitor<P, R> {
-
     public R visit(final Type<?> type) {
         return visit(type, null);
     }

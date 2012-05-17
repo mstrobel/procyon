@@ -1,5 +1,6 @@
 package com.strobel.reflection;
 
+import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
 
 import javax.lang.model.type.TypeKind;
@@ -234,5 +235,41 @@ class GenericParameter<T> extends Type<T> {
     @Override
     public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
         return visitor.visitTypeParameter(this, parameter);
+    }
+
+    @Override
+    public int hashCode() {
+        return getGenericParameterPosition();
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        
+        if (obj == null || !(obj instanceof Type<?>)) {
+            return false;
+        }
+        
+        final Type<?> other = (Type<?>) obj;
+
+        if (!other.isGenericParameter() ||
+            other.getGenericParameterPosition() != this.getGenericParameterPosition()) {
+            
+            return false;
+        }
+        
+        if (_declaringMethod != null) {
+            final MethodInfo otherDeclaringMethod = other.getDeclaringMethod();
+            return otherDeclaringMethod != null &&
+                   Comparer.equals(_declaringMethod.getRawMethod(), otherDeclaringMethod.getRawMethod());
+                   
+        }
+
+        final Type<?> otherDeclaringType = other.getDeclaringType();
+        
+        return otherDeclaringType != null &&
+               otherDeclaringType.isEquivalentTo(_declaringType);
     }
 }

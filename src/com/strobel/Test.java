@@ -52,7 +52,14 @@ public class Test {
         System.out.println(
             Type.of(Type.class)
                 .makeGenericType(Types.BigInteger)
-                .getMethods(EnumSet.of(BindingFlags.Public, BindingFlags.NonPublic, BindingFlags.Static, BindingFlags.FlattenHierarchy))
+                .getMethods(
+                    EnumSet.of(
+                        BindingFlags.Public,
+                        BindingFlags.NonPublic,
+                        BindingFlags.Static,
+                        BindingFlags.FlattenHierarchy
+                    )
+                )
                 .get(3)
                 .getErasedSignature()
         );
@@ -67,7 +74,7 @@ public class Test {
         System.out.println(Type.of(HashMap.class).makeGenericType(Types.String, Types.Date).getMethods().get(4).getDescription());
         System.out.println(Type.of(HashMap.class).makeGenericType(Types.String, Types.Date).getMethods().get(4).getSimpleDescription());
         System.out.println(Type.of(HashMap.class).makeGenericType(Types.String, Types.Date).getMethods().get(4).getErasedDescription());
-        System.out.println(genericMapType.getNestedType("java.util.HashMap$Entry", BindingFlags.All));
+        System.out.println(Arrays.toString(genericMapType.getNestedType("java.util.HashMap$ValueIterator", BindingFlags.All).getMethods().toArray()));
 //        System.out.println(genericMapType.getMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).get(30));
     }
 
@@ -120,8 +127,8 @@ public class Test {
 
     private static class NullTree extends JCTree {
         @Override
-        public int getTag() {
-            return 0;
+        public Tag getTag() {
+            return Tag.NO_TAG;
         }
 
         @Override

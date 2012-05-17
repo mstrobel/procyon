@@ -5,6 +5,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 
 import javax.lang.model.type.TypeKind;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -1240,5 +1241,207 @@ final class RuntimeFieldInfo extends FieldInfo {
             _erasedDescription = super.getErasedDescription();
         }
         return _erasedDescription;
+    }
+}
+
+final class RuntimeType<T> extends Type<T> {
+    final static TypeBinder GenericBinder = new TypeBinder();
+
+    private final Type<?> _reflectedType;
+    private final Class<T> _erasedClass;
+    private final Type<T> _basedOn;
+    private final TypeBindings _typeBindings;
+    private final TypeBindings _allBindings;
+
+    private Type _baseType;
+    private TypeList _interfaces;
+    private FieldList _fields;
+    private ConstructorList _constructors;
+    private MethodList _methods;
+    private TypeList _nestedTypes;
+
+    RuntimeType(final Type<?> reflectedType, final Type<T> basedOn, final TypeBindings allBindings) {
+        _reflectedType = VerifyArgument.notNull(reflectedType, "reflectedType");
+        _allBindings = VerifyArgument.notNull(allBindings, "allBindings");
+        _erasedClass = basedOn.getErasedClass();
+        _basedOn = VerifyArgument.notNull(basedOn, "basedOn");
+        _typeBindings = basedOn.getTypeBindings();
+    }
+
+    @Override
+    public Type getReflectedType() {
+        return _reflectedType;
+    }
+
+    private void ensureBaseType() {
+        if (_baseType == null) {
+            synchronized (CACHE_LOCK) {
+                if (_baseType == null) {
+                    final Type genericBaseType = _basedOn.getBaseType();
+                    if (genericBaseType == null || genericBaseType == NullType) {
+                        _baseType = NullType;
+                    }
+                    else {
+                        _baseType = GenericBinder.visit(genericBaseType, _allBindings);
+                    }
+                }
+            }
+        }
+    }
+
+    private void ensureInterfaces() {
+        if (_interfaces == null) {
+            synchronized (CACHE_LOCK) {
+                if (_interfaces == null) {
+                    _interfaces = GenericBinder.visit(_basedOn.getExplicitInterfaces(), _allBindings);
+                }
+            }
+        }
+    }
+
+    private void ensureFields() {
+        if (_fields == null) {
+            synchronized (CACHE_LOCK) {
+                if (_fields == null) {
+                    _fields = GenericBinder.visit(this, _basedOn.getDeclaredFields(), _allBindings);
+                }
+            }
+        }
+    }
+
+    private void ensureConstructors() {
+        if (_constructors == null) {
+            synchronized (CACHE_LOCK) {
+                if (_constructors == null) {
+                    _constructors = GenericBinder.visit(this, _basedOn.getDeclaredConstructors(), _allBindings);
+                }
+            }
+        }
+    }
+
+    private void ensureMethods() {
+        if (_methods == null) {
+            synchronized (CACHE_LOCK) {
+                if (_methods == null) {
+                    _methods = GenericBinder.visit(this, _basedOn.getDeclaredMethods(), _allBindings);
+                }
+            }
+        }
+    }
+
+    private void ensureNestedTypes() {
+        if (_nestedTypes == null) {
+            synchronized (CACHE_LOCK) {
+                if (_nestedTypes == null) {
+                    _nestedTypes = Helper.map(
+                        _basedOn.getDeclaredTypes(),
+                        new TypeMapping() {
+                            @Override
+                            public Type<?> apply(final Type<?> type) {
+                                return new RuntimeType<>(RuntimeType.this, type, _allBindings);
+                            }
+                        }
+                    );
+                }
+            }
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Class<T> getErasedClass() {
+        return _erasedClass;
+    }
+
+    @Override
+    public TypeList getExplicitInterfaces() {
+        ensureInterfaces();
+        return _interfaces;
+    }
+
+    @Override
+    public Type getBaseType() {
+        ensureBaseType();
+        final Type<?> baseType = _baseType;
+        return baseType == NullType ? null : baseType;
+    }
+
+    @Override
+    public Type getGenericTypeDefinition() {
+        return _basedOn;
+    }
+
+    @Override
+    public MemberType getMemberType() {
+        return MemberType.TypeInfo;
+    }
+
+    @Override
+    public Type getDeclaringType() {
+        return _basedOn.getDeclaringType();
+    }
+
+    @Override
+    public final boolean isGenericType() {
+        return true;
+    }
+
+    @Override
+    public TypeBindings getTypeBindings() {
+        return _typeBindings;
+    }
+
+    @Override
+    int getModifiers() {
+        return _basedOn.getModifiers();
+    }
+
+    @Override
+    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
+        return _basedOn.isAnnotationPresent(annotationClass);
+    }
+
+    @Override
+    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+        return _basedOn.getAnnotation(annotationClass);
+    }
+
+    @Override
+    public Annotation[] getAnnotations() {
+        return _basedOn.getAnnotations();
+    }
+
+    @Override
+    public Annotation[] getDeclaredAnnotations() {
+        return _basedOn.getDeclaredAnnotations();
+    }
+
+    @Override
+    public <P, R> R accept(final TypeVisitor<P, R> typeVisitor, final P parameter) {
+        return typeVisitor.visitClassType(this, parameter);
+    }
+
+    @Override
+    public ConstructorList getDeclaredConstructors() {
+        ensureConstructors();
+        return _constructors;
+    }
+
+    @Override
+    public MethodList getDeclaredMethods() {
+        ensureMethods();
+        return _methods;
+    }
+
+    @Override
+    public FieldList getDeclaredFields() {
+        ensureFields();
+        return _fields;
+    }
+
+    @Override
+    public TypeList getDeclaredTypes() {
+        ensureNestedTypes();
+        return _nestedTypes;
     }
 }

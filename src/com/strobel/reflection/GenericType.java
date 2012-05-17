@@ -104,7 +104,15 @@ final class GenericType<T> extends Type<T> {
         if (_nestedTypes == null) {
             synchronized (CACHE_LOCK) {
                 if (_nestedTypes == null) {
-                    _nestedTypes = GenericBinder.visit(_genericTypeDefinition.getDeclaredTypes(), _typeBindings);
+                    _nestedTypes = Helper.map(
+                        _genericTypeDefinition.getDeclaredTypes(),
+                        new TypeMapping() {
+                            @Override
+                            public Type<?> apply(final Type<?> type) {
+                                return new RuntimeType<>(GenericType.this, type, _typeBindings);
+                            }
+                        }
+                    );
                 }
             }
         }

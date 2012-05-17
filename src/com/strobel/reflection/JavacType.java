@@ -3,7 +3,6 @@ package com.strobel.reflection;
 import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
-import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
@@ -66,12 +65,21 @@ class JavacType<T> extends Type<T> {
     }
 
     JavacGenericParameter findGenericParameter(final TypeParameterElement symbol) {
+/*
         for (final JavacGenericParameter genericParameter : _genericParameters) {
             if (Comparer.equals(genericParameter.getElement(), symbol)) {
                 return genericParameter;
             }
         }
+        if (_baseType instanceof JavacType<?>) {
+            final JavacGenericParameter p = ((JavacType<?>)_baseType).findGenericParameter(symbol);
+            if (p != null) {
+                return p;
+            }
+        }
         return null;
+*/
+        return GenericParameterFinder.visit(this, (Symbol.TypeSymbol) symbol);
     }
 
     void setDeclaringType(final Type<?> declaringType) {
@@ -159,7 +167,7 @@ class JavacType<T> extends Type<T> {
         ensureMembersResolved();
         return new ConstructorList(_constructors);
     }
-    
+
     @Override
     public MethodList getDeclaredMethods() {
         ensureMembersResolved();
@@ -258,7 +266,7 @@ class JavacType<T> extends Type<T> {
 
     @Override
     int getModifiers() {
-        return (int)(_typeElement.flags() & Flags.StandardFlags);
+        return (int)_typeElement.flags();
     }
 
     @Override
@@ -276,4 +284,83 @@ class JavacType<T> extends Type<T> {
         }
         return super._appendClassName(sb, fullName, dottedName);
     }
+
+    private final static SimpleVisitor<Symbol.TypeSymbol.TypeSymbol, JavacGenericParameter> GenericParameterFinder =
+        new SimpleVisitor<Symbol.TypeSymbol, JavacGenericParameter>() {
+            public JavacGenericParameter visit(final TypeList types, final Symbol.TypeSymbol s) {
+                for (final Type type : types) {
+                    final JavacGenericParameter result = visit(type, s);
+                    if (result != null) {
+                        return result;
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public JavacGenericParameter visitCapturedType(final Type<?> t, final Symbol.TypeSymbol s) {
+                return null;
+            }
+
+            @Override
+            public JavacGenericParameter visitClassType(final Type<?> type, final Symbol.TypeSymbol parameter) {
+                JavacGenericParameter result;
+
+                if (type.isGenericType()) {
+                    result = visit(type.getGenericTypeParameters(), parameter);
+
+                    if (result != null) {
+                        return result;
+                    }
+                }
+
+                if (type instanceof JavacType) {
+                    final JavacType javacType = (JavacType)type;
+                    for (final Object o : javacType._methods) {
+                        final JavacMethod method = (JavacMethod)o;
+                        if (method.isGenericMethod()) {
+                            result = visit(method.getGenericMethodParameters(), parameter);
+
+                            if (result != null) {
+                                return result;
+                            }
+                        }
+                    }
+                }
+
+                final Type declaringType = type.getDeclaringType();
+
+                if (declaringType != null && declaringType != NullType) {
+                    return visitClassType(declaringType, parameter);
+                }
+
+                return null;
+            }
+
+            @Override
+            public JavacGenericParameter visitPrimitiveType(final Type<?> type, final Symbol.TypeSymbol parameter) {
+                return super.visitPrimitiveType(type, parameter);    //To change body of overridden methods use File | Settings | File Templates.
+            }
+
+            @Override
+            public JavacGenericParameter visitTypeParameter(final Type<?> type, final Symbol.TypeSymbol parameter) {
+                if (type instanceof JavacGenericParameter) {
+                    final JavacGenericParameter gp = (JavacGenericParameter)type;
+                    if (Comparer.equals(gp.getElement(), parameter)) {
+                        return gp;
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            public JavacGenericParameter visitWildcardType(final Type<?> type, final Symbol.TypeSymbol parameter) {
+                return null;
+            }
+
+            @Override
+            public JavacGenericParameter visitArrayType(final Type<?> type, final Symbol.TypeSymbol parameter) {
+                return null;
+            }
+        };
 }
