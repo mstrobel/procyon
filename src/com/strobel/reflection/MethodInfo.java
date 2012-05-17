@@ -41,6 +41,20 @@ public abstract class MethodInfo extends MethodBase {
             s.append(' ');
         }
 
+        if (isGenericMethodDefinition()) {
+            final TypeList genericParameters = getGenericMethodParameters();
+
+            s.append('<');
+            for (int i = 0, n = genericParameters.size(); i < n; i++) {
+                if (i != 0) {
+                    s.append(", ");
+                }
+                s = genericParameters.get(i).appendSimpleDescription(s);
+            }
+            s.append('>');
+            s.append(' ');
+        }
+
         s = getReturnType().appendBriefDescription(s);
         s.append(' ');
         s.append(getName());
@@ -81,6 +95,20 @@ public abstract class MethodInfo extends MethodBase {
 
         for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
             s.append(modifier.toString());
+            s.append(' ');
+        }
+
+        if (isGenericMethodDefinition()) {
+            final TypeList genericParameters = getGenericMethodParameters();
+
+            s.append('<');
+            for (int i = 0, n = genericParameters.size(); i < n; i++) {
+                if (i != 0) {
+                    s.append(", ");
+                }
+                s = genericParameters.get(i).appendSimpleDescription(s);
+            }
+            s.append('>');
             s.append(' ');
         }
 
@@ -133,7 +161,7 @@ public abstract class MethodInfo extends MethodBase {
         final TypeList parameterTypes = Type.list(rawMethod.getParameterTypes());
 
         StringBuilder s = Type.of(rawMethod.getReturnType()).appendErasedDescription(sb);
-        
+
         s.append(' ');
         s.append(getName());
         s.append('(');
@@ -165,7 +193,6 @@ public abstract class MethodInfo extends MethodBase {
         s = getReturnType().appendSignature(s);
 
         return s;
-
     }
 
     @Override
@@ -309,7 +336,7 @@ class ReflectedMethod extends MethodInfo {
                     gp.setDeclaringMethod(this);
 
                     if (genericParameters == null) {
-                        genericParameters = new Type[]{gp};
+                        genericParameters = new Type[] { gp };
                     }
                     else {
                         genericParameters = ArrayUtilities.append(genericParameters, gp);

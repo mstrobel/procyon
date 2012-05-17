@@ -1,6 +1,7 @@
 package com.strobel.reflection;
 
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
@@ -241,8 +242,36 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return NoType;
     }
 
-    public boolean isEquivalentTo(final Type other) {
-        return this.equals(other);
+    public boolean isEquivalentTo(final Type<?> other) {
+        if (other == this) {
+            return true;
+        }
+        
+        if (other == null) {
+            return false;
+        }
+        
+        if (other instanceof RuntimeType<?>) {
+            return other.isEquivalentTo(this);
+        }
+        
+        if (Comparer.equals(getErasedClass(), other.getErasedClass())) {
+            if (isGenericType()) {
+                return other.isGenericType() &&
+                       Comparer.equals(getTypeArguments(), other.getTypeArguments());
+            }
+            else {
+                return !other.isGenericType();
+            }
+        }
+        
+        return false;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        return obj instanceof Type<?> &&
+               isEquivalentTo((Type<?>)obj);
     }
 
     public boolean isSubType(final Type type) {
@@ -252,7 +281,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             return false;
         }
 
-        while (current != null && current != Type.NoType) {
+        while (current != null && current != Type.NullType) {
             if (current.equals(type)) {
                 return true;
             }
@@ -271,7 +300,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public boolean implementsInterface(final Type interfaceType) {
         Type t = this;
 
-        while (t != null && t != Type.NoType) {
+        while (t != null && t != Type.NullType) {
             final TypeList interfaces = t.getExplicitInterfaces();
 
             for (int i = 0, n = interfaces.size(); i < n; i++) {
@@ -924,8 +953,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getCache().getFullName();
     }
 
-    public String getBinaryName() {
-        return getCache().getBinaryName();
+    public String getInternalName() {
+        return getCache().getInternalName();
     }
 
     /**

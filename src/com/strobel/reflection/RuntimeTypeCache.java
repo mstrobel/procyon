@@ -48,7 +48,7 @@ final class RuntimeTypeCache<T> {
     private TypeKind _typeKind;
     private String _name;
     private String _fullName;
-    private String _binaryName;
+    private String _internalName;
     private String _signature;
     private String _erasedSignature;
     private String _description;
@@ -110,11 +110,11 @@ final class RuntimeTypeCache<T> {
         return _fullName;
     }
 
-    String getBinaryName() {
-        if (_binaryName == null) {
-            _binaryName = _runtimeType._appendClassName(new StringBuilder(), true, false).toString();
+    String getInternalName() {
+        if (_internalName == null) {
+            _internalName = _runtimeType._appendClassName(new StringBuilder(), true, false).toString();
         }
-        return _binaryName;
+        return _internalName;
     }
 
     String getSignature() {
@@ -1443,5 +1443,16 @@ final class RuntimeType<T> extends Type<T> {
     public TypeList getDeclaredTypes() {
         ensureNestedTypes();
         return _nestedTypes;
+    }
+
+    @Override
+    public boolean isEquivalentTo(final Type other) {
+        if (other == this) {
+            return true;
+        }
+        if (other instanceof RuntimeType<?>) {
+            return isEquivalentTo(((RuntimeType<?>)other)._basedOn);
+        }
+        return _basedOn.isEquivalentTo(other);
     }
 }

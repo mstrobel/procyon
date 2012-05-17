@@ -26,11 +26,11 @@ import static com.strobel.expressions.Expression.*;
 @SuppressWarnings("UnusedDeclaration")
 public class Test {
     public static void main(final String[] args) {
-//        primitiveTest();
-//        expressionTest();
-//        genericMethodTest();
-//        arrayTypeTest();
         compilerToolsTest();
+        primitiveTest();
+        expressionTest();
+        genericMethodTest();
+        arrayTypeTest();
     }
 
     private static void compilerToolsTest() {
