@@ -47,6 +47,7 @@ final class RuntimeTypeCache<T> {
     private TypeKind _typeKind;
     private String _name;
     private String _fullName;
+    private String _binaryName;
     private String _signature;
     private String _erasedSignature;
     private String _description;
@@ -106,6 +107,13 @@ final class RuntimeTypeCache<T> {
             _fullName = _runtimeType._appendClassName(new StringBuilder(), true, true).toString();
         }
         return _fullName;
+    }
+
+    String getBinaryName() {
+        if (_binaryName == null) {
+            _binaryName = _runtimeType._appendClassName(new StringBuilder(), true, false).toString();
+        }
+        return _binaryName;
     }
 
     String getSignature() {

@@ -90,7 +90,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
         return new FilterOptions(filterName, prefixLookup, ignoreCase, listOptions);
     }
-    
+
     static Set<BindingFlags> filterPreCalculate(
         final boolean isPublic,
         final boolean isInherited,
@@ -195,7 +195,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public TypeList getInterfaces() {
         return TypeList.empty();
     }
-    
+
     protected TypeList getExplicitInterfaces() {
         return TypeList.empty();
     }
@@ -417,7 +417,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 bindingFlags,
                 CallingConvention.Any,
                 null,
-                true);
+                true
+            );
         }
 
         if (memberTypes.contains(MemberType.Constructor)) {
@@ -427,7 +428,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 bindingFlags,
                 CallingConvention.Any,
                 null,
-                true);
+                true
+            );
         }
 
         if (memberTypes.contains(MemberType.NestedType)) {
@@ -662,7 +664,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 bindingFlags,
                 CallingConvention.Any,
                 null,
-                false);
+                false
+            );
         }
 
         if (memberTypes.contains(MemberType.Constructor)) {
@@ -672,7 +675,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 bindingFlags,
                 CallingConvention.Any,
                 null,
-                false);
+                false
+            );
         }
 
         if (memberTypes.contains(MemberType.NestedType)) {
@@ -833,7 +837,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final FilterOptions filterOptions = getFilterOptions(name, bindingFlags, false);
         final ArrayList<Type<?>> nestedTypes = getCache().getNestedTypeList(filterOptions.listOptions, name);
         final Set<BindingFlags> flags = EnumSet.copyOf(bindingFlags);
-        
+
         if (!flags.remove(BindingFlags.Static)) {
             flags.add(BindingFlags.Static);
         }
@@ -1026,9 +1030,13 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public String getName() {
         return getCache().getName();
     }
-    
+
     public String getFullName() {
         return getCache().getFullName();
+    }
+
+    public String getBinaryName() {
+        return getCache().getBinaryName();
     }
 
     /**
@@ -1235,11 +1243,11 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     protected StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
         final Class<?> erasedClass = getErasedClass();
         final Package classPackage = erasedClass.getPackage();
-        
+
         if (!fullName) {
             return sb.append(erasedClass.getSimpleName());
         }
-        
+
         final String name = erasedClass.getName();
 
         if (dottedName) {
@@ -1463,7 +1471,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         if (ArrayUtilities.isNullOrEmpty(classes)) {
             return TypeList.empty();
         }
-        
+
         final Type<?>[] types = new Type<?>[classes.length];
 
         for (int i = 0, n = classes.length; i < n; i++) {
@@ -1472,7 +1480,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
         return new TypeList(types);
     }
-    
+
     public static TypeList list(final Type... types) {
         return new TypeList(types);
     }
@@ -1526,7 +1534,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final FilterOptions filterOptions = getFilterOptions(name, bindingFlags, allowPrefixLookup);
 
         final ArrayList<T> source;
-        
+
         if (type == MemberType.Constructor) {
             source = (ArrayList<T>)getCache().getConstructorList(filterOptions.listOptions, name);
         }
@@ -1539,21 +1547,21 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         if (!flags.remove(BindingFlags.DeclaredOnly)) {
             flags.add(BindingFlags.DeclaredOnly);
         }
-        
+
         List<MethodBase> candidates = null;
 
         //noinspection ForLoopReplaceableByForEach
         for (int i = 0, n = source.size(); i < n; i++) {
             final MethodBase method = source.get(i);
             final Set<BindingFlags> methodFlags;
-            
+
             if (type == MemberType.Constructor) {
                 methodFlags = ((RuntimeConstructorInfo)method).getBindingFlags();
             }
             else {
                 methodFlags = ((RuntimeMethodInfo)method).getBindingFlags();
             }
-            
+
             final boolean passesFilter = filterMethodBase(
                 method,
                 methodFlags,
@@ -1594,7 +1602,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
         final T[] results = (T[])Array.newInstance(
             type == MemberType.Constructor ? ConstructorInfo.class : MethodInfo.class,
-            candidates.size());
+            candidates.size()
+        );
 
         candidates.toArray((Object[])results);
 
@@ -1608,14 +1617,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final boolean allowPrefixLookup) {
 
         final Set<BindingFlags> flags = EnumSet.copyOf(bindingFlags);
-        
+
         if (!flags.remove(BindingFlags.DeclaredOnly)) {
             flags.add(BindingFlags.DeclaredOnly);
         }
-        
+
         final FilterOptions filterOptions = getFilterOptions(name, flags, allowPrefixLookup);
         final ArrayList<RuntimeFieldInfo> fields = getCache().getFieldList(filterOptions.listOptions, name);
-        
+
         List<FieldInfo> candidates = null;
 
         //noinspection ForLoopReplaceableByForEach
