@@ -103,17 +103,26 @@ class TypeBinder extends TypeMapper<TypeBindings> {
         final Type<?> oldFieldType = field.getFieldType();
         final Type<?> newFieldType = visit(field.getFieldType(), bindings);
 
+        final Type<?> actualDeclaringType;
+        final Type oldDeclaringType = field.getDeclaringType();
+
+        if (!TypeUtils.areEquivalent(oldDeclaringType, declaringType) &&
+            oldDeclaringType.isGenericTypeDefinition() &&
+            TypeUtils.areEquivalent(oldDeclaringType, declaringType.getGenericTypeDefinition())) {
+
+            actualDeclaringType = declaringType;
+        }
+        else {
+            actualDeclaringType = oldDeclaringType;
+        }
+
         if (TypeUtils.areEquivalent(oldFieldType, newFieldType) &&
-            TypeUtils.areEquivalent(field.getDeclaringType(), declaringType)) {
+            TypeUtils.areEquivalent(actualDeclaringType, declaringType)) {
 
             return field;
         }
 
-        return new ReflectedField(
-            declaringType,
-            field.getRawField(),
-            newFieldType
-        );
+        return new ReflectedField(actualDeclaringType, field.getRawField(), newFieldType);
     }
 
     public ParameterList visitParameters(final ParameterList parameters, final TypeBindings bindings) {
@@ -165,10 +174,23 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
         hasChanged |= thrownTypesChanged;
 
+        final Type<?> actualDeclaringType;
+        final Type oldDeclaringType = method.getDeclaringType();
+
+        if (!TypeUtils.areEquivalent(oldDeclaringType, declaringType) &&
+            oldDeclaringType.isGenericTypeDefinition() &&
+            TypeUtils.areEquivalent(oldDeclaringType, declaringType.getGenericTypeDefinition())) {
+
+            actualDeclaringType = declaringType;
+        }
+        else {
+            actualDeclaringType = oldDeclaringType;
+        }
+
         if (!hasChanged) {
-            if (!TypeUtils.areEquivalent(method.getDeclaringType(), declaringType)) {
+            if (!TypeUtils.areEquivalent(oldDeclaringType, declaringType)) {
                 return new ReflectedMethod(
-                    method.getDeclaringType(),
+                    actualDeclaringType,
                     declaringType,
                     method.getRawMethod(),
                     oldParameters,
@@ -181,7 +203,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
         }
 
         return new ReflectedMethod(
-            method.getDeclaringType(),
+            actualDeclaringType,
             declaringType,
             method.getRawMethod(),
             newParameters,
@@ -221,10 +243,23 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
         hasChanged |= thrownTypesChanged;
 
+        final Type<?> actualDeclaringType;
+        final Type oldDeclaringType = constructor.getDeclaringType();
+
+        if (!TypeUtils.areEquivalent(oldDeclaringType, declaringType) &&
+            oldDeclaringType.isGenericTypeDefinition() &&
+            TypeUtils.areEquivalent(oldDeclaringType, declaringType.getGenericTypeDefinition())) {
+
+            actualDeclaringType = declaringType;
+        }
+        else {
+            actualDeclaringType = oldDeclaringType;
+        }
+
         if (!hasChanged) {
             if (!TypeUtils.areEquivalent(constructor.getDeclaringType(), declaringType)) {
                 return new ReflectedConstructor(
-                    declaringType,
+                    actualDeclaringType,
                     constructor.getRawConstructor(),
                     constructor.getParameters(),
                     thrown
@@ -246,7 +281,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
         }
 
         return new ReflectedConstructor(
-            declaringType,
+            actualDeclaringType,
             constructor.getRawConstructor(),
             new ParameterList(newParameters),
             new TypeList(thrownTypes)

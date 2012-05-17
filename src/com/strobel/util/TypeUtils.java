@@ -137,7 +137,8 @@ public final class TypeUtils {
     }
 
     public static boolean areEquivalent(final Type class1, final Type class2) {
-        return class1 == class2;
+        return class1 == null ? class2 == null
+                              : class1.isEquivalentTo(class2);
     }
 
     public static boolean hasIdentityPrimitiveOrBoxingConversion(final Type source, final Type destination) {
