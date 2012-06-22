@@ -218,7 +218,7 @@ public class BytecodeGenerator {
     public void emitGoto(final Label label) {
         emit(OpCode.GOTO, label);
     }
-    
+
     public void emit(final OpCode opCode, final Label label) {
         VerifyArgument.notNull(label, "label");
 
@@ -305,12 +305,12 @@ public class BytecodeGenerator {
 
         updateStackSize(opCode, stackChange);
     }
-    
+
     public void emitCall(final MethodInfo method) {
         VerifyArgument.notNull(method, "method");
 
         final OpCode opCode;
-        
+
         if (method.isStatic()) {
             emitCall(OpCode.INVOKESTATIC, method);
         }
@@ -346,6 +346,44 @@ public class BytecodeGenerator {
         }
 
         emitNew(constructor);
+    }
+
+    public void emitNewArray(final Type<?> arrayType) {
+        emitNewArray(arrayType, 1);
+    }
+
+    public void emitNewArray(final Type<?> arrayType, final int dimensionsToInitialize) {
+        VerifyArgument.notNull(arrayType, "arrayType");
+        VerifyArgument.isPositive(dimensionsToInitialize, "dimensionsToInitialize");
+
+        Type elementType;
+
+        if (dimensionsToInitialize == 1) {
+            elementType = arrayType.getElementType();
+
+            if (elementType.isPrimitive()) {
+                emit(OpCode.NEWARRAY, elementType);
+            }
+            else {
+                emit(OpCode.ANEWARRAY, elementType);
+            }
+
+            return;
+        }
+
+        int dimension = dimensionsToInitialize;
+
+        elementType = arrayType.getElementType();
+
+        while (--dimension > 0) {
+            if (!elementType.isArray()) {
+                throw Error.newArrayDimensionsOutOfRange(arrayType, dimensionsToInitialize);
+            }
+            elementType = elementType.getElementType();
+        }
+
+        emit(OpCode.MULTIANEWARRAY, arrayType);
+        emitByteOperand(dimensionsToInitialize);
     }
 
     protected void emitLoadConstant(final int token) {
@@ -396,27 +434,27 @@ public class BytecodeGenerator {
             case BYTE:
                 emit(OpCode.BALOAD);
                 break;
-            
+
             case SHORT:
                 emit(OpCode.SALOAD);
                 break;
-            
+
             case INT:
                 emit(OpCode.IALOAD);
                 break;
-            
+
             case LONG:
                 emit(OpCode.LALOAD);
                 break;
-            
+
             case CHAR:
                 emit(OpCode.CALOAD);
                 break;
-            
+
             case FLOAT:
                 emit(OpCode.FALOAD);
                 break;
-            
+
             case DOUBLE:
                 emit(OpCode.DALOAD);
                 break;
@@ -428,7 +466,7 @@ public class BytecodeGenerator {
             case WILDCARD:
                 emit(OpCode.AALOAD);
                 break;
-            
+
             default:
                 throw Error.invalidType(elementType);
         }
@@ -442,27 +480,27 @@ public class BytecodeGenerator {
             case BYTE:
                 emit(OpCode.BASTORE);
                 break;
-            
+
             case SHORT:
                 emit(OpCode.SASTORE);
                 break;
-            
+
             case INT:
                 emit(OpCode.IASTORE);
                 break;
-            
+
             case LONG:
                 emit(OpCode.LASTORE);
                 break;
-            
+
             case CHAR:
                 emit(OpCode.CASTORE);
                 break;
-            
+
             case FLOAT:
                 emit(OpCode.FASTORE);
                 break;
-            
+
             case DOUBLE:
                 emit(OpCode.DASTORE);
                 break;
@@ -474,12 +512,12 @@ public class BytecodeGenerator {
             case WILDCARD:
                 emit(OpCode.AASTORE);
                 break;
-            
+
             default:
                 throw Error.invalidType(elementType);
         }
     }
-    
+
     public void emitDefaultValue(final Type<?> type) {
         VerifyArgument.notNull(type, "type");
 
@@ -737,8 +775,8 @@ public class BytecodeGenerator {
         final Type<?> unboxedSourceType = TypeUtils.getUnderlyingPrimitiveOrSelf(sourceType);
         final Type<?> unboxedTargetType = TypeUtils.getUnderlyingPrimitiveOrSelf(targetType);
 
-        if (sourceType.isInterface()   || // interface cast
-            targetType.isInterface()   ||
+        if (sourceType.isInterface() || // interface cast
+            targetType.isInterface() ||
             sourceType == Types.Object || // boxing cast
             targetType == Types.Object) {
 
@@ -786,11 +824,13 @@ public class BytecodeGenerator {
     private void emitBoxedToUnboxedConversion(final Type<?> sourceType, final Type<?> targetType) {
         assert TypeUtils.isAutoUnboxed(sourceType) && targetType.isPrimitive()
             : "TypeUtils.isAutoUnboxed(sourceType) && targetType.isPrimitive()";
-        
-        if (targetType.isPrimitive())
+
+        if (targetType.isPrimitive()) {
             emitBoxedToUnboxedNumericConversion(sourceType, targetType);
-        else
+        }
+        else {
             emitBoxedToReferenceConversion(sourceType);
+        }
     }
 
     private void emitBoxedToReferenceConversion(final Type<?> sourceType) {
@@ -805,12 +845,12 @@ public class BytecodeGenerator {
             : "TypeUtils.isAutoUnboxed(sourceType) && !TypeUtils.isAutoUnboxed(targetType)";
 
         final LocalBuilder sourceLocal = declareLocal(sourceType);
-        
+
         emitStore(sourceLocal);
         emitLoad(sourceLocal);
 
         final MethodInfo coercionMethod = TypeUtils.getCoercionMethod(sourceType, targetType);
-        
+
         if (coercionMethod != null) {
             emitCall(coercionMethod);
         }
@@ -886,7 +926,7 @@ public class BytecodeGenerator {
         if (sourceKind == targetKind) {
             return;
         }
-        
+
         switch (targetKind) {
             case BOOLEAN: {
                 throw Error.invalidCast(sourceType, targetType);
@@ -916,7 +956,7 @@ public class BytecodeGenerator {
                         return;
                 }
             }
-            
+
             case SHORT: {
                 switch (sourceKind) {
                     case BYTE:
@@ -1233,6 +1273,8 @@ public class BytecodeGenerator {
     }
 
     byte[] bakeByteArray() {
+        // TODO: GOTO instructions w/ previously unresolved labels may need to be resized to GOTO_W.
+
         // bakeByteArray() is a package private function designed to be called by
         // MethodBuilder to do all of the fix-ups and return a new byte array
         // representing the byte stream with labels resolved, etc. 

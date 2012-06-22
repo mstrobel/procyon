@@ -1,5 +1,6 @@
 package com.strobel.reflection.emit;
 
+import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.Type;
 import com.strobel.util.ContractUtils;
 
@@ -119,6 +120,27 @@ final class Error {
                 "Cannot cast from '%s' to '%s'.",
                 sourceType,
                 targetType
+            )
+        );
+    }
+
+    public static RuntimeException newArrayDimensionsOutOfRange(final Type<?> arrayType, final int dimensions) {
+        VerifyArgument.notNull(arrayType, "arrayType");
+        
+        int actualDimensions = 0;
+        Type<?> currentType = arrayType;
+        
+        while (currentType.isArray()) {
+            ++actualDimensions;
+            currentType = arrayType.getElementType();
+        }
+        
+        return new RuntimeException(
+            format(
+                "Cannot initialize %s dimensions of a(n) %s because the array only has %s dimensions.",
+                dimensions,
+                arrayType,
+                actualDimensions
             )
         );
     }
