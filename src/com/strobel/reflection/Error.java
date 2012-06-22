@@ -10,7 +10,7 @@ final class Error {
     }
 
     public static RuntimeException notGenericParameter(final Type type) {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             format(
                 "Type '%s' is not a generic parameter.",
                 type.getFullName()
@@ -19,7 +19,7 @@ final class Error {
     }
 
     public static RuntimeException notGenericType(final Type type) {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             format(
                 "Type '%s' is not a generic type.",
                 type.getFullName()
@@ -28,7 +28,7 @@ final class Error {
     }
 
     public static RuntimeException notGenericMethod(final MethodInfo method) {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             format(
                 "Type '%s' is not a generic method.",
                 method.getName()
@@ -37,7 +37,7 @@ final class Error {
     }
 
     public static RuntimeException notGenericMethodDefinition(final MethodInfo method) {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             format(
                 "Type '%s' is not a generic method definition.",
                 method.getName()
@@ -46,7 +46,7 @@ final class Error {
     }
 
     public static RuntimeException noElementType(final Type type) {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             format(
                 "Type '%s' does not have an element type.",
                 type.getFullName()
@@ -55,7 +55,7 @@ final class Error {
     }
 
     public static RuntimeException notEnumType(final Type type) {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             format(
                 "Type '%s' is not an enum type.",
                 type.getFullName()
@@ -64,7 +64,7 @@ final class Error {
     }
 
     public static RuntimeException notArrayType(final Type type) {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             format(
                 "Type '%s' is not an array type.",
                 type.getFullName()
@@ -73,17 +73,17 @@ final class Error {
     }
 
     public static RuntimeException ambiguousMatch() {
-        throw new RuntimeException("Ambiguous match found.");
+        return new RuntimeException("Ambiguous match found.");
     }
 
     public static RuntimeException incorrectNumberOfTypeArguments() {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             "Incorrect number of type arguments provided."
         );
     }
 
     public static RuntimeException incorrectNumberOfTypeArguments(final Type type) {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             format(
                 "Incorrect number of type arguments provided for generic type '%s'.",
                 type.getFullName()
@@ -92,7 +92,7 @@ final class Error {
     }
 
     public static RuntimeException notGenericTypeDefinition(final Type type) {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             format(
                 "Type '%s' is not a generic type definition.",
                 type.getFullName()
@@ -101,7 +101,7 @@ final class Error {
     }
 
     public static RuntimeException notPrimitiveType(final Class<?> type) {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             format(
                 "Type '%s' is not a primitive type.",
                 type.getName()
@@ -110,7 +110,7 @@ final class Error {
     }
 
     public static RuntimeException typeParameterNotDefined(final Type typeParameter) {
-        throw new UnsupportedOperationException(
+        return new UnsupportedOperationException(
             format(
                 "Generic parameter '%s' is not defined on this type.",
                 typeParameter.getFullName()
@@ -119,7 +119,7 @@ final class Error {
     }
 
     public static RuntimeException couldNotResolveMethod(final Object signature) {
-        throw new RuntimeException(
+        return new RuntimeException(
             format(
                 "Could not resolve method '%s'.",
                 signature
@@ -128,11 +128,11 @@ final class Error {
     }
 
     public static RuntimeException couldNotResolveMember(final MemberInfo member) {
-        throw new MemberResolutionException(member);
+        return new MemberResolutionException(member);
     }
 
     public static RuntimeException couldNotResolveType(final Object signature) {
-        throw new RuntimeException(
+        return new RuntimeException(
             format(
                 "Could not resolve type '%s'.",
                 signature
@@ -141,7 +141,7 @@ final class Error {
     }
 
     public static RuntimeException couldNotResolveParameterType(final Object signature) {
-        throw new RuntimeException(
+        return new RuntimeException(
             format(
                 "Could not resolve type for parameter '%s'.",
                 signature
@@ -150,32 +150,32 @@ final class Error {
     }
 
     public static RuntimeException typeArgumentsMustContainBoundType() {
-        throw new RuntimeException(
+        return new RuntimeException(
             "Type arguments must bind at least one generic parameter."
         );
     }
 
     public static RuntimeException compoundTypeMayOnlyHaveOneClassBound() {
-        throw new RuntimeException(
+        return new RuntimeException(
             "Compound types may only be bounded by one class, and it must be the first type in " +
             "the bound list.  All other bounds must be interface types."
         );
     }
 
     public static RuntimeException compoundTypeMayNotHaveGenericParameterBound() {
-        throw new RuntimeException(
+        return new RuntimeException(
             "Compound types may not be bounded by a generic parameter."
         );
     }
 
     public static RuntimeException bytecodeGeneratorNotOwnedByMethodBuilder() {
-        throw new RuntimeException(
+        return new RuntimeException(
             "This BytecodeGenerator was not created by a MethodBuilder."
         );
     }
 
     public static RuntimeException typeHasBeenCreated() {
-        throw new RuntimeException(
+        return new RuntimeException(
             "This type has already been created."
         );
     }

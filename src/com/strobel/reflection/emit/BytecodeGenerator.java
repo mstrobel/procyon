@@ -76,6 +76,24 @@ public class BytecodeGenerator {
         return new Label(_labelCount++);
     }
 
+    public void markLabel(final Label label) {
+        // Defines a label by setting the position where that label is found
+        // within the stream.  Verifies the label is not defined more than once.
+
+        final int labelIndex = label.getLabelValue();
+
+        // This should never happen.
+        if (labelIndex < 0 || labelIndex >= _labelList.length) {
+            throw Error.badLabel();
+        }
+
+        if (_labelList[labelIndex] != -1) {
+            throw Error.labelAlreadyDefined();
+        }
+
+        _labelList[labelIndex] = _length;
+    }
+
     public LocalBuilder declareLocal(final Type localType) {
         VerifyArgument.notNull(localType, "localType");
 
@@ -232,7 +250,7 @@ public class BytecodeGenerator {
         throw ContractUtils.unreachable();
     }
 
-    public void emitLoad(final LocalBuilder local) {
+    public final void emitLoad(final LocalBuilder local) {
         emit(
             getLocalLoadOpCode(
                 local.getLocalType(),
@@ -242,7 +260,7 @@ public class BytecodeGenerator {
         );
     }
 
-    public void emitStore(final LocalBuilder local) {
+    public final void emitStore(final LocalBuilder local) {
         emit(
             getLocalStoreOpCode(
                 local.getLocalType(),
@@ -443,6 +461,69 @@ public class BytecodeGenerator {
             _maxMidStack = 0;
             _maxMidStackCur = 0;
         }
+    }
+
+    private int getLabelPosition(final Label label) {
+        // Gets the position in the stream of a particular label.
+        // Verifies that the label exists and that it has been given a value.
+
+        final int index = label.getLabelValue();
+
+        if (index < 0 || index >= _labelCount) {
+            throw Error.badLabel();
+        }
+
+        if (_labelList[index] < 0) {
+            throw Error.badLabelContent();
+        }
+
+        return _labelList[index];
+    }
+
+    byte[] bakeByteArray() {
+        // bakeByteArray() is a package private function designed to be called by
+        // MethodBuilder to do all of the fix-ups and return a new byte array
+        // representing the byte stream with labels resolved, etc. 
+
+        final int newSize;
+        final byte[] newBytes;
+
+        int updateAddress;
+
+        if (_currExcStackCount != 0) {
+            throw Error.unclosedExceptionBlock();
+        }
+
+        if (_length == 0) {
+            return null;
+        }
+
+        newSize = _length;
+        newBytes = Arrays.copyOf(_bytecodeStream, newSize);
+
+        // Do the fix-ups.  This involves iterating over all of the labels and replacing
+        // them with their proper values.
+        for (int i = 0; i < _fixupCount; i++) {
+            updateAddress = getLabelPosition(_fixupData[i].fixupLabel) -
+                            (_fixupData[i].fixupPosition + _fixupData[i].operandSize);
+
+            // Handle single byte instructions
+            // Throw an exception if they're trying to store a jump in a single byte instruction that doesn't fit.
+            if (_fixupData[i].operandSize == 2) {
+                // Verify that our two-byte arg will fit into a Short.
+                if (updateAddress < Short.MIN_VALUE || updateAddress > Short.MAX_VALUE) {
+                    throw Error.illegalTwoByteBranch(_fixupData[i].fixupPosition, updateAddress);
+                }
+
+                putShortOperand(newBytes, _fixupData[i].fixupPosition, (short)updateAddress);
+            }
+            else {
+                // Emit the four-byte arg.
+                putIntOperand(newBytes, _fixupData[i].fixupPosition, updateAddress);
+            }
+        }
+
+        return newBytes;
     }
 
     static int[] enlargeArray(final int[] incoming) {
