@@ -7,9 +7,11 @@ import com.strobel.reflection.MethodBuilder;
 import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
+import com.strobel.reflection.Types;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
+import javax.lang.model.type.TypeKind;
 import java.util.Arrays;
 
 /**
@@ -213,7 +215,13 @@ public class BytecodeGenerator {
         throw ContractUtils.unreachable();
     }
 
+    public void emitGoto(final Label label) {
+        emit(OpCode.GOTO, label);
+    }
+    
     public void emit(final OpCode opCode, final Label label) {
+        VerifyArgument.notNull(label, "label");
+
         // Puts opCode onto the stream and leaves space to include label when fix-ups
         // are done.  Labels are created using BytecodeGenerator.defineLabel() and their
         // location within the stream is fixed by using BytecodeGenerator.defineLabel().
@@ -711,6 +719,331 @@ public class BytecodeGenerator {
         }
     }
 
+    public void emitConversion(final Type<?> sourceType, final Type<?> targetType) {
+        VerifyArgument.notNull(sourceType, "sourceType");
+        VerifyArgument.notNull(targetType, "targetType");
+
+        if (sourceType.isEquivalentTo(targetType)) {
+            return;
+        }
+
+        if (sourceType == PrimitiveTypes.Void || targetType == PrimitiveTypes.Void) {
+            throw Error.cannotConvertToOrFromVoid();
+        }
+
+        final boolean isTypeSourceBoxed = TypeUtils.isAutoUnboxed(sourceType);
+        final boolean isTypeTargetBoxed = TypeUtils.isAutoUnboxed(targetType);
+
+        final Type<?> unboxedSourceType = TypeUtils.getUnderlyingPrimitiveOrSelf(sourceType);
+        final Type<?> unboxedTargetType = TypeUtils.getUnderlyingPrimitiveOrSelf(targetType);
+
+        if (sourceType.isInterface()   || // interface cast
+            targetType.isInterface()   ||
+            sourceType == Types.Object || // boxing cast
+            targetType == Types.Object) {
+
+            emitCastToType(sourceType, targetType);
+        }
+        else if (isTypeSourceBoxed || isTypeTargetBoxed) {
+            emitBoxingConversion(sourceType, targetType);
+        }
+        else if ((!unboxedSourceType.isPrimitive()
+                  || !unboxedTargetType.isPrimitive())                          // primitive runtime conversion
+                 && (unboxedSourceType.isAssignableFrom(unboxedTargetType)      // down cast
+                     || unboxedTargetType.isAssignableFrom(unboxedSourceType))) // up cast
+        {
+            emitCastToType(sourceType, targetType);
+        }
+        else if (sourceType.isArray() && targetType.isArray()) {
+            emitCastToType(sourceType, targetType);
+        }
+        else {
+            emitNumericConversion(sourceType, targetType);
+        }
+    }
+
+    private void emitBoxingConversion(final Type<?> sourceType, final Type<?> targetType) {
+        final boolean isSourceTypeBoxed = TypeUtils.isAutoUnboxed(sourceType);
+        final boolean isTargetTypeBoxed = TypeUtils.isAutoUnboxed(targetType);
+
+        assert isSourceTypeBoxed || isTargetTypeBoxed
+            : "isSourceTypeBoxed || isTargetTypeBoxed";
+
+        if (isSourceTypeBoxed && isTargetTypeBoxed) {
+            emitBoxedToBoxedConversion(sourceType, targetType);
+        }
+        else if (isSourceTypeBoxed) {
+            emitBoxedToUnboxedConversion(sourceType, targetType);
+        }
+        else {
+            emitUnboxedToBoxedConversion(sourceType, targetType);
+        }
+    }
+
+    private void emitUnboxedToBoxedConversion(final Type<?> sourceType, final Type<?> targetType) {
+    }
+
+    private void emitBoxedToUnboxedConversion(final Type<?> sourceType, final Type<?> targetType) {
+        assert TypeUtils.isAutoUnboxed(sourceType) && targetType.isPrimitive()
+            : "TypeUtils.isAutoUnboxed(sourceType) && targetType.isPrimitive()";
+        
+        if (targetType.isPrimitive())
+            emitBoxedToUnboxedNumericConversion(sourceType, targetType);
+        else
+            emitBoxedToReferenceConversion(sourceType);
+    }
+
+    private void emitBoxedToReferenceConversion(final Type<?> sourceType) {
+        assert TypeUtils.isAutoUnboxed(sourceType)
+            : "TypeUtils.isAutoUnboxed(sourceType)";
+
+        emitBox(sourceType);
+    }
+
+    private void emitBoxedToUnboxedNumericConversion(final Type<?> sourceType, final Type<?> targetType) {
+        assert TypeUtils.isAutoUnboxed(sourceType) && !TypeUtils.isAutoUnboxed(targetType)
+            : "TypeUtils.isAutoUnboxed(sourceType) && !TypeUtils.isAutoUnboxed(targetType)";
+
+        final LocalBuilder sourceLocal = declareLocal(sourceType);
+        
+        emitStore(sourceLocal);
+        emitLoad(sourceLocal);
+
+        final MethodInfo coercionMethod = TypeUtils.getCoercionMethod(sourceType, targetType);
+        
+        if (coercionMethod != null) {
+            emitCall(coercionMethod);
+        }
+        else {
+            final Type<?> unboxedSourceType = TypeUtils.getUnderlyingPrimitive(sourceType);
+
+            emitUnbox(sourceType);
+            emitConversion(unboxedSourceType, targetType);
+        }
+    }
+
+    private void emitBoxedToBoxedConversion(final Type<?> sourceType, final Type<?> targetType) {
+        assert TypeUtils.isAutoUnboxed(sourceType) && TypeUtils.isAutoUnboxed(targetType)
+            : "TypeUtils.isAutoUnboxed(sourceType) && TypeUtils.isAutoUnboxed(targetType)";
+
+        final LocalBuilder sourceLocal = declareLocal(sourceType);
+        final LocalBuilder targetLocal = declareLocal(targetType);
+
+        final Type<?> unboxedSourceType = TypeUtils.getUnderlyingPrimitive(sourceType);
+        final Type<?> unboxedTargetType = TypeUtils.getUnderlyingPrimitive(targetType);
+
+        final Label ifNull = defineLabel();
+        final Label end = defineLabel();
+
+        emitStore(sourceLocal);
+        emitStore(targetLocal);
+
+        // test source value for null
+        emitLoad(sourceLocal);
+        emit(OpCode.IFNULL, ifNull);
+
+        // unbox source
+        emitLoad(sourceLocal);
+        emitUnbox(sourceType);
+
+        // convert unboxed source to unboxed target type
+        emitConversion(unboxedSourceType, unboxedTargetType);
+
+        // box target
+        emitBox(targetType);
+        emitStore(targetLocal);
+        emitGoto(end);
+
+        // if source was null, set target to null
+        markLabel(ifNull);
+        emitNull();
+        emitStore(targetLocal);
+
+        // target is now on top of stack
+        markLabel(end);
+        emitLoad(targetLocal);
+    }
+
+    private void emitCastToType(final Type sourceType, final Type targetType) {
+        if (!sourceType.isPrimitive() && targetType.isPrimitive()) {
+            emitUnbox(targetType);
+        }
+        else if (sourceType.isPrimitive() && !targetType.isPrimitive()) {
+            emitBox(sourceType);
+        }
+        else if (!sourceType.isPrimitive() && !targetType.isPrimitive()) {
+            emit(OpCode.CHECKCAST, targetType);
+        }
+        else {
+            throw Error.invalidCast(sourceType, targetType);
+        }
+    }
+
+    private void emitNumericConversion(final Type<?> sourceType, final Type<?> targetType) {
+        final TypeKind sourceKind = sourceType.getKind();
+        final TypeKind targetKind = targetType.getKind();
+
+        if (sourceKind == targetKind) {
+            return;
+        }
+        
+        switch (targetKind) {
+            case BOOLEAN: {
+                throw Error.invalidCast(sourceType, targetType);
+            }
+
+            case BYTE: {
+                switch (sourceKind) {
+                    case CHAR:
+                    case SHORT:
+                    case INT:
+                        emit(OpCode.I2B);
+                        return;
+
+                    case LONG:
+                        emit(OpCode.L2I);
+                        emit(OpCode.I2B);
+                        return;
+
+                    case FLOAT:
+                        emit(OpCode.F2I);
+                        emit(OpCode.I2B);
+                        return;
+
+                    case DOUBLE:
+                        emit(OpCode.D2I);
+                        emit(OpCode.I2B);
+                        return;
+                }
+            }
+            
+            case SHORT: {
+                switch (sourceKind) {
+                    case BYTE:
+                    case CHAR:
+                    case INT:
+                        emit(OpCode.I2S);
+                        return;
+
+                    case LONG:
+                        emit(OpCode.L2I);
+                        emit(OpCode.I2S);
+                        return;
+
+                    case FLOAT:
+                        emit(OpCode.F2I);
+                        emit(OpCode.I2S);
+                        return;
+
+                    case DOUBLE:
+                        emit(OpCode.D2I);
+                        emit(OpCode.I2S);
+                        return;
+                }
+            }
+
+            case INT: {
+                switch (sourceKind) {
+                    case LONG:
+                        emit(OpCode.L2I);
+                        return;
+
+                    case FLOAT:
+                        emit(OpCode.F2I);
+                        return;
+
+                    case DOUBLE:
+                        emit(OpCode.D2I);
+                        return;
+                }
+            }
+
+            case LONG: {
+                switch (sourceKind) {
+                    case BYTE:
+                    case CHAR:
+                    case SHORT:
+                    case INT:
+                        emit(OpCode.I2L);
+                        return;
+
+                    case FLOAT:
+                        emit(OpCode.F2L);
+                        return;
+
+                    case DOUBLE:
+                        emit(OpCode.D2L);
+                        return;
+                }
+            }
+
+            case CHAR: {
+                switch (sourceKind) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        emit(OpCode.I2C);
+                        return;
+
+                    case LONG:
+                        emit(OpCode.L2I);
+                        emit(OpCode.I2C);
+                        return;
+
+                    case FLOAT:
+                        emit(OpCode.F2I);
+                        emit(OpCode.I2C);
+                        return;
+
+                    case DOUBLE:
+                        emit(OpCode.D2I);
+                        emit(OpCode.I2C);
+                        return;
+                }
+            }
+
+            case FLOAT: {
+                switch (sourceKind) {
+                    case BYTE:
+                    case CHAR:
+                    case SHORT:
+                    case INT:
+                        emit(OpCode.I2F);
+                        return;
+
+                    case LONG:
+                        emit(OpCode.L2F);
+                        return;
+
+                    case DOUBLE:
+                        emit(OpCode.D2F);
+                        return;
+                }
+            }
+
+            case DOUBLE: {
+                switch (sourceKind) {
+                    case BYTE:
+                    case CHAR:
+                    case SHORT:
+                    case INT:
+                        emit(OpCode.I2D);
+                        return;
+
+                    case LONG:
+                        emit(OpCode.L2D);
+                        return;
+
+                    case FLOAT:
+                        emit(OpCode.F2D);
+                        return;
+                }
+            }
+        }
+
+        throw Error.invalidCast(sourceType, targetType);
+    }
+
     void emitByteOperand(final int value) {
         _bytecodeStream.putByte(value);
     }
@@ -990,7 +1323,7 @@ public class BytecodeGenerator {
                     case 3:
                         return OpCode.ILOAD_3;
                     default:
-                        return OpCode.ILOAD;
+                        return localIndex > Byte.MAX_VALUE ? OpCode.ILOAD_W : OpCode.ILOAD;
                 }
 
             case LONG:
@@ -1004,7 +1337,7 @@ public class BytecodeGenerator {
                     case 3:
                         return OpCode.LLOAD_3;
                     default:
-                        return OpCode.LLOAD;
+                        return localIndex > Byte.MAX_VALUE ? OpCode.LLOAD_W : OpCode.LLOAD;
                 }
 
             case FLOAT:
@@ -1018,7 +1351,7 @@ public class BytecodeGenerator {
                     case 3:
                         return OpCode.FLOAD_3;
                     default:
-                        return OpCode.FLOAD;
+                        return localIndex > Byte.MAX_VALUE ? OpCode.FLOAD_W : OpCode.FLOAD;
                 }
 
             case DOUBLE:
@@ -1032,7 +1365,7 @@ public class BytecodeGenerator {
                     case 3:
                         return OpCode.DLOAD_3;
                     default:
-                        return OpCode.DLOAD;
+                        return localIndex > Byte.MAX_VALUE ? OpCode.DLOAD_W : OpCode.DLOAD;
                 }
 
             default:
@@ -1046,7 +1379,7 @@ public class BytecodeGenerator {
                     case 3:
                         return OpCode.ALOAD_3;
                     default:
-                        return OpCode.ALOAD;
+                        return localIndex > Byte.MAX_VALUE ? OpCode.ALOAD_W : OpCode.ALOAD;
                 }
         }
     }

@@ -12,7 +12,7 @@ final class Error {
     private Error() {
         throw ContractUtils.unreachable();
     }
-    
+
     public static RuntimeException bytecodeGeneratorNotOwnedByMethodBuilder() {
         return new RuntimeException(
             "This BytecodeGenerator was not created by a MethodBuilder."
@@ -103,6 +103,22 @@ final class Error {
             format(
                 "Could not find a boxing method or constructor for type '%s'.",
                 type
+            )
+        );
+    }
+
+    public static RuntimeException cannotConvertToOrFromVoid() {
+        return new RuntimeException(
+            "Cannot convert to or from 'void'."
+        );
+    }
+
+    public static RuntimeException invalidCast(final Type sourceType, final Type targetType) {
+        return new RuntimeException(
+            format(
+                "Cannot cast from '%s' to '%s'.",
+                sourceType,
+                targetType
             )
         );
     }
