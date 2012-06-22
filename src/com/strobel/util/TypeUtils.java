@@ -1,9 +1,12 @@
 package com.strobel.util;
 
+import com.strobel.reflection.BindingFlags;
 import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
+
+import java.util.Set;
 
 /**
  * @author Mike Strobel
@@ -185,7 +188,9 @@ public final class TypeUtils {
 
     public static MethodInfo getCoercionMethod(final Type source, final Type destination) {
         // NOTE: If destination type is an autoboxing type, we will need an implicit box later.
-        final Type unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
+        final Type unboxedDestinationType = isAutoUnboxed(destination)
+                                            ? getUnderlyingPrimitive(destination)
+                                            : destination;
 
         if (!destination.isPrimitive()) {
             return null;
@@ -194,28 +199,28 @@ public final class TypeUtils {
         final MethodInfo method;
 
         if (destination == PrimitiveTypes.Integer) {
-            method = source.getMethod("booleanValue");
+            method = source.getMethod("intValue", BindingFlags.PublicInstance);
         }
         else if (destination == PrimitiveTypes.Long) {
-            method = source.getMethod("longValue");
+            method = source.getMethod("longValue", BindingFlags.PublicInstance);
         }
         else if (destination == PrimitiveTypes.Double) {
-            method = source.getMethod("doubleValue");
+            method = source.getMethod("doubleValue", BindingFlags.PublicInstance);
         }
         else if (destination == PrimitiveTypes.Float) {
-            method = source.getMethod("floatValue");
+            method = source.getMethod("floatValue", BindingFlags.PublicInstance);
         }
         else if (destination == PrimitiveTypes.Short) {
-            method = source.getMethod("shortValue");
+            method = source.getMethod("shortValue", BindingFlags.PublicInstance);
         }
         else if (destination == PrimitiveTypes.Byte) {
-            method = source.getMethod("byteValue");
+            method = source.getMethod("byteValue", BindingFlags.PublicInstance);
         }
         else if (destination == PrimitiveTypes.Boolean) {
-            method = source.getMethod("booleanValue");
+            method = source.getMethod("booleanValue", BindingFlags.PublicInstance);
         }
         else if (destination == PrimitiveTypes.Character) {
-            method = source.getMethod("charValue");
+            method = source.getMethod("charValue", BindingFlags.PublicInstance);
         }
         else {
             return null;
@@ -226,6 +231,100 @@ public final class TypeUtils {
         }
 
         return null;
+    }
+
+    public static MethodInfo getBoxMethod(final Type type) {
+        final Type<?> boxedType;
+        final Type<?> primitiveType;
+
+        if (type.isPrimitive()) {
+            boxedType = TypeUtils.getBoxedType(type);
+        }
+        else if (TypeUtils.isAutoUnboxed(type)) {
+            boxedType = type;
+        }
+        else {
+            return null;
+        }
+
+        primitiveType = TypeUtils.getUnderlyingPrimitive(boxedType);
+
+        final MethodInfo boxMethod = boxedType.getMethod(
+            "valueOf",
+            BindingFlags.PublicStatic,
+            primitiveType
+        );
+
+        if (boxMethod == null || !areEquivalent(boxMethod.getReturnType(), boxedType)) {
+            return null;
+        }
+
+        return boxMethod;
+    }
+
+    public static MethodInfo getUnboxMethod(final Type type) {
+        final Type<?> boxedType;
+        final Type<?> primitiveType;
+
+        if (type.isPrimitive()) {
+            boxedType = TypeUtils.getBoxedType(type);
+        }
+        else if (TypeUtils.isAutoUnboxed(type)) {
+            boxedType = type;
+        }
+        else {
+            return null;
+        }
+
+        primitiveType = TypeUtils.getUnderlyingPrimitive(boxedType);
+
+        final Set<BindingFlags> bindingFlags = BindingFlags.PublicInstance;
+
+        final MethodInfo unboxMethod;
+
+        switch (primitiveType.getKind()) {
+            case BOOLEAN:
+                unboxMethod = boxedType.getMethod("booleanValue", bindingFlags);
+                break;
+
+            case BYTE:
+                unboxMethod = boxedType.getMethod("byteValue", bindingFlags);
+                break;
+
+            case SHORT:
+                unboxMethod = boxedType.getMethod("shortValue", bindingFlags);
+                break;
+
+            case INT:
+                unboxMethod = boxedType.getMethod("intValue", bindingFlags);
+                break;
+
+            case LONG:
+                unboxMethod = boxedType.getMethod("longValue", bindingFlags);
+                break;
+
+            case CHAR:
+                unboxMethod = boxedType.getMethod("charValue", bindingFlags);
+                break;
+
+            case FLOAT:
+                unboxMethod = boxedType.getMethod("floatValue", bindingFlags);
+                break;
+
+            case DOUBLE:
+                unboxMethod = boxedType.getMethod("doubleValue", bindingFlags);
+                break;
+
+            default:
+                unboxMethod = null;
+                break;
+        }
+
+        if (unboxMethod == null || !areEquivalent(unboxMethod.getReturnType(), primitiveType)) {
+            return null;
+        }
+
+        return unboxMethod;
     }
 
     public static boolean areReferenceAssignable(final Type destination, final Type source) {

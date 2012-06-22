@@ -1,7 +1,6 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.BindingFlags;
 import com.strobel.reflection.ConstructorInfo;
 import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.MethodBuilder;
@@ -12,7 +11,6 @@ import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
 import java.util.Arrays;
-import java.util.Set;
 
 /**
  * @author strobelm
@@ -586,99 +584,23 @@ public class BytecodeGenerator {
     }
 
     public void emitBox(final Type<?> type) {
-        final Type<?> boxedType;
-        final Type<?> primitiveType;
-
-        if (type.isPrimitive()) {
-            boxedType = TypeUtils.getBoxedType(type);
-        }
-        else if (TypeUtils.isAutoUnboxed(type)) {
-            boxedType = type;
-        }
-        else {
-            return;
-        }
-
-        primitiveType = TypeUtils.getUnderlyingPrimitive(type);
-
-        final MethodInfo valueOfMethod = boxedType.getMethod(
-            "valueOf",
-            BindingFlags.PublicStatic,
-            primitiveType
+        final MethodInfo box = TypeUtils.getUnboxMethod(
+            VerifyArgument.notNull(type, "type")
         );
 
-        if (valueOfMethod != null) {
-            emitCall(OpCode.INVOKESTATIC, valueOfMethod);
-            return;
+        if (box != null) {
+            emitCall(OpCode.INVOKESTATIC, box);
         }
-
-        final ConstructorInfo constructor = boxedType.getConstructor(primitiveType);
-
-        if (constructor != null) {
-            emitNew(constructor);
-            return;
-        }
-
-        throw Error.boxFailure(boxedType);
     }
 
     public void emitUnbox(final Type<?> type) {
-        final Type<?> boxedType;
-        final Type<?> primitiveType;
+        final MethodInfo unboxMethod = TypeUtils.getUnboxMethod(
+            VerifyArgument.notNull(type, "type")
+        );
 
-        if (type.isPrimitive()) {
-            boxedType = TypeUtils.getBoxedType(type);
+        if (unboxMethod != null) {
+            emitCall(OpCode.INVOKEVIRTUAL, unboxMethod);
         }
-        else if (TypeUtils.isAutoUnboxed(type)) {
-            boxedType = type;
-        }
-        else {
-            return;
-        }
-
-        primitiveType = TypeUtils.getUnderlyingPrimitive(boxedType);
-
-        final MethodInfo unboxMethod;
-        final Set<BindingFlags> unboxMethodFlags = BindingFlags.PublicInstance;
-
-        switch (primitiveType.getKind()) {
-            case BOOLEAN:
-                unboxMethod = boxedType.getMethod("booleanValue", unboxMethodFlags);
-                break;
-
-            case BYTE:
-                unboxMethod = boxedType.getMethod("byteValue", unboxMethodFlags);
-                break;
-
-            case SHORT:
-                unboxMethod = boxedType.getMethod("shortValue", unboxMethodFlags);
-                break;
-
-            case INT:
-                unboxMethod = boxedType.getMethod("intValue", unboxMethodFlags);
-                break;
-
-            case LONG:
-                unboxMethod = boxedType.getMethod("longValue", unboxMethodFlags);
-                break;
-
-            case CHAR:
-                unboxMethod = boxedType.getMethod("charValue", unboxMethodFlags);
-                break;
-
-            case FLOAT:
-                unboxMethod = boxedType.getMethod("floatValue", unboxMethodFlags);
-                break;
-
-            case DOUBLE:
-                unboxMethod = boxedType.getMethod("doubleValue", unboxMethodFlags);
-                break;
-
-            default:
-                return;
-        }
-
-        emitCall(OpCode.INVOKEVIRTUAL, unboxMethod);
     }
 
     void emitByteOperand(final int value) {
