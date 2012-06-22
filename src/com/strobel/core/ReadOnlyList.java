@@ -49,6 +49,10 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
         _offset = offset;
         _length = length;
     }
+    
+    protected ReadOnlyList<T> newInstance() {
+        return new ReadOnlyList<>(_elements, _offset, _length);
+    }
 
     private ReadOnlyList(final ReadOnlyList<T> baseList, final int offset, final int length) {
         VerifyArgument.notNull(baseList, "baseList");

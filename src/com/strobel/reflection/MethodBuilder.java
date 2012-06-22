@@ -1,14 +1,45 @@
 package com.strobel.reflection;
 
-import org.objectweb.asm.MethodVisitor;
+import com.strobel.reflection.emit.BytecodeGenerator;
+
+import java.lang.reflect.Method;
 
 /**
  * @author Mike Strobel
  */
-public final class MethodBuilder {
-    private MethodVisitor _methodWriter;
+public final class MethodBuilder extends MethodInfo {
+    private BytecodeGenerator _generator;
+    private boolean _isFinished;
 
-    public MethodVisitor getMethodWriter() {
-        return _methodWriter;
+    public BytecodeGenerator getBytecodeGenerator() {
+        return _generator;
+    }
+
+    @Override
+    public Type getReturnType() {
+        return null;
+    }
+
+    @Override
+    public Method getRawMethod() {
+        return null;
+    }
+
+    @Override
+    public Type getDeclaringType() {
+        return null;
+    }
+
+    @Override
+    int getModifiers() {
+        return 0;
+    }
+
+    public boolean isTypeCreated() {
+        return false;
+    }
+
+    public boolean isFinished() {
+        return _isFinished;
     }
 }

@@ -167,4 +167,16 @@ final class Error {
             "Compound types may not be bounded by a generic parameter."
         );
     }
+
+    public static RuntimeException bytecodeGeneratorNotOwnedByMethodBuilder() {
+        throw new RuntimeException(
+            "This BytecodeGenerator was not created by a MethodBuilder."
+        );
+    }
+
+    public static RuntimeException typeHasBeenCreated() {
+        throw new RuntimeException(
+            "This type has already been created."
+        );
+    }
 }

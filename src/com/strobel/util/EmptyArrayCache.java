@@ -9,6 +9,7 @@ import java.util.HashMap;
  * @author Mike Strobel
  */
 public final class EmptyArrayCache {
+    public static final Object[] EmptyObjectArray = new Object[0];
     public static final boolean[] EmptyBooleanArray = new boolean[0];
     public static final char[] EmptyCharArray = new char[0];
     public static final byte[] EmptyByteArray = new byte[0];

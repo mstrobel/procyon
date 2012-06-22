@@ -246,9 +246,13 @@ public enum OpCode {
     public int getSize() {
         return ((_code >> 16) == 0xc4) ? 2 : 1;
     }
-    
+
     public int getSizeWithOperands() {
         return _operandType.length;
+    }
+
+    public int getStackChange() {
+        return stackChange[_code & 0xFF];
     }
 
     public OpCode negate() {
@@ -258,13 +262,17 @@ public enum OpCode {
         else if (this == IFNONNULL) {
             return IFNULL;
         }
-        else return get(((_code + 1) ^ 1) - 1);
+        else {
+            return get(((_code + 1) ^ 1) - 1);
+        }
     }
 
     private final int _code;
     private final OperandType _operandType;
 
-    /** Get the OpCode for a simple standard 1-byte opcode. */
+    /**
+     * Get the OpCode for a simple standard 1-byte opcode.
+     */
     public static OpCode get(final int code) {
         return getOpcodeBlock(code >> 8)[code & 0xff];
     }
@@ -278,18 +286,300 @@ public enum OpCode {
             default:
                 return null;
         }
-
     }
-    
-    /** The byte prefix for the wide instructions. */
+
+    /**
+     * The byte prefix for the wide instructions.
+     */
     public static final int STANDARD = 0x00;
     public static final int WIDE = 0xc4;
-    
+
     private static OpCode[] _standardOpCodes = new OpCode[256];
     private static OpCode[] _wideOpCodes = new OpCode[256];
-    
+
     static {
-        for (final OpCode o: values())
+        for (final OpCode o : values()) {
             getOpcodeBlock(o._code >> 8)[o._code & 0xff] = o;
+        }
     }
+
+    public boolean endsUnconditionalJumpBlock() {
+        switch (this) {
+            case GOTO:
+            case JSR:
+            case RET:
+                return true;
+
+            case ATHROW:
+                return true;
+
+            case GOTO_W:
+            case JSR_W:
+                return true;
+
+            case RET_W:
+                return true;
+        }
+
+        return false;
+    }
+
+    private static final byte[] stackChange = {
+        /* NOP */ 0,
+        /* ACONST_NULL */ 1,
+        /* ICONST_M1 */ 1,
+        /* ICONST_0 */ 1,
+        /* ICONST_1 */ 1,
+        /* ICONST_2 */ 1,
+        /* ICONST_3 */ 1,
+        /* ICONST_4 */ 1,
+        /* ICONST_5 */ 1,
+        /* LCONST_0 */ 2,
+        /* LCONST_1 */ 2,
+        /* FCONST_0 */ 1,
+        /* FCONST_1 */ 1,
+        /* FCONST_2 */ 1,
+        /* DCONST_0 */ 2,
+        /* DCONST_1 */ 2,
+        /* BIPUSH */ 1,
+        /* SIPUSH */ 1,
+        /* LDC */ 1,
+        /* LDC_W */ 1,
+        /* LDC2_W */ 2,
+        /* ILOAD */ 1,
+        /* LLOAD */ 2,
+        /* FLOAD */ 1,
+        /* DLOAD */ 2,
+        /* ALOAD */ 1,
+        /* ILOAD_0 */ 1,
+        /* ILOAD_1 */ 1,
+        /* ILOAD_2 */ 1,
+        /* ILOAD_3 */ 1,
+        /* LLOAD_0 */ 2,
+        /* LLOAD_1 */ 2,
+        /* LLOAD_2 */ 2,
+        /* LLOAD_3 */ 2,
+        /* FLOAD_0 */ 1,
+        /* FLOAD_1 */ 1,
+        /* FLOAD_2 */ 1,
+        /* FLOAD_3 */ 1,
+        /* DLOAD_0 */ 2,
+        /* DLOAD_1 */ 2,
+        /* DLOAD_2 */ 2,
+        /* DLOAD_3 */ 2,
+        /* ALOAD_0 */ 1,
+        /* ALOAD_1 */ 1,
+        /* ALOAD_2 */ 1,
+        /* ALOAD_3 */ 1,
+        /* IALOAD */ -1,
+        /* LALOAD */ 0,
+        /* FALOAD */ -1,
+        /* DALOAD */ 0,
+        /* AALOAD */ -1,
+        /* BALOAD */ -1,
+        /* CALOAD */ -1,
+        /* SALOAD */ -1,
+        /* ISTORE */ -1,
+        /* LSTORE */ -2,
+        /* FSTORE */ -1,
+        /* DSTORE */ -2,
+        /* ASTORE */ -1,
+        /* ISTORE_0 */ -1,
+        /* ISTORE_1 */ -1,
+        /* ISTORE_2 */ -1,
+        /* ISTORE_3 */ -1,
+        /* LSTORE_0 */ -2,
+        /* LSTORE_1 */ -2,
+        /* LSTORE_2 */ -2,
+        /* LSTORE_3 */ -2,
+        /* FSTORE_0 */ -1,
+        /* FSTORE_1 */ -1,
+        /* FSTORE_2 */ -1,
+        /* FSTORE_3 */ -1,
+        /* DSTORE_0 */ -2,
+        /* DSTORE_1 */ -2,
+        /* DSTORE_2 */ -2,
+        /* DSTORE_3 */ -2,
+        /* ASTORE_0 */ -1,
+        /* ASTORE_1 */ -1,
+        /* ASTORE_2 */ -1,
+        /* ASTORE_3 */ -1,
+        /* IASTORE */ -3,
+        /* LASTORE */ -4,
+        /* FASTORE */ -3,
+        /* DASTORE */ -4,
+        /* AASTORE */ -3,
+        /* BASTORE */ -3,
+        /* CASTORE */ -3,
+        /* SASTORE */ -3,
+        /* POP */ -1,
+        /* POP2 */ -2,
+        /* DUP */ 1,
+        /* DUP_X1 */ 1,
+        /* DUP_X2 */ 1,
+        /* DUP2 */ 2,
+        /* DUP2_X1 */ 2,
+        /* DUP2_X2 */ 2,
+        /* SWAP */ 0,
+        /* IADD */ -1,
+        /* LADD */ -2,
+        /* FADD */ -1,
+        /* DADD */ -2,
+        /* ISUB */ -1,
+        /* LSUB */ -2,
+        /* FSUB */ -1,
+        /* DSUB */ -2,
+        /* IMUL */ -1,
+        /* LMUL */ -2,
+        /* FMUL */ -1,
+        /* DMUL */ -2,
+        /* IDIV */ -1,
+        /* LDIV */ -2,
+        /* FDIV */ -1,
+        /* DDIV */ -2,
+        /* IREM */ -1,
+        /* LREM */ -2,
+        /* FREM */ -1,
+        /* DREM */ -2,
+        /* INEG */ 0,
+        /* LNEG */ 0,
+        /* FNEG */ 0,
+        /* DNEG */ 0,
+        /* ISHL */ -1,
+        /* LSHL */ -1,
+        /* ISHR */ -1,
+        /* LSHR */ -1,
+        /* IUSHR */ -1,
+        /* LUSHR */ -1,
+        /* IAND */ -1,
+        /* LAND */ -2,
+        /* IOR */ -1,
+        /* LOR */ -2,
+        /* IXOR */ -1,
+        /* LXOR */ -2,
+        /* IINC */ 0,
+        /* I2L */ 1,
+        /* I2F */ 0,
+        /* I2D */ 1,
+        /* L2I */ -1,
+        /* L2F */ -1,
+        /* L2D */ 0,
+        /* F2I */ 0,
+        /* F2L */ 1,
+        /* F2D */ 1,
+        /* D2I */ -1,
+        /* D2L */ 0,
+        /* D2F */ -1,
+        /* I2B */ 0,
+        /* I2C */ 0,
+        /* I2S */ 0,
+        /* LCMP */ -3,
+        /* FCMPL */ -1,
+        /* FCMPG */ -1,
+        /* DCMPL */ -3,
+        /* DCMPG */ -3,
+        /* IFEQ */ -1,
+        /* IFNE */ -1,
+        /* IFLT */ -1,
+        /* IFGE */ -1,
+        /* IFGT */ -1,
+        /* IFLE */ -1,
+        /* IF_ICMPEQ */ -2,
+        /* IF_ICMPNE */ -2,
+        /* IF_ICMPLT */ -2,
+        /* IF_ICMPGE */ -2,
+        /* IF_ICMPGT */ -2,
+        /* IF_ICMPLE */ -2,
+        /* IF_ACMPEQ */ -2,
+        /* IF_ACMPNE */ -2,
+        /* GOTO */ 0,
+        /* JSR */ 1,
+        /* RET */ 0,
+        /* TABLESWITCH */ -1,
+        /* LOOKUPSWITCH */ -1,
+        /* IRETURN */ -1,
+        /* LRETURN */ -2,
+        /* FRETURN */ -1,
+        /* DRETURN */ -2,
+        /* ARETURN */ -1,
+        /* RETURN */ 0,
+        /* GETSTATIC */ 0,
+        /* PUTSTATIC */ 0,
+        /* GETFIELD */ -1,
+        /* PUTFIELD */ -1,
+        /* INVOKEVIRTUAL */ -1,         // pops 'this' (unless static)
+        /* INVOKESPECIAL */ -1,         // but needs to account for
+        /* INVOKESTATIC */ 0,           // parameters and return type
+        /* INVOKEINTERFACE */ -1,       //
+        /* XXXUNUSEDXXX */ 0,
+        /* NEW */ 1,
+        /* NEWARRAY */ 0,
+        /* ANEWARRAY */ 0,
+        /* ARRAYLENGTH */ 0,
+        /* ATHROW */ -1,
+        /* CHECKCAST */ 0,
+        /* INSTANCEOF */ 0,
+        /* MONITORENTER */ -1,
+        /* MONITOREXIT */ -1,
+        /* WIDE */ 0,
+        /* MULTIANEWARRAY */ 1,
+        /* IFNULL */ -1,
+        /* IFNONNULL */ -1,
+        /* GOTO_W */ 0,
+        /* JSR_W */ 1,
+        /* BREAKPOINT */ 0,
+        /* LDC_QUICK */ 1,
+        /* LDC_W_QUICK */ 1,
+        /* LDC2_W_QUICK */ 2,
+        /* GETFIELD_QUICK */ 0,
+        /* PUTFIELD_QUICK */ 0,
+        /* GETFIELD2_QUICK */ 0,
+        /* PUTFIELD2_QUICK */ 0,
+        /* GETSTATIC_QUICK */ 0,
+        /* PUTSTATIC_QUICK */ 0,
+        /* GETSTATIC2_QUICK */ 0,
+        /* PUTSTATIC2_QUICK */ 0,
+        /* INVOKEVIRTUAL_QUICK */ 0,
+        /* INVOKENONVIRTUAL_QUICK */ 0,
+        /* INVOKESUPER_QUICK */ 0,
+        /* INVOKESTATIC_QUICK */ 0,
+        /* INVOKEINTERFACE_QUICK */ 0,
+        /* INVOKEVIRTUALOBJECT_QUICK */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* NEW_QUICK */ 1,
+        /* ANEWARRAY_QUICK */ 1,
+        /* MULTIANEWARRAY_QUICK */ 1,
+        /* CHECKCAST_QUICK */ -1,
+        /* INSTANCEOF_QUICK */ 0,
+        /* INVOKEVIRTUAL_QUICK_W */ 0,
+        /* GETFIELD_QUICK_W */ 0,
+        /* PUTFIELD_QUICK_W */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* XXXUNUSEDXXX */ 0,
+        /* IMPDEP1 */ 0,
+        /* IMPDEP2 */ 0
+    };
 }

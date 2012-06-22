@@ -693,7 +693,7 @@ final class RuntimeTypeCache<T> {
                         continue;
                     }
 
-                    assert (method.getReturnType() != Type.NullType);
+                    assert method.getReturnType() != Type.NullType;
 
                     final int methodModifiers = method.getModifiers();
 
@@ -717,6 +717,7 @@ final class RuntimeTypeCache<T> {
 
                     final boolean isPublic = Modifier.isPublic(methodModifiers);
                     final boolean isStatic = Modifier.isStatic(methodModifiers);
+
                     final Set<BindingFlags> bindingFlags = Type.filterPreCalculate(isPublic, isInherited, isStatic);
 
                     final RuntimeMethodInfo runtimeMethod = new RuntimeMethodInfo(
