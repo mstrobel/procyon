@@ -26,37 +26,37 @@ public class BytecodeGenerator {
     final static int DefaultLabelArraySize     = 16;
     final static int DefaultExceptionArraySize =  8;
     
-    private  int                _length;
-    private  byte[]             _bytecodeStream;
+    private int                _length;
+    private byte[]             _bytecodeStream;
 
-    private  int[]              _labelList;
-    private  int                _labelCount;
+    private int[]              _labelList;
+    private int                _labelCount;
 
-    private  __FixupData[]      _fixupData;
+    private __FixupData[]      _fixupData;
 
-    private  int                _fixupCount;
+    private int                _fixupCount;
 
-    private  int[]              _rvaFixupList;
-    private  int                _rvaFixupCount;
+    private int[]              _rvaFixupList;
+    private int                _rvaFixupCount;
 
-    private  int[]              _relocateFixupList;
-    private  int                _relocateFixupCount;
+    private int[]              _relocateFixupList;
+    private int                _relocateFixupCount;
 
-    private  int                _exceptionCount;
-    private  int                _currExcStackCount;
-    private  __ExceptionInfo[]  _exceptions;           //This is the list of all of the exceptions in this BytecodeStream.
-    private  __ExceptionInfo[]  _currExcStack;         //This is the stack of exceptions which we're currently in.
+    private int                _exceptionCount;
+    private int                _currExcStackCount;
+    private __ExceptionInfo[]  _exceptions;           //This is the list of all of the exceptions in this BytecodeStream.
+    private __ExceptionInfo[]  _currExcStack;         //This is the stack of exceptions which we're currently in.
 
-    ScopeTree                   _scopeTree;            // this variable tracks all debugging scope information
+    ScopeTree                   _scopeTree;           // this variable tracks all debugging scope information
 
     MethodInfo                  _methodBuilder;
     int                         _localCount;
 //    SignatureHelper             _localSignature;
 
-    private  int                _maxStackSize = 0;     // Maximum stack size not counting the exceptions.
+    private int                _maxStackSize = 0;     // Maximum stack size not counting the exceptions.
 
-    private  int                _maxMidStack = 0;      // Maximum stack size for a given basic block.
-    private  int                _maxMidStackCur = 0;   // Running count of the maximum stack size for the current basic block.
+    private int                _maxMidStack = 0;      // Maximum stack size for a given basic block.
+    private int                _maxMidStackCur = 0;   // Running count of the maximum stack size for the current basic block.
 
     public Label defineLabel() {
         // Declares a new Label.  This is just a token and does not yet represent any
@@ -209,6 +209,7 @@ public class BytecodeGenerator {
         // Puts the opcode onto the bytecode stream followed by the information
         // for local variable local.
 
+        VerifyArgument.notNull(opCode, "opCode");
         VerifyArgument.notNull(local, "local");
 
         final int localIndex = local.getLocalIndex();
@@ -218,22 +219,14 @@ public class BytecodeGenerator {
         }
         
         final OpCode optimalOpCode;
-        
-        if (opCode == OpCode.ALOAD ||
-            opCode == OpCode.ILOAD ||
-            opCode == OpCode.LLOAD ||
-            opCode == OpCode.FLOAD ||
-            opCode == OpCode.DLOAD) {
-            
-            optimalOpCode = getLocalLoadOpCode(local.getLocalType(), localIndex);
-        }
-        else if (opCode == OpCode.ASTORE ||
-                 opCode == OpCode.ISTORE ||
-                 opCode == OpCode.LSTORE ||
-                 opCode == OpCode.FSTORE ||
-                 opCode == OpCode.DSTORE) {
 
-            optimalOpCode = getLocalStoreOpCode(local.getLocalType(), localIndex);
+        if (opCode.getOperandType() == OperandType.Local) {
+            if (opCode.getCode() <= OpCode.ALOAD.getCode()) {
+                optimalOpCode = getLocalLoadOpCode(local.getLocalType(), localIndex);
+            }
+            else {
+                optimalOpCode = getLocalStoreOpCode(local.getLocalType(), localIndex);
+            }
         }
         else {
             optimalOpCode = opCode;
