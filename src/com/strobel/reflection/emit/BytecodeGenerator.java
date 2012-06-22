@@ -297,6 +297,22 @@ public class BytecodeGenerator {
 
         updateStackSize(opCode, stackChange);
     }
+    
+    public void emitCall(final MethodInfo method) {
+        VerifyArgument.notNull(method, "method");
+
+        final OpCode opCode;
+        
+        if (method.isStatic()) {
+            emitCall(OpCode.INVOKESTATIC, method);
+        }
+        else if (method.getDeclaringType().isInterface()) {
+            emitCall(OpCode.INVOKEINTERFACE, method);
+        }
+        else {
+            emitCall(OpCode.INVOKEVIRTUAL, method);
+        }
+    }
 
     public void emitNew(final ConstructorInfo constructor) {
         VerifyArgument.notNull(constructor, "constructor");
@@ -364,6 +380,98 @@ public class BytecodeGenerator {
         );
     }
 
+    public void emitLoadElement(final Type<?> elementType) {
+        VerifyArgument.notNull(elementType, "elementType");
+
+        switch (elementType.getKind()) {
+            case BOOLEAN:
+            case BYTE:
+                emit(OpCode.BALOAD);
+                break;
+            
+            case SHORT:
+                emit(OpCode.SALOAD);
+                break;
+            
+            case INT:
+                emit(OpCode.IALOAD);
+                break;
+            
+            case LONG:
+                emit(OpCode.LALOAD);
+                break;
+            
+            case CHAR:
+                emit(OpCode.CALOAD);
+                break;
+            
+            case FLOAT:
+                emit(OpCode.FALOAD);
+                break;
+            
+            case DOUBLE:
+                emit(OpCode.DALOAD);
+                break;
+
+            case ARRAY:
+            case DECLARED:
+            case ERROR:
+            case TYPEVAR:
+            case WILDCARD:
+                emit(OpCode.AALOAD);
+                break;
+            
+            default:
+                throw Error.invalidType(elementType);
+        }
+    }
+
+    public void emitStoreElement(final Type<?> elementType) {
+        VerifyArgument.notNull(elementType, "elementType");
+
+        switch (elementType.getKind()) {
+            case BOOLEAN:
+            case BYTE:
+                emit(OpCode.BASTORE);
+                break;
+            
+            case SHORT:
+                emit(OpCode.SASTORE);
+                break;
+            
+            case INT:
+                emit(OpCode.IASTORE);
+                break;
+            
+            case LONG:
+                emit(OpCode.LASTORE);
+                break;
+            
+            case CHAR:
+                emit(OpCode.CASTORE);
+                break;
+            
+            case FLOAT:
+                emit(OpCode.FASTORE);
+                break;
+            
+            case DOUBLE:
+                emit(OpCode.DASTORE);
+                break;
+
+            case ARRAY:
+            case DECLARED:
+            case ERROR:
+            case TYPEVAR:
+            case WILDCARD:
+                emit(OpCode.AASTORE);
+                break;
+            
+            default:
+                throw Error.invalidType(elementType);
+        }
+    }
+    
     public void emitDefaultValue(final Type<?> type) {
         VerifyArgument.notNull(type, "type");
 
