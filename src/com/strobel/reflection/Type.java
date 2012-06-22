@@ -1269,7 +1269,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
     }
     
-    public static <T> Type<T> ofObject(final T object) {
+    public static <T> Type<T> getType(final T object) {
         if (object == null) {
             return Type.NullType;
         }

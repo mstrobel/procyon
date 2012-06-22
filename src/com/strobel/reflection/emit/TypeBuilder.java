@@ -15,6 +15,12 @@ import java.util.Set;
  * @author strobelm
  */
 public final class TypeBuilder extends Type {
+    private final ConstantPool _constantPool;
+
+    public TypeBuilder() {
+        _constantPool = new ConstantPool();
+    }
+
     @Override
     public Type getDeclaringType() {
         return null;
@@ -36,36 +42,36 @@ public final class TypeBuilder extends Type {
 
     int getTypeToken(final Type<?> type) {
         VerifyArgument.notNull(type, "type");
-        throw ContractUtils.unreachable();
+        return _constantPool.getTypeInfo(type).index;
     }
 
     int getMethodToken(final MethodBase method) {
         VerifyArgument.notNull(method, "method");
-        throw ContractUtils.unreachable();
+        return _constantPool.getMethodReference(method).index;
     }
 
     int getFieldToken(final FieldInfo field) {
         VerifyArgument.notNull(field, "field");
-        throw ContractUtils.unreachable();
+        return _constantPool.getFieldReference(field).index;
     }
 
     int getConstantToken(final int value) {
-        throw ContractUtils.unreachable();
+        return _constantPool.getIntegerConstant(value).index;
     }
 
     int getConstantToken(final long value) {
-        throw ContractUtils.unreachable();
+        return _constantPool.getLongConstant(value).index;
     }
 
     int getConstantToken(final float value) {
-        throw ContractUtils.unreachable();
+        return _constantPool.getFloatConstant(value).index;
     }
 
     int getConstantToken(final double value) {
-        throw ContractUtils.unreachable();
+        return _constantPool.getDoubleConstant(value).index;
     }
 
     int getStringToken(final String value) {
-        throw ContractUtils.unreachable();
+        return _constantPool.getStringConstant(value).index;
     }
 }

@@ -22,4 +22,24 @@ public final class Comparer {
         }
         return o1.compareTo(o2);
     }
+
+    @SuppressWarnings({ "unchecked" })
+    public static int compare(final Object a, final Object b) {
+        if (a == b) return 0;
+        if (a == null) return -1;
+        if (b == null) return 1;
+
+        final Class<?> aClass = a.getClass();
+        final Class<?> bClass = b.getClass();
+
+        if (Comparable.class.isInstance(a) && aClass.isAssignableFrom(bClass)) {
+            return ((Comparable<Object>)a).compareTo(b);
+        }
+
+        if (Comparable.class.isInstance(b) && bClass.isAssignableFrom(aClass)) {
+            return ((Comparable<Object>)b).compareTo(a);
+        }
+
+        throw new IllegalArgumentException("Values must be comparable.");
+    }
 }

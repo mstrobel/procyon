@@ -56,7 +56,6 @@ public class BytecodeGenerator {
 
     final MethodBuilder methodBuilder;
     int localCount;
-//    SignatureHelper             _localSignature;
 
     private int _maxStackSize = 0;     // Maximum stack size not counting the exceptions.
 
@@ -1737,4 +1736,3 @@ public class BytecodeGenerator {
 
     // </editor-fold>
 }
-
