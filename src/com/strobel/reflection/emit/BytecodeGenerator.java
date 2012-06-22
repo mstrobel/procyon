@@ -1010,6 +1010,14 @@ public class BytecodeGenerator {
     }
 
     private void emitUnboxedToBoxedConversion(final Type<?> sourceType, final Type<?> targetType) {
+        assert sourceType.isPrimitive() && TypeUtils.isAutoUnboxed(targetType)
+            : "sourceType.isPrimitive() && TypeUtils.isAutoUnboxed(targetType)";
+
+        final Type<?> unboxedTargetType = TypeUtils.getUnderlyingPrimitive(targetType);
+        final LocalBuilder targetLocal = declareLocal(targetType);
+
+        emitConversion(sourceType, unboxedTargetType);
+        emitBox(targetType);
     }
 
     private void emitBoxedToUnboxedConversion(final Type<?> sourceType, final Type<?> targetType) {
@@ -1034,11 +1042,6 @@ public class BytecodeGenerator {
     private void emitBoxedToUnboxedNumericConversion(final Type<?> sourceType, final Type<?> targetType) {
         assert TypeUtils.isAutoUnboxed(sourceType) && !TypeUtils.isAutoUnboxed(targetType)
             : "TypeUtils.isAutoUnboxed(sourceType) && !TypeUtils.isAutoUnboxed(targetType)";
-
-        final LocalBuilder sourceLocal = declareLocal(sourceType);
-
-        emitStore(sourceLocal);
-        emitLoad(sourceLocal);
 
         final MethodInfo coercionMethod = TypeUtils.getCoercionMethod(sourceType, targetType);
 
