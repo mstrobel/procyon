@@ -1,6 +1,7 @@
 package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.emit.ModuleBuilder;
 import net.sf.cglib.core.ClassEmitter;
 import org.objectweb.asm.ClassWriter;
 

@@ -729,7 +729,7 @@ public class Type {
         if (!(o instanceof Type)) {
             return false;
         }
-        Type t = (Type) o;
+        final Type t = (Type) o;
         if (sort != t.sort) {
             return false;
         }

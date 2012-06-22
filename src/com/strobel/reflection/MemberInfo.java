@@ -47,7 +47,7 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
         return (getModifiers() & (Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE)) == 0;
     }
 
-    abstract int getModifiers();
+    protected abstract int getModifiers();
 
     @Override
     public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {

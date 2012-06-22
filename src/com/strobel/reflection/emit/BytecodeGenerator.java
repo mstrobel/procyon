@@ -1,14 +1,18 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.BindingFlags;
 import com.strobel.reflection.ConstructorInfo;
 import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.MethodBuilder;
 import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.util.ContractUtils;
+import com.strobel.util.TypeUtils;
 
 import java.util.Arrays;
+import java.util.Set;
 
 /**
  * @author strobelm
@@ -22,41 +26,40 @@ import java.util.Arrays;
     })
 public class BytecodeGenerator {
 
-    final static int DefaultFixupArraySize     = 64;
-    final static int DefaultLabelArraySize     = 16;
-    final static int DefaultExceptionArraySize =  8;
-    
-    private int                _length;
-    private byte[]             _bytecodeStream;
+    final static int DefaultFixupArraySize = 64;
+    final static int DefaultLabelArraySize = 16;
+    final static int DefaultExceptionArraySize = 8;
 
-    private int[]              _labelList;
-    private int                _labelCount;
+    private BytecodeStream _bytecodeStream;
 
-    private __FixupData[]      _fixupData;
+    private int[] _labelList;
+    private int _labelCount;
 
-    private int                _fixupCount;
+    private __FixupData[] _fixupData;
 
-    private int[]              _rvaFixupList;
-    private int                _rvaFixupCount;
+    private int _fixupCount;
 
-    private int[]              _relocateFixupList;
-    private int                _relocateFixupCount;
+    private int[] _rvaFixupList;
+    private int _rvaFixupCount;
 
-    private int                _exceptionCount;
-    private int                _currExcStackCount;
-    private __ExceptionInfo[]  _exceptions;           //This is the list of all of the exceptions in this BytecodeStream.
-    private __ExceptionInfo[]  _currExcStack;         //This is the stack of exceptions which we're currently in.
+    private int[] _relocateFixupList;
+    private int _relocateFixupCount;
 
-    ScopeTree                   _scopeTree;           // this variable tracks all debugging scope information
+    private int _exceptionCount;
+    private int _currExcStackCount;
+    private __ExceptionInfo[] _exceptions;           //This is the list of all of the exceptions in this BytecodeStream.
+    private __ExceptionInfo[] _currExcStack;         //This is the stack of exceptions which we're currently in.
 
-    MethodInfo                  _methodBuilder;
-    int                         _localCount;
+    ScopeTree _scopeTree;           // this variable tracks all debugging scope information
+
+    MethodBuilder _methodBuilder;
+    int _localCount;
 //    SignatureHelper             _localSignature;
 
-    private int                _maxStackSize = 0;     // Maximum stack size not counting the exceptions.
+    private int _maxStackSize = 0;     // Maximum stack size not counting the exceptions.
 
-    private int                _maxMidStack = 0;      // Maximum stack size for a given basic block.
-    private int                _maxMidStackCur = 0;   // Running count of the maximum stack size for the current basic block.
+    private int _maxMidStack = 0;      // Maximum stack size for a given basic block.
+    private int _maxMidStackCur = 0;   // Running count of the maximum stack size for the current basic block.
 
     public Label defineLabel() {
         // Declares a new Label.  This is just a token and does not yet represent any
@@ -91,7 +94,7 @@ public class BytecodeGenerator {
             throw Error.labelAlreadyDefined();
         }
 
-        _labelList[labelIndex] = _length;
+        _labelList[labelIndex] = _bytecodeStream.getLength();
     }
 
     public LocalBuilder declareLocal(final Type localType) {
@@ -101,12 +104,11 @@ public class BytecodeGenerator {
         // will be the scope that local will live.
 
         final LocalBuilder localBuilder;
+        final MethodBuilder methodBuilder = _methodBuilder;
 
-        if (!(_methodBuilder instanceof MethodBuilder)) {
+        if (methodBuilder == null) {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
         }
-
-        final MethodBuilder methodBuilder = (MethodBuilder)_methodBuilder;
 
         if (methodBuilder.isTypeCreated()) {
             // cannot change method after its containing type has been created 
@@ -163,22 +165,53 @@ public class BytecodeGenerator {
     }
 
     public void emit(final OpCode opCode, final String arg) {
-        throw ContractUtils.unreachable();
+        emit(opCode);
+        emitString(arg);
     }
 
     public void emit(final OpCode opCode, final Type<?> type) {
-        throw ContractUtils.unreachable();
+        VerifyArgument.notNull(type, "type");
+
+        final MethodBuilder methodBuilder = _methodBuilder;
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final int typeToken = methodBuilder.getDeclaringType().getTypeToken(type);
+
+        emit(opCode, typeToken);
     }
 
     public void emit(final OpCode opCode, final ConstructorInfo constructor) {
-        throw ContractUtils.unreachable();
-    }
+        VerifyArgument.notNull(constructor, "constructor");
 
-    public void emit(final OpCode opCode, final FieldInfo field) {
-        throw ContractUtils.unreachable();
+        final MethodBuilder methodBuilder = _methodBuilder;
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final int constructorToken = methodBuilder.getDeclaringType().getMethodToken(constructor);
+
+        emit(opCode, constructorToken);
     }
 
     public void emit(final OpCode opCode, final MethodInfo method) {
+        VerifyArgument.notNull(method, "method");
+
+        final MethodBuilder methodBuilder = _methodBuilder;
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final int methodToken = methodBuilder.getDeclaringType().getMethodToken(method);
+
+        emit(opCode, methodToken);
+    }
+
+    public void emit(final OpCode opCode, final FieldInfo field) {
         throw ContractUtils.unreachable();
     }
 
@@ -196,12 +229,12 @@ public class BytecodeGenerator {
         emit(opCode);
 
         if (opCode.getOperandType() == OperandType.Branch) {
-            addFixup(label, _length, 2);
-            _length++;
+            addFixup(label, _bytecodeStream.getLength(), 2);
+            _bytecodeStream.putShort(0);
         }
         else {
-            addFixup(label, _length, 4);
-            _length += 4;
+            addFixup(label, _bytecodeStream.getLength(), 4);
+            _bytecodeStream.putInt(0);
         }
     }
 
@@ -217,7 +250,7 @@ public class BytecodeGenerator {
         if (local.getMethodBuilder() != _methodBuilder) {
             throw Error.unmatchedLocal();
         }
-        
+
         final OpCode optimalOpCode;
 
         if (opCode.getOperandType() == OperandType.Local) {
@@ -240,10 +273,80 @@ public class BytecodeGenerator {
     }
 
     public void emitCall(final OpCode opCode, final MethodInfo method) {
-        throw ContractUtils.unreachable();
+        VerifyArgument.notNull(method, "method");
+
+        switch (opCode) {
+            case INVOKEDYNAMIC:
+            case INVOKEINTERFACE:
+            case INVOKESPECIAL:
+            case INVOKESTATIC:
+            case INVOKEVIRTUAL:
+                break;
+
+            default:
+                throw Error.invokeOpCodeRequired();
+        }
+
+        int stackChange = opCode.getStackChange();
+
+        if (method.getReturnType() != PrimitiveTypes.Void) {
+            ++stackChange;
+        }
+
+        stackChange -= method.getParameters().size();
+
+        emit(opCode, method);
+
+        updateStackSize(opCode, stackChange);
     }
 
-    public final void emitLoad(final LocalBuilder local) {
+    public void emitNew(final ConstructorInfo constructor) {
+        VerifyArgument.notNull(constructor, "constructor");
+
+        final Type type = constructor.getDeclaringType();
+
+        if (type.containsGenericParameters()) {
+            throw Error.cannotInstantiateUnboundGenericType(type);
+        }
+
+        emit(OpCode.NEW, type);
+        emit(OpCode.DUP);
+        emit(OpCode.INVOKESPECIAL, constructor);
+    }
+
+    public void emitNew(final Type<?> type, final Type... parameterTypes) {
+        VerifyArgument.notNull(type, "type");
+
+        final ConstructorInfo constructor = type.getConstructor(parameterTypes);
+
+        if (constructor == null) {
+            throw Error.constructorNotFound();
+        }
+
+        emitNew(constructor);
+    }
+
+    protected void emitLoadConstant(final int token) {
+        if (token < Byte.MIN_VALUE || token > Byte.MAX_VALUE) {
+            emit(OpCode.LDC_W);
+            emitShortOperand(token);
+        }
+        else {
+            emit(OpCode.LDC);
+            emitByteOperand(token);
+        }
+    }
+
+    protected void emitLoadLongConstant(final int token) {
+        emit(OpCode.LDC2_W);
+        emitShortOperand(token);
+    }
+
+    public void emitNull() {
+        emit(OpCode.ACONST_NULL);
+    }
+
+    public void emitLoad(final LocalBuilder local) {
         emit(
             getLocalLoadOpCode(
                 local.getLocalType(),
@@ -253,7 +356,7 @@ public class BytecodeGenerator {
         );
     }
 
-    public final void emitStore(final LocalBuilder local) {
+    public void emitStore(final LocalBuilder local) {
         emit(
             getLocalStoreOpCode(
                 local.getLocalType(),
@@ -262,56 +365,358 @@ public class BytecodeGenerator {
             local
         );
     }
-    
-    void emitByteOperand(final byte value) {
-        _bytecodeStream[_length] = value;
+
+    public void emitDefaultValue(final Type<?> type) {
+        VerifyArgument.notNull(type, "type");
+
+        switch (type.getKind()) {
+            case BOOLEAN:
+                emit(OpCode.ICONST_0);
+                break;
+
+            case BYTE:
+                emit(OpCode.ICONST_0);
+                emit(OpCode.I2B);
+                break;
+
+            case SHORT:
+                emit(OpCode.ICONST_0);
+                emit(OpCode.I2S);
+                break;
+
+            case INT:
+                emit(OpCode.ICONST_0);
+                break;
+
+            case LONG:
+                emit(OpCode.LCONST_0);
+                break;
+
+            case CHAR:
+                emit(OpCode.ICONST_0);
+                emit(OpCode.I2C);
+                break;
+
+            case FLOAT:
+                emit(OpCode.FCONST_0);
+                break;
+
+            case DOUBLE:
+                emit(OpCode.DCONST_0);
+                break;
+
+            case NULL:
+            case ARRAY:
+            case DECLARED:
+            case ERROR:
+            case TYPEVAR:
+                emit(OpCode.ACONST_NULL);
+                break;
+
+            default:
+                throw Error.invalidType(type);
+        }
+    }
+
+    public void emitFieldGet(final FieldInfo field) {
+        VerifyArgument.notNull(field, "field");
+
+        if (field.isStatic()) {
+            emit(OpCode.GETSTATIC, field);
+        }
+        else {
+            emit(OpCode.GETFIELD, field);
+        }
+    }
+
+    public void emitFieldSet(final FieldInfo field) {
+        VerifyArgument.notNull(field, "field");
+
+        if (field.isStatic()) {
+            emit(OpCode.PUTSTATIC, field);
+        }
+        else {
+            emit(OpCode.PUTFIELD, field);
+        }
+    }
+
+    public void emitBoolean(final boolean value) {
+        emit(value ? OpCode.ICONST_1 : OpCode.ICONST_0);
+    }
+
+    public void emitByte(final byte value) {
+        emit(OpCode.BIPUSH, value);
+    }
+
+    public void emitCharacter(final char value) {
+        if (value <= Byte.MAX_VALUE) {
+            emitByte((byte)value);
+        }
+        else {
+            emitShort((short)value);
+        }
+    }
+
+    public void emitShort(final short value) {
+        emit(OpCode.SIPUSH, value);
+    }
+
+    public void emitInteger(final int value) {
+        switch (value) {
+            case -1:
+                emit(OpCode.ICONST_M1);
+                return;
+            case 0:
+                emit(OpCode.ICONST_0);
+                return;
+            case 1:
+                emit(OpCode.ICONST_1);
+                return;
+            case 2:
+                emit(OpCode.ICONST_2);
+                return;
+            case 3:
+                emit(OpCode.ICONST_3);
+                return;
+            case 4:
+                emit(OpCode.ICONST_4);
+                return;
+            case 5:
+                emit(OpCode.ICONST_5);
+                return;
+        }
+
+        final MethodBuilder methodBuilder = _methodBuilder;
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final int constantToken = methodBuilder.getDeclaringType().getConstantToken(value);
+
+        emitLoadConstant(constantToken);
+    }
+
+    public void emitLong(final long value) {
+        if (value == 0L) {
+            emit(OpCode.LCONST_0);
+            return;
+        }
+
+        if (value == 1L) {
+            emit(OpCode.LCONST_1);
+            return;
+        }
+
+        final MethodBuilder methodBuilder = _methodBuilder;
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final int constantToken = methodBuilder.getDeclaringType().getConstantToken(value);
+
+        emitLoadLongConstant(constantToken);
+    }
+
+    public void emitFloat(final float value) {
+        if (value == 0f) {
+            emit(OpCode.FCONST_0);
+            return;
+        }
+
+        if (value == 1f) {
+            emit(OpCode.FCONST_1);
+            return;
+        }
+
+        if (value == 2f) {
+            emit(OpCode.FCONST_2);
+            return;
+        }
+
+        final MethodBuilder methodBuilder = _methodBuilder;
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final int constantToken = methodBuilder.getDeclaringType().getConstantToken(value);
+
+        emitLoadConstant(constantToken);
+    }
+
+    public void emitDouble(final double value) {
+        if (value == 0d) {
+            emit(OpCode.DCONST_0);
+            return;
+        }
+
+        if (value == 1d) {
+            emit(OpCode.DCONST_1);
+            return;
+        }
+
+        final MethodBuilder methodBuilder = _methodBuilder;
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final int constantToken = methodBuilder.getDeclaringType().getConstantToken(value);
+
+        emitLoadLongConstant(constantToken);
+    }
+
+    public void emitString(final String value) {
+        if (value == null) {
+            emitNull();
+            return;
+        }
+
+        final MethodBuilder methodBuilder = _methodBuilder;
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final int stringToken = methodBuilder.getDeclaringType().getStringToken(value);
+
+        emitLoadConstant(stringToken);
+    }
+
+    public void emitBox(final Type<?> type) {
+        final Type<?> boxedType;
+        final Type<?> primitiveType;
+
+        if (type.isPrimitive()) {
+            boxedType = TypeUtils.getBoxedType(type);
+        }
+        else if (TypeUtils.isAutoUnboxed(type)) {
+            boxedType = type;
+        }
+        else {
+            return;
+        }
+
+        primitiveType = TypeUtils.getUnderlyingPrimitive(type);
+
+        final MethodInfo valueOfMethod = boxedType.getMethod(
+            "valueOf",
+            BindingFlags.PublicStatic,
+            primitiveType
+        );
+
+        if (valueOfMethod != null) {
+            emitCall(OpCode.INVOKESTATIC, valueOfMethod);
+            return;
+        }
+
+        final ConstructorInfo constructor = boxedType.getConstructor(primitiveType);
+
+        if (constructor != null) {
+            emitNew(constructor);
+            return;
+        }
+
+        throw Error.boxFailure(boxedType);
+    }
+
+    public void emitUnbox(final Type<?> type) {
+        final Type<?> boxedType;
+        final Type<?> primitiveType;
+
+        if (type.isPrimitive()) {
+            boxedType = TypeUtils.getBoxedType(type);
+        }
+        else if (TypeUtils.isAutoUnboxed(type)) {
+            boxedType = type;
+        }
+        else {
+            return;
+        }
+
+        primitiveType = TypeUtils.getUnderlyingPrimitive(boxedType);
+
+        final MethodInfo unboxMethod;
+        final Set<BindingFlags> unboxMethodFlags = BindingFlags.PublicInstance;
+
+        switch (primitiveType.getKind()) {
+            case BOOLEAN:
+                unboxMethod = boxedType.getMethod("booleanValue", unboxMethodFlags);
+                break;
+
+            case BYTE:
+                unboxMethod = boxedType.getMethod("byteValue", unboxMethodFlags);
+                break;
+
+            case SHORT:
+                unboxMethod = boxedType.getMethod("shortValue", unboxMethodFlags);
+                break;
+
+            case INT:
+                unboxMethod = boxedType.getMethod("intValue", unboxMethodFlags);
+                break;
+
+            case LONG:
+                unboxMethod = boxedType.getMethod("longValue", unboxMethodFlags);
+                break;
+
+            case CHAR:
+                unboxMethod = boxedType.getMethod("charValue", unboxMethodFlags);
+                break;
+
+            case FLOAT:
+                unboxMethod = boxedType.getMethod("floatValue", unboxMethodFlags);
+                break;
+
+            case DOUBLE:
+                unboxMethod = boxedType.getMethod("doubleValue", unboxMethodFlags);
+                break;
+
+            default:
+                return;
+        }
+
+        emitCall(OpCode.INVOKEVIRTUAL, unboxMethod);
+    }
+
+    void emitByteOperand(final int value) {
+        _bytecodeStream.putByte(value);
     }
 
     void emitCharOperand(final char value) {
-        _bytecodeStream[_length++] = (byte)((value >> 8) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >> 0) & 0xFF);
+        _bytecodeStream.putShort(value);
     }
-    
-    void emitShortOperand(final short value) {
-        _bytecodeStream[_length++] = (byte)((value >> 8) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >> 0) & 0xFF);
+
+    void emitShortOperand(final int value) {
+        _bytecodeStream.putShort(value);
     }
 
     void emitIntOperand(final int value) {
-        _bytecodeStream[_length++] = (byte)((value >> 24) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >> 16) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >>  8) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >>  0) & 0xFF);
+        _bytecodeStream.putInt(value);
     }
 
     void emitLongOperand(final long value) {
-        _bytecodeStream[_length++] = (byte)((value >> 56) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >> 48) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >> 40) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >> 32) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >> 24) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >> 16) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >>  8) & 0xFF);
-        _bytecodeStream[_length++] = (byte)((value >>  0) & 0xFF);
+        _bytecodeStream.putLong(value);
     }
-    
+
     void emitFloatOperand(final float value) {
         emitIntOperand(Float.floatToIntBits(value));
     }
-    
+
     void emitDoubleOperand(final double value) {
         emitLongOperand(Double.doubleToRawLongBits(value));
     }
 
     void internalEmit(final OpCode opCode) {
         if (opCode.getSize() == 1) {
-            _bytecodeStream[_length++] = (byte)(opCode.getCode() & 0xFF);
+            _bytecodeStream.putByte((byte)(opCode.getCode() & 0xFF));
         }
         else {
-            _bytecodeStream[_length++] = (byte)((opCode.getCode() >> 16) & 0xFF);
-            _bytecodeStream[_length++] = (byte)((opCode.getCode() >>  0) & 0xFF);
+            _bytecodeStream.putByte((byte)((opCode.getCode() >> 16) & 0xFF));
+            _bytecodeStream.putByte((byte)((opCode.getCode() >> 0) & 0xFF));
         }
-
         updateStackSize(opCode, opCode.getStackChange());
     }
 
@@ -324,7 +729,7 @@ public class BytecodeGenerator {
         final int lo = ((codes[index + 1] & 0xFF) << 0);
         return (char)(hi + lo);
     }
-    
+
     static short getShortOperand(final byte[] codes, final int index) {
         final int hi = ((codes[index + 0] & 0xFF) << 8);
         final int lo = ((codes[index + 1] & 0xFF) << 0);
@@ -334,21 +739,20 @@ public class BytecodeGenerator {
     static int getIntOperand(final byte[] codes, final int index) {
         final int hh = ((codes[index + 0] & 0xFF) << 24);
         final int hl = ((codes[index + 1] & 0xFF) << 16);
-        final int lh = ((codes[index + 2] & 0xFF) <<  8);
-        final int ll = ((codes[index + 3] & 0xFF) <<  0);
+        final int lh = ((codes[index + 2] & 0xFF) << 8);
+        final int ll = ((codes[index + 3] & 0xFF) << 0);
         return hh + hl + lh + ll;
     }
 
     static long getLongOperand(final byte[] codes, final int index) {
         return ((long)getIntOperand(codes, index) << 32) +
-               ((long)getIntOperand(codes, index) <<  0);
-
+               ((long)getIntOperand(codes, index) << 0);
     }
-    
+
     static float getFloatOperand(final byte[] codes, final int index) {
         return Float.intBitsToFloat(getIntOperand(codes, index));
     }
-    
+
     static double getDoubleOperand(final byte[] codes, final int index) {
         return Double.longBitsToDouble(getIntOperand(codes, index));
     }
@@ -361,7 +765,7 @@ public class BytecodeGenerator {
         codes[index + 0] = (byte)((value >> 8) & 0xFF);
         codes[index + 1] = (byte)((value >> 0) & 0xFF);
     }
-    
+
     static void putShortOperand(final byte[] codes, final int index, final short value) {
         codes[index + 0] = (byte)((value >> 8) & 0xFF);
         codes[index + 1] = (byte)((value >> 0) & 0xFF);
@@ -370,8 +774,8 @@ public class BytecodeGenerator {
     static void putIntOperand(final byte[] codes, final int index, final int value) {
         codes[index + 0] = (byte)((value >> 24) & 0xFF);
         codes[index + 1] = (byte)((value >> 16) & 0xFF);
-        codes[index + 2] = (byte)((value >>  8) & 0xFF);
-        codes[index + 3] = (byte)((value >>  0) & 0xFF);
+        codes[index + 2] = (byte)((value >> 8) & 0xFF);
+        codes[index + 3] = (byte)((value >> 0) & 0xFF);
     }
 
     static void putLongOperand(final byte[] codes, final int index, final long value) {
@@ -381,10 +785,10 @@ public class BytecodeGenerator {
         codes[index + 3] = (byte)((value >> 32) & 0xFF);
         codes[index + 4] = (byte)((value >> 24) & 0xFF);
         codes[index + 5] = (byte)((value >> 16) & 0xFF);
-        codes[index + 6] = (byte)((value >>  8) & 0xFF);
-        codes[index + 7] = (byte)((value >>  0) & 0xFF);
+        codes[index + 6] = (byte)((value >> 8) & 0xFF);
+        codes[index + 7] = (byte)((value >> 0) & 0xFF);
     }
-    
+
     static void putFloatOperand(final byte[] codes, final int index, final float value) {
         putIntOperand(codes, index, Float.floatToRawIntBits(value));
     }
@@ -413,15 +817,7 @@ public class BytecodeGenerator {
     }
 
     void ensureCapacity(final int size) {
-        // Guarantees an array capable of holding at least size elements.
-        if (_length + size >= _bytecodeStream.length) {
-            if (_length + size >= 2 * _bytecodeStream.length) {
-                _bytecodeStream = enlargeArray(_bytecodeStream, _length + size);
-            }
-            else {
-                _bytecodeStream = enlargeArray(_bytecodeStream);
-            }
-        }
+        _bytecodeStream.ensureCapacity(size);
     }
 
     void updateStackSize(final OpCode opCode, final int stackChange) {
@@ -487,12 +883,12 @@ public class BytecodeGenerator {
             throw Error.unclosedExceptionBlock();
         }
 
-        if (_length == 0) {
+        if (_bytecodeStream.getLength() == 0) {
             return null;
         }
 
-        newSize = _length;
-        newBytes = Arrays.copyOf(_bytecodeStream, newSize);
+        newSize = _bytecodeStream.getLength();
+        newBytes = Arrays.copyOf(_bytecodeStream.getData(), newSize);
 
         // Do the fix-ups.  This involves iterating over all of the labels and replacing
         // them with their proper values.
@@ -525,28 +921,28 @@ public class BytecodeGenerator {
             incoming.length * 2
         );
     }
-    
+
     static <T> T[] enlargeArray(final T[] incoming) {
         return Arrays.copyOf(
-            incoming, 
+            incoming,
             incoming.length * 2
         );
     }
-    
+
     static byte[] enlargeArray(final byte[] incoming) {
         return Arrays.copyOf(
             VerifyArgument.notNull(incoming, "incoming"),
             incoming.length * 2
         );
     }
-    
+
     static byte[] enlargeArray(final byte[] incoming, final int requiredSize) {
         return Arrays.copyOf(
             VerifyArgument.notNull(incoming, "incoming"),
             requiredSize
         );
     }
-    
+
     static OpCode getLocalLoadOpCode(final Type<?> type, final int localIndex) {
         switch (type.getKind()) {
             case BOOLEAN:

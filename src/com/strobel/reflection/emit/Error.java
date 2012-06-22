@@ -1,5 +1,6 @@
 package com.strobel.reflection.emit;
 
+import com.strobel.reflection.Type;
 import com.strobel.util.ContractUtils;
 
 import static java.lang.String.format;
@@ -66,6 +67,42 @@ final class Error {
                 "Illegal two byte branch (position = %s, address = %s).",
                 position,
                 address
+            )
+        );
+    }
+
+    public static RuntimeException invokeOpCodeRequired() {
+        return new RuntimeException(
+            "OpCode must be one of: INVOKEDYNAMIC, INVOKEINTERFACE, INVOKESPECIAL, INVOKESTATIC, INVOKEVIRTUAL"
+        );
+    }
+
+    public static RuntimeException invalidType(final Type<?> type) {
+        return new RuntimeException(
+            format("Invalid type: %s", type)
+        );
+    }
+
+    public static RuntimeException constructorNotFound() {
+        return new RuntimeException(
+            "Type does not have a constructor matching the specified arguments."
+        );
+    }
+
+    public static RuntimeException cannotInstantiateUnboundGenericType(final Type<?> type) {
+        return new RuntimeException(
+            format(
+                "Cannot instantiate type '%s' because it has unbound generic type parameters.",
+                type
+            )
+        );
+    }
+
+    public static RuntimeException boxFailure(final Type<?> type) {
+        return new RuntimeException(
+            format(
+                "Could not find a boxing method or constructor for type '%s'.",
+                type
             )
         );
     }
