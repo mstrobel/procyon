@@ -203,7 +203,7 @@ class GenericParameter<T> extends Type<T> {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return 0;
     }
 

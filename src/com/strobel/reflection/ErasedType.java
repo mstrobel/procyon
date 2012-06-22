@@ -181,7 +181,7 @@ final class ErasedType<T> extends Type<T> {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return _originalType.getModifiers();
     }
 

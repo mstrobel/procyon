@@ -113,7 +113,7 @@ final class PrimitiveType<T> extends Type<T> {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return _class.getModifiers();
     }
 

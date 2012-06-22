@@ -163,7 +163,7 @@ final class GenericType<T> extends Type<T> {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return _genericTypeDefinition.getModifiers();
     }
 

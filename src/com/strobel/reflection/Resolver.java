@@ -894,7 +894,7 @@ final class JavacGenericParameter extends Type {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return (int)(Flags.StandardFlags & _element.flags());
     }
 
@@ -1114,7 +1114,7 @@ class JavacMethod extends MethodInfo {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return (int)(_element.flags() & Flags.StandardFlags);
     }
 }
@@ -1255,7 +1255,7 @@ class ClassConstructor extends ConstructorInfo {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return (int)(_element.flags() & Flags.StandardFlags);
     }
 }
@@ -1317,7 +1317,7 @@ class ClassField extends FieldInfo {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return (int)(_element.flags() & Flags.StandardFlags);
     }
 }

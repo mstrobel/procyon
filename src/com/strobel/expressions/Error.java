@@ -1,5 +1,6 @@
 package com.strobel.expressions;
 
+import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.MemberInfo;
 import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.Type;
@@ -576,6 +577,17 @@ final class Error {
             format(
                 "The user-defined equality method '%s' must return a boolean value.",
                 method.getName()
+            )
+        );
+    }
+
+    public static RuntimeException cannotCompileConstant(final Object value) {
+        VerifyArgument.notNull(value, "value");
+        
+        return new RuntimeException(
+            format(
+                "Cannot compile complex constant of type %s because no closure is available.",
+                Type.getType(value)
             )
         );
     }

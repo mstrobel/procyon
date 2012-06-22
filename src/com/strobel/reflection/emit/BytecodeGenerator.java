@@ -3,8 +3,10 @@ package com.strobel.reflection.emit;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.ConstructorInfo;
 import com.strobel.reflection.FieldInfo;
+import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.MethodBuilder;
 import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.ParameterList;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
@@ -47,19 +49,29 @@ public class BytecodeGenerator {
 
     private int _exceptionCount;
     private int _currExcStackCount;
-    private __ExceptionInfo[] _exceptions;           //This is the list of all of the exceptions in this BytecodeStream.
-    private __ExceptionInfo[] _currExcStack;         //This is the stack of exceptions which we're currently in.
+    private __ExceptionInfo[] _exceptions;      // This is the list of all of the exceptions in this BytecodeStream.
+    private __ExceptionInfo[] _currExcStack;    // This is the stack of exceptions which we're currently in.
 
-    ScopeTree _scopeTree;           // this variable tracks all debugging scope information
+    ScopeTree scopeTree;                        // This variable tracks all debugging scope information.
 
-    MethodBuilder _methodBuilder;
-    int _localCount;
+    final MethodBuilder methodBuilder;
+    int localCount;
 //    SignatureHelper             _localSignature;
 
     private int _maxStackSize = 0;     // Maximum stack size not counting the exceptions.
 
     private int _maxMidStack = 0;      // Maximum stack size for a given basic block.
     private int _maxMidStackCur = 0;   // Running count of the maximum stack size for the current basic block.
+
+    public BytecodeGenerator(final MethodBuilder methodBuilder) {
+        this.methodBuilder = VerifyArgument.notNull(methodBuilder, "methodBuilder");
+    }
+
+    // <editor-fold defaultstate="collapsed" desc="Labels">
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // LABELS                                                                                                             //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public Label defineLabel() {
         // Declares a new Label.  This is just a token and does not yet represent any
@@ -97,6 +109,14 @@ public class BytecodeGenerator {
         _labelList[labelIndex] = _bytecodeStream.getLength();
     }
 
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Locals">
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // LOCALS                                                                                                             //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     public LocalBuilder declareLocal(final Type localType) {
         VerifyArgument.notNull(localType, "localType");
 
@@ -104,14 +124,14 @@ public class BytecodeGenerator {
         // will be the scope that local will live.
 
         final LocalBuilder localBuilder;
-        final MethodBuilder methodBuilder = _methodBuilder;
+        final MethodBuilder methodBuilder = this.methodBuilder;
 
         if (methodBuilder == null) {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
         }
 
         if (methodBuilder.isTypeCreated()) {
-            // cannot change method after its containing type has been created 
+            // cannot change method after its containing type has been created
             throw Error.typeHasBeenCreated();
         }
 
@@ -119,15 +139,47 @@ public class BytecodeGenerator {
             throw Error.methodIsFinished();
         }
 
-        // add the localType to local signature 
+        // add the localType to local signature
 //        _localSignature.AddArgument(localType, pinned);
 
-        localBuilder = new LocalBuilder(_localCount, localType, methodBuilder);
+        localBuilder = new LocalBuilder(localCount, localType, methodBuilder);
 
-        _localCount++;
+        localCount++;
 
         return localBuilder;
     }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Simple Operations (OpCodes with no Operands)">
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // SIMPLE OPERATIONS (OPCODES WITH NO OPERANDS)                                                                       //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void dup() {
+        emit(OpCode.DUP);
+    }
+
+    public void dup2() {
+        emit(OpCode.DUP2);
+    }
+
+    public void dup2x1() {
+        emit(OpCode.DUP2_X1);
+    }
+
+    public void dup2x2() {
+        emit(OpCode.DUP2_X2);
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="General Emit Methods">
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // GENERAL EMIT METHODS                                                                                               //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public void emit(final OpCode opCode) {
         ensureCapacity(opCode.getSizeWithOperands());
@@ -172,7 +224,7 @@ public class BytecodeGenerator {
     public void emit(final OpCode opCode, final Type<?> type) {
         VerifyArgument.notNull(type, "type");
 
-        final MethodBuilder methodBuilder = _methodBuilder;
+        final MethodBuilder methodBuilder = this.methodBuilder;
 
         if (methodBuilder == null) {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
@@ -186,7 +238,7 @@ public class BytecodeGenerator {
     public void emit(final OpCode opCode, final ConstructorInfo constructor) {
         VerifyArgument.notNull(constructor, "constructor");
 
-        final MethodBuilder methodBuilder = _methodBuilder;
+        final MethodBuilder methodBuilder = this.methodBuilder;
 
         if (methodBuilder == null) {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
@@ -200,7 +252,7 @@ public class BytecodeGenerator {
     public void emit(final OpCode opCode, final MethodInfo method) {
         VerifyArgument.notNull(method, "method");
 
-        final MethodBuilder methodBuilder = _methodBuilder;
+        final MethodBuilder methodBuilder = this.methodBuilder;
 
         if (methodBuilder == null) {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
@@ -213,10 +265,6 @@ public class BytecodeGenerator {
 
     public void emit(final OpCode opCode, final FieldInfo field) {
         throw ContractUtils.unreachable();
-    }
-
-    public void emitGoto(final Label label) {
-        emit(OpCode.GOTO, label);
     }
 
     public void emit(final OpCode opCode, final Label label) {
@@ -244,41 +292,31 @@ public class BytecodeGenerator {
         }
     }
 
-    public void emit(final OpCode opCode, final LocalBuilder local) {
-        // Puts the opcode onto the bytecode stream followed by the information
-        // for local variable local.
+    // </editor-fold>
 
-        VerifyArgument.notNull(opCode, "opCode");
-        VerifyArgument.notNull(local, "local");
+    // <editor-fold defaultstate="collapsed" desc="Method Calls">
 
-        final int localIndex = local.getLocalIndex();
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // METHOD CALLS                                                                                                       //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        if (local.getMethodBuilder() != _methodBuilder) {
-            throw Error.unmatchedLocal();
+    public void call(final MethodInfo method) {
+        VerifyArgument.notNull(method, "method");
+
+        final OpCode opCode;
+
+        if (method.isStatic()) {
+            call(OpCode.INVOKESTATIC, method);
         }
-
-        final OpCode optimalOpCode;
-
-        if (opCode.getOperandType() == OperandType.Local) {
-            if (opCode.getCode() <= OpCode.ALOAD.getCode()) {
-                optimalOpCode = getLocalLoadOpCode(local.getLocalType(), localIndex);
-            }
-            else {
-                optimalOpCode = getLocalStoreOpCode(local.getLocalType(), localIndex);
-            }
+        else if (method.getDeclaringType().isInterface()) {
+            call(OpCode.INVOKEINTERFACE, method);
         }
         else {
-            optimalOpCode = opCode;
-        }
-
-        emit(optimalOpCode);
-
-        if (optimalOpCode.getOperandType() == OperandType.Local) {
-            emitByteOperand((byte)localIndex);
+            call(OpCode.INVOKEVIRTUAL, method);
         }
     }
 
-    public void emitCall(final OpCode opCode, final MethodInfo method) {
+    public void call(final OpCode opCode, final MethodInfo method) {
         VerifyArgument.notNull(method, "method");
 
         switch (opCode) {
@@ -306,21 +344,25 @@ public class BytecodeGenerator {
         updateStackSize(opCode, stackChange);
     }
 
-    public void emitCall(final MethodInfo method) {
-        VerifyArgument.notNull(method, "method");
+    // </editor-fold>
 
-        final OpCode opCode;
+    // <editor-fold defaultstate="collapsed" desc="Branch Operations">
 
-        if (method.isStatic()) {
-            emitCall(OpCode.INVOKESTATIC, method);
-        }
-        else if (method.getDeclaringType().isInterface()) {
-            emitCall(OpCode.INVOKEINTERFACE, method);
-        }
-        else {
-            emitCall(OpCode.INVOKEVIRTUAL, method);
-        }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // BRANCH OPERATIONS                                                                                                  //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void jump(final Label label) {
+        emit(OpCode.GOTO, label);
     }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="New Object/Array Operations">
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // NEW OBJECT/ARRAY OPERATIONS                                                                                        //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public void emitNew(final ConstructorInfo constructor) {
         VerifyArgument.notNull(constructor, "constructor");
@@ -386,45 +428,141 @@ public class BytecodeGenerator {
         emitByteOperand(dimensionsToInitialize);
     }
 
-    protected void emitLoadConstant(final int token) {
-        if (token < Byte.MIN_VALUE || token > Byte.MAX_VALUE) {
-            emit(OpCode.LDC_W);
-            emitShortOperand(token);
-        }
-        else {
-            emit(OpCode.LDC);
-            emitByteOperand(token);
-        }
-    }
+    // </editor-fold>
 
-    protected void emitLoadLongConstant(final int token) {
-        emit(OpCode.LDC2_W);
-        emitShortOperand(token);
-    }
+    // <editor-fold defaultstate="collapsed" desc="Locals and Arguments">
 
-    public void emitNull() {
-        emit(OpCode.ACONST_NULL);
-    }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // LOCALS AND ARGUMENTS                                                                                               //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public void emitLoad(final LocalBuilder local) {
-        emit(
-            getLocalLoadOpCode(
-                local.getLocalType(),
-                local.getLocalIndex()
-            ),
-            local
+        VerifyArgument.notNull(local, "local");
+
+        if (local.getMethodBuilder() != methodBuilder) {
+            throw Error.unmatchedLocal();
+        }
+
+        emitLoad(
+            local.getLocalType(),
+            translateLocal(local.getLocalIndex())
         );
     }
 
     public void emitStore(final LocalBuilder local) {
-        emit(
-            getLocalStoreOpCode(
-                local.getLocalType(),
-                local.getLocalIndex()
-            ),
-            local
+        VerifyArgument.notNull(local, "local");
+
+        if (local.getMethodBuilder() != methodBuilder) {
+            throw Error.unmatchedLocal();
+        }
+
+        emitStore(
+            local.getLocalType(),
+            translateLocal(local.getLocalIndex())
         );
     }
+
+    public void emitThis() {
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        if (methodBuilder.isStatic()) {
+            throw Error.cannotLoadThisForStaticMethod();
+        }
+
+        emitLoad(methodBuilder.getDeclaringType(), 0);
+    }
+
+    public void emitLoadArgument(final int index) {
+        assert index >= 0
+            : "index >= 0";
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final ParameterList parameters = methodBuilder.getParameters();
+
+        if (index < 0 || index >= parameters.size()) {
+            throw Error.argumentIndexOutOfRange(methodBuilder, index);
+        }
+
+        final int absoluteIndex;
+
+        if (methodBuilder.isStatic()) {
+            absoluteIndex = index;
+        }
+        else {
+            absoluteIndex = index + 1;
+        }
+
+        final OpCode opCode = getLocalLoadOpCode(
+            parameters.get(index).getParameterType(),
+            absoluteIndex
+        );
+    }
+
+    protected void emitLoad(final Type<?> type, final int absoluteIndex) {
+        assert absoluteIndex >= 0
+            : "absoluteIndex >= 0";
+
+        final OpCode optimalOpCode;
+
+        optimalOpCode = getLocalLoadOpCode(type, absoluteIndex);
+
+        emit(optimalOpCode);
+
+        final OperandType operandType = optimalOpCode.getOperandType();
+
+        if (absoluteIndex > Byte.MAX_VALUE) {
+            emitShortOperand(absoluteIndex);
+        }
+        else {
+            emitByteOperand(absoluteIndex);
+        }
+    }
+
+    protected void emitStore(final Type<?> type, final int absoluteIndex) {
+        assert absoluteIndex >= 0
+            : "absoluteIndex >= 0";
+
+        final OpCode optimalOpCode;
+
+        optimalOpCode = getLocalStoreOpCode(type, absoluteIndex);
+
+        emit(optimalOpCode);
+
+        final OperandType operandType = optimalOpCode.getOperandType();
+
+        if (absoluteIndex > Byte.MAX_VALUE) {
+            emitShortOperand(absoluteIndex);
+        }
+        else {
+            emitByteOperand(absoluteIndex);
+        }
+    }
+
+    int translateLocal(final int localIndex) {
+        int index = localIndex;
+
+        if (methodBuilder != null) {
+            if (!methodBuilder.isStatic()) {
+                ++index;
+            }
+            index += methodBuilder.getParameters().size();
+        }
+
+        return index;
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Array Load/Store Operations">
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // ARRAY LOAD/STORE OPERATIONS                                                                                        //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public void emitLoadElement(final Type<?> elementType) {
         VerifyArgument.notNull(elementType, "elementType");
@@ -518,6 +656,57 @@ public class BytecodeGenerator {
         }
     }
 
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Field Operations">
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // FIELD OPERATIONS                                                                                                   //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public void getField(final FieldInfo field) {
+        VerifyArgument.notNull(field, "field");
+
+        if (field.isStatic()) {
+            emit(OpCode.GETSTATIC, field);
+        }
+        else {
+            emit(OpCode.GETFIELD, field);
+        }
+    }
+
+    public void putField(final FieldInfo field) {
+        VerifyArgument.notNull(field, "field");
+
+        if (field.isStatic()) {
+            emit(OpCode.PUTSTATIC, field);
+        }
+        else {
+            emit(OpCode.PUTFIELD, field);
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Constants">
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // CONSTANTS                                                                                                          //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static boolean canEmitConstant(final Object value, final Type<?> type) {
+        VerifyArgument.notNull(type, "type");
+
+        return value == null ||
+               canEmitBytecodeConstant(type) ||
+               value instanceof Type<?> ||
+               value instanceof MethodBase;
+    }
+
+    public void emitNull() {
+        emit(OpCode.ACONST_NULL);
+    }
+
     public void emitDefaultValue(final Type<?> type) {
         VerifyArgument.notNull(type, "type");
 
@@ -570,28 +759,6 @@ public class BytecodeGenerator {
         }
     }
 
-    public void emitFieldGet(final FieldInfo field) {
-        VerifyArgument.notNull(field, "field");
-
-        if (field.isStatic()) {
-            emit(OpCode.GETSTATIC, field);
-        }
-        else {
-            emit(OpCode.GETFIELD, field);
-        }
-    }
-
-    public void emitFieldSet(final FieldInfo field) {
-        VerifyArgument.notNull(field, "field");
-
-        if (field.isStatic()) {
-            emit(OpCode.PUTSTATIC, field);
-        }
-        else {
-            emit(OpCode.PUTFIELD, field);
-        }
-    }
-
     public void emitBoolean(final boolean value) {
         emit(value ? OpCode.ICONST_1 : OpCode.ICONST_0);
     }
@@ -638,7 +805,7 @@ public class BytecodeGenerator {
                 return;
         }
 
-        final MethodBuilder methodBuilder = _methodBuilder;
+        final MethodBuilder methodBuilder = this.methodBuilder;
 
         if (methodBuilder == null) {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
@@ -660,7 +827,7 @@ public class BytecodeGenerator {
             return;
         }
 
-        final MethodBuilder methodBuilder = _methodBuilder;
+        final MethodBuilder methodBuilder = this.methodBuilder;
 
         if (methodBuilder == null) {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
@@ -687,7 +854,7 @@ public class BytecodeGenerator {
             return;
         }
 
-        final MethodBuilder methodBuilder = _methodBuilder;
+        final MethodBuilder methodBuilder = this.methodBuilder;
 
         if (methodBuilder == null) {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
@@ -709,7 +876,7 @@ public class BytecodeGenerator {
             return;
         }
 
-        final MethodBuilder methodBuilder = _methodBuilder;
+        final MethodBuilder methodBuilder = this.methodBuilder;
 
         if (methodBuilder == null) {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
@@ -726,7 +893,7 @@ public class BytecodeGenerator {
             return;
         }
 
-        final MethodBuilder methodBuilder = _methodBuilder;
+        final MethodBuilder methodBuilder = this.methodBuilder;
 
         if (methodBuilder == null) {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
@@ -737,13 +904,37 @@ public class BytecodeGenerator {
         emitLoadConstant(stringToken);
     }
 
+    protected void emitLoadConstant(final int token) {
+        if (token < Byte.MIN_VALUE || token > Byte.MAX_VALUE) {
+            emit(OpCode.LDC_W);
+            emitShortOperand(token);
+        }
+        else {
+            emit(OpCode.LDC);
+            emitByteOperand(token);
+        }
+    }
+
+    protected void emitLoadLongConstant(final int token) {
+        emit(OpCode.LDC2_W);
+        emitShortOperand(token);
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Boxing and Conversion Operations">
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // BOXING AND CONVERSION OPERATIONS                                                                                   //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     public void emitBox(final Type<?> type) {
         final MethodInfo box = TypeUtils.getUnboxMethod(
             VerifyArgument.notNull(type, "type")
         );
 
         if (box != null) {
-            emitCall(OpCode.INVOKESTATIC, box);
+            call(OpCode.INVOKESTATIC, box);
         }
     }
 
@@ -753,7 +944,7 @@ public class BytecodeGenerator {
         );
 
         if (unboxMethod != null) {
-            emitCall(OpCode.INVOKEVIRTUAL, unboxMethod);
+            call(OpCode.INVOKEVIRTUAL, unboxMethod);
         }
     }
 
@@ -852,7 +1043,7 @@ public class BytecodeGenerator {
         final MethodInfo coercionMethod = TypeUtils.getCoercionMethod(sourceType, targetType);
 
         if (coercionMethod != null) {
-            emitCall(coercionMethod);
+            call(coercionMethod);
         }
         else {
             final Type<?> unboxedSourceType = TypeUtils.getUnderlyingPrimitive(sourceType);
@@ -892,7 +1083,7 @@ public class BytecodeGenerator {
         // box target
         emitBox(targetType);
         emitStore(targetLocal);
-        emitGoto(end);
+        jump(end);
 
         // if source was null, set target to null
         markLabel(ifNull);
@@ -906,10 +1097,22 @@ public class BytecodeGenerator {
 
     private void emitCastToType(final Type sourceType, final Type targetType) {
         if (!sourceType.isPrimitive() && targetType.isPrimitive()) {
+            final Type boxedTargetType = TypeUtils.getBoxedType(targetType);
+
+            if (!sourceType.isEquivalentTo(boxedTargetType)) {
+                emitCastToType(sourceType, boxedTargetType);
+            }
+
             emitUnbox(targetType);
         }
         else if (sourceType.isPrimitive() && !targetType.isPrimitive()) {
+            final Type boxedSourceType = TypeUtils.getBoxedType(sourceType);
+
             emitBox(sourceType);
+
+            if (!targetType.isEquivalentTo(boxedSourceType)) {
+                emitCastToType(boxedSourceType, targetType);
+            }
         }
         else if (!sourceType.isPrimitive() && !targetType.isPrimitive()) {
             emit(OpCode.CHECKCAST, targetType);
@@ -1084,6 +1287,14 @@ public class BytecodeGenerator {
         throw Error.invalidCast(sourceType, targetType);
     }
 
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Internal Methods">
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // INTERNAL METHODS                                                                                                   //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     void emitByteOperand(final int value) {
         _bytecodeStream.putByte(value);
     }
@@ -1202,7 +1413,7 @@ public class BytecodeGenerator {
 
     private void addFixup(final Label label, final int position, final int operandSize) {
         // Notes the label, position, and instruction size of a new fixup.  Expands
-        // all of the fixup arrays as appropriate. 
+        // all of the fixup arrays as appropriate.
 
         if (_fixupData == null) {
             _fixupData = new __FixupData[DefaultFixupArraySize];
@@ -1225,14 +1436,14 @@ public class BytecodeGenerator {
 
     void updateStackSize(final OpCode opCode, final int stackChange) {
         // Updates internal variables for keeping track of the stack size
-        // requirements for the function.  stackChange specifies the amount 
-        // by which the stack size needs to be updated. 
+        // requirements for the function.  stackChange specifies the amount
+        // by which the stack size needs to be updated.
 
-        // Special case for the Return.  Returns pops 1 if there is a 
+        // Special case for the Return.  Returns pops 1 if there is a
         // non-void return value.
 
         // Update the running stack size.  _maxMidStack specifies the maximum
-        // amount of stack required for the current basic block irrespective of 
+        // amount of stack required for the current basic block irrespective of
         // where you enter the block.
         _maxMidStackCur += stackChange;
 
@@ -1244,9 +1455,9 @@ public class BytecodeGenerator {
         }
 
         // If the current instruction signifies end of a basic, which basically
-        // means an unconditional branch, add _maxMidStack to _maxStackSize. 
+        // means an unconditional branch, add _maxMidStack to _maxStackSize.
         // _maxStackSize will eventually be the sum of the stack requirements for
-        // each basic block. 
+        // each basic block.
 
         if (opCode.endsUnconditionalJumpBlock()) {
             _maxStackSize += _maxMidStack;
@@ -1277,7 +1488,7 @@ public class BytecodeGenerator {
 
         // bakeByteArray() is a package private function designed to be called by
         // MethodBuilder to do all of the fix-ups and return a new byte array
-        // representing the byte stream with labels resolved, etc. 
+        // representing the byte stream with labels resolved, etc.
 
         final int newSize;
         final byte[] newBytes;
@@ -1503,5 +1714,24 @@ public class BytecodeGenerator {
                 }
         }
     }
+
+    private static boolean canEmitBytecodeConstant(final Type<?> type) {
+        switch (type.getKind()) {
+            case BOOLEAN:
+            case BYTE:
+            case SHORT:
+            case INT:
+            case LONG:
+            case CHAR:
+            case FLOAT:
+            case DOUBLE:
+                return true;
+
+            default:
+                return type.isEquivalentTo(Types.String);
+        }
+    }
+
+    // </editor-fold>
 }
 

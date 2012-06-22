@@ -195,7 +195,7 @@ class ReflectedConstructor extends ConstructorInfo {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return _rawConstructor.getModifiers();
     }
 }

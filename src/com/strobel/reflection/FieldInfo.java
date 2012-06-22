@@ -116,7 +116,7 @@ class ReflectedField extends FieldInfo {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return _rawField.getModifiers();
     }
 }

@@ -65,7 +65,7 @@ public class ArrayType<T> extends Type<T> {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return 0;
     }
 

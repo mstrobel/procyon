@@ -4,13 +4,13 @@ package com.strobel.core;
  * @author Mike Strobel
  */
 public final class StrongBox<T> {
-    private T value;
+    private T _value;
 
     public T getValue() {
-        return value;
+        return _value;
     }
 
     public void setValue(final T value) {
-        this.value = value;
+        this._value = value;
     }
 }

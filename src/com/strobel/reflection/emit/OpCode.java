@@ -239,6 +239,10 @@ public enum OpCode {
         return _code;
     }
 
+    public boolean isWide() {
+        return (_code & WIDE) == WIDE;
+    }
+    
     public OperandType getOperandType() {
         return _operandType;
     }

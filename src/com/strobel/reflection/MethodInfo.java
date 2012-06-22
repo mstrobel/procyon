@@ -388,7 +388,7 @@ class ReflectedMethod extends MethodInfo {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return _rawMethod.getModifiers();
     }
 
@@ -506,7 +506,7 @@ final class GenericMethod extends MethodInfo {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return _genericMethodDefinition.getModifiers();
     }
 }

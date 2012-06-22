@@ -1268,6 +1268,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             throw Error.couldNotResolveType(clazz);
         }
     }
+    
+    public static <T> Type<T> ofObject(final T object) {
+        if (object == null) {
+            return Type.NullType;
+        }
+
+        return (Type<T>)Type.of(object.getClass());
+    }
 
     private static void loadAncestors(final Symbol.ClassSymbol symbol) {
         final com.sun.tools.javac.code.Type superclass = symbol.getSuperclass();

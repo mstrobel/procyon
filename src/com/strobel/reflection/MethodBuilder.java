@@ -32,7 +32,7 @@ public final class MethodBuilder extends MethodInfo {
     }
 
     @Override
-    protected int getModifiers() {
+    public int getModifiers() {
         return 0;
     }
 

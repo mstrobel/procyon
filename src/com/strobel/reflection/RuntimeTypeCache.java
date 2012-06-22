@@ -945,7 +945,7 @@ final class RuntimeConstructorInfo extends ConstructorInfo {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return _modifiers;
     }
 
@@ -1099,7 +1099,7 @@ final class RuntimeMethodInfo extends MethodInfo {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return _modifiers;
     }
 
@@ -1208,7 +1208,7 @@ final class RuntimeFieldInfo extends FieldInfo {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return _modifiers;
     }
 
@@ -1393,7 +1393,7 @@ final class RuntimeType<T> extends Type<T> {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return _basedOn.getModifiers();
     }
 

@@ -38,7 +38,7 @@ final class NoType extends Type {
     }
 
     @Override
-    final int getModifiers() {
+    public final int getModifiers() {
         return 0;
     }
 

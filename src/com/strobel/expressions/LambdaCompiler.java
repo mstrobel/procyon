@@ -1,12 +1,53 @@
 package com.strobel.expressions;
 
 import com.strobel.reflection.MethodBuilder;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.emit.BytecodeGenerator;
+import com.strobel.reflection.emit.TypeBuilder;
 import com.strobel.util.ContractUtils;
+import com.sun.tools.javac.code.Flags;
 
 /**
  * @author Mike Strobel
  */
 final class LambdaCompiler {
+    final LambdaExpression<?> lambda;
+    final TypeBuilder typeBuilder;
+    final MethodBuilder methodBuilder;
+    final BytecodeGenerator generator;
+    
+    private final boolean _hasClosureArgument;
+
+    LambdaCompiler(final LambdaExpression<?> lambda) {
+        this.lambda = lambda;
+
+        typeBuilder = new TypeBuilder();
+        
+        final MethodInfo interfaceMethod = lambda.getType().getMethods().get(0);
+        
+        methodBuilder = typeBuilder.defineMethod(
+            interfaceMethod.getName(),
+            Flags.asModifierSet(interfaceMethod.getModifiers()),
+            interfaceMethod.getReturnType(),
+            interfaceMethod.getParameters().getParameterTypes()
+        );
+        
+        generator = new BytecodeGenerator(methodBuilder);
+
+        _hasClosureArgument = true;
+    }
+
+    boolean canEmitBoundConstants() {
+        return _hasClosureArgument;
+    }
+
+    void emitClosureArgument() {
+        assert _hasClosureArgument : "must have a Closure argument";
+        assert methodBuilder.isStatic() : "must be a static method";
+
+        generator.emitThis();
+    }
+
     static <T> Delegate<T> compile(final LambdaExpression<T> lambda) {
         throw ContractUtils.unreachable();
     }

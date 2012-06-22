@@ -1,6 +1,7 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.Type;
 import com.strobel.util.ContractUtils;
 
@@ -142,6 +143,22 @@ final class Error {
                 arrayType,
                 actualDimensions
             )
+        );
+    }
+
+    public static RuntimeException argumentIndexOutOfRange(final MethodBase method, final int index) {
+        return new RuntimeException(
+            format(
+                "Argument %s is out of range.  Method: %s",
+                index,
+                method
+            )
+        );
+    }
+
+    public static RuntimeException cannotLoadThisForStaticMethod() {
+        return new RuntimeException(
+            "Cannot reference 'this' from within a static method."
         );
     }
 }

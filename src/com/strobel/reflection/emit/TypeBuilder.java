@@ -3,23 +3,37 @@ package com.strobel.reflection.emit;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.MethodBase;
+import com.strobel.reflection.MethodBuilder;
 import com.strobel.reflection.Type;
+import com.strobel.reflection.TypeList;
 import com.strobel.util.ContractUtils;
+
+import javax.lang.model.element.Modifier;
+import java.util.Set;
 
 /**
  * @author strobelm
  */
-public class TypeBuilder extends Type {
+public final class TypeBuilder extends Type {
     @Override
     public Type getDeclaringType() {
         return null;
     }
 
+    public MethodBuilder defineMethod(
+        final String name,
+        final Set<Modifier> modifiers,
+        final Type<?> returnType,
+        final TypeList parameterTypes) {
+
+        throw ContractUtils.unreachable();
+    }
+
     @Override
-    protected int getModifiers() {
+    public int getModifiers() {
         return 0;
     }
-    
+
     int getTypeToken(final Type<?> type) {
         VerifyArgument.notNull(type, "type");
         throw ContractUtils.unreachable();

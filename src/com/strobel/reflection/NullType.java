@@ -35,7 +35,7 @@ final class NullType extends Type {
     }
 
     @Override
-    final int getModifiers() {
+    public final int getModifiers() {
         return Flags.PUBLIC;
     }
 

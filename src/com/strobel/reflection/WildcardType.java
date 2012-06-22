@@ -126,7 +126,7 @@ final class WildcardType<T> extends Type<T> {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return Flags.PUBLIC;
     }
 

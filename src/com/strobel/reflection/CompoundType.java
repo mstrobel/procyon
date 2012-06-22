@@ -36,7 +36,7 @@ public final class CompoundType<T> extends Type<T> {
     }
 
     @Override
-    int getModifiers() {
+    public int getModifiers() {
         return Modifier.PUBLIC | Modifier.ABSTRACT;
     }
 
