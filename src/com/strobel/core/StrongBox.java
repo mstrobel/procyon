@@ -3,14 +3,13 @@ package com.strobel.core;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings("PublicField")
 public final class StrongBox<T> {
-    private T _value;
+    public T value;
 
-    public T getValue() {
-        return _value;
-    }
+    public StrongBox() {}
 
-    public void setValue(final T value) {
-        this._value = value;
+    public StrongBox(final T value) {
+        this.value = value;
     }
 }

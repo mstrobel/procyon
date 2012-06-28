@@ -204,7 +204,7 @@ final class Helper {
     }
 
     public static boolean isSuperType(final Type type, final Type other) {
-        return type == other || other == Type.NoType || isSubtype(other, type);
+        return type == other || other == Type.Bottom || isSubtype(other, type);
     }
 
     public static boolean isSubtype(final Type t, final Type p) {
@@ -254,7 +254,7 @@ final class Helper {
         for (final Type t : types) {
             if (t.isWildcardType()) {
                 final Type bound = t.getUpperBound();
-                result.append(new CapturedType(Type.NoType, bound, Type.NoType, t));
+                result.append(new CapturedType(Type.Bottom, bound, Type.Bottom, t));
             }
             else {
                 result.append(t);
@@ -269,7 +269,7 @@ final class Helper {
         for (final Type t : types) {
             if (t.isWildcardType()) {
                 final Type bound = t.getUpperBound();
-                result.append(new CapturedType(Type.NoType, bound, Type.NoType, t));
+                result.append(new CapturedType(Type.Bottom, bound, Type.Bottom, t));
             }
             else {
                 result.append(t);
@@ -279,13 +279,13 @@ final class Helper {
     }
 
     public static Type capture(Type t) {
-        if (t.isGenericParameter() || t.isWildcardType() || t.isPrimitive() || t.isArray() || t == Type.NoType || t == Type.NullType) {
+        if (t.isGenericParameter() || t.isWildcardType() || t.isPrimitive() || t.isArray() || t == Type.Bottom || t == Type.NullType) {
             return t;
         }
 
         final Type declaringType = t.getDeclaringType();
 
-        if (declaringType != Type.NoType && declaringType != null) {
+        if (declaringType != Type.Bottom && declaringType != null) {
             final Type capturedDeclaringType = capture(declaringType);
 
             if (capturedDeclaringType != declaringType) {
@@ -327,7 +327,7 @@ final class Helper {
                     currentS.head = Si = new CapturedType(
                         Si.getDeclaringType(),
                         substitute(Ui, A, S),
-                        Type.NoType,
+                        Type.Bottom,
                         Si.getWildcard()
                     );
                 }
@@ -335,7 +335,7 @@ final class Helper {
                     currentS.head = Si = new CapturedType(
                         Si.getDeclaringType(),
                         glb(Ti.getUpperBound(), substitute(Ui, A, S)),
-                        Type.NoType,
+                        Type.Bottom,
                         Si.getWildcard()
                     );
                 }
@@ -626,7 +626,7 @@ final class Helper {
     }
 
     public static int rank(final Type t) {
-        if (t.isPrimitive() || t.isWildcardType() || t.isArray() || t == Type.NoType || t == Type.NullType) {
+        if (t.isPrimitive() || t.isWildcardType() || t.isArray() || t == Type.Bottom || t == Type.NullType) {
             throw new AssertionError();
         }
 
@@ -662,13 +662,13 @@ final class Helper {
         final boolean originIsClass = !origin.isWildcardType() &&
                                       !origin.isPrimitive() &&
                                       !origin.isArray() &&
-                                      origin != Type.NoType &&
+                                      origin != Type.Bottom &&
                                       origin != Type.NullType;
 
         final boolean otherIsClass = !other.isWildcardType() &&
                                      !other.isPrimitive() &&
                                      !other.isArray() &&
-                                     other != Type.NoType &&
+                                     other != Type.Bottom &&
                                      other != Type.NullType;
 
         if (originIsClass && otherIsClass) {
@@ -830,7 +830,7 @@ final class Helper {
     private final static TypeMapper<Void> LowerBoundVisitor = new TypeMapper<Void>() {
         @Override
         public Type visitWildcardType(final Type t, final Void ignored) {
-            return t.isExtendsBound() ? Type.NoType : visit(t.getLowerBound());
+            return t.isExtendsBound() ? Type.Bottom : visit(t.getLowerBound());
         }
 
         @Override
@@ -884,7 +884,7 @@ final class Helper {
         private Type L(Type t) {
             while (t.isWildcardType()) {
                 if (t.isExtendsBound()) {
-                    return Type.NoType;
+                    return Type.Bottom;
                 }
                 else {
                     t = t.getLowerBound();
@@ -1077,14 +1077,14 @@ final class Helper {
                 if (s.isSuperBound() && !s.isExtendsBound()) {
                     s = new WildcardType<>(
                         Types.Object,
-                        Type.NoType
+                        Type.Bottom
                     );
                     changed = true;
                 }
                 else if (s != orig) {
                     s = new WildcardType<>(
                         upperBound(s),
-                        Type.NoType
+                        Type.Bottom
                     );
                     changed = true;
                 }

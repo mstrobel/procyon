@@ -15,12 +15,12 @@ final class WildcardType<T> extends Type<T> {
 
     WildcardType(final Type<T> extendsBound, final Type superBound) {
         _extendsBound = extendsBound != null ? extendsBound : (Type<T>)Types.Object;
-        _superBound = superBound != null ? superBound : Type.NoType;
+        _superBound = superBound != null ? superBound : Type.Bottom;
     }
 
     @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        if (_superBound != NoType) {
+        if (_superBound != Bottom) {
             sb.append("? super ");
             if (_superBound.isGenericParameter()) {
                 return sb.append(_superBound.getFullName());
@@ -42,7 +42,7 @@ final class WildcardType<T> extends Type<T> {
     }
     @Override
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        if (_superBound != NoType) {
+        if (_superBound != Bottom) {
             sb.append("? super ");
             if (_superBound.isGenericParameter()) {
                 return sb.append(_superBound.getName());

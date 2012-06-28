@@ -591,4 +591,22 @@ final class Error {
             )
         );
     }
+
+    public static RuntimeException undefinedVariable(final String name, final Type type, final String currentLambdaName) {
+        return new RuntimeException(
+            format(
+                "Undefined variable '%s' of type %s in lambda '%s'.",
+                name,
+                type,
+                currentLambdaName
+            )
+        );
+    }
+
+    public static RuntimeException couldNotCreateDelegate(final Throwable t) {
+        return new RuntimeException(
+            "Could not create delegate.",
+            t
+        );
+    }
 }

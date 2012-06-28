@@ -160,11 +160,11 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
             if (t instanceof com.sun.tools.javac.code.Type.WildcardType) {
                 final com.sun.tools.javac.code.Type.WildcardType w = (com.sun.tools.javac.code.Type.WildcardType)t;
                 if (w.isUnbound()) {
-                    return new WildcardType(Types.Object, Type.NoType);
+                    return new WildcardType(Types.Object, Type.Bottom);
                 }
                 if (w.isExtendsBound()) {
                     final Type<?> extendsBound = resolveType(w.getExtendsBound());
-                    return new WildcardType(extendsBound, Type.NoType);
+                    return new WildcardType(extendsBound, Type.Bottom);
                 }
                 return new WildcardType(Types.Object, resolveType(w.getSuperBound()));
             }

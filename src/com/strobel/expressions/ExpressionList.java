@@ -124,6 +124,23 @@ public class ExpressionList<T extends Expression> implements Iterable<T>, Random
     }
 
     @SafeVarargs
+    public final ExpressionList<T> addAll(final T... expressions) {
+        if (expressions == null || expressions.length == 0) {
+            return this;
+        }
+
+        return newInstance(ArrayUtilities.insert(_expressions, size(), expressions));
+    }
+
+    public ExpressionList<T> addAll(final ExpressionList<T> c) {
+        if (c == null || c.size() == 0) {
+            return this;
+        }
+
+        return newInstance(ArrayUtilities.insert(_expressions, size(), c._expressions));
+    }
+
+    @SafeVarargs
     public final ExpressionList<T> removeAll(final T... expressions) {
         if (expressions == null || expressions.length == 0) {
             return this;

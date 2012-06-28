@@ -1,5 +1,7 @@
 package com.strobel.reflection;
 
+import com.strobel.compilerservices.Closure;
+
 import java.io.Serializable;
 import java.lang.*;
 import java.lang.Error;
@@ -48,6 +50,8 @@ public final class Types {
     public static final Type<Serializable> Serializable;
     public static final Type<Cloneable> Cloneable;
 
+    public static final Type<Closure> Closure;
+
     static {
         Object = Type.of(Object.class);
         Number = Type.of(Number.class);
@@ -81,6 +85,8 @@ public final class Types {
 
         Serializable = Type.of(Serializable.class);
         Cloneable = Type.of(Cloneable.class);
+
+        Closure = Type.of(Closure.class);
     }
 
     static void ensureRegistered() {

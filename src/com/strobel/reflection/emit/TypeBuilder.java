@@ -1,6 +1,7 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.FieldBuilder;
 import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.MethodBuilder;
@@ -35,11 +36,27 @@ public final class TypeBuilder extends Type {
         throw ContractUtils.unreachable();
     }
 
+    public FieldBuilder defineField(
+        final String name,
+        final Type<?> type,
+        final Set<Modifier> modifiers) {
+
+        throw ContractUtils.unreachable();
+    }
+
     @Override
     public int getModifiers() {
         return 0;
     }
 
+    public boolean isCreated() {
+        throw ContractUtils.unreachable();
+    }
+    
+    public Type<?> createType() {
+        throw ContractUtils.unreachable();
+    }
+    
     int getTypeToken(final Type<?> type) {
         VerifyArgument.notNull(type, "type");
         return _constantPool.getTypeInfo(type).index;

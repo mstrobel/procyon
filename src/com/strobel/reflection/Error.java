@@ -179,4 +179,10 @@ final class Error {
             "This type has already been created."
         );
     }
+
+    public static RuntimeException typeNotCreated() {
+        return new RuntimeException(
+            "Type has not been created yet."
+        );
+    }
 }

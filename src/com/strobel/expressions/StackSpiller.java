@@ -56,7 +56,7 @@ final class StackSpiller {
 
     private ParameterExpression toTemp(final Expression expression, final StrongBox<Expression> save) {
         final ParameterExpression temp = makeTemp(expression.getType());
-        save.setValue(Expression.assign(temp, expression));
+        save.value = Expression.assign(temp, expression);
         return temp;
     }
 
@@ -1198,7 +1198,7 @@ final class StackSpiller {
                         if (clone[i] != null) {
                             final StrongBox<Expression> temp = new StrongBox<>();
                             clone[i] = toTemp(clone[i], temp);
-                            comma.add(temp.getValue());
+                            comma.add(temp.value);
                         }
                     }
 

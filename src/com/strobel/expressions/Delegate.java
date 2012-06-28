@@ -6,7 +6,7 @@ import java.lang.reflect.Method;
 /**
  * @author Mike Strobel
  */
-public abstract class Delegate<T> {
+public class Delegate<T> {
     private final T _target;
     private final Method _method;
 

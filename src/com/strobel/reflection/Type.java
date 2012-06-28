@@ -37,7 +37,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public static final Missing Value = new Missing();
     public static final Type[] EmptyTypes = new Type[0];
 
-    public static final Type NoType = new NoType();
+    public static final Type Bottom = new NoType();
     public static final Type NullType = new NullType();
 
     protected static final Object[] EmptyObjects = EmptyArrayCache.fromElementType(Object.class);
@@ -220,18 +220,18 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     public boolean isUnbound() {
         return isWildcardType() &&
-               getLowerBound() == NoType &&
+               getLowerBound() == Bottom &&
                getUpperBound() == Types.Object;
     }
 
     public boolean isExtendsBound() {
         return isGenericParameter() ||
-               isWildcardType() && getLowerBound() == NoType;
+               isWildcardType() && getLowerBound() == Bottom;
     }
 
     public boolean isSuperBound() {
         return isWildcardType() &&
-               (getLowerBound() != NoType || getUpperBound() == Types.Object);
+               (getLowerBound() != Bottom || getUpperBound() == Types.Object);
     }
 
     public Type<?> getUpperBound() {
@@ -239,7 +239,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public Type<?> getLowerBound() {
-        return NoType;
+        return Bottom;
     }
 
     public boolean isEquivalentTo(final Type<?> other) {
@@ -322,7 +322,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             return false;
         }
 
-        if (type == NoType) {
+        if (type == Bottom) {
             return true;
         }
 
@@ -1350,7 +1350,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public static <T> Type<? extends T> makeExtendsWildcard(final Type<T> bound) {
         return new WildcardType<>(
             VerifyArgument.notNull(bound, "bound"),
-            NoType
+            Bottom
         );
     }
 
@@ -1364,7 +1364,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public static WildcardType<?> makeWildcard() {
         return new WildcardType<>(
             Types.Object,
-            NoType
+            Bottom
         );
     }
 

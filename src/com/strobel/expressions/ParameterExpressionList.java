@@ -45,6 +45,11 @@ public class ParameterExpressionList extends ExpressionList<ParameterExpression>
     }
 
     @Override
+    public ParameterExpressionList addAll(final ExpressionList<ParameterExpression> c) {
+        return (ParameterExpressionList)super.addAll(c);
+    }
+
+    @Override
     public ParameterExpressionList replace(final int index, final ParameterExpression expression) {
         return (ParameterExpressionList)super.replace(index, expression);
     }

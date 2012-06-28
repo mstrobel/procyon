@@ -522,6 +522,35 @@ public class BytecodeGenerator {
         }
     }
 
+    public void emitStoreArgument(final int index) {
+        assert index >= 0
+            : "index >= 0";
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final ParameterList parameters = methodBuilder.getParameters();
+
+        if (index < 0 || index >= parameters.size()) {
+            throw Error.argumentIndexOutOfRange(methodBuilder, index);
+        }
+
+        final int absoluteIndex;
+
+        if (methodBuilder.isStatic()) {
+            absoluteIndex = index;
+        }
+        else {
+            absoluteIndex = index + 1;
+        }
+
+        final OpCode opCode = getLocalStoreOpCode(
+            parameters.get(index).getParameterType(),
+            absoluteIndex
+        );
+    }
+
     protected void emitStore(final Type<?> type, final int absoluteIndex) {
         assert absoluteIndex >= 0
             : "absoluteIndex >= 0";
@@ -1735,4 +1764,8 @@ public class BytecodeGenerator {
     }
 
     // </editor-fold>
+
+    public int offset() {
+        return _bytecodeStream.getLength();
+    }
 }

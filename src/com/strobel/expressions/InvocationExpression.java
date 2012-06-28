@@ -30,7 +30,7 @@ public final class InvocationExpression extends Expression implements IArgumentP
         return _lambda;
     }
 
-    public ExpressionList getArguments() {
+    public ExpressionList<? extends Expression> getArguments() {
         return _arguments;
     }
 

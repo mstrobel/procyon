@@ -24,7 +24,7 @@ class GenericParameter<T> extends Type<T> {
         _name = VerifyArgument.notNull(name, "name");
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _upperBound = upperBound != null ? upperBound : Types.Object;
-        _lowerBound = NoType;
+        _lowerBound = Bottom;
         _position = position;
     }
 
@@ -33,7 +33,7 @@ class GenericParameter<T> extends Type<T> {
         _declaringType = null;
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
         _upperBound = upperBound != null ? upperBound : Types.Object;
-        _lowerBound = NoType;
+        _lowerBound = Bottom;
         _position = position;
     }
 
@@ -41,7 +41,7 @@ class GenericParameter<T> extends Type<T> {
         _name = VerifyArgument.notNull(name, "name");
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _upperBound = upperBound != null ? upperBound : Types.Object;
-        _lowerBound = lowerBound != null ? lowerBound : Type.NoType;
+        _lowerBound = lowerBound != null ? lowerBound : Type.Bottom;
         _position = position;
     }
 
@@ -50,7 +50,7 @@ class GenericParameter<T> extends Type<T> {
         _declaringType = null;
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
         _upperBound = upperBound != null ? upperBound : Types.Object;
-        _lowerBound = lowerBound != null ? lowerBound : Type.NoType;
+        _lowerBound = lowerBound != null ? lowerBound : Type.Bottom;
         _position = position;
     }
 
