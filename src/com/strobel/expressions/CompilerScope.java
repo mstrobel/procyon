@@ -18,6 +18,8 @@ import java.util.Set;
  */
 @SuppressWarnings("PackageVisibleField")
 final class CompilerScope {
+    private final static FieldInfo ClosureLocalsField = Types.Closure.getField("locals");
+    
     private final Map<ParameterExpression, Storage> _locals = new HashMap<>();
 
     private HoistedLocals _hoistedLocals;
@@ -215,7 +217,7 @@ final class CompilerScope {
 
     private void emitClosureToVariable(final LambdaCompiler lc, final HoistedLocals locals) {
         lc.emitClosureArgument();
-        lc.generator.getField(Types.Closure.getField("locals"));
+        lc.generator.getField(ClosureLocalsField);
         addLocal(lc, locals.selfVariable);
         emitSet(locals.selfVariable);
     }
@@ -256,7 +258,11 @@ final class CompilerScope {
         // VariableBinder.  So an error here is generally caused by an internal error,
         // e.g., a scope was created but it bypassed VariableBinder.
         //
-        throw Error.undefinedVariable(variable.getName(), variable.getType(), getCurrentLambdaName());
+        throw Error.undefinedVariable(
+            variable.getName(),
+            variable.getType(),
+            getCurrentLambdaName()
+        );
     }
 
     void emitGet(final ParameterExpression variable) {

@@ -5,7 +5,7 @@ import javax.lang.model.type.TypeKind;
 /**
  * @author Mike Strobel
  */
-final class NoType extends Type {
+final class BottomType extends Type {
     @Override
     public TypeKind getKind() {
         return TypeKind.NONE;

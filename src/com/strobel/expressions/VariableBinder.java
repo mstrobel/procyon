@@ -152,8 +152,10 @@ final class VariableBinder extends ExpressionVisitor {
         for (final CompilerScope scope : _scopes) {
             //
             // There are two times we care about references:
+            //
             //   1. When we enter a lambda, we want to cache frequently
             //      used variables
+            //
             //   2. When we enter a scope with closed-over variables, we
             //      want to cache it immediately when we allocate the
             //      closure slot for it

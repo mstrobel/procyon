@@ -790,11 +790,11 @@ final class StackSpiller {
     private Result rewriteLambdaExpression(final Expression expr, final Stack stack) {
         final LambdaExpression node = (LambdaExpression) expr;
 
-        // Call back into the rewriter
+        // Call back into the rewriter.
         final LambdaExpression analyzedLambda = analyzeLambda(node);
 
-        // If the lambda gets rewritten, we don't need to spill the stack,
-        // but we do need to rebuild the tree above us so it includes the new node. 
+        // If the lambda gets rewritten, we don't need to spill the stack, but
+        // we do need to rebuild the tree above us so it includes the new node.
         final RewriteAction action = (analyzedLambda == node) ? RewriteAction.None : RewriteAction.Copy;
 
         return new Result(action, expr);
@@ -805,7 +805,7 @@ final class StackSpiller {
 
         final ChildRewriter cr;
 
-        // See if the lambda will be inlined
+        // See if the lambda will be inlined...
         LambdaExpression lambda = node.getExpression();
 
         if (lambda != null) {
@@ -829,10 +829,10 @@ final class StackSpiller {
 
         cr = new ChildRewriter(stack, node.getArgumentCount() + 1);
 
-        // first argument starts on stack as provided
+        // First argument starts on stack as provided.
         cr.add(node.getExpression());
 
-        // rest of arguments have non-empty stack (delegate instance on the stack)
+        // Rest of arguments have non-empty stack (delegate instance on the stack).
         cr.add(node.getArguments());
 
 
@@ -847,7 +847,8 @@ final class StackSpiller {
 
     private Result rewriteTypeBinaryExpression(final Expression expr, final Stack stack) {
         final TypeBinaryExpression node = (TypeBinaryExpression) expr;
-        // The expression is emitted on top of current stack
+
+        // The expression is emitted on top of current stack.
         final Result expression = rewriteExpression(node.getOperand(), stack);
 
         if (expression.Action != RewriteAction.None) {
@@ -876,8 +877,10 @@ final class StackSpiller {
 
     private Result rewriteConditionalExpression(final Expression expr, final Stack stack) {
         final ConditionalExpression node = (ConditionalExpression)expr;
-        // Test executes at the stack as left by parent 
+
+        // Test executes at the stack as left by parent.
         final Result test = rewriteExpression(node.getTest(), stack);
+
         // The test is popped by conditional jump so branches execute
         // at the stack as left by parent too.
         final Result ifTrue = rewriteExpression(node.getIfTrue(), stack);
@@ -904,8 +907,8 @@ final class StackSpiller {
         final MethodCallExpression node = (MethodCallExpression)expr;
         final ChildRewriter cr = new ChildRewriter(stack, node.getArgumentCount() + 1);
 
-        // For instance methods, the instance executes on the
-        // stack as is, but stays on the stack, making it non-empty. 
+        // For instance methods, the instance executes on the stack as is,
+        // but stays on the stack, making it non-empty.
         cr.add(node.getTarget());
         cr.addArguments(node);
 
