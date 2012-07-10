@@ -1,5 +1,6 @@
 package com.strobel.expressions;
 
+import com.strobel.compilerservices.DebugInfoGenerator;
 import com.strobel.reflection.MethodBuilder;
 import com.strobel.reflection.Type;
 
@@ -75,7 +76,7 @@ public final class LambdaExpression<T> extends Expression {
 
     @SuppressWarnings("unchecked")
     final LambdaExpression<T> accept(final StackSpiller spiller) {
-        return (LambdaExpression<T>)spiller.rewrite(this);
+        return spiller.rewrite(this);
     }
 
     public final T compile() {
@@ -83,10 +84,10 @@ public final class LambdaExpression<T> extends Expression {
     }
 
     public final Delegate<T> compileDelegate() {
-        return LambdaCompiler.compile(this);
+        return LambdaCompiler.compile(this, DebugInfoGenerator.empty());
     }
 
     public final void compileToMethod(final MethodBuilder methodBuilder) {
-        LambdaCompiler.compile(this, methodBuilder);
+        LambdaCompiler.compile(this, methodBuilder, DebugInfoGenerator.empty());
     }
 }

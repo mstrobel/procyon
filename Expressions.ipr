@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ASMPluginConfiguration">
-    <asm skipDebug="false" skipFrames="false" skipCode="false" expandFrames="false" />
+    <asm skipDebug="true" skipFrames="true" skipCode="false" expandFrames="false" />
     <groovy codeStyle="LEGACY" />
   </component>
   <component name="AntConfiguration">
@@ -348,6 +348,7 @@
         <w>fcmpl</w>
         <w>fconst</w>
         <w>fdiv</w>
+        <w>fixup</w>
         <w>fload</w>
         <w>fmul</w>
         <w>fneg</w>
@@ -409,6 +410,7 @@
         <w>lsub</w>
         <w>lushr</w>
         <w>lxor</w>
+        <w>mergeable</w>
         <w>monitorenter</w>
         <w>monitorexit</w>
         <w>multianewarray</w>
@@ -417,6 +419,7 @@
         <w>preallocation</w>
         <w>putfield</w>
         <w>putstatic</w>
+        <w>resized</w>
         <w>rewriter</w>
         <w>saload</w>
         <w>sastore</w>
@@ -449,7 +452,7 @@
   <component name="ProjectResources">
     <default-html-doctype>http://www.w3.org/1999/xhtml</default-html-doctype>
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_7" assert-keyword="true" jdk-15="true" project-jdk-name="1.7" project-jdk-type="JavaSDK">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_8" assert-keyword="true" jdk-15="true" project-jdk-name="1.8 (1)" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/out" />
   </component>
   <component name="VcsDirectoryMappings">

@@ -143,7 +143,6 @@ public final class VerifyArgument {
     }
 
     public static <T> void validElementRange(final int size, final int startInclusive, final int endExclusive) {
-
         if (startInclusive >= 0 && endExclusive <= size && endExclusive > startInclusive) {
             return;
         }
