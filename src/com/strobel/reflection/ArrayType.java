@@ -1,15 +1,18 @@
 package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
+import sun.reflect.generics.factory.CoreReflectionFactory;
+import sun.reflect.generics.factory.GenericsFactory;
 
 import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Array;
 
 /**
  * @author strobelm
  */
 public class ArrayType<T> extends Type<T> {
+    private final static GenericsFactory GENERICS_FACTORY = CoreReflectionFactory.make(null, null);
+
     private final Type<?> _elementType;
     private final Class<T> _erasedClass;
     private final FieldList _fields = FieldList.empty();
@@ -18,7 +21,7 @@ public class ArrayType<T> extends Type<T> {
     @SuppressWarnings("unchecked")
     ArrayType(final Type<?> elementType) {
         _elementType = VerifyArgument.notNull(elementType, "elementType");
-        _erasedClass = (Class<T>)Array.newInstance(elementType.getErasedClass(), 0).getClass();
+        _erasedClass = (Class<T>)GENERICS_FACTORY.makeArrayType(elementType.getErasedClass());
     }
 
     @Override
