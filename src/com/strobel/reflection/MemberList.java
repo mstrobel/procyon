@@ -19,17 +19,17 @@ public class MemberList<T extends MemberInfo> extends ReadOnlyList<T> {
     }
 
     @SafeVarargs
-    MemberList(final Class<T> memberType, final T... members) {
+    public MemberList(final Class<T> memberType, final T... members) {
         super(members);
         _memberType = VerifyArgument.notNull(memberType, "memberType");
     }
 
-    MemberList(final Class<T> memberType, final List<? extends T> members) {
+    public MemberList(final Class<T> memberType, final List<? extends T> members) {
         super(memberType, VerifyArgument.noNullElements(members, "members"));
         _memberType = memberType;
     }
 
-    MemberList(final Class<T> memberType, final T[] members, final int offset, final int length) {
+    public MemberList(final Class<T> memberType, final T[] members, final int offset, final int length) {
         super(members, offset, length);
         _memberType = VerifyArgument.notNull(memberType, "memberType");
     }

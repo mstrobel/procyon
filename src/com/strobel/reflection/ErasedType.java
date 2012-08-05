@@ -7,6 +7,7 @@ import java.lang.annotation.Annotation;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings("unchecked")
 final class ErasedType<T> extends Type<T> {
     final static TypeEraser GenericEraser = new TypeEraser();
 
@@ -54,17 +55,17 @@ final class ErasedType<T> extends Type<T> {
     private final static TypeMapper<Void> UpperBoundMapper = new TypeMapper<Void>() {
         @Override
         public Type<?> visitCapturedType(final Type<?> type, final Void parameter) {
-            return super.visitCapturedType(((ICapturedType)type).getWildcard().getUpperBound(), parameter);
+            return super.visitCapturedType(((ICapturedType)type).getWildcard().getExtendsBound(), parameter);
         }
 
         @Override
         public Type<?> visitWildcardType(final Type<?> type, final Void parameter) {
-            return visit(type.getUpperBound());
+            return visit(type.getExtendsBound());
         }
 
         @Override
         public Type<?> visitTypeParameter(final Type<?> type, final Void parameter) {
-            return visit(type.getUpperBound());
+            return visit(type.getExtendsBound());
         }
 
         @Override
@@ -192,7 +193,7 @@ final class ErasedType<T> extends Type<T> {
 
     @Override
     public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
-        return _originalType.getAnnotation(annotationClass);
+        return (T)_originalType.getAnnotation(annotationClass);
     }
 
     @Override
@@ -217,19 +218,19 @@ final class ErasedType<T> extends Type<T> {
     }
 
     @Override
-    public MethodList getDeclaredMethods() {
+    protected MethodList getDeclaredMethods() {
         ensureMethods();
         return _methods;
     }
 
     @Override
-    public FieldList getDeclaredFields() {
+    protected FieldList getDeclaredFields() {
         ensureFields();
         return _fields;
     }
 
     @Override
-    public TypeList getDeclaredTypes() {
+    protected TypeList getDeclaredTypes() {
         ensureNestedTypes();
         return _nestedTypes;
     }

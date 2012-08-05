@@ -1,5 +1,7 @@
 package com.strobel.core;
 
+import com.strobel.util.EmptyArrayCache;
+
 import java.lang.reflect.Array;
 import java.util.*;
 
@@ -108,6 +110,9 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     @Override
     @SuppressWarnings("unchecked")
     public final T[] toArray() {
+        if (_length == 0) {
+            return EmptyArrayCache.fromArrayType(_elements.getClass());
+        }
         return (T[])Arrays.copyOfRange(_elements, _offset, _offset + _length, _elements.getClass());
     }
 

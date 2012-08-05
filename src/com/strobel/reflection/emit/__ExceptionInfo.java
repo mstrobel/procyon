@@ -11,11 +11,10 @@ import java.util.Arrays;
 @SuppressWarnings("PackageVisibleField")
 final class __ExceptionInfo {
 
-    final static int None             = 0x0000;  //COR_ILEXCEPTION_CLAUSE_NONE
-    final static int Filter           = 0x0001;  //COR_ILEXCEPTION_CLAUSE_FILTER
-    final static int Finally          = 0x0002;  //COR_ILEXCEPTION_CLAUSE_FINALLY
-    final static int Fault            = 0x0004;  //COR_ILEXCEPTION_CLAUSE_FAULT
-    final static int PreserveStack    = 0x0004;  //COR_ILEXCEPTION_CLAUSE_PRESERVESTACK
+    final static int None             = 0x0000;
+    final static int Filter           = 0x0001;
+    final static int Finally          = 0x0002;
+    final static int PreserveStack    = 0x0004;
 
     final static int State_Try = 0;
     final static int State_Filter =1;
@@ -24,15 +23,15 @@ final class __ExceptionInfo {
     final static int State_Fault = 4;
     final static int State_Done = 5;
 
-    int    _startAddr;
-    int[]  _filterAddr;
-    int[]  _catchAddr;
-    int[]  _catchEndAddr;
+    int    _startAddress;
+    int[]  _filterAddress;
+    int[]  _catchAddress;
+    int[]  _catchEndAddress;
     int[]  _type;
     Type[] _catchClass;
     Label  _endLabel;
     Label  _finallyEndLabel;
-    int    _endAddr;
+    int    _endAddress;
     int    _endFinally;
     int    _currentCatch;
 
@@ -42,23 +41,23 @@ final class __ExceptionInfo {
     //This will never get called.  The values exist merely to keep the
     //compiler happy.
     private __ExceptionInfo() {
-        _startAddr = 0;
-        _filterAddr = null;
-        _catchAddr = null;
-        _catchEndAddr = null;
-        _endAddr = 0;
+        _startAddress = 0;
+        _filterAddress = null;
+        _catchAddress = null;
+        _catchEndAddress = null;
+        _endAddress = 0;
         _currentCatch = 0;
         _type = null;
         _endFinally = -1;
         _currentState = State_Try;
     }
 
-    __ExceptionInfo(final int startAddr, final Label endLabel) {
-        _startAddr=startAddr;
-        _endAddr=-1;
-        _filterAddr=new int[4];
-        _catchAddr=new int[4];
-        _catchEndAddr=new int[4];
+    __ExceptionInfo(final int startAddress, final Label endLabel) {
+        _startAddress=startAddress;
+        _endAddress=-1;
+        _filterAddress=new int[4];
+        _catchAddress=new int[4];
+        _catchEndAddress=new int[4];
         _catchClass=new Type[4];
         _currentCatch=0;
         _endLabel=endLabel;
@@ -73,29 +72,29 @@ final class __ExceptionInfo {
     }
 
     private void markHelper(
-        final int catchOrfilterAddr,      // the starting address of a clause
-        final int catchEndAddr,           // the end address of a previous catch clause. Only use when finally is following a catch
+        final int catchOrFilterAddress,      // the starting address of a clause
+        final int catchEndAddress,           // the end address of a previous catch clause. Only use when finally is following a catch
         final Type catchClass,             // catch exception type
         final int type)                   // kind of clause
     {
-        if (_currentCatch >= _catchAddr.length) {
-            _filterAddr = BytecodeGenerator.enlargeArray(_filterAddr);
-            _catchAddr = BytecodeGenerator.enlargeArray(_catchAddr);
-            _catchEndAddr = BytecodeGenerator.enlargeArray(_catchEndAddr);
+        if (_currentCatch >= _catchAddress.length) {
+            _filterAddress = BytecodeGenerator.enlargeArray(_filterAddress);
+            _catchAddress = BytecodeGenerator.enlargeArray(_catchAddress);
+            _catchEndAddress = BytecodeGenerator.enlargeArray(_catchEndAddress);
             _catchClass = __ExceptionInfo.enlargeArray(_catchClass);
             _type = BytecodeGenerator.enlargeArray(_type);
         }
 
         if (type == Filter) {
             _type[_currentCatch] = type;
-            _filterAddr[_currentCatch] = catchOrfilterAddr;
-            _catchAddr[_currentCatch] = -1;
+            _filterAddress[_currentCatch] = catchOrFilterAddress;
+            _catchAddress[_currentCatch] = -1;
 
             if (_currentCatch > 0) {
-                assert _catchEndAddr[_currentCatch - 1] == -1
-                    : "_catchEndAddr[_currentCatch - 1] == -1";
+                assert _catchEndAddress[_currentCatch - 1] == -1
+                    : "_catchEndAddress[_currentCatch - 1] == -1";
 
-                _catchEndAddr[_currentCatch - 1] = catchOrfilterAddr;
+                _catchEndAddress[_currentCatch - 1] = catchOrFilterAddress;
             }
         }
         else {
@@ -106,72 +105,67 @@ final class __ExceptionInfo {
                 _type[_currentCatch] = type;
             }
 
-            _catchAddr[_currentCatch] = catchOrfilterAddr;
+            _catchAddress[_currentCatch] = catchOrFilterAddress;
 
             if (_currentCatch > 0) {
                 if (_type[_currentCatch] != Filter) {
-                    assert _catchEndAddr[_currentCatch - 1] == -1
-                        : "_catchEndAddr[_currentCatch - 1] == -1";
+                    assert _catchEndAddress[_currentCatch - 1] == -1
+                        : "_catchEndAddress[_currentCatch - 1] == -1";
 
-                    _catchEndAddr[_currentCatch - 1] = catchEndAddr;
+                    _catchEndAddress[_currentCatch - 1] = catchEndAddress;
                 }
             }
 
-            _catchEndAddr[_currentCatch] = -1;
+            _catchEndAddress[_currentCatch] = -1;
             _currentCatch++;
         }
 
-        if (_endAddr == -1) {
-            _endAddr = catchOrfilterAddr;
+        if (_endAddress == -1) {
+            _endAddress = catchOrFilterAddress;
         }
     }
 
-    void markFilterAddr(final int filterAddr) {
+    void markFilterAddress(final int filterAddress) {
         _currentState = State_Filter;
-        markHelper(filterAddr, filterAddr, null, Filter);
+        markHelper(filterAddress, filterAddress, null, Filter);
     }
 
-    void markFaultAddr(final int faultAddr) {
-        _currentState = State_Fault;
-        markHelper(faultAddr, faultAddr, null, Fault);
-    }
-
-    void markCatchAddr(final int catchAddr, final Type catchException) {
+    void markCatchAddress(final int catchAddress, final Type catchException) {
         _currentState = State_Catch;
-        markHelper(catchAddr, catchAddr, catchException, None);
+        markHelper(catchAddress, catchAddress, catchException, None);
     }
 
-    void markFinallyAddr(final int finallyAddr, final int endCatchAddr) {
+    void markFinallyAddress(final int finallyAddress, final int endCatchAddress) {
         if (_endFinally != -1) {
             throw new IllegalArgumentException("Too many finally clauses.");
         }
         else {
             _currentState = State_Finally;
-            _endFinally = finallyAddr;
+            _endFinally = finallyAddress;
         }
-        markHelper(finallyAddr, endCatchAddr, null, Finally);
+        markHelper(finallyAddress, endCatchAddress, null, Finally);
     }
 
-    void done(final int endAddr) {
+    void done(final int endAddress) {
         assert _currentCatch > 0
             : "_currentCatch > 0";
 
-        assert _catchAddr[_currentCatch - 1] > 0
-            : "_catchAddr[_currentCatch - 1] > 0";
+        assert _catchAddress[_currentCatch - 1] > 0
+            : "_catchAddress[_currentCatch - 1] > 0";
 
-        assert _catchEndAddr[_currentCatch - 1] == -1
-            : "_catchEndAddr[_currentCatch - 1] == -1";
+        assert _catchEndAddress[_currentCatch - 1] == -1
+            : "_catchEndAddress[_currentCatch - 1] == -1";
 
-        _catchEndAddr[_currentCatch - 1] = endAddr;
+        _catchEndAddress[_currentCatch - 1] = endAddress;
         _currentState = State_Done;
     }
 
     int getStartAddress() {
-        return _startAddr;
+        return _startAddress;
     }
 
     int getEndAddress() {
-        return _endAddr;
+        return _endAddress;
     }
 
     int getFinallyEndAddress() {
@@ -183,15 +177,15 @@ final class __ExceptionInfo {
     }
 
     int[] getFilterAddresses() {
-        return _filterAddr;
+        return _filterAddress;
     }
 
     int[] getCatchAddresses() {
-        return _catchAddr;
+        return _catchAddress;
     }
 
     int[] getCatchEndAddresses() {
-        return _catchEndAddr;
+        return _catchEndAddress;
     }
 
     Type[] getCatchClass() {
@@ -234,10 +228,10 @@ final class __ExceptionInfo {
         final int exclast = exc._currentCatch - 1;
         final int last = _currentCatch - 1;
 
-        if (exc._catchEndAddr[exclast] < _catchEndAddr[last]) {
+        if (exc._catchEndAddress[exclast] < _catchEndAddress[last]) {
             return true;
         }
-        else if (exc._catchEndAddr[exclast] == _catchEndAddr[last]) {
+        else if (exc._catchEndAddress[exclast] == _catchEndAddress[last]) {
             assert exc.getEndAddress() != getEndAddress()
                 : "exc.getEndAddress() != getEndAddress()";
 

@@ -3,25 +3,25 @@ package com.strobel.expressions;
 import com.strobel.compilerservices.Closure;
 import com.strobel.compilerservices.DebugInfoGenerator;
 import com.strobel.core.KeyedQueue;
-import com.strobel.reflection.FieldBuilder;
-import com.strobel.reflection.MethodBuilder;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.TypeList;
+import com.strobel.reflection.*;
+import com.strobel.reflection.emit.FieldBuilder;
+import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.reflection.emit.BytecodeGenerator;
 import com.strobel.reflection.emit.LocalBuilder;
 import com.strobel.reflection.emit.TypeBuilder;
 import com.strobel.util.TypeUtils;
-import com.sun.tools.javac.code.Flags;
 
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Mike Strobel
  */
 final class LambdaCompiler {
+    final static AtomicInteger nextId  = new AtomicInteger();
+
     final LambdaExpression<?> lambda;
     final TypeBuilder typeBuilder;
     final MethodBuilder methodBuilder;
@@ -39,13 +39,18 @@ final class LambdaCompiler {
     LambdaCompiler(final AnalyzedTree tree, final LambdaExpression<?> lambda) {
         this.lambda = lambda;
 
-        typeBuilder = new TypeBuilder();
+        typeBuilder = new TypeBuilder(
+            "<>f__Lambda" + Integer.toHexString(nextId.incrementAndGet()),
+            Modifier.PUBLIC | Modifier.FINAL,
+            Types.Object,
+            Type.list(lambda.getType())
+        );
 
         final MethodInfo interfaceMethod = lambda.getType().getMethods().get(0);
 
         methodBuilder = typeBuilder.defineMethod(
             interfaceMethod.getName(),
-            Flags.asModifierSet(interfaceMethod.getModifiers()),
+            interfaceMethod.getModifiers(),
             interfaceMethod.getReturnType(),
             interfaceMethod.getParameters().getParameterTypes()
         );
@@ -53,10 +58,10 @@ final class LambdaCompiler {
         closureField = typeBuilder.defineField(
             "$closure",
             Type.of(Closure.class),
-            Flags.asModifierSet(Flags.PRIVATE | Flags.FINAL)
+            Modifier.PRIVATE | Modifier.FINAL
         );
 
-        generator = methodBuilder.getBytecodeGenerator();
+        generator = methodBuilder.getCodeGenerator();
 
         _tree = tree;
         _hasClosureArgument = true;
@@ -88,10 +93,10 @@ final class LambdaCompiler {
         this.closureField = typeBuilder.defineField(
             "$closure",
             Type.of(Closure.class),
-            Flags.asModifierSet(Flags.PRIVATE | Flags.FINAL)
+            Modifier.PRIVATE | Modifier.FINAL
         );
 
-        this.generator = methodBuilder.getBytecodeGenerator();
+        this.generator = methodBuilder.getCodeGenerator();
 
         _freeLocals = new KeyedQueue<>();
         _tree = tree;
@@ -153,6 +158,7 @@ final class LambdaCompiler {
     // See if this lambda has a return label
     // If so, we'll create it now and mark it as allowing the "ret" opcode
     // This allows us to generate better IL
+    @SuppressWarnings("ConstantConditions")
     private void addReturnLabel(final LambdaExpression lambda) {
         Expression expression = lambda.getBody();
 
@@ -269,7 +275,7 @@ final class LambdaCompiler {
         final LambdaExpression<?> analyzedLambda = StackSpiller.analyzeLambda(lambda);
 
         // Bind any variable references in this lambda.
-        return VariableBinder.bind(lambda);
+        return VariableBinder.bind(analyzedLambda);
     }
 
     LocalBuilder getNamedLocal(final Type type, final ParameterExpression variable) {

@@ -2,17 +2,15 @@ package com.strobel;
 
 import com.strobel.expressions.LambdaExpression;
 import com.strobel.expressions.ParameterExpression;
-import com.strobel.reflection.BindingFlags;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.Types;
+import com.strobel.reflection.*;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.Context;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -61,7 +59,7 @@ public class Test {
                     )
                 )
                 .get(3)
-                .getErasedSignature()
+                .getDescription()
         );
 
         System.out.println(Type.of(HashMap.class).makeGenericType(Types.String, Types.Date).getConstructors().get(3).getSignature());
@@ -123,6 +121,19 @@ public class Test {
         );
 
         System.out.println(lambda);
+    }
+
+    private static void exceptionTest() {
+        System.out.println("lolwut");
+        try {
+            System.out.println(new File("").getCanonicalPath());
+        }
+        catch (IOException | IllegalStateException e) {
+            e.printStackTrace();
+        }
+        finally {
+            System.out.print('c');
+        }
     }
 
     private static class NullTree extends JCTree {

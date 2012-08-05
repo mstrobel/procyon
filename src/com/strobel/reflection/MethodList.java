@@ -1,5 +1,8 @@
 package com.strobel.reflection;
 
+import com.strobel.core.VerifyArgument;
+
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -11,6 +14,29 @@ public final class MethodList extends MemberList<MethodInfo> {
     public static MethodList empty() {
         return EMPTY;
     }
+
+    public static MethodList combine(final MethodList first, final MethodList second) {
+        VerifyArgument.notNull(first, "first");
+        VerifyArgument.notNull(second, "second");
+
+        if (first.isEmpty()) {
+            return second;
+        }
+
+        if (second.isEmpty()) {
+            return first;
+        }
+
+        final ArrayList<MethodInfo> methods = new ArrayList<>(
+            first.size() + second.size()
+        );
+
+        methods.addAll(first);
+        methods.addAll(second);
+
+        return new MethodList(methods);
+    }
+
 
     public MethodList(final List<? extends MethodInfo> elements) {
         super(MethodInfo.class, elements);

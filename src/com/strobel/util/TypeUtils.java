@@ -1,11 +1,8 @@
 package com.strobel.util;
 
-import com.strobel.reflection.BindingFlags;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.Types;
+import com.strobel.reflection.*;
 
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -142,6 +139,48 @@ public final class TypeUtils {
     public static boolean areEquivalent(final Type class1, final Type class2) {
         return class1 == null ? class2 == null
                               : class1.isEquivalentTo(class2);
+    }
+
+    public static boolean areEquivalentWithOrdering(final TypeList types1, final TypeList types2) {
+        if (types1 == types2) {
+            return true;
+        }
+
+        if (types1 == null || types2 == null ||
+            types1.size() != types2.size()) {
+
+            return false;
+        }
+
+        for (int i = 0, n = types1.size(); i < n; i++) {
+            if (!areEquivalent(types1.get(i), types2.get(i))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static boolean areEquivalent(final TypeList types1, final TypeList types2) {
+        if (areEquivalentWithOrdering(types1, types2)) {
+            return true;
+        }
+
+        if (types1 == types2) {
+            return true;
+        }
+
+        if (types1 == null || types2 == null ||
+            types1.size() != types2.size()) {
+
+            return false;
+        }
+
+        final Set<Type> set1 = new HashSet<>(types1);
+        final Set<Type> set2 = new HashSet<>(types2);
+
+        return set1.size() == set2.size() &&
+               set1.containsAll(set2);
     }
 
     public static boolean hasIdentityPrimitiveOrBoxingConversion(final Type source, final Type destination) {

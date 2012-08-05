@@ -3,6 +3,7 @@ package com.strobel.reflection;
 import com.strobel.core.VerifyArgument;
 import com.sun.tools.javac.code.Flags;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 
 /**
@@ -10,13 +11,35 @@ import java.lang.reflect.Field;
  */
 public abstract class FieldInfo extends MemberInfo {
     public abstract Type getFieldType();
-    public abstract boolean isEnumConstant();
-
     public abstract Field getRawField();
+
+    public boolean isEnumConstant() {
+        return (getModifiers() & Type.ENUM_MODIFIER) == Type.ENUM_MODIFIER;
+    }
 
     @Override
     public final MemberType getMemberType() {
         return MemberType.Field;
+    }
+
+    @Override
+    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+        return getRawField().getAnnotation(annotationClass);
+    }
+
+    @Override
+    public Annotation[] getAnnotations() {
+        return getRawField().getAnnotations();
+    }
+
+    @Override
+    public Annotation[] getDeclaredAnnotations() {
+        return getRawField().getDeclaredAnnotations();
+    }
+
+    @Override
+    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
+        return getRawField().isAnnotationPresent(annotationClass);
     }
 
     @Override

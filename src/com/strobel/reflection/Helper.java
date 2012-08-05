@@ -1,5 +1,6 @@
 package com.strobel.reflection;
 
+import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.TypeUtils;
@@ -8,13 +9,17 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 
 import javax.lang.model.type.TypeKind;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import static com.sun.tools.javac.util.ListBuffer.lb;
 
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings({"unchecked"})
 final class Helper {
     private Helper() {}
 
@@ -161,7 +166,7 @@ final class Helper {
             return true;
         }
         else if (t.isGenericParameter()) {
-            return isSubtypeUnchecked(t.getUpperBound(), s);
+            return isSubtypeUnchecked(t.getExtendsBound(), s);
         }
         else if (!s.isGenericType() || !s.getTypeBindings().hasUnboundParameters()) {
             final Type t2 = asSuper(t, s);
@@ -268,7 +273,7 @@ final class Helper {
         final ListBuffer<Type> result = lb();
         for (final Type t : types) {
             if (t.isWildcardType()) {
-                final Type bound = t.getUpperBound();
+                final Type bound = t.getExtendsBound();
                 result.append(new CapturedType(Type.Bottom, bound, Type.Bottom, t));
             }
             else {
@@ -316,7 +321,7 @@ final class Helper {
                 captured = true;
 
                 final WildcardType Ti = (WildcardType)currentT.head;
-                Type Ui = currentA.head.getUpperBound();
+                Type Ui = currentA.head.getExtendsBound();
                 CapturedType Si = (CapturedType)currentS.head;
 
                 if (Ui == null) {
@@ -334,7 +339,7 @@ final class Helper {
                 else if (Ti.isExtendsBound()) {
                     currentS.head = Si = new CapturedType(
                         Si.getDeclaringType(),
-                        glb(Ti.getUpperBound(), substitute(Ui, A, S)),
+                        glb(Ti.getExtendsBound(), substitute(Ui, A, S)),
                         Type.Bottom,
                         Si.getWildcard()
                     );
@@ -343,13 +348,13 @@ final class Helper {
                     currentS.head = Si = new CapturedType(
                         Si.getDeclaringType(),
                         substitute(Ui, A, S),
-                        Ti.getLowerBound(),
+                        Ti.getSuperBound(),
                         Si.getWildcard()
                     );
                 }
 
-                if (Si.getUpperBound() == Si.getLowerBound()) {
-                    currentS.head = Si.getUpperBound();
+                if (Si.getExtendsBound() == Si.getSuperBound()) {
+                    currentS.head = Si.getExtendsBound();
                 }
             }
 
@@ -363,7 +368,7 @@ final class Helper {
         }
 
         if (captured) {
-            return t.makeGenericType(S.toArray());
+            return t.getGenericTypeDefinition().makeGenericType(S.toArray());
         }
         else {
             return t;
@@ -496,12 +501,12 @@ final class Helper {
 
         if (p.isSuperBound()) {
             return t.isSuperBound() &&
-                   isSameType(p.getLowerBound(), t.getLowerBound());
+                   isSameType(p.getSuperBound(), t.getSuperBound());
         }
 
         return p.isExtendsBound() &&
                t.isExtendsBound() &&
-               isSameType(p.getUpperBound(), t.getUpperBound());
+               isSameType(p.getExtendsBound(), t.getExtendsBound());
     }
 
     public static Type glb(final Type t, final Type p) {
@@ -749,7 +754,7 @@ final class Helper {
             if (t == p) {
                 return t;
             }
-            return asSuper(t.getUpperBound(), p);
+            return asSuper(t.getExtendsBound(), p);
         }
 
         @Override
@@ -781,9 +786,10 @@ final class Helper {
 
         @Override
         public Boolean visitTypeParameter(final Type type, final Type parameter) {
-            return type.getFullName().equals(parameter.getFullName()) &&
-                   type.getDeclaringType() == parameter.getDeclaringType() &&
-                   visit(type.getUpperBound(), parameter.getUpperBound());
+            return StringUtilities.equals(type.getFullName(), parameter.getFullName()) &&
+                   Comparer.equals(type.getDeclaringType(), parameter.getDeclaringType()) &&
+                   Comparer.equals(type.getDeclaringMethod(), parameter.getDeclaringMethod()) &&
+                   visit(type.getExtendsBound(), parameter.getExtendsBound());
         }
 
         @Override
@@ -808,34 +814,34 @@ final class Helper {
         @Override
         public Type visitWildcardType(final Type t, final Void ignored) {
             if (t.isSuperBound()) {
-                final Type lowerBound = t.getLowerBound();
+                final Type lowerBound = t.getSuperBound();
 
                 if (lowerBound.isExtendsBound()) {
-                    return visit(lowerBound.getUpperBound());
+                    return visit(lowerBound.getExtendsBound());
                 }
 
                 return Types.Object;
             }
             else {
-                return visit(t.getUpperBound());
+                return visit(t.getExtendsBound());
             }
         }
 
         @Override
         public Type visitCapturedType(final Type t, final Void ignored) {
-            return visit(t.getUpperBound());
+            return visit(t.getExtendsBound());
         }
     };
 
     private final static TypeMapper<Void> LowerBoundVisitor = new TypeMapper<Void>() {
         @Override
         public Type visitWildcardType(final Type t, final Void ignored) {
-            return t.isExtendsBound() ? Type.Bottom : visit(t.getLowerBound());
+            return t.isExtendsBound() ? Type.Bottom : visit(t.getSuperBound());
         }
 
         @Override
         public Type visitCapturedType(final Type t, final Void ignored) {
-            return visit(t.getLowerBound());
+            return visit(t.getSuperBound());
         }
     };
 
@@ -861,7 +867,7 @@ final class Helper {
 
         @Override
         public Type visitTypeParameter(final Type t, final Boolean recurse) {
-            return erasure(t.getUpperBound(), recurse);
+            return erasure(t.getExtendsBound(), recurse);
         }
     };
 
@@ -870,13 +876,13 @@ final class Helper {
         private Type U(Type t) {
             while (t.isWildcardType()) {
                 if (t.isSuperBound()) {
-                    final Type lowerBound = t.getLowerBound();
+                    final Type lowerBound = t.getSuperBound();
                     if (lowerBound.isExtendsBound()) {
-                        return lowerBound.getUpperBound();
+                        return lowerBound.getExtendsBound();
                     }
                     return Types.Object;
                 }
-                t = t.getUpperBound();
+                t = t.getExtendsBound();
             }
             return t;
         }
@@ -887,7 +893,7 @@ final class Helper {
                     return Type.Bottom;
                 }
                 else {
-                    t = t.getLowerBound();
+                    t = t.getSuperBound();
                 }
             }
             return t;
@@ -924,7 +930,7 @@ final class Helper {
 
         @Override
         public List<Type> visitTypeParameter(final Type t, final Void ignored) {
-            final Type upperBound = t.getUpperBound();
+            final Type upperBound = t.getExtendsBound();
 
             if (upperBound.isCompoundType()) {
                 return interfaces(upperBound);
@@ -939,7 +945,7 @@ final class Helper {
 
         @Override
         public List<Type> visitWildcardType(final Type<?> type, final Void parameter) {
-            return visit(type.getUpperBound());
+            return visit(type.getExtendsBound());
         }
     };
 
@@ -957,12 +963,16 @@ final class Helper {
 
         @Override
         public Type visitClassType(final Type t, final Void ignored) {
-            return t.getBaseType();
+            final Type baseType = t.getBaseType();
+            if (baseType == null) {
+                return Types.Object;
+        }
+            return baseType;
         }
 
         @Override
         public Type visitTypeParameter(final Type t, final Void ignored) {
-            final Type bound = t.getUpperBound();
+            final Type bound = t.getExtendsBound();
 
             if (!bound.isCompoundType() && !bound.isInterface()) {
                 return bound;
@@ -1028,7 +1038,7 @@ final class Helper {
 
         public Boolean visitType(final Type t, final Type s) {
             if (t.isGenericParameter()) {
-                return isSubtypeNoCapture(t.getUpperBound(), s);
+                return isSubtypeNoCapture(t.getExtendsBound(), s);
             }
             return Boolean.FALSE;
         }
@@ -1309,9 +1319,9 @@ final class Helper {
         @Override
         public Integer visitWildcardType(final Type t, final Void ignored) {
             int result = t.getKind().hashCode();
-            if (t.getUpperBound() != null) {
+            if (t.getExtendsBound() != null) {
                 result *= 127;
-                result += visit(t.getUpperBound());
+                result += visit(t.getExtendsBound());
             }
             return result;
         }

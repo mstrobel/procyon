@@ -4,6 +4,9 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.Type;
 import com.strobel.util.ContractUtils;
+import sun.misc.Unsafe;
+
+import java.lang.annotation.Annotation;
 
 import static java.lang.String.format;
 
@@ -23,7 +26,25 @@ final class Error {
 
     public static RuntimeException typeHasBeenCreated() {
         return new RuntimeException(
-            "This type has already been created."
+            "Operation cannot be performed after createType() has been called."
+        );
+    }
+
+    public static RuntimeException typeHasNotBeenCreated() {
+        return new RuntimeException(
+            "Operation cannot be performed until createType() has been called."
+        );
+    }
+
+    public static RuntimeException typeIsGeneric() {
+        return new IllegalStateException(
+            "Operation is not valid on bound generic types."
+        );
+    }
+
+    public static RuntimeException methodIsGeneric() {
+        return new IllegalStateException(
+            "Operation is not valid on bound generic methods."
         );
     }
 
@@ -127,15 +148,15 @@ final class Error {
 
     public static RuntimeException newArrayDimensionsOutOfRange(final Type<?> arrayType, final int dimensions) {
         VerifyArgument.notNull(arrayType, "arrayType");
-        
+
         int actualDimensions = 0;
         Type<?> currentType = arrayType;
-        
+
         while (currentType.isArray()) {
             ++actualDimensions;
             currentType = arrayType.getElementType();
         }
-        
+
         return new RuntimeException(
             format(
                 "Cannot initialize %s dimensions of a(n) %s because the array only has %s dimensions.",
@@ -159,6 +180,122 @@ final class Error {
     public static RuntimeException cannotLoadThisForStaticMethod() {
         return new RuntimeException(
             "Cannot reference 'this' from within a static method."
+        );
+    }
+
+    public static RuntimeException invalidBranchOpCode(final OpCode opCode) {
+        return new RuntimeException(
+            format("Expected a GOTO or JSR opcode, but found %s.", opCode)
+        );
+    }
+
+    public static RuntimeException cannotModifyTypeAfterCreateType() {
+        return new IllegalStateException("Type cannot be modified after calling createType().");
+    }
+
+    public static RuntimeException typeNameTooLong() {
+        return new IllegalArgumentException("The specified name is too long.");
+    }
+
+    public static RuntimeException baseTypeCannotBeInterface() {
+        return new IllegalArgumentException("Base type cannot be an interface.");
+    }
+
+    public static RuntimeException typeNotCreated() {
+        return new RuntimeException(
+            "Type has not been created yet."
+        );
+    }
+
+    public static RuntimeException cannotModifyMethodAfterCallingGetGenerator() {
+        return new IllegalStateException("Method cannot be modified after calling getCodeGenerator().");
+    }
+
+    public static RuntimeException genericParametersAlreadySet() {
+        return new IllegalStateException("Generic parameters have already been defined.");
+    }
+
+    public static RuntimeException methodHasOpenLocalScope() {
+        return new IllegalStateException("Method body still has an open local scope.");
+    }
+
+    public static RuntimeException abstractMethodDeclaredOnNonAbstractType() {
+        return new IllegalStateException("Abstract method declared on non-abstract class.");
+    }
+
+    public static RuntimeException abstractMethodCannotHaveBody() {
+        return new IllegalStateException("Abstract method cannot have a body.");
+    }
+
+    public static RuntimeException methodHasEmptyBody(final MethodBuilder method) {
+        return new IllegalStateException(
+            format(
+                "Method '%s' on type '%s' has an empty body.", method.getName(),
+                method.getDeclaringType().getName()
+            )
+        );
+    }
+
+    public static RuntimeException notInExceptionBlock() {
+        return new IllegalStateException("Not in an exception block.");
+    }
+
+    public static RuntimeException badExceptionCodeGenerated() {
+        return new IllegalStateException("Incorrect code generated for exception block.");
+    }
+
+    public static RuntimeException catchRequiresThrowableType() {
+        return new IllegalStateException("Catch block requires a Throwable type.");
+    }
+
+    public static RuntimeException couldNotLoadUnsafeClassInstance() {
+        return new IllegalStateException(
+            format("Could not load an instance of the %s class.", Unsafe.class.getName())
+        );
+    }
+
+    public static RuntimeException valueMustBeConstant() {
+        return new IllegalArgumentException("Value must be a primitive compile-time constant.");
+    }
+
+    public static RuntimeException annotationRequiresValue(final Type<? extends Annotation> annotationType) {
+        return new IllegalArgumentException(
+            format(
+                "Annotation '%s' requires an argument.",
+                annotationType.getName()
+            )
+        );
+    }
+
+    public static RuntimeException attributeValueCountMismatch() {
+        return new IllegalArgumentException("A matching number of attributes and values is required.");
+    }
+
+    public static RuntimeException attributeValueIncompatible(final Type<?> attributeType, final Type<?> valueType) {
+        if (valueType == null || valueType == Type.NullType) {
+            return new IllegalArgumentException(
+                format(
+                    "A null value is invalid for a attribute of type '%s'.",
+                    attributeType.getName()
+                )
+            );
+        }
+        return new IllegalArgumentException(
+            format(
+                "A value of type '%s' is invalid for a attribute of type '%s'.",
+                valueType.getName(),
+                attributeType.getName()
+            )
+        );
+    }
+
+    public static RuntimeException annotationHasNoDefaultAttribute() {
+        return new IllegalArgumentException("Annotation has no default attribute.");
+    }
+
+    public static RuntimeException typeNotAnAnnotation(final Type<? extends Annotation> type) {
+        return new IllegalArgumentException(
+            format("Type '%s' is not an annotation.", type.getName())
         );
     }
 }

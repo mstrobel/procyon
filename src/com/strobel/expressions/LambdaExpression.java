@@ -1,7 +1,7 @@
 package com.strobel.expressions;
 
 import com.strobel.compilerservices.DebugInfoGenerator;
-import com.strobel.reflection.MethodBuilder;
+import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.reflection.Type;
 
 /**

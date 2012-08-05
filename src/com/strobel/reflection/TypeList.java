@@ -1,5 +1,8 @@
 package com.strobel.reflection;
 
+import com.strobel.core.VerifyArgument;
+
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -12,15 +15,50 @@ public class TypeList extends MemberList<Type> {
         return EMPTY;
     }
 
-    TypeList(final List<? extends Type> elements) {
+    public static TypeList combine(final TypeList first, final TypeList second) {
+        return combineCore(first, second, false);
+    }
+
+    private static TypeList combineCore(final TypeList first, final TypeList second, final boolean merge) {
+        VerifyArgument.notNull(first, "first");
+        VerifyArgument.notNull(second, "second");
+
+        if (first.isEmpty()) {
+            return second;
+        }
+
+        if (second.isEmpty()) {
+            return first;
+        }
+
+        final ArrayList<Type<?>> types = new ArrayList<>();
+
+        for (int i = 0, n = first.size(); i < n; i++) {
+            final Type type = first.get(i);
+            if (!merge || !types.contains(type)) {
+                types.add(type);
+            }
+        }
+
+        for (int i = 0, n = second.size(); i < n; i++) {
+            final Type type = second.get(i);
+            if (!merge || !types.contains(type)) {
+                types.add(type);
+            }
+        }
+
+        return new TypeList(types);
+    }
+
+    public TypeList(final Type... elements) {
         super(Type.class, elements);
     }
 
-    TypeList(final Type... elements) {
+    public TypeList(final List<? extends Type> elements) {
         super(Type.class, elements);
     }
 
-    TypeList(final Type[] elements, final int offset, final int length) {
+    public TypeList(final Type[] elements, final int offset, final int length) {
         super(Type.class, elements, offset, length);
     }
 
@@ -38,9 +76,9 @@ public class TypeList extends MemberList<Type> {
         return new TypeList(getElements(), offset, length);
     }
 
-    protected boolean hasOpenTypeParameters() {
+    public final boolean containsGenericParameters() {
         for (int i = 0, n = this.size(); i < n; i++) {
-            if (this.get(i).isGenericParameter()) {
+            if (this.get(i).containsGenericParameters()) {
                 return true;
             }
         }

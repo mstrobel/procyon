@@ -37,10 +37,10 @@ public final class ParameterList extends ReadOnlyList<ParameterInfo> {
     }
 
     public ParameterList(final ParameterInfo... elements) {
-        super(elements);
+        super(VerifyArgument.noNullElements(elements, "elements"));
     }
 
     public ParameterList(final ParameterInfo[] elements, final int offset, final int length) {
-        super(elements, offset, length);
+        super(VerifyArgument.noNullElements(elements, offset, length, "elements"), offset, length);
     }
 }

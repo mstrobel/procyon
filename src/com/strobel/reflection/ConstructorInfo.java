@@ -2,6 +2,7 @@ package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 
 /**
@@ -16,6 +17,26 @@ public abstract class ConstructorInfo extends MethodBase {
     @Override
     public final String getName() {
         return "<init>";
+    }
+
+    @Override
+    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+        return getRawConstructor().getAnnotation(annotationClass);
+    }
+
+    @Override
+    public Annotation[] getAnnotations() {
+        return getRawConstructor().getAnnotations();
+    }
+
+    @Override
+    public Annotation[] getDeclaredAnnotations() {
+        return getRawConstructor().getDeclaredAnnotations();
+    }
+
+    @Override
+    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
+        return getRawConstructor().isAnnotationPresent(annotationClass);
     }
 
     public abstract Constructor<?> getRawConstructor();

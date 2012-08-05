@@ -1,10 +1,16 @@
 package com.strobel.core;
 
+import com.strobel.util.ContractUtils;
+
 /**
  * @author Mike Strobel
  */
 public final class StringUtilities {
-    private StringUtilities() {}
+    public final static String EMPTY = "";
+
+    private StringUtilities() {
+        throw ContractUtils.unreachable();
+    }
 
     private final static StringComparator[] _comparators = new StringComparator[] { StringComparator.Ordinal, StringComparator.OrdinalIgnoreCase };
 

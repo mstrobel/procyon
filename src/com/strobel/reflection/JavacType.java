@@ -39,6 +39,11 @@ class JavacType<T> extends Type<T> {
         _simpleName = typeElement.getSimpleName().toString();
     }
 
+    @Override
+    public String getFullName() {
+        return _name;
+    }
+
     void setBaseType(final Type<?> baseType) {
         _baseType = baseType;
     }
@@ -88,6 +93,7 @@ class JavacType<T> extends Type<T> {
 
     void addGenericParameter(final JavacGenericParameter genericParameter) {
         VerifyArgument.notNull(genericParameter, "typeParameter");
+        _completed = false;
         _genericParameters = _genericParameters.append(genericParameter);
     }
 
@@ -163,25 +169,25 @@ class JavacType<T> extends Type<T> {
     }
 
     @Override
-    public ConstructorList getDeclaredConstructors() {
+    protected ConstructorList getDeclaredConstructors() {
         ensureMembersResolved();
         return new ConstructorList(_constructors);
     }
 
     @Override
-    public MethodList getDeclaredMethods() {
+    protected MethodList getDeclaredMethods() {
         ensureMembersResolved();
         return new MethodList(_methods);
     }
 
     @Override
-    public FieldList getDeclaredFields() {
+    protected FieldList getDeclaredFields() {
         ensureMembersResolved();
         return new FieldList(_fields);
     }
 
     @Override
-    public TypeList getDeclaredTypes() {
+    protected TypeList getDeclaredTypes() {
         ensureMembersResolved();
         return new TypeList(_nestedTypes);
     }

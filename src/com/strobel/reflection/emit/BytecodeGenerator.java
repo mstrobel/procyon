@@ -1,15 +1,7 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.ConstructorInfo;
-import com.strobel.reflection.FieldInfo;
-import com.strobel.reflection.MethodBase;
-import com.strobel.reflection.MethodBuilder;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.ParameterList;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.Types;
+import com.strobel.reflection.*;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
@@ -28,6 +20,7 @@ import java.util.Arrays;
     })
 public class BytecodeGenerator {
 
+    final static int DefaultSize = 64;
     final static int DefaultFixupArraySize = 64;
     final static int DefaultLabelArraySize = 16;
     final static int DefaultExceptionArraySize = 8;
@@ -38,33 +31,157 @@ public class BytecodeGenerator {
     private int _labelCount;
 
     private __FixupData[] _fixupData;
-
     private int _fixupCount;
 
-    private int[] _rvaFixupList;
-    private int _rvaFixupCount;
-
-    private int[] _relocateFixupList;
-    private int _relocateFixupCount;
-
     private int _exceptionCount;
-    private int _currExcStackCount;
-    private __ExceptionInfo[] _exceptions;      // This is the list of all of the exceptions in this BytecodeStream.
-    private __ExceptionInfo[] _currExcStack;    // This is the stack of exceptions which we're currently in.
+    private int _currentExceptionStackCount;
+    private __ExceptionInfo[] _exceptions;              // This is the list of all of the exceptions in this BytecodeStream.
+    private __ExceptionInfo[] _currentExceptionStack;   // This is the stack of exceptions which we're currently in.
 
-    ScopeTree scopeTree;                        // This variable tracks all debugging scope information.
+    ScopeTree scopeTree;                // This variable tracks all debugging scope information.
 
     final MethodBuilder methodBuilder;
     int localCount;
+    LocalBuilder[] locals;
 
-    private int _maxStackSize = 0;     // Maximum stack size not counting the exceptions.
+    private int _maxStackSize = 0;      // Maximum stack size not counting the exceptions.
 
-    private int _maxMidStack = 0;      // Maximum stack size for a given basic block.
-    private int _maxMidStackCur = 0;   // Running count of the maximum stack size for the current basic block.
+    private int _maxMidStack = 0;       // Maximum stack size for a given basic block.
+    private int _maxMidStackCur = 0;    // Running count of the maximum stack size for the current basic block.
 
     public BytecodeGenerator(final MethodBuilder methodBuilder) {
-        this.methodBuilder = VerifyArgument.notNull(methodBuilder, "methodBuilder");
+        this(methodBuilder, DefaultSize);
     }
+
+    public BytecodeGenerator(final MethodBuilder methodBuilder, final int initialSize) {
+        this.methodBuilder = VerifyArgument.notNull(methodBuilder, "methodBuilder");
+
+        if (initialSize < DefaultSize) {
+            _bytecodeStream = new BytecodeStream(DefaultSize);
+        }
+        else {
+            _bytecodeStream = new BytecodeStream(initialSize);
+        }
+
+        this.scopeTree = new ScopeTree();
+    }
+
+    public int offset() {
+        return _bytecodeStream.getLength();
+    }
+
+    // <editor-fold defaultstate="collapsed" desc="Exceptions">
+
+    public Label beginExceptionBlock() {
+        if (_exceptions == null) {
+            _exceptions = new __ExceptionInfo[DefaultExceptionArraySize];
+        }
+
+        if (_currentExceptionStack == null) {
+            _currentExceptionStack = new __ExceptionInfo[DefaultExceptionArraySize];
+        }
+
+        if (_exceptionCount >= _exceptions.length) {
+            _exceptions = enlargeArray(_exceptions);
+        }
+
+        if (_currentExceptionStackCount >= _currentExceptionStack.length) {
+            _currentExceptionStack = enlargeArray(_currentExceptionStack);
+        }
+
+        final Label endLabel = defineLabel();
+        final __ExceptionInfo exceptionInfo = new __ExceptionInfo(offset(), endLabel);
+
+        _exceptions[_exceptionCount++] = exceptionInfo;
+        _currentExceptionStack[_currentExceptionStackCount++] = exceptionInfo;
+
+        return endLabel;
+    }
+
+    public void endExceptionBlock() {
+        if (_currentExceptionStackCount == 0) {
+            throw Error.notInExceptionBlock();
+        }
+
+        final __ExceptionInfo current = _currentExceptionStack[_currentExceptionStackCount - 1];
+
+        _currentExceptionStack[_currentExceptionStackCount - 1] = null;
+        _currentExceptionStackCount--;
+
+        final Label endLabel = current.getEndLabel();
+        final int state = current.getCurrentState();
+
+        if (state == __ExceptionInfo.State_Filter ||
+            state == __ExceptionInfo.State_Try) {
+
+            throw Error.badExceptionCodeGenerated();
+        }
+
+        if (_labelList[endLabel.getLabelValue()] == -1) {
+            markLabel(endLabel);
+        }
+        else {
+            markLabel(current.getFinallyEndLabel());
+        }
+
+        current.done(offset());
+    }
+
+    public void beginCatchBlock(final Type<?> caughtType) {
+        VerifyArgument.notNull(caughtType, "caughtType");
+
+        if (_currentExceptionStackCount == 0) {
+            throw Error.notInExceptionBlock();
+        }
+
+        if (!Types.Throwable.isAssignableFrom(caughtType)) {
+            throw Error.catchRequiresThrowableType();
+        }
+
+        final __ExceptionInfo current = _currentExceptionStack[_currentExceptionStackCount - 1];
+
+        if (current.getCurrentState() == __ExceptionInfo.State_Catch) {
+            // Insert a branch if the previous clause is a Catch.
+            emit(OpCode.GOTO, current.getEndLabel());
+        }
+
+        current.markCatchAddress(offset(), caughtType);
+    }
+
+    public void beginFinallyBlock() {
+        if (_currentExceptionStackCount == 0) {
+            throw Error.notInExceptionBlock();
+        }
+
+        final __ExceptionInfo current = _currentExceptionStack[_currentExceptionStackCount - 1];
+        final int state = current.getCurrentState();
+        final Label endLabel = current.getEndLabel();
+
+        int catchEndAddress = 0;
+
+        if (state != __ExceptionInfo.State_Try) {
+            // Insert a branch if the previous clause is a Catch.
+            emit(OpCode.GOTO, endLabel);
+            catchEndAddress = offset();
+        }
+
+        markLabel(endLabel);
+
+        final Label finallyEndLabel = defineLabel();
+
+        current.setFinallyEndLabel(finallyEndLabel);
+
+        // Insert a branch to leave the Try clause.
+        emit(OpCode.GOTO, finallyEndLabel);
+
+        if (catchEndAddress == 0) {
+            catchEndAddress = offset();
+        }
+
+        current.markFinallyAddress(offset(), catchEndAddress);
+    }
+
+    // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Labels">
 
@@ -110,13 +227,17 @@ public class BytecodeGenerator {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="Locals">
+    // <editor-fold defaultstate="collapsed" desc="Locals Declarations">
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // LOCALS                                                                                                             //
+    // LOCAL DECLARATIONS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public LocalBuilder declareLocal(final Type localType) {
+        return declareLocal(null, localType);
+    }
+
+    public LocalBuilder declareLocal(final String name, final Type localType) {
         VerifyArgument.notNull(localType, "localType");
 
         // Declare a local of type "local". The current active lexical scope
@@ -141,9 +262,18 @@ public class BytecodeGenerator {
         // add the localType to local signature
 //        _localSignature.AddArgument(localType, pinned);
 
-        localBuilder = new LocalBuilder(localCount, localType, methodBuilder);
+        localBuilder = new LocalBuilder(localCount, name, localType, methodBuilder);
 
         localCount++;
+
+        if (locals == null) {
+            locals = new LocalBuilder[DefaultLabelArraySize];
+        }
+        else if (locals.length < localCount) {
+            locals = enlargeArray(locals);
+        }
+
+        locals[localCount - 1] = localBuilder;
 
         return localBuilder;
     }
@@ -282,10 +412,15 @@ public class BytecodeGenerator {
         emit(opCode);
 
         if (opCode.getOperandType() == OperandType.Branch) {
+            // HACK: To avoid resizing the byte array to accommodate wide jump labels,
+            // we just pad the two bytes after a short jump label with NOP opcodes.
+            // TODO: Fix this later.
             addFixup(label, _bytecodeStream.getLength(), 2);
             _bytecodeStream.putShort(0);
+            internalEmit(OpCode.NOP);
+            internalEmit(OpCode.NOP);
         }
-        else {
+        else if (opCode.getOperandType() == OperandType.BranchW) {
             addFixup(label, _bytecodeStream.getLength(), 4);
             _bytecodeStream.putInt(0);
         }
@@ -442,10 +577,16 @@ public class BytecodeGenerator {
             throw Error.unmatchedLocal();
         }
 
+        if (local.startOffset < 0) {
+            local.startOffset = offset();
+        }
+
         emitLoad(
             local.getLocalType(),
             translateLocal(local.getLocalIndex())
         );
+
+        local.endOffset = offset();
     }
 
     public void emitStore(final LocalBuilder local) {
@@ -455,10 +596,16 @@ public class BytecodeGenerator {
             throw Error.unmatchedLocal();
         }
 
+        if (local.startOffset < 0) {
+            local.startOffset = offset();
+        }
+
         emitStore(
             local.getLocalType(),
             translateLocal(local.getLocalIndex())
         );
+
+        local.endOffset = offset();
     }
 
     public void emitThis() {
@@ -571,7 +718,163 @@ public class BytecodeGenerator {
         }
     }
 
-    int translateLocal(final int localIndex) {
+    private static OpCode getLocalLoadOpCode(final Type<?> type, final int localIndex) {
+        switch (type.getKind()) {
+            case BOOLEAN:
+            case BYTE:
+            case CHAR:
+            case SHORT:
+            case INT:
+                switch (localIndex) {
+                    case 0:
+                        return OpCode.ILOAD_0;
+                    case 1:
+                        return OpCode.ILOAD_1;
+                    case 2:
+                        return OpCode.ILOAD_2;
+                    case 3:
+                        return OpCode.ILOAD_3;
+                    default:
+                        return localIndex > Byte.MAX_VALUE ? OpCode.ILOAD_W : OpCode.ILOAD;
+                }
+
+            case LONG:
+                switch (localIndex) {
+                    case 0:
+                        return OpCode.LLOAD_0;
+                    case 1:
+                        return OpCode.LLOAD_1;
+                    case 2:
+                        return OpCode.LLOAD_2;
+                    case 3:
+                        return OpCode.LLOAD_3;
+                    default:
+                        return localIndex > Byte.MAX_VALUE ? OpCode.LLOAD_W : OpCode.LLOAD;
+                }
+
+            case FLOAT:
+                switch (localIndex) {
+                    case 0:
+                        return OpCode.FLOAD_0;
+                    case 1:
+                        return OpCode.FLOAD_1;
+                    case 2:
+                        return OpCode.FLOAD_2;
+                    case 3:
+                        return OpCode.FLOAD_3;
+                    default:
+                        return localIndex > Byte.MAX_VALUE ? OpCode.FLOAD_W : OpCode.FLOAD;
+                }
+
+            case DOUBLE:
+                switch (localIndex) {
+                    case 0:
+                        return OpCode.DLOAD_0;
+                    case 1:
+                        return OpCode.DLOAD_1;
+                    case 2:
+                        return OpCode.DLOAD_2;
+                    case 3:
+                        return OpCode.DLOAD_3;
+                    default:
+                        return localIndex > Byte.MAX_VALUE ? OpCode.DLOAD_W : OpCode.DLOAD;
+                }
+
+            default:
+                switch (localIndex) {
+                    case 0:
+                        return OpCode.ALOAD_0;
+                    case 1:
+                        return OpCode.ALOAD_1;
+                    case 2:
+                        return OpCode.ALOAD_2;
+                    case 3:
+                        return OpCode.ALOAD_3;
+                    default:
+                        return localIndex > Byte.MAX_VALUE ? OpCode.ALOAD_W : OpCode.ALOAD;
+                }
+        }
+    }
+
+    private static OpCode getLocalStoreOpCode(final Type<?> type, final int localIndex) {
+        switch (type.getKind()) {
+            case BOOLEAN:
+            case BYTE:
+            case CHAR:
+            case SHORT:
+            case INT:
+                switch (localIndex) {
+                    case 0:
+                        return OpCode.ISTORE_0;
+                    case 1:
+                        return OpCode.ISTORE_1;
+                    case 2:
+                        return OpCode.ISTORE_2;
+                    case 3:
+                        return OpCode.ISTORE_3;
+                    default:
+                        return OpCode.ISTORE;
+                }
+
+            case LONG:
+                switch (localIndex) {
+                    case 0:
+                        return OpCode.LSTORE_0;
+                    case 1:
+                        return OpCode.LSTORE_1;
+                    case 2:
+                        return OpCode.LSTORE_2;
+                    case 3:
+                        return OpCode.LSTORE_3;
+                    default:
+                        return OpCode.LSTORE;
+                }
+
+            case FLOAT:
+                switch (localIndex) {
+                    case 0:
+                        return OpCode.FSTORE_0;
+                    case 1:
+                        return OpCode.FSTORE_1;
+                    case 2:
+                        return OpCode.FSTORE_2;
+                    case 3:
+                        return OpCode.FSTORE_3;
+                    default:
+                        return OpCode.FSTORE;
+                }
+
+            case DOUBLE:
+                switch (localIndex) {
+                    case 0:
+                        return OpCode.DSTORE_0;
+                    case 1:
+                        return OpCode.DSTORE_1;
+                    case 2:
+                        return OpCode.DSTORE_2;
+                    case 3:
+                        return OpCode.DSTORE_3;
+                    default:
+                        return OpCode.DSTORE;
+                }
+
+            default:
+                switch (localIndex) {
+                    case 0:
+                        return OpCode.ASTORE_0;
+                    case 1:
+                        return OpCode.ASTORE_1;
+                    case 2:
+                        return OpCode.ASTORE_2;
+                    case 3:
+                        return OpCode.ASTORE_3;
+                    default:
+                        return OpCode.ASTORE;
+                }
+        }
+    }
+
+    final int translateLocal(final int localIndex) {
         int index = localIndex;
 
         if (methodBuilder != null) {
@@ -948,6 +1251,23 @@ public class BytecodeGenerator {
         emitShortOperand(token);
     }
 
+    private static boolean canEmitBytecodeConstant(final Type<?> type) {
+        switch (type.getKind()) {
+            case BOOLEAN:
+            case BYTE:
+            case SHORT:
+            case INT:
+            case LONG:
+            case CHAR:
+            case FLOAT:
+            case DOUBLE:
+                return true;
+
+            default:
+                return type.isEquivalentTo(Types.String);
+        }
+    }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Boxing and Conversion Operations">
@@ -957,12 +1277,12 @@ public class BytecodeGenerator {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public void emitBox(final Type<?> type) {
-        final MethodInfo box = TypeUtils.getUnboxMethod(
+        final MethodInfo boxMethod = TypeUtils.getBoxMethod(
             VerifyArgument.notNull(type, "type")
         );
 
-        if (box != null) {
-            call(OpCode.INVOKESTATIC, box);
+        if (boxMethod != null) {
+            call(OpCode.INVOKESTATIC, boxMethod);
         }
     }
 
@@ -994,9 +1314,9 @@ public class BytecodeGenerator {
         final Type<?> unboxedSourceType = TypeUtils.getUnderlyingPrimitiveOrSelf(sourceType);
         final Type<?> unboxedTargetType = TypeUtils.getUnderlyingPrimitiveOrSelf(targetType);
 
-        if (sourceType.isInterface() || // interface cast
+        if (sourceType.isInterface() ||   // interface cast
             targetType.isInterface() ||
-            sourceType == Types.Object || // boxing cast
+            sourceType == Types.Object ||   // boxing cast
             targetType == Types.Object) {
 
             emitCastToType(sourceType, targetType);
@@ -1004,10 +1324,9 @@ public class BytecodeGenerator {
         else if (isTypeSourceBoxed || isTypeTargetBoxed) {
             emitBoxingConversion(sourceType, targetType);
         }
-        else if ((!unboxedSourceType.isPrimitive()
-                  || !unboxedTargetType.isPrimitive())                          // primitive runtime conversion
-                 && (unboxedSourceType.isAssignableFrom(unboxedTargetType)      // down cast
-                     || unboxedTargetType.isAssignableFrom(unboxedSourceType))) // up cast
+        else if ((!unboxedSourceType.isPrimitive() || !unboxedTargetType.isPrimitive()) // primitive runtime conversion
+                 && (unboxedSourceType.isAssignableFrom(unboxedTargetType)              // down cast
+                     || unboxedTargetType.isAssignableFrom(unboxedSourceType)))         // up cast
         {
             emitCastToType(sourceType, targetType);
         }
@@ -1326,31 +1645,31 @@ public class BytecodeGenerator {
     // INTERNAL METHODS                                                                                                   //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    void emitByteOperand(final int value) {
+    final void emitByteOperand(final int value) {
         _bytecodeStream.putByte(value);
     }
 
-    void emitCharOperand(final char value) {
+    final void emitCharOperand(final char value) {
         _bytecodeStream.putShort(value);
     }
 
-    void emitShortOperand(final int value) {
+    final void emitShortOperand(final int value) {
         _bytecodeStream.putShort(value);
     }
 
-    void emitIntOperand(final int value) {
+    final void emitIntOperand(final int value) {
         _bytecodeStream.putInt(value);
     }
 
-    void emitLongOperand(final long value) {
+    final void emitLongOperand(final long value) {
         _bytecodeStream.putLong(value);
     }
 
-    void emitFloatOperand(final float value) {
+    final void emitFloatOperand(final float value) {
         emitIntOperand(Float.floatToIntBits(value));
     }
 
-    void emitDoubleOperand(final double value) {
+    final void emitDoubleOperand(final double value) {
         emitLongOperand(Double.doubleToRawLongBits(value));
     }
 
@@ -1461,11 +1780,11 @@ public class BytecodeGenerator {
         _fixupCount++;
     }
 
-    void ensureCapacity(final int size) {
+    final void ensureCapacity(final int size) {
         _bytecodeStream.ensureCapacity(size);
     }
 
-    void updateStackSize(final OpCode opCode, final int stackChange) {
+    final void updateStackSize(final OpCode opCode, final int stackChange) {
         // Updates internal variables for keeping track of the stack size
         // requirements for the function.  stackChange specifies the amount
         // by which the stack size needs to be updated.
@@ -1514,9 +1833,7 @@ public class BytecodeGenerator {
         return _labelList[index];
     }
 
-    byte[] bakeByteArray() {
-        // TODO: GOTO instructions w/ previously unresolved labels may need to be resized to GOTO_W.
-
+    final byte[] bakeByteArray() {
         // bakeByteArray() is a package private function designed to be called by
         // MethodBuilder to do all of the fix-ups and return a new byte array
         // representing the byte stream with labels resolved, etc.
@@ -1526,7 +1843,7 @@ public class BytecodeGenerator {
 
         int updateAddress;
 
-        if (_currExcStackCount != 0) {
+        if (_currentExceptionStackCount != 0) {
             throw Error.unclosedExceptionBlock();
         }
 
@@ -1540,22 +1857,36 @@ public class BytecodeGenerator {
         // Do the fix-ups.  This involves iterating over all of the labels and replacing
         // them with their proper values.
         for (int i = 0; i < _fixupCount; i++) {
+            final int fixupPosition = _fixupData[i].fixupPosition;
             updateAddress = getLabelPosition(_fixupData[i].fixupLabel) -
-                            (_fixupData[i].fixupPosition + _fixupData[i].operandSize);
+                            (fixupPosition + _fixupData[i].operandSize);
 
             // Handle single byte instructions
             // Throw an exception if they're trying to store a jump in a single byte instruction that doesn't fit.
             if (_fixupData[i].operandSize == 2) {
                 // Verify that our two-byte arg will fit into a Short.
                 if (updateAddress < Short.MIN_VALUE || updateAddress > Short.MAX_VALUE) {
-                    throw Error.illegalTwoByteBranch(_fixupData[i].fixupPosition, updateAddress);
+                    final OpCode oldJumpOpCode = OpCode.get(newBytes[fixupPosition - 1]);
+                    switch (oldJumpOpCode) {
+                        case GOTO:
+                            newBytes[fixupPosition - 1] = (byte)OpCode.GOTO_W.getCode();
+                            break;
+                        case JSR:
+                            newBytes[fixupPosition - 1] = (byte)OpCode.JSR_W.getCode();
+                            break;
+                        default:
+                            throw Error.invalidBranchOpCode(oldJumpOpCode);
+                    }
+                    // We'll just overwrite the two NOP opcodes we left as padding.
+                    putIntOperand(newBytes, fixupPosition, updateAddress);
                 }
-
-                putShortOperand(newBytes, _fixupData[i].fixupPosition, (short)updateAddress);
+                else {
+                    putShortOperand(newBytes, fixupPosition, (short)updateAddress);
+                }
             }
             else {
                 // Emit the four-byte arg.
-                putIntOperand(newBytes, _fixupData[i].fixupPosition, updateAddress);
+                putIntOperand(newBytes, fixupPosition, updateAddress);
             }
         }
 
@@ -1590,182 +1921,46 @@ public class BytecodeGenerator {
         );
     }
 
-    static OpCode getLocalLoadOpCode(final Type<?> type, final int localIndex) {
-        switch (type.getKind()) {
-            case BOOLEAN:
-            case BYTE:
-            case CHAR:
-            case SHORT:
-            case INT:
-                switch (localIndex) {
-                    case 0:
-                        return OpCode.ILOAD_0;
-                    case 1:
-                        return OpCode.ILOAD_1;
-                    case 2:
-                        return OpCode.ILOAD_2;
-                    case 3:
-                        return OpCode.ILOAD_3;
-                    default:
-                        return localIndex > Byte.MAX_VALUE ? OpCode.ILOAD_W : OpCode.ILOAD;
-                }
-
-            case LONG:
-                switch (localIndex) {
-                    case 0:
-                        return OpCode.LLOAD_0;
-                    case 1:
-                        return OpCode.LLOAD_1;
-                    case 2:
-                        return OpCode.LLOAD_2;
-                    case 3:
-                        return OpCode.LLOAD_3;
-                    default:
-                        return localIndex > Byte.MAX_VALUE ? OpCode.LLOAD_W : OpCode.LLOAD;
-                }
-
-            case FLOAT:
-                switch (localIndex) {
-                    case 0:
-                        return OpCode.FLOAD_0;
-                    case 1:
-                        return OpCode.FLOAD_1;
-                    case 2:
-                        return OpCode.FLOAD_2;
-                    case 3:
-                        return OpCode.FLOAD_3;
-                    default:
-                        return localIndex > Byte.MAX_VALUE ? OpCode.FLOAD_W : OpCode.FLOAD;
-                }
-
-            case DOUBLE:
-                switch (localIndex) {
-                    case 0:
-                        return OpCode.DLOAD_0;
-                    case 1:
-                        return OpCode.DLOAD_1;
-                    case 2:
-                        return OpCode.DLOAD_2;
-                    case 3:
-                        return OpCode.DLOAD_3;
-                    default:
-                        return localIndex > Byte.MAX_VALUE ? OpCode.DLOAD_W : OpCode.DLOAD;
-                }
-
-            default:
-                switch (localIndex) {
-                    case 0:
-                        return OpCode.ALOAD_0;
-                    case 1:
-                        return OpCode.ALOAD_1;
-                    case 2:
-                        return OpCode.ALOAD_2;
-                    case 3:
-                        return OpCode.ALOAD_3;
-                    default:
-                        return localIndex > Byte.MAX_VALUE ? OpCode.ALOAD_W : OpCode.ALOAD;
-                }
+    final __ExceptionInfo[] getExceptions() {
+        if (_currentExceptionStackCount != 0) {
+            throw Error.unclosedExceptionBlock();
         }
+
+        if (_exceptionCount == 0) {
+            return null;
+        }
+
+        final __ExceptionInfo[] temp = Arrays.copyOf(_exceptions, _exceptionCount);
+
+        sortExceptions(temp);
+
+        return temp;
     }
 
-    static OpCode getLocalStoreOpCode(final Type<?> type, final int localIndex) {
-        switch (type.getKind()) {
-            case BOOLEAN:
-            case BYTE:
-            case CHAR:
-            case SHORT:
-            case INT:
-                switch (localIndex) {
-                    case 0:
-                        return OpCode.ISTORE_0;
-                    case 1:
-                        return OpCode.ISTORE_1;
-                    case 2:
-                        return OpCode.ISTORE_2;
-                    case 3:
-                        return OpCode.ISTORE_3;
-                    default:
-                        return OpCode.ISTORE;
-                }
-
-            case LONG:
-                switch (localIndex) {
-                    case 0:
-                        return OpCode.LSTORE_0;
-                    case 1:
-                        return OpCode.LSTORE_1;
-                    case 2:
-                        return OpCode.LSTORE_2;
-                    case 3:
-                        return OpCode.LSTORE_3;
-                    default:
-                        return OpCode.LSTORE;
-                }
-
-            case FLOAT:
-                switch (localIndex) {
-                    case 0:
-                        return OpCode.FSTORE_0;
-                    case 1:
-                        return OpCode.FSTORE_1;
-                    case 2:
-                        return OpCode.FSTORE_2;
-                    case 3:
-                        return OpCode.FSTORE_3;
-                    default:
-                        return OpCode.FSTORE;
-                }
-
-            case DOUBLE:
-                switch (localIndex) {
-                    case 0:
-                        return OpCode.DSTORE_0;
-                    case 1:
-                        return OpCode.DSTORE_1;
-                    case 2:
-                        return OpCode.DSTORE_2;
-                    case 3:
-                        return OpCode.DSTORE_3;
-                    default:
-                        return OpCode.DSTORE;
-                }
-
-            default:
-                switch (localIndex) {
-                    case 0:
-                        return OpCode.ASTORE_0;
-                    case 1:
-                        return OpCode.ASTORE_1;
-                    case 2:
-                        return OpCode.ASTORE_2;
-                    case 3:
-                        return OpCode.ASTORE_3;
-                    default:
-                        return OpCode.ASTORE;
-                }
-        }
+    final int getMaxStackSize() {
+        return _maxStackSize;
     }
 
-    private static boolean canEmitBytecodeConstant(final Type<?> type) {
-        switch (type.getKind()) {
-            case BOOLEAN:
-            case BYTE:
-            case SHORT:
-            case INT:
-            case LONG:
-            case CHAR:
-            case FLOAT:
-            case DOUBLE:
-                return true;
+    private static void sortExceptions(final __ExceptionInfo[] exceptions) {
+        int least;
+        __ExceptionInfo temp;
 
-            default:
-                return type.isEquivalentTo(Types.String);
+        final int length = exceptions.length;
+
+        for (int i = 0; i < length; i++) {
+            least = i;
+
+            for (int j = i + 1; j < length; j++) {
+                if (exceptions[least].isInner(exceptions[j])) {
+                    least = j;
+                }
+            }
+
+            temp = exceptions[i];
+            exceptions[i] = exceptions[least];
+            exceptions[least] = temp;
         }
     }
 
     // </editor-fold>
-
-    public int offset() {
-        return _bytecodeStream.getLength();
-    }
 }

@@ -18,6 +18,24 @@ final class Error {
         );
     }
 
+    public static RuntimeException notWildcard(final Type type) {
+        throw new UnsupportedOperationException(
+            format(
+                "Type '%s' is not a wildcard or captured type.",
+                type.getFullName()
+            )
+        );
+    }
+
+    public static RuntimeException notBoundedType(final Type type) {
+        throw new UnsupportedOperationException(
+            format(
+                "Type '%s' is not a bounded type.",
+                type.getFullName()
+            )
+        );
+    }
+
     public static RuntimeException notGenericType(final Type type) {
         return new UnsupportedOperationException(
             format(
@@ -165,24 +183,6 @@ final class Error {
     public static RuntimeException compoundTypeMayNotHaveGenericParameterBound() {
         return new RuntimeException(
             "Compound types may not be bounded by a generic parameter."
-        );
-    }
-
-    public static RuntimeException bytecodeGeneratorNotOwnedByMethodBuilder() {
-        return new RuntimeException(
-            "This BytecodeGenerator was not created by a MethodBuilder."
-        );
-    }
-
-    public static RuntimeException typeHasBeenCreated() {
-        return new RuntimeException(
-            "This type has already been created."
-        );
-    }
-
-    public static RuntimeException typeNotCreated() {
-        return new RuntimeException(
-            "Type has not been created yet."
         );
     }
 }

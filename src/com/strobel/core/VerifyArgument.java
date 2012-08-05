@@ -76,6 +76,26 @@ public final class VerifyArgument {
         return array;
     }
 
+    public static <T> T[] noNullElements(final T[] array, final int offset, final int length, final String parameterName) {
+        notNull(array, parameterName);
+
+        for (int i = offset, end = offset + length; i < end; i++) {
+            final T item = array[i];
+            if (item == null) {
+                throw new IllegalArgumentException(
+                    format(
+                        "Argument '%s' must not have any null elements in the range (%s, %s].",
+                        parameterName,
+                        offset,
+                        offset + length
+                    )
+                );
+            }
+        }
+
+        return array;
+    }
+
     public static <T extends Iterable<?>> T noNullElements(final T collection, final String parameterName) {
         notNull(collection, parameterName);
 

@@ -7,6 +7,7 @@ import java.lang.annotation.Annotation;
 /**
  * @author strobelm
  */
+@SuppressWarnings("unchecked")
 final class GenericType<T> extends Type<T> {
     final static TypeBinder GenericBinder = new TypeBinder();
 
@@ -174,7 +175,7 @@ final class GenericType<T> extends Type<T> {
 
     @Override
     public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
-        return _genericTypeDefinition.getAnnotation(annotationClass);
+        return (T)_genericTypeDefinition.getAnnotation(annotationClass);
     }
 
     @Override
@@ -193,25 +194,25 @@ final class GenericType<T> extends Type<T> {
     }
 
     @Override
-    public ConstructorList getDeclaredConstructors() {
+    protected ConstructorList getDeclaredConstructors() {
         ensureConstructors();
         return _constructors;
     }
 
     @Override
-    public MethodList getDeclaredMethods() {
+    protected MethodList getDeclaredMethods() {
         ensureMethods();
         return _methods;
     }
 
     @Override
-    public FieldList getDeclaredFields() {
+    protected FieldList getDeclaredFields() {
         ensureFields();
         return _fields;
     }
 
     @Override
-    public TypeList getDeclaredTypes() {
+    protected TypeList getDeclaredTypes() {
         ensureNestedTypes();
         return _nestedTypes;
     }

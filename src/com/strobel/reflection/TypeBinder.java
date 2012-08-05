@@ -139,7 +139,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
                 if (newParameters == null) {
                     newParameters = parameters.toArray();
                 }
-                newParameters[i] = new ParameterInfo(oldParameter.getName(), newParameterType);
+                newParameters[i] = new ParameterInfo(oldParameter.getName(), i, newParameterType);
             }
         }
 
@@ -155,19 +155,19 @@ class TypeBinder extends TypeMapper<TypeBindings> {
         final Type<?> returnType = visit(oldReturnType, bindings);
         final ParameterList oldParameters = method.getParameters();
         final ParameterList newParameters = visitParameters(oldParameters, bindings);
-        final TypeList thrown = method.getThrownTypes();
-        final Type<?>[] thrownTypes = new Type<?>[thrown.size()];
+        final TypeList oldThrownTypes = method.getThrownTypes();
+        final Type<?>[] newThrownTypes = new Type<?>[oldThrownTypes.size()];
 
-        boolean hasChanged = !oldReturnType.isEquivalentTo(returnType) || oldParameters != newParameters;
+        boolean hasChanged = !oldReturnType.equals(returnType) || oldParameters != newParameters;
         boolean thrownTypesChanged = false;
 
-        for (int i = 0, n = thrownTypes.length; i < n; i++) {
-            final Type<?> oldThrownType = thrown.get(i);
+        for (int i = 0, n = newThrownTypes.length; i < n; i++) {
+            final Type<?> oldThrownType = oldThrownTypes.get(i);
             final Type<?> newThrownType = visit(oldThrownType, bindings);
 
-            thrownTypes[i] = newThrownType;
+            newThrownTypes[i] = newThrownType;
 
-            if (!oldThrownType.isEquivalentTo(newThrownType)) {
+            if (!oldThrownType.equals(newThrownType)) {
                 thrownTypesChanged = true;
             }
         }
@@ -208,7 +208,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
             method.getRawMethod(),
             newParameters,
             returnType,
-            thrownTypesChanged ? new TypeList(thrownTypes) : thrown,
+            thrownTypesChanged ? new TypeList(newThrownTypes) : oldThrownTypes,
             visitTypeBindings(method.getTypeBindings(), bindings)
         );
     }
@@ -225,7 +225,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
         for (int i = 0, n = parameterTypes.length; i < n; i++) {
             final Type<?> oldParameterType = parameters.get(i).getParameterType();
             parameterTypes[i] = visit(oldParameterType, bindings);
-            if (!oldParameterType.isEquivalentTo(parameterTypes[i])) {
+            if (!oldParameterType.equals(parameterTypes[i])) {
                 hasChanged = true;
             }
         }
@@ -236,7 +236,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
             thrownTypes[i] = newThrownType;
 
-            if (!oldThrownType.isEquivalentTo(newThrownType)) {
+            if (!oldThrownType.equals(newThrownType)) {
                 thrownTypesChanged = true;
             }
         }
@@ -275,6 +275,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
             newParameters.add(
                 new ParameterInfo(
                     parameters.get(i).getName(),
+                    i,
                     parameterTypes[i]
                 )
             );
@@ -328,7 +329,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
             return bindings.getBoundType(type);
         }
 
-        final Type<?> upperBound = type.getUpperBound();
+        final Type<?> upperBound = type.getExtendsBound();
         final Type<?> newUpperBound = visit(upperBound, bindings);
 
         if (newUpperBound != upperBound) {
@@ -353,8 +354,8 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
     @Override
     public Type<?> visitWildcardType(final Type<?> type, final TypeBindings bindings) {
-        final Type<?> oldLower = type.getLowerBound();
-        final Type<?> oldUpper = type.getUpperBound();
+        final Type<?> oldLower = type.getSuperBound();
+        final Type<?> oldUpper = type.getExtendsBound();
         final Type<?> newLower = visit(oldLower, bindings);
         final Type<?> newUpper = visit(oldUpper, bindings);
 
@@ -394,12 +395,12 @@ class TypeEraser extends TypeBinder {
 
     @Override
     public Type<?> visitTypeParameter(final Type<?> type, final TypeBindings bindings) {
-        return visit(type.getUpperBound());
+        return visit(type.getExtendsBound());
     }
 
     @Override
     public Type<?> visitWildcardType(final Type<?> type, final TypeBindings bindings) {
-        return visit(type.getUpperBound());
+        return visit(type.getExtendsBound());
     }
 
     @Override

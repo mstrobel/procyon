@@ -78,12 +78,12 @@ final class WildcardType<T> extends Type<T> {
     }
 
     @Override
-    public Type<?> getUpperBound() {
+    public Type<?> getExtendsBound() {
         return _extendsBound;
     }
 
     @Override
-    public Type<?> getLowerBound() {
+    public Type<?> getSuperBound() {
         return _superBound;
     }
 

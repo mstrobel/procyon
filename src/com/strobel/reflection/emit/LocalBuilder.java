@@ -9,11 +9,16 @@ import com.strobel.reflection.Type;
  */
 public final class LocalBuilder extends LocalVariableInfo {
     private final int _localIndex;
+    private final String _name;
     private final Type _localType;
     private final MethodInfo _methodBuilder;
 
-    public LocalBuilder(final int localIndex, final Type localType, final MethodInfo methodBuilder) {
+    int startOffset = -1;
+    int endOffset = -1;
+
+    public LocalBuilder(final int localIndex, final String name, final Type localType, final MethodInfo methodBuilder) {
         _localIndex = localIndex;
+        _name = name != null ? name : "$" + localIndex;
         _localType = localType;
         _methodBuilder = methodBuilder;
     }
@@ -21,6 +26,10 @@ public final class LocalBuilder extends LocalVariableInfo {
     @Override
     public int getLocalIndex() {
         return _localIndex;
+    }
+
+    public String getName() {
+        return _name;
     }
 
     @Override

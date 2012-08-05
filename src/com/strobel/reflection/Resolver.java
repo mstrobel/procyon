@@ -578,6 +578,7 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
         method.addParameter(
             new ParameterInfo(
                 e.getSimpleName().toString(),
+                ((Symbol.VarSymbol)e).pos,
                 parameterType
             )
         );
@@ -595,6 +596,7 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
         constructor.addParameter(
             new ParameterInfo(
                 e.getSimpleName().toString(),
+                ((Symbol.VarSymbol)e).pos,
                 parameterType
             )
         );
@@ -725,6 +727,7 @@ public final class Resolver extends AbstractElementVisitor7<Type<?>, Resolver.Fr
             constructor.addParameter(
                 new ParameterInfo(
                     "(outer)",
+                    0,
                     frame.getCurrentType().getDeclaringType()
                 )
             );
@@ -840,7 +843,7 @@ final class JavacGenericParameter extends Type {
 
     @Override
     public StringBuilder appendErasedDescription(final StringBuilder sb) {
-        return getUpperBound().appendErasedDescription(sb);
+        return getExtendsBound().appendErasedDescription(sb);
     }
 
     @Override
@@ -876,7 +879,7 @@ final class JavacGenericParameter extends Type {
     }
 
     @Override
-    public Type<?> getUpperBound() {
+    public Type<?> getExtendsBound() {
         if (_bound == null) {
             return Types.Object;
         }
@@ -934,10 +937,7 @@ final class JavacGenericParameter extends Type {
 
         }
 
-        final Type<?> otherDeclaringType = other.getDeclaringType();
-
-        return otherDeclaringType != null &&
-               otherDeclaringType.isEquivalentTo(_declaringType);
+        return Comparer.equals(_declaringType, other.getDeclaringType());
     }
 }
 

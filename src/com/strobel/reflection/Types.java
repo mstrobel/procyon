@@ -5,6 +5,7 @@ import com.strobel.compilerservices.Closure;
 import java.io.Serializable;
 import java.lang.*;
 import java.lang.Error;
+import java.lang.annotation.Annotation;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Date;
@@ -18,6 +19,7 @@ public final class Types {
 
     public static final Type<Object> Object;
 
+    public static final Type<Enum> Enum;
     public static final Type<Number> Number;
     public static final Type<Boolean> Boolean;
     public static final Type<Byte> Byte;
@@ -44,6 +46,7 @@ public final class Types {
 
     public static final Type<System> System;
 
+    public static final Type<java.lang.annotation.Annotation> Annotation;
     public static final Type<Class> Class;
     public static final Type<ClassLoader> ClassLoader;
 
@@ -54,6 +57,7 @@ public final class Types {
 
     static {
         Object = Type.of(Object.class);
+        Enum = Type.of(Enum.class);
         Number = Type.of(Number.class);
         Boolean = Type.of(Boolean.class);
         Byte = Type.of(Byte.class);
@@ -80,6 +84,7 @@ public final class Types {
 
         System = Type.of(System.class);
 
+        Annotation = Type.of(Annotation.class);
         Class = Type.of(Class.class);
         ClassLoader = Type.of(ClassLoader.class);
 

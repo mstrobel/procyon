@@ -11,7 +11,7 @@ import java.lang.annotation.Annotation;
  * @author strobelm
  */
 public class ArrayType<T> extends Type<T> {
-    private final static GenericsFactory GENERICS_FACTORY = CoreReflectionFactory.make(null, null);
+    private final static GenericsFactory REFLECTION_FACTORY = CoreReflectionFactory.make(null, null);
 
     private final Type<?> _elementType;
     private final Class<T> _erasedClass;
@@ -21,7 +21,7 @@ public class ArrayType<T> extends Type<T> {
     @SuppressWarnings("unchecked")
     ArrayType(final Type<?> elementType) {
         _elementType = VerifyArgument.notNull(elementType, "elementType");
-        _erasedClass = (Class<T>)GENERICS_FACTORY.makeArrayType(elementType.getErasedClass());
+        _erasedClass = (Class<T>)REFLECTION_FACTORY.makeArrayType(elementType.getErasedClass());
     }
 
     @Override

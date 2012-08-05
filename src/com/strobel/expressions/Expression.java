@@ -273,7 +273,11 @@ public abstract class Expression {
         VerifyArgument.notNull(constructor, "constructor");
         VerifyArgument.notNull(constructor.getDeclaringType(), "constructor.getDeclaringType()");
 
-        final ExpressionList<? extends Expression> arguments = validateArgumentTypes(constructor, ExpressionType.New, parameters);
+        final ExpressionList<? extends Expression> arguments = validateArgumentTypes(
+            constructor,
+            ExpressionType.New,
+            parameters
+        );
 
         return new NewExpression(constructor, arguments);
     }
@@ -310,6 +314,7 @@ public abstract class Expression {
     public static NewArrayExpression newArrayBounds(final Type type, final Expression dimension) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(dimension, "dimension");
+
         verifyCanRead(dimension, "dimension");
 
         if (type.isEquivalentTo(PrimitiveTypes.Void)) {
@@ -382,11 +387,11 @@ public abstract class Expression {
         return new CatchBlock(type, variable, body, filter);
     }
 
-    public static TryExpression TryFinally(final Expression body, final Expression finallyBlock) {
+    public static TryExpression tryFinally(final Expression body, final Expression finallyBlock) {
         return makeTry(null, body, finallyBlock);
     }
 
-    public static TryExpression TryCatch(final Expression body, final CatchBlock... handlers) {
+    public static TryExpression tryCatch(final Expression body, final CatchBlock... handlers) {
         return makeTry(null, body, null, handlers);
     }
 
@@ -429,7 +434,8 @@ public abstract class Expression {
             type != null ? type : body.getType(),
             body,
             catchBlocks,
-            finallyBlock);
+            finallyBlock
+        );
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2169,7 +2175,7 @@ public abstract class Expression {
 
         verifyCanRead(body, "body");
         verifyCanRead(testValues, "testValues");
-        
+
         VerifyArgument.notEmpty(testValues, "testValues");
 
         return new SwitchCase(body, testValues);
@@ -2223,7 +2229,7 @@ public abstract class Expression {
         final ReadOnlyList<SwitchCase> cases) {
 
         verifyCanRead(switchValue, "switchValue");
-        
+
         if (switchValue.getType() == PrimitiveTypes.Void) {
             throw Error.argumentCannotBeOfTypeVoid();
         }
@@ -2253,7 +2259,7 @@ public abstract class Expression {
                 validateSwitchCaseType(c.getBody(), customType, resultType, "cases");
 
                 final ExpressionList<? extends Expression> testValues = c.getTestValues();
-                
+
                 for (int j = 0, m = testValues.size(); j < m; j++) {
                     // When a comparison method is provided, test values can have different type but have to
                     // be reference assignable to the right hand side parameter of the method.
@@ -2262,7 +2268,8 @@ public abstract class Expression {
                     if (!parameterIsAssignable(rightArg.getParameterType(), rightOperandType)) {
                         throw Error.testValueTypeDoesNotMatchComparisonMethodParameter(
                             rightOperandType,
-                            rightArg.getParameterType());
+                            rightArg.getParameterType()
+                        );
                     }
                 }
             }
@@ -2275,11 +2282,11 @@ public abstract class Expression {
             final Expression firstTestValue = cases.get(0).getTestValues().get(0);
             for (int i = 0, n = cases.size(); i < n; i++) {
                 final SwitchCase c = cases.get(i);
-                
+
                 validateSwitchCaseType(c.getBody(), customType, resultType, "cases");
 
                 final ExpressionList<? extends Expression> testValues = c.getTestValues();
-                
+
                 // When no comparison method is provided, require all test values to have the same type.
                 for (int j = 0, m = testValues.size(); j < m; j++) {
                     if (!TypeUtils.areReferenceAssignable(firstTestValue.getType(), testValues.get(j).getType())) {
@@ -2300,7 +2307,8 @@ public abstract class Expression {
             if (resultType != PrimitiveTypes.Void) {
                 throw Error.defaultBodyMustBeSupplied();
             }
-        } else {
+        }
+        else {
             validateSwitchCaseType(defaultBody, customType, resultType, "defaultBody");
         }
 

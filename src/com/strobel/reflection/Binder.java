@@ -1,6 +1,7 @@
 package com.strobel.reflection;
 
 import com.strobel.util.ContractUtils;
+import com.strobel.util.TypeUtils;
 
 import java.util.Set;
 
@@ -17,7 +18,7 @@ public abstract class Binder {
         }
 
         for (int i = 0, n = p1.size(); i < n; i++) {
-            if (!p1.get(i).getParameterType().isEquivalentTo(p2.get(i).getParameterType())) {
+            if (!TypeUtils.areEquivalent(p1.get(i).getParameterType(), p2.get(i).getParameterType())) {
                 return false;
             }
         }

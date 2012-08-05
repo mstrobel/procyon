@@ -6,6 +6,7 @@ import com.strobel.util.ContractUtils;
 
 import com.sun.tools.javac.code.Flags;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.TypeVariable;
@@ -30,6 +31,26 @@ public abstract class MethodInfo extends MethodBase {
     @Override
     public String getName() {
         return getRawMethod().getName();
+    }
+
+    @Override
+    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+        return getRawMethod().getAnnotation(annotationClass);
+    }
+
+    @Override
+    public Annotation[] getAnnotations() {
+        return getRawMethod().getAnnotations();
+    }
+
+    @Override
+    public Annotation[] getDeclaredAnnotations() {
+        return getRawMethod().getDeclaredAnnotations();
+    }
+
+    @Override
+    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
+        return getRawMethod().isAnnotationPresent(annotationClass);
     }
 
     @Override
@@ -157,10 +178,9 @@ public abstract class MethodInfo extends MethodBase {
             sb.append(' ');
         }
 
-        final Method rawMethod = getRawMethod();
-        final TypeList parameterTypes = Type.list(rawMethod.getParameterTypes());
+        final TypeList parameterTypes = getParameters().getParameterTypes();
 
-        StringBuilder s = Type.of(rawMethod.getReturnType()).appendErasedDescription(sb);
+        StringBuilder s = getReturnType().appendErasedDescription(sb);
 
         s.append(' ');
         s.append(getName());
@@ -200,15 +220,14 @@ public abstract class MethodInfo extends MethodBase {
         StringBuilder s = sb;
         s.append('(');
 
-        final Method rawMethod = getRawMethod();
-        final TypeList parameterTypes = Type.list(rawMethod.getParameterTypes());
+        final TypeList parameterTypes = getParameters().getParameterTypes();
 
         for (int i = 0, n = parameterTypes.size(); i < n; ++i) {
             s = parameterTypes.get(i).appendErasedSignature(s);
         }
 
         s.append(')');
-        s = Type.of(rawMethod.getReturnType()).appendErasedSignature(s);
+        s = getReturnType().appendErasedSignature(s);
 
         return s;
     }
@@ -411,6 +430,26 @@ class ReflectedMethod extends MethodInfo {
     protected TypeBindings getTypeBindings() {
         return _bindings;
     }
+
+    @Override
+    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+        return _rawMethod.getAnnotation(annotationClass);
+    }
+
+    @Override
+    public Annotation[] getAnnotations() {
+        return _rawMethod.getAnnotations();
+    }
+
+    @Override
+    public Annotation[] getDeclaredAnnotations() {
+        return _rawMethod.getDeclaredAnnotations();
+    }
+
+    @Override
+    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
+        return _rawMethod.isAnnotationPresent(annotationClass);
+    }
 }
 
 final class GenericMethod extends MethodInfo {
@@ -445,6 +484,7 @@ final class GenericMethod extends MethodInfo {
 
                     parameters[i] = new ParameterInfo(
                         parameter.getName(),
+                        i,
                         resolveBindings(parameterType)
                     );
                 }

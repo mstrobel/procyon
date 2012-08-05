@@ -1,6 +1,7 @@
 package com.strobel.reflection;
 
 import com.strobel.core.Comparer;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 
@@ -71,9 +72,9 @@ final class RuntimeTypeCache<T> {
 
     @SuppressWarnings("unchecked")
     Class<T> getErasedClass() {
-        final String fullName = getFullName();
-
         if (_erasedClass == null) {
+            final String fullName = getFullName();
+
             try {
                 _erasedClass = (Class<T>)Class.forName(fullName);
             }
@@ -87,7 +88,14 @@ final class RuntimeTypeCache<T> {
 
     Package getPackage() {
         if (_package == null) {
-            _package = getErasedClass().getPackage();
+            final String fullName = _runtimeType.getClassFullName();
+            final int lastDotPosition = fullName.lastIndexOf('.');
+            if (lastDotPosition < 0) {
+                _package = Package.getPackage(StringUtilities.EMPTY);
+            }
+            else {
+                _package = Package.getPackage(fullName.substring(0, lastDotPosition));
+            }
         }
         return _package;
     }
@@ -613,7 +621,7 @@ final class RuntimeTypeCache<T> {
             Type<?> declaringType = reflectedType;
 
             while (declaringType.isGenericParameter()) {
-                declaringType = declaringType.getUpperBound();
+                declaringType = declaringType.getExtendsBound();
             }
 
             while (declaringType != null && declaringType != Type.NullType) {
@@ -622,7 +630,7 @@ final class RuntimeTypeCache<T> {
             }
 
             final TypeList interfaces = reflectedType.isGenericParameter()
-                                        ? reflectedType.getUpperBound().getExplicitInterfaces()
+                                        ? reflectedType.getExtendsBound().getExplicitInterfaces()
                                         : reflectedType.getExplicitInterfaces();
 
             for (int i = 0, n = interfaces.size(); i < n; i++) {
@@ -681,7 +689,7 @@ final class RuntimeTypeCache<T> {
             }
 
             while (declaringType.isGenericParameter()) {
-                declaringType = declaringType.getUpperBound();
+                declaringType = declaringType.getExtendsBound();
             }
 
             while (declaringType != null && declaringType != Type.NullType) {
@@ -824,7 +832,7 @@ final class RuntimeTypeCache<T> {
 
             if (declaringType.isGenericParameter()) {
                 while (declaringType.isGenericParameter()) {
-                    declaringType = declaringType.getUpperBound();
+                    declaringType = declaringType.getExtendsBound();
                 }
             }
 
@@ -1142,6 +1150,26 @@ final class RuntimeMethodInfo extends MethodInfo {
         }
         return _erasedDescription;
     }
+
+    @Override
+    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
+        return _rawMethod.isAnnotationPresent(annotationClass);
+    }
+
+    @Override
+    public Annotation[] getDeclaredAnnotations() {
+        return _rawMethod.getDeclaredAnnotations();
+    }
+
+    @Override
+    public Annotation[] getAnnotations() {
+        return _rawMethod.getAnnotations();
+    }
+
+    @Override
+    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+        return _rawMethod.getAnnotation(annotationClass);
+    }
 }
 
 final class RuntimeFieldInfo extends FieldInfo {
@@ -1242,6 +1270,26 @@ final class RuntimeFieldInfo extends FieldInfo {
             _erasedDescription = super.getErasedDescription();
         }
         return _erasedDescription;
+    }
+
+    @Override
+    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+        return _rawField.getAnnotation(annotationClass);
+    }
+
+    @Override
+    public Annotation[] getAnnotations() {
+        return _rawField.getAnnotations();
+    }
+
+    @Override
+    public Annotation[] getDeclaredAnnotations() {
+        return _rawField.getDeclaredAnnotations();
+    }
+
+    @Override
+    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
+        return _rawField.isAnnotationPresent(annotationClass);
     }
 }
 
@@ -1373,6 +1421,17 @@ final class RuntimeType<T> extends Type<T> {
     }
 
     @Override
+    public boolean equals(final Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (obj instanceof RuntimeType<?>) {
+            return equals(((RuntimeType<?>)obj)._basedOn);
+        }
+        return _basedOn.equals(obj);
+    }
+
+    @Override
     public MemberType getMemberType() {
         return MemberType.TypeInfo;
     }
@@ -1423,25 +1482,25 @@ final class RuntimeType<T> extends Type<T> {
     }
 
     @Override
-    public ConstructorList getDeclaredConstructors() {
+    protected ConstructorList getDeclaredConstructors() {
         ensureConstructors();
         return _constructors;
     }
 
     @Override
-    public MethodList getDeclaredMethods() {
+    protected MethodList getDeclaredMethods() {
         ensureMethods();
         return _methods;
     }
 
     @Override
-    public FieldList getDeclaredFields() {
+    protected FieldList getDeclaredFields() {
         ensureFields();
         return _fields;
     }
 
     @Override
-    public TypeList getDeclaredTypes() {
+    protected TypeList getDeclaredTypes() {
         ensureNestedTypes();
         return _nestedTypes;
     }

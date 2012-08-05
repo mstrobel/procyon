@@ -101,7 +101,7 @@ class GenericParameter<T> extends Type<T> {
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
         sb.append(getFullName());
 
-        final Type<?> upperBound = getUpperBound();
+        final Type<?> upperBound = getExtendsBound();
 
         if (upperBound != null && upperBound != Types.Object) {
             sb.append(" extends ");
@@ -118,7 +118,7 @@ class GenericParameter<T> extends Type<T> {
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         sb.append(getFullName());
 
-        final Type<?> upperBound = getUpperBound();
+        final Type<?> upperBound = getExtendsBound();
 
         if (upperBound != null && upperBound != Types.Object) {
             sb.append(" extends ");
@@ -133,7 +133,7 @@ class GenericParameter<T> extends Type<T> {
 
     @Override
     public StringBuilder appendErasedDescription(final StringBuilder sb) {
-        return getUpperBound().appendErasedDescription(sb);
+        return getExtendsBound().appendErasedDescription(sb);
     }
 
     @Override
@@ -175,12 +175,12 @@ class GenericParameter<T> extends Type<T> {
     }
 
     @Override
-    public Type<?> getLowerBound() {
+    public Type<?> getSuperBound() {
         return _lowerBound;
     }
 
     @Override
-    public Type<?> getUpperBound() {
+    public Type<?> getExtendsBound() {
         return _upperBound;
     }
 
@@ -267,9 +267,6 @@ class GenericParameter<T> extends Type<T> {
                    
         }
 
-        final Type<?> otherDeclaringType = other.getDeclaringType();
-        
-        return otherDeclaringType != null &&
-               otherDeclaringType.isEquivalentTo(_declaringType);
+        return Comparer.equals(_declaringType, other.getDeclaringType());
     }
 }
