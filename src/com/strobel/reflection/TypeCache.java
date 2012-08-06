@@ -102,7 +102,6 @@ final class TypeCache {
         }
 
         put(key(type.getErasedClass(), typeArguments), type);
-        put(key(type.getErasedClass(), TypeList.empty()), type.getErasedType());
     }
 
     static class Key {

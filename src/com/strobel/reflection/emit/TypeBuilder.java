@@ -1,6 +1,9 @@
 package com.strobel.reflection.emit;
 
-import com.strobel.core.*;
+import com.strobel.core.ArrayUtilities;
+import com.strobel.core.ReadOnlyList;
+import com.strobel.core.StringUtilities;
+import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.*;
 import com.strobel.util.TypeUtils;
 import sun.misc.Unsafe;
@@ -12,15 +15,12 @@ import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
  * @author strobelm
  */
 @SuppressWarnings({"unchecked", "PackageVisibleField"})
 public final class TypeBuilder<T> extends Type<T> {
-    private final static Pattern PACKAGE_DELIMITER = Pattern.compile("\\.");
-
     final ConstantPool constantPool;
     final ArrayList<ConstructorBuilder> constructorBuilders;
     final ArrayList<MethodBuilder> methodBuilders;
@@ -713,8 +713,8 @@ public final class TypeBuilder<T> extends Type<T> {
 
             _generatedType = Type.of(_generatedClass);
         }
-        catch (Throwable e) {
-            throw Error.classGenerationFailed(this, e);
+        catch (Throwable t) {
+            throw Error.classGenerationFailed(this, t);
         }
         finally {
             if (_generatedType != null) {

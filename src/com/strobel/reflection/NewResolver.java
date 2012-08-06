@@ -163,6 +163,38 @@ public final class NewResolver {
         }
 
         private Type<?> resolveTypeCore(final java.lang.reflect.Type t) {
+            final Type<?> fromMap = findType(t);
+
+            if (fromMap != null) {
+                return fromMap;
+            }
+
+            if (t instanceof Class<?>) {
+                final Class<?> classType = (Class<?>)t;
+
+                if (classType.isPrimitive() || classType.isEnum() || classType == Void.TYPE) {
+                    return Type.of(classType);
+                }
+
+                if (classType.isArray()) {
+                    final Type<?> componentType = resolveType(classType.getComponentType());
+
+                    if (componentType != null) {
+                        return componentType.makeArrayType();
+                    }
+
+                    return null;
+                }
+
+                final Type cachedType = Type.CACHE.find((Class<?>)t);
+
+                if (cachedType != null) {
+                    return cachedType;
+                }
+
+                return visit(classType, this);
+            }
+
             if (t instanceof GenericArrayType) {
                 final java.lang.reflect.Type genericComponentType = ((GenericArrayType)t).getGenericComponentType();
                 final Type<?> componentType = resolveType(genericComponentType);
@@ -172,12 +204,6 @@ public final class NewResolver {
                 }
 
                 return null;
-            }
-
-            final Type<?> fromMap = findType(t);
-
-            if (fromMap != null) {
-                return fromMap;
             }
 
             if (t instanceof java.lang.reflect.WildcardType) {
@@ -253,33 +279,6 @@ public final class NewResolver {
                 }
             }
 
-            if (t instanceof Class<?>) {
-                final Class<?> classType = (Class<?>)t;
-
-                if (classType.isPrimitive() || classType.isEnum() || classType == Void.TYPE) {
-                    return Type.of(classType);
-                }
-
-                if (classType.isArray()) {
-                    final Type<?> componentType = resolveType(classType.getComponentType());
-
-                    if (componentType != null) {
-                        return componentType.makeArrayType();
-                    }
-
-                    return null;
-                }
-
-                final TypeCache.Key cacheKey = Type.CACHE.key(classType);
-                final Type cachedType = Type.CACHE.find(cacheKey);
-
-                if (cachedType != null) {
-                    return cachedType;
-                }
-
-                return visit(classType, this);
-            }
-
             if (t instanceof ParameterizedType) {
                 final ParameterizedType type = (ParameterizedType)t;
 
@@ -298,6 +297,12 @@ public final class NewResolver {
                     if (typeArg instanceof java.lang.reflect.TypeVariable) {
                         final java.lang.reflect.TypeVariable typeVariable = (java.lang.reflect.TypeVariable)typeArg;
                         final GenericDeclaration genericDeclaration = typeVariable.getGenericDeclaration();
+                        final Type<?> existingTypeArgument = findType(typeVariable);
+
+                        if (existingTypeArgument != null) {
+                            resolvedTypeArguments[i] = existingTypeArgument;
+                            continue;
+                        }
 
                         if (genericDeclaration instanceof Method) {
                             final ReflectedType<?> declaringType = (ReflectedType<?>)resolveType(((Method)genericDeclaration).getDeclaringClass());
@@ -338,14 +343,7 @@ public final class NewResolver {
 
                 for (final Type<?> resolvedTypeArgument : resolvedTypeArguments) {
                     if (!resolvedTypeArgument.isGenericParameter() || resolvedTypeArgument.getDeclaringType() != rawType) {
-                        final GenericType genericType = new GenericType(
-                            rawType,
-                            resolvedTypeArguments
-                        );
-
-                        Type.CACHE.add(genericType);
-
-                        return genericType;
+                        return Type.CACHE.getGenericType(rawType, Type.list(resolvedTypeArguments));
                     }
                 }
 
@@ -440,7 +438,7 @@ public final class NewResolver {
             }
 
             if (baseClass != null && baseClass != c) {
-                baseType = resolveExisting(currentFrame, baseClass, true);
+                baseType = currentFrame.resolveType(baseClass);
 
                 if (baseType != null) {
                     currentType.setBaseType(baseType);
@@ -461,7 +459,7 @@ public final class NewResolver {
 
         if (!ArrayUtilities.isNullOrEmpty(interfaces)) {
             for (final java.lang.reflect.Type t : interfaces) {
-                final Type<?> interfaceType = resolveExisting(currentFrame, t, true);
+                final Type<?> interfaceType = currentFrame.resolveType(t);
 
                 if (interfaceType == null) {
                     return null;
@@ -516,7 +514,7 @@ public final class NewResolver {
     }
 
     private Type<?> visitGenericArrayType(final GenericArrayType type, final Frame frame) {
-        final Type<?> elementType = resolveExisting(frame, type.getGenericComponentType(), true);
+        final Type<?> elementType = frame.resolveType(type.getGenericComponentType());
 
         if (elementType != null) {
             return elementType.makeArrayType();
@@ -581,28 +579,16 @@ public final class NewResolver {
     }
 
     private Type<?> visitParameterizedType(final ParameterizedType type, final Frame frame) {
-        final Type<?> rawType = resolveExisting(frame, type.getRawType(), true);
+        final Type<?> rawType = frame.resolveType(type.getRawType());
 
         if (rawType == null)
             return null;
-
-        final Frame newFrame;
-
-        if (frame != null) {
-            newFrame = frame;
-        }
-        else if (rawType instanceof ReflectedType<?>) {
-            newFrame = new Frame((ReflectedType<?>) rawType, frame);
-        }
-        else {
-            newFrame = null;
-        }
 
         final java.lang.reflect.Type[] typeArguments = type.getActualTypeArguments();
         final Type<?>[] resolvedTypeArguments = new Type<?>[typeArguments.length];
 
         for (int i = 0, n =typeArguments.length; i < n; i++) {
-            resolvedTypeArguments[i] = resolveExisting(newFrame, typeArguments[i], true);
+            resolvedTypeArguments[i] = frame.resolveType(typeArguments[i]);
 
             if (resolvedTypeArguments[i] == null)
                 return null;
@@ -638,47 +624,6 @@ public final class NewResolver {
                 result = visit(type, frame);
             }
         }
-
-/*
-        if (result != null) {
-            return null;
-        }
-
-        final TypeList typeArguments = result.getTypeArguments();
-        final java.lang.reflect.Type[] unresolvedTypeArguments;
-
-        if (type instanceof ParameterizedType) {
-            unresolvedTypeArguments = ((ParameterizedType)type).getActualTypeArguments();
-        }
-        else if (type instanceof Class<?>) {
-            return result;
-        }
-        else {
-            unresolvedTypeArguments = null;
-        }
-
-        if (unresolvedTypeArguments == null) {
-            return result.getErasedType();
-        }
-
-        Type[] newTypeArguments = null;
-
-        for (int i = 0, n = typeArguments.size(); i < n; i++) {
-            final Type<?> oldTypeArgument = typeArguments.get(i);
-            final Type<?> newTypeArgument = resolveExisting(frame, unresolvedTypeArguments[i], false);
-
-            if (newTypeArgument != null && newTypeArgument != oldTypeArgument) {
-                if (newTypeArguments == null) {
-                    newTypeArguments = typeArguments.toArray();
-                }
-                newTypeArguments[i] = newTypeArgument;
-            }
-        }
-
-        if (newTypeArguments != null) {
-            return result.makeGenericType(newTypeArguments);
-        }
-*/
 
         return result;
     }
@@ -789,7 +734,7 @@ public final class NewResolver {
             returnType = m.getReturnType();
         }
 
-        final Type<?> resolvedReturnType = resolveExisting(frame, returnType, true);
+        final Type<?> resolvedReturnType = frame.resolveType(returnType);
 
         if (resolvedReturnType == null) {
             return null;
@@ -1088,6 +1033,12 @@ class ReflectedGenericParameter extends Type {
             return false;
         }
 
+        if (obj instanceof ReflectedGenericParameter) {
+            if (_typeVariable == ((ReflectedGenericParameter)obj)._typeVariable) {
+                return true;
+            }
+        }
+
         final Type<?> other = (Type<?>)obj;
 
         if (!other.isGenericParameter() ||
@@ -1162,10 +1113,17 @@ class ReflectedType<T> extends Type<T> {
             return result;
         }
 
+        final int position = ArrayUtilities.indexOf(typeVariable.getGenericDeclaration().getTypeParameters(), typeVariable);
+
         for (final ReflectedGenericParameter genericParameter : _genericParameters) {
             final Type declaringType = genericParameter.getDeclaringType();
 
-            if (declaringType != null && declaringType.getErasedClass() == typeVariable.getGenericDeclaration()) {
+            if (genericParameter.getGenericParameterPosition() != position) {
+                continue;
+            }
+
+            if (declaringType != null &&
+                declaringType.getErasedClass() == typeVariable.getGenericDeclaration()) {
                 return genericParameter;
             }
 
