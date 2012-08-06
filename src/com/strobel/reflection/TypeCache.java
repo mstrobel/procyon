@@ -102,6 +102,7 @@ final class TypeCache {
         }
 
         put(key(type.getErasedClass(), typeArguments), type);
+        put(key(type.getErasedClass(), TypeList.empty()), type.getErasedType());
     }
 
     static class Key {
@@ -119,7 +120,7 @@ final class TypeCache {
 
             int h = erasedType.getName().hashCode();
 
-            if (typeArguments != null) {
+            if (typeArguments != null && !typeArguments.isEmpty()) {
                 h = h * 31 + typeArguments.size();
             }
 
@@ -149,8 +150,8 @@ final class TypeCache {
 
             final TypeList otherArguments = other._typeParameters;
 
-            if (_typeParameters == null) {
-                return otherArguments == null;
+            if (_typeParameters == null || _typeParameters.isEmpty()) {
+                return otherArguments == null || otherArguments.isEmpty();
             }
 
             if (otherArguments == null || otherArguments.size() != _typeParameters.size()) {

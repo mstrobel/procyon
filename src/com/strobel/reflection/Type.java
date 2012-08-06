@@ -7,7 +7,6 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
 import com.strobel.util.TypeUtils;
-import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.main.JavaCompiler;
@@ -17,14 +16,9 @@ import com.sun.tools.javac.util.Names;
 
 import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Array;
-import java.lang.reflect.Modifier;
+import java.lang.reflect.*;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author Mike Strobel
@@ -1388,7 +1382,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     final static JavaCompiler COMPILER;
     final static TypeCache CACHE;
     final static Context CONTEXT;
-    final static Resolver RESOLVER;
+    final static NewResolver RESOLVER;
     final static Type<?>[] PRIMITIVE_TYPES;
 
     static {
@@ -1405,7 +1399,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
             COMPILER = JavaCompiler.instance(context);
             CONTEXT = context;
-            RESOLVER = new Resolver(context);
+            RESOLVER = new NewResolver();
             PRIMITIVE_TYPES = new PrimitiveType<?>[TypeKind.values().length];
 
             PrimitiveTypes.ensureRegistered();
@@ -1432,24 +1426,12 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 return reflectedType;
             }
 
-            Symbol symbol = COMPILER.resolveIdent(
-                clazz.getCanonicalName()
-            );
+//            loadAncestors(clazz);
 
-            if (!(symbol instanceof Symbol.ClassSymbol)) {
-                symbol = COMPILER.resolveBinaryNameOrIdent(clazz.getCanonicalName().replace('.', '/'));
-            }
+            final Type<T> resolvedType = (Type<T>)RESOLVER.resolve(clazz);
 
-            if (symbol instanceof Symbol.ClassSymbol) {
-                final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol)symbol;
-
-                loadAncestors(classSymbol);
-
-                final Type<T> resolvedType = (Type<T>)RESOLVER.visit(classSymbol, null);
-
-                if (resolvedType != null) {
-                    return resolvedType;
-                }
+            if (resolvedType != null) {
+                return resolvedType;
             }
 
             throw Error.couldNotResolveType(clazz);
@@ -1464,20 +1446,49 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return (Type<T>)Type.of(object.getClass());
     }
 
-    private static void loadAncestors(final Symbol.ClassSymbol symbol) {
-        final com.sun.tools.javac.code.Type superclass = symbol.getSuperclass();
-
-        if (superclass != null && superclass.getKind() != TypeKind.NONE && superclass.asElement() != symbol) {
-            of(superclass);
+    private static void loadAncestors(final java.lang.reflect.Type type) {
+        if (type instanceof TypeVariable) {
+            return;
         }
 
-        for (final com.sun.tools.javac.code.Type type : symbol.getInterfaces()) {
-            if (type != null && type.getKind() != TypeKind.NONE) {
-                of(type);
+        if (type instanceof ParameterizedType) {
+            final ParameterizedType parameterizedType = (ParameterizedType)type;
+
+            loadAncestors(parameterizedType.getRawType());
+
+            for (final java.lang.reflect.Type typeArgument : parameterizedType.getActualTypeArguments()) {
+                loadAncestors(typeArgument);
+            }
+
+            return;
+        }
+
+        if (type instanceof Class<?>) {
+            final Class<?> classType = (Class) type;
+
+            java.lang.reflect.Type superclass = classType.getGenericSuperclass();
+
+            if (superclass == null) {
+                superclass = classType.getSuperclass();
+            }
+
+            if (superclass != null && superclass != Object.class && superclass != classType) {
+                of(superclass);
+            }
+
+            java.lang.reflect.Type[] interfaces = classType.getGenericInterfaces();
+
+            if (interfaces == null) {
+                interfaces = classType.getInterfaces();
+            }
+
+            for (final java.lang.reflect.Type interfaceType : interfaces) {
+                of(interfaceType);
             }
         }
     }
 
+/*
     static <T> Type<T> of(final com.sun.tools.javac.code.Type type) {
         if (type instanceof com.sun.tools.javac.code.Type.ArrayType) {
             return (Type<T>)of(((com.sun.tools.javac.code.Type.ArrayType)type).getComponentType()).makeArrayType();
@@ -1499,6 +1510,34 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             loadAncestors((Symbol.ClassSymbol)type.asElement());
 
             resultType = (Type<T>)RESOLVER.visit(type.asElement(), null);
+
+            if (resultType != null) {
+                return resultType;
+            }
+
+            throw Error.couldNotResolveType(type);
+        }
+    }
+*/
+    static <T> Type<T> of(final java.lang.reflect.Type type) {
+        if (type instanceof GenericArrayType) {
+            return (Type<T>)of(((GenericArrayType)type).getGenericComponentType()).makeArrayType();
+        }
+
+        if (type instanceof Class<?>) {
+            return of((Class<T>) type);
+        }
+
+        synchronized (CACHE_LOCK) {
+            Type<T> resultType = (Type<T>)tryFind(type);
+
+            if (resultType != null) {
+                return resultType;
+            }
+
+//            loadAncestors(type);
+
+            resultType = (Type<T>)RESOLVER.resolve(type);
 
             if (resultType != null) {
                 return resultType;
@@ -1532,6 +1571,22 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
             return CACHE.find(clazz);
         }
+    }
+
+    static Type<?> tryFind(final java.lang.reflect.Type type) {
+        if (type instanceof Class<?>) {
+            final Class<?> classType = (Class<?>)type;
+
+            if (classType.isPrimitive() || classType == Void.class) {
+                return of(classType);
+            }
+
+            synchronized (CACHE_LOCK) {
+                return CACHE.find(classType);
+            }
+        }
+
+        return null;
     }
 
     public static <T> Type<? extends T> makeExtendsWildcard(final Type<T> bound) {
@@ -1905,7 +1960,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                         return false;
                     }
                 }
-                else {
+                else if (suppliedArgumentCount != 0) {
                     return false;
                 }
             }

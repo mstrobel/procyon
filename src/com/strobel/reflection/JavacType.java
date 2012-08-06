@@ -72,7 +72,7 @@ class JavacType<T> extends Type<T> {
     JavacGenericParameter findGenericParameter(final TypeParameterElement symbol) {
 /*
         for (final JavacGenericParameter genericParameter : _genericParameters) {
-            if (Comparer.equals(genericParameter.getElement(), symbol)) {
+            if (Comparer.equals(genericParameter.getTypeVariable(), symbol)) {
                 return genericParameter;
             }
         }

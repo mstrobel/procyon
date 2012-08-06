@@ -1,9 +1,6 @@
 package com.strobel.reflection.emit;
 
-import com.strobel.core.ArrayUtilities;
-import com.strobel.core.ReadOnlyList;
-import com.strobel.core.StringUtilities;
-import com.strobel.core.VerifyArgument;
+import com.strobel.core.*;
 import com.strobel.reflection.*;
 import com.strobel.util.TypeUtils;
 import sun.misc.Unsafe;
@@ -741,9 +738,11 @@ public final class TypeBuilder<T> extends Type<T> {
             fieldBuilders.get(i).generatedField = generatedFields.get(i);
         }
 
-        for (int i = 0, n = methodBuilders.size(); i < n; i++) {
+        for (int i = 0, j = 0, n = methodBuilders.size(); i < n; i++) {
             final MethodBuilder method = methodBuilders.get(i);
-            method.generatedMethod = generatedMethods.get(i);
+            if (!"<init>".equals(method.getName())) {
+                method.generatedMethod = generatedMethods.get(j++);
+            }
         }
 
         for (int i = 0, n = constructorBuilders.size(); i < n; i++) {

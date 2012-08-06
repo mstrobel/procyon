@@ -456,7 +456,7 @@ final class ClassWriter {
 
     private int writeMemberAttributes(final MemberInfo member) {
         final long flags = member.getModifiers();
-        final Type<?> type;
+        final String signature;
         final TypeList thrownTypes;
         final ReadOnlyList<AnnotationBuilder> annotations;
 
@@ -465,39 +465,39 @@ final class ClassWriter {
         switch (member.getMemberType()) {
             case Field:
                 final FieldBuilder field = (FieldBuilder)member;
-                type = field.getFieldType();
+                signature = field.getFieldType().getErasedSignature();
                 thrownTypes = TypeList.empty();
                 annotations = field.getCustomAnnotations();
                 break;
 
             case Method:
                 final MethodBuilder method = (MethodBuilder)member;
-                type = method.getReturnType();
                 thrownTypes = method.getThrownTypes();
+                signature = method.getErasedSignature();
                 annotations = method.getCustomAnnotations();
                 break;
 
             case Constructor:
                 final ConstructorBuilder constructor = (ConstructorBuilder)member;
-                type = PrimitiveTypes.Void;
+                signature = constructor.getErasedSignature();
                 thrownTypes = constructor.getThrownTypes();
                 annotations = constructor.getCustomAnnotations();
                 break;
 
             default:
-                type = (Type<?>)member;
+                signature = ((Type<?>)member).getErasedSignature();
                 thrownTypes = TypeList.empty();
                 annotations = ReadOnlyList.emptyList();
                 break;
         }
 
         if ((flags & (SYNTHETIC | BRIDGE)) != SYNTHETIC &&
-            (flags & ANONCONSTR) == 0 &&
-            (type.containsGenericParameters() || thrownTypes.containsGenericParameters())) {
+            (flags & ANONCONSTR) == 0/* &&
+            (type.containsGenericParameters() || thrownTypes.containsGenericParameters())*/) {
 
             // A local class with captured variables will get a signature attribute.
             final int attributeIndex = writeAttribute("Signature");
-            _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(type.getSignature()));
+            _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(signature));
             endAttribute(attributeIndex);
             attributeCount++;
         }
