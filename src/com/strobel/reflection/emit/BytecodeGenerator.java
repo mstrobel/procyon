@@ -2,7 +2,6 @@ package com.strobel.reflection.emit;
 
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.*;
-import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
 import javax.lang.model.type.TypeKind;
@@ -361,7 +360,7 @@ public class BytecodeGenerator {
 
         final int typeToken = methodBuilder.getDeclaringType().getTypeToken(type);
 
-        emit(opCode, typeToken);
+        emit(opCode, (short)typeToken);
     }
 
     public void emit(final OpCode opCode, final ConstructorInfo constructor) {
@@ -373,9 +372,20 @@ public class BytecodeGenerator {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
         }
 
-        final int constructorToken = methodBuilder.getDeclaringType().getMethodToken(constructor);
+        final int methodToken = methodBuilder.getDeclaringType().getMethodToken(constructor);
 
-        emit(opCode, constructorToken);
+        emit(opCode, (short)methodToken);
+
+        int stackChange = 0;
+
+        if (constructor instanceof ConstructorBuilder) {
+            stackChange -= ((ConstructorBuilder)constructor).getParameterTypes().size();
+        }
+        else {
+            stackChange -= constructor.getParameters().size();
+        }
+
+        updateStackSize(opCode, stackChange);
     }
 
     public void emit(final OpCode opCode, final MethodInfo method) {
@@ -389,11 +399,36 @@ public class BytecodeGenerator {
 
         final int methodToken = methodBuilder.getDeclaringType().getMethodToken(method);
 
-        emit(opCode, methodToken);
+        emit(opCode, (short)methodToken);
+
+        int stackChange = 0;
+
+        if (method instanceof MethodBuilder) {
+            stackChange -= ((MethodBuilder)method).getParameterTypes().size();
+        }
+        else {
+            stackChange -= method.getParameters().size();
+        }
+
+        if (method.getReturnType() != PrimitiveTypes.Void) {
+            ++stackChange;
+        }
+
+        updateStackSize(opCode, stackChange);
     }
 
     public void emit(final OpCode opCode, final FieldInfo field) {
-        throw ContractUtils.unreachable();
+        VerifyArgument.notNull(field, "field");
+
+        final MethodBuilder methodBuilder = this.methodBuilder;
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final int fieldToken = methodBuilder.getDeclaringType().getFieldToken(field);
+
+        emit(opCode, (short)fieldToken);
     }
 
     public void emit(final OpCode opCode, final Label label) {
@@ -440,14 +475,18 @@ public class BytecodeGenerator {
         final OpCode opCode;
 
         if (method.isStatic()) {
-            call(OpCode.INVOKESTATIC, method);
+            emit(OpCode.INVOKESTATIC, method);
         }
         else if (method.getDeclaringType().isInterface()) {
-            call(OpCode.INVOKEINTERFACE, method);
+            emit(OpCode.INVOKEINTERFACE, method);
         }
         else {
-            call(OpCode.INVOKEVIRTUAL, method);
+            emit(OpCode.INVOKEVIRTUAL, method);
         }
+    }
+
+    public void call(final ConstructorInfo constructor) {
+        emit(OpCode.INVOKESPECIAL, constructor);
     }
 
     public void call(final OpCode opCode, final MethodInfo method) {
@@ -465,17 +504,7 @@ public class BytecodeGenerator {
                 throw Error.invokeOpCodeRequired();
         }
 
-        int stackChange = opCode.getStackChange();
-
-        if (method.getReturnType() != PrimitiveTypes.Void) {
-            ++stackChange;
-        }
-
-        stackChange -= method.getParameters().size();
-
         emit(opCode, method);
-
-        updateStackSize(opCode, stackChange);
     }
 
     // </editor-fold>
@@ -628,9 +657,9 @@ public class BytecodeGenerator {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
         }
 
-        final ParameterList parameters = methodBuilder.getParameters();
+        final TypeList parameterTypes = methodBuilder.getParameterTypes();
 
-        if (index < 0 || index >= parameters.size()) {
+        if (index < 0 || index >= parameterTypes.size()) {
             throw Error.argumentIndexOutOfRange(methodBuilder, index);
         }
 
@@ -644,9 +673,16 @@ public class BytecodeGenerator {
         }
 
         final OpCode opCode = getLocalLoadOpCode(
-            parameters.get(index).getParameterType(),
+            parameterTypes.get(index),
             absoluteIndex
         );
+
+        if (opCode.getOperandType() == OperandType.NoOperands) {
+            emit(opCode);
+        }
+        else {
+            emit(opCode, absoluteIndex);
+        }
     }
 
     protected void emitLoad(final Type<?> type, final int absoluteIndex) {
@@ -677,9 +713,9 @@ public class BytecodeGenerator {
             throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
         }
 
-        final ParameterList parameters = methodBuilder.getParameters();
+        final TypeList parameterTypes = methodBuilder.getParameterTypes();
 
-        if (index < 0 || index >= parameters.size()) {
+        if (index < 0 || index >= parameterTypes.size()) {
             throw Error.argumentIndexOutOfRange(methodBuilder, index);
         }
 
@@ -693,9 +729,16 @@ public class BytecodeGenerator {
         }
 
         final OpCode opCode = getLocalStoreOpCode(
-            parameters.get(index).getParameterType(),
+            parameterTypes.get(index),
             absoluteIndex
         );
+
+        if (opCode.getOperandType() == null) {
+            emit(opCode);
+        }
+        else {
+            emit(opCode, absoluteIndex);
+        }
     }
 
     protected void emitStore(final Type<?> type, final int absoluteIndex) {
@@ -881,7 +924,7 @@ public class BytecodeGenerator {
             if (!methodBuilder.isStatic()) {
                 ++index;
             }
-            index += methodBuilder.getParameters().size();
+            index += methodBuilder.getParameterTypes().size();
         }
 
         return index;
@@ -1682,6 +1725,7 @@ public class BytecodeGenerator {
             _bytecodeStream.putByte((byte)((opCode.getCode() >> 0) & 0xFF));
         }
         updateStackSize(opCode, opCode.getStackChange());
+        System.out.println(opCode.name());
     }
 
     static byte getByteOperand(final byte[] codes, final int index) {

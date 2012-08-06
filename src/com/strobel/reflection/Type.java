@@ -20,7 +20,11 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
 import java.nio.charset.Charset;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * @author Mike Strobel
@@ -34,7 +38,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     // CONSTANTS                                                                                                          //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static final Binder DefaultBinder = null;
+    public static final Binder DefaultBinder = new DefaultBinder();
     public static final char Delimiter = '.';
     public static final Missing Value = new Missing();
     public static final Type[] EmptyTypes = new Type[0];
@@ -167,6 +171,18 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     public Class<T> getErasedClass() {
         return getCache().getErasedClass();
+    }
+
+    public T newInstance() {
+        if (Helper.isReifiable(this)) {
+            try {
+                return getErasedClass().newInstance();
+            }
+            catch (Throwable t) {
+                throw Error.typeInstantiationFailed(this, t);
+            }
+        }
+        throw Error.typeCannotBeInstantiated(this);
     }
 
     public MethodInfo getDeclaringMethod() {
@@ -974,9 +990,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     private ErasedType<T> _erasedType;
 
     public final Type<T> getErasedType() {
-        if (isGenericType() && !isGenericTypeDefinition()) {
+        if (!isGenericType()) {
+            return this;
+        }
+
+        if (!isGenericTypeDefinition()) {
             return getGenericTypeDefinition().getErasedType();
         }
+
         if (_erasedType == null) {
             synchronized (CACHE_LOCK) {
                 //noinspection ConstantConditions
@@ -1061,6 +1082,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
      */
     public String getSignature() {
         return getCache().getSignature();
+    }
+
+    /**
+     * Method that returns full generic signature of the type; suitable
+     * as signature for things like ASM package.
+     */
+    public String getGenericSignature() {
+        return getCache().getGenericSignature();
     }
 
     /**
@@ -1194,7 +1223,65 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public StringBuilder appendSignature(final StringBuilder sb) {
+        if (isGenericParameter()) {
+            sb.append('T');
+            sb.append(getName());
+            sb.append(';');
+            return sb;
+        }
+
         return _appendClassSignature(sb);
+    }
+
+    public StringBuilder appendGenericSignature(final StringBuilder sb) {
+        StringBuilder s = sb;
+
+        if (isGenericParameter()) {
+            final Type<?> extendsBound = getExtendsBound();
+
+            s.append(getName());
+
+            if (extendsBound.isInterface()) {
+                s.append(':');
+            }
+
+            s.append(':');
+            s = extendsBound.appendSignature(s);
+
+            return s;
+        }
+
+        if (isGenericType()) {
+            final TypeList genericParameters = getTypeBindings().getBoundTypes();
+            final int count = genericParameters.size();
+
+            if (count > 0) {
+                s.append('<');
+                //noinspection ForLoopReplaceableByForEach
+                for (int i = 0; i < count; ++i) {
+                    s = genericParameters.get(i).appendGenericSignature(s);
+                }
+                s.append('>');
+            }
+        }
+
+        final Type baseType = getBaseType();
+        final TypeList interfaces = getInterfaces();
+
+        if (baseType == null) {
+            if (interfaces.isEmpty()) {
+                s = Types.Object.appendSignature(s);
+            }
+        }
+        else {
+            s = baseType.appendSignature(s);
+        }
+
+        for (final Type interfaceType : interfaces) {
+            s = interfaceType.appendSignature(s);
+        }
+
+        return s;
     }
 
     public StringBuilder appendErasedSignature(final StringBuilder sb) {
@@ -1218,7 +1305,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 s.append('<');
                 //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < count; ++i) {
-                    s = genericParameters.get(i).appendErasedSignature(s);
+                    s = genericParameters.get(i).appendSignature(s);
                 }
                 s.append('>');
             }
@@ -1257,8 +1344,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     protected StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
-        final Package classPackage = getPackage();
-
         if (!fullName) {
             return sb.append(getClassSimpleName());
         }
@@ -1270,31 +1355,24 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         final int start;
+        final int packageEnd = name.lastIndexOf('.');
 
-        if (classPackage != null) {
-            final String packageName = classPackage.getName();
-            if (packageName.length() != 0) {
-                for (int i = 0, n = packageName.length(); i < n; i++) {
-                    char c = name.charAt(i);
-                    if (c == '.') {
-                        c = '/';
-                    }
-                    sb.append(c);
+        if (packageEnd >= 0) {
+            for (int i = 0; i < packageEnd; i++) {
+                char c = name.charAt(i);
+                if (c == '.') {
+                    c = '/';
                 }
-                sb.append('/');
-                start = packageName.length() + 1;
+                sb.append(c);
             }
-            else {
-                start = 0;
-            }
+            sb.append('/');
+            start = packageEnd + 1;
         }
         else {
             start = 0;
         }
 
-        sb.append(name, start, name.length());
-
-        return sb;
+        return sb.append(name, start, name.length());
     }
 
     // </editor-fold>
@@ -1306,10 +1384,11 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     final static Object CACHE_LOCK = new Object();
+    final static JavacFileManager FILE_MANAGER;
+    final static JavaCompiler COMPILER;
     final static TypeCache CACHE;
     final static Context CONTEXT;
     final static Resolver RESOLVER;
-    final static JavaCompiler COMPILER;
     final static Type<?>[] PRIMITIVE_TYPES;
 
     static {
@@ -1318,7 +1397,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
             final Context context = new Context();
 
-            new JavacFileManager(context, true, Charset.defaultCharset());
+            FILE_MANAGER = new JavacFileManager(context, true, Charset.defaultCharset());
+
             com.sun.tools.javac.code.Types.instance(context);
             Resolve.instance(context);
             Names.instance(context);
@@ -1352,13 +1432,24 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 return reflectedType;
             }
 
-            final Symbol.ClassSymbol symbol = (Symbol.ClassSymbol)COMPILER.resolveIdent(clazz.getCanonicalName());
-            loadAncestors(symbol);
+            Symbol symbol = COMPILER.resolveIdent(
+                clazz.getCanonicalName()
+            );
 
-            final Type<T> resolvedType = (Type<T>)RESOLVER.visit(symbol, null);
+            if (!(symbol instanceof Symbol.ClassSymbol)) {
+                symbol = COMPILER.resolveBinaryNameOrIdent(clazz.getCanonicalName().replace('.', '/'));
+            }
 
-            if (resolvedType != null) {
-                return resolvedType;
+            if (symbol instanceof Symbol.ClassSymbol) {
+                final Symbol.ClassSymbol classSymbol = (Symbol.ClassSymbol)symbol;
+
+                loadAncestors(classSymbol);
+
+                final Type<T> resolvedType = (Type<T>)RESOLVER.visit(classSymbol, null);
+
+                if (resolvedType != null) {
+                    return resolvedType;
+                }
             }
 
             throw Error.couldNotResolveType(clazz);
@@ -1813,6 +1904,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                     if (!lastParameterType.isArray()) {
                         return false;
                     }
+                }
+                else {
+                    return false;
                 }
             }
             else if (bindingFlags.contains(BindingFlags.ExactBinding) && !bindingFlags.contains(BindingFlags.InvokeMethod)) {

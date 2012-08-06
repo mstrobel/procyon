@@ -1,8 +1,10 @@
 package com.strobel;
 
+import com.strobel.expressions.ExpressionList;
 import com.strobel.expressions.LambdaExpression;
 import com.strobel.expressions.ParameterExpression;
 import com.strobel.reflection.*;
+import com.strobel.reflection.emit.*;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.main.JavaCompiler;
@@ -11,7 +13,9 @@ import com.sun.tools.javac.util.Context;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.Serializable;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -24,11 +28,20 @@ import static com.strobel.expressions.Expression.*;
 @SuppressWarnings("UnusedDeclaration")
 public class Test {
     public static void main(final String[] args) {
-        compilerToolsTest();
-        primitiveTest();
-        expressionTest();
-        genericMethodTest();
-        arrayTypeTest();
+        testTypeBuilder();
+//        compilerToolsTest();
+//        testGenericSignatures();
+//        primitiveTest();
+//        expressionTest();
+//        genericMethodTest();
+//        arrayTypeTest();
+    }
+
+    private static void testGenericSignatures() {
+        System.out.println(Type.of(HashMap.class).getGenericSignature());
+        System.out.println(Type.of(ExpressionList.class).getGenericSignature());
+        System.out.println(Type.of(ITest2.class).getGenericSignature());
+        System.out.println(Type.of(ITest3.class).getGenericSignature());
     }
 
     private static void compilerToolsTest() {
@@ -137,6 +150,7 @@ public class Test {
     }
 
     private static class NullTree extends JCTree {
+
         @Override
         public Tag getTag() {
             return Tag.NO_TAG;
@@ -156,6 +170,61 @@ public class Test {
             return Kind.NULL_LITERAL;
         }
     }
+
+    private static void testTypeBuilder() {
+        final TypeBuilder<ITest3<String, String>> t = new TypeBuilder<>(
+            "com.strobel.MyTest2",
+            Modifier.PUBLIC | Modifier.FINAL,
+            Types.Object,
+            Type.list(Type.of(ITest3.class).makeGenericType(Types.String, Types.String))
+        );
+
+        final ConstructorBuilder ctor = t.defineConstructor(
+            Modifier.PUBLIC,
+            TypeList.empty()
+        );
+
+        final MethodBuilder testMethod = t.defineMethod(
+            "test",
+            Modifier.PUBLIC,
+            Types.String,
+            Type.list(Types.String)
+        );
+
+        final MethodBuilder testBridge = t.defineMethod(
+            "test",
+            Modifier.PUBLIC | Modifier.VOLATILE | 0x00000040,
+            Types.Comparable,
+            Type.list(Types.Comparable)
+        );
+
+        BytecodeGenerator gen = ctor.getCodeGenerator();
+
+        gen.emitThis();
+        gen.call(Types.Object.getConstructor());
+        gen.emit(OpCode.RETURN);
+
+        gen = testMethod.getCodeGenerator();
+
+        gen.getField(Type.of(System.class).getField("out"));
+        gen.emitLoadArgument(0);
+        gen.call(Type.of(PrintStream.class).getMethod("println", BindingFlags.PublicInstanceExact, Types.String));
+        gen.emitLoadArgument(0);
+        gen.emit(OpCode.ARETURN);
+
+        gen = testBridge.getCodeGenerator();
+
+        gen.emitThis();
+        gen.emitLoadArgument(0);
+        gen.emit(OpCode.CHECKCAST, Types.String);
+        gen.call(testMethod);
+        gen.emit(OpCode.ARETURN);
+
+        final Type<ITest3<String, String>> generatedType = t.createType();
+        final ITest3<String, String> instance = generatedType.newInstance();
+
+        instance.test("HOLY FREAKIN' CRAP!");
+    }
 }
 
 interface ITest {
@@ -166,3 +235,4 @@ interface ITest2<T extends String & Comparable<String> & Serializable, T2 extend
     T2 test(final T t);
     <X, Y> Y doSomething(X o);
 }
+

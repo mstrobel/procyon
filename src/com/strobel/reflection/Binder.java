@@ -1,5 +1,6 @@
 package com.strobel.reflection;
 
+import com.strobel.core.ArrayUtilities;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
@@ -31,4 +32,18 @@ public abstract class Binder {
     }
 
     public abstract MethodBase selectMethod(final Set<BindingFlags> bindingFlags, final MethodBase[] matches, final Type[] parameterTypes);
+}
+
+final class DefaultBinder extends Binder {
+
+    @Override
+    public MethodBase selectMethod(final Set<BindingFlags> bindingFlags, final MethodBase[] matches, final Type[] parameterTypes) {
+        if (ArrayUtilities.isNullOrEmpty(matches)) {
+            return null;
+        }
+        if (matches.length == 1) {
+            return matches[0];
+        }
+        throw Error.ambiguousMatch();
+    }
 }

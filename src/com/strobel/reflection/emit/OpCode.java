@@ -314,6 +314,14 @@ public enum OpCode {
             case RET:
                 return true;
 
+            case IRETURN:
+            case LRETURN:
+            case FRETURN:
+            case DRETURN:
+            case ARETURN:
+            case RETURN:
+                return true;
+
             case ATHROW:
                 return true;
 
@@ -507,9 +515,9 @@ public enum OpCode {
         /* DRETURN */ -2,
         /* ARETURN */ -1,
         /* RETURN */ 0,
-        /* GETSTATIC */ 0,
-        /* PUTSTATIC */ 0,
-        /* GETFIELD */ -1,
+        /* GETSTATIC */ 1,
+        /* PUTSTATIC */ -1,
+        /* GETFIELD */ 1,
         /* PUTFIELD */ -1,
         /* INVOKEVIRTUAL */ -1,         // pops 'this' (unless static)
         /* INVOKESPECIAL */ -1,         // but needs to account for

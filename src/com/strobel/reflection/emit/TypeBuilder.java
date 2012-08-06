@@ -8,17 +8,22 @@ import com.strobel.reflection.*;
 import com.strobel.util.TypeUtils;
 import sun.misc.Unsafe;
 
+import java.io.ByteArrayOutputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * @author strobelm
  */
 @SuppressWarnings({"unchecked", "PackageVisibleField"})
 public final class TypeBuilder<T> extends Type<T> {
+    private final static Pattern PACKAGE_DELIMITER = Pattern.compile("\\.");
+
     final ConstantPool constantPool;
     final ArrayList<ConstructorBuilder> constructorBuilders;
     final ArrayList<MethodBuilder> methodBuilders;
@@ -47,6 +52,7 @@ public final class TypeBuilder<T> extends Type<T> {
     private TypeBuilder _genericTypeDefinition;
     private TypeBindings _typeBindings;
     private ReadOnlyList<AnnotationBuilder> _annotations;
+    private final ProtectionDomain _protectionDomain;
 
     // <editor-fold defaultstate="collapsed" desc="Constructors and Initializers">
 
@@ -79,6 +85,8 @@ public final class TypeBuilder<T> extends Type<T> {
         _fields = FieldList.empty();
         _typeBindings = TypeBindings.empty();
         _annotations = ReadOnlyList.emptyList();
+
+        _protectionDomain = CallerResolver.getCallerClass(2).getProtectionDomain();
     }
 
     TypeBuilder(final String name, final int genericParameterPosition, final TypeBuilder declaringType) {
@@ -173,7 +181,7 @@ public final class TypeBuilder<T> extends Type<T> {
             _name = fullName.substring(lastDotIndex + 1);
         }
 
-        _modifiers = modifiers;
+        _modifiers = modifiers & Modifier.classModifiers();
 
         setBaseType(baseType);
         setInterfaces(interfaces);
@@ -418,7 +426,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
     @Override
     public TypeList getNestedTypes(final Set<BindingFlags> bindingFlags) {
-        verifyNotCreated();
+        verifyCreated();
         return _generatedType.getNestedTypes(bindingFlags);
     }
 
@@ -488,7 +496,7 @@ public final class TypeBuilder<T> extends Type<T> {
         return _hasBeenCreated;
     }
 
-    public synchronized Type<?> createType() {
+    public synchronized Type<T> createType() {
         return createTypeNoLock();
     }
 
@@ -500,7 +508,7 @@ public final class TypeBuilder<T> extends Type<T> {
         verifyNotCreated();
 
         final ConstructorBuilder constructor = new ConstructorBuilder(
-            modifiers,
+            modifiers & Modifier.constructorModifiers(),
             parameterTypes,
             this
         );
@@ -528,7 +536,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
         final MethodBuilder method = new MethodBuilder(
             name,
-            modifiers,
+            modifiers & Modifier.methodModifiers(),
             returnType,
             parameterTypes,
             this
@@ -584,7 +592,7 @@ public final class TypeBuilder<T> extends Type<T> {
             this,
             name,
             type,
-            modifiers,
+            modifiers & Modifier.fieldModifiers(),
             constantValue
         );
 
@@ -633,6 +641,10 @@ public final class TypeBuilder<T> extends Type<T> {
         return (short)(constantPool.getStringConstant(value).index & 0xFFFF);
     }
 
+    short getUtf8StringToken(final String value) {
+        return (short)(constantPool.getUtf8StringConstant(value).index & 0xFFFF);
+    }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Type Generation Methods">
@@ -655,10 +667,7 @@ public final class TypeBuilder<T> extends Type<T> {
             }
         }
 
-        final BytecodeStream classStream = new BytecodeStream(1024);
-
         byte[] body;
-        int maxStack;
 
         final int methodCount = methodBuilders.size();
 
@@ -679,41 +688,46 @@ public final class TypeBuilder<T> extends Type<T> {
             else {
                 if (method.generator != null) {
                     method.createMethodBodyHelper(method.getCodeGenerator());
+                    body = method.getBody();
                 }
 
                 if (body == null || body.length == 0) {
                     throw Error.methodHasEmptyBody(method);
                 }
             }
-
-            if (method.generator != null) {
-                maxStack = method.generator.getMaxStackSize() + method.getNumberOfExceptions();
-            }
-            else {
-                // In case the body was set directly with createMethodBody() instead of going
-                // through the bytecode generator...
-                maxStack = 16;
-            }
-
-            final __ExceptionInstance[] Exceptions = method.getExceptionInstances();
-
-            // TODO: Write method body to class stream.
-
-            method.releaseBakedStructures();
         }
 
-        _hasBeenCreated = true;
+        try (final ByteArrayOutputStream outputStream = new ByteArrayOutputStream(1024)) {
+            new ClassWriter(this).writeClass(outputStream);
 
-        _generatedClass = (Class<T>)getUnsafeInstance().defineClass(
-            getInternalName(),
-            classStream.getData(),
-            0,
-            classStream.getLength()
-        );
+            final String fullName = getClassFullName();
+            final byte[] classBytes = outputStream.toByteArray();
 
-        _generatedType = Type.of(_generatedClass);
+            _hasBeenCreated = true;
 
-        updateMembersWithGeneratedReferences();
+            _generatedClass = (Class<T>)getUnsafeInstance().defineClass(
+                fullName,
+                classBytes,
+                0,
+                classBytes.length,
+                ClassLoader.getSystemClassLoader(),
+                _protectionDomain
+            );
+
+            _generatedType = Type.of(_generatedClass);
+        }
+        catch (Throwable e) {
+            throw Error.classGenerationFailed(this, e);
+        }
+        finally {
+            if (_generatedType != null) {
+                updateMembersWithGeneratedReferences();
+            }
+
+            for (int i = 0; i < methodCount; i++) {
+                methodBuilders.get(i).releaseBakedStructures();
+            }
+        }
 
         return _generatedType;
     }
@@ -728,8 +742,10 @@ public final class TypeBuilder<T> extends Type<T> {
         }
 
         for (int i = 0, n = methodBuilders.size(); i < n; i++) {
-            methodBuilders.get(i).generatedMethod = generatedMethods.get(i);
+            final MethodBuilder method = methodBuilders.get(i);
+            method.generatedMethod = generatedMethods.get(i);
         }
+
         for (int i = 0, n = constructorBuilders.size(); i < n; i++) {
             constructorBuilders.get(i).generatedConstructor = generatedConstructors.get(i);
         }

@@ -298,4 +298,15 @@ final class Error {
             format("Type '%s' is not an annotation.", type.getName())
         );
     }
+
+    public static RuntimeException classGenerationFailed(final TypeBuilder<?> t, final Throwable e) {
+        return new IllegalStateException(
+            format("Class generation failed for type '%s'.", t.getName()),
+            e
+        );
+    }
+
+    public static RuntimeException onlyAnnotationMethodsCanHaveDefaultValues() {
+        return new IllegalStateException("Only annotation methods can have default values.");
+    }
 }

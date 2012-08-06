@@ -1,10 +1,7 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.core.ReadOnlyList;
-import com.strobel.reflection.ConstructorInfo;
-import com.strobel.reflection.ParameterList;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.TypeList;
+import com.strobel.reflection.*;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -50,6 +47,60 @@ public final class ConstructorBuilder extends ConstructorInfo {
     public Constructor<?> getRawConstructor() {
         verifyTypeCreated();
         return null;
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        final TypeList parameterTypes = getParameterTypes();
+
+        StringBuilder s = sb;
+        s.append('(');
+
+        for (int i = 0, n = parameterTypes.size(); i < n; ++i) {
+            s = parameterTypes.get(i).getErasedType().appendErasedSignature(s);
+        }
+
+        s.append(')');
+        s = PrimitiveTypes.Void.appendErasedSignature(s);
+
+        return s;
+    }
+
+    @Override
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        StringBuilder s = PrimitiveTypes.Void.appendBriefDescription(sb);
+
+        s.append(' ');
+        s.append(getName());
+        s.append('(');
+
+        final ParameterBuilder[] parameters = _methodBuilder.parameterBuilders;
+
+        for (int i = 0, n = parameters.length; i < n; ++i) {
+            final ParameterBuilder p = parameters[i];
+            if (i != 0) {
+                s.append(", ");
+            }
+            s = p.getParameterType().appendSimpleDescription(s);
+        }
+
+        s.append(')');
+
+        final TypeList thrownTypes = getThrownTypes();
+
+        if (!thrownTypes.isEmpty()) {
+            s.append(" throws ");
+
+            for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
+                final Type t = thrownTypes.get(i);
+                if (i != 0) {
+                    s.append(", ");
+                }
+                s = t.appendSimpleDescription(s);
+            }
+        }
+
+        return s;
     }
 
     @Override

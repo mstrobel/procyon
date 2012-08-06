@@ -42,6 +42,16 @@ public final class CompoundType<T> extends Type<T> {
     }
 
     @Override
+    public Type getBaseType() {
+        return _baseType;
+    }
+
+    @Override
+    public TypeList getInterfaces() {
+        return _interfaces;
+    }
+
+    @Override
     public Class<T> getErasedClass() {
         return _baseType.getErasedClass();
     }
@@ -160,7 +170,21 @@ public final class CompoundType<T> extends Type<T> {
 
     @Override
     public StringBuilder appendSignature(final StringBuilder sb) {
-        return super.appendSignature(sb);
+        StringBuilder s = sb;
+
+        if (_baseType != null && _baseType != Types.Object)
+            s = _baseType.appendSignature(s);
+
+        if (_interfaces.isEmpty())
+            return s;
+
+        s.append(':');
+
+        for (final Type interfaceType : _interfaces) {
+            s = interfaceType.appendSignature(s);
+        }
+
+        return s;
     }
 
     @Override

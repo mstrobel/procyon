@@ -17,18 +17,27 @@ import java.util.HashMap;
 /**
  * @author strobelm
  */
-@SuppressWarnings( { "PublicField", "ProtectedField" })
+@SuppressWarnings({"PublicField", "ProtectedField"})
 final class ConstantPool {
+    private final static Writer WRITER = new Writer();
 
     private final ArrayList<Entry> _pool = new ArrayList<>();
     private final HashMap<Key, Entry> _entryMap = new HashMap<>();
     private final Key _lookupKey = new Key();
     private final Key _newKey = new Key();
 
-    public Entry get(final int index) {
-        VerifyArgument.inRange(index, 0, _pool.size(), "index");
+    public void write(final BytecodeStream stream) {
+        stream.putShort(_pool.size() + 1);
 
-        final Entry info = _pool.get(index);
+        for (final Entry entry : _pool) {
+            entry.accept(WRITER, stream);
+        }
+    }
+
+    public Entry get(final int index) {
+        VerifyArgument.inRange(0, _pool.size() + 1, index, "index");
+
+        final Entry info = _pool.get(index - 1);
 
         if (info == null) {
             throw new IndexOutOfBoundsException();
@@ -38,9 +47,9 @@ final class ConstantPool {
     }
 
     public Entry get(final int index, final Tag expectedType) {
-        VerifyArgument.inRange(index, 0, _pool.size(), "index");
+        VerifyArgument.inRange(0, _pool.size() + 1, index, "index");
 
-        final Entry entry = get(index);
+        final Entry entry = get(index - 1);
         final Tag actualType = entry.getTag();
 
         if (actualType != expectedType) {
@@ -223,7 +232,7 @@ final class ConstantPool {
 
         Entry(final ConstantPool owner) {
             this.owner = owner;
-            this.index = owner._pool.size();
+            this.index = owner._pool.size() + 1;
             owner._pool.add(this);
         }
 
@@ -327,6 +336,127 @@ final class ConstantPool {
         R visitUtf8StringConstant(Utf8StringConstant info, P p);
     }
 
+    private final static class Writer implements Visitor<Void, BytecodeStream> {
+
+        @Override
+        public Void visitTypeInfo(final TypeInfo info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putShort(info.nameIndex);
+            return null;
+        }
+
+        @Override
+        public Void visitDoubleConstant(final DoubleConstant info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putDouble(info.value);
+            return null;
+        }
+
+        @Override
+        public Void visitFieldReference(final FieldReference info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putShort(info.typeInfoIndex);
+            bytecodeStream.putShort(info.nameAndTypeDescriptorIndex);
+            return null;
+        }
+
+        @Override
+        public Void visitFloatConstant(final FloatConstant info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putFloat(info.value);
+            return null;
+        }
+
+        @Override
+        public Void visitIntegerConstant(final IntegerConstant info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putInt(info.value);
+            return null;
+        }
+
+        @Override
+        public Void visitInterfaceMethodReference(final InterfaceMethodReference info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putShort(info.typeInfoIndex);
+            bytecodeStream.putShort(info.nameAndTypeDescriptorIndex);
+            return null;
+        }
+
+        @Override
+        public Void visitInvokeDynamicInfo(final InvokeDynamicInfo info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putShort(info.bootstrapMethodAttributeIndex);
+            bytecodeStream.putShort(info.nameAndTypeDescriptorIndex);
+            return null;
+        }
+
+        @Override
+        public Void visitLongConstant(final LongConstant info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putLong(info.value);
+            return null;
+        }
+
+        @Override
+        public Void visitNameAndTypeDescriptor(final NameAndTypeDescriptor info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putShort(info.nameIndex);
+            bytecodeStream.putShort(info.typeDescriptorIndex);
+            return null;
+        }
+
+        @Override
+        public Void visitMethodReference(final MethodReference info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putShort(info.typeInfoIndex);
+            bytecodeStream.putShort(info.nameAndTypeDescriptorIndex);
+            return null;
+        }
+
+        @Override
+        public Void visitMethodHandle(final MethodHandle info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putShort(info.referenceKind.ordinal());
+            bytecodeStream.putShort(info.referenceIndex);
+            return null;
+        }
+
+        @Override
+        public Void visitMethodType(final MethodType info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putShort(info.descriptorIndex);
+            return null;
+        }
+
+        @Override
+        public Void visitStringConstant(final StringConstant info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putShort(info.stringIndex);
+            return null;
+        }
+
+        @Override
+        public Void visitUtf8StringConstant(final Utf8StringConstant info, final BytecodeStream bytecodeStream) {
+            System.out.println(info);
+            bytecodeStream.putByte(info.getTag().value);
+            bytecodeStream.putUTF8(info.value);
+            return null;
+        }
+    }
+
     public static final class TypeInfo extends Entry {
         public final int nameIndex;
 
@@ -355,6 +485,11 @@ final class ConstantPool {
         @Override
         public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
             return visitor.visitTypeInfo(this, data);
+        }
+
+        @Override
+        public String toString() {
+            return "TypeIndex[index: " + index + ", nameIndex: " + nameIndex + "]";
         }
     }
 
@@ -386,6 +521,11 @@ final class ConstantPool {
         @Override
         public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
             return visitor.visitMethodType(this, data);
+        }
+
+        @Override
+        public String toString() {
+            return "MethodType[index: " + index + ", descriptorIndex: " + descriptorIndex + "]";
         }
     }
 
@@ -426,9 +566,13 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return getClass().getSimpleName() +
-                   "[typeDescriptorIndex: " + typeInfoIndex + ", " +
-                   "nameAndTypeDescriptorIndex: " + nameAndTypeDescriptorIndex + "]";
+            return getClass().getSimpleName() + "[index: " +
+                   index +
+                   ", typeInfoIndex: " +
+                   this.typeInfoIndex +
+                   ", nameAndTypeDescriptorIndex: " +
+                   this.nameAndTypeDescriptorIndex +
+                   "]";
         }
     }
 
@@ -544,7 +688,7 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "NameAndTypeDescriptor[descriptorIndex: " + nameIndex + ", typeDescriptorIndex: " + typeDescriptorIndex + "]";
+            return "NameAndTypeDescriptor[index: " + index + ", descriptorIndex: " + nameIndex + ", typeDescriptorIndex: " + typeDescriptorIndex + "]";
         }
     }
 
@@ -625,7 +769,7 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "DoubleConstant[value: " + value + "]";
+            return "DoubleConstant[index: " + index + ", value: " + value + "]";
         }
     }
 
@@ -657,7 +801,7 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "FloatConstant[value: " + value + "]";
+            return "FloatConstant[index: " + index + ", value: " + value + "]";
         }
     }
 
@@ -689,7 +833,7 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "IntegerConstant[value: " + value + "]";
+            return "IntegerConstant[index: " + index + ", value: " + value + "]";
         }
     }
 
@@ -726,7 +870,7 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "LongConstant[value: " + value + "]";
+            return "LongConstant[index: " + index + ", value: " + value + "]";
         }
     }
 
@@ -762,7 +906,7 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "StringConstant[stringIndex: " + stringIndex + "]";
+            return "StringConstant[index: " + index + ", stringIndex: " + stringIndex + "]";
         }
     }
 
@@ -812,7 +956,7 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "Utf8StringConstant[value: " + value + "]";
+            return "Utf8StringConstant[index: " + index + ", value: " + value + "]";
         }
     }
 

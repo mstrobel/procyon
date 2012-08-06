@@ -6,6 +6,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.*;
 import com.strobel.util.TypeUtils;
 import com.sun.tools.javac.code.Flags;
+import com.sun.tools.javac.jvm.Target;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -21,6 +22,8 @@ import static com.sun.tools.javac.code.Flags.*;
  */
 @SuppressWarnings("MismatchedReadAndWriteOfArray")
 final class ClassWriter {
+    private final static int JAVA_MAGIC = 0xCAFEBABE;
+
     private final static int DATA_BUFFER_SIZE = 0x0fff0;
     private final static int POOL_BUFFER_SIZE = 0x1fff0;
 
@@ -56,14 +59,6 @@ final class ClassWriter {
 
         final Type<?> baseType = t.getBaseType();
         final TypeList interfaceTypes = t.getInterfaces();
-        final TypeList typeArguments;
-
-        if (t.isGenericType()) {
-            typeArguments = t.getGenericTypeParameters();
-        }
-        else {
-            typeArguments = TypeList.empty();
-        }
 
         int flags = t.getModifiers();
 
@@ -108,11 +103,55 @@ final class ClassWriter {
 
         writeMethods();
 
-        // other shite...
+        final int attributeCountIndex = beginAttributes();
+        int attributeCount = 0;
+
+        boolean signatureRequired = t.isGenericType() ||
+                                    baseType != null && baseType.containsGenericParameters();
+
+        if (!signatureRequired) {
+            for (final Type interfaceType : interfaceTypes) {
+                signatureRequired |= interfaceType.containsGenericParameters();
+            }
+        }
+
+        if (signatureRequired) {
+            final int attributeLengthIndex = writeAttribute("Signature");
+
+            _dataBuffer.putShort(t.getStringToken(t.getGenericSignature()));
+
+            endAttribute(attributeLengthIndex);
+            attributeCount++;
+        }
+
+        attributeCount += writeFlagAttributes(flags);
+        attributeCount += writeJavaAnnotations(t.getCustomAnnotations());
+//        attributeCount += writeEnclosingMethodAttribute(t);
+
+        _poolBuffer.putInt(JAVA_MAGIC);
+        _poolBuffer.putShort(Target.JDK1_7.minorVersion);
+        _poolBuffer.putShort(Target.JDK1_7.majorVersion);
+
+        t.constantPool.write(_poolBuffer);
+
+/*
+        final TypeList nestedTypes = t.getNestedTypes(BindingFlags.AllDeclared);
+
+        if (!nestedTypes.isEmpty()) {
+            writeInnerTypes();
+            attributeCount++;
+        }
+*/
+
+        endAttributes(attributeCountIndex, attributeCount);
 
         _poolBuffer.putByteArray(_dataBuffer.getData(), 0, _dataBuffer.getLength());
 
         out.write(_poolBuffer.getData(), 0, _poolBuffer.getLength());
+    }
+
+    private void writeInnerTypes() {
+        // TODO: Write inner types.
     }
 
     private void writeFields() {
@@ -188,10 +227,11 @@ final class ClassWriter {
         final TypeBuilder<?> t = _typeBuilder;
 
         _dataBuffer.putShort(method.getModifiers());
-        _dataBuffer.putShort(t.getStringToken(method.getErasedSignature()));
+        _dataBuffer.putShort(t.getUtf8StringToken(method.getName()));
+        _dataBuffer.putShort(t.getUtf8StringToken(method.getErasedSignature()));
 
         int attributeCount = 0;
-        final int attributeCountIndex = 0;
+        final int attributeCountIndex = beginAttributes();
 
         final byte[] body = method.getBody();
 
@@ -217,7 +257,7 @@ final class ClassWriter {
             attributeCount++;
         }
 
-        final Object defaultValue = method.getRawMethod().getDefaultValue();
+        final Object defaultValue = method.getDefaultValue();
 
         if (defaultValue != null) {
             final int attributeLengthIndex = writeAttribute("AnnotationDefault");
@@ -238,7 +278,6 @@ final class ClassWriter {
         _dataBuffer.putShort(generator.getMaxStackSize());
 
         int maxLocals = generator.localCount;
-
         if (!method.isStatic()) {
             maxLocals += 1;
         }
@@ -254,35 +293,40 @@ final class ClassWriter {
 
         _dataBuffer.putByteArray(body, 0, body.length);
 
-        __ExceptionInstance[] exceptions = method.getExceptionInstances();
+        final __ExceptionInfo[] exceptionsInfo = generator.getExceptions();
 
-        _dataBuffer.putShort(exceptions.length);
+        if (exceptionsInfo != null) {
+            _dataBuffer.putShort(exceptionsInfo.length);
 
-        // TODO: Some of these addresses might be wide; put them in the constants table.
+            // TODO: Some of these addresses might be wide; put them in the constants table.
 
-        for (final __ExceptionInfo exception : generator.getExceptions()) {
-            final int[] catchAddresses = exception.getCatchAddresses();
-            final int[] catchEndAddresses = exception.getCatchEndAddresses();
-            final Type[] catchTypes = exception.getCatchClass();
-            final int[] finallyAddresses = exception.getFilterAddresses();
+            for (final __ExceptionInfo exception : exceptionsInfo) {
+                final int[] catchAddresses = exception.getCatchAddresses();
+                final int[] catchEndAddresses = exception.getCatchEndAddresses();
+                final Type[] catchTypes = exception.getCatchClass();
+                final int[] finallyAddresses = exception.getFilterAddresses();
 
-            final int end = catchEndAddresses.length == 0
-                            ? exception.getEndAddress()
-                            : catchEndAddresses[catchEndAddresses.length - 1];
+                final int end = catchEndAddresses.length == 0
+                                ? exception.getEndAddress()
+                                : catchEndAddresses[catchEndAddresses.length - 1];
 
-            for (int i = 0, n = catchAddresses.length; i < n; i++) {
-                _dataBuffer.putShort(exception.getStartAddress());
-                _dataBuffer.putShort(exception.getEndAddress());
-                _dataBuffer.putShort(catchAddresses[i]);
-                _dataBuffer.putShort(_typeBuilder.getTypeToken(catchTypes[i]));
+                for (int i = 0, n = catchAddresses.length; i < n; i++) {
+                    _dataBuffer.putShort(exception.getStartAddress());
+                    _dataBuffer.putShort(exception.getEndAddress());
+                    _dataBuffer.putShort(catchAddresses[i]);
+                    _dataBuffer.putShort(_typeBuilder.getTypeToken(catchTypes[i]));
+                }
+
+                for (final int finallyAddress : finallyAddresses) {
+                    _dataBuffer.putShort(exception.getStartAddress());
+                    _dataBuffer.putShort(end);
+                    _dataBuffer.putShort(finallyAddress);
+                    _dataBuffer.putShort(0);
+                }
             }
-
-            for (final int finallyAddress : finallyAddresses) {
-                _dataBuffer.putShort(exception.getStartAddress());
-                _dataBuffer.putShort(end);
-                _dataBuffer.putShort(finallyAddress);
-                _dataBuffer.putShort(0);
-            }
+        }
+        else {
+            _dataBuffer.putShort(0);
         }
 
         final int attributeCountIndex = beginAttributes();
@@ -305,14 +349,14 @@ final class ClassWriter {
                 final Type<?> localType = local.type;
                 final Type<?> erasedType = localType.getErasedType();
 
-                _dataBuffer.putShort(_typeBuilder.getStringToken(local.name));
+                _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(local.name));
 
                 if (needsLocalVariableTableEntry(localType)) {
                     genericParameterCount++;
                 }
 
-                _dataBuffer.putShort(_typeBuilder.getTypeToken(erasedType));
-                _dataBuffer.putShort(generator.translateLocal(local.position));
+                _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(erasedType.getSignature()));
+                _dataBuffer.putShort(local.position);
             }
 
             endAttribute(attributeLengthIndex);
@@ -335,8 +379,8 @@ final class ClassWriter {
 
                 _dataBuffer.putShort(local.start);
                 _dataBuffer.putShort(local.end - local.start);
-                _dataBuffer.putShort(_typeBuilder.getStringToken(local.name));
-                _dataBuffer.putShort(_typeBuilder.getStringToken(local.type.getSignature()));
+                _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(local.name));
+                _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(local.type.getSignature()));
                 _dataBuffer.putShort(local.position);
             }
 
@@ -371,7 +415,7 @@ final class ClassWriter {
                 builder.getDeclaringType(),
                 position++,
                 0,
-                builder.generator.offset() + 1
+                builder.generator.offset()
             );
 
             localInfo[thisInfo.position] = thisInfo;
@@ -383,22 +427,26 @@ final class ClassWriter {
                 p.getParameterType(),
                 position++,
                 0,
-                builder.generator.offset() + 1
+                builder.generator.offset()
             );
 
             localInfo[pInfo.position] = pInfo;
         }
 
-        for (final LocalBuilder l : builder.generator.locals) {
-            final LocalInfo lInfo = new LocalInfo(
-                l.getName(),
-                l.getLocalType(),
-                position++,
-                l.startOffset < 0 ? 0 : l.startOffset,
-                l.endOffset < 0 ? builder.generator.offset() : l.endOffset
-            );
+        final LocalBuilder[] locals = builder.generator.locals;
 
-            localInfo[lInfo.position] = lInfo;
+        if (locals != null) {
+            for (final LocalBuilder l : locals) {
+                final LocalInfo lInfo = new LocalInfo(
+                    l.getName(),
+                    l.getLocalType(),
+                    position++,
+                    l.startOffset < 0 ? 0 : l.startOffset,
+                    l.endOffset < 0 ? builder.generator.offset() : l.endOffset
+                );
+
+                localInfo[lInfo.position] = lInfo;
+            }
         }
 
         return localInfo;
@@ -449,7 +497,7 @@ final class ClassWriter {
 
             // A local class with captured variables will get a signature attribute.
             final int attributeIndex = writeAttribute("Signature");
-            _dataBuffer.putShort(_typeBuilder.getTypeToken(type));
+            _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(type.getSignature()));
             endAttribute(attributeIndex);
             attributeCount++;
         }
@@ -596,7 +644,7 @@ final class ClassWriter {
     }
 
     private void writeAnnotation(final AnnotationBuilder a) {
-        _dataBuffer.putShort(_typeBuilder.getTypeToken(a.getAnnotationType()));
+        _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(a.getAnnotationType().getSignature()));
         _dataBuffer.putShort(a.getValues().size());
 
         final MethodList attributes = a.getAttributes();
@@ -605,7 +653,7 @@ final class ClassWriter {
         for (int i = 0, n = attributes.size(); i < n; i++) {
             final MethodInfo attribute = attributes.get(i);
             _dataBuffer.putShort(_typeBuilder.getMethodToken(attribute));
-            writeAttributeType(attribute.getReturnType());
+            writeAttributeType(values.get(i));
         }
     }
 
@@ -657,21 +705,21 @@ final class ClassWriter {
             case DECLARED:
                 if (valueType.isEnum()) {
                     _dataBuffer.putByte('e');
-                    _dataBuffer.putShort(_typeBuilder.getTypeToken(valueType));
-                    _dataBuffer.putShort(_typeBuilder.getStringToken(value.toString()));
+                    _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(valueType.getSignature()));
+                    _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(value.toString()));
                 }
                 else if (valueType == Types.String) {
                     _dataBuffer.putByte('s');
-                    _dataBuffer.putShort(_typeBuilder.getStringToken(value.toString()));
+                    _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(value.toString()));
                 }
                 else if (valueType == Types.Class) {
                     final Type<?> type = Type.of((Class<?>)value);
                     _dataBuffer.putByte('c');
-                    _dataBuffer.putShort(_typeBuilder.getStringToken(type.getErasedSignature()));
+                    _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(type.getSignature()));
                 }
                 else if (Type.of(Type.class).isAssignableFrom(valueType)) {
                     _dataBuffer.putByte('c');
-                    _dataBuffer.putShort(_typeBuilder.getStringToken(((Type<?>)value).getErasedSignature()));
+                    _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(((Type<?>)value).getSignature()));
                 }
                 else {
                     _dataBuffer.putByte('@');
@@ -682,7 +730,7 @@ final class ClassWriter {
     }
 
     private int writeAttribute(final String attributeName) {
-        _dataBuffer.putShort(_typeBuilder.getStringToken(attributeName));
+        _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(attributeName));
         _dataBuffer.putInt(0);
         return _dataBuffer.getLength();
     }
@@ -741,12 +789,14 @@ final class ClassWriter {
     // <editor-fold defaultstate="collapsed" desc="Direct Output">
 
     void putChar(final BytecodeStream buf, final int op, final int x) {
+        buf.ensureCapacity(op + 2);
         final byte[] data = buf.getData();
         data[op] = (byte)((x >> 8) & 0xFF);
         data[op + 1] = (byte)((x) & 0xFF);
     }
 
     void putInt(final BytecodeStream buf, final int adr, final int x) {
+        buf.ensureCapacity(adr + 4);
         final byte[] data = buf.getData();
         data[adr] = (byte)((x >> 24) & 0xFF);
         data[adr + 1] = (byte)((x >> 16) & 0xFF);
@@ -771,6 +821,17 @@ final class ClassWriter {
             this.position = position;
             this.start = start;
             this.end = end;
+        }
+
+        @Override
+        public String toString() {
+            return "LocalInfo{" +
+                   "name='" + name + '\'' +
+                   ", type=" + type +
+                   ", position=" + position +
+                   ", start=" + start +
+                   ", end=" + end +
+                   '}';
         }
     }
 

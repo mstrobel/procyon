@@ -12,7 +12,7 @@ public final class StringUtilities {
         throw ContractUtils.unreachable();
     }
 
-    private final static StringComparator[] _comparators = new StringComparator[] { StringComparator.Ordinal, StringComparator.OrdinalIgnoreCase };
+    private final static StringComparator[] _comparators = new StringComparator[]{StringComparator.Ordinal, StringComparator.OrdinalIgnoreCase};
 
     public static boolean isNullOrEmpty(final String s) {
         return s == null || s.length() == 0;
@@ -93,5 +93,61 @@ public final class StringUtilities {
         }
 
         return true;
+    }
+
+    public static String concat(final Iterable<String> values) {
+        return join(null, values);
+    }
+
+    public static String concat(final String... values) {
+        return join(null, values);
+    }
+
+    public static String join(final String separator, final Iterable<String> values) {
+        VerifyArgument.notNull(values, "values");
+
+        final StringBuilder sb = new StringBuilder();
+
+        boolean appendSeparator = false;
+
+        for (final String value : values) {
+            if (value == null) {
+                continue;
+            }
+
+            if (appendSeparator) {
+                sb.append(separator);
+            }
+
+            appendSeparator = true;
+
+            sb.append(value);
+        }
+
+        return sb.toString();
+    }
+
+    public static String join(final String separator, final String... values) {
+        if (ArrayUtilities.isNullOrEmpty(values)) {
+            return EMPTY;
+        }
+
+        final StringBuilder sb = new StringBuilder();
+
+        for (int i = 0, n = values.length; i < n; i++) {
+            final String value = values[i];
+
+            if (value == null) {
+                continue;
+            }
+
+            if (i != 0 && separator != null) {
+                sb.append(separator);
+            }
+
+            sb.append(value);
+        }
+
+        return sb.toString();
     }
 }

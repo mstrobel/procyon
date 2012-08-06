@@ -51,6 +51,7 @@ final class RuntimeTypeCache<T> {
     private String _fullName;
     private String _internalName;
     private String _signature;
+    private String _genericSignature;
     private String _erasedSignature;
     private String _description;
     private String _briefDescription;
@@ -130,6 +131,13 @@ final class RuntimeTypeCache<T> {
             _signature = _runtimeType.appendSignature(new StringBuilder()).toString();
         }
         return _signature;
+    }
+
+    String getGenericSignature() {
+        if (_genericSignature == null) {
+            _genericSignature = _runtimeType.appendGenericSignature(new StringBuilder()).toString();
+        }
+        return _genericSignature;
     }
 
     String getErasedSignature() {

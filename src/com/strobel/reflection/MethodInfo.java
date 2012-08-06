@@ -3,7 +3,6 @@ package com.strobel.reflection;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
-
 import com.sun.tools.javac.code.Flags;
 
 import java.lang.annotation.Annotation;
@@ -27,6 +26,10 @@ public abstract class MethodInfo extends MethodBase {
     }
 
     public abstract Method getRawMethod();
+
+    public Object getDefaultValue() {
+        return getRawMethod().getDefaultValue();
+    }
 
     @Override
     public String getName() {

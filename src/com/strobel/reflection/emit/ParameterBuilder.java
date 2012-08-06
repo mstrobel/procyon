@@ -23,7 +23,7 @@ public final class ParameterBuilder  {
 
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
         _position = position;
-        _name = name;
+        _name = name != null ? name : "p" + position;
         _parameterType = VerifyArgument.notNull(parameterType, "parameterType");
         _annotations = ReadOnlyList.emptyList();
     }

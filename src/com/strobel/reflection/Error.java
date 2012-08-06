@@ -185,4 +185,17 @@ final class Error {
             "Compound types may not be bounded by a generic parameter."
         );
     }
+
+    public static RuntimeException typeCannotBeInstantiated(final Type<?> t) {
+        return new IllegalStateException(
+            format("Type '%s' cannot be instantiated.", t)
+        );
+    }
+
+    public static RuntimeException typeInstantiationFailed(final Type<?> t, final Throwable cause) {
+        return new IllegalStateException(
+            format("Failed to instantiate type '%s'.", t),
+            cause
+        );
+    }
 }

@@ -3,18 +3,17 @@ package com.strobel.reflection;
 import com.strobel.compilerservices.Closure;
 
 import java.io.Serializable;
-import java.lang.*;
 import java.lang.Error;
 import java.lang.annotation.Annotation;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.Date;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * @author Mike Strobel
  */
 public final class Types {
+
     private Types() {}
 
     public static final Type<Object> Object;
@@ -52,8 +51,18 @@ public final class Types {
 
     public static final Type<Serializable> Serializable;
     public static final Type<Cloneable> Cloneable;
+    public static final Type<Comparable> Comparable;
 
     public static final Type<Closure> Closure;
+
+    private static Type<Iterable> Iterable;
+    private static Type<Collection> Collection;
+    private static Type<List> List;
+    private static Type<Set> Set;
+    private static Type<Map> Map;
+    private static Type<ArrayList> ArrayList;
+    private static Type<HashMap> HashMap;
+    private static Type<HashSet> HashSet;
 
     static {
         Object = Type.of(Object.class);
@@ -90,6 +99,16 @@ public final class Types {
 
         Serializable = Type.of(Serializable.class);
         Cloneable = Type.of(Cloneable.class);
+        Comparable = Type.of(Comparable.class);
+
+        Iterable = Type.of(Iterable.class);
+        Collection = Type.of(Collection.class);
+        List = Type.of(List.class);
+        Set = Type.of(Set.class);
+        Map = Type.of(Map.class);
+        ArrayList = Type.of(ArrayList.class);
+        HashMap = Type.of(HashMap.class);
+        HashSet = Type.of(HashSet.class);
 
         Closure = Type.of(Closure.class);
     }

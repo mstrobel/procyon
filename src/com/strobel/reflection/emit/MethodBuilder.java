@@ -4,6 +4,7 @@ import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.*;
 import com.strobel.util.EmptyArrayCache;
+import com.sun.tools.javac.code.Flags;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -27,6 +28,7 @@ public final class MethodBuilder extends MethodInfo {
     private byte[] _body;
     private int _numberOfExceptions;
     private __ExceptionInstance[] _exceptions;
+    private Object _defaultValue;
 
     ParameterBuilder[] parameterBuilders;
     BytecodeGenerator generator;
@@ -46,8 +48,7 @@ public final class MethodBuilder extends MethodInfo {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _annotations = ReadOnlyList.emptyList();
 
-        parameterBuilders = parameterTypes != null ? new ParameterBuilder[parameterTypes.size()]
-                                                   : EmptyArrayCache.fromElementType(ParameterBuilder.class);
+        setSignature(returnType, parameterTypes);
     }
 
     final void verifyNotGeneric() {
@@ -98,6 +99,18 @@ public final class MethodBuilder extends MethodInfo {
     public Method getRawMethod() {
         _declaringType.verifyCreated();
         return generatedMethod.getRawMethod();
+    }
+
+    @Override
+    public Object getDefaultValue() {
+        return _defaultValue;
+    }
+
+    public void setDefaultValue(final Object value) {
+        if (!_declaringType.isInterface() || !Types.Annotation.isAssignableFrom(_declaringType)) {
+            throw Error.onlyAnnotationMethodsCanHaveDefaultValues();
+        }
+        _defaultValue = value;
     }
 
     @Override
@@ -207,6 +220,80 @@ public final class MethodBuilder extends MethodInfo {
         return generatedMethod.isAnnotationPresent(annotationClass);
     }
 
+    @Override
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        StringBuilder s = new StringBuilder();
+
+        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
+            s.append(modifier.toString());
+            s.append(' ');
+        }
+
+        if (isGenericMethodDefinition()) {
+            final TypeList genericParameters = getGenericMethodParameters();
+
+            s.append('<');
+            for (int i = 0, n = genericParameters.size(); i < n; i++) {
+                if (i != 0) {
+                    s.append(", ");
+                }
+                s = genericParameters.get(i).appendSimpleDescription(s);
+            }
+            s.append('>');
+            s.append(' ');
+        }
+
+        s = getReturnType().appendSimpleDescription(s);
+        s.append(' ');
+        s.append(getName());
+        s.append('(');
+
+        final ParameterBuilder[] parameters = parameterBuilders;
+
+        for (int i = 0, n = parameters.length; i < n; ++i) {
+            final ParameterBuilder p = parameters[i];
+            if (i != 0) {
+                s.append(", ");
+            }
+            s = p.getParameterType().appendSimpleDescription(s);
+        }
+
+        s.append(')');
+
+        final TypeList thrownTypes = getThrownTypes();
+
+        if (!thrownTypes.isEmpty()) {
+            s.append(" throws ");
+
+            for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
+                final Type t = thrownTypes.get(i);
+                if (i != 0) {
+                    s.append(", ");
+                }
+                s = t.appendSimpleDescription(s);
+            }
+        }
+
+        return s;
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        StringBuilder s = sb;
+        s.append('(');
+
+        final TypeList parameterTypes = getParameterTypes();
+
+        for (int i = 0, n = parameterTypes.size(); i < n; ++i) {
+            s = parameterTypes.get(i).appendErasedSignature(s);
+        }
+
+        s.append(')');
+        s = getReturnType().appendErasedSignature(s);
+
+        return s;
+    }
+
     public GenericParameterBuilderList defineGenericParameters(final String... names) {
         VerifyArgument.notEmpty(names, "names");
 
@@ -312,7 +399,6 @@ public final class MethodBuilder extends MethodInfo {
         _numberOfExceptions = calculateNumberOfExceptions(exceptions);
 
         if (_numberOfExceptions > 0) {
-
             _exceptions = new __ExceptionInstance[_numberOfExceptions];
 
             for (final __ExceptionInfo exception : exceptions) {
@@ -360,6 +446,9 @@ public final class MethodBuilder extends MethodInfo {
                     }
                 }
             }
+        }
+        else {
+            _exceptions = EmptyArrayCache.fromElementType(__ExceptionInstance.class);
         }
 
         _isFinished = true;
