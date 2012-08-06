@@ -173,7 +173,7 @@ public class Test {
 
     private static void testTypeBuilder() {
         final TypeBuilder<ITest3<String, String>> t = new TypeBuilder<>(
-            "com.strobel.MyTest2",
+            "com.strobel.MyTest",
             Modifier.PUBLIC | Modifier.FINAL,
             Types.Object,
             Type.list(Type.of(ITest3.class).makeGenericType(Types.String, Types.String))
@@ -184,25 +184,18 @@ public class Test {
             TypeList.empty()
         );
 
+        BytecodeGenerator gen = ctor.getCodeGenerator();
+
+        gen.emitThis();
+        gen.call(Types.Object.getConstructor());
+        gen.emit(OpCode.RETURN);
+
         final MethodBuilder testMethod = t.defineMethod(
             "test",
             Modifier.PUBLIC,
             Types.String,
             Type.list(Types.String)
         );
-
-        final MethodBuilder testBridge = t.defineMethod(
-            "test",
-            Modifier.PUBLIC | Modifier.VOLATILE | 0x00000040,
-            Types.Comparable,
-            Type.list(Types.Comparable)
-        );
-
-        BytecodeGenerator gen = ctor.getCodeGenerator();
-
-        gen.emitThis();
-        gen.call(Types.Object.getConstructor());
-        gen.emit(OpCode.RETURN);
 
         gen = testMethod.getCodeGenerator();
 
@@ -212,11 +205,18 @@ public class Test {
         gen.emitLoadArgument(0);
         gen.emit(OpCode.ARETURN);
 
+        final MethodBuilder testBridge = t.defineMethod(
+            "test",
+            Modifier.PUBLIC | 0x00000040,
+            Types.Comparable,
+            Type.list(Types.Comparable)
+        );
+
         gen = testBridge.getCodeGenerator();
 
         gen.emitThis();
         gen.emitLoadArgument(0);
-        gen.emit(OpCode.CHECKCAST, Types.String);
+        gen.emitConversion(Types.Comparable, Types.String);
         gen.call(testMethod);
         gen.emit(OpCode.ARETURN);
 

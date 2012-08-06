@@ -47,8 +47,17 @@ final class ClassWriter {
         _signatureBuffer = new BytecodeStream();
     }
 
-    public void writeClass(final OutputStream out)
-        throws IOException {
+    public void writeClass(final OutputStream out) throws IOException {
+        writeCore();
+        out.write(_poolBuffer.getData(), 0, _poolBuffer.getLength());
+    }
+
+    public void writeClass(final BytecodeStream out) throws IOException {
+        writeCore();
+        out.putByteArray(_poolBuffer.getData(), 0, _poolBuffer.getLength());
+    }
+
+    private void writeCore() {
         final TypeBuilder<?> t = _typeBuilder;
 
         assert (t.getModifiers() & Flags.COMPOUND) == 0;
@@ -146,8 +155,6 @@ final class ClassWriter {
         endAttributes(attributeCountIndex, attributeCount);
 
         _poolBuffer.putByteArray(_dataBuffer.getData(), 0, _dataBuffer.getLength());
-
-        out.write(_poolBuffer.getData(), 0, _poolBuffer.getLength());
     }
 
     private void writeInnerTypes() {
