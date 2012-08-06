@@ -466,13 +466,11 @@ final class ClassWriter {
             case Field:
                 final FieldBuilder field = (FieldBuilder)member;
                 signature = field.getFieldType().getErasedSignature();
-                thrownTypes = TypeList.empty();
                 annotations = field.getCustomAnnotations();
                 break;
 
             case Method:
                 final MethodBuilder method = (MethodBuilder)member;
-                thrownTypes = method.getThrownTypes();
                 signature = method.getErasedSignature();
                 annotations = method.getCustomAnnotations();
                 break;
@@ -480,20 +478,17 @@ final class ClassWriter {
             case Constructor:
                 final ConstructorBuilder constructor = (ConstructorBuilder)member;
                 signature = constructor.getErasedSignature();
-                thrownTypes = constructor.getThrownTypes();
                 annotations = constructor.getCustomAnnotations();
                 break;
 
             default:
                 signature = ((Type<?>)member).getErasedSignature();
-                thrownTypes = TypeList.empty();
                 annotations = ReadOnlyList.emptyList();
                 break;
         }
 
         if ((flags & (SYNTHETIC | BRIDGE)) != SYNTHETIC &&
-            (flags & ANONCONSTR) == 0/* &&
-            (type.containsGenericParameters() || thrownTypes.containsGenericParameters())*/) {
+            (flags & ANONCONSTR) == 0) {
 
             // A local class with captured variables will get a signature attribute.
             final int attributeIndex = writeAttribute("Signature");

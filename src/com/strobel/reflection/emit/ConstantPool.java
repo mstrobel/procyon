@@ -340,7 +340,6 @@ final class ConstantPool {
 
         @Override
         public Void visitTypeInfo(final TypeInfo info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putShort(info.nameIndex);
             return null;
@@ -348,7 +347,6 @@ final class ConstantPool {
 
         @Override
         public Void visitDoubleConstant(final DoubleConstant info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putDouble(info.value);
             return null;
@@ -356,7 +354,6 @@ final class ConstantPool {
 
         @Override
         public Void visitFieldReference(final FieldReference info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putShort(info.typeInfoIndex);
             bytecodeStream.putShort(info.nameAndTypeDescriptorIndex);
@@ -365,7 +362,6 @@ final class ConstantPool {
 
         @Override
         public Void visitFloatConstant(final FloatConstant info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putFloat(info.value);
             return null;
@@ -373,7 +369,6 @@ final class ConstantPool {
 
         @Override
         public Void visitIntegerConstant(final IntegerConstant info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putInt(info.value);
             return null;
@@ -381,7 +376,6 @@ final class ConstantPool {
 
         @Override
         public Void visitInterfaceMethodReference(final InterfaceMethodReference info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putShort(info.typeInfoIndex);
             bytecodeStream.putShort(info.nameAndTypeDescriptorIndex);
@@ -390,7 +384,6 @@ final class ConstantPool {
 
         @Override
         public Void visitInvokeDynamicInfo(final InvokeDynamicInfo info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putShort(info.bootstrapMethodAttributeIndex);
             bytecodeStream.putShort(info.nameAndTypeDescriptorIndex);
@@ -399,7 +392,6 @@ final class ConstantPool {
 
         @Override
         public Void visitLongConstant(final LongConstant info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putLong(info.value);
             return null;
@@ -407,7 +399,6 @@ final class ConstantPool {
 
         @Override
         public Void visitNameAndTypeDescriptor(final NameAndTypeDescriptor info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putShort(info.nameIndex);
             bytecodeStream.putShort(info.typeDescriptorIndex);
@@ -416,7 +407,6 @@ final class ConstantPool {
 
         @Override
         public Void visitMethodReference(final MethodReference info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putShort(info.typeInfoIndex);
             bytecodeStream.putShort(info.nameAndTypeDescriptorIndex);
@@ -425,7 +415,6 @@ final class ConstantPool {
 
         @Override
         public Void visitMethodHandle(final MethodHandle info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putShort(info.referenceKind.ordinal());
             bytecodeStream.putShort(info.referenceIndex);
@@ -434,7 +423,6 @@ final class ConstantPool {
 
         @Override
         public Void visitMethodType(final MethodType info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putShort(info.descriptorIndex);
             return null;
@@ -442,7 +430,6 @@ final class ConstantPool {
 
         @Override
         public Void visitStringConstant(final StringConstant info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putShort(info.stringIndex);
             return null;
@@ -450,7 +437,6 @@ final class ConstantPool {
 
         @Override
         public Void visitUtf8StringConstant(final Utf8StringConstant info, final BytecodeStream bytecodeStream) {
-            System.out.println(info);
             bytecodeStream.putByte(info.getTag().value);
             bytecodeStream.putUTF8(info.value);
             return null;

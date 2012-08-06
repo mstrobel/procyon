@@ -30,11 +30,11 @@ public class Test {
     public static void main(final String[] args) {
         testTypeBuilder();
 //        compilerToolsTest();
-        primitiveTest();
-        testGenericSignatures();
-        expressionTest();
-        genericMethodTest();
-        arrayTypeTest();
+//        primitiveTest();
+//        testGenericSignatures();
+//        expressionTest();
+//        genericMethodTest();
+//        arrayTypeTest();
     }
 
     private static void testGenericSignatures() {

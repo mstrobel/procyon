@@ -1725,7 +1725,6 @@ public class BytecodeGenerator {
             _bytecodeStream.putByte((byte)((opCode.getCode() >> 0) & 0xFF));
         }
         updateStackSize(opCode, opCode.getStackChange());
-        System.out.println(opCode.name());
     }
 
     static byte getByteOperand(final byte[] codes, final int index) {
