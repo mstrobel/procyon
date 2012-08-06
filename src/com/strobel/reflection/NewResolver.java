@@ -129,10 +129,23 @@ public final class NewResolver {
                 }
 
                 if (e instanceof java.lang.reflect.TypeVariable) {
-                    result = currentFrame._type.findGenericParameter((java.lang.reflect.TypeVariable)e);
+                    final TypeVariable typeVariable = (TypeVariable)e;
+
+                    result = currentFrame._type.findGenericParameter(typeVariable);
 
                     if (result != null) {
                         return result;
+                    }
+
+                    if (!_typeArguments.isEmpty()) {
+                        for (final Type<?> typeArgument : _typeArguments) {
+                            if (!(typeArgument instanceof ReflectedGenericParameter)) {
+                                continue;
+                            }
+                            if (((ReflectedGenericParameter)typeArgument).getTypeVariable() == typeVariable) {
+                                return typeArgument;
+                            }
+                        }
                     }
                 }
 
@@ -581,17 +594,19 @@ public final class NewResolver {
     private Type<?> visitParameterizedType(final ParameterizedType type, final Frame frame) {
         final Type<?> rawType = frame.resolveType(type.getRawType());
 
-        if (rawType == null)
+        if (rawType == null) {
             return null;
+        }
 
         final java.lang.reflect.Type[] typeArguments = type.getActualTypeArguments();
         final Type<?>[] resolvedTypeArguments = new Type<?>[typeArguments.length];
 
-        for (int i = 0, n =typeArguments.length; i < n; i++) {
+        for (int i = 0, n = typeArguments.length; i < n; i++) {
             resolvedTypeArguments[i] = frame.resolveType(typeArguments[i]);
 
-            if (resolvedTypeArguments[i] == null)
+            if (resolvedTypeArguments[i] == null) {
                 return null;
+            }
         }
 
         return rawType.makeGenericType(resolvedTypeArguments);
@@ -615,10 +630,10 @@ public final class NewResolver {
             }
 
             if (fromCacheOrFrame != null) {
-                result =fromCacheOrFrame;
+                result = fromCacheOrFrame;
             }
             else if (type instanceof Class<?>) {
-                result = visitClass((Class) type, frame);
+                result = visitClass((Class)type, frame);
             }
             else {
                 result = visit(type, frame);
@@ -761,7 +776,6 @@ public final class NewResolver {
 
             genericParameters = TypeBindings.createUnbound(Type.list(resolvedTypeParameters));
         }
-
 
         for (int i = 0; i < parameterTypes.length; i++) {
             final Type<?> resolvedParameterType = frame.resolveType(parameterTypes[i]);
