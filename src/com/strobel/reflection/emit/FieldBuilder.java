@@ -19,7 +19,7 @@ public final class FieldBuilder extends FieldInfo {
     private final int _modifiers;
     private final Object _constantValue;
 
-    private ReadOnlyList<AnnotationBuilder> _annotations;
+    private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
 
     FieldInfo generatedField;
 
@@ -37,15 +37,16 @@ public final class FieldBuilder extends FieldInfo {
         return generatedField;
     }
 
-    public void addCustomAnnotation(final AnnotationBuilder annotation) {
+    @SuppressWarnings("unchecked")
+    public void addCustomAnnotation(final AnnotationBuilder<? extends Annotation> annotation) {
         VerifyArgument.notNull(annotation, "annotation");
         final AnnotationBuilder[] newAnnotations = new AnnotationBuilder[this._annotations.size() + 1];
         _annotations.toArray(newAnnotations);
         newAnnotations[this._annotations.size()] = annotation;
-        _annotations = new ReadOnlyList<>(newAnnotations);
+        _annotations = new ReadOnlyList<AnnotationBuilder<? extends Annotation>>(newAnnotations);
     }
 
-    public ReadOnlyList<AnnotationBuilder> getCustomAnnotations() {
+    public ReadOnlyList<AnnotationBuilder<? extends Annotation>> getCustomAnnotations() {
         return _annotations;
     }
 

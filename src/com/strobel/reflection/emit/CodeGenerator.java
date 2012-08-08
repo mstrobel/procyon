@@ -17,14 +17,14 @@ import java.util.Arrays;
         "UnusedDeclaration",
         "PackageVisibleField"
     })
-public class BytecodeGenerator {
+public class CodeGenerator {
 
     final static int DefaultSize = 64;
     final static int DefaultFixupArraySize = 64;
     final static int DefaultLabelArraySize = 16;
     final static int DefaultExceptionArraySize = 8;
 
-    private BytecodeStream _bytecodeStream;
+    private CodeStream _codeStream;
 
     private int[] _labelList;
     private int _labelCount;
@@ -34,7 +34,7 @@ public class BytecodeGenerator {
 
     private int _exceptionCount;
     private int _currentExceptionStackCount;
-    private __ExceptionInfo[] _exceptions;              // This is the list of all of the exceptions in this BytecodeStream.
+    private __ExceptionInfo[] _exceptions;              // This is the list of all of the exceptions in this CodeStream.
     private __ExceptionInfo[] _currentExceptionStack;   // This is the stack of exceptions which we're currently in.
 
     ScopeTree scopeTree;                // This variable tracks all debugging scope information.
@@ -48,25 +48,25 @@ public class BytecodeGenerator {
     private int _maxMidStack = 0;       // Maximum stack size for a given basic block.
     private int _maxMidStackCur = 0;    // Running count of the maximum stack size for the current basic block.
 
-    public BytecodeGenerator(final MethodBuilder methodBuilder) {
+    public CodeGenerator(final MethodBuilder methodBuilder) {
         this(methodBuilder, DefaultSize);
     }
 
-    public BytecodeGenerator(final MethodBuilder methodBuilder, final int initialSize) {
+    public CodeGenerator(final MethodBuilder methodBuilder, final int initialSize) {
         this.methodBuilder = VerifyArgument.notNull(methodBuilder, "methodBuilder");
 
         if (initialSize < DefaultSize) {
-            _bytecodeStream = new BytecodeStream(DefaultSize);
+            _codeStream = new CodeStream(DefaultSize);
         }
         else {
-            _bytecodeStream = new BytecodeStream(initialSize);
+            _codeStream = new CodeStream(initialSize);
         }
 
         this.scopeTree = new ScopeTree();
     }
 
     public int offset() {
-        return _bytecodeStream.getLength();
+        return _codeStream.getLength();
     }
 
     // <editor-fold defaultstate="collapsed" desc="Exceptions">
@@ -221,7 +221,7 @@ public class BytecodeGenerator {
             throw Error.labelAlreadyDefined();
         }
 
-        _labelList[labelIndex] = _bytecodeStream.getLength();
+        _labelList[labelIndex] = _codeStream.getLength();
     }
 
     // </editor-fold>
@@ -435,8 +435,8 @@ public class BytecodeGenerator {
         VerifyArgument.notNull(label, "label");
 
         // Puts opCode onto the stream and leaves space to include label when fix-ups
-        // are done.  Labels are created using BytecodeGenerator.defineLabel() and their
-        // location within the stream is fixed by using BytecodeGenerator.defineLabel().
+        // are done.  Labels are created using CodeGenerator.defineLabel() and their
+        // location within the stream is fixed by using CodeGenerator.defineLabel().
         //
         // opCode must represent a branch instruction (although we don't explicitly
         // verify this).  Since branches are relative instructions, label will be
@@ -450,14 +450,14 @@ public class BytecodeGenerator {
             // HACK: To avoid resizing the byte array to accommodate wide jump labels,
             // we just pad the two bytes after a short jump label with NOP opcodes.
             // TODO: Fix this later.
-            addFixup(label, _bytecodeStream.getLength(), 2);
-            _bytecodeStream.putShort(0);
+            addFixup(label, _codeStream.getLength(), 2);
+            _codeStream.putShort(0);
             internalEmit(OpCode.NOP);
             internalEmit(OpCode.NOP);
         }
         else if (opCode.getOperandType() == OperandType.BranchW) {
-            addFixup(label, _bytecodeStream.getLength(), 4);
-            _bytecodeStream.putInt(0);
+            addFixup(label, _codeStream.getLength(), 4);
+            _codeStream.putInt(0);
         }
     }
 
@@ -515,8 +515,59 @@ public class BytecodeGenerator {
     // BRANCH OPERATIONS                                                                                                  //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public void jump(final Label label) {
+    public void emitGoto(final Label label) {
         emit(OpCode.GOTO, label);
+    }
+
+    public void emitJsr(final Label label) {
+        emit(OpCode.JSR, label);
+    }
+
+    public void emitRet(final LocalBuilder returnAddress) {
+        VerifyArgument.notNull(returnAddress, "returnAddress");
+        emit(OpCode.RET, translateLocal(returnAddress.getLocalIndex()));
+    }
+
+    public void emitReturn() {
+        emit(OpCode.RETURN);
+    }
+
+    public void emitReturn(final Type<?> returnType) {
+        VerifyArgument.notNull(returnType, "returnType");
+
+        final OpCode opCode;
+
+        switch (returnType.getKind()) {
+            case BOOLEAN:
+            case BYTE:
+            case SHORT:
+            case INT:
+            case CHAR:
+                opCode = OpCode.IRETURN;
+                break;
+
+            case LONG:
+                opCode = OpCode.LRETURN;
+                break;
+
+            case FLOAT:
+                opCode = OpCode.FRETURN;
+                break;
+
+            case DOUBLE:
+                opCode = OpCode.DRETURN;
+                break;
+
+            case VOID:
+                opCode = OpCode.RETURN;
+                break;
+
+            default:
+                opCode = OpCode.ARETURN;
+                break;
+        }
+
+        emit(opCode);
     }
 
     // </editor-fold>
@@ -1476,7 +1527,7 @@ public class BytecodeGenerator {
         // box target
         emitBox(targetType);
         emitStore(targetLocal);
-        jump(end);
+        emitGoto(end);
 
         // if source was null, set target to null
         markLabel(ifNull);
@@ -1689,23 +1740,23 @@ public class BytecodeGenerator {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     final void emitByteOperand(final int value) {
-        _bytecodeStream.putByte(value);
+        _codeStream.putByte(value);
     }
 
     final void emitCharOperand(final char value) {
-        _bytecodeStream.putShort(value);
+        _codeStream.putShort(value);
     }
 
     final void emitShortOperand(final int value) {
-        _bytecodeStream.putShort(value);
+        _codeStream.putShort(value);
     }
 
     final void emitIntOperand(final int value) {
-        _bytecodeStream.putInt(value);
+        _codeStream.putInt(value);
     }
 
     final void emitLongOperand(final long value) {
-        _bytecodeStream.putLong(value);
+        _codeStream.putLong(value);
     }
 
     final void emitFloatOperand(final float value) {
@@ -1718,11 +1769,11 @@ public class BytecodeGenerator {
 
     void internalEmit(final OpCode opCode) {
         if (opCode.getSize() == 1) {
-            _bytecodeStream.putByte((byte)(opCode.getCode() & 0xFF));
+            _codeStream.putByte((byte)(opCode.getCode() & 0xFF));
         }
         else {
-            _bytecodeStream.putByte((byte)((opCode.getCode() >> 16) & 0xFF));
-            _bytecodeStream.putByte((byte)((opCode.getCode() >> 0) & 0xFF));
+            _codeStream.putByte((byte)((opCode.getCode() >> 16) & 0xFF));
+            _codeStream.putByte((byte)((opCode.getCode() >> 0) & 0xFF));
         }
         updateStackSize(opCode, opCode.getStackChange());
     }
@@ -1824,7 +1875,7 @@ public class BytecodeGenerator {
     }
 
     final void ensureCapacity(final int size) {
-        _bytecodeStream.ensureCapacity(size);
+        _codeStream.ensureCapacity(size);
     }
 
     final void updateStackSize(final OpCode opCode, final int stackChange) {
@@ -1890,12 +1941,12 @@ public class BytecodeGenerator {
             throw Error.unclosedExceptionBlock();
         }
 
-        if (_bytecodeStream.getLength() == 0) {
+        if (_codeStream.getLength() == 0) {
             return null;
         }
 
-        newSize = _bytecodeStream.getLength();
-        newBytes = Arrays.copyOf(_bytecodeStream.getData(), newSize);
+        newSize = _codeStream.getLength();
+        newBytes = Arrays.copyOf(_codeStream.getData(), newSize);
 
         // Do the fix-ups.  This involves iterating over all of the labels and replacing
         // them with their proper values.

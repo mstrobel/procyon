@@ -6,7 +6,7 @@ import com.strobel.core.MutableInteger;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
-import com.strobel.reflection.emit.BytecodeGenerator;
+import com.strobel.reflection.emit.CodeGenerator;
 import com.strobel.reflection.emit.LocalBuilder;
 
 import java.util.ArrayList;
@@ -47,8 +47,8 @@ final class BoundConstants {
     }
 
     void emitConstant(final LambdaCompiler lc, final Object value, final Type<?> type) {
-        assert !BytecodeGenerator.canEmitConstant(value, type)
-            : "!BytecodeGenerator.canEmitConstant(value, type)";
+        assert !CodeGenerator.canEmitConstant(value, type)
+            : "!CodeGenerator.canEmitConstant(value, type)";
 
         if (!lc.canEmitBoundConstants()) {
             throw Error.cannotCompileConstant(value);

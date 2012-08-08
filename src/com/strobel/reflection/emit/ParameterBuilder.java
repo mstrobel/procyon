@@ -4,6 +4,8 @@ import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.Type;
 
+import java.lang.annotation.Annotation;
+
 /**
  * @author Mike Strobel
  */
@@ -12,7 +14,7 @@ public final class ParameterBuilder  {
     private final Type<?> _parameterType;
     private final int _position;
 
-    private ReadOnlyList<AnnotationBuilder> _annotations;
+    private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
     private String _name;
 
     ParameterBuilder(
@@ -28,15 +30,16 @@ public final class ParameterBuilder  {
         _annotations = ReadOnlyList.emptyList();
     }
 
-    public void addCustomAnnotation(final AnnotationBuilder annotation) {
+    @SuppressWarnings("unchecked")
+    public void addCustomAnnotation(final AnnotationBuilder<? extends Annotation> annotation) {
         VerifyArgument.notNull(annotation, "annotation");
         final AnnotationBuilder[] newAnnotations = new AnnotationBuilder[this._annotations.size() + 1];
         _annotations.toArray(newAnnotations);
         newAnnotations[this._annotations.size()] = annotation;
-        _annotations = new ReadOnlyList<>(newAnnotations);
+        _annotations = new ReadOnlyList<AnnotationBuilder<? extends Annotation>>(newAnnotations);
     }
 
-    public ReadOnlyList<AnnotationBuilder> getCustomAnnotations() {
+    public ReadOnlyList<AnnotationBuilder<? extends Annotation>> getCustomAnnotations() {
         return _annotations;
     }
 

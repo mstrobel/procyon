@@ -11,8 +11,6 @@ import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.Context;
 
-import java.io.File;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
 import java.lang.reflect.Modifier;
@@ -136,19 +134,6 @@ public class Test {
         System.out.println(lambda);
     }
 
-    private static void exceptionTest() {
-        System.out.println("lolwut");
-        try {
-            System.out.println(new File("").getCanonicalPath());
-        }
-        catch (IOException | IllegalStateException e) {
-            e.printStackTrace();
-        }
-        finally {
-            System.out.print('c');
-        }
-    }
-
     private static class NullTree extends JCTree {
 
         @Override
@@ -173,22 +158,11 @@ public class Test {
 
     private static void testTypeBuilder() {
         final TypeBuilder<ITest3<String, String>> t = new TypeBuilder<>(
-            "com.strobel.MyTest",
-            Modifier.PUBLIC | Modifier.FINAL,
-            Types.Object,
-            Type.list(Type.of(ITest3.class).makeGenericType(Types.String, Types.String))
+            /* name: */         "MyTest",
+            /* modifiers: */    Modifier.PUBLIC | Modifier.FINAL,
+            /* baseType: */     Types.Object,
+            /* interfaces: */   Type.list(Type.of(ITest3.class).makeGenericType(Types.String, Types.String))
         );
-
-        final ConstructorBuilder ctor = t.defineConstructor(
-            Modifier.PUBLIC,
-            TypeList.empty()
-        );
-
-        BytecodeGenerator gen = ctor.getCodeGenerator();
-
-        gen.emitThis();
-        gen.call(Types.Object.getConstructor());
-        gen.emit(OpCode.RETURN);
 
         final MethodBuilder testMethod = t.defineMethod(
             "test",
@@ -197,11 +171,18 @@ public class Test {
             Type.list(Types.String)
         );
 
-        gen = testMethod.getCodeGenerator();
+        CodeGenerator gen = testMethod.getCodeGenerator();
+
+        final MethodInfo println = Type.of(PrintStream.class)
+                                       .getMethod(
+                                           "println",
+                                           BindingFlags.PublicInstanceExact,
+                                           Types.String
+                                       );
 
         gen.getField(Type.of(System.class).getField("out"));
         gen.emitLoadArgument(0);
-        gen.call(Type.of(PrintStream.class).getMethod("println", BindingFlags.PublicInstanceExact, Types.String));
+        gen.call(println);
         gen.emitLoadArgument(0);
         gen.emit(OpCode.ARETURN);
 
@@ -220,10 +201,7 @@ public class Test {
         gen.call(testMethod);
         gen.emit(OpCode.ARETURN);
 
-        final Type<ITest3<String, String>> generatedType = t.createType();
-        final ITest3<String, String> instance = generatedType.newInstance();
-
-        instance.test("HOLY FREAKIN' CRAP!");
+        t.createType().newInstance().test("HOLY FREAKIN' CRAP!");
     }
 }
 

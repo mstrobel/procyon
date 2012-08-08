@@ -1,7 +1,7 @@
 package com.strobel.expressions;
 
 import com.strobel.core.MutableInteger;
-import com.strobel.reflection.emit.BytecodeGenerator;
+import com.strobel.reflection.emit.CodeGenerator;
 import com.strobel.util.ContractUtils;
 
 import java.util.HashMap;
@@ -35,7 +35,7 @@ final class VariableBinder extends ExpressionVisitor {
 
         // Constants that can be emitted into bytecode don't need to be stored on
         // the delegate.
-        if (BytecodeGenerator.canEmitConstant(node.getValue(), node.getType())) {
+        if (CodeGenerator.canEmitConstant(node.getValue(), node.getType())) {
             return node;
         }
 

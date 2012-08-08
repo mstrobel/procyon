@@ -48,7 +48,7 @@ public final class TypeBuilder<T> extends Type<T> {
     private boolean _isGenericTypeDefinition;
     private TypeBuilder _genericTypeDefinition;
     private TypeBindings _typeBindings;
-    private ReadOnlyList<AnnotationBuilder> _annotations;
+    private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
     private final ProtectionDomain _protectionDomain;
 
     // <editor-fold defaultstate="collapsed" desc="Constructors and Initializers">
@@ -289,7 +289,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    public TypeList getInterfaces() {
+    protected TypeList getExplicitInterfaces() {
         return _interfaces;
     }
 
@@ -445,19 +445,24 @@ public final class TypeBuilder<T> extends Type<T> {
         return _generatedClass;
     }
 
+    @Override
+    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitClassType(this, parameter);
+    }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Annotations">
 
-    public void addCustomAnnotation(final AnnotationBuilder annotation) {
+    public void addCustomAnnotation(final AnnotationBuilder<? extends Annotation> annotation) {
         VerifyArgument.notNull(annotation, "annotation");
         final AnnotationBuilder[] newAnnotations = new AnnotationBuilder[this._annotations.size() + 1];
         _annotations.toArray(newAnnotations);
         newAnnotations[this._annotations.size()] = annotation;
-        _annotations = new ReadOnlyList<>(newAnnotations);
+        _annotations = new ReadOnlyList<AnnotationBuilder<? extends Annotation>>(newAnnotations);
     }
 
-    public ReadOnlyList<AnnotationBuilder> getCustomAnnotations() {
+    public ReadOnlyList<AnnotationBuilder<? extends Annotation>> getCustomAnnotations() {
         return _annotations;
     }
 
@@ -489,6 +494,11 @@ public final class TypeBuilder<T> extends Type<T> {
 
     // <editor-fold defaultstate="collapsed" desc="Type Manipulation">
 
+    @Override
+    protected Type makeGenericTypeCore(final TypeList typeArguments) {
+        return TypeBuilderInstantiation.makeGenericType(this, typeArguments);
+    }
+
     public boolean isCreated() {
         return _hasBeenCreated;
     }
@@ -510,6 +520,43 @@ public final class TypeBuilder<T> extends Type<T> {
             this
         );
 
+        constructorBuilders.add(constructor);
+        _constructors = new ConstructorList(ArrayUtilities.append(_constructors.toArray(), constructor));
+
+        return constructor;
+    }
+
+    public ConstructorBuilder defineDefaultConstructor() {
+        return defineDefaultConstructor(isAbstract() ? Modifier.PROTECTED : Modifier.PUBLIC);
+    }
+
+    public ConstructorBuilder defineDefaultConstructor(final int modifiers) {
+        verifyNotGeneric();
+        verifyNotCreated();
+
+        if (isInterface()) {
+            throw Error.interfacesCannotDefineConstructors();
+        }
+
+        final ConstructorInfo baseConstructor = _baseType.getConstructor(BindingFlags.AllExact);
+
+        if (baseConstructor == null || !baseConstructor.isPublic() && !baseConstructor.isProtected()) {
+            throw Error.baseTypeHasNoDefaultConstructor(_baseType);
+        }
+
+        final ConstructorBuilder constructor = new ConstructorBuilder(
+            modifiers & Modifier.constructorModifiers(),
+            TypeList.empty(),
+            this
+        );
+
+        final CodeGenerator code = constructor.getCodeGenerator();
+
+        code.emitThis();
+        code.call(baseConstructor);
+        code.emitReturn();
+
+        constructor.returnCodeGenerator = false;
         constructorBuilders.add(constructor);
         _constructors = new ConstructorList(ArrayUtilities.append(_constructors.toArray(), constructor));
 
@@ -656,12 +703,19 @@ public final class TypeBuilder<T> extends Type<T> {
 
         if (isGenericParameter()) {
             _hasBeenCreated = true;
+            for (final AnnotationBuilder annotation : _annotations) {
+                annotation.bake();
+            }
             return this;
         }
         else if (!genericParameterBuilders.isEmpty()) {
             for (int i = 0, n = genericParameterBuilders.size(); i < n; i++) {
                 genericParameterBuilders.get(i).typeBuilder.createType();
             }
+        }
+
+        if (_constructors.size() == 0 && !isInterface()) {
+            defineDefaultConstructor();
         }
 
         byte[] body;

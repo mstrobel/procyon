@@ -78,11 +78,11 @@ final class __ExceptionInfo {
         final int type)                   // kind of clause
     {
         if (_currentCatch >= _catchAddress.length) {
-            _filterAddress = BytecodeGenerator.enlargeArray(_filterAddress);
-            _catchAddress = BytecodeGenerator.enlargeArray(_catchAddress);
-            _catchEndAddress = BytecodeGenerator.enlargeArray(_catchEndAddress);
+            _filterAddress = CodeGenerator.enlargeArray(_filterAddress);
+            _catchAddress = CodeGenerator.enlargeArray(_catchAddress);
+            _catchEndAddress = CodeGenerator.enlargeArray(_catchEndAddress);
             _catchClass = __ExceptionInfo.enlargeArray(_catchClass);
-            _type = BytecodeGenerator.enlargeArray(_type);
+            _type = CodeGenerator.enlargeArray(_type);
         }
 
         if (type == Filter) {

@@ -5,7 +5,7 @@ import java.util.Arrays;
 /**
  * @author strobelm
  */
-public final class BytecodeStream {
+public final class CodeStream {
 
     private final static int DEFAULT_SIZE = 64;
 
@@ -19,19 +19,19 @@ public final class BytecodeStream {
     private int _length;
 
     /**
-     * Constructs a new {@link BytecodeStream} with a default initial
+     * Constructs a new {@link CodeStream} with a default initial
      * size.
      */
-    public BytecodeStream() {
+    public CodeStream() {
         _data = new byte[DEFAULT_SIZE];
     }
 
     /**
-     * Constructs a new {@link BytecodeStream} with the given initial
+     * Constructs a new {@link CodeStream} with the given initial
      * size.
      * @param initialSize the initial size of the byte stream to be constructed.
      */
-    public BytecodeStream(final int initialSize) {
+    public CodeStream(final int initialSize) {
         _data = new byte[initialSize];
     }
 
@@ -58,7 +58,7 @@ public final class BytecodeStream {
      * @param b a byte.
      * @return this byte stream.
      */
-    public BytecodeStream putByte(final int b) {
+    public CodeStream putByte(final int b) {
         ensureCapacity(1);
 
         _data[_length++] = (byte)(b & 0xFF);
@@ -73,7 +73,7 @@ public final class BytecodeStream {
      * @param b2 another byte.
      * @return this byte stream.
      */
-    BytecodeStream put11(final int b1, final int b2) {
+    CodeStream put11(final int b1, final int b2) {
         ensureCapacity(2);
 
         _data[_length++] = (byte)(b1 & 0xFF);
@@ -88,7 +88,7 @@ public final class BytecodeStream {
      * @param s a short.
      * @return this byte stream.
      */
-    public BytecodeStream putShort(final int s) {
+    public CodeStream putShort(final int s) {
         ensureCapacity(2);
 
         _data[_length++] = (byte)((s >>> 8) & 0xFF);
@@ -104,7 +104,7 @@ public final class BytecodeStream {
      * @param s a short.
      * @return this byte stream.
      */
-    BytecodeStream put12(final int b, final int s) {
+    CodeStream put12(final int b, final int s) {
         ensureCapacity(3);
 
         _data[_length++] = (byte)(b & 0xFF);
@@ -120,7 +120,7 @@ public final class BytecodeStream {
      * @param i an int.
      * @return this byte stream.
      */
-    public BytecodeStream putInt(final int i) {
+    public CodeStream putInt(final int i) {
         ensureCapacity(4);
 
         _data[_length++] = (byte)((i >>> 24) & 0xFF);
@@ -137,7 +137,7 @@ public final class BytecodeStream {
      * @param l a long.
      * @return this byte stream.
      */
-    public BytecodeStream putLong(final long l) {
+    public CodeStream putLong(final long l) {
         ensureCapacity(8);
 
         int i = (int)(l >>> 32);
@@ -163,7 +163,7 @@ public final class BytecodeStream {
      * @param f a float.
      * @return this byte stream.
      */
-    public BytecodeStream putFloat(final float f) {
+    public CodeStream putFloat(final float f) {
         return putInt(Float.floatToRawIntBits(f));
     }
 
@@ -173,7 +173,7 @@ public final class BytecodeStream {
      * @param d a double.
      * @return this byte stream.
      */
-    public BytecodeStream putDouble(final double d) {
+    public CodeStream putDouble(final double d) {
         return putLong(Double.doubleToRawLongBits(d));
     }
 
@@ -183,7 +183,7 @@ public final class BytecodeStream {
      * @param s a String.
      * @return this byte stream.
      */
-    public BytecodeStream putUTF8(final String s) {
+    public CodeStream putUTF8(final String s) {
         final int charLength = s.length();
 
         ensureCapacity(2 + charLength);
@@ -253,7 +253,7 @@ public final class BytecodeStream {
      * @param length number of bytes of b that must be copied.
      * @return this byte stream.
      */
-    public BytecodeStream putByteArray(final byte[] b, final int offset, final int length) {
+    public CodeStream putByteArray(final byte[] b, final int offset, final int length) {
         ensureCapacity(length);
         if (b != null) {
             System.arraycopy(b, offset, _data, _length, length);

@@ -20,7 +20,7 @@ final class Error {
 
     public static RuntimeException bytecodeGeneratorNotOwnedByMethodBuilder() {
         return new RuntimeException(
-            "This BytecodeGenerator was not created by a MethodBuilder."
+            "This CodeGenerator was not created by a MethodBuilder."
         );
     }
 
@@ -308,5 +308,29 @@ final class Error {
 
     public static RuntimeException onlyAnnotationMethodsCanHaveDefaultValues() {
         return new IllegalStateException("Only annotation methods can have default values.");
+    }
+
+    public static RuntimeException genericTypeDefinitionRequired() {
+        return new IllegalArgumentException("The specified type is not a generic type definition.");
+    }
+
+    public static RuntimeException interfacesCannotDefineConstructors() {
+        return new IllegalStateException("Interfaces cannot define constructors.");
+    }
+
+    public static RuntimeException baseTypeHasNoDefaultConstructor(final Type<?> baseType) {
+        if (baseType != null) {
+            return new IllegalStateException(
+                format(
+                    "Base type '%s' has no visible default constructor.",
+                    baseType
+                )
+            );
+        }
+        return new IllegalStateException("Base type has no visible default constructor.");
+    }
+
+    public static RuntimeException noCodeGeneratorForDefaultConstructor() {
+        return new IllegalStateException("No code generator is available for a default constructor.");
     }
 }

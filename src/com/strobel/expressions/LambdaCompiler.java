@@ -4,11 +4,8 @@ import com.strobel.compilerservices.Closure;
 import com.strobel.compilerservices.DebugInfoGenerator;
 import com.strobel.core.KeyedQueue;
 import com.strobel.reflection.*;
-import com.strobel.reflection.emit.FieldBuilder;
-import com.strobel.reflection.emit.MethodBuilder;
-import com.strobel.reflection.emit.BytecodeGenerator;
-import com.strobel.reflection.emit.LocalBuilder;
-import com.strobel.reflection.emit.TypeBuilder;
+import com.strobel.reflection.emit.*;
+import com.strobel.reflection.emit.CodeGenerator;
 import com.strobel.util.TypeUtils;
 
 import java.lang.reflect.Modifier;
@@ -26,7 +23,7 @@ final class LambdaCompiler {
     final TypeBuilder typeBuilder;
     final MethodBuilder methodBuilder;
     final FieldBuilder closureField;
-    final BytecodeGenerator generator;
+    final CodeGenerator generator;
 
     private final AnalyzedTree _tree;
     private final boolean _hasClosureArgument;

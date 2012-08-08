@@ -13,7 +13,7 @@ import java.util.Arrays;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings("PackageVisibleField")
+@SuppressWarnings({"PackageVisibleField", "unchecked"})
 public final class MethodBuilder extends MethodInfo {
     private final String _name;
     private final TypeBuilder _declaringType;
@@ -24,14 +24,14 @@ public final class MethodBuilder extends MethodInfo {
 
     private boolean _isFinished;
     private GenericParameterBuilderList _genericParameterBuilders;
-    private ReadOnlyList<AnnotationBuilder> _annotations;
+    private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
     private byte[] _body;
     private int _numberOfExceptions;
     private __ExceptionInstance[] _exceptions;
     private Object _defaultValue;
 
     ParameterBuilder[] parameterBuilders;
-    BytecodeGenerator generator;
+    CodeGenerator generator;
     MethodInfo generatedMethod;
 
     MethodBuilder(
@@ -63,23 +63,23 @@ public final class MethodBuilder extends MethodInfo {
         }
     }
 
-    public BytecodeGenerator getCodeGenerator() {
+    public CodeGenerator getCodeGenerator() {
         verifyNotGeneric();
         verifyNotAbstract();
 
         if (generator == null) {
-            generator = new BytecodeGenerator(this);
+            generator = new CodeGenerator(this);
         }
 
         return generator;
     }
 
-    public BytecodeGenerator getCodeGenerator(final int initialSize) {
+    public CodeGenerator getCodeGenerator(final int initialSize) {
         verifyNotGeneric();
         verifyNotAbstract();
 
         if (generator == null) {
-            generator = new BytecodeGenerator(this, initialSize);
+            generator = new CodeGenerator(this, initialSize);
         }
 
         return generator;
@@ -189,10 +189,10 @@ public final class MethodBuilder extends MethodInfo {
         final AnnotationBuilder[] newAnnotations = new AnnotationBuilder[this._annotations.size() + 1];
         _annotations.toArray(newAnnotations);
         newAnnotations[this._annotations.size()] = annotation;
-        _annotations = new ReadOnlyList<>(newAnnotations);
+        _annotations = new ReadOnlyList<AnnotationBuilder<? extends Annotation>>(newAnnotations);
     }
 
-    public ReadOnlyList<AnnotationBuilder> getCustomAnnotations() {
+    public ReadOnlyList<AnnotationBuilder<? extends Annotation>> getCustomAnnotations() {
         return _annotations;
     }
 
@@ -328,7 +328,11 @@ public final class MethodBuilder extends MethodInfo {
             throw new IllegalArgumentException("Position is out of range.");
         }
 
-        return parameterBuilders[position];
+        final ParameterBuilder parameterBuilder = parameterBuilders[position];
+
+        parameterBuilder.setName(name);
+
+        return parameterBuilder;
     }
 
     public void createMethodBody(final byte[] bytecode, final int size) {
@@ -365,7 +369,7 @@ public final class MethodBuilder extends MethodInfo {
         return _numberOfExceptions;
     }
 
-    final void createMethodBodyHelper(final BytecodeGenerator code) {
+    final void createMethodBodyHelper(final CodeGenerator code) {
         VerifyArgument.notNull(code, "code");
 
         final __ExceptionInfo[] exceptions;

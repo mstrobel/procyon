@@ -10,6 +10,7 @@ import com.sun.tools.javac.jvm.Target;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.annotation.Annotation;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Array;
@@ -33,18 +34,18 @@ final class ClassWriter {
     private final static int FULL_FRAME = 255;
     private final static int MAX_LOCAL_LENGTH_DIFF = 4;
 
-    private final BytecodeStream _dataBuffer;
-    private final BytecodeStream _poolBuffer;
-    private final BytecodeStream _signatureBuffer;
+    private final CodeStream _dataBuffer;
+    private final CodeStream _poolBuffer;
+    private final CodeStream _signatureBuffer;
     private final TypeBuilder<?> _typeBuilder;
     private final ConstantPool _constantPool;
 
     ClassWriter(final TypeBuilder<?> typeBuilder) {
         _typeBuilder = VerifyArgument.notNull(typeBuilder, "typeBuilder");
         _constantPool = typeBuilder.constantPool;
-        _dataBuffer = new BytecodeStream(DATA_BUFFER_SIZE);
-        _poolBuffer = new BytecodeStream(POOL_BUFFER_SIZE);
-        _signatureBuffer = new BytecodeStream();
+        _dataBuffer = new CodeStream(DATA_BUFFER_SIZE);
+        _poolBuffer = new CodeStream(POOL_BUFFER_SIZE);
+        _signatureBuffer = new CodeStream();
     }
 
     public void writeClass(final OutputStream out) throws IOException {
@@ -52,7 +53,7 @@ final class ClassWriter {
         out.write(_poolBuffer.getData(), 0, _poolBuffer.getLength());
     }
 
-    public void writeClass(final BytecodeStream out) throws IOException {
+    public void writeClass(final CodeStream out) throws IOException {
         writeCore();
         out.putByteArray(_poolBuffer.getData(), 0, _poolBuffer.getLength());
     }
@@ -280,7 +281,7 @@ final class ClassWriter {
     }
 
     private void writeBody(final MethodBuilder method) {
-        final BytecodeGenerator generator = method.getCodeGenerator();
+        final CodeGenerator generator = method.getCodeGenerator();
 
         _dataBuffer.putShort(generator.getMaxStackSize());
 
@@ -408,7 +409,7 @@ final class ClassWriter {
     }
 
     private LocalInfo[] getLocalInfo(final MethodBuilder builder) {
-        final BytecodeGenerator generator = builder.generator;
+        final CodeGenerator generator = builder.generator;
         final boolean hasThis = !builder.isStatic();
         final int localCount = generator.localCount + builder.getParameterTypes().size() + (hasThis ? 1 : 0);
 
@@ -465,7 +466,7 @@ final class ClassWriter {
         final long flags = member.getModifiers();
         final String signature;
         final TypeList thrownTypes;
-        final ReadOnlyList<AnnotationBuilder> annotations;
+        final ReadOnlyList<AnnotationBuilder<? extends Annotation>> annotations;
 
         int attributeCount = writeFlagAttributes(member.getModifiers());
 
@@ -516,7 +517,7 @@ final class ClassWriter {
 
         if (parameters != null) {
             for (final ParameterBuilder parameter : parameters) {
-                for (final AnnotationBuilder a : parameter.getCustomAnnotations()) {
+                for (final AnnotationBuilder<? extends Annotation> a : parameter.getCustomAnnotations()) {
                     switch (getAnnotationRetention(a)) {
                         case SOURCE:
                             break;
@@ -539,9 +540,9 @@ final class ClassWriter {
             _dataBuffer.putByte(parameters.length);
 
             for (final ParameterBuilder p : parameters) {
-                final ArrayList<AnnotationBuilder> annotations = new ArrayList<>(p.getCustomAnnotations().size());
+                final ArrayList<AnnotationBuilder<? extends Annotation>> annotations = new ArrayList<>(p.getCustomAnnotations().size());
 
-                for (final AnnotationBuilder a : p.getCustomAnnotations()) {
+                for (final AnnotationBuilder<? extends Annotation> a : p.getCustomAnnotations()) {
                     if (getAnnotationRetention(a) == RetentionPolicy.RUNTIME) {
                         annotations.add(a);
                     }
@@ -549,7 +550,7 @@ final class ClassWriter {
 
                 _dataBuffer.putShort(annotations.size());
 
-                for (final AnnotationBuilder a : annotations) {
+                for (final AnnotationBuilder<? extends Annotation> a : annotations) {
                     writeAnnotation(a);
                 }
             }
@@ -564,9 +565,9 @@ final class ClassWriter {
             _dataBuffer.putByte(parameters.length);
 
             for (final ParameterBuilder p : parameters) {
-                final ArrayList<AnnotationBuilder> annotations = new ArrayList<>(p.getCustomAnnotations().size());
+                final ArrayList<AnnotationBuilder<? extends Annotation>> annotations = new ArrayList<>(p.getCustomAnnotations().size());
 
-                for (final AnnotationBuilder a : p.getCustomAnnotations()) {
+                for (final AnnotationBuilder<? extends Annotation> a : p.getCustomAnnotations()) {
                     if (getAnnotationRetention(a) == RetentionPolicy.CLASS) {
                         annotations.add(a);
                     }
@@ -574,7 +575,7 @@ final class ClassWriter {
 
                 _dataBuffer.putShort(annotations.size());
 
-                for (final AnnotationBuilder a : annotations) {
+                for (final AnnotationBuilder<? extends Annotation> a : annotations) {
                     writeAnnotation(a);
                 }
             }
@@ -586,22 +587,22 @@ final class ClassWriter {
         return attributeCount;
     }
 
-    private RetentionPolicy getAnnotationRetention(final AnnotationBuilder a) {
+    private RetentionPolicy getAnnotationRetention(final AnnotationBuilder<? extends Annotation> a) {
         if (a.getAnnotationType().isAnnotationPresent(Retention.class)) {
             return a.getAnnotationType().getAnnotation(Retention.class).value();
         }
         return RetentionPolicy.CLASS;
     }
 
-    private int writeJavaAnnotations(final ReadOnlyList<AnnotationBuilder> annotations) {
+    private int writeJavaAnnotations(final ReadOnlyList<AnnotationBuilder<? extends Annotation>> annotations) {
         if (annotations == null || annotations.isEmpty()) {
             return 0;
         }
 
-        final ArrayList<AnnotationBuilder> visible = new ArrayList<>();
-        final ArrayList<AnnotationBuilder> invisible = new ArrayList<>();
+        final ArrayList<AnnotationBuilder<? extends Annotation>> visible = new ArrayList<>();
+        final ArrayList<AnnotationBuilder<? extends Annotation>> invisible = new ArrayList<>();
 
-        for (final AnnotationBuilder a : annotations) {
+        for (final AnnotationBuilder<? extends Annotation> a : annotations) {
             switch (getAnnotationRetention(a)) {
                 case SOURCE:
                     break;
@@ -621,7 +622,7 @@ final class ClassWriter {
 
             _dataBuffer.putShort(visible.size());
 
-            for (final AnnotationBuilder a : visible) {
+            for (final AnnotationBuilder<? extends Annotation> a : visible) {
                 writeAnnotation(a);
             }
 
@@ -634,7 +635,7 @@ final class ClassWriter {
 
             _dataBuffer.putShort(invisible.size());
 
-            for (final AnnotationBuilder a : invisible) {
+            for (final AnnotationBuilder<? extends Annotation> a : invisible) {
                 writeAnnotation(a);
             }
 
@@ -645,7 +646,7 @@ final class ClassWriter {
         return attributeCount;
     }
 
-    private void writeAnnotation(final AnnotationBuilder a) {
+    private void writeAnnotation(final AnnotationBuilder<? extends Annotation> a) {
         _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(a.getAnnotationType().getSignature()));
         _dataBuffer.putShort(a.getValues().size());
 
@@ -725,7 +726,7 @@ final class ClassWriter {
                 }
                 else {
                     _dataBuffer.putByte('@');
-                    writeAnnotation((AnnotationBuilder)value);
+                    writeAnnotation((AnnotationBuilder<? extends Annotation>)value);
                 }
                 break;
         }
@@ -790,14 +791,14 @@ final class ClassWriter {
 
     // <editor-fold defaultstate="collapsed" desc="Direct Output">
 
-    void putChar(final BytecodeStream buf, final int op, final int x) {
+    void putChar(final CodeStream buf, final int op, final int x) {
         buf.ensureCapacity(op + 2);
         final byte[] data = buf.getData();
         data[op] = (byte)((x >> 8) & 0xFF);
         data[op + 1] = (byte)((x) & 0xFF);
     }
 
-    void putInt(final BytecodeStream buf, final int adr, final int x) {
+    void putInt(final CodeStream buf, final int adr, final int x) {
         buf.ensureCapacity(adr + 4);
         final byte[] data = buf.getData();
         data[adr] = (byte)((x >> 24) & 0xFF);

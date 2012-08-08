@@ -7,17 +7,11 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
 import com.strobel.util.TypeUtils;
-import com.sun.tools.javac.comp.Resolve;
-import com.sun.tools.javac.file.JavacFileManager;
-import com.sun.tools.javac.main.JavaCompiler;
-import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.ListBuffer;
-import com.sun.tools.javac.util.Names;
 
 import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
-import java.nio.charset.Charset;
 import java.util.*;
 
 /**
@@ -1008,6 +1002,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         throw Error.notGenericType(this);
     }
 
+    protected static Type<?> substitute(final Type<?> type, final TypeBindings typeBindings) {
+        return Helper.substitute(type, typeBindings);
+    }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Internal Methods">
@@ -1378,28 +1376,15 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     final static Object CACHE_LOCK = new Object();
-    final static JavacFileManager FILE_MANAGER;
-    final static JavaCompiler COMPILER;
     final static TypeCache CACHE;
-    final static Context CONTEXT;
     final static NewResolver RESOLVER;
     final static Type<?>[] PRIMITIVE_TYPES;
 
     static {
         synchronized (CACHE_LOCK) {
             CACHE = new TypeCache();
-
-            final Context context = new Context();
-
-            FILE_MANAGER = new JavacFileManager(context, true, Charset.defaultCharset());
-
-            com.sun.tools.javac.code.Types.instance(context);
-            Resolve.instance(context);
-            Names.instance(context);
-
-            COMPILER = JavaCompiler.instance(context);
-            CONTEXT = context;
             RESOLVER = new NewResolver();
+
             PRIMITIVE_TYPES = new PrimitiveType<?>[TypeKind.values().length];
 
             PrimitiveTypes.ensureRegistered();
@@ -1446,6 +1431,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return (Type<T>)Type.of(object.getClass());
     }
 
+/*
     private static void loadAncestors(final java.lang.reflect.Type type) {
         if (type instanceof TypeVariable) {
             return;
@@ -1487,6 +1473,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             }
         }
     }
+*/
 
 /*
     static <T> Type<T> of(final com.sun.tools.javac.code.Type type) {

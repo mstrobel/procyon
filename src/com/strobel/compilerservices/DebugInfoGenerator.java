@@ -3,7 +3,7 @@ package com.strobel.compilerservices;
 import com.strobel.expressions.Expression;
 import com.strobel.expressions.LambdaExpression;
 import com.strobel.reflection.MethodBase;
-import com.strobel.reflection.emit.BytecodeGenerator;
+import com.strobel.reflection.emit.CodeGenerator;
 import com.strobel.reflection.emit.LocalBuilder;
 
 /**
@@ -29,7 +29,7 @@ public abstract class DebugInfoGenerator {
     public void markSequencePoint(
         final LambdaExpression<?> method,
         final MethodBase methodBase,
-        final BytecodeGenerator generator,
+        final CodeGenerator generator,
         final Expression sequencePoint) {
         
         markSequencePoint(method, generator.offset(), sequencePoint);

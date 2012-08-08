@@ -13,6 +13,7 @@ import java.lang.reflect.Constructor;
 public final class ConstructorBuilder extends ConstructorInfo {
     private final MethodBuilder _methodBuilder;
 
+    boolean returnCodeGenerator = true;
     ConstructorInfo generatedConstructor;
 
     public ConstructorBuilder(final int modifiers, final TypeList parameterTypes, final TypeBuilder declaringType) {
@@ -39,7 +40,10 @@ public final class ConstructorBuilder extends ConstructorInfo {
         return _methodBuilder.isTypeCreated();
     }
 
-    public BytecodeGenerator getCodeGenerator() {
+    public CodeGenerator getCodeGenerator() {
+        if (!returnCodeGenerator) {
+            throw Error.noCodeGeneratorForDefaultConstructor();
+        }
         return _methodBuilder.getCodeGenerator();
     }
 
@@ -152,11 +156,11 @@ public final class ConstructorBuilder extends ConstructorInfo {
         return _methodBuilder.isAnnotationPresent(annotationClass);
     }
 
-    public void addCustomAnnotation(final AnnotationBuilder annotation) {
+    public void addCustomAnnotation(final AnnotationBuilder<? extends Annotation> annotation) {
         _methodBuilder.addCustomAnnotation(annotation);
     }
 
-    public ReadOnlyList<AnnotationBuilder> getCustomAnnotations() {
+    public ReadOnlyList<AnnotationBuilder<? extends Annotation>> getCustomAnnotations() {
         return _methodBuilder.getCustomAnnotations();
     }
 }
