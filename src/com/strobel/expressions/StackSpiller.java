@@ -1149,7 +1149,7 @@ final class StackSpiller {
         private final Expression[] _expressions;
         private int _expressionsCount;
         private List<Expression> _comma;
-        private RewriteAction _action;
+        private RewriteAction _action = RewriteAction.None;
         private Stack _stack;
         private boolean _done;
 

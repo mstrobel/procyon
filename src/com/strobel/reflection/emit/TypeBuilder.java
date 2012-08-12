@@ -9,6 +9,9 @@ import com.strobel.util.TypeUtils;
 import sun.misc.Unsafe;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -754,6 +757,8 @@ public final class TypeBuilder<T> extends Type<T> {
             final String fullName = getClassFullName();
             final byte[] classBytes = outputStream.toByteArray();
 
+            dump(classBytes);
+
             _hasBeenCreated = true;
 
             _generatedClass = (Class<T>)getUnsafeInstance().defineClass(
@@ -781,6 +786,17 @@ public final class TypeBuilder<T> extends Type<T> {
         }
 
         return _generatedType;
+    }
+
+    private void dump(final byte[] classBytes) {
+        final File temp = new File(System.getenv("TEMP") + File.separator + getInternalName() + ".class");
+
+        try (final FileOutputStream out = new FileOutputStream(temp)) {
+            out.write(classBytes);
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void updateMembersWithGeneratedReferences() {

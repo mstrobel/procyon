@@ -461,8 +461,10 @@ public class CodeGenerator {
             // TODO: Fix this later.
             addFixup(label, _codeStream.getLength(), 2);
             _codeStream.putShort(0);
+/*
             internalEmit(OpCode.NOP);
             internalEmit(OpCode.NOP);
+*/
         }
         else if (opCode.getOperandType() == OperandType.BranchW) {
             addFixup(label, _codeStream.getLength(), 4);
@@ -1237,7 +1239,9 @@ public class CodeGenerator {
     }
 
     private boolean tryEmitConstant(final Object value, final Type<?> type) {
-        switch (type.getKind()) {
+        final Type<?> unboxedType = TypeUtils.getUnderlyingPrimitiveOrSelf(type);
+
+        switch (unboxedType.getKind()) {
             case BOOLEAN:
                 emitBoolean((Boolean)value);
                 return true;
@@ -1271,6 +1275,10 @@ public class CodeGenerator {
                 return true;
 
             default:
+                if (unboxedType == Types.String) {
+                    emitString((String)value);
+                    return true;
+                }
                 return false;
         }
     }
@@ -1493,7 +1501,9 @@ public class CodeGenerator {
     }
 
     private static boolean canEmitBytecodeConstant(final Type<?> type) {
-        switch (type.getKind()) {
+        final Type<?> unboxedType = TypeUtils.getUnderlyingPrimitiveOrSelf(type);
+
+        switch (unboxedType.getKind()) {
             case BOOLEAN:
             case BYTE:
             case SHORT:
@@ -1915,6 +1925,7 @@ public class CodeGenerator {
     }
 
     void internalEmit(final OpCode opCode) {
+//        System.out.println(opCode.toString());
         if (opCode.getSize() == 1) {
             _codeStream.putByte((byte)(opCode.getCode() & 0xFF));
         }
@@ -2014,6 +2025,10 @@ public class CodeGenerator {
             _fixupData = enlargeArray(_fixupData);
         }
 
+        if (_fixupData[_fixupCount] == null) {
+            _fixupData[_fixupCount] = new __FixupData();
+        }
+
         _fixupData[_fixupCount].fixupPosition = position;
         _fixupData[_fixupCount].fixupLabel = label;
         _fixupData[_fixupCount].operandSize = operandSize;
@@ -2099,14 +2114,16 @@ public class CodeGenerator {
         // them with their proper values.
         for (int i = 0; i < _fixupCount; i++) {
             final int fixupPosition = _fixupData[i].fixupPosition;
-            updateAddress = getLabelPosition(_fixupData[i].fixupLabel) -
-                            (fixupPosition + _fixupData[i].operandSize);
+            updateAddress = getLabelPosition(_fixupData[i].fixupLabel) - fixupPosition + 1 /*getLabelPosition(_fixupData[i].fixupLabel) -
+                            (fixupPosition + _fixupData[i].operandSize)*/;
 
             // Handle single byte instructions
             // Throw an exception if they're trying to store a jump in a single byte instruction that doesn't fit.
             if (_fixupData[i].operandSize == 2) {
                 // Verify that our two-byte arg will fit into a Short.
                 if (updateAddress < Short.MIN_VALUE || updateAddress > Short.MAX_VALUE) {
+                    throw Error.branchAddressTooLarge();
+/*
                     final OpCode oldJumpOpCode = OpCode.get(newBytes[fixupPosition - 1]);
                     switch (oldJumpOpCode) {
                         case GOTO:
@@ -2120,6 +2137,7 @@ public class CodeGenerator {
                     }
                     // We'll just overwrite the two NOP opcodes we left as padding.
                     putIntOperand(newBytes, fixupPosition, updateAddress);
+*/
                 }
                 else {
                     putShortOperand(newBytes, fixupPosition, (short)updateAddress);

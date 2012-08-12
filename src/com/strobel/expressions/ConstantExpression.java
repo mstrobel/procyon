@@ -2,6 +2,7 @@ package com.strobel.expressions;
 
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
+import com.strobel.util.TypeUtils;
 
 /**
  * Represents an expression that has a constant value.
@@ -24,7 +25,8 @@ public class ConstantExpression extends Expression {
         if (_value == null) {
             return Types.Object;
         }
-        return Type.of(_value.getClass());
+        final Type<?> valueType = Type.getType(_value);
+        return TypeUtils.getUnderlyingPrimitiveOrSelf(valueType);
     }
 
     @Override

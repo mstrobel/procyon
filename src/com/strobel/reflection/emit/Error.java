@@ -337,4 +337,8 @@ final class Error {
     public static IllegalArgumentException typeMustBeArray() {
         return new IllegalArgumentException("Type must be an array type.");
     }
+
+    public static IllegalStateException branchAddressTooLarge() {
+        return new IllegalStateException("Branch address too large; expected 2 byte address, found 4 byte address.");
+    }
 }

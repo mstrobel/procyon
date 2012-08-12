@@ -228,6 +228,7 @@ public abstract class ExpressionVisitor {
 
     final ExpressionList<? extends Expression> visit(final ExpressionList<? extends Expression> nodes) {
         Expression[] newNodes = null;
+
         for (int i = 0, n = nodes.size(); i < n; i++) {
             final Expression node = nodes.get(i);
             final Expression newNode = visit(node);
@@ -239,7 +240,9 @@ public abstract class ExpressionVisitor {
                 newNodes[i] = newNode;
             }
         }
-        return new ExpressionList<>(newNodes);
+
+        return newNodes == null ? ExpressionList.empty()
+                                : new ExpressionList<>(newNodes);
     }
 
     final ExpressionList<? extends Expression> visitArguments(final IArgumentProvider nodes) {

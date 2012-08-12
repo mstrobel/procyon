@@ -139,8 +139,8 @@ final class ClassWriter {
 //        attributeCount += writeEnclosingMethodAttribute(t);
 
         _poolBuffer.putInt(JAVA_MAGIC);
-        _poolBuffer.putShort(Target.JDK1_7.minorVersion);
-        _poolBuffer.putShort(Target.JDK1_7.majorVersion);
+        _poolBuffer.putShort(Target.JDK1_5.minorVersion);
+        _poolBuffer.putShort(Target.JDK1_5.majorVersion);
 
         t.constantPool.write(_poolBuffer);
 
@@ -445,6 +445,10 @@ final class ClassWriter {
 
         if (locals != null) {
             for (final LocalBuilder l : locals) {
+                if (l == null) {
+                    break;
+                }
+
                 final LocalInfo lInfo = new LocalInfo(
                     l.getName(),
                     l.getLocalType(),

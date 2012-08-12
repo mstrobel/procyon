@@ -41,7 +41,7 @@ final class LambdaCompiler {
 
 
         typeBuilder = new TypeBuilder(
-            "<>f__Lambda" + Integer.toHexString(nextId.getAndIncrement()),
+            "generated.f__Lambda" + Integer.toHexString(nextId.getAndIncrement()),
             Modifier.PUBLIC | Modifier.FINAL,
             Types.Object,
             Type.list(lambda.getType())
@@ -329,7 +329,7 @@ final class LambdaCompiler {
     }
 
     int getLambdaArgument(final int index) {
-        return index + (methodBuilder.isStatic() ? 0 : 1);
+        return index;// + (methodBuilder.isStatic() ? 0 : 1);
     }
 
     LocalBuilder getLocal(final Type<?> type) {
@@ -1205,7 +1205,7 @@ final class LambdaCompiler {
         if (notEmpty(node.getIfFalse())) {
             final Label end = generator.defineLabel();
 
-            generator.emitGoto( end);
+            generator.emitGoto(end);
             generator.markLabel(ifFalse);
 
             emitExpressionAsType(node.getIfFalse(), node.getType(), flags);
@@ -1319,6 +1319,7 @@ final class LambdaCompiler {
         switch (operandType.getKind()) {
             case INT:
                 emitIntegerBinaryOp(op);
+                break;
             case LONG:
                 emitLongBinaryOp(op);
                 break;
@@ -2335,30 +2336,30 @@ final class LambdaCompiler {
                 case BYTE:
                 case SHORT:
                 case INT:
-                    generator.emit(branchWhenEqual ? OpCode.IF_ICMPEQ : OpCode.IF_ICMPNE);
+                    generator.emit(branchWhenEqual ? OpCode.IF_ICMPEQ : OpCode.IF_ICMPNE, label);
                     break;
 
                 case LONG:
                     generator.emit(OpCode.LCMP);
-                    generator.emit(branchWhenEqual ? OpCode.IFEQ : OpCode.IFNE);
+                    generator.emit(branchWhenEqual ? OpCode.IFEQ : OpCode.IFNE, label);
                     break;
 
                 case CHAR:
-                    generator.emit(branchWhenEqual ? OpCode.IF_ICMPEQ : OpCode.IF_ICMPNE);
+                    generator.emit(branchWhenEqual ? OpCode.IF_ICMPEQ : OpCode.IF_ICMPNE, label);
                     break;
 
                 case FLOAT:
                     generator.emit(OpCode.FCMPL);
-                    generator.emit(branchWhenEqual ? OpCode.IFEQ : OpCode.IFNE);
+                    generator.emit(branchWhenEqual ? OpCode.IFEQ : OpCode.IFNE, label);
                     break;
 
                 case DOUBLE:
                     generator.emit(OpCode.DCMPL);
-                    generator.emit(branchWhenEqual ? OpCode.IFEQ : OpCode.IFNE);
+                    generator.emit(branchWhenEqual ? OpCode.IFEQ : OpCode.IFNE, label);
                     break;
 
                 default:
-                    generator.emit(branchWhenEqual ? OpCode.IF_ACMPEQ : OpCode.IF_ACMPNE);
+                    generator.emit(branchWhenEqual ? OpCode.IF_ACMPEQ : OpCode.IF_ACMPNE, label);
                     break;
             }
         }

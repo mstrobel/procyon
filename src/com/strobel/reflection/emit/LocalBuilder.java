@@ -18,7 +18,7 @@ public final class LocalBuilder extends LocalVariableInfo {
 
     public LocalBuilder(final int localIndex, final String name, final Type localType, final MethodInfo methodBuilder) {
         _localIndex = localIndex;
-        _name = name != null ? name : "$" + localIndex;
+        _name = name != null ? name : "__local" + localIndex;
         _localType = localType;
         _methodBuilder = methodBuilder;
     }
@@ -39,5 +39,10 @@ public final class LocalBuilder extends LocalVariableInfo {
 
     MethodInfo getMethodBuilder() {
         return _methodBuilder;
+    }
+
+    @Override
+    public String toString() {
+        return _localType.getBriefDescription() + " " + _name;
     }
 }

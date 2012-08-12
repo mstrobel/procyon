@@ -26,7 +26,7 @@ import static com.strobel.expressions.Expression.*;
 @SuppressWarnings("UnusedDeclaration")
 public class Test {
     public static void main(final String[] args) {
-        testTypeBuilder();
+//        testTypeBuilder();
 //        compilerToolsTest();
 //        primitiveTest();
 //        testGenericSignatures();
@@ -132,6 +132,11 @@ public class Test {
         );
 
         System.out.println(lambda);
+
+        final ITest delegate = lambda.compile();
+        final String result = delegate.testNumber(-15);
+
+        System.out.println(result);
     }
 
     private static class NullTree extends JCTree {
@@ -203,10 +208,6 @@ public class Test {
 
         t.createType().newInstance().test("HOLY FREAKIN' CRAP!");
     }
-}
-
-interface ITest {
-    String testNumber(final int number);
 }
 
 interface ITest2<T extends String & Comparable<String> & Serializable, T2 extends T> {
