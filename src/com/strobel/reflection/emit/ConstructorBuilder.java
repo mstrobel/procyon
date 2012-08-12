@@ -16,12 +16,18 @@ public final class ConstructorBuilder extends ConstructorInfo {
     boolean returnCodeGenerator = true;
     ConstructorInfo generatedConstructor;
 
-    public ConstructorBuilder(final int modifiers, final TypeList parameterTypes, final TypeBuilder declaringType) {
+    public ConstructorBuilder(
+        final int modifiers,
+        final TypeList parameterTypes,
+        final TypeList thrownTypes,
+        final TypeBuilder declaringType) {
+
         _methodBuilder = new MethodBuilder(
             "<init>",
             modifiers,
             null,
             parameterTypes,
+            thrownTypes,
             declaringType
         );
 

@@ -1,5 +1,5 @@
 package com.strobel;
 
 public interface ITest {
-    String testNumber(final int number);
+    String testNumber(final int number) throws NumberFormatException;
 }

@@ -47,7 +47,7 @@ final class Helper {
             return false;
         }
 
-        if (!baseMethod.getDeclaringType().isSubType(ancestorMethod.getDeclaringType())) {
+        if (!baseMethod.getDeclaringType().isSubTypeOf(ancestorMethod.getDeclaringType())) {
             return false;
         }
 

@@ -21,6 +21,7 @@ public final class MethodBuilder extends MethodInfo {
 
     private Type<?> _returnType;
     private TypeList _parameterTypes;
+    private TypeList _thrownTypes;
 
     private boolean _isFinished;
     private GenericParameterBuilderList _genericParameterBuilders;
@@ -39,12 +40,14 @@ public final class MethodBuilder extends MethodInfo {
         final int modifiers,
         final Type<?> returnType,
         final TypeList parameterTypes,
+        final TypeList thrownTypes,
         final TypeBuilder declaringType) {
 
         _name = VerifyArgument.notNullOrWhitespace(name, "name");
         _modifiers = modifiers;
         _returnType = returnType != null ? returnType : PrimitiveTypes.Void;
         _parameterTypes = parameterTypes != null ? parameterTypes : TypeList.empty();
+        _thrownTypes = thrownTypes != null ? thrownTypes : TypeList.empty();
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _annotations = ReadOnlyList.emptyList();
 
@@ -129,6 +132,11 @@ public final class MethodBuilder extends MethodInfo {
         return generatedMethod.getParameters();
     }
 
+    @Override
+    public TypeList getThrownTypes() {
+        return _thrownTypes;
+    }
+
     TypeList getParameterTypes() {
         return _parameterTypes;
     }
@@ -177,6 +185,11 @@ public final class MethodBuilder extends MethodInfo {
     public void setParameters(final TypeList types) {
         verifyCodeGeneratorNotCreated();
         setSignature(null, types);
+    }
+
+    public void setThrownTypes(final TypeList types) {
+        verifyCodeGeneratorNotCreated();
+        _thrownTypes = types != null ? types : TypeList.empty();
     }
 
     @Override
@@ -373,6 +386,7 @@ public final class MethodBuilder extends MethodInfo {
         VerifyArgument.notNull(code, "code");
 
         final __ExceptionInfo[] exceptions;
+        final Type<?>[] unhandledExceptions;
         int counter = 0;
         int[] filterAddresses;
         int[] catchAddresses;
@@ -399,6 +413,13 @@ public final class MethodBuilder extends MethodInfo {
         _body = code.bakeByteArray();
 
         exceptions = code.getExceptions();
+        unhandledExceptions = code.getUnhandledCheckedExceptions();
+
+        for (final Type<?> unhandledExceptionType : unhandledExceptions) {
+            if (!_thrownTypes.containsTypeAssignableFrom(unhandledExceptionType)) {
+                throw Error.checkedExceptionUnhandled(unhandledExceptionType);
+            }
+        }
 
         _numberOfExceptions = calculateNumberOfExceptions(exceptions);
 

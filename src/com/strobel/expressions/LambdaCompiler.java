@@ -55,7 +55,8 @@ final class LambdaCompiler {
             interfaceMethod.getName(),
             Modifier.PUBLIC | Modifier.FINAL,
             interfaceMethod.getReturnType(),
-            interfaceMethod.getParameters().getParameterTypes()
+            interfaceMethod.getParameters().getParameterTypes(),
+            interfaceMethod.getThrownTypes()
         );
 
         generator = methodBuilder.getCodeGenerator();

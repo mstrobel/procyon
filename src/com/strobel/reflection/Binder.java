@@ -1,7 +1,6 @@
 package com.strobel.reflection;
 
 import com.strobel.core.ArrayUtilities;
-import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
 import java.util.Set;
@@ -27,407 +26,317 @@ public abstract class Binder {
         return true;
     }
 
+    static int getHierarchyDepth(final Type t) {
+        int depth = 0;
+
+        Type currentType = t;
+        do {
+            depth++;
+            currentType = currentType.getBaseType();
+        } while (currentType != null);
+
+        return depth;
+    }
+
     static MethodBase findMostDerivedNewSlotMethod(final MethodBase[] match, final int cMatches) {
-        throw ContractUtils.unreachable();
+        int deepestHierarchy = 0;
+        MethodBase methodWithDeepestHierarchy = null;
+
+        for (int i = 0; i < cMatches; i++) {
+            // Calculate the depth of the hierarchy of the declaring type of the
+            // current method.
+            final int currentHierarchyDepth = getHierarchyDepth(match[i].getDeclaringType());
+
+            // The two methods have the same name, signature, and hierarchy depth.
+            // This can only happen if at least one is vararg or generic.
+            if (currentHierarchyDepth == deepestHierarchy) {
+                throw Error.ambiguousMatch();
+            }
+
+            // Check to see if this method is on the most derived class.
+            if (currentHierarchyDepth > deepestHierarchy) {
+                deepestHierarchy = currentHierarchyDepth;
+                methodWithDeepestHierarchy = match[i];
+            }
+        }
+
+        return methodWithDeepestHierarchy;
     }
 
     public abstract MethodBase selectMethod(final Set<BindingFlags> bindingFlags, final MethodBase[] matches, final Type[] parameterTypes);
 }
 
+@SuppressWarnings("ConstantConditions")
 final class DefaultBinder extends Binder {
-
     @Override
-    public MethodBase selectMethod(final Set<BindingFlags> bindingFlags, final MethodBase[] matches, final Type[] parameterTypes) {
+    public MethodBase selectMethod(final Set<BindingFlags> bindingFlags, final MethodBase[] matches, final Type[] types) {
         if (ArrayUtilities.isNullOrEmpty(matches)) {
             return null;
         }
-        if (matches.length == 1) {
-            return matches[0];
-        }
-        throw Error.ambiguousMatch();
-    }
 
-/*
-    private MethodBase findMethod(
-        final MethodBase callSite,
-        final String name,
-        final TypeList argumentTypes,
-        final TypeList typeArguments,
-        final boolean allowBoxing,
-        final boolean useVarArgs,
-        final boolean operator) {
+        final MethodBase[] candidates = matches.clone();
 
-        return findMethod(
-            callSite,
-            name,
-            argumentTypes,
-            typeArguments,
-            callSite.getDeclaringType(),
-            true,
-            null,
-            allowBoxing,
-            useVarArgs,
-            operator,
-            new HashSet<>()
-        );
-    }
+        //
+        // Find all the methods that can be described by the parameter types.
+        // Remove all of them that cannot.
+        //
 
-    private MethodBase findMethod(
-        final MethodBase callSite,
-        final String name,
-        final TypeList argumentTypes,
-        final TypeList typeArguments,
-        final Type<?> inType,
-        boolean abstractOk,
-        MethodBase bestSoFar,
-        final boolean allowBoxing,
-        final boolean useVarArgs,
-        final boolean operator,
-        final Set<Type<?>> seen) {
+        int stop;
+        int currentIndex = 0;
 
-        for (Type<?> ct = inType; ct.isClass() || ct.isGenericParameter(); ct = ct.getBaseType()) {
-            while (ct.isGenericParameter()) {
-                ct = ct.getExtendsBound();
+        for (int i = 0, n = candidates.length; i < n; i++) {
+            final ParameterList par = candidates[i].getParameters();
+
+            if (par.size() != types.length) {
+                continue;
             }
 
-            if (!seen.add(ct)) {
-                return bestSoFar;
-            }
+            for (stop = 0; stop < types.length; stop++) {
+                final Type parameterType = par.get(stop).getParameterType();
 
-            if ((ct.getModifiers() & (Modifier.ABSTRACT | Modifier.INTERFACE | Type.ENUM_MODIFIER)) == 0) {
-                abstractOk = false;
-            }
-
-            for (final Object o : ct.getMember(name, MemberType.Method)) {
-                final MethodBase method = (MethodBase)o;
-
-                bestSoFar = selectBest(
-                    callSite,
-                    argumentTypes,
-                    typeArguments,
-                    method,
-                    bestSoFar,
-                    allowBoxing,
-                    useVarArgs,
-                    operator
-                );
-            }
-
-            if ("<init>".equals(name)) {
-                break;
-            }
-
-            if (abstractOk) {
-                MethodInfo concrete = null;
-
-                if (bestSoFar != null && !Modifier.isAbstract(bestSoFar.getModifiers())) {
-                    concrete = (MethodInfo)bestSoFar;
+                if (parameterType == types[stop] || parameterType == Types.Object) {
+                    continue;
                 }
 
-                for (final Type interfaceType : ct.getInterfaces()) {
-                    bestSoFar = findMethod(
-                        callSite,
-                        name,
-                        argumentTypes,
-                        typeArguments,
-                        interfaceType,
-                        abstractOk,
-                        bestSoFar,
-                        allowBoxing,
-                        useVarArgs,
-                        operator,
-                        seen
-                    );
+                if (!parameterType.isAssignableFrom(types[stop])) {
+                    break;
                 }
+            }
 
-                if (concrete != bestSoFar &&
-                    concrete != null &&
-                    bestSoFar != null &&
-                    Helper.isSubSignature(concrete, (MethodInfo)bestSoFar)) {
-
-                    bestSoFar = concrete;
-                }
+            if (stop == types.length) {
+                candidates[currentIndex++] = candidates[i];
             }
         }
 
-        return bestSoFar;
-    }
-
-    private MethodBase selectBest(
-        final MethodBase callSite,
-        final TypeList argumentTypes,
-        final TypeList typeArguments,
-        final MethodBase candidate,
-        final MethodBase bestSoFar,
-        final boolean allowBoxing,
-        final boolean useVarArgs,
-        final boolean operator) {
-
-        if (candidate == null) {
-            return bestSoFar;
+        if (currentIndex == 0) {
+            return null;
         }
 
-        if (!Helper.isInheritedIn(callSite.getDeclaringType(), candidate)) {
-            return bestSoFar;
+        if (currentIndex == 1) {
+            return candidates[0];
         }
 
-        final ResolutionContext context = currentResolutionContext.get();
+        // Walk all of the methods looking the most specific method to invoke
+        int currentMin = 0;
+        boolean ambiguous = false;
 
-        try {
-            final MethodBase m = rawInstantiate(
-                callSite,
-                candidate,
-                argumentTypes,
-                typeArguments,
-                allowBoxing,
-                useVarArgs
+        final int[] parameterOrder = new int[types.length];
+
+        for (int i = 0, n = types.length; i < n; i++) {
+            parameterOrder[i] = i;
+        }
+
+        for (int i = 1; i < currentIndex; i++) {
+            final int newMin = findMostSpecificMethod(
+                candidates[currentMin],
+                parameterOrder,
+                null,
+                candidates[i],
+                parameterOrder,
+                null,
+                types,
+                null
             );
 
-            if (!operator) {
-                context.addApplicableCandidate(candidate, m);
+            if (newMin == 0) {
+                ambiguous = true;
             }
-        }
-        catch (InapplicableMethodException e) {
-            if (!operator) {
-                context.addInapplicableCandidate(candidate);
-            }
-            return bestSoFar;
-        }
-
-        if (!isAccessible(callSite, candidate)) {
-            return bestSoFar;
-        }
-
-        return mostSpecific(
-            candidate,
-            bestSoFar,
-            callSite,
-            allowBoxing && operator,
-            useVarArgs
-        );
-    }
-
-    private static Type<?> outermostType(final Type<?> t) {
-        Type<?> outermost = t;
-        while (outermost.isNested()) {
-            outermost = outermost.getDeclaringType();
-        }
-        return outermost;
-    }
-
-    private final static int AccessFlags = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE;
-
-
-    public boolean isAccessible(final Type<?> site, final Type<?> type, final boolean checkInner) {
-        if (type.isArray())
-            return isAccessible(site, type.getElementType(), checkInner);
-
-        boolean isAccessible = false;
-
-        switch (type.getModifiers() & AccessFlags) {
-            case Modifier.PRIVATE:
-                isAccessible = TypeUtils.areEquivalent(outermostType(site), outermostType(type));
-                break;
-
-            case 0:
-                isAccessible = Helper.inSamePackage(site, type) ||
-                               site.getDeclaringMethod() != null &&
-                               // check for synthesized anonymous inner class ctor:
-                               (site.getDeclaringMethod().getModifiers() & (1 << 29)) != 0;
-                break;
-
-            case Modifier.PUBLIC:
-                isAccessible = true;
-                break;
-
-            case Modifier.PROTECTED:
-                isAccessible = Helper.inSamePackage(site, type) ||
-                               isInnerSubtype(site, type);
-                break;
-        }
-
-        final Type declaringType = type.getDeclaringType();
-
-        if (!checkInner ||
-            declaringType == null ||
-            declaringType == Type.Bottom ||
-            declaringType == Type.NullType) {
-
-            return isAccessible;
-        }
-
-        return isAccessible && isAccessible(site, type.getDeclaringType(), checkInner);
-    }
-
-    private boolean isInnerSubtype(Type<?> c, final Type<?> base) {
-        while (c != null && !Helper.isSubtype(c, base)) {
-            c = c.getDeclaringType();
-        }
-        return c != null;
-    }
-
-    public boolean isAccessible(final Type<?> site, final MemberInfo member) {
-        return isAccessible(site, member, false);
-    }
-
-    public boolean isAccessible(final Type<?> site, final MemberInfo member, final boolean checkInner) {
-        if (member == null)
-            return false;
-
-        if (member instanceof ConstructorInfo && member.getDeclaringType() != site)
-            return false;
-
-        if (member.isPrivate()) {
-            return TypeUtils.areEquivalent(outermostType(site), outermostType(member.getDeclaringType())) &&
-                   Helper.isInheritedIn(site, member);
-        }
-
-        if (member.isPublic()) {
-            return isAccessible(site, )
-        }
-    }
-
-    private MethodBase rawInstantiate(
-        final MethodBase callSite,
-        final MethodBase candidate,
-        final TypeList argumentTypes,
-        final TypeList typeArguments,
-        final boolean allowBoxing,
-        final boolean useVarArgs) throws InapplicableMethodException{
-
-        if (useVarArgs && candidate.getCallingConvention() == CallingConvention.VarArgs)
-            throw inapplicableMethodException;
-
-*/
-/*
-        MethodBase boundMethod = (MethodBase)Helper.asMemberOf(callSite.getDeclaringType(), candidate);
-
-        if ()
-*//*
-
-        if (candidate instanceof MethodInfo){
-            final MethodInfo method = (MethodInfo)candidate;
-            if (method.isGenericMethod()) {
-                return method.getGenericMethodDefinition().makeGenericMethod(typeArguments);
-            }
-        }
-
-        return candidate;
-    }
-
-    private final static InapplicableMethodException inapplicableMethodException = new InapplicableMethodException();
-
-    private final static ThreadLocal<ResolutionContext> currentResolutionContext = new ThreadLocal<ResolutionContext>() {
-        @Override
-        protected ResolutionContext initialValue() {
-            return new ResolutionContext();
-        }
-    };
-
-    private final static MethodResolutionPhase[] methodResolutionSteps = {
-        MethodResolutionPhase.BASIC,
-        MethodResolutionPhase.BOX,
-        MethodResolutionPhase.VARARITY
-    };
-
-    private final static class InapplicableMethodException extends Exception {}
-
-    @SuppressWarnings("PackageVisibleField")
-    private final static class ResolutionContext {
-        private final ArrayList<Candidate> _candidates = new ArrayList<>();
-        private Map<MethodResolutionPhase, MethodBase> _resolutionCache = new EnumMap<>(MethodResolutionPhase.class);
-        private MethodResolutionPhase _step = null;
-        private boolean _internalResolution = false;
-
-        private MethodResolutionPhase firstErroneousResolutionPhase() {
-            final MethodResolutionPhase[] steps = methodResolutionSteps;
-
-            MethodResolutionPhase bestSoFar = MethodResolutionPhase.BASIC;
-            MethodBase method = null;
-
-            for (int i = 0, n = steps.length; i < n && steps[i].isApplicable(true, true); i++) {
-                final MethodResolutionPhase step = steps[i];
-                method = _resolutionCache.get(step);
-                bestSoFar = step;
-            }
-
-            return bestSoFar;
-        }
-
-        void addInapplicableCandidate(final MethodBase method) {
-            final ResolutionContext context = currentResolutionContext.get();
-            final Candidate c = new Candidate(context._step, method, null);
-
-            if (!_candidates.contains(c)) {
-                _candidates.add(c);
-            }
-        }
-
-        void addApplicableCandidate(final MethodBase method, final MethodBase boundMethod) {
-            final ResolutionContext context = currentResolutionContext.get();
-            final Candidate c = new Candidate(context._step, method, boundMethod);
-
-            _candidates.add(c);
-        }
-
-        final static class Candidate {
-            final MethodResolutionPhase step;
-            final MethodBase method;
-            final MethodBase boundMethod;
-
-            Candidate(final MethodResolutionPhase step, final MethodBase method, final MethodBase boundMethod) {
-                this.step = step;
-                this.method = method;
-                this.boundMethod = boundMethod;
-            }
-
-            @Override
-            public boolean equals(final Object o) {
-                if (o instanceof Candidate) {
-                    final MethodBase m1 = this.method;
-                    final MethodBase m2 = ((Candidate)o).method;
-                    if ((m1 != m2 && (Helper.overrides(m1, m2, false) || Helper.overrides(m2, m1, false))) ||
-                        ((m1 instanceof ConstructorInfo || m2 instanceof ConstructorInfo) &&
-                         m1.getDeclaringType() != m2.getDeclaringType())) {
-
-                        return true;
-                    }
+            else {
+                if (newMin == 2) {
+                    ambiguous = false;
+                    currentMin = i;
                 }
-                return false;
+            }
+        }
+        if (ambiguous) {
+            throw Error.ambiguousMatch();
+        }
+
+        return candidates[currentMin];
+    }
+
+    private static int findMostSpecificMethod(
+        final MethodBase m1,
+        final int[] varArgOrder1,
+        final Type varArgArrayType1,
+        final MethodBase m2,
+        final int[] varArgOrder2,
+        final Type varArgArrayType2,
+        final Type[] types,
+        final Object[] args) {
+
+        //
+        // Find the most specific method based on the parameters.
+        //
+        final int result = findMostSpecific(
+            m1.getParameters(),
+            varArgOrder1,
+            varArgArrayType1,
+            m2.getParameters(),
+            varArgOrder2,
+            varArgArrayType2,
+            types,
+            args
+        );
+
+        //
+        // If the match was not ambiguous then return the result.
+        //
+        if (result != 0) {
+            return result;
+        }
+
+        //
+        // Check to see if the methods have the exact same name and signature.
+        //
+        if (compareMethodSignatureAndName(m1, m2)) {
+            //
+            // Determine the depth of the declaring types for both methods.
+            //
+            final int hierarchyDepth1 = getHierarchyDepth(m1.getDeclaringType());
+            final int hierarchyDepth2 = getHierarchyDepth(m2.getDeclaringType());
+
+            //
+            // The most derived method is the most specific one.
+            //
+            if (hierarchyDepth1 == hierarchyDepth2) {
+                return 0;
+            }
+            else if (hierarchyDepth1 < hierarchyDepth2) {
+                return 2;
+            }
+            else {
+                return 1;
+            }
+        }
+
+        //
+        // The match is ambiguous.
+        //
+        return 0;
+    }
+
+    private static int findMostSpecific(
+        final ParameterList p1,
+        final int[] varArgOrder1,
+        final Type varArgArrayType1,
+        final ParameterList p2,
+        final int[] varArgOrder2,
+        final Type varArgArrayType2,
+        final Type[] types,
+        final Object[] args) {
+        //
+        // A method using varargs is always less specific than one not using varargs.
+        //
+        if (varArgArrayType1 != null && varArgArrayType2 == null) {
+            return 2;
+        }
+        if (varArgArrayType2 != null && varArgArrayType1 == null) {
+            return 1;
+        }
+
+        //
+        // Now either p1 and p2 both use params or neither does.
+        //
+
+        boolean p1Less = false;
+        boolean p2Less = false;
+
+        for (int i = 0, n = types.length; i < n; i++) {
+            if (args != null && args[i] == Missing.Value) {
+                continue;
             }
 
-            boolean isApplicable() {
-                return boundMethod != null;
+            final Type c1;
+            final Type c2;
+
+            //
+            //  If a vararg array is present, then either
+            //      the user re-ordered the parameters, in which case
+            //          the argument to the vararg array is either an array
+            //              in which case the params is conceptually ignored and so varArgArrayType1 == null
+            //          or the argument to the vararg array is a single element
+            //              in which case varArgOrder[i] == p1.Length - 1 for that element 
+            //      or the user did not re-order the parameters in which case 
+            //          the varArgOrder array could contain indexes larger than p.Length - 1 (see VSW 577286)
+            //          so any index >= p.Length - 1 is being put in the vararg array 
+            //
+
+            if (varArgArrayType1 != null && varArgOrder1[i] >= p1.size() - 1) {
+                c1 = varArgArrayType1;
             }
+            else {
+                c1 = p1.get(varArgOrder1[i]).getParameterType();
+            }
+
+            if (varArgArrayType2 != null && varArgOrder2[i] >= p2.size() - 1) {
+                c2 = varArgArrayType2;
+            }
+            else {
+                c2 = p2.get(varArgOrder2[i]).getParameterType();
+            }
+
+            if (c1 == c2) {
+                continue;
+            }
+
+            switch (findMostSpecificType(c1, c2, types[i])) {
+                case 0:
+                    return 0;
+                case 1:
+                    p1Less = true;
+                    break;
+                case 2:
+                    p2Less = true;
+                    break;
+            }
+        }
+
+        // Two way p1Less and p2Less can be equal.  All the arguments are the
+        //  same they both equal false, otherwise there were things that both 
+        //  were the most specific type on....
+        if (p1Less == p2Less) {
+            // if we cannot tell which is a better match based on parameter types (p1Less == p2Less),
+            // let's see which one has the most matches without using the params array (the longer one wins). 
+            if (!p1Less && args != null) {
+                if (p1.size() > p2.size()) {
+                    return 1;
+                }
+                else if (p2.size() > p1.size()) {
+                    return 2;
+                }
+            }
+
+            return 0;
+        }
+        else {
+            return p1Less ? 1 : 2;
         }
     }
 
-    @SuppressWarnings("PackageVisibleField")
-    private enum MethodResolutionPhase {
-        BASIC(false, false),
-        BOX(true, false),
-        VARARITY(true, true);
-
-        boolean isBoxingRequired;
-        boolean isVarargsRequired;
-
-        MethodResolutionPhase(final boolean isBoxingRequired, final boolean isVarargsRequired) {
-            this.isBoxingRequired = isBoxingRequired;
-            this.isVarargsRequired = isVarargsRequired;
+    private static int findMostSpecificType(final Type c1, final Type c2, final Type t) {
+        //
+        // If the two types are exact move on...
+        //
+        if (TypeUtils.areEquivalent(c1, c2)) {
+            return 0;
         }
 
-        public boolean isBoxingRequired() {
-            return isBoxingRequired;
+        if (TypeUtils.areEquivalent(c1, t)) {
+            return 1;
         }
 
-        public boolean isVarargsRequired() {
-            return isVarargsRequired;
+        if (TypeUtils.areEquivalent(c2, t)) {
+            return 2;
         }
 
-        public boolean isApplicable(final boolean boxingEnabled, final boolean varargsEnabled) {
-            return (varargsEnabled || !isVarargsRequired) &&
-                   (boxingEnabled || !isBoxingRequired);
+        final boolean c1FromC2 = c1.isAssignableFrom(c2);
+        final boolean c2FromC1 = c2.isAssignableFrom(c1);
+
+        if (c1FromC2 == c2FromC1) {
+            return 0;
         }
+
+        return c1FromC2 ? 2 : 1;
     }
-*/
 }

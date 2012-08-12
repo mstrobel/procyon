@@ -84,4 +84,31 @@ public class TypeList extends MemberList<Type> {
         }
         return false;
     }
+
+    public final boolean containsSubTypeOf(final Type<?> type) {
+        for (int i = 0, n = this.size(); i < n; i++) {
+            if (this.get(i).isSubTypeOf(type)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public final boolean containsSuperTypeOf(final Type<?> type) {
+        for (int i = 0, n = this.size(); i < n; i++) {
+            if (type.isSubTypeOf(this.get(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public final boolean containsTypeAssignableFrom(final Type<?> type) {
+        for (int i = 0, n = this.size(); i < n; i++) {
+            if (this.get(i).isAssignableFrom(type)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

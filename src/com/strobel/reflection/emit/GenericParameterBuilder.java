@@ -169,8 +169,8 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
-    public boolean isSubType(final Type type) {
-        return typeBuilder.isSubType(type);
+    public boolean isSubTypeOf(final Type type) {
+        return typeBuilder.isSubTypeOf(type);
     }
 
     @Override

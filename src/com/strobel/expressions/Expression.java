@@ -2094,7 +2094,7 @@ public abstract class Expression {
     public static MethodCallExpression call(
         final Expression target,
         final String methodName,
-        final Type[] typeArguments,
+        final TypeList typeArguments,
         final Expression... arguments) {
 
         return call(target, methodName, typeArguments, arrayToList(arguments));
@@ -2103,19 +2103,19 @@ public abstract class Expression {
     public static MethodCallExpression call(
         final Expression target,
         final String methodName,
-        final Type[] typeArguments,
+        final TypeList typeArguments,
         final ExpressionList<? extends Expression> arguments) {
 
         VerifyArgument.notNull(target, "target");
         VerifyArgument.notNull(methodName, "methodName");
 
-        final MethodInfo resolvedMethod = null; /*target.getType().getMethod(
+        final MethodInfo resolvedMethod = findMethod(
             target.getType(),
             methodName,
             typeArguments,
             arguments,
-            0
-        );*/
+            InstanceMethodBindingFlags
+        );
 
         return call(
             target,
@@ -2127,7 +2127,7 @@ public abstract class Expression {
     public static MethodCallExpression call(
         final Type declaringType,
         final String methodName,
-        final Type[] typeArguments,
+        final TypeList typeArguments,
         final Expression... arguments) {
 
         return call(declaringType, methodName, typeArguments, arrayToList(arguments));
@@ -2136,19 +2136,19 @@ public abstract class Expression {
     public static MethodCallExpression call(
         final Type declaringType,
         final String methodName,
-        final Type[] typeArguments,
+        final TypeList typeArguments,
         final ExpressionList<? extends Expression> arguments) {
 
         VerifyArgument.notNull(declaringType, "declaringType");
         VerifyArgument.notNull(methodName, "methodName");
 
-        final MethodInfo resolvedMethod = null; /*MethodBinder.findMethod(
+        final MethodInfo resolvedMethod = findMethod(
             declaringType,
             methodName,
             typeArguments,
             arguments,
-            0
-        );*/
+            StaticMethodBindingFlags
+        );
 
         return call(
             resolvedMethod,
@@ -3380,5 +3380,129 @@ public abstract class Expression {
                 throw Error.allCaseBodiesMustHaveSameType();
             }
         }
+    }
+
+    private final static Set<BindingFlags> StaticMethodBindingFlags = BindingFlags.set(
+        BindingFlags.Static,
+        BindingFlags.Public,
+        BindingFlags.NonPublic,
+        BindingFlags.FlattenHierarchy
+    );
+
+    private final static Set<BindingFlags> InstanceMethodBindingFlags = BindingFlags.set(
+        BindingFlags.Instance,
+        BindingFlags.Public,
+        BindingFlags.NonPublic,
+        BindingFlags.FlattenHierarchy
+    );
+
+    private static MethodInfo findMethod(
+        final Type type,
+        final String methodName,
+        final TypeList typeArguments,
+        final ExpressionList<? extends Expression> arguments,
+        final Set<BindingFlags> flags) {
+
+        final MemberList members = type.findMembers(
+            MemberType.methods(),
+            flags,
+            Type.FilterNameIgnoreCase,
+            methodName
+        );
+
+        if (members == null || members.size() == 0) {
+            throw Error.methodDoesNotExistOnType(methodName, type);
+        }
+
+        MethodInfo method;
+
+        final int bestMethodIndex = findBestMethod(members, typeArguments, arguments);
+
+        if (bestMethodIndex == -1) {
+            if (typeArguments != null && typeArguments.size() > 0) {
+                throw Error.genericMethodWithArgsDoesNotExistOnType(methodName, type);
+            }
+            else {
+                throw Error.methodWithArgsDoesNotExistOnType(methodName, type);
+            }
+        }
+
+        if (bestMethodIndex == -2) {
+            throw Error.methodWithMoreThanOneMatch(methodName, type);
+        }
+
+        return (MethodInfo)members.get(bestMethodIndex);
+    }
+
+    private static int findBestMethod(
+        final MemberList<?> methods,
+        final TypeList typeArgs,
+        final ExpressionList<? extends Expression> arguments) {
+
+        int count = 0;
+        int bestMethodIndex = -1;
+        MethodInfo bestMethod = null;
+
+        for (int i = 0, n = methods.size(); i < n; i++) {
+            final MethodInfo method = applyTypeArgs((MethodInfo)methods.get(i), typeArgs);
+            if (method != null && isCompatible(method, arguments)) {
+                // Favor public over non-public methods.
+                if (bestMethod == null || (!bestMethod.isPublic() && method.isPublic())) {
+                    bestMethodIndex = i;
+                    bestMethod = method;
+                    count = 1;
+                }
+                else {
+                    // Only count it as additional method if they both public or both non-public.
+                    if (bestMethod.isPublic() == method.isPublic()) {
+                        count++;
+                    }
+                }
+            }
+        }
+
+        if (count > 1)
+            return -2;
+
+        return bestMethodIndex;
+    }
+
+    private static boolean isCompatible(final MethodBase m, final ExpressionList<? extends Expression> arguments) {
+        VerifyArgument.noNullElements(arguments, "arguments");
+
+        final ParameterList parameters = m.getParameters();
+
+        if (parameters.size() != arguments.size()) {
+            return false;
+        }
+
+        for (int i = 0, n = arguments.size(); i < n; i++) {
+            final Expression argument = arguments.get(i);
+            final Type argumentType = argument.getType();
+            final Type parameterType = parameters.get(i).getParameterType();
+
+            if (!TypeUtils.areReferenceAssignable(parameterType, argumentType) &&
+                !(TypeUtils.isSameOrSubType(Type.of(LambdaExpression.class), parameterType) &&
+                  parameterType.isAssignableFrom(argument.getType()))) {
+
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static MethodInfo applyTypeArgs(final MethodInfo m, final TypeList typeArgs) {
+        if (typeArgs == null || typeArgs.size() == 0) {
+            if (!m.isGenericMethodDefinition()) {
+                return m;
+            }
+        }
+        else if (m.isGenericMethodDefinition()) {
+            final TypeList genericParameters = m.getGenericMethodParameters();
+            if (genericParameters.size() == typeArgs.size()) {
+                return m.makeGenericMethod(typeArgs);
+            }
+        }
+        return null;
     }
 }

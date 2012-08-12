@@ -1,8 +1,10 @@
 package com.strobel.reflection;
 
+import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -46,6 +48,23 @@ public class MemberList<T extends MemberInfo> extends ReadOnlyList<T> {
         }
 
         return new MemberList<>(_memberType, getElements(), offset, length);
+    }
+
+    public static MemberList<?> combine(final MemberList<?>... lists) {
+        if (ArrayUtilities.isNullOrEmpty(lists))
+            return empty();
+
+        final ArrayList<MemberInfo> members = new ArrayList<>();
+
+        for (final MemberList<?> list : lists) {
+            if (list != null) {
+                for (final MemberInfo member : list) {
+                    members.add(member);
+                }
+            }
+        }
+
+        return new MemberList<>(MemberInfo.class, members);
     }
 
     Class<T> getMemberType() {

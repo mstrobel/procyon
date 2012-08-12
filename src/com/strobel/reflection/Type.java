@@ -87,7 +87,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public final boolean isEnum() {
-//        return isSubType(Types.Enum);
+//        return isSubTypeOf(Types.Enum);
         return (getModifiers() & ENUM_MODIFIER) != 0;
     }
 
@@ -335,7 +335,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                isEquivalentTo(other);
     }
 
-    public boolean isSubType(final Type type) {
+    public boolean isSubTypeOf(final Type type) {
         Type current = this;
 
         if (current == type) {
@@ -391,7 +391,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             return true;
         }
 
-        if (type.isSubType(this)) {
+        if (type.isSubTypeOf(this)) {
             return true;
         }
 
@@ -598,7 +598,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 }
             }
 
-            if (match == null || candidateDeclaringType.isSubType(match.getDeclaringType()) || match.getDeclaringType().isInterface()) {
+            if (match == null || candidateDeclaringType.isSubTypeOf(match.getDeclaringType()) || match.getDeclaringType().isInterface()) {
                 match = candidate;
             }
         }
@@ -807,6 +807,66 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         results.toArray(array);
 
         return new MemberList<>(MemberInfo.class, array);
+    }
+
+    public MemberList<? extends MemberInfo> findMembers(
+        final Set<MemberType> memberTypes,
+        final Set<BindingFlags> bindingAttr,
+        final MemberFilter filter,
+        final Object filterCriteria)
+    {
+        final MethodList m;
+        final ConstructorList c;
+        final FieldList f;
+        final TypeList t;
+
+        final ArrayList<MemberInfo> matches = new ArrayList<>();
+
+        // Check the methods
+        if ((MemberType.mask(memberTypes) & MemberType.Method.mask) != 0) {
+            m = getMethods(bindingAttr);
+            for (int i=0,n=m.size();i<n;i++) {
+                final MethodInfo method = m.get(i);
+                if (filter == null || filter.apply(method,filterCriteria)) {
+                    matches.add(method);
+                }
+            }
+        }
+
+        // Check the constructors
+        if ((MemberType.mask(memberTypes) & MemberType.Constructor.mask) != 0) {
+            c = getConstructors(bindingAttr);
+            for (int i=0,n=c.size();i<n;i++) {
+                final ConstructorInfo constructor = c.get(i);
+                if (filter == null || filter.apply(constructor,filterCriteria)) {
+                    matches.add(constructor);
+                }
+            }
+        }
+
+        // Check the fields
+        if ((MemberType.mask(memberTypes) & MemberType.Field.mask) != 0) {
+            f = getFields(bindingAttr);
+            for (int i=0,n=f.size();i<n;i++) {
+                final FieldInfo field = f.get(i);
+                if (filter == null || filter.apply(field,filterCriteria)) {
+                    matches.add(field);
+                }
+            }
+        }
+
+        // Check the Types
+        if ((MemberType.mask(memberTypes) & MemberType.NestedType.mask) != 0) {
+            t = getNestedTypes(bindingAttr);
+            for (int i=0,n=t.size();i<n;i++) {
+                final Type<?> type = t.get(i);
+                if (filter == null || filter.apply(type,filterCriteria)) {
+                    matches.add(type);
+                }
+            }
+        }
+
+        return new MemberList(MemberInfo.class, matches);
     }
 
     public final FieldList getFields() {
@@ -1025,10 +1085,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     Type getMostSpecificType(final Type t1, final Type t2) {
-        if (t1.isSubType(t2)) {
+        if (t1.isSubTypeOf(t2)) {
             return t1;
         }
-        if (t2.isSubType(t1)) {
+        if (t2.isSubTypeOf(t1)) {
             return t2;
         }
         return null;
@@ -1853,7 +1913,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     private Type[] getNestedTypeCandidates(final String fullName, final Set<BindingFlags> bindingFlags, final boolean allowPrefixLookup) {
-
         final String name;
 
         if (fullName != null) {
@@ -2145,6 +2204,22 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             this.listOptions = listOptions;
         }
     }
+
+    public final static MemberFilter FilterNameIgnoreCase = new MemberFilter() {
+        @Override
+        public boolean apply(final MemberInfo m, final Object filterCriteria) {
+            final String name = (String) filterCriteria;
+            return name == null || name.equalsIgnoreCase(m.getName());
+        }
+    };
+
+    public final static MemberFilter FilterName = new MemberFilter() {
+        @Override
+        public boolean apply(final MemberInfo m, final Object filterCriteria) {
+            final String name = (String) filterCriteria;
+            return name == null || name.equals(m.getName());
+        }
+    };
 
     // </editor-fold>
 }

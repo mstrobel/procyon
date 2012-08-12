@@ -35,8 +35,10 @@ public class CodeGenerator {
 
     private int _exceptionCount;
     private int _currentExceptionStackCount;
+    private int _unhandledExceptionCount;
     private __ExceptionInfo[] _exceptions;              // This is the list of all of the exceptions in this CodeStream.
     private __ExceptionInfo[] _currentExceptionStack;   // This is the stack of exceptions which we're currently in.
+    private Type<?>[] _unhandledExceptions;             // This is the list of all of the unhandled checked exceptions we've encountered.
 
     ScopeTree scopeTree;                // This variable tracks all debugging scope information.
 
@@ -385,6 +387,8 @@ public class CodeGenerator {
 
         emit(opCode, (short)methodToken);
 
+        registerCheckedExceptions(constructor);
+
         int stackChange = 0;
 
         if (constructor instanceof ConstructorBuilder) {
@@ -409,6 +413,8 @@ public class CodeGenerator {
         final int methodToken = methodBuilder.getDeclaringType().getMethodToken(method);
 
         emit(opCode, (short)methodToken);
+
+        registerCheckedExceptions(method);
 
         int stackChange = 0;
 
@@ -2196,6 +2202,14 @@ public class CodeGenerator {
         return temp;
     }
 
+    final Type<?>[] getUnhandledCheckedExceptions() {
+        if (_unhandledExceptionCount == 0) {
+            return Type.EmptyTypes;
+        }
+
+        return Arrays.copyOf(_unhandledExceptions, _unhandledExceptionCount);
+    }
+
     final int getMaxStackSize() {
         return _maxStackSize;
     }
@@ -2218,6 +2232,52 @@ public class CodeGenerator {
             temp = exceptions[i];
             exceptions[i] = exceptions[least];
             exceptions[least] = temp;
+        }
+    }
+
+    private void registerCheckedExceptions(final MethodBase method) {
+        final TypeList thrownTypes = method.getThrownTypes();
+
+        if (thrownTypes == null || thrownTypes.isEmpty()) {
+            return;
+        }
+
+        for (int i = 0, n = thrownTypes.size(); i < n; i++) {
+            final Type thrownType = thrownTypes.get(i);
+
+            if (Types.RuntimeException.isAssignableFrom(thrownType)) {
+                continue;
+            }
+
+            for (int j = 0; j < _currentExceptionStackCount; j++) {
+                final __ExceptionInfo exceptionInfo = _currentExceptionStack[j];
+                for (final Type caughtType : exceptionInfo._catchClass) {
+                    if (caughtType.isAssignableFrom(thrownType)) {
+                        return;
+                    }
+                }
+            }
+
+            if (_unhandledExceptions == null) {
+                _unhandledExceptions = new Type<?>[DefaultExceptionArraySize];
+                _unhandledExceptions[_unhandledExceptionCount++] = thrownType;
+                return;
+            }
+
+            for (int j = 0; j < _unhandledExceptionCount; j++) {
+                final Type<?> e = _unhandledExceptions[j];
+
+                if (thrownType.isSubTypeOf(e)) {
+                    return;
+                }
+
+                if (e.isSubTypeOf(thrownType)) {
+                    _unhandledExceptions[j] = thrownType;
+                    return;
+                }
+            }
+
+            _unhandledExceptions[_unhandledExceptionCount++] = thrownType;
         }
     }
 

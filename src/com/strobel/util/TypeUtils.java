@@ -423,4 +423,9 @@ public final class TypeUtils {
     public static boolean isValidInvocationTargetType(final MethodInfo method, final Type targetType) {
         return areReferenceAssignable(method.getDeclaringType(), targetType);
     }
+
+    public static boolean isSameOrSubType(final Type<?> type, final Type subType) {
+        return areEquivalent(type, subType) ||
+               subType.isSubTypeOf(type);
+    }
 }

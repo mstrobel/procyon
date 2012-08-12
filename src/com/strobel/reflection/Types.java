@@ -55,14 +55,14 @@ public final class Types {
 
     public static final Type<Closure> Closure;
 
-    private static Type<Iterable> Iterable;
-    private static Type<Collection> Collection;
-    private static Type<List> List;
-    private static Type<Set> Set;
-    private static Type<Map> Map;
-    private static Type<ArrayList> ArrayList;
-    private static Type<HashMap> HashMap;
-    private static Type<HashSet> HashSet;
+    public static final Type<Iterable> Iterable;
+    public static final Type<Collection> Collection;
+    public static final Type<List> List;
+    public static final Type<Set> Set;
+    public static final Type<Map> Map;
+    public static final Type<ArrayList> ArrayList;
+    public static final Type<HashMap> HashMap;
+    public static final Type<HashSet> HashSet;
 
     static {
         Object = Type.of(Object.class);

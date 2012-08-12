@@ -514,12 +514,21 @@ public final class TypeBuilder<T> extends Type<T> {
         final int modifiers,
         final TypeList parameterTypes) {
 
+        return defineConstructor(modifiers, parameterTypes, TypeList.empty());
+    }
+
+    public ConstructorBuilder defineConstructor(
+        final int modifiers,
+        final TypeList parameterTypes,
+        final TypeList thrownTypes) {
+
         verifyNotGeneric();
         verifyNotCreated();
 
         final ConstructorBuilder constructor = new ConstructorBuilder(
             modifiers & Modifier.constructorModifiers(),
             parameterTypes,
+            thrownTypes,
             this
         );
 
@@ -550,6 +559,7 @@ public final class TypeBuilder<T> extends Type<T> {
         final ConstructorBuilder constructor = new ConstructorBuilder(
             modifiers & Modifier.constructorModifiers(),
             TypeList.empty(),
+            TypeList.empty(),
             this
         );
 
@@ -576,6 +586,16 @@ public final class TypeBuilder<T> extends Type<T> {
         final Type<?> returnType,
         final TypeList parameterTypes) {
 
+        return defineMethod(name, modifiers, returnType, parameterTypes, TypeList.empty());
+    }
+
+    public MethodBuilder defineMethod(
+        final String name,
+        final int modifiers,
+        final Type<?> returnType,
+        final TypeList parameterTypes,
+        final TypeList thrownTypes) {
+
         VerifyArgument.notNullOrWhitespace(name, "name");
 
         verifyNotGeneric();
@@ -586,6 +606,7 @@ public final class TypeBuilder<T> extends Type<T> {
             modifiers & Modifier.methodModifiers(),
             returnType,
             parameterTypes,
+            thrownTypes,
             this
         );
 
@@ -696,6 +717,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
     // <editor-fold defaultstate="collapsed" desc="Type Generation Methods">
 
+    @SuppressWarnings("ConstantConditions")
     private Type<T> createTypeNoLock() {
         if (isCreated()) {
             return _generatedType;

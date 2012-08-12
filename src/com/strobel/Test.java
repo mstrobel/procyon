@@ -4,7 +4,10 @@ import com.strobel.expressions.ExpressionList;
 import com.strobel.expressions.LambdaExpression;
 import com.strobel.expressions.ParameterExpression;
 import com.strobel.reflection.*;
-import com.strobel.reflection.emit.*;
+import com.strobel.reflection.emit.CodeGenerator;
+import com.strobel.reflection.emit.MethodBuilder;
+import com.strobel.reflection.emit.OpCode;
+import com.strobel.reflection.emit.TypeBuilder;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.main.JavaCompiler;
@@ -17,7 +20,6 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.Locale;
 
 import static com.strobel.expressions.Expression.*;
 
@@ -122,7 +124,7 @@ public class Test {
             Type.of(ITest.class),
             call(
                 condition(
-                    equal(number, constant(0)),
+                    equal(number, call(Types.Integer, "parseInt", TypeList.empty(), constant("0"))),
                     constant("zero"),
                     condition(
                         lessThan(number, constant(0)),
@@ -130,8 +132,10 @@ public class Test {
                         constant("positive")
                     )
                 ),
-                Types.String.getMethod("toUpperCase", Type.of(Locale.class)),
-                constant(Locale.getDefault())
+                "toUpperCase",
+                TypeList.empty()
+                /*Types.String.getMethod("toUpperCase"*//*, Type.of(Locale.class)),
+                constant(Locale.getDefault())*/
             ),
             number
         );

@@ -341,4 +341,13 @@ final class Error {
     public static IllegalStateException branchAddressTooLarge() {
         return new IllegalStateException("Branch address too large; expected 2 byte address, found 4 byte address.");
     }
+
+    public static IllegalStateException checkedExceptionUnhandled(final Type<?> exceptionType) {
+        return new IllegalStateException(
+            format(
+                "Method must handle '%s' or include it in its list of thrown types.",
+                exceptionType.getName()
+            )
+        );
+    }
 }
