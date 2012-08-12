@@ -806,7 +806,7 @@ final class StackSpiller {
         final ChildRewriter cr;
 
         // See if the lambda will be inlined...
-        LambdaExpression lambda = node.getExpression();
+        LambdaExpression lambda = node.getLambdaOperand();
 
         if (lambda != null) {
             // Arguments execute on current stack

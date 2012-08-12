@@ -5,6 +5,7 @@ import com.strobel.reflection.*;
 import com.strobel.util.TypeUtils;
 
 import javax.lang.model.type.TypeKind;
+import java.lang.reflect.Array;
 import java.util.Arrays;
 
 /**
@@ -301,6 +302,14 @@ public class CodeGenerator {
         emit(OpCode.DUP2_X2);
     }
 
+    public void pop() {
+        emit(OpCode.POP);
+    }
+
+    public void pop2() {
+        emit(OpCode.POP2);
+    }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="General Emit Methods">
@@ -519,15 +528,6 @@ public class CodeGenerator {
         emit(OpCode.GOTO, label);
     }
 
-    public void emitJsr(final Label label) {
-        emit(OpCode.JSR, label);
-    }
-
-    public void emitRet(final LocalBuilder returnAddress) {
-        VerifyArgument.notNull(returnAddress, "returnAddress");
-        emit(OpCode.RET, translateLocal(returnAddress.getLocalIndex()));
-    }
-
     public void emitReturn() {
         emit(OpCode.RETURN);
     }
@@ -605,7 +605,21 @@ public class CodeGenerator {
     }
 
     public void emitNewArray(final Type<?> arrayType) {
-        emitNewArray(arrayType, 1);
+        VerifyArgument.notNull(arrayType, "arrayType");
+
+        if (!arrayType.isArray())
+            throw Error.typeMustBeArray();
+
+        Type<?> elementType = arrayType.getElementType();
+
+        int rank = 1;
+
+        while (elementType.isArray()) {
+            ++rank;
+            elementType = elementType.getElementType();
+        }
+
+        emitNewArray(arrayType, rank);
     }
 
     public void emitNewArray(final Type<?> arrayType, final int dimensionsToInitialize) {
@@ -640,6 +654,26 @@ public class CodeGenerator {
 
         emit(OpCode.MULTIANEWARRAY, arrayType);
         emitByteOperand(dimensionsToInitialize);
+    }
+
+    public interface EmitArrayElementCallback {
+        void emit(int index);
+    }
+
+    public final void emitArray(final Type<?> elementType, final int count, final EmitArrayElementCallback emit) {
+        VerifyArgument.notNull(elementType, "elementType");
+        VerifyArgument.notNull(emit, "emit");
+        VerifyArgument.isNonNegative(count, "count");
+
+        emitInteger(count);
+        emitNewArray(elementType.makeArrayType());
+
+        for (int i = 0; i < count; i++) {
+            dup();
+            emitInteger(i);
+            emit.emit(i);
+            emitStoreElement(elementType);
+        }
     }
 
     // </editor-fold>
@@ -1123,9 +1157,122 @@ public class CodeGenerator {
         VerifyArgument.notNull(type, "type");
 
         return value == null ||
-               canEmitBytecodeConstant(type) ||
                value instanceof Type<?> ||
-               value instanceof MethodBase;
+               value instanceof MethodBase ||
+               canEmitBytecodeConstant(type);
+    }
+
+    public void emitConstant(final Object value) {
+        if (value == null) {
+            emitNull();
+        }
+        else {
+            emitConstant(value, Type.getType(value));
+        }
+    }
+
+    public void emitConstantArray(final Object array) {
+        VerifyArgument.notNull(array, "array");
+
+        final int length = Array.getLength(array);
+        final Type<?> arrayType = Type.getType(array);
+        final Type<?> elementType = arrayType.getElementType();
+
+        emitInteger(length);
+        emitNewArray(arrayType);
+
+        for (int i = 0; i < length; i++) {
+            dup();
+            emitInteger(i);
+            emitConstant(Array.get(array, i));
+            emitStoreElement(elementType);
+        }
+    }
+
+    public void emitConstant(final Object value, final Type<?> type) {
+        if (value == null) {
+            emitDefaultValue(type);
+            return;
+        }
+
+        if (tryEmitConstant(value, type)) {
+            return;
+        }
+
+        if (value instanceof Type<?>) {
+            emitType((Type<?>)value);
+            return;
+        }
+
+        if (value instanceof MethodBase) {
+            emitMethod((MethodBase)value);
+            return;
+        }
+
+        throw Error.valueMustBeConstant();
+    }
+
+    public void emitType(final Type<?> value) {
+        final MethodBuilder methodBuilder = this.methodBuilder;
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final int typeToken = methodBuilder.getDeclaringType().getTypeToken(value);
+
+        emitLoadConstant(typeToken);
+    }
+
+    public void emitMethod(final MethodBase value) {
+        final MethodBuilder methodBuilder = this.methodBuilder;
+
+        if (methodBuilder == null) {
+            throw Error.bytecodeGeneratorNotOwnedByMethodBuilder();
+        }
+
+        final int methodToken = methodBuilder.getDeclaringType().getMethodToken(value);
+
+        emitLoadConstant(methodToken);
+    }
+
+    private boolean tryEmitConstant(final Object value, final Type<?> type) {
+        switch (type.getKind()) {
+            case BOOLEAN:
+                emitBoolean((Boolean)value);
+                return true;
+
+            case BYTE:
+                emitByte((Byte)value);
+                return true;
+
+            case SHORT:
+                emitShort((Short)value);
+                return true;
+
+            case INT:
+                emitInteger((Integer)value);
+                return true;
+
+            case LONG:
+                emitLong((Long)value);
+                return true;
+
+            case CHAR:
+                emitCharacter((Character)value);
+                return true;
+
+            case FLOAT:
+                emitFloat((Float)value);
+                return true;
+
+            case DOUBLE:
+                emitDouble((Double)value);
+                return true;
+
+            default:
+                return false;
+        }
     }
 
     public void emitNull() {
@@ -1394,7 +1541,7 @@ public class CodeGenerator {
         VerifyArgument.notNull(sourceType, "sourceType");
         VerifyArgument.notNull(targetType, "targetType");
 
-        if (sourceType.isEquivalentTo(targetType)) {
+        if (sourceType == targetType || sourceType.isEquivalentTo(targetType)) {
             return;
         }
 

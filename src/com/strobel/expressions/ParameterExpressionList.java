@@ -1,5 +1,8 @@
 package com.strobel.expressions;
 
+import com.strobel.reflection.Type;
+import com.strobel.reflection.TypeList;
+
 /**
  * @author Mike Strobel
  */
@@ -67,5 +70,16 @@ public class ParameterExpressionList extends ExpressionList<ParameterExpression>
     @Override
     public ParameterExpressionList getRange(final int fromIndex, final int toIndex) {
         return (ParameterExpressionList)super.getRange(fromIndex, toIndex);
+    }
+
+    public TypeList getParameterTypes() {
+        final int parameterCount = size();
+        final Type<?>[] types = new Type<?>[parameterCount];
+
+        for (int i = 0; i < parameterCount; i++) {
+            types[i] = get(i).getType();
+        }
+
+        return Type.list(types);
     }
 }

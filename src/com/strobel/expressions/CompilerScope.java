@@ -8,10 +8,7 @@ import com.strobel.reflection.Types;
 import com.strobel.reflection.emit.LocalBuilder;
 import com.strobel.reflection.emit.OpCode;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author strobelm
@@ -19,7 +16,7 @@ import java.util.Set;
 @SuppressWarnings("PackageVisibleField")
 final class CompilerScope {
     private final static FieldInfo ClosureLocalsField = Types.Closure.getField("locals");
-    
+
     private final Map<ParameterExpression, Storage> _locals = new HashMap<>();
 
     private HoistedLocals _hoistedLocals;
@@ -353,6 +350,55 @@ final class CompilerScope {
         }
 
         return new ParameterExpressionList(((CatchBlock)scope).getVariable());
+    }
+
+    void emitVariableAccess(final LambdaCompiler lc, final ParameterExpressionList vars) {
+        if (getNearestHoistedLocals() != null) {
+            // Find what array each variable is on & its index
+            final long[] indexes = new long[vars.size()];
+
+            int count = 0;
+
+            for (final ParameterExpression variable : vars) {
+                // For each variable, find what array it's defined on 
+                long parents = 0;
+
+                HoistedLocals locals = getNearestHoistedLocals();
+
+                while (!locals.indexes.containsKey(variable)) {
+                    parents++;
+                    locals = locals.parent;
+                    assert (locals != null);
+                }
+
+                // combine the number of parents we walked, with the 
+                // real index of variable to get the index to emit. 
+                final long index = (parents << 32) | locals.indexes.get(variable);
+
+                indexes[count++] = index;
+            }
+
+            if (count > 0) {
+                emitGet(getNearestHoistedLocals().selfVariable);
+
+                lc.emitConstantArray(Arrays.copyOf(indexes, count));
+
+                lc.generator.call(
+                    Type.of(RuntimeOperations.class).getMethod(
+                        "createRuntimeVariables", Type.of(Object[].class),
+                        Type.of(long[].class)
+                    )
+                );
+
+                return;
+            }
+        }
+
+        // No visible variables
+        lc.generator.call(
+            Type.of(RuntimeOperations.class)
+                .getMethod("createRuntimeVariables", Type.EmptyTypes)
+        );
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -30,7 +30,7 @@ public class Test {
 //        compilerToolsTest();
 //        primitiveTest();
 //        testGenericSignatures();
-//        expressionTest();
+        expressionTest();
 //        genericMethodTest();
 //        arrayTypeTest();
     }

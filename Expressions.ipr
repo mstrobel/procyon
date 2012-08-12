@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ASMPluginConfiguration">
-    <asm skipDebug="true" skipFrames="true" skipCode="false" expandFrames="false" />
+    <asm skipDebug="true" skipFrames="false" skipCode="false" expandFrames="true" />
     <groovy codeStyle="LEGACY" />
   </component>
   <component name="AntConfiguration">
@@ -374,9 +374,11 @@
         <w>bytecode</w>
         <w>comparer</w>
         <w>concat</w>
+        <w>contravariance</w>
         <w>ctor</w>
         <w>ctors</w>
         <w>defaultstate</w>
+        <w>dword</w>
         <w>fixup</w>
         <w>functor</w>
         <w>goto</w>

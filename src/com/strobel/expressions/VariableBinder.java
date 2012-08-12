@@ -80,10 +80,10 @@ final class VariableBinder extends ExpressionVisitor {
 
     @Override
     protected Expression visitInvocation(final InvocationExpression node) {
-        final LambdaExpression lambda = node.getExpression();
-
+        final Expression e = node.getExpression();
         // Optimization: inline code for literal lambdas directly.
-        if (lambda != null) {
+        if (e instanceof LambdaExpression) {
+            final LambdaExpression lambda = (LambdaExpression) e;
             final CompilerScope scope = new CompilerScope(node, false);
 
             // Visit the lambda, but treat it more like a scope.

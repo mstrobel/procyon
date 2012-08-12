@@ -333,4 +333,8 @@ final class Error {
     public static RuntimeException noCodeGeneratorForDefaultConstructor() {
         return new IllegalStateException("No code generator is available for a default constructor.");
     }
+
+    public static IllegalArgumentException typeMustBeArray() {
+        return new IllegalArgumentException("Type must be an array type.");
+    }
 }

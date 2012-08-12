@@ -7,10 +7,10 @@ import com.strobel.reflection.Type;
  */
 public final class InvocationExpression extends Expression implements IArgumentProvider {
     private final ExpressionList<? extends Expression> _arguments;
-    private final LambdaExpression _lambda;
+    private final Expression _lambda;
     private final Type _returnType;
 
-    InvocationExpression(final LambdaExpression lambda, final ExpressionList<? extends Expression> arguments, final Type returnType) {
+    InvocationExpression(final Expression lambda, final ExpressionList<? extends Expression> arguments, final Type returnType) {
         _lambda = lambda;
         _arguments = arguments;
         _returnType = returnType;
@@ -26,7 +26,7 @@ public final class InvocationExpression extends Expression implements IArgumentP
         return ExpressionType.Invoke;
     }
 
-    public LambdaExpression getExpression() {
+    public Expression getExpression() {
         return _lambda;
     }
 
@@ -61,5 +61,11 @@ public final class InvocationExpression extends Expression implements IArgumentP
         assert arguments == null || arguments.size() == _arguments.size();
 
         return Expression.invoke(lambda, arguments != null ? arguments : _arguments);
+    }
+
+    LambdaExpression<?> getLambdaOperand() {
+        return _lambda.getNodeType() == ExpressionType.Quote
+               ? (LambdaExpression<?>)((UnaryExpression)_lambda).getOperand()
+               : (_lambda instanceof LambdaExpression<?> ? (LambdaExpression<?>)_lambda : null);
     }
 }

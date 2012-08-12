@@ -1962,12 +1962,16 @@ public abstract class Expression {
         verifyCanRead(expression, "expression");
         VerifyArgument.notNull(type, "type");
 
+        verifyTypeBinaryExpressionOperand(expression,  type);
+
         return new TypeBinaryExpression(expression, type, ExpressionType.InstanceOf);
     }
 
     public static TypeBinaryExpression typeEqual(final Expression expression, final Type type) {
         verifyCanRead(expression, "expression");
         VerifyArgument.notNull(type, "type");
+
+        verifyTypeBinaryExpressionOperand(expression,  type);
 
         return new TypeBinaryExpression(expression, type, ExpressionType.TypeEqual);
     }
@@ -2707,6 +2711,16 @@ public abstract class Expression {
         return ((List<T>)objectOrCollection).get(0);
     }
 
+    private static void verifyTypeBinaryExpressionOperand(final Expression expression, final Type type) {
+        if (expression.getType().isPrimitive()) {
+            throw Error.primitiveCannotBeTypeBinaryOperand();
+        }
+
+        if (type.isPrimitive()) {
+            throw Error.primitiveCannotBeTypeBinaryType();
+        }
+    }
+
     static MethodInfo getInvokeMethod(final Expression expression) {
         final Type interfaceType = expression.getType();
         final MethodList methods = interfaceType.getMethods();
@@ -2715,7 +2729,7 @@ public abstract class Expression {
             throw Error.expressionTypeNotInvokable(interfaceType);
         }
 
-        return interfaceType.getMethod("Invoke");
+        return methods.get(0);
     }
 
     private static BinaryExpression getEqualityComparisonOperator(

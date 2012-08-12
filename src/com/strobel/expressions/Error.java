@@ -2,6 +2,7 @@ package com.strobel.expressions;
 
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.MemberInfo;
+import com.strobel.reflection.MemberType;
 import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.Type;
 
@@ -14,92 +15,92 @@ final class Error {
     private Error() {
     }
 
-    public static RuntimeException extensionMustOverride(final String memberName) {
-        return new RuntimeException(
+    public static IllegalStateException extensionMustOverride(final String memberName) {
+        return new IllegalStateException(
             format("Expression extensions must override %s.", memberName)
         );
     }
 
-    public static RuntimeException reducibleMustOverride(final String memberName) {
-        return new RuntimeException(
+    public static IllegalStateException reducibleMustOverride(final String memberName) {
+        return new IllegalStateException(
             format("Reducible expression extensions must override %s.", memberName)
         );
     }
 
-    public static RuntimeException memberNotField(final MemberInfo member) {
-        return new RuntimeException(
+    public static IllegalStateException memberNotField(final MemberInfo member) {
+        return new IllegalStateException(
             format("Member '%s' must be a field.", member)
         );
     }
 
-    public static RuntimeException mustBeReducible() {
-        return new RuntimeException(
+    public static IllegalStateException mustBeReducible() {
+        return new IllegalStateException(
             "Expression must be reducible to perform this operation."
         );
     }
 
-    public static RuntimeException mustReduceToDifferent() {
-        return new RuntimeException(
+    public static IllegalStateException mustReduceToDifferent() {
+        return new IllegalStateException(
             "Expression must reducible to a different expression."
         );
     }
 
-    public static RuntimeException reducedNotCompatible() {
-        return new RuntimeException(
+    public static IllegalStateException reducedNotCompatible() {
+        return new IllegalStateException(
             "Expression was reduced to an expression of a non-compatible type."
         );
     }
 
-    public static RuntimeException argumentTypesMustMatch() {
-        return new RuntimeException(
+    public static IllegalStateException argumentTypesMustMatch() {
+        return new IllegalStateException(
             format("Argument types must match.")
         );
     }
 
-    public static RuntimeException argumentCannotBeOfTypeVoid() {
-        return new RuntimeException(
+    public static IllegalStateException argumentCannotBeOfTypeVoid() {
+        return new IllegalStateException(
             format("Argument cannot be of type 'void'.")
         );
     }
 
-    public static RuntimeException expressionMustBeWriteable(final String parameterName) {
-        return new RuntimeException(
+    public static IllegalStateException expressionMustBeWriteable(final String parameterName) {
+        return new IllegalStateException(
             format("Argument '%s' must be writeable.", parameterName)
         );
     }
 
-    public static RuntimeException expressionMustBeReadable(final String parameterName) {
-        return new RuntimeException(
+    public static IllegalStateException expressionMustBeReadable(final String parameterName) {
+        return new IllegalStateException(
             format("Argument '%s' must be readable.", parameterName)
         );
     }
 
-    public static RuntimeException mustRewriteChildToSameType(final Type before, final Type after, final String callerName) {
-        return new RuntimeException(
+    public static IllegalStateException mustRewriteChildToSameType(final Type before, final Type after, final String callerName) {
+        return new IllegalStateException(
             format("MethodBase '%s' performed an illegal type change from %s to %s.", callerName, before, after)
         );
     }
 
-    public static RuntimeException mustRewriteWithoutMethod(final MethodBase method, final String callerName) {
-        return new RuntimeException(
+    public static IllegalStateException mustRewriteWithoutMethod(final MethodBase method, final String callerName) {
+        return new IllegalStateException(
             format(
                 "Rewritten expression calls method '%s', but the original node had no method.  " +
-                    "If this is is intentional, override '%s' and change it to allow this rewrite.",
+                "If this is is intentional, override '%s' and change it to allow this rewrite.",
                 callerName,
                 method
             )
         );
     }
 
-    public static <T extends Expression> RuntimeException mustRewriteToSameNode(
+    public static <T extends Expression> IllegalStateException mustRewriteToSameNode(
         final String callerName,
         final Class<T> type,
         final String overrideMethodName) {
 
-        return new RuntimeException(
+        return new IllegalStateException(
             format(
                 "When called from '%s', rewriting a node of type '%s' must return a non-null value of the " +
-                    "same type.  Alternatively, override '%s' and change it to not visit children of this type.",
+                "same type.  Alternatively, override '%s' and change it to not visit children of this type.",
                 callerName,
                 type.getName(),
                 overrideMethodName
@@ -107,34 +108,34 @@ final class Error {
         );
     }
 
-    public static RuntimeException unhandledUnary(final ExpressionType unaryType) {
-        return new RuntimeException(
+    public static IllegalStateException unhandledUnary(final ExpressionType unaryType) {
+        return new IllegalStateException(
             format("Unhandled unary expression type: %s.", unaryType)
         );
     }
 
-    public static RuntimeException unhandledBinary(final ExpressionType binaryType) {
-        return new RuntimeException(
+    public static IllegalStateException unhandledBinary(final ExpressionType binaryType) {
+        return new IllegalStateException(
             format("Unhandled binary expression type: %s.", binaryType)
         );
     }
 
-    public static RuntimeException unmodifiableCollection() {
-        return new RuntimeException("Collection cannot be modified.");
+    public static IllegalStateException unmodifiableCollection() {
+        return new IllegalStateException("Collection cannot be modified.");
     }
 
-    public static RuntimeException duplicateVariable(final ParameterExpression variable) {
-        return new RuntimeException(
+    public static IllegalStateException duplicateVariable(final ParameterExpression variable) {
+        return new IllegalStateException(
             format(
                 "Found duplicate variable '%s'.  Each ParameterExpression in the list " +
-                    "must be a unique object.",
+                "must be a unique object.",
                 variable.getName()
             )
         );
     }
 
-    public static RuntimeException unaryOperatorNotDefined(final ExpressionType operator, final Type operandType) {
-        return new RuntimeException(
+    public static IllegalStateException unaryOperatorNotDefined(final ExpressionType operator, final Type operandType) {
+        return new IllegalStateException(
             format(
                 "The unary operator '%s' is not defined for type '%s'",
                 operator,
@@ -143,8 +144,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException operatorMethodMustNotBeStatic(final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException operatorMethodMustNotBeStatic(final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "MethodBase '%s.%s' cannot be used as an operator because it is static.",
                 method.getDeclaringType().getFullName(),
@@ -153,8 +154,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException operatorMethodMustNotReturnVoid(final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException operatorMethodMustNotReturnVoid(final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "MethodBase '%s.%s' cannot be used as an operator because it returns void.",
                 method.getDeclaringType().getFullName(),
@@ -163,19 +164,19 @@ final class Error {
         );
     }
 
-    public static RuntimeException operatorMethodParametersMustMatchReturnValue(final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException operatorMethodParametersMustMatchReturnValue(final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "MethodBase '%s.%s' cannot be used as an operator because its parameters do not match " +
-                    "its return value.",
+                "its return value.",
                 method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
     }
 
-    public static RuntimeException returnTypeDoesNotMatchOperandType(final ExpressionType expressionType, final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException returnTypeDoesNotMatchOperandType(final ExpressionType expressionType, final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "The return type for operator '%s' does not match the declaring type of method '%s.%s'.",
                 expressionType,
@@ -185,8 +186,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException returnTypeDoesNotMatchOperandType(final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException returnTypeDoesNotMatchOperandType(final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "The return type of operator method '%s.%s' does not match the method's declaring type.",
                 method.getDeclaringType().getFullName(),
@@ -195,20 +196,20 @@ final class Error {
         );
     }
 
-    public static RuntimeException incorrectNumberOfConstructorArguments() {
-        return new RuntimeException("Incorrect number of arguments supplied for constructor call.");
+    public static IllegalStateException incorrectNumberOfConstructorArguments() {
+        return new IllegalStateException("Incorrect number of arguments supplied for constructor call.");
     }
 
-    public static RuntimeException incorrectNumberOfLambdaArguments() {
-        return new RuntimeException("Incorrect number of arguments supplied for lambda invocation.");
+    public static IllegalStateException incorrectNumberOfLambdaArguments() {
+        return new IllegalStateException("Incorrect number of arguments supplied for lambda invocation.");
     }
 
-    public static RuntimeException incorrectNumberOfLambdaDeclarationParameters() {
-        return new RuntimeException("Incorrect number of parameters supplied for lambda declaration.");
+    public static IllegalStateException incorrectNumberOfLambdaDeclarationParameters() {
+        return new IllegalStateException("Incorrect number of parameters supplied for lambda declaration.");
     }
 
-    public static RuntimeException incorrectNumberOfMethodCallArguments(final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException incorrectNumberOfMethodCallArguments(final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "Incorrect number of arguments supplied for call to method '%s.%s'",
                 method.getDeclaringType().getFullName(),
@@ -217,30 +218,30 @@ final class Error {
         );
     }
 
-    public static RuntimeException invalidUnboxType() {
-        return new RuntimeException(
+    public static IllegalStateException invalidUnboxType() {
+        return new IllegalStateException(
             "Can only unbox from a standard boxed type or java.lang.Object to a primitive type."
         );
     }
 
-    public static RuntimeException argumentMustBeArray() {
-        return new RuntimeException("Argument must be an array.");
+    public static IllegalStateException argumentMustBeArray() {
+        return new IllegalStateException("Argument must be an array.");
     }
 
-    public static RuntimeException argumentMustBeBoolean() {
-        return new RuntimeException("Argument must be a boolean.");
+    public static IllegalStateException argumentMustBeBoolean() {
+        return new IllegalStateException("Argument must be a boolean.");
     }
 
-    public static RuntimeException argumentMustBeInteger() {
-        return new RuntimeException("Argument must be an integer.");
+    public static IllegalStateException argumentMustBeInteger() {
+        return new IllegalStateException("Argument must be an integer.");
     }
 
-    public static RuntimeException argumentMustBeIntegral() {
-        return new RuntimeException("Argument must be an integral numeric type.");
+    public static IllegalStateException argumentMustBeIntegral() {
+        return new IllegalStateException("Argument must be an integral numeric type.");
     }
 
-    public static RuntimeException coercionOperatorNotDefined(final Type sourceType, final Type destinationType) {
-        return new RuntimeException(
+    public static IllegalStateException coercionOperatorNotDefined(final Type sourceType, final Type destinationType) {
+        return new IllegalStateException(
             format(
                 "No coercion operator is defined between types '%s' and '%s'.",
                 sourceType,
@@ -249,28 +250,28 @@ final class Error {
         );
     }
 
-    public static RuntimeException argumentMustNotHaveValueType() {
-        return new RuntimeException(
+    public static IllegalStateException argumentMustNotHaveValueType() {
+        return new IllegalStateException(
             "Argument must not have a primitive type."
         );
     }
 
-    public static RuntimeException methodBasedOperatorMustHaveValidReturnType(final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException methodBasedOperatorMustHaveValidReturnType(final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "The operator method '%s.%s' must return the same type as its declaring type " +
-                    "or a derived type.",
+                "or a derived type.",
                 method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
     }
 
-    public static RuntimeException methodBasedOperatorMustHaveValidReturnType(final ExpressionType operator, final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException methodBasedOperatorMustHaveValidReturnType(final ExpressionType operator, final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "The operator method '%s.%s' for operator '%s' must return the same type as its " +
-                    "declaring type or a derived type.",
+                "declaring type or a derived type.",
                 method.getDeclaringType().getFullName(),
                 method.getName(),
                 operator
@@ -278,18 +279,18 @@ final class Error {
         );
     }
 
-    public static RuntimeException expressionTypeNotInvokable(final Type type) {
-        return new RuntimeException(
+    public static IllegalStateException expressionTypeNotInvokable(final Type type) {
+        return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be invoked.  Invokable types must be interfaces " +
-                    "with exactly one method.",
+                "with exactly one method.",
                 type
             )
         );
     }
 
-    public static RuntimeException binaryOperatorNotDefined(final ExpressionType operator, final Type leftType, final Type rightType) {
-        return new RuntimeException(
+    public static IllegalStateException binaryOperatorNotDefined(final ExpressionType operator, final Type leftType, final Type rightType) {
+        return new IllegalStateException(
             format(
                 "The binary operator '%s' is not defined for the types '%s' and '%s'.",
                 operator,
@@ -299,8 +300,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException referenceEqualityNotDefined(final Type leftType, final Type rightType) {
-        return new RuntimeException(
+    public static IllegalStateException referenceEqualityNotDefined(final Type leftType, final Type rightType) {
+        return new IllegalStateException(
             format(
                 "Reference equality is not defined for the types '%s' and '%s'.",
                 leftType,
@@ -309,39 +310,39 @@ final class Error {
         );
     }
 
-    public static RuntimeException invalidOperator(final ExpressionType operator) {
-        return new RuntimeException(
+    public static IllegalStateException invalidOperator(final ExpressionType operator) {
+        return new IllegalStateException(
             format("Invalid operator: %s", operator)
         );
     }
 
-    public static RuntimeException targetRequiredForNonStaticMethodCall(final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException targetRequiredForNonStaticMethodCall(final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "An invocation target expression is required for a call to non-static " +
-                    "method '%s.%s'.",
+                "method '%s.%s'.",
                 method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
     }
 
-    public static RuntimeException targetInvalidForStaticMethodCall(final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException targetInvalidForStaticMethodCall(final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "An invocation target expression cannot be used to call static " +
-                    "method '%s.%s'.",
+                "method '%s.%s'.",
                 method.getDeclaringType().getFullName(),
                 method.getName()
             )
         );
     }
 
-    public static RuntimeException targetAndMethodTypeMismatch(final MethodBase method, final Type targetType) {
-        return new RuntimeException(
+    public static IllegalStateException targetAndMethodTypeMismatch(final MethodBase method, final Type targetType) {
+        return new IllegalStateException(
             format(
                 "Expression of type '%s' is not a valid invocation target for instance " +
-                    "method '%s.%s'.",
+                "method '%s.%s'.",
                 targetType.getFullName(),
                 method.getDeclaringType().getFullName(),
                 method.getName()
@@ -349,8 +350,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException expressionTypeDoesNotMatchParameter(final Type argType, final Type parameterType) {
-        return new RuntimeException(
+    public static IllegalStateException expressionTypeDoesNotMatchParameter(final Type argType, final Type parameterType) {
+        return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used for constructor parameter of type '%s'.",
                 parameterType.getFullName(),
@@ -359,8 +360,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException expressionTypeDoesNotMatchReturn(final Type bodyType, final Type returnType) {
-        return new RuntimeException(
+    public static IllegalStateException expressionTypeDoesNotMatchReturn(final Type bodyType, final Type returnType) {
+        return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used as the body of a lambda with return type '%s'.",
                 bodyType.getFullName(),
@@ -369,8 +370,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException expressionTypeDoesNotMatchConstructorParameter(final Type argType, final Type parameterType) {
-        return new RuntimeException(
+    public static IllegalStateException expressionTypeDoesNotMatchConstructorParameter(final Type argType, final Type parameterType) {
+        return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used for parameter of type '%s'.",
                 parameterType.getFullName(),
@@ -379,8 +380,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException expressionTypeDoesNotMatchMethodParameter(final Type argType, final Type parameterType, final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException expressionTypeDoesNotMatchMethodParameter(final Type argType, final Type parameterType, final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used for parameter of type '%s' of method '%s.%s'.",
                 parameterType.getFullName(),
@@ -391,8 +392,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException expressionTypeDoesNotMatchAssignment(final Type leftType, final Type rightType) {
-        return new RuntimeException(
+    public static IllegalStateException expressionTypeDoesNotMatchAssignment(final Type leftType, final Type rightType) {
+        return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used for assignment to type '%s'.",
                 rightType.getFullName(),
@@ -401,8 +402,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException methodDoesNotExistOnType(final String methodName, final Type type) {
-        return new RuntimeException(
+    public static IllegalStateException methodDoesNotExistOnType(final String methodName, final Type type) {
+        return new IllegalStateException(
             format(
                 "No method '%s' exists on type '%s'.",
                 methodName,
@@ -411,19 +412,19 @@ final class Error {
         );
     }
 
-    public static RuntimeException genericMethodWithArgsDoesNotExistOnType(final String methodName, final Type type) {
-        return new RuntimeException(
+    public static IllegalStateException genericMethodWithArgsDoesNotExistOnType(final String methodName, final Type type) {
+        return new IllegalStateException(
             format(
                 "No generic method '%s' on type '%s' is compatible with the supplied type arguments and arguments.  " +
-                    "No type arguments should be provided if the method is non-generic.",
+                "No type arguments should be provided if the method is non-generic.",
                 methodName,
                 type.getFullName()
             )
         );
     }
 
-    public static RuntimeException methodWithArgsDoesNotExistOnType(final String methodName, final Type type) {
-        return new RuntimeException(
+    public static IllegalStateException methodWithArgsDoesNotExistOnType(final String methodName, final Type type) {
+        return new IllegalStateException(
             format(
                 "No method '%s' on type '%s' is compatible with the supplied arguments.",
                 methodName,
@@ -432,8 +433,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException methodWithMoreThanOneMatch(final String methodName, final Type type) {
-        return new RuntimeException(
+    public static IllegalStateException methodWithMoreThanOneMatch(final String methodName, final Type type) {
+        return new IllegalStateException(
             format(
                 "More than one method '%s' on type '%s' is compatible with the supplied arguments.",
                 methodName,
@@ -442,20 +443,20 @@ final class Error {
         );
     }
 
-    public static RuntimeException argumentMustBeArrayIndexType() {
-        return new RuntimeException(
+    public static IllegalStateException argumentMustBeArrayIndexType() {
+        return new IllegalStateException(
             "Expression must be an integer-based array index."
         );
     }
 
-    public static RuntimeException conversionIsNotSupportedForArithmeticTypes() {
-        return new RuntimeException(
+    public static IllegalStateException conversionIsNotSupportedForArithmeticTypes() {
+        return new IllegalStateException(
             "A conversion expression is not supported for arithmetic types."
         );
     }
 
-    public static RuntimeException operandTypesDoNotMatchParameters(final ExpressionType nodeType, final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException operandTypesDoNotMatchParameters(final ExpressionType nodeType, final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "The operands for operator '%s' do not match the parameters of method '%s'.",
                 nodeType,
@@ -464,23 +465,23 @@ final class Error {
         );
     }
 
-    public static RuntimeException overloadOperatorTypeDoesNotMatchConversionType(final ExpressionType nodeType, final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException overloadOperatorTypeDoesNotMatchConversionType(final ExpressionType nodeType, final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "The return type of overload method for operator '%s' does not match the parameter " +
-                    "type of conversion method '%s'.",
+                "type of conversion method '%s'.",
                 nodeType,
                 method.getName()
             )
         );
     }
 
-    public static RuntimeException lambdaTypeMustBeSingleMethodInterface() {
-        return new RuntimeException("Lambda type parameter must be an interface type with exactly one method.");
+    public static IllegalStateException lambdaTypeMustBeSingleMethodInterface() {
+        return new IllegalStateException("Lambda type parameter must be an interface type with exactly one method.");
     }
 
-    public static RuntimeException parameterExpressionNotValidForDelegate(final Type parameterType, final Type delegateParameterType) {
-        return new RuntimeException(
+    public static IllegalStateException parameterExpressionNotValidForDelegate(final Type parameterType, final Type delegateParameterType) {
+        return new IllegalStateException(
             format(
                 "ParameterExpression of type '%s' cannot be used for delegate parameter of type '%s'.",
                 parameterType.getFullName(),
@@ -489,12 +490,12 @@ final class Error {
         );
     }
 
-    public static RuntimeException labelMustBeVoidOrHaveExpression() {
-        return new RuntimeException("Label type must be void if an expression is not supplied.");
+    public static IllegalStateException labelMustBeVoidOrHaveExpression() {
+        return new IllegalStateException("Label type must be void if an expression is not supplied.");
     }
 
-    public static RuntimeException expressionTypeDoesNotMatchLabel(final Type valueType, final Type expectedType) {
-        return new RuntimeException(
+    public static IllegalStateException expressionTypeDoesNotMatchLabel(final Type valueType, final Type expectedType) {
+        return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used for return type '%s'.",
                 valueType.getFullName(),
@@ -503,12 +504,12 @@ final class Error {
         );
     }
 
-    public static RuntimeException labelTypeMustBeVoid() {
-        return new RuntimeException("Type must be void for this label argument.");
+    public static IllegalStateException labelTypeMustBeVoid() {
+        return new IllegalStateException("Type must be void for this label argument.");
     }
 
-    public static RuntimeException expressionTypeCannotInitializeArrayType(final Type itemType, final Type arrayElementType) {
-        return new RuntimeException(
+    public static IllegalStateException expressionTypeCannotInitializeArrayType(final Type itemType, final Type arrayElementType) {
+        return new IllegalStateException(
             format(
                 "An expression of type '%s' cannot be used to initialize an array of type '%s'.",
                 itemType.getFullName(),
@@ -517,8 +518,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException catchVariableMustBeCompatibleWithCatchType(final Type catchType, final Type variableType) {
-        return new RuntimeException(
+    public static IllegalStateException catchVariableMustBeCompatibleWithCatchType(final Type catchType, final Type variableType) {
+        return new IllegalStateException(
             format(
                 "A variable of type '%s' cannot be used with a catch block with filter type '%s'.",
                 variableType.getFullName(),
@@ -527,43 +528,43 @@ final class Error {
         );
     }
 
-    public static RuntimeException bodyOfCatchMustHaveSameTypeAsBodyOfTry() {
-        return new RuntimeException("Body of catch must have the same type as body of try.");
+    public static IllegalStateException bodyOfCatchMustHaveSameTypeAsBodyOfTry() {
+        return new IllegalStateException("Body of catch must have the same type as body of try.");
     }
 
-    public static RuntimeException tryMustHaveCatchOrFinally() {
-        return new RuntimeException("A try expression must have at least one catch or finally clause.");
+    public static IllegalStateException tryMustHaveCatchOrFinally() {
+        return new IllegalStateException("A try expression must have at least one catch or finally clause.");
     }
 
-    public static RuntimeException invalidLValue(final ExpressionType nodeType) {
-        return new RuntimeException(
+    public static IllegalStateException invalidLValue(final ExpressionType nodeType) {
+        return new IllegalStateException(
             format("Invalid lvalue for assignment: %s.", nodeType)
         );
     }
 
-    public static RuntimeException allCaseBodiesMustHaveSameType() {
-        return new RuntimeException(
+    public static IllegalStateException allCaseBodiesMustHaveSameType() {
+        return new IllegalStateException(
             "All case bodies and the default body must have the same type."
         );
     }
 
-    public static RuntimeException allTestValuesMustHaveTheSameType() {
-        return new RuntimeException(
+    public static IllegalStateException allTestValuesMustHaveTheSameType() {
+        return new IllegalStateException(
             "All test values must have the same type."
         );
     }
 
-    public static RuntimeException defaultBodyMustBeSupplied() {
-        return new RuntimeException(
+    public static IllegalStateException defaultBodyMustBeSupplied() {
+        return new IllegalStateException(
             "Default body must be supplied if case bodies are not void."
         );
     }
 
-    public static RuntimeException testValueTypeDoesNotMatchComparisonMethodParameter(
+    public static IllegalStateException testValueTypeDoesNotMatchComparisonMethodParameter(
         final Type testValueType,
         final Type parameterType) {
 
-        return new RuntimeException(
+        return new IllegalStateException(
             format(
                 "Test value of type '%s' cannot be used for the comparison method parameter of type '%s'.",
                 testValueType.getFullName(),
@@ -572,8 +573,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException equalityMustReturnBoolean(final MethodBase method) {
-        return new RuntimeException(
+    public static IllegalStateException equalityMustReturnBoolean(final MethodBase method) {
+        return new IllegalStateException(
             format(
                 "The user-defined equality method '%s' must return a boolean value.",
                 method.getName()
@@ -581,10 +582,10 @@ final class Error {
         );
     }
 
-    public static RuntimeException cannotCompileConstant(final Object value) {
+    public static IllegalStateException cannotCompileConstant(final Object value) {
         VerifyArgument.notNull(value, "value");
-        
-        return new RuntimeException(
+
+        return new IllegalStateException(
             format(
                 "Cannot compile complex constant of type %s because no closure is available.",
                 Type.getType(value)
@@ -592,8 +593,8 @@ final class Error {
         );
     }
 
-    public static RuntimeException undefinedVariable(final String name, final Type type, final String currentLambdaName) {
-        return new RuntimeException(
+    public static IllegalStateException undefinedVariable(final String name, final Type type, final String currentLambdaName) {
+        return new IllegalStateException(
             format(
                 "Undefined variable '%s' of type %s in lambda '%s'.",
                 name,
@@ -603,10 +604,97 @@ final class Error {
         );
     }
 
-    public static RuntimeException couldNotCreateDelegate(final Throwable t) {
-        return new RuntimeException(
+    public static IllegalStateException couldNotCreateDelegate(final Throwable t) {
+        return new IllegalStateException(
             "Could not create delegate.",
             t
         );
+    }
+
+    public static IllegalStateException labelTargetAlreadyDefined(final String name) {
+        return new IllegalStateException(
+            format("Target already defined for label '%s'.", name)
+        );
+    }
+
+    public static IllegalStateException ambiguousJump(final String name) {
+        return new IllegalStateException(
+            format("Cannot jump to ambiguous label '%s'.", name)
+        );
+    }
+
+    public static IllegalStateException nonLocalJumpWithValue(final String name) {
+        return new IllegalStateException(
+            format(
+                "Cannot jump to non-local label '%s' with a value. Only jumps to labels " +
+                "defined in outer blocks can pass values.", name
+            )
+        );
+    }
+
+    public static IllegalStateException controlCannotEnterExpression() {
+        return new IllegalStateException(
+            "Control cannot enter an expression; only statements can be jumped into."
+        );
+    }
+
+    public static IllegalStateException controlCannotEnterTry() {
+        return new IllegalStateException("Control cannot enter a try block.");
+    }
+
+    public static IllegalStateException labelTargetUndefined(final String name) {
+        return new IllegalStateException(
+            format("Cannot jump to undefined label '%s'.", name)
+        );
+    }
+
+    public static IllegalArgumentException primitiveCannotBeTypeBinaryOperand() {
+        return new IllegalArgumentException(
+            "Primitive-typed expressions cannot be used as operands in InstanceOf " +
+            "or TypeEqual expressions."
+        );
+    }
+
+    public static IllegalArgumentException primitiveCannotBeTypeBinaryType() {
+        return new IllegalArgumentException(
+            "The target type of an InstanceOf or TypeEqual expression must be a" +
+            "reference type."
+        );
+    }
+
+    public static IllegalStateException incorrectNumberOfIndexes() {
+        return new IllegalStateException("Incorrect number of indexes.");
+    }
+
+    public static IllegalStateException unexpectedCoalesceOperator() {
+        return new IllegalStateException("Unexpected coalesce operator.");
+    }
+
+    public static IllegalStateException invalidMemberType(final MemberType memberType) {
+        return new IllegalStateException(
+            format("Invalid member type: %s.", memberType)
+        );
+    }
+
+    public static IllegalStateException andAlsoCannotProvideMethod() {
+        return new IllegalStateException(
+            "AndAlso expressions cannot provide a method for evaluation because " +
+            "short circuiting behavior would not be possible."
+        );
+    }
+
+    public static IllegalStateException orElseCannotProvideMethod() {
+        return new IllegalStateException(
+            "OrElse expressions cannot provide a method for evaluation because " +
+            "short circuiting behavior would not be possible."
+        );
+    }
+
+    public static IllegalStateException coalesceUsedOnNonNullableType() {
+        return new IllegalStateException("Coalesce used with type that cannot be null.");
+    }
+
+    public static IllegalStateException extensionNotReduced() {
+        return new IllegalStateException("Extension should have been reduced.");
     }
 }
