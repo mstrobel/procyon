@@ -9,6 +9,8 @@ import com.strobel.reflection.emit.*;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
@@ -59,14 +61,14 @@ final class LambdaCompiler {
         generator = methodBuilder.getCodeGenerator();
 
         _tree = tree;
-        _hasClosureArgument = tree.scopes.get(lambda).needsClosure;
+        _hasClosureArgument = true; //tree.scopes.get(lambda).needsClosure;
         _freeLocals = new KeyedQueue<>();
         _scope = tree.scopes.get(lambda);
         _boundConstants = tree.constants.get(lambda);
 
         if (_hasClosureArgument) {
             closureField = typeBuilder.defineField(
-                "$closure",
+                "__closure",
                 Type.of(Closure.class),
                 Modifier.PRIVATE | Modifier.FINAL
             );
@@ -280,11 +282,29 @@ final class LambdaCompiler {
         final Type<T> generatedType = (Type<T>)c.typeBuilder.createType();
         final Class<T> generatedClass = generatedType.getErasedClass();
 
+        return c.createDelegate(generatedClass);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> Delegate<T> createDelegate(final Class<T> generatedClass) {
         try {
-            final T instance = generatedClass.newInstance();
-            return new Delegate<>(instance, generatedClass.getInterfaces()[0].getDeclaredMethods()[0]);
+            final T instance;
+
+            if (_hasClosureArgument) {
+                final Constructor<?> constructor = generatedClass.getConstructor(Closure.class);
+                final Closure closure = new Closure(_boundConstants.toArray(), null);
+                instance = (T)constructor.newInstance(closure);
+            }
+            else {
+                instance = generatedClass.newInstance();
+            }
+
+            return new Delegate<>(
+                instance,
+                generatedClass.getInterfaces()[0].getDeclaredMethods()[0]
+            );
         }
-        catch (InstantiationException | IllegalAccessException e) {
+        catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
             throw Error.couldNotCreateDelegate(e);
         }
     }

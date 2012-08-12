@@ -1,6 +1,7 @@
 package com.strobel.expressions;
 
 import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.Type;
 import com.strobel.util.ContractUtils;
 
 /**
@@ -19,6 +20,16 @@ public class MethodCallExpression extends Expression implements IArgumentProvide
 
     public Expression getTarget() {
         return null;
+    }
+
+    @Override
+    public ExpressionType getNodeType() {
+        return ExpressionType.Call;
+    }
+
+    @Override
+    public Type getType() {
+        return _method.getReturnType();
     }
 
     public final ExpressionList<? extends Expression> getArguments() {
@@ -41,6 +52,16 @@ public class MethodCallExpression extends Expression implements IArgumentProvide
 
     MethodCallExpression rewrite(final Expression target, final ExpressionList<? extends Expression> arguments) {
         throw ContractUtils.unreachable();
+    }
+
+    public MethodCallExpression update(final Expression target, final ExpressionList<? extends Expression> arguments) {
+        if (target == getTarget() && arguments == getArguments()) return this;
+        return call(target, getMethod(), getArguments());
+    }
+
+    @Override
+    protected Expression accept(final ExpressionVisitor visitor) {
+        return visitor.visitMethodCall(this);
     }
 }
 

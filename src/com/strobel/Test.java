@@ -17,6 +17,7 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.Locale;
 
 import static com.strobel.expressions.Expression.*;
 
@@ -119,14 +120,18 @@ public class Test {
 
         final LambdaExpression<ITest> lambda = lambda(
             Type.of(ITest.class),
-            condition(
-                equal(number, constant(0)),
-                constant("zero"),
+            call(
                 condition(
-                    lessThan(number, constant(0)),
-                    constant("negative"),
-                    constant("positive")
-                )
+                    equal(number, constant(0)),
+                    constant("zero"),
+                    condition(
+                        lessThan(number, constant(0)),
+                        constant("negative"),
+                        constant("positive")
+                    )
+                ),
+                Types.String.getMethod("toUpperCase", Type.of(Locale.class)),
+                constant(Locale.getDefault())
             ),
             number
         );

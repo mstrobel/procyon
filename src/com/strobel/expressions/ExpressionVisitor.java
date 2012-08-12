@@ -262,7 +262,7 @@ public abstract class ExpressionVisitor {
                 newNodes[i] = newNode;
             }
         }
-        return new ExpressionList<>(newNodes);
+        return newNodes == null ? null : new ExpressionList<>(newNodes);
     }
 
     @SuppressWarnings("unchecked")

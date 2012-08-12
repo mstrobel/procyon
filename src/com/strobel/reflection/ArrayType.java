@@ -110,7 +110,6 @@ public class ArrayType<T> extends Type<T> {
 
     @Override
     public StringBuilder appendErasedSignature(final StringBuilder sb) {
-        sb.append('[');
         return _elementType.appendErasedSignature(sb.append('['));
     }
 

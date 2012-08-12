@@ -172,7 +172,8 @@ final class ClassWriter {
         final TypeBuilder t = field.getDeclaringType();
 
         _dataBuffer.putShort(field.getModifiers());
-        _dataBuffer.putShort(t.getFieldToken(field));
+        _dataBuffer.putShort(t.getUtf8StringToken(field.getName()));
+        _dataBuffer.putShort(t.getUtf8StringToken(field.getErasedSignature()));
 
         final Object constantValue = field.getConstantValue();
         final int attributeCountPosition = beginAttributes();
