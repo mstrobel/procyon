@@ -1,6 +1,8 @@
 package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.emit.CodeGenerator;
+import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
 import java.util.ArrayList;
@@ -148,6 +150,26 @@ class TypeBinder extends TypeMapper<TypeBindings> {
         }
 
         return parameters;
+    }
+
+    public MemberInfo visitMember(final Type<?> declaringType, final MemberInfo member, final TypeBindings bindings) {
+        switch (member.getMemberType()) {
+            case Constructor:
+                return visitConstructor(declaringType, (ConstructorInfo) member, bindings);
+
+            case Field:
+                return visitField(declaringType, (FieldInfo)member, bindings);
+
+            case Method:
+                return visitMethod(declaringType, (MethodInfo)member, bindings);
+
+            case TypeInfo:
+            case NestedType:
+                return visitType((Type<?>)member, bindings);
+
+            default:
+                throw ContractUtils.unreachable();
+        }
     }
 
     public MethodInfo visitMethod(final Type<?> declaringType, final MethodInfo method, final TypeBindings bindings) {

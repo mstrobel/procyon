@@ -150,4 +150,65 @@ public final class StringUtilities {
 
         return sb.toString();
     }
+
+    public static boolean substringEquals(
+        final String value,
+        final int offset,
+        final String comparand,
+        final int comparandOffset,
+        final int substringLength) {
+
+        return substringEquals(
+            value,
+            offset,
+            comparand,
+            comparandOffset,
+            substringLength,
+            StringComparison.Ordinal
+        );
+    }
+
+    public static boolean substringEquals(
+        final String value,
+        final int offset,
+        final String comparand,
+        final int comparandOffset,
+        final int substringLength,
+        final StringComparison comparison) {
+
+        VerifyArgument.notNull(value, "value");
+        VerifyArgument.notNull(comparand, "comparand");
+
+        VerifyArgument.isNonNegative(offset, "offset");
+        VerifyArgument.isNonNegative(comparandOffset, "comparandOffset");
+
+        VerifyArgument.isNonNegative(substringLength, "substringLength");
+
+        final int valueLength = value.length();
+
+        if (offset + substringLength > valueLength) {
+            return false;
+        }
+
+        final int comparandLength = comparand.length();
+
+        if (comparandOffset + substringLength > comparandLength) {
+            return false;
+        }
+
+        final boolean ignoreCase = comparison == StringComparison.OrdinalIgnoreCase;
+
+        for (int i = 0; i < substringLength; i++) {
+            final char vc = value.charAt(offset + i);
+            final char cc = comparand.charAt(comparandOffset + i);
+
+            if (vc == cc || ignoreCase && Character.toLowerCase(vc) == Character.toLowerCase(cc)) {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
+    }
 }

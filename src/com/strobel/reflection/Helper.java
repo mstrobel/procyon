@@ -21,6 +21,7 @@ import static com.sun.tools.javac.util.ListBuffer.lb;
  */
 @SuppressWarnings({"unchecked"})
 final class Helper {
+
     private Helper() {}
 
     public static boolean overrides(final MethodInfo baseMethod, final MethodInfo ancestorMethod) {
@@ -84,6 +85,12 @@ final class Helper {
             default:
                 return false;
         }
+    }
+
+    public static boolean overrides(final MethodBase method, final MethodBase other, final boolean checkResult) {
+        return method instanceof MethodInfo &&
+               other instanceof MethodInfo &&
+               overrides((MethodInfo) method, (MethodInfo) other, checkResult);
     }
 
     public static boolean overrides(final MethodInfo method, final MethodInfo other, final boolean checkResult) {
@@ -701,6 +708,66 @@ final class Helper {
         else {
             return union(cl1.tail, cl2.tail).prepend(cl1.head);
         }
+    }
+
+    public static boolean isInheritedIn(final Type<?> site, final MemberInfo member) {
+        if (site == null || site == Type.NullType) {
+            return false;
+        }
+
+        if (member.isPublic()) {
+            return true;
+        }
+
+        final Type declaringType = member.getDeclaringType();
+
+        if (member.isPrivate()) {
+            return TypeUtils.areEquivalent(site, declaringType);
+        }
+
+        if (member.isProtected()) {
+            return !site.isInterface();
+        }
+
+        for (Type t = site;
+             t != null && t != declaringType;
+             t = superType(t)) {
+
+            while (t != null && t.isGenericParameter()) {
+                t = t.getExtendsBound();
+            }
+
+            if (t == null) {
+                return true; // error recovery
+            }
+
+            if (t.isCompoundType()) {
+                continue;
+            }
+
+            if (!inSamePackage(t, declaringType)) {
+                return false;
+            }
+        }
+
+        return !site.isInterface();
+    }
+
+    public static boolean inSamePackage(final Type t1, final Type t2) {
+        if (t1 == t2)
+            return true;
+
+        final String name1 = t1.getFullName();
+        final String name2 = t2.getFullName();
+
+        if (name1 == null || name2 == null)
+            return false;
+
+        final int packageEnd1 = name1.lastIndexOf('.');
+        final int packageEnd2 = name2.lastIndexOf('.');
+
+        return packageEnd1 == packageEnd2 &&
+               (packageEnd1 < 0 || StringUtilities.substringEquals(name1, 0, name2, 0, packageEnd2));
     }
 
     private final static TypeMapping ErasureFunctor = new TypeMapping("erasure") {
@@ -1398,6 +1465,92 @@ final class Helper {
         }
         return _arraySuperType;
     }
+
+    public static Type asOuterSuper(Type t, final Type type) {
+        switch (t.getKind()) {
+            case DECLARED:
+                do {
+                    final Type s = asSuper(t, type);
+                    if (s != null) {
+                        return s;
+                    }
+                    t = t.getDeclaringType();
+                } while (t.getKind() == TypeKind.DECLARED);
+                return null;
+            case ARRAY:
+                return isSubtype(t, type) ? type : null;
+            case TYPEVAR:
+                return asSuper(t, type);
+            case ERROR:
+                return t;
+            default:
+                return null;
+        }
+    }
+
+    public static MemberInfo asMemberOf(final Type type, final MemberInfo member) {
+        return member.isStatic()
+               ? member.getDeclaringType()
+               : asMemberOfVisitor.visit(type, member);
+    }
+
+    private final static TypeBinder typeBinder = new TypeBinder();
+
+    private static SimpleVisitor<MemberInfo, MemberInfo> asMemberOfVisitor = new SimpleVisitor<MemberInfo, MemberInfo>() {
+        @Override
+        public MemberInfo visitClassType(final Type<?> type, final MemberInfo member) {
+            final Type owner = member.getDeclaringType();
+
+            if (!member.isStatic() && owner.isGenericType()) {
+                Type base = asOuterSuper(type, owner);
+                //
+                // If t is an intersection type T = CT & I1 & I2 ... & In, then
+                // its supertypes CT, I1, ... In might contain wildcards, so we
+                // need to go through capture conversion.
+                //
+                base = base.isCompoundType() ? capture(base) : base;
+
+                if (base != null) {
+                    final TypeBindings ownerBindings = owner.getTypeBindings();
+                    final TypeBindings baseBindings = owner.getTypeBindings();
+                    if (!ownerBindings.isEmpty()) {
+                        if (baseBindings.isEmpty()) {
+                            return typeBinder.visitMember(
+                                owner,
+                                member,
+                                TypeBindings.create(
+                                    ownerBindings.getGenericParameters(),
+                                    erasure(ownerBindings.getBoundTypes())
+                                )
+                            );
+                        }
+                        return typeBinder.visitMember(
+                            owner,
+                            member,
+                            ownerBindings.withAdditionalBindings(base.getTypeBindings())
+                        );
+                    }
+                }
+            }
+
+            return member;
+        }
+
+        @Override
+        public MemberInfo visitTypeParameter(final Type<?> type, final MemberInfo member) {
+            return asMemberOf(type.getExtendsBound(), member);
+        }
+
+        @Override
+        public MemberInfo visitWildcardType(final Type<?> type, final MemberInfo member) {
+            return asMemberOf(upperBound(type), member);
+        }
+
+        @Override
+        public MemberInfo visitType(final Type<?> type, final MemberInfo member) {
+            return member;
+        }
+    };
 
     private final static Map<Type, List<Type>> closureCache = new HashMap<>();
 

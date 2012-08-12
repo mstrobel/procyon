@@ -372,6 +372,7 @@
         <w>arraycopy</w>
         <w>booleans</w>
         <w>bytecode</w>
+        <w>comparand</w>
         <w>comparer</w>
         <w>concat</w>
         <w>contravariance</w>
