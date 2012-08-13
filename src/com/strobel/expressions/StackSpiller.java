@@ -585,16 +585,18 @@ final class StackSpiller {
     }
 
     private Result rewriteLabelExpression(final Expression expr, final Stack stack) {
-        LambdaExpression lambda = (LambdaExpression)expr;
+        final LabelExpression node = (LabelExpression)expr;
 
-        // Call back into the rewriter
-        lambda = analyzeLambda(lambda);
+        final Result expression = rewriteExpression(node.getDefaultValue(), stack);
 
-        // If the lambda gets rewritten, we don't need to spill the stack,
-        // but we do need to rebuild the tree above us so it includes the new node.
-        final RewriteAction action = (lambda == expr) ? RewriteAction.None : RewriteAction.Copy;
+        if (expression.Action != RewriteAction.None) {
+            return new Result(
+                expression.Action,
+                Expression.label(node.getTarget(), expression.Node)
+            );
+        }
 
-        return new Result(action, lambda);
+        return new Result(expression.Action, expr);
     }
 
     private Result rewriteGotoExpression(final Expression expr, final Stack stack) {

@@ -83,4 +83,46 @@ public class CompilerTests {
         System.out.println(delegate.testNumber(0));
         System.out.println(delegate.testNumber(99));
     }
+    @Test
+    public void returnLabelTest() throws Exception {
+        final ParameterExpression number = parameter(PrimitiveTypes.Integer, "number");
+        final LabelTarget returnLabel = label(Types.String);
+
+        final LambdaExpression<ITest> lambda = lambda(
+            Type.of(ITest.class),
+            block(
+                ifThenElse(
+                    equal(
+                        number,
+                        call(
+                            Types.Integer,
+                            "parseInt",
+                            TypeList.empty(),
+                            constant("0")
+                        )
+                    ),
+                    makeReturn(returnLabel, constant("zero")),
+                    condition(
+                        lessThan(number, constant(0)),
+                        makeReturn(returnLabel, constant("negative")),
+                        makeReturn(returnLabel, constant("positive"))
+                    )
+                ),
+                label(returnLabel, defaultValue(Types.String))
+            ),
+            number
+        );
+
+        System.out.println(lambda);
+
+        final ITest delegate = lambda.compile();
+
+        assertEquals("negative", delegate.testNumber(-15));
+        assertEquals("zero", delegate.testNumber(0));
+        assertEquals("positive", delegate.testNumber(99));
+        
+        System.out.println(delegate.testNumber(-15));
+        System.out.println(delegate.testNumber(0));
+        System.out.println(delegate.testNumber(99));
+    }
 }

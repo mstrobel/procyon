@@ -74,7 +74,7 @@ public class BlockExpression extends Expression {
         final Object expressionOrCollection) {
 
         if (expressionOrCollection instanceof Expression) {
-            return new ExpressionList(provider, (Expression)expressionOrCollection);
+            return new BlockExpressionList(provider, (Expression)expressionOrCollection);
         }
         // Return what is not guaranteed to be a readonly expressionOrCollection
         return (ExpressionList<? extends Expression>)expressionOrCollection;
@@ -377,5 +377,112 @@ final class ScopeWithType extends ScopeN {
         assert variables == null || variables.size() == getVariableCount();
 
         return new ScopeWithType(reuseOrValidateVariables(variables), new ExpressionList<>(args), _type);
+    }
+}
+
+final class BlockExpressionList extends ExpressionList<Expression> {
+    private final BlockExpression _block;
+    private final Expression _arg0;
+
+    BlockExpressionList(final BlockExpression block, final Expression arg0) {
+        _block = block;
+        _arg0 = arg0;
+    }
+
+    @Override
+    public int size() {
+        return _block.getExpressionCount();
+    }
+
+    @Override
+    protected ExpressionList<Expression> newInstance(final Expression[] expressions) {
+        throw ContractUtils.unsupported();
+    }
+
+    @Override
+    public Expression get(final int index) {
+        if (index == 0) {
+            return _arg0;
+        }
+        return _block.getExpression(index);
+    }
+
+    @Override
+    public int indexOf(final Expression item) {
+        if (_arg0 == item)
+            return 0;
+
+        for (int i = 1, n = _block.getExpressionCount(); i < n; i++) {
+            if (_block.getExpression(i) == item) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    @Override
+    public ExpressionList<Expression> remove(final int index) {
+        throw ContractUtils.unsupported();
+    }
+
+    @Override
+    public int lastIndexOf(final Expression expression) {
+        for (int i = _block.getExpressionCount() - 1; i >= 1; i--) {
+            if (_block.getExpression(i) == expression) {
+                return i;
+            }
+        }
+
+        if (expression == _arg0) {
+            return 0;
+        }
+
+        return -1;
+    }
+
+    @Override
+    public ExpressionList<Expression> getRange(final int fromIndex, final int toIndex) {
+        throw ContractUtils.unsupported();
+    }
+
+    @Override
+    public ExpressionList<Expression> add(final int index, final Expression expression) {
+        throw ContractUtils.unsupported();
+    }
+
+    @Override
+    public ExpressionList<Expression> replace(final int index, final Expression expression) {
+        throw ContractUtils.unsupported();
+    }
+
+    @Override
+    public ExpressionList<Expression> retainAll(final ExpressionList<? extends Expression> c) {
+        throw ContractUtils.unsupported();
+    }
+
+    @Override
+    public ExpressionList<Expression> removeAll(final ExpressionList<? extends Expression> c) {
+        throw ContractUtils.unsupported();
+    }
+
+    @Override
+    public ExpressionList<Expression> addAll(final ExpressionList<Expression> c) {
+        throw ContractUtils.unsupported();
+    }
+
+    @Override
+    public ExpressionList<Expression> addAll(final int index, final ExpressionList<Expression> c) {
+        throw ContractUtils.unsupported();
+    }
+
+    @Override
+    public ExpressionList<Expression> remove(final Expression expression) {
+        throw ContractUtils.unsupported();
+    }
+
+    @Override
+    public ExpressionList<Expression> add(final Expression expression) {
+        throw ContractUtils.unsupported();
     }
 }

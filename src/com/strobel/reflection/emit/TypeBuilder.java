@@ -813,8 +813,9 @@ public final class TypeBuilder<T> extends Type<T> {
 
     private void dump(final byte[] classBytes) {
         final File temp = new File(System.getenv("TEMP") + File.separator + getInternalName() + ".class");
+        final File parentDirectory = temp.getParentFile();
 
-        if (!temp.getParentFile().mkdirs()) {
+        if (!parentDirectory.exists() && !parentDirectory.mkdirs()) {
             return;
         }
 

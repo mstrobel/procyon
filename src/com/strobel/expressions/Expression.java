@@ -45,6 +45,7 @@ public abstract class Expression {
     /**
      * Indicates that the node can be reduced to a simpler node. If this returns {@code true},
      * {@code reduce()} can be called to produce the reduced form.
+     * @return {@code true} if the node can be reduced; otherwise, {@code false}.
      */
     public boolean canReduce() {
         return false;
@@ -2704,11 +2705,11 @@ public abstract class Expression {
     }
 
     @SuppressWarnings("unchecked")
-    static <T> T returnObject(final Class<T> clazz, final Object objectOrCollection) {
+    static <T extends Expression> T returnObject(final Class<T> clazz, final Object objectOrCollection) {
         if (clazz.isInstance(objectOrCollection)) {
             return (T)objectOrCollection;
         }
-        return ((List<T>)objectOrCollection).get(0);
+        return ((ExpressionList<T>)objectOrCollection).get(0);
     }
 
     private static void verifyTypeBinaryExpressionOperand(final Expression expression, final Type type) {

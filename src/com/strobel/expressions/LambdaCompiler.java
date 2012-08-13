@@ -93,6 +93,8 @@ final class LambdaCompiler {
             closureField = null;
             constructorBuilder = typeBuilder.defineDefaultConstructor();
         }
+
+        initializeMethod();
     }
 
     LambdaCompiler(final AnalyzedTree tree, final LambdaExpression<?> lambda, final MethodBuilder method) {
@@ -123,6 +125,8 @@ final class LambdaCompiler {
         _tree = tree;
         _scope = tree.scopes.get(lambda);
         _boundConstants = tree.constants.get(lambda);
+
+        initializeMethod();
     }
 
     private LambdaCompiler(final LambdaCompiler parent, final LambdaExpression lambda) {
@@ -189,7 +193,7 @@ final class LambdaCompiler {
     }
 
     void initializeMethod() {
-        // See if we can find a return label, so we can emit better IL 
+        // See if we can find a return label, so we can emit better IL
         addReturnLabel(lambda);
         _boundConstants.emitCacheConstants(this);
     }
@@ -239,7 +243,7 @@ final class LambdaCompiler {
                         }
                     }
 
-                    break;
+                    continue;
             }
         }
     }
@@ -788,7 +792,7 @@ final class LambdaCompiler {
         // Emit the value
         emitExpression(node.getRight());
 
-        // Save the expression value, if needed 
+        // Save the expression value, if needed
         LocalBuilder temp = null;
 
         if (emitAs != CompilationFlags.EmitAsVoidType) {
@@ -798,7 +802,7 @@ final class LambdaCompiler {
 
         emitSetIndexCall(index);
 
-        // Restore the value 
+        // Restore the value
         if (emitAs != CompilationFlags.EmitAsVoidType) {
             generator.emitLoad(temp);
             freeLocal(temp);
@@ -2400,12 +2404,12 @@ final class LambdaCompiler {
 
         //
         // To share code, we make the following substitutions:
-        //     if (!(left || right)) branch value 
+        //     if (!(left || right)) branch value
         // becomes:
-        //     if (!left && !right) branch value 
-        // and: 
+        //     if (!left && !right) branch value
+        // and:
         //     if (!(left && right)) branch value
-        // becomes: 
+        // becomes:
         //     if (!left || !right) branch value
         //
         //
@@ -3409,7 +3413,7 @@ enum LabelScopeKind {
     // any "statement like" node that can be jumped into
     Statement,
 
-    // these correspond to the node of the same name 
+    // these correspond to the node of the same name
     Block,
     Switch,
     Lambda,
@@ -3420,8 +3424,8 @@ enum LabelScopeKind {
     Finally,
     Filter,
 
-    // the catch-all value for any other expression type 
-    // (means we can't jump into it) 
+    // the catch-all value for any other expression type
+    // (means we can't jump into it)
     Expression,
 }
 
