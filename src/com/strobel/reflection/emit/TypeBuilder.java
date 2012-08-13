@@ -1,5 +1,6 @@
 package com.strobel.reflection.emit;
 
+import com.strobel.compilerservices.CallerResolver;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
@@ -812,6 +813,10 @@ public final class TypeBuilder<T> extends Type<T> {
 
     private void dump(final byte[] classBytes) {
         final File temp = new File(System.getenv("TEMP") + File.separator + getInternalName() + ".class");
+
+        if (!temp.getParentFile().mkdirs()) {
+            return;
+        }
 
         try (final FileOutputStream out = new FileOutputStream(temp)) {
             out.write(classBytes);

@@ -439,6 +439,10 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
             visit(target);
             out(".");
         }
+        else {
+            out(node.getMethod().getDeclaringType().getName());
+            out(".");
+        }
 
         out(node.getMethod().getName());
         out("(");

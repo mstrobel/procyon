@@ -1,5 +1,6 @@
 package com.strobel.expressions;
 
+import com.strobel.compilerservices.CallerResolver;
 import com.strobel.compilerservices.DebugInfoGenerator;
 import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.reflection.Type;
@@ -14,6 +15,7 @@ public final class LambdaExpression<T> extends Expression {
     private final Type<T> _interfaceType;
     private final boolean _tailCall;
     private final Type _returnType;
+    private final Class<?> _creationContext;
 
     LambdaExpression(
         final Type<T> interfaceType,
@@ -30,6 +32,7 @@ public final class LambdaExpression<T> extends Expression {
         _parameters = parameters;
         _interfaceType = interfaceType;
         _returnType = _interfaceType.getMethods().get(0).getReturnType();
+        _creationContext = CallerResolver.getCallerClass(2);
     }
 
     @Override
@@ -77,6 +80,10 @@ public final class LambdaExpression<T> extends Expression {
     @SuppressWarnings("unchecked")
     final LambdaExpression<T> accept(final StackSpiller spiller) {
         return spiller.rewrite(this);
+    }
+
+    final Class<?> getCreationContext() {
+        return _creationContext;
     }
 
     public final T compile() {

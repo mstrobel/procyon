@@ -9,8 +9,14 @@ import sun.reflect.generics.factory.CoreReflectionFactory;
 import sun.reflect.generics.factory.GenericsFactory;
 import sun.reflect.generics.scope.ClassScope;
 
-import javax.lang.model.type.TypeKind;
-import java.lang.reflect.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.GenericDeclaration;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.TypeVariable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
@@ -139,10 +145,10 @@ public final class NewResolver {
 
                     if (!_typeArguments.isEmpty()) {
                         for (final Type<?> typeArgument : _typeArguments) {
-                            if (!(typeArgument instanceof ReflectedGenericParameter)) {
+                            if (!(typeArgument instanceof GenericParameter)) {
                                 continue;
                             }
-                            if (((ReflectedGenericParameter)typeArgument).getTypeVariable() == typeVariable) {
+                            if (((GenericParameter)typeArgument).getRawTypeVariable() == typeVariable) {
                                 return typeArgument;
                             }
                         }
@@ -282,7 +288,7 @@ public final class NewResolver {
                 Frame currentFrame = this;
 
                 while (currentFrame != null) {
-                    final ReflectedGenericParameter genericParameter = currentFrame._type.findGenericParameter(typeVariable);
+                    final GenericParameter genericParameter = currentFrame._type.findGenericParameter(typeVariable);
 
                     if (genericParameter != null) {
                         return genericParameter;
@@ -380,7 +386,7 @@ public final class NewResolver {
             return null;
         }
 
-        void addTypeArgument(final ReflectedGenericParameter genericParameter) {
+        void addTypeArgument(final GenericParameter genericParameter) {
             _typeArguments = _typeArguments.append(genericParameter);
         }
     }
@@ -429,10 +435,10 @@ public final class NewResolver {
                 final TypeVariable typeVariable = typeParameters[i];
 
                 currentType.addGenericParameter(
-                    new ReflectedGenericParameter(
-                        typeVariable,
-                        currentType,
+                    new GenericParameter(
                         typeVariable.getName(),
+                        currentType,
+                        null,
                         i
                     )
                 );
@@ -488,8 +494,8 @@ public final class NewResolver {
             this.visit(ee, currentFrame);
         }
 
-        for (final ReflectedGenericParameter genericParameter : currentFrame.getCurrentClass().getGenericParameters()) {
-            final java.lang.reflect.Type[] bounds = genericParameter.getTypeVariable().getBounds();
+        for (final GenericParameter genericParameter : currentFrame.getCurrentClass().getGenericParameters()) {
+            final java.lang.reflect.Type[] bounds = genericParameter.getRawTypeVariable().getBounds();
 
             if (ArrayUtilities.isNullOrEmpty(bounds)) {
                 continue;
@@ -510,7 +516,7 @@ public final class NewResolver {
                 boundType = Type.makeCompoundType(Type.list(resolvedBounds));
             }
 
-            genericParameter.setBound(boundType);
+            genericParameter.setUpperBound(boundType);
         }
 
         currentType.complete();
@@ -749,12 +755,6 @@ public final class NewResolver {
             returnType = m.getReturnType();
         }
 
-        final Type<?> resolvedReturnType = frame.resolveType(returnType);
-
-        if (resolvedReturnType == null) {
-            return null;
-        }
-
         final Type<?>[] resolvedThrownTypes = new Type<?>[thrownTypes.length];
         final ParameterInfo[] parameters = new ParameterInfo[parameterTypes.length];
         final TypeVariable<Method>[] typeParameters = m.getTypeParameters();
@@ -768,7 +768,7 @@ public final class NewResolver {
 
             for (int i = 0; i < typeParameters.length; i++) {
                 final TypeVariable<Method> typeVariable = typeParameters[i];
-                final ReflectedGenericParameter genericParameter = new ReflectedGenericParameter(typeVariable, typeVariable.getName(), i);
+                final GenericParameter genericParameter = new GenericParameter(typeVariable.getName(), typeVariable, i);
 
                 resolvedTypeParameters[i] = genericParameter;
                 frame.addTypeArgument(genericParameter);
@@ -797,6 +797,12 @@ public final class NewResolver {
             resolvedThrownTypes[i] = resolvedThrownType;
         }
 
+        final Type<?> resolvedReturnType = frame.resolveType(returnType);
+
+        if (resolvedReturnType == null) {
+            return null;
+        }
+
         final ReflectedType<?> declaringType = frame.getCurrentClass();
 
         final ReflectedMethod method = new ReflectedMethod(
@@ -810,7 +816,33 @@ public final class NewResolver {
 
         if (!genericParameters.isEmpty()) {
             for (final Type type : genericParameters.getGenericParameters()) {
-                ((ReflectedGenericParameter)type).setDeclaringMethod(method);
+                final GenericParameter genericParameter = (GenericParameter)type;
+
+                genericParameter.setDeclaringMethod(method);
+
+                final java.lang.reflect.Type[] bounds = genericParameter.getRawTypeVariable().getBounds();
+
+                if (ArrayUtilities.isNullOrEmpty(bounds)) {
+                    continue;
+                }
+
+                final Type<?> boundType;
+
+                if (bounds.length == 1) {
+                    boundType = frame.resolveType(bounds[0]);
+                }
+                else {
+                    final Type<?>[] resolvedBounds = new Type<?>[bounds.length];
+
+                    for (int i = 0, n = bounds.length; i < n; i++) {
+                        resolvedBounds[i] = frame.resolveType(bounds[i]);
+                    }
+
+                    boundType = Type.makeCompoundType(Type.list(resolvedBounds));
+                }
+
+                genericParameter.setUpperBound(boundType);
+
             }
         }
 
@@ -869,208 +901,6 @@ public final class NewResolver {
     }
 }
 
-class ReflectedGenericParameter extends Type {
-    private final String _name;
-    private final ReflectedType<?> _declaringType;
-    private final TypeVariable<?> _typeVariable;
-    private MethodInfo _declaringMethod;
-    private final int _position;
-    private Class<?> _rawClass;
-    private Type<?> _bound;
-
-    ReflectedGenericParameter(
-        final TypeVariable<?> typeVariable,
-        final ReflectedType<?> declaringType,
-        final String name,
-        final int position) {
-
-        _typeVariable = VerifyArgument.notNull(typeVariable, "typeVariable");
-        _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
-        _declaringMethod = null;
-        _name = VerifyArgument.notNull(name, "name");
-        _position = position;
-    }
-
-    ReflectedGenericParameter(final TypeVariable<?> typeVariable, final String name, final int position) {
-        _typeVariable = VerifyArgument.notNull(typeVariable, "typeVariable");
-        _declaringType = null;
-        _name = VerifyArgument.notNull(name, "name");
-        _position = position;
-    }
-
-    ReflectedGenericParameter(final TypeVariable<?> typeVariable, final MethodInfo declaringMethod, final String name, final int position) {
-        this(typeVariable, name, position);
-        _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
-    }
-
-    void setDeclaringMethod(final MethodInfo method) {
-        _declaringMethod = VerifyArgument.notNull(method, "method");
-    }
-
-    void setBound(final Type<?> bound) {
-        VerifyArgument.notNull(bound, "bound");
-        _bound = bound;
-    }
-
-    final TypeVariable<?> getTypeVariable() {
-        return _typeVariable;
-    }
-
-    @Override
-    public boolean isGenericParameter() {
-        return true;
-    }
-
-    @Override
-    public TypeKind getKind() {
-        return TypeKind.TYPEVAR;
-    }
-
-    @Override
-    public String getFullName() {
-        return _name;
-    }
-
-    @Override
-    public int getGenericParameterPosition() {
-        return _position;
-    }
-
-    @Override
-    public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        sb.append(getFullName());
-
-        if (_bound != null && _bound != Types.Object) {
-            sb.append(" extends ");
-            if (_bound.isGenericParameter()) {
-                return sb.append(_bound.getFullName());
-            }
-            return _bound.appendBriefDescription(sb);
-        }
-
-        return sb;
-    }
-
-    @Override
-    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        sb.append(getFullName());
-
-        if (_bound != null && _bound != Types.Object) {
-            sb.append(" extends ");
-            if (_bound.isGenericParameter()) {
-                return sb.append(_bound.getName());
-            }
-            return _bound.appendSimpleDescription(sb);
-        }
-
-        return sb;
-    }
-
-    @Override
-    public StringBuilder appendErasedDescription(final StringBuilder sb) {
-        return getExtendsBound().appendErasedDescription(sb);
-    }
-
-    @Override
-    public StringBuilder appendFullDescription(final StringBuilder sb) {
-        return appendBriefDescription(sb);
-    }
-
-    @Override
-    protected StringBuilder _appendClassName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
-        return sb.append(_name);
-    }
-
-    @Override
-    public Class getErasedClass() {
-        if (_rawClass == null) {
-            synchronized (CACHE_LOCK) {
-                if (_rawClass == null) {
-                    if (_bound != null) {
-                        _rawClass = _bound.getErasedClass();
-                    }
-                    else {
-                        _rawClass = Object.class;
-                    }
-                }
-            }
-        }
-        return _rawClass;
-    }
-
-    @Override
-    public MemberType getMemberType() {
-        return MemberType.TypeInfo;
-    }
-
-    @Override
-    public Type<?> getExtendsBound() {
-        if (_bound == null) {
-            return Types.Object;
-        }
-        return _bound;
-    }
-
-    @Override
-    public Type getDeclaringType() {
-        return _declaringType;
-    }
-
-    @Override
-    public MethodInfo getDeclaringMethod() {
-        return _declaringMethod;
-    }
-
-    @Override
-    public int getModifiers() {
-        return 0;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public Object accept(final TypeVisitor visitor, final Object parameter) {
-        return visitor.visitTypeParameter(this, parameter);
-    }
-
-    @Override
-    public int hashCode() {
-        return getGenericParameterPosition();
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-        if (obj == this) {
-            return true;
-        }
-
-        if (obj == null || !(obj instanceof Type<?>)) {
-            return false;
-        }
-
-        if (obj instanceof ReflectedGenericParameter) {
-            if (_typeVariable == ((ReflectedGenericParameter)obj)._typeVariable) {
-                return true;
-            }
-        }
-
-        final Type<?> other = (Type<?>)obj;
-
-        if (!other.isGenericParameter() ||
-            other.getGenericParameterPosition() != this.getGenericParameterPosition()) {
-
-            return false;
-        }
-
-        if (_declaringMethod != null) {
-            final MethodInfo otherDeclaringMethod = other.getDeclaringMethod();
-            return otherDeclaringMethod != null &&
-                   Comparer.equals(_declaringMethod.getRawMethod(), otherDeclaringMethod.getRawMethod());
-        }
-
-        return _declaringType == other.getDeclaringType();
-    }
-}
-
 @SuppressWarnings("unchecked")
 class ReflectedType<T> extends Type<T> {
     private final String _name;
@@ -1081,7 +911,7 @@ class ReflectedType<T> extends Type<T> {
     private boolean _membersResolved;
     private boolean _completed;
     private Type<?> _declaringType;
-    private List<ReflectedGenericParameter> _genericParameters = List.nil();
+    private List<GenericParameter> _genericParameters = List.nil();
     private List<ReflectedType<?>> _nestedTypes = List.nil();
     private List<ReflectedMethod> _methods = List.nil();
     private List<ReflectedField> _fields = List.nil();
@@ -1107,7 +937,7 @@ class ReflectedType<T> extends Type<T> {
         _interfaces = VerifyArgument.notNull(interfaces, "interfaces");
     }
 
-    List<ReflectedGenericParameter> getGenericParameters() {
+    List<GenericParameter> getGenericParameters() {
         return _genericParameters;
     }
 
@@ -1120,8 +950,8 @@ class ReflectedType<T> extends Type<T> {
         return null;
     }
 
-    ReflectedGenericParameter findGenericParameter(final java.lang.reflect.TypeVariable typeVariable) {
-        final ReflectedGenericParameter result = GenericParameterFinder.visit(this, typeVariable);
+    GenericParameter findGenericParameter(final java.lang.reflect.TypeVariable typeVariable) {
+        final GenericParameter result = GenericParameterFinder.visit(this, typeVariable);
 
         if (result != null) {
             return result;
@@ -1129,7 +959,7 @@ class ReflectedType<T> extends Type<T> {
 
         final int position = ArrayUtilities.indexOf(typeVariable.getGenericDeclaration().getTypeParameters(), typeVariable);
 
-        for (final ReflectedGenericParameter genericParameter : _genericParameters) {
+        for (final GenericParameter genericParameter : _genericParameters) {
             final Type declaringType = genericParameter.getDeclaringType();
 
             if (genericParameter.getGenericParameterPosition() != position) {
@@ -1155,7 +985,7 @@ class ReflectedType<T> extends Type<T> {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
     }
 
-    void addGenericParameter(final ReflectedGenericParameter genericParameter) {
+    void addGenericParameter(final GenericParameter genericParameter) {
         VerifyArgument.notNull(genericParameter, "typeParameter");
         _completed = false;
         _genericParameters = _genericParameters.append(genericParameter);
@@ -1319,11 +1149,11 @@ class ReflectedType<T> extends Type<T> {
         return super._appendClassName(sb, fullName, dottedName);
     }
 
-    private final static SimpleVisitor<java.lang.reflect.Type, ReflectedGenericParameter> GenericParameterFinder =
-        new SimpleVisitor<java.lang.reflect.Type, ReflectedGenericParameter>() {
-            public ReflectedGenericParameter visit(final TypeList types, final java.lang.reflect.Type s) {
+    private final static SimpleVisitor<java.lang.reflect.Type, GenericParameter> GenericParameterFinder =
+        new SimpleVisitor<java.lang.reflect.Type, GenericParameter>() {
+            public GenericParameter visit(final TypeList types, final java.lang.reflect.Type s) {
                 for (final Type type : types) {
-                    final ReflectedGenericParameter result = visit(type, s);
+                    final GenericParameter result = visit(type, s);
                     if (result != null) {
                         return result;
                     }
@@ -1332,13 +1162,13 @@ class ReflectedType<T> extends Type<T> {
             }
 
             @Override
-            public ReflectedGenericParameter visitCapturedType(final Type<?> t, final java.lang.reflect.Type s) {
+            public GenericParameter visitCapturedType(final Type<?> t, final java.lang.reflect.Type s) {
                 return null;
             }
 
             @Override
-            public ReflectedGenericParameter visitClassType(final Type<?> type, final java.lang.reflect.Type parameter) {
-                ReflectedGenericParameter result;
+            public GenericParameter visitClassType(final Type<?> type, final java.lang.reflect.Type parameter) {
+                GenericParameter result;
 
                 if (type.isGenericType()) {
                     result = visit(type.getGenericTypeParameters(), parameter);
@@ -1372,13 +1202,13 @@ class ReflectedType<T> extends Type<T> {
             }
 
             @Override
-            public ReflectedGenericParameter visitPrimitiveType(final Type<?> type, final java.lang.reflect.Type parameter) {
+            public GenericParameter visitPrimitiveType(final Type<?> type, final java.lang.reflect.Type parameter) {
                 return super.visitPrimitiveType(type, parameter);
             }
 
-            public ReflectedGenericParameter visitTypeParameter(final Type<?> type, final TypeVariable typeVariable) {
-                if (type instanceof ReflectedGenericParameter) {
-                    final ReflectedGenericParameter genericParameter = (ReflectedGenericParameter)type;
+            public GenericParameter visitTypeParameter(final Type<?> type, final TypeVariable typeVariable) {
+                if (type instanceof GenericParameter) {
+                    final GenericParameter genericParameter = (GenericParameter)type;
                     final Type declaringType = genericParameter.getDeclaringType();
 
                     if (declaringType != null && declaringType.getErasedClass() == typeVariable.getGenericDeclaration()) {
@@ -1395,12 +1225,12 @@ class ReflectedType<T> extends Type<T> {
             }
 
             @Override
-            public ReflectedGenericParameter visitWildcardType(final Type<?> type, final java.lang.reflect.Type parameter) {
+            public GenericParameter visitWildcardType(final Type<?> type, final java.lang.reflect.Type parameter) {
                 return null;
             }
 
             @Override
-            public ReflectedGenericParameter visitArrayType(final Type<?> type, final java.lang.reflect.Type parameter) {
+            public GenericParameter visitArrayType(final Type<?> type, final java.lang.reflect.Type parameter) {
                 return null;
             }
         };

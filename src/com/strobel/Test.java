@@ -20,6 +20,7 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.Locale;
 
 import static com.strobel.expressions.Expression.*;
 
@@ -124,7 +125,15 @@ public class Test {
             Type.of(ITest.class),
             call(
                 condition(
-                    equal(number, call(Types.Integer, "parseInt", TypeList.empty(), constant("0"))),
+                    equal(
+                        number,
+                        call(
+                            Types.Integer,
+                            "parseInt",
+                            TypeList.empty(),
+                            constant("0")
+                        )
+                    ),
                     constant("zero"),
                     condition(
                         lessThan(number, constant(0)),
@@ -133,9 +142,8 @@ public class Test {
                     )
                 ),
                 "toUpperCase",
-                TypeList.empty()
-                /*Types.String.getMethod("toUpperCase"*//*, Type.of(Locale.class)),
-                constant(Locale.getDefault())*/
+                TypeList.empty(),
+                constant(Locale.getDefault())
             ),
             number
         );
@@ -143,9 +151,10 @@ public class Test {
         System.out.println(lambda);
 
         final ITest delegate = lambda.compile();
-        final String result = delegate.testNumber(-15);
 
-        System.out.println(result);
+        System.out.println(delegate.testNumber(-15));
+        System.out.println(delegate.testNumber(0));
+        System.out.println(delegate.testNumber(99));
     }
 
     private static class NullTree extends JCTree {
@@ -217,6 +226,10 @@ public class Test {
 
         t.createType().newInstance().test("HOLY FREAKIN' CRAP!");
     }
+}
+
+interface ITest {
+    String testNumber(final int number) throws NumberFormatException;
 }
 
 interface ITest2<T extends String & Comparable<String> & Serializable, T2 extends T> {

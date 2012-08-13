@@ -3431,7 +3431,13 @@ public abstract class Expression {
             throw Error.methodWithMoreThanOneMatch(methodName, type);
         }
 
-        return (MethodInfo)members.get(bestMethodIndex);
+        final MethodInfo bestMatch = (MethodInfo)members.get(bestMethodIndex);
+
+        if (!typeArguments.isEmpty()) {
+            return applyTypeArgs(bestMatch, typeArguments);
+        }
+
+        return bestMatch;
     }
 
     private static int findBestMethod(

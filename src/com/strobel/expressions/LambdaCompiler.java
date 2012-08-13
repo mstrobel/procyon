@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings({"PackageVisibleField", "UnusedParameters", "UnusedDeclaration"})
 final class LambdaCompiler {
     final static AtomicInteger nextId = new AtomicInteger();
 
@@ -41,9 +42,8 @@ final class LambdaCompiler {
     LambdaCompiler(final AnalyzedTree tree, final LambdaExpression<?> lambda) {
         this.lambda = lambda;
 
-
         typeBuilder = new TypeBuilder(
-            "generated.f__Lambda" + Integer.toHexString(nextId.getAndIncrement()),
+            getUniqueLambdaName(lambda.getCreationContext()),
             Modifier.PUBLIC | Modifier.FINAL,
             Types.Object,
             Type.list(lambda.getType())
@@ -67,6 +67,7 @@ final class LambdaCompiler {
         _scope = tree.scopes.get(lambda);
         _boundConstants = tree.constants.get(lambda);
 
+        //noinspection ConstantConditions
         if (_hasClosureArgument) {
             closureField = typeBuilder.defineField(
                 "__closure",
@@ -878,7 +879,7 @@ final class LambdaCompiler {
 /*
             if (emitDebugSymbols()) {
                 // No need to emit a clearance if the next expression in the block is also a
-                // DebugInfoExprssion.
+                // DebugInfoExpression.
                 if (e instanceof DebugInfoExpression &&
                     ((DebugInfoExpression)e).isClear() &&
                     next instanceof DebugInfoExpression) {
@@ -1190,8 +1191,6 @@ final class LambdaCompiler {
         final ParameterExpressionList conversionParameters = lambda.getParameters();
 
         assert (conversionParameters.size() == 1);
-
-        final ParameterExpression p = conversionParameters.get(0);
 
         // Emit the delegate instance.
         emitLambdaExpression(lambda);
@@ -2422,14 +2421,14 @@ final class LambdaCompiler {
     private void emitBranchAnd(final boolean branch, final BinaryExpression node, final Label label) {
         // if (left) then
         //   if (right) branch label
-        // endif
+        // endIf
 
-        final Label endif = generator.defineLabel();
+        final Label endIf = generator.defineLabel();
 
-        emitExpressionAndBranch(!branch, node.getLeft(), endif);
+        emitExpressionAndBranch(!branch, node.getLeft(), endIf);
         emitExpressionAndBranch(branch, node.getRight(), label);
 
-        generator.markLabel(endif);
+        generator.markLabel(endIf);
     }
 
     private void emitBranchOr(final boolean branch, final BinaryExpression node, final Label label) {
@@ -2729,6 +2728,14 @@ final class LambdaCompiler {
     private static String getUniqueMethodName() {
         return "<ExpressionCompilerImplementationDetails>{" + nextId.getAndIncrement() + "}lambda_method";
     }
+
+    private static String getUniqueLambdaName(final Class<?> creationContext) {
+        final Package p = creationContext != null ? creationContext.getPackage()
+                                                  : LambdaCompiler.class.getPackage();
+
+        return p.getName() + ".f__Lambda" + Integer.toHexString(nextId.getAndIncrement());
+    }
+
 
     private void emitLambdaBody() {
         // The lambda body is the "last" expression of the lambda

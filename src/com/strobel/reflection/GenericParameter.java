@@ -13,12 +13,21 @@ import java.lang.reflect.TypeVariable;
 class GenericParameter<T> extends Type<T> {
     private final String _name;
     private final int _position;
-    private final Type _upperBound;
-    private final Type _lowerBound;
+    private Type _upperBound;
+    private Type _lowerBound;
     private MethodInfo _declaringMethod;
     private Type _declaringType;
     private Class<T> _erasedClass;
     private TypeVariable<?> _typeVariable;
+
+    GenericParameter(final String name, TypeVariable<?> typeVariable, final int position) {
+        _typeVariable = typeVariable;
+        _name = VerifyArgument.notNull(name, "name");
+        _declaringType = null;
+        _upperBound = Types.Object;
+        _lowerBound = Bottom;
+        _position = position;
+    }
 
     GenericParameter(final String name, final Type declaringType, final Type upperBound, final int position) {
         _name = VerifyArgument.notNull(name, "name");
@@ -52,6 +61,14 @@ class GenericParameter<T> extends Type<T> {
         _upperBound = upperBound != null ? upperBound : Types.Object;
         _lowerBound = lowerBound != null ? lowerBound : Type.Bottom;
         _position = position;
+    }
+
+    final void setUpperBound(final Type upperBound) {
+        _upperBound = upperBound;
+    }
+
+    final void setLowerBound(final Type lowerBound) {
+        _lowerBound = lowerBound;
     }
 
     @Override
@@ -248,25 +265,16 @@ class GenericParameter<T> extends Type<T> {
             return true;
         }
         
-        if (obj == null || !(obj instanceof Type<?>)) {
+        if (obj == null) {
             return false;
         }
         
-        final Type<?> other = (Type<?>) obj;
-
-        if (!other.isGenericParameter() ||
-            other.getGenericParameterPosition() != this.getGenericParameterPosition()) {
-            
-            return false;
-        }
-        
-        if (_declaringMethod != null) {
-            final MethodInfo otherDeclaringMethod = other.getDeclaringMethod();
-            return otherDeclaringMethod != null &&
-                   Comparer.equals(_declaringMethod.getRawMethod(), otherDeclaringMethod.getRawMethod());
-                   
+        if (obj instanceof GenericParameter<?>) {
+            final GenericParameter<?> other = (GenericParameter<?>)obj;
+            return other._position == _position &&
+                   Comparer.equals(other.getRawTypeVariable(), _typeVariable);
         }
 
-        return Comparer.equals(_declaringType, other.getDeclaringType());
+        return false;
     }
 }
