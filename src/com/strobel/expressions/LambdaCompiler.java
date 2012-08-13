@@ -1287,7 +1287,20 @@ final class LambdaCompiler {
     }
 
     private void emitBinaryMethod(final BinaryExpression b, final int flags) {
-        emitMethodCallExpression(Expression.call(null, b.getMethod(), b.getLeft(), b.getRight()), flags);
+        final MethodInfo method = b.getMethod();
+        final Expression left = b.getLeft();
+        final Expression right = b.getRight();
+        final Expression instance;
+
+        if (method.isStatic()) {
+            emitMethodCallExpression(Expression.call(null, method, left, right), flags);
+        }
+        else if (TypeUtils.isSameOrSubType(method.getDeclaringType(), left.getType())) {
+            emitMethodCallExpression(Expression.call(left, method, right), flags);
+        }
+        else {
+            emitMethodCallExpression(Expression.call(right, method, left), flags);
+        }
     }
 
     private void emitBinaryOperator(final ExpressionType op, final Type leftType, final Type rightType, final Type resultType) {

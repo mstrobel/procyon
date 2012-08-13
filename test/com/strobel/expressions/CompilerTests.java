@@ -39,7 +39,7 @@ public class CompilerTests {
 
         assertEquals(Collections.emptyList(), result);
     }
-    
+
     @Test
     public void simpleLambdaTest() throws Exception {
         final ParameterExpression number = parameter(PrimitiveTypes.Integer, "number");
@@ -78,11 +78,12 @@ public class CompilerTests {
         assertEquals("NEGATIVE", delegate.testNumber(-15));
         assertEquals("ZERO", delegate.testNumber(0));
         assertEquals("POSITIVE", delegate.testNumber(99));
-        
+
         System.out.println(delegate.testNumber(-15));
         System.out.println(delegate.testNumber(0));
         System.out.println(delegate.testNumber(99));
     }
+
     @Test
     public void returnLabelTest() throws Exception {
         final ParameterExpression number = parameter(PrimitiveTypes.Integer, "number");
@@ -92,15 +93,7 @@ public class CompilerTests {
             Type.of(ITest.class),
             block(
                 ifThenElse(
-                    equal(
-                        number,
-                        call(
-                            Types.Integer,
-                            "parseInt",
-                            TypeList.empty(),
-                            constant("0")
-                        )
-                    ),
+                    equal(number, constant(0)),
                     makeReturn(returnLabel, constant("zero")),
                     condition(
                         lessThan(number, constant(0)),
@@ -108,7 +101,7 @@ public class CompilerTests {
                         makeReturn(returnLabel, constant("positive"))
                     )
                 ),
-                label(returnLabel, defaultValue(Types.String))
+                label(returnLabel)
             ),
             number
         );
@@ -120,7 +113,7 @@ public class CompilerTests {
         assertEquals("negative", delegate.testNumber(-15));
         assertEquals("zero", delegate.testNumber(0));
         assertEquals("positive", delegate.testNumber(99));
-        
+
         System.out.println(delegate.testNumber(-15));
         System.out.println(delegate.testNumber(0));
         System.out.println(delegate.testNumber(99));

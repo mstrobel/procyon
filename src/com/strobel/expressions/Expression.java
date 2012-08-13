@@ -163,6 +163,12 @@ public abstract class Expression {
     }
 
     public static LabelExpression label(final LabelTarget target) {
+        VerifyArgument.notNull(target, "target");
+
+        if (target.getType() != PrimitiveTypes.Void) {
+            return label(target, defaultValue(target.getType()));
+        }
+
         return label(target, null);
     }
 
@@ -2833,7 +2839,13 @@ public abstract class Expression {
 
         if (name != null) {
             // try exact match first
-            MethodInfo method = getBinaryOperatorMethod(binaryType, leftType, rightType, name);
+            MethodInfo method = getBinaryOperatorStaticMethod(binaryType, leftType, rightType, name);
+
+            if (method != null) {
+                return new MethodBinaryExpression(binaryType, left, right, method.getReturnType(), method);
+            }
+
+            method = getBinaryOperatorMethod(binaryType, leftType, rightType, name);
 
             if (method != null) {
                 return new MethodBinaryExpression(binaryType, left, right, method.getReturnType(), method);

@@ -805,6 +805,10 @@ final class Helper {
                 }
             }
 
+            if (t == Types.Object && p != PrimitiveTypes.Void) {
+                return t;
+            }
+
             return null;
         }
 
@@ -1179,7 +1183,7 @@ final class Helper {
         public Boolean visitClassType(final Type t, final Type s) {
             final Type asSuper = asSuper(t, s);
             return asSuper != null
-                   && asSuper == s
+                   && (asSuper == s || asSuper == Types.Object)
                    // You're not allowed to write
                    //     Vector<Object> vec = new Vector<String>();
                    // But with wildcards you can write
@@ -1187,10 +1191,7 @@ final class Helper {
                    // which means that subtype checking must be done
                    // here instead of same-Type checking (via containsType).
                    && (!s.isGenericParameter() || containsTypeRecursive(s, asSuper))
-                   && isSubtypeNoCapture(
-                asSuper.getDeclaringType(),
-                s.getDeclaringType()
-            );
+                   && isSubtypeNoCapture(asSuper.getDeclaringType(), s.getDeclaringType());
         }
 
         @Override

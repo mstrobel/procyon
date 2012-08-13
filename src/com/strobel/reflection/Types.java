@@ -1,6 +1,7 @@
 package com.strobel.reflection;
 
 import com.strobel.compilerservices.Closure;
+import com.strobel.core.Comparer;
 
 import java.io.Serializable;
 import java.lang.Error;
@@ -31,6 +32,8 @@ public final class Types {
     public static final Type<String> String;
     public static final Type<Date> Date;
     public static final Type<UUID> UUID;
+
+    public static final Type<Comparer> Comparer;
 
     public static final Type<Error> Error;
     public static final Type<Throwable> Throwable;
@@ -79,6 +82,8 @@ public final class Types {
         String = Type.of(String.class);
         Date = Type.of(Date.class);
         UUID = Type.of(UUID.class);
+
+        Comparer = Type.of(Comparer.class);
 
         Error = Type.of(java.lang.Error.class);
         Throwable = Type.of(Throwable.class);
