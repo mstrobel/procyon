@@ -1437,13 +1437,13 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     final static Object CACHE_LOCK = new Object();
     final static TypeCache CACHE;
-    final static NewResolver RESOLVER;
+    final static Resolver RESOLVER;
     final static Type<?>[] PRIMITIVE_TYPES;
 
     static {
         synchronized (CACHE_LOCK) {
             CACHE = new TypeCache();
-            RESOLVER = new NewResolver();
+            RESOLVER = new Resolver();
 
             PRIMITIVE_TYPES = new PrimitiveType<?>[TypeKind.values().length];
 

@@ -1,12 +1,14 @@
 package com.strobel.expressions;
 
-import com.strobel.core.delegates.Func;
+import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
+import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
 import org.junit.Test;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 import static com.strobel.expressions.Expression.*;
 import static junit.framework.Assert.assertEquals;
@@ -36,5 +38,49 @@ public class CompilerTests {
         final Object result = delegate.invokeDynamic();
 
         assertEquals(Collections.emptyList(), result);
+    }
+    
+    @Test
+    public void simpleLambdaTest() throws Exception {
+        final ParameterExpression number = parameter(PrimitiveTypes.Integer, "number");
+
+        final LambdaExpression<ITest> lambda = lambda(
+            Type.of(ITest.class),
+            call(
+                condition(
+                    equal(
+                        number,
+                        call(
+                            Types.Integer,
+                            "parseInt",
+                            TypeList.empty(),
+                            constant("0")
+                        )
+                    ),
+                    constant("zero"),
+                    condition(
+                        lessThan(number, constant(0)),
+                        constant("negative"),
+                        constant("positive")
+                    )
+                ),
+                "toUpperCase",
+                TypeList.empty(),
+                constant(Locale.getDefault())
+            ),
+            number
+        );
+
+        System.out.println(lambda);
+
+        final ITest delegate = lambda.compile();
+
+        assertEquals("NEGATIVE", delegate.testNumber(-15));
+        assertEquals("ZERO", delegate.testNumber(0));
+        assertEquals("POSITIVE", delegate.testNumber(99));
+        
+        System.out.println(delegate.testNumber(-15));
+        System.out.println(delegate.testNumber(0));
+        System.out.println(delegate.testNumber(99));
     }
 }

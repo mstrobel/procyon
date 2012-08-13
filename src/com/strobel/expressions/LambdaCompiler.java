@@ -171,8 +171,6 @@ final class LambdaCompiler {
     void emitClosureArgument() {
         assert _hasClosureArgument
             : "must have a Closure argument";
-        assert methodBuilder.isStatic()
-            : "must be a static method";
 
         generator.emitThis();
         generator.getField(closureField);
