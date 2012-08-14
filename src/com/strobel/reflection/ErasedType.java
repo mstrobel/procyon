@@ -117,12 +117,15 @@ final class ErasedType<T> extends Type<T> {
         if (_methods == null) {
             synchronized (CACHE_LOCK) {
                 if (_methods == null) {
+                    final TypeList genericParameters = isGenericType()
+                                                       ? getGenericTypeParameters()
+                                                       : TypeList.empty();
                     _methods = GenericEraser.visit(
                         this,
                         _originalType.getMethods(),
                         TypeBindings.create(
-                            getGenericTypeParameters(),
-                            UpperBoundMapper.visit(getGenericTypeParameters())
+                            genericParameters,
+                            UpperBoundMapper.visit(genericParameters)
                         )
                     );
                 }

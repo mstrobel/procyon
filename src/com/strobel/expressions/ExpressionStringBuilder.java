@@ -11,8 +11,12 @@ import java.util.Set;
  * @author Mike Strobel
  */
 final class ExpressionStringBuilder extends ExpressionVisitor {
+    private final static String lineSeparator = System.getProperty("line.separator");
 
     private final StringBuilder _out;
+    private int _indentLevel = 0;
+    private int _blockDepth = 0;
+    private boolean _indentPending = false;
     private HashMap<Object, Integer> _ids;
 
     private ExpressionStringBuilder() {
@@ -34,11 +38,36 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         return id;
     }
 
+    private void increaseIndent() {
+        ++_indentLevel;
+    }
+    
+    private void decreaseIndent() {
+        --_indentLevel;
+    }
+    
+    private void newLine() {
+        _out.append(lineSeparator);
+        _indentPending = true;
+    }
+
+    private void applyIndent() {
+        if (!_indentPending) {
+            return;
+        }
+        for (int i = 0; i < _indentLevel; i++) {
+            _out.append("    ");
+        }
+        _indentPending = false;
+    }
+
     private void out(final String s) {
+        applyIndent();
         _out.append(s);
     }
 
     private void out(final char c) {
+        applyIndent();
         _out.append(c);
     }
 
@@ -405,13 +434,23 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
 
     @Override
     protected Expression visitBlock(final BlockExpression node) {
-        out("{");
+        ++_blockDepth;
+        out('{');
+        increaseIndent();
+        newLine();
         for (final Expression v : node.getVariables()) {
             out("var ");
             visit(v);
             out(";");
+            newLine();
         }
-        out(" ... }");
+        for (int i = 0, n = node.getExpressionCount(); i < n; i++) {
+             visit(node.getExpression(i));
+            newLine();
+        }
+        decreaseIndent();
+        out('}');
+        --_blockDepth;
         return node;
     }
 
@@ -462,33 +501,56 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
 
     @Override
     protected Expression visitConditional(final ConditionalExpression node) {
-        if (node.getIfFalse().getType() != PrimitiveTypes.Void) {
-            if (node.getType() != PrimitiveTypes.Void) {
-                out('(');
-                visit(node.getTest());
-                out(" ? ");
-                visit(node.getIfTrue());
-                out(" : ");
-                visit(node.getIfFalse());
-                out(')');
-                return node;
+        if (node.getType() != PrimitiveTypes.Void) {
+            out('(');
+            visit(node.getTest());
+            out(" ? ");
+            visit(node.getIfTrue());
+            out(" : ");
+            visit(node.getIfFalse());
+            out(')');
+            return node;
+        }
+
+        if (node.getIfFalse() instanceof DefaultValueExpression &&
+            node.getIfFalse().getType() == PrimitiveTypes.Void) {
+
+            out("if (");
+            visit(node.getTest());
+            out(") ");
+            if (_blockDepth > 0) {
+                newLine();
+                increaseIndent();
             }
-            else {
-                out("if (");
-                visit(node.getTest());
-                out(") ");
-                visit(node.getIfTrue());
-                out(" else ");
-                visit(node.getIfFalse());
+            visit(node.getIfTrue());
+            if (_blockDepth > 0) {
+                decreaseIndent();
             }
+            return node;
         }
 
         out("if (");
         visit(node.getTest());
         out(") ");
+        if (_blockDepth > 0) {
+            newLine();
+            increaseIndent();
+        }
         visit(node.getIfTrue());
-
-        return super.visitConditional(node);
+        if (_blockDepth > 0) {
+            newLine();
+            decreaseIndent();
+        }
+        out(" else ");
+        if (_blockDepth > 0) {
+            newLine();
+            increaseIndent();
+        }
+        visit(node.getIfFalse());
+        if (_blockDepth > 0) {
+            decreaseIndent();
+        }
+        return node;
     }
 
     @Override

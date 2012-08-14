@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings({"PackageVisibleField", "UnusedParameters", "UnusedDeclaration"})
+@SuppressWarnings( { "PackageVisibleField", "UnusedParameters", "UnusedDeclaration", "ConstantConditions" })
 final class LambdaCompiler {
     final static AtomicInteger nextId = new AtomicInteger();
 
@@ -59,10 +59,15 @@ final class LambdaCompiler {
             interfaceMethod.getThrownTypes()
         );
 
+        typeBuilder.defineMethodOverride(methodBuilder, interfaceMethod);
+
         generator = methodBuilder.getCodeGenerator();
 
         _tree = tree;
-        _hasClosureArgument = true; //tree.scopes.get(lambda).needsClosure;
+
+        _hasClosureArgument = tree.scopes.get(lambda).needsClosure ||
+                              tree.constants.get(lambda).count() > 0;
+
         _freeLocals = new KeyedQueue<>();
         _scope = tree.scopes.get(lambda);
         _boundConstants = tree.constants.get(lambda);
@@ -243,6 +248,7 @@ final class LambdaCompiler {
                         }
                     }
 
+                    //noinspection UnnecessaryContinue
                     continue;
             }
         }

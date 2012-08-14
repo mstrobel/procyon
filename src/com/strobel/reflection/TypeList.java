@@ -111,4 +111,18 @@ public class TypeList extends MemberList<Type> {
         }
         return false;
     }
+    
+    public final TypeList getErasedTypes() {
+        if (isEmpty())
+            return empty();
+
+        final int size = size();
+        final Type<?>[] erasedTypes = new Type<?>[size];
+        
+        for (int i = 0; i < size; i++) {
+            erasedTypes[i] = get(i).getErasedType();
+        }
+        
+        return new TypeList(erasedTypes);
+    }
 }

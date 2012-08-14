@@ -12,13 +12,18 @@ import java.util.Locale;
 
 import static com.strobel.expressions.Expression.*;
 import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertSame;
 
 /**
  * @author Mike Strobel
  */
 public class CompilerTests {
-    interface ListRetriever<T> {
+    interface IListRetriever<T> {
         List<T> getList();
+    }
+
+    interface INeedsBridgeMethod<T extends Comparable<String>> {
+        T invoke(final T t);
     }
 
     @Test
@@ -26,7 +31,7 @@ public class CompilerTests {
         throws Exception {
 
         final LambdaExpression listRetriever = lambda(
-            Type.of(ListRetriever.class).makeGenericType(Types.String),
+            Type.of(IListRetriever.class).makeGenericType(Types.String),
             call(
                 Type.of(Collections.class),
                 "emptyList",
@@ -38,6 +43,25 @@ public class CompilerTests {
         final Object result = delegate.invokeDynamic();
 
         assertEquals(Collections.emptyList(), result);
+    }
+    
+    @Test
+    public void testBridgeMethodGeneration()
+        throws Exception {
+
+        final ParameterExpression arg = parameter(Types.String);
+        
+        final LambdaExpression listRetriever = lambda(
+            Type.of(INeedsBridgeMethod.class).makeGenericType(Types.String),
+            arg,
+            arg
+        );
+
+        final String input = "zomg";
+        final Delegate delegate = listRetriever.compileDelegate();
+        final Object result = delegate.invokeDynamic(input);
+
+        assertSame(input, result);
     }
 
     @Test

@@ -30,6 +30,7 @@ public final class TypeBuilder<T> extends Type<T> {
     final ArrayList<MethodBuilder> methodBuilders;
     final ArrayList<FieldBuilder> fieldBuilders;
     final ArrayList<GenericParameterBuilder<?>> genericParameterBuilders;
+    final ArrayList<MethodOverride> methodOverrides;
 
     private String _name;
     private String _fullName;
@@ -80,6 +81,7 @@ public final class TypeBuilder<T> extends Type<T> {
         this.methodBuilders = new ArrayList<>();
         this.fieldBuilders = new ArrayList<>();
         this.genericParameterBuilders = new ArrayList<>();
+        this.methodOverrides = new ArrayList<>();
 
         _constructors = ConstructorList.empty();
         _methods = MethodList.empty();
@@ -581,6 +583,73 @@ public final class TypeBuilder<T> extends Type<T> {
         methodBuilders.add(methodBuilder);
     }
 
+    public void defineMethodOverride(final MethodBuilder override, final MethodInfo baseMethod) {
+        VerifyArgument.notNull(override, "override");
+        VerifyArgument.notNull(baseMethod, "baseMethod");
+
+        if (override.getDeclaringType() != this) {
+            throw Error.methodBuilderBelongsToAnotherType();
+        }
+
+        if (override.isStatic() || baseMethod.isStatic()) {
+            throw Error.staticInstanceMethodMismatch();
+        }
+
+        if (baseMethod.isFinal()) {
+            throw Error.cannotOverrideFinalMethod();
+        }
+
+        if (!StringUtilities.equals(override.getName(), baseMethod.getName())) {
+            throw Error.methodNameMismatch();
+        }
+
+        final int baseParameterCount;
+
+        if (baseMethod instanceof MethodBuilder) {
+            baseParameterCount = ((MethodBuilder) baseMethod).parameterBuilders.length;
+        }
+        else {
+            baseParameterCount = baseMethod.getParameters().size();
+        }
+
+        if (override.parameterBuilders.length != baseParameterCount) {
+            throw Error.parameterCountMismatch();
+        }
+
+        if ((override.getReturnType() == PrimitiveTypes.Void) !=
+            (baseMethod.getReturnType() == PrimitiveTypes.Void)) {
+
+            throw Error.incompatibleReturnTypes();
+        }
+
+        verifyNotGeneric();
+        verifyNotCreated();
+
+        final Type baseDeclaringType = baseMethod.getDeclaringType().isGenericType()
+            ? baseMethod.getDeclaringType().getGenericTypeDefinition()
+            : baseMethod.getDeclaringType().getErasedType();
+        
+        final MemberList<? extends MemberInfo> m = baseDeclaringType
+            .findMembers(
+                MemberType.methods(),
+                BindingFlags.AllDeclared,
+                RawMethodMatcher,
+                baseMethod.getRawMethod());
+        
+        assert m != null && m.size() == 1;
+        
+        final MethodInfo base = (MethodInfo) m.get(0);
+
+        methodOverrides.add(new MethodOverride(override, base));
+    }
+
+    private static final MemberFilter RawMethodMatcher = new MemberFilter() {
+        @Override
+        public boolean apply(final MemberInfo m, final Object filterCriteria) {
+            return ((MethodInfo)m).getRawMethod() == filterCriteria;
+        }
+    };
+
     public MethodBuilder defineMethod(
         final String name,
         final int modifiers,
@@ -743,6 +812,8 @@ public final class TypeBuilder<T> extends Type<T> {
         if (_constructors.size() == 0 && !isInterface()) {
             defineDefaultConstructor();
         }
+        
+        createBridgeMethods();
 
         byte[] body;
 
@@ -811,6 +882,95 @@ public final class TypeBuilder<T> extends Type<T> {
         return _generatedType;
     }
 
+    private void createBridgeMethods() {
+        for (final MethodOverride methodOverride : methodOverrides) {
+            if (isBridgeMethodNeeded(methodOverride)) {
+                createBridgeMethod(methodOverride);
+            }
+        }
+    }
+
+    private void createBridgeMethod(final MethodOverride methodOverride) {
+        final MethodInfo baseMethod = methodOverride.baseMethod;
+        final MethodBuilder override = methodOverride.override;
+
+        final TypeList parameterTypes = baseMethod.getParameters()
+                                                  .getParameterTypes()
+                                                  .getErasedTypes();
+        
+        final Type returnType = baseMethod.getReturnType() == PrimitiveTypes.Void
+                                ? baseMethod.getReturnType()
+                                : baseMethod.getReturnType().getErasedType();
+        
+        final TypeList thrownTypes = baseMethod.getThrownTypes().getErasedTypes();
+
+        final MethodBuilder bridge = defineMethod(
+            override.getName(),
+            (baseMethod.getModifiers() | 0x00000040 | 0x00001000) & ~Modifier.ABSTRACT,
+            returnType,
+            parameterTypes,
+            thrownTypes
+        );
+
+        final CodeGenerator code = bridge.getCodeGenerator();
+
+        code.emitThis();
+
+        for (int i = 0, parameterTypesSize = parameterTypes.size(); i < parameterTypesSize; i++) {
+            final Type s = parameterTypes.get(i);
+            final Type t = override.parameterBuilders[i].getParameterType().getErasedType();
+
+            code.emitLoadArgument(i);
+            code.emitConversion(s, t);
+        }
+        
+        code.call(override);
+        
+        if (returnType != PrimitiveTypes.Void) {
+            code.emitConversion(override.getReturnType().getErasedType(), returnType);
+        }
+
+        code.emitReturn(returnType);
+    }
+
+    private boolean isBridgeMethodNeeded(final MethodOverride methodOverride) {
+        final MethodInfo baseMethod = methodOverride.baseMethod;
+        final MethodBuilder override = methodOverride.override;
+        
+        final Type<?> baseReturnType = baseMethod.getReturnType().getErasedType();
+        final Type<?> overrideReturnType = override.getReturnType().getErasedType();
+
+        if ((baseReturnType == PrimitiveTypes.Void) !=
+            (overrideReturnType == PrimitiveTypes.Void)) {
+
+            throw Error.incompatibleReturnTypes();
+        }
+
+        if (!TypeUtils.areEquivalent(overrideReturnType, baseReturnType)) {
+            return true;
+        }
+
+        final ParameterBuilder[] parameterBuilders = override.parameterBuilders;
+
+        final TypeList baseParameters = (baseMethod instanceof MethodBuilder)
+                                        ? ((MethodBuilder) baseMethod).getParameterTypes().getErasedTypes()
+                                        : baseMethod.getParameters().getParameterTypes().getErasedTypes();
+
+        if (baseParameters.size() != parameterBuilders.length)
+            throw Error.parameterCountMismatch();
+        
+        for (int i = 0, n = parameterBuilders.length; i < n; i++) {
+            final Class<?> c1 = parameterBuilders[i].getParameterType().getErasedClass();
+            final Class<?> c2 = baseParameters.get(i).getErasedClass();
+            
+            if (c1 != c2) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
     private void dump(final byte[] classBytes) {
         final File temp = new File(System.getenv("TEMP") + File.separator + getInternalName() + ".class");
         final File parentDirectory = temp.getParentFile();
@@ -876,6 +1036,20 @@ public final class TypeBuilder<T> extends Type<T> {
         }
 
         return _unsafe;
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="MethodOverride Class">
+
+    private final static class MethodOverride {
+        final MethodBuilder override;
+        final MethodInfo    baseMethod;
+
+        private MethodOverride(final MethodBuilder override, final MethodInfo baseMethod) {
+            this.baseMethod = baseMethod;
+            this.override = override;
+        }
     }
 
     // </editor-fold>

@@ -339,7 +339,8 @@ final class Error {
     }
 
     public static IllegalStateException branchAddressTooLarge() {
-        return new IllegalStateException("Branch address too large; expected 2 byte address, found 4 byte address.");
+        return new IllegalStateException(
+            "Branch address too large; expected 2 byte address, found 4 byte address.");
     }
 
     public static IllegalStateException checkedExceptionUnhandled(final Type<?> exceptionType) {
@@ -349,5 +350,39 @@ final class Error {
                 exceptionType.getName()
             )
         );
+    }
+
+    public static IllegalArgumentException methodBuilderBelongsToAnotherType() {
+        return new IllegalArgumentException("The provided method belongs to another type.");
+    }
+
+    public static IllegalArgumentException parameterCountMismatch() {
+        return new IllegalArgumentException(
+            "The specified methods have different numbers of parameters."
+        );
+    }
+
+    public static IllegalArgumentException incompatibleReturnTypes() {
+        return new IllegalArgumentException(
+            "Methods which return void cannot override methods which do not return void, " +
+            "and vice versa."
+        );
+    }
+
+    public static IllegalArgumentException methodNameMismatch() {
+        return new IllegalArgumentException(
+            "Cannot override a method with a different name."
+        );
+    }
+
+    public static IllegalArgumentException staticInstanceMethodMismatch() {
+        return new IllegalArgumentException(
+            "Static methods cannot be overridden, and static methods cannot override" +
+            " instance methods."
+        );
+    }
+
+    public static IllegalArgumentException cannotOverrideFinalMethod() {
+        return new IllegalArgumentException("Cannot override a final method.");
     }
 }

@@ -1,7 +1,6 @@
 package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.emit.CodeGenerator;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
