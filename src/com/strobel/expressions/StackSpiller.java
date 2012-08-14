@@ -121,7 +121,7 @@ final class StackSpiller {
     // ENTRY POINT                                                                                                        //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    static LambdaExpression analyzeLambda(final LambdaExpression lambda) {
+    static <T> LambdaExpression<T> analyzeLambda(final LambdaExpression<T> lambda) {
         return lambda.accept(new StackSpiller(Stack.Empty));
     }
 
@@ -662,7 +662,7 @@ final class StackSpiller {
 
         if (action != RewriteAction.None) {
             // okay to wrap since we know no one can mutate the clone array
-            new Result(
+            return new Result(
                 action,
                 node.rewrite(null, clone));
         }

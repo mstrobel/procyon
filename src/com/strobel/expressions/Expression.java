@@ -315,7 +315,11 @@ public abstract class Expression {
             }
         }
 
-        return NewArrayInitExpression.make(ExpressionType.NewArrayInit, type, initializers);
+        return NewArrayInitExpression.make(
+            ExpressionType.NewArrayInit,
+            type.makeArrayType(),
+            initializers
+        );
     }
 
     public static NewArrayExpression newArrayBounds(final Type type, final Expression dimension) {
@@ -343,7 +347,7 @@ public abstract class Expression {
 
         return NewArrayInitExpression.make(
             ExpressionType.NewArrayBounds,
-            type,
+            type.makeArrayType(),
             new ExpressionList<>(convertedDimension)
         );
     }
@@ -969,7 +973,7 @@ public abstract class Expression {
         verifyCanRead(expressions, "expressions");
 
         return block(
-            expressions.get(0).getType(),
+            expressions.get(expressions.size() - 1).getType(),
             variables,
             expressions
         );
@@ -2101,6 +2105,14 @@ public abstract class Expression {
     public static MethodCallExpression call(
         final Expression target,
         final String methodName,
+        final Expression... arguments) {
+
+        return call(target, methodName, TypeList.empty(), arrayToList(arguments));
+    }
+    
+    public static MethodCallExpression call(
+        final Expression target,
+        final String methodName,
         final TypeList typeArguments,
         final Expression... arguments) {
 
@@ -2129,6 +2141,14 @@ public abstract class Expression {
             resolvedMethod,
             arguments
         );
+    }
+
+    public static MethodCallExpression call(
+        final Type declaringType,
+        final String methodName,
+        final Expression... arguments) {
+
+        return call(declaringType, methodName, TypeList.empty(), arrayToList(arguments));
     }
 
     public static MethodCallExpression call(
@@ -3427,6 +3447,28 @@ public abstract class Expression {
             throw Error.methodDoesNotExistOnType(methodName, type);
         }
 
+        final MethodInfo[] methods = new MethodInfo[members.size()];
+
+        for (int i = 0, n = members.size(); i < n; i++) {
+            methods[i] = applyTypeArgs(
+                (MethodInfo) members.get(i),
+                typeArguments
+                );
+        }
+        
+        final Type[] parameterTypes = new Type[arguments.size()];
+
+        for (int i = 0, n = arguments.size(); i < n; i++) {
+            parameterTypes[i] = arguments.get(i).getType();
+        }
+
+        return (MethodInfo) Type.DefaultBinder.selectMethod(
+            flags, 
+            methods,
+            parameterTypes
+        );
+/*
+
         MethodInfo method;
 
         final int bestMethodIndex = findBestMethod(members, typeArguments, arguments);
@@ -3451,6 +3493,7 @@ public abstract class Expression {
         }
 
         return bestMatch;
+*/
     }
 
     private static int findBestMethod(

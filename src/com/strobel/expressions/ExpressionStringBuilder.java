@@ -14,8 +14,8 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     private final static String lineSeparator = System.getProperty("line.separator");
 
     private final StringBuilder _out;
-    private int _indentLevel = 0;
-    private int _blockDepth = 0;
+    private int     _indentLevel   = 0;
+    private int     _blockDepth    = 0;
     private boolean _indentPending = false;
     private HashMap<Object, Integer> _ids;
 
@@ -41,12 +41,15 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     private void increaseIndent() {
         ++_indentLevel;
     }
-    
+
     private void decreaseIndent() {
         --_indentLevel;
     }
-    
-    private void newLine() {
+
+    private void flush() {
+        if (_indentPending) {
+            return;
+        }
         _out.append(lineSeparator);
         _indentPending = true;
     }
@@ -180,7 +183,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
 
             if (value instanceof String) {
                 out('"');
-                out((String)value);
+                out((String) value);
                 out('"');
             }
             else if (toString.equals(value.getClass().toString())) {
@@ -415,6 +418,63 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
+    protected Expression visitGoto(final GotoExpression node) {
+        switch (node.getKind()) {
+            case Goto:
+                out("goto ");
+                break;
+            case Return:
+                out("return ");
+                break;
+            case Break:
+                out("break ");
+                break;
+            case Continue:
+                out("continue ");
+                break;
+        }
+
+        final Expression value = node.getValue();
+
+        if (value != null) {
+            visit(value);
+            out(' ');
+        }
+
+        final LabelTarget target = node.getTarget();
+
+        if (target != null) {
+            visitLabelTarget(target);
+        }
+
+        return node;
+    }
+
+    @Override
+    protected Expression visitLabel(final LabelExpression node) {
+        final LabelTarget target = node.getTarget();
+
+        visitLabelTarget(target);
+
+        if (target.getName() != null) {
+            out(":");
+        }
+
+        return node;
+    }
+
+    @Override
+    protected LabelTarget visitLabelTarget(final LabelTarget node) {
+        final String name = node.getName();
+
+        if (name != null) {
+            out(name);
+        }
+
+        return node;
+    }
+
+    @Override
     public <T> LambdaExpression<T> visitLambda(final LambdaExpression<T> node) {
         final ParameterExpressionList parameters = node.getParameters();
 
@@ -437,16 +497,16 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         ++_blockDepth;
         out('{');
         increaseIndent();
-        newLine();
+        flush();
         for (final Expression v : node.getVariables()) {
             out("var ");
             visit(v);
             out(";");
-            newLine();
+            flush();
         }
         for (int i = 0, n = node.getExpressionCount(); i < n; i++) {
-             visit(node.getExpression(i));
-            newLine();
+            visit(node.getExpression(i));
+            flush();
         }
         decreaseIndent();
         out('}');
@@ -519,7 +579,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
             visit(node.getTest());
             out(") ");
             if (_blockDepth > 0) {
-                newLine();
+                flush();
                 increaseIndent();
             }
             visit(node.getIfTrue());
@@ -533,17 +593,17 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         visit(node.getTest());
         out(") ");
         if (_blockDepth > 0) {
-            newLine();
+            flush();
             increaseIndent();
         }
         visit(node.getIfTrue());
         if (_blockDepth > 0) {
-            newLine();
+            flush();
             decreaseIndent();
         }
         out(" else ");
         if (_blockDepth > 0) {
-            newLine();
+            flush();
             increaseIndent();
         }
         visit(node.getIfFalse());

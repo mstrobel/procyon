@@ -3,6 +3,7 @@ package com.strobel.expressions;
 import com.strobel.compilerservices.Closure;
 import com.strobel.compilerservices.DebugInfoGenerator;
 import com.strobel.core.KeyedQueue;
+import com.strobel.core.Pair;
 import com.strobel.core.StringUtilities;
 import com.strobel.reflection.*;
 import com.strobel.reflection.emit.*;
@@ -19,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings( { "PackageVisibleField", "UnusedParameters", "UnusedDeclaration", "ConstantConditions" })
+@SuppressWarnings( { "unchecked", "PackageVisibleField", "UnusedParameters", "UnusedDeclaration", "ConstantConditions" })
 final class LambdaCompiler {
     final static AtomicInteger nextId = new AtomicInteger();
 
@@ -64,13 +65,10 @@ final class LambdaCompiler {
         generator = methodBuilder.getCodeGenerator();
 
         _tree = tree;
-
-        _hasClosureArgument = tree.scopes.get(lambda).needsClosure ||
-                              tree.constants.get(lambda).count() > 0;
-
-        _freeLocals = new KeyedQueue<>();
         _scope = tree.scopes.get(lambda);
         _boundConstants = tree.constants.get(lambda);
+        _hasClosureArgument = _scope.needsClosure || _boundConstants.count() > 0;
+        _freeLocals = new KeyedQueue<>();
 
         //noinspection ConstantConditions
         if (_hasClosureArgument) {
@@ -279,12 +277,14 @@ final class LambdaCompiler {
         final DebugInfoGenerator debugInfoGenerator) {
 
         // 1. Bind lambda
-        final AnalyzedTree tree = analyzeLambda(lambda);
-
+        final Pair<AnalyzedTree, LambdaExpression<T>> result = analyzeLambda(lambda);
+        final AnalyzedTree tree = result.getFirst();
+        final LambdaExpression<T> analyzedLambda = result.getSecond();
+        
         tree.setDebugInfoGenerator(debugInfoGenerator);
 
         // 2. Create lambda compiler
-        final LambdaCompiler c = new LambdaCompiler(tree, lambda);
+        final LambdaCompiler c = new LambdaCompiler(tree, analyzedLambda);
 
         // 3. emit
         c.emitLambdaBody();
@@ -319,30 +319,35 @@ final class LambdaCompiler {
         }
     }
 
-    static void compile(
-        final LambdaExpression<?> lambda,
+    static <T> void compile(
+        final LambdaExpression<T> lambda,
         final MethodBuilder methodBuilder,
         final DebugInfoGenerator debugInfoGenerator) {
 
         // 1. Bind lambda
-        final AnalyzedTree tree = analyzeLambda(lambda);
+        final Pair<AnalyzedTree, LambdaExpression<T>> result = analyzeLambda(lambda);
+        final AnalyzedTree tree = result.getFirst();
+        final LambdaExpression<T> analyzedLambda = result.getSecond();
 
         tree.setDebugInfoGenerator(debugInfoGenerator);
 
         // 2. Create lambda compiler
-        final LambdaCompiler c = new LambdaCompiler(tree, lambda, methodBuilder);
+        final LambdaCompiler c = new LambdaCompiler(tree, analyzedLambda, methodBuilder);
 
         // 3. emit
         c.emitLambdaBody();
     }
 
-    private static AnalyzedTree analyzeLambda(final LambdaExpression<?> lambda) {
+    private static <T> Pair<AnalyzedTree, LambdaExpression<T>> analyzeLambda(final LambdaExpression<T> lambda) {
         // Spill the stack for any exception handling blocks or other
         // constructs which require entering with an empty stack.
-        final LambdaExpression<?> analyzedLambda = StackSpiller.analyzeLambda(lambda);
+        final LambdaExpression<T> analyzedLambda = StackSpiller.analyzeLambda(lambda);
 
         // Bind any variable references in this lambda.
-        return VariableBinder.bind(analyzedLambda);
+        return Pair.create(
+            VariableBinder.bind(analyzedLambda),
+            analyzedLambda
+        );
     }
 
     LocalBuilder getNamedLocal(final Type type, final ParameterExpression variable) {
@@ -2793,7 +2798,7 @@ final class LambdaCompiler {
         // But if we're inlining the lambda, we want to leave the return
         // value on the IL stack.
         if (!inlined) {
-            generator.emitReturn(lambda.getType());
+            generator.emitReturn(lambda.getBody().getType());
         }
 
         _scope.exit();
@@ -3288,7 +3293,8 @@ final class LambdaCompiler {
                     case BYTE:
                     case SHORT:
                     case INT: {
-                        generator.emit(OpCode.IINC);
+                        generator.emitInteger(1);
+                        generator.emit(OpCode.IADD);
                         break;
                     }
 
@@ -3299,7 +3305,8 @@ final class LambdaCompiler {
                     }
 
                     case CHAR: {
-                        generator.emit(OpCode.IINC);
+                        generator.emitInteger(1);
+                        generator.emit(OpCode.IADD);
                         break;
                     }
 

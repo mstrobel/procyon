@@ -790,6 +790,10 @@ public class CodeGenerator {
 
         final OperandType operandType = optimalOpCode.getOperandType();
 
+        if (operandType == OperandType.NoOperands) {
+            return;
+        }
+
         if (absoluteIndex > Byte.MAX_VALUE) {
             emitShortOperand(absoluteIndex);
         }
@@ -826,7 +830,7 @@ public class CodeGenerator {
             absoluteIndex
         );
 
-        if (opCode.getOperandType() == null) {
+        if (opCode.getOperandType() == OperandType.NoOperands) {
             emit(opCode);
         }
         else {
@@ -845,6 +849,10 @@ public class CodeGenerator {
         emit(optimalOpCode);
 
         final OperandType operandType = optimalOpCode.getOperandType();
+
+        if (operandType == OperandType.NoOperands) {
+            return;
+        }
 
         if (absoluteIndex > Byte.MAX_VALUE) {
             emitShortOperand(absoluteIndex);

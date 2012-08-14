@@ -65,6 +65,52 @@ public class CompilerTests {
     }
 
     @Test
+    public void testSimpleLoop() throws Exception {
+
+        final ParameterExpression lcv = variable(PrimitiveTypes.Integer, "i");
+
+        final LabelTarget breakLabel = label();
+        final LabelTarget continueLabel = label();
+        final MemberExpression out = field(null, Type.of(System.class).getField("out"));
+
+        final LambdaExpression<Runnable> runnable = lambda(
+            Type.of(Runnable.class),
+            block(
+                new ParameterExpressionList(lcv),
+                assign(lcv, constant(0)),
+                call(out, "println", constant("Starting the loop...")),
+                loop(
+                    block(
+                        PrimitiveTypes.Void,
+                        ifThen(
+                            greaterThanOrEqual(lcv, constant(5)),
+                            makeBreak(breakLabel)),
+                        call(
+                            out,
+                            "printf",
+                            constant("Loop iteration #%d\n"),
+                            newArrayInit(
+                                Types.Object,
+                                convert(lcv, Types.Object)
+                            )),
+                        preIncrementAssign(lcv)),
+                    breakLabel,
+                    continueLabel),
+                call(out, "println", constant("Finished the loop!"))
+            )
+        );
+
+        System.out.println();
+        System.out.println(runnable);
+
+        final Runnable delegate = runnable.compile();
+
+        System.out.println();
+
+        delegate.run();
+    }
+
+    @Test
     public void simpleLambdaTest() throws Exception {
         final ParameterExpression number = parameter(PrimitiveTypes.Integer, "number");
 
@@ -95,6 +141,7 @@ public class CompilerTests {
             number
         );
 
+        System.out.println();
         System.out.println(lambda);
 
         final ITest delegate = lambda.compile();
@@ -102,6 +149,8 @@ public class CompilerTests {
         assertEquals("NEGATIVE", delegate.testNumber(-15));
         assertEquals("ZERO", delegate.testNumber(0));
         assertEquals("POSITIVE", delegate.testNumber(99));
+
+        System.out.println();
 
         System.out.println(delegate.testNumber(-15));
         System.out.println(delegate.testNumber(0));
@@ -130,9 +179,13 @@ public class CompilerTests {
             number
         );
 
+        System.out.println();
+
         System.out.println(lambda);
 
         final ITest delegate = lambda.compile();
+
+        System.out.println();
 
         assertEquals("negative", delegate.testNumber(-15));
         assertEquals("zero", delegate.testNumber(0));
