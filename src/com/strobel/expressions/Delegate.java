@@ -1,31 +1,30 @@
 package com.strobel.expressions;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.TargetInvocationException;
 
 /**
  * @author Mike Strobel
  */
-public class Delegate<T> {
-    private final T _target;
-    private final Method _method;
+public final class Delegate<T> {
+    private final T _instance;
+    private final MethodInfo _method;
 
-    Delegate(final T target, final Method method) {
-        _target = target;
-        _method = method;
+    Delegate(final T instance, final MethodInfo method) {
+        _instance = VerifyArgument.notNull(instance, "instance");
+        _method = VerifyArgument.notNull(method, "method");
     }
 
-    public T getTarget() {
-        return _target;
+    public final T getInstance() {
+        return _instance;
     }
 
-    public final Object invokeDynamic(final Object... args)
-        throws InvocationTargetException {
-        try {
-            return _method.invoke(_target, args);
-        }
-        catch (IllegalAccessException ignored) {
-            throw new InvocationTargetException(ignored);
-        }
+    public final MethodInfo getMethod() {
+        return _method;
+    }
+
+    public final Object invokeDynamic(final Object... args) throws TargetInvocationException {
+        return _method.invoke(_instance, args);
     }
 }

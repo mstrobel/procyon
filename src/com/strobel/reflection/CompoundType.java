@@ -72,6 +72,11 @@ public final class CompoundType<T> extends Type<T> {
     }
 
     @Override
+    public boolean isCompoundType() {
+        return true;
+    }
+
+    @Override
     public TypeList getExplicitInterfaces() {
         return _interfaces;
     }

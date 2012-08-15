@@ -39,18 +39,25 @@ public class CompilerTests {
             )
         );
 
+        System.out.println();
+        System.out.println(listRetriever);
+
         final Delegate delegate = listRetriever.compileDelegate();
         final Object result = delegate.invokeDynamic();
 
+        System.out.println();
+        System.out.printf("\n[%s]\n", delegate.getInstance().getClass().getSimpleName());
+        System.out.println(result);
+
         assertEquals(Collections.emptyList(), result);
     }
-    
+
     @Test
     public void testBridgeMethodGeneration()
         throws Exception {
 
         final ParameterExpression arg = parameter(Types.String);
-        
+
         final LambdaExpression listRetriever = lambda(
             Type.of(INeedsBridgeMethod.class).makeGenericType(Types.String),
             arg,
@@ -105,7 +112,7 @@ public class CompilerTests {
 
         final Runnable delegate = runnable.compile();
 
-        System.out.println();
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
         delegate.run();
     }
@@ -150,7 +157,7 @@ public class CompilerTests {
         assertEquals("ZERO", delegate.testNumber(0));
         assertEquals("POSITIVE", delegate.testNumber(99));
 
-        System.out.println();
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
         System.out.println(delegate.testNumber(-15));
         System.out.println(delegate.testNumber(0));
@@ -168,7 +175,7 @@ public class CompilerTests {
                 ifThenElse(
                     equal(number, constant(0)),
                     makeReturn(returnLabel, constant("zero")),
-                    condition(
+                    ifThenElse(
                         lessThan(number, constant(0)),
                         makeReturn(returnLabel, constant("negative")),
                         makeReturn(returnLabel, constant("positive"))
@@ -185,7 +192,7 @@ public class CompilerTests {
 
         final ITest delegate = lambda.compile();
 
-        System.out.println();
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
         assertEquals("negative", delegate.testNumber(-15));
         assertEquals("zero", delegate.testNumber(0));

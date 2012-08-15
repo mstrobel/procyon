@@ -1,9 +1,6 @@
 package com.strobel.reflection;
 
-import com.strobel.core.ArrayUtilities;
-import com.strobel.core.Comparer;
-import com.strobel.core.StringUtilities;
-import com.strobel.core.VerifyArgument;
+import com.strobel.core.*;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
 import com.strobel.util.TypeUtils;
@@ -278,17 +275,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             return other.isEquivalentTo(this);
         }
 
-        final boolean isGenericParameter = this.isGenericParameter();
-
-        if (isGenericParameter != other.isGenericParameter()) {
-            return false;
-        }
-
-        if (isGenericParameter) {
-            return Comparer.equals(this.getDeclaringType(), other.getDeclaringType()) &&
-                   Comparer.equals(this.getDeclaringMethod(), other.getDeclaringMethod());
-        }
-
         final boolean isWildcard = this.isWildcardType();
 
         if (isWildcard != other.isWildcardType()) {
@@ -311,6 +297,39 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                    TypeUtils.areEquivalentWithOrdering(this.getExplicitInterfaces(), other.getExplicitInterfaces());
         }
 
+        final boolean isGenericParameter = this.isGenericParameter();
+
+        if (isGenericParameter != other.isGenericParameter()) {
+            return false;
+        }
+
+        if (isGenericParameter) {
+            if (!this.getExtendsBound().isEquivalentTo(other.getExtendsBound()))
+                return false;
+            
+            final Type declaringType = this.getDeclaringType();
+            final Type otherDeclaringType = other.getDeclaringType();
+            
+            if (declaringType != null) {
+                if (!declaringType.isEquivalentTo(otherDeclaringType))
+                return false;
+            }
+            else if (otherDeclaringType != null)
+                return false;
+
+            final MethodInfo declaringMethod = this.getDeclaringMethod();
+            final MethodInfo otherDeclaringMethod = other.getDeclaringMethod();
+            final boolean hasDeclaringMethod = declaringMethod != null;
+            final boolean otherHasDeclaringMethod = otherDeclaringMethod != null;
+
+            return hasDeclaringMethod == otherHasDeclaringMethod &&
+                   (declaringMethod == null || declaringMethod.getDeclaringType()
+                                                              .isEquivalentTo(otherDeclaringMethod.getDeclaringType()) &&
+                                               declaringMethod.getRawMethod() == otherDeclaringMethod.getRawMethod());
+
+        }
+
+        
         if (Comparer.equals(getErasedClass(), other.getErasedClass())) {
             if (isGenericType()) {
                 return other.isGenericType() &&
@@ -336,20 +355,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public boolean isSubTypeOf(final Type type) {
-        Type current = this;
-
-        if (current == type) {
-            return false;
-        }
-
-        while (current != null && current != Type.NullType) {
-            if (current.equals(type)) {
-                return true;
-            }
-            current = current.getBaseType();
-        }
-
-        return false;
+        return type == this ||
+               type != null && Helper.isSubtype(this, type);
     }
 
     public boolean isInstance(final Object o) {
@@ -1443,6 +1450,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     final static TypeCache CACHE;
     final static Resolver RESOLVER;
     final static Type<?>[] PRIMITIVE_TYPES;
+    final static TypeBinder TYPE_BINDER;
 
     static {
         synchronized (CACHE_LOCK) {
@@ -1462,8 +1470,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             PRIMITIVE_TYPES[TypeKind.LONG.ordinal()] = PrimitiveTypes.Long;
             PRIMITIVE_TYPES[TypeKind.FLOAT.ordinal()] = PrimitiveTypes.Float;
             PRIMITIVE_TYPES[TypeKind.DOUBLE.ordinal()] = PrimitiveTypes.Double;
-
+            
             Types.ensureRegistered();
+
+            TYPE_BINDER = new TypeBinder();
         }
     }
 
@@ -2209,6 +2219,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
     }
 
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Standard Member Filters">
+
     public final static MemberFilter FilterNameIgnoreCase = new MemberFilter() {
         @Override
         public boolean apply(final MemberInfo m, final Object filterCriteria) {
@@ -2224,6 +2238,159 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             return name == null || name.equals(m.getName());
         }
     };
+
+    public final static MemberFilter FilterRawMember      = new MemberFilter() {
+        @Override
+        public boolean apply(final MemberInfo m, final Object filterCriteria) {
+            if (m instanceof Type<?>) {
+                return Comparer.equals(((Type<?>) m).getErasedClass(), filterCriteria);
+            }
+            if (m instanceof MethodInfo) {
+                return Comparer.equals(((MethodInfo) m).getRawMethod(), filterCriteria);
+            }
+            if (m instanceof ConstructorInfo) {
+                return Comparer.equals(((ConstructorInfo) m).getRawConstructor(), filterCriteria);
+            }
+            return m instanceof FieldInfo &&
+                   Comparer.equals(((FieldInfo) m).getRawField(), filterCriteria);
+        }
+    };
+    public final static MemberFilter FilterMethodOverride = new MemberFilter() {
+        @Override
+        public boolean apply(final MemberInfo m, final Object filterCriteria) {
+            if (!(m instanceof MethodInfo && filterCriteria instanceof MethodInfo))
+                return false;
+            
+            final MethodInfo base = (MethodInfo) filterCriteria;
+            final MethodInfo candidate = (MethodInfo) m;
+            
+            return Helper.overrides(candidate, base);
+        }
+    };
+
+/*
+    public final static MemberFilter SignatureMatches = new MemberFilter() {
+        @Override
+        public boolean apply(final MemberInfo m, final Object filterCriteria) {
+            if (m instanceof Type<?>) {
+                return filterCriteria instanceof Type<?> &&
+                       typeSignatureMatches((Type<?>) filterCriteria, (Type<?>) m);
+            }
+            if (m instanceof MethodInfo) {
+                return filterCriteria instanceof MethodInfo &&
+                       methodSignatureMatches((MethodInfo) filterCriteria, (MethodInfo) m);
+            }
+            if (m instanceof ConstructorInfo) {
+                return filterCriteria instanceof ConstructorInfo &&
+                       constructorSignatureMatches((ConstructorInfo) filterCriteria, (ConstructorInfo) m);
+            }
+            return m instanceof FieldInfo &&
+                   filterCriteria instanceof FieldInfo &&
+                   fieldSignatureMatches((FieldInfo) filterCriteria, (FieldInfo) m);
+        }
+
+        private boolean fieldSignatureMatches(final FieldInfo base, final FieldInfo candidate) {
+            if (base == candidate) {
+                return true;
+            }
+
+            if (base.getModifiers() != candidate.getModifiers()) {
+                return false;
+            }
+
+            if (!StringComparator.Ordinal.equals(base.getName(), candidate.getName())) {
+                return false;
+            }
+
+            final TypeBindings candidateBindings = candidate.getDeclaringType().getTypeBindings();
+
+            final TypeBindings bindings = base.getDeclaringType().getTypeBindings()
+                                              .withAdditionalBindings(candidateBindings);
+
+            return StringComparator.Ordinal.equals(base.getName(), candidate.getName()) &&
+                   substitute(base.getDeclaringType(), bindings).isEquivalentTo(candidate.getDeclaringType()) &&
+                   substitute(base.getFieldType(), bindings).isEquivalentTo(candidate.getFieldType());
+
+        }
+
+        private boolean methodSignatureMatches(final MethodInfo base, final MethodInfo candidate) {
+            if (base == candidate) {
+                return true;
+            }
+
+            if (base.getModifiers() != candidate.getModifiers()) {
+                return false;
+            }
+
+            final TypeBindings candidateBindings = candidate.getDeclaringType().getTypeBindings();
+
+            final TypeBindings bindings = base.getDeclaringType().getTypeBindings()
+                                              .withAdditionalBindings(candidateBindings);
+
+            return typeSignatureMatches(base.getDeclaringType(), candidate.getDeclaringType()) &&
+                   typeSignaturesMatch(
+                       base.getParameters().getParameterTypes(),
+                       candidate.getParameters().getParameterTypes(),
+                       bindings);
+        }
+
+        private boolean constructorSignatureMatches(final ConstructorInfo base, final ConstructorInfo candidate) {
+            if (base == candidate) {
+                return true;
+            }
+
+            if (base.getModifiers() != candidate.getModifiers()) {
+                return false;
+            }
+
+            final TypeBindings candidateBindings = candidate.getDeclaringType().getTypeBindings();
+
+            final TypeBindings bindings = base.getDeclaringType().getTypeBindings()
+                                              .withAdditionalBindings(candidateBindings);
+
+            return typeSignatureMatches(base.getDeclaringType(), candidate.getDeclaringType()) &&
+                   typeSignaturesMatch(
+                       base.getParameters().getParameterTypes(),
+                       candidate.getParameters().getParameterTypes(),
+                       bindings);
+        }
+
+        private boolean typeSignaturesMatch(final TypeList base, final TypeList candidate, final TypeBindings bindings) {
+            if (base == candidate) {
+                return true;
+            }
+
+            if (base.size() != candidate.size()) {
+                return false;
+            }
+
+            for (int i = 0, n = base.size(); i < n; i++) {
+                if (!TypeUtils.areEquivalent(substitute(base.get(i), bindings), candidate.get(i))) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private boolean typeSignatureMatches(final Type<?> base, final Type<?> candidate) {
+            if (base == candidate) {
+                return true;
+            }
+
+            if (!StringComparator.Ordinal.equals(base.getClassFullName(), candidate.getClassFullName())) {
+                return false;
+            }
+
+            final TypeBindings bindings = base.getTypeBindings()
+                                              .withAdditionalBindings(candidate.getTypeBindings());
+
+            return TypeUtils.areEquivalent(
+                substitute(base, bindings),
+                substitute(candidate, bindings));
+        }
+    };
+*/
 
     // </editor-fold>
 }

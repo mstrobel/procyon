@@ -1,5 +1,7 @@
 package com.strobel.reflection;
 
+import com.strobel.core.StringComparator;
+
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
 
@@ -71,5 +73,11 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return EMPTY_ANNOTATIONS;
+    }
+    
+    public boolean isEquivalentTo(final MemberInfo other) {
+        return other == this ||
+               other != null && other.getDeclaringType() == getDeclaringType() &&
+               StringComparator.Ordinal.equals(getName(),  other.getName());
     }
 }

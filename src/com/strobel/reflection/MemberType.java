@@ -27,27 +27,27 @@ public enum MemberType {
     private final static Set<MemberType> custom = of(Custom);
     private final static Set<MemberType> nestedTypes = of(NestedType);
 
-    public static Set<MemberType> constructors() {
+    public static Set<MemberType> constructorsOnly() {
         return constructors;
     }
 
-    public static Set<MemberType> fields() {
+    public static Set<MemberType> fieldsOnly() {
         return fields;
     }
 
-    public static Set<MemberType> methods() {
+    public static Set<MemberType> methodsOnly() {
         return methods;
     }
 
-    public static Set<MemberType> types() {
+    public static Set<MemberType> typesOnly() {
         return types;
     }
 
-    public static Set<MemberType> custom() {
+    public static Set<MemberType> customOnly() {
         return custom;
     }
 
-    public static Set<MemberType> nestedTypes() {
+    public static Set<MemberType> nestedTypesOnly() {
         return nestedTypes;
     }
 

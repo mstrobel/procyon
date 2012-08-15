@@ -6,6 +6,7 @@ import com.strobel.util.ContractUtils;
 import com.sun.tools.javac.code.Flags;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.TypeVariable;
@@ -54,6 +55,21 @@ public abstract class MethodInfo extends MethodBase {
     @Override
     public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
         return getRawMethod().isAnnotationPresent(annotationClass);
+    }
+
+    public Object invoke(final Object instance, final Object... args) {
+        final Method rawMethod = getRawMethod();
+
+        if (rawMethod == null) {
+            throw Error.rawMethodBindingFailure(this);
+        }
+
+        try {
+            return rawMethod.invoke(instance, args);
+        }
+        catch (InvocationTargetException | IllegalAccessException e) {
+            throw Error.targetInvocationException(e);
+        }
     }
 
     @Override

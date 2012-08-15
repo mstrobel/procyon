@@ -198,4 +198,18 @@ final class Error {
             cause
         );
     }
+
+    public static RuntimeException rawMethodBindingFailure(final MethodBase method) {
+        return new IllegalStateException(
+            format(
+                "Could not bind to runtime method '%s' on type '%s'.",
+                method.getDescription(),
+                method.getDeclaringType().toString()
+            )
+        );
+    }
+
+    public static RuntimeException targetInvocationException(final Throwable cause) {
+        return new TargetInvocationException(cause);
+    }
 }

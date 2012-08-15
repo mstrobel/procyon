@@ -81,7 +81,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         }
         else {
             // For static members, include the type name
-            out(member.getDeclaringType().getFullName() + "." + member.getName());
+            out(member.getDeclaringType().getName() + "." + member.getName());
         }
     }
 
@@ -183,7 +183,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
 
             if (value instanceof String) {
                 out('"');
-                out((String) value);
+                out(((String) value).replace("\r", "\\r").replace("\n", "\\n"));
                 out('"');
             }
             else if (toString.equals(value.getClass().toString())) {
@@ -493,13 +493,20 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
+    protected Expression visitLoop(final LoopExpression node) {
+        out("loop ");
+        return super.visitLoop(node);
+    }
+
+    @Override
     protected Expression visitBlock(final BlockExpression node) {
         ++_blockDepth;
         out('{');
         increaseIndent();
         flush();
         for (final Expression v : node.getVariables()) {
-            out("var ");
+            out(v.getType().getName());
+            out(' ');
             visit(v);
             out(";");
             flush();

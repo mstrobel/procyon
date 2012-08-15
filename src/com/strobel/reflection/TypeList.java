@@ -111,7 +111,25 @@ public class TypeList extends MemberList<Type> {
         }
         return false;
     }
-    
+
+    public final boolean isEquivalentTo(final TypeList types) {
+        if (types == this) {
+            return true;
+        }
+
+        if (types == null || types.size() != size()) {
+            return false;
+        }
+
+        for (int i = 0, n = this.size(); i < n; i++) {
+            if (!this.get(i).isEquivalentTo(types.get(i))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public final TypeList getErasedTypes() {
         if (isEmpty())
             return empty();

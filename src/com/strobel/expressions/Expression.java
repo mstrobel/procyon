@@ -17,7 +17,7 @@ import static java.lang.String.format;
  * The base type for all nodes in Expression Trees.
  * @author Mike Strobel
  */
-@SuppressWarnings("UnusedDeclaration")
+@SuppressWarnings( { "unchecked", "UnusedDeclaration" })
 public abstract class Expression {
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3437,7 +3437,7 @@ public abstract class Expression {
         final Set<BindingFlags> flags) {
 
         final MemberList members = type.findMembers(
-            MemberType.methods(),
+            MemberType.methodsOnly(),
             flags,
             Type.FilterNameIgnoreCase,
             methodName

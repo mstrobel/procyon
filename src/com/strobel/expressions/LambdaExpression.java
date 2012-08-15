@@ -87,7 +87,7 @@ public final class LambdaExpression<T> extends Expression {
     }
 
     public final T compile() {
-        return compileDelegate().getTarget();
+        return compileDelegate().getInstance();
     }
 
     public final Delegate<T> compileDelegate() {

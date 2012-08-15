@@ -9,6 +9,7 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 
 import javax.lang.model.type.TypeKind;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -36,8 +37,10 @@ final class Helper {
             return false;
         }
 
-        if (!StringUtilities.equals(baseMethod.getName(), ancestorMethod.getName())) {
-            return false;
+        final Method rawMethod = baseMethod.getRawMethod();
+
+        if (rawMethod != null && rawMethod == ancestorMethod.getRawMethod()) {
+            return true;
         }
 
         final ParameterList baseParameters = baseMethod.getParameters();
@@ -47,19 +50,32 @@ final class Helper {
             return false;
         }
 
-        if (!baseMethod.getDeclaringType().isSubTypeOf(ancestorMethod.getDeclaringType())) {
+        if (!StringUtilities.equals(baseMethod.getName(), ancestorMethod.getName())) {
             return false;
         }
 
-        if (!ancestorMethod.getReturnType().isAssignableFrom(baseMethod.getReturnType())) {
+        final Type baseDeclaringType = erasure(baseMethod.getDeclaringType());
+        final Type ancestorDeclaringType = erasure(ancestorMethod.getDeclaringType());
+
+        if (!isSubtype(baseDeclaringType, ancestorDeclaringType)) {
             return false;
         }
+
+        final Type ancestorReturnType = erasure(ancestorMethod.getReturnType());
+        final Type baseReturnType = erasure(baseMethod.getReturnType());
+
+        if (!ancestorReturnType.isAssignableFrom(baseReturnType)) {
+            return false;
+        }
+
+        final TypeList erasedBaseParameters = erasure(baseParameters.getParameterTypes());
+        final TypeList erasedAncestorParameters = erasure(ancestorParameters.getParameterTypes());
 
         for (int i = 0, n = ancestorParameters.size(); i < n; i++) {
-            final ParameterInfo baseParameter = baseParameters.get(i);
-            final ParameterInfo ancestorParameter = ancestorParameters.get(i);
+            final Type<?> baseParameterType = erasedBaseParameters.get(i);
+            final Type<?> ancestorParameterType = erasedAncestorParameters.get(i);
 
-            if (!TypeUtils.areEquivalent(baseParameter.getParameterType(), ancestorParameter.getParameterType())) {
+            if (!TypeUtils.areEquivalent(baseParameterType, ancestorParameterType)) {
                 return false;
             }
         }
@@ -302,7 +318,9 @@ final class Helper {
 
             if (capturedDeclaringType != declaringType) {
                 final Type memberType = capturedDeclaringType.getNestedType(t.getFullName());
-                t = substitute(memberType, memberType.getGenericTypeParameters(), t.getTypeArguments());
+                if (memberType != null) {
+                    t = substitute(memberType, memberType.getGenericTypeParameters(), t.getTypeArguments());
+                }
             }
         }
 
@@ -805,9 +823,11 @@ final class Helper {
                 }
             }
 
+/*
             if (t == Types.Object && p != PrimitiveTypes.Void) {
                 return t;
             }
+*/
 
             return null;
         }
@@ -939,6 +959,11 @@ final class Helper {
         @Override
         public Type visitTypeParameter(final Type t, final Boolean recurse) {
             return erasure(t.getExtendsBound(), recurse);
+        }
+
+        @Override
+        public Type<?> visitArrayType(final Type<?> type, final Boolean recurse) {
+            return erasure(type.getElementType(), recurse).makeArrayType();
         }
     };
 
@@ -1182,16 +1207,23 @@ final class Helper {
         @Override
         public Boolean visitClassType(final Type t, final Type s) {
             final Type asSuper = asSuper(t, s);
-            return asSuper != null
-                   && (asSuper == s || asSuper == Types.Object)
-                   // You're not allowed to write
-                   //     Vector<Object> vec = new Vector<String>();
-                   // But with wildcards you can write
-                   //     Vector<? extends Object> vec = new Vector<String>();
-                   // which means that subtype checking must be done
-                   // here instead of same-Type checking (via containsType).
-                   && (!s.isGenericParameter() || containsTypeRecursive(s, asSuper))
-                   && isSubtypeNoCapture(asSuper.getDeclaringType(), s.getDeclaringType());
+            if (asSuper == null || (asSuper != s && asSuper != Types.Object)
+                // You're not allowed to write
+                //     Vector<Object> vec = new Vector<String>();
+                // But with wildcards you can write
+                //     Vector<? extends Object> vec = new Vector<String>();
+                // which means that subtype checking must be done
+                // here instead of same-Type checking (via containsType).
+                || (s.isGenericParameter() && !containsTypeRecursive(s, asSuper))) {
+                return false;
+            }
+
+            final Type superDeclaringType = asSuper.getDeclaringType();
+            final Type sDeclaringType = s.getDeclaringType();
+
+            return superDeclaringType == null ||
+                   sDeclaringType == null ||
+                   isSubtypeNoCapture(superDeclaringType, sDeclaringType);
         }
 
         @Override

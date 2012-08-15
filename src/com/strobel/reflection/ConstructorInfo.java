@@ -4,6 +4,7 @@ import com.strobel.core.VerifyArgument;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 
 /**
  * @author Mike Strobel
@@ -98,6 +99,21 @@ public abstract class ConstructorInfo extends MethodBase {
 
         s.append(')');
         return s;
+    }
+
+    public Object invoke(final Object... args) {
+        final Constructor<?> rawConstructor = getRawConstructor();
+
+        if (rawConstructor == null) {
+            throw Error.rawMethodBindingFailure(this);
+        }
+
+        try {
+            return rawConstructor.newInstance(args);
+        }
+        catch (InstantiationException | InvocationTargetException | IllegalAccessException e) {
+            throw Error.targetInvocationException(e);
+        }
     }
 
     @Override

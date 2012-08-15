@@ -309,9 +309,16 @@ final class LambdaCompiler {
                 instance = generatedClass.newInstance();
             }
 
+            final MemberList<? extends MemberInfo> method = Type.of(generatedClass).findMembers(
+                MemberType.methodsOnly(),
+                BindingFlags.PublicInstanceDeclared,
+                Type.FilterMethodOverride,
+                lambda.getType().getMethods().get(0)
+            );
+            
             return new Delegate<>(
                 instance,
-                generatedClass.getInterfaces()[0].getDeclaredMethods()[0]
+                (MethodInfo) method.get(0)
             );
         }
         catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {

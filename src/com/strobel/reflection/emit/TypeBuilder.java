@@ -631,7 +631,7 @@ public final class TypeBuilder<T> extends Type<T> {
         
         final MemberList<? extends MemberInfo> m = baseDeclaringType
             .findMembers(
-                MemberType.methods(),
+                MemberType.methodsOnly(),
                 BindingFlags.AllDeclared,
                 RawMethodMatcher,
                 baseMethod.getRawMethod());
