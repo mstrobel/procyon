@@ -790,10 +790,10 @@ final class StackSpiller {
     }
 
     private Result rewriteLambdaExpression(final Expression expr, final Stack stack) {
-        final LambdaExpression node = (LambdaExpression) expr;
+        final LambdaExpression<?> node = (LambdaExpression<?>) expr;
 
         // Call back into the rewriter.
-        final LambdaExpression analyzedLambda = analyzeLambda(node);
+        final LambdaExpression<?> analyzedLambda = analyzeLambda(node);
 
         // If the lambda gets rewritten, we don't need to spill the stack, but
         // we do need to rebuild the tree above us so it includes the new node.
@@ -841,7 +841,7 @@ final class StackSpiller {
         return cr.Finish(
             cr.didRewrite()
                 ? new InvocationExpression(
-                (LambdaExpression) cr.get(0),
+                cr.get(0),
                 cr.get(1, -1),
                 node.getType())
                 : expr);
