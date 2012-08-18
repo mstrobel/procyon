@@ -652,7 +652,7 @@ final class Helper {
     }
 
     public static List<Type> interfaces(final Type type) {
-        return InterfacesVisitor.visit(type);
+        return InterfacesVisitor.visit(type, List.<Type>nil());
     }
 
     public static int rank(final Type t) {
@@ -1008,24 +1008,53 @@ final class Helper {
         }
     };
 
-    private final static UnaryTypeVisitor<List<Type>> InterfacesVisitor = new UnaryTypeVisitor<List<Type>>() {
-        public List<Type> visitType(final Type t, final Void ignored) {
+    private final static SimpleVisitor<List<Type>, List<Type>> InterfacesVisitor = new SimpleVisitor<List<Type>, List<Type>>() {
+        @Override
+        public List<Type> visitPrimitiveType(final Type<?> type, final List<Type> parameter) {
             return List.nil();
         }
 
         @Override
-        public List<Type> visitClassType(final Type t, final Void ignored) {
+        public List<Type> visitArrayType(final Type<?> type, final List<Type> parameter) {
+            return List.nil();
+        }
+
+        @Override
+        public List<Type> visitCapturedType(final Type<?> t, final List<Type> s) {
+            return List.nil();
+        }
+
+        @Override
+        public List<Type> visit(final Type<?> type) {
+            return List.nil();
+        }
+
+        @Override
+        public List<Type> visitType(final Type<?> t, final List<Type> ignored) {
+            return List.nil();
+        }
+
+        @Override
+        public List<Type> visitClassType(final Type<?> t, final List<Type> list) {
             final TypeList interfaces = t.getExplicitInterfaces();
 
             if (interfaces.isEmpty()) {
                 return List.nil();
             }
 
-            return List.from(t.getExplicitInterfaces().toArray());
+            List<Type> result = union(list, List.from(t.getExplicitInterfaces().toArray()));
+
+            for (final Type ifType : interfaces) {
+                if (!list.contains(ifType)) {
+                    result = union(result, visit(ifType, result));
+                }
+            }
+
+            return result;
         }
 
         @Override
-        public List<Type> visitTypeParameter(final Type t, final Void ignored) {
+        public List<Type> visitTypeParameter(final Type<?> t, final List<Type> list) {
             final Type upperBound = t.getExtendsBound();
 
             if (upperBound.isCompoundType()) {
@@ -1040,7 +1069,7 @@ final class Helper {
         }
 
         @Override
-        public List<Type> visitWildcardType(final Type<?> type, final Void parameter) {
+        public List<Type> visitWildcardType(final Type<?> type, final List<Type> list) {
             return visit(type.getExtendsBound());
         }
     };

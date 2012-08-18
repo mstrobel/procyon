@@ -8,25 +8,25 @@ import com.strobel.reflection.Type;
  */
 public final class LoopExpression extends Expression {
     private final Expression _body;
-    private final LabelTarget _breakLabel;
-    private final LabelTarget _continueLabel;
+    private final LabelTarget _breakTarget;
+    private final LabelTarget _continueTarget;
 
-    LoopExpression(final Expression body, final LabelTarget breakLabel, final LabelTarget continueLabel) {
+    LoopExpression(final Expression body, final LabelTarget breakTarget, final LabelTarget continueTarget) {
         _body = body;
-        _breakLabel = breakLabel;
-        _continueLabel = continueLabel;
+        _breakTarget = breakTarget;
+        _continueTarget = continueTarget;
     }
 
     public final Expression getBody() {
         return _body;
     }
 
-    public final LabelTarget getBreakLabel() {
-        return _breakLabel;
+    public final LabelTarget getBreakTarget() {
+        return _breakTarget;
     }
 
-    public final LabelTarget getContinueLabel() {
-        return _continueLabel;
+    public final LabelTarget getContinueTarget() {
+        return _continueTarget;
     }
 
     @Override
@@ -36,7 +36,7 @@ public final class LoopExpression extends Expression {
 
     @Override
     public final Type getType() {
-        return _breakLabel == null ? PrimitiveTypes.Void : _breakLabel.getType();
+        return _breakTarget == null ? PrimitiveTypes.Void : _breakTarget.getType();
     }
 
     @Override
@@ -45,7 +45,7 @@ public final class LoopExpression extends Expression {
     }
 
     public final LoopExpression update(final LabelTarget breakLabel, final LabelTarget continueLabel, final Expression body) {
-        if (breakLabel == _breakLabel && continueLabel == _continueLabel && body == _body) {
+        if (breakLabel == _breakTarget && continueLabel == _continueTarget && body == _body) {
             return this;
         }
         return loop(body, breakLabel, continueLabel);

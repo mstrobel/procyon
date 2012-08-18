@@ -200,6 +200,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
         if (!TypeUtils.areEquivalent(oldDeclaringType, declaringType) &&
             oldDeclaringType.isGenericTypeDefinition() &&
+            declaringType.isGenericType() &&
             TypeUtils.areEquivalent(oldDeclaringType, declaringType.getGenericTypeDefinition())) {
 
             actualDeclaringType = declaringType;
@@ -411,7 +412,7 @@ class TypeEraser extends TypeBinder {
         if (type instanceof ErasedType<?>) {
             return type;
         }
-        return new ErasedType<>(type);
+        return type.getErasedType();
     }
 
     @Override

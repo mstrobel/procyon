@@ -59,6 +59,7 @@ public final class Types {
     public static final Type<Closure> Closure;
 
     public static final Type<Iterable> Iterable;
+    public static final Type<Iterator> Iterator;
     public static final Type<Collection> Collection;
     public static final Type<List> List;
     public static final Type<Set> Set;
@@ -107,6 +108,7 @@ public final class Types {
         Comparable = Type.of(Comparable.class);
 
         Iterable = Type.of(Iterable.class);
+        Iterator = Type.of(Iterator.class);
         Collection = Type.of(Collection.class);
         List = Type.of(List.class);
         Set = Type.of(Set.class);

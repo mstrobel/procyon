@@ -575,8 +575,8 @@ final class StackSpiller {
                 action,
                 new LoopExpression(
                     body.getNode(),
-                    node.getBreakLabel(),
-                    node.getContinueLabel()
+                    node.getBreakTarget(),
+                    node.getContinueTarget()
                 )
             );
         }

@@ -356,7 +356,7 @@ final class ClassWriter {
                 _dataBuffer.putShort(local.end - local.start);
 
                 final Type<?> localType = local.type;
-                final Type<?> erasedType = localType.getErasedType();
+                final Type<?> erasedType = erase(localType);
 
                 _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(local.name));
 
@@ -404,8 +404,13 @@ final class ClassWriter {
         endAttributes(attributeCountIndex, attributeCount);
     }
 
+    private static Type<?> erase(final Type<?> t) {
+        final Type<?> def = t.isGenericType() ? t.getGenericTypeDefinition() : t;
+        return def.getErasedType();
+    }
+
     private boolean needsLocalVariableTableEntry(final Type<?> localType) {
-        return !localType.isEquivalentTo(localType.getErasedType()) &&
+        return !localType.isEquivalentTo(erase(localType)) &&
                !localType.isCompoundType();
     }
 

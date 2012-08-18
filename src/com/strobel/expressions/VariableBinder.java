@@ -149,7 +149,9 @@ final class VariableBinder extends ExpressionVisitor {
         // it is used a lot.
         //
         CompilerScope referenceScope = null;
-        for (final CompilerScope scope : _scopes) {
+
+        for (int i = _scopes.size() - 1; i >= 0; i--) {
+            final CompilerScope scope = _scopes.get(i);
             //
             // There are two times we care about references:
             //
@@ -245,12 +247,17 @@ final class VariableBinder extends ExpressionVisitor {
         return body;
     }
 
+    private static int hitcount = 0;
+
     private void reference(final ParameterExpression node, final VariableStorageKind storage) {
         CompilerScope definition = null;
 
+        ++hitcount;
         VariableStorageKind storageKind = storage;
 
-        for (final CompilerScope scope : _scopes) {
+        for (int i = _scopes.size() - 1; i >= 0; i--) {
+            final CompilerScope scope = _scopes.get(i);
+
             if (scope.definitions.containsKey(node)) {
                 definition = scope;
                 break;
@@ -273,7 +280,8 @@ final class VariableBinder extends ExpressionVisitor {
     }
 
     private String getCurrentLambdaName() {
-        for (final CompilerScope scope : _scopes) {
+        for (int i = _scopes.size() - 1; i >= 0; i--) {
+            final CompilerScope scope = _scopes.get(i);
             if (scope.node instanceof LambdaExpression<?>) {
                 return ((LambdaExpression)scope.node).getName();
             }

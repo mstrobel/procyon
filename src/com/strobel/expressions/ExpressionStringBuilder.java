@@ -1,7 +1,11 @@
 package com.strobel.expressions;
 
 import com.strobel.core.StringUtilities;
-import com.strobel.reflection.*;
+import com.strobel.reflection.BindingFlags;
+import com.strobel.reflection.MemberInfo;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.PrimitiveTypes;
+import com.strobel.reflection.Type;
 import com.strobel.util.TypeUtils;
 
 import java.util.HashMap;
@@ -147,6 +151,10 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         final Set<BindingFlags> flags = BindingFlags.PublicInstanceExact;
         final MethodInfo toString = node.getType().getMethod("toString", flags, null, Type.EmptyTypes);
 
+        if (toString == null) {
+            return null;
+        }
+
         if (toString.getDeclaringType() != Type.of(Expression.class)) {
             out(node.toString());
             return node;
@@ -214,6 +222,11 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     @Override
     protected Expression visitUnary(final UnaryExpression node) {
         switch (node.getNodeType()) {
+            case Convert:
+                out('(');
+                out(node.getType().getName());
+                out(')');
+                break;
             case Not:
                 out("Not(");
                 break;
@@ -494,8 +507,75 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
 
     @Override
     protected Expression visitLoop(final LoopExpression node) {
-        out("loop ");
-        return super.visitLoop(node);
+        final LabelTarget breakTarget = node.getBreakTarget();
+        final LabelTarget continueTarget = node.getContinueTarget();
+        final boolean hasBlock = node.getBody() instanceof BlockExpression;
+
+        out("loop");
+        flush();
+
+        if (continueTarget != null && continueTarget.getName() != null) {
+            visitLabelTarget(continueTarget);
+            out(':');
+            flush();
+        }
+
+        if (!hasBlock) {
+            increaseIndent();
+        }
+
+        visit(node.getBody());
+        flush();
+
+        if (breakTarget != null && breakTarget.getName() != null) {
+            visitLabelTarget(breakTarget);
+            out(':');
+            flush();
+        }
+
+        if (!hasBlock) {
+            decreaseIndent();
+        }
+
+        return node;
+    }
+
+    @Override
+    protected Expression visitForEach(final ForEachExpression node) {
+        final LabelTarget breakTarget = node.getBreakTarget();
+        final LabelTarget continueTarget = node.getContinueTarget();
+        final boolean hasBlock = node.getBody() instanceof BlockExpression;
+
+        out("for (");
+        visit(node.getVariable());
+        out(" : ");
+        visit(node.getSequence());
+        out(")");
+
+        flush();
+
+        if (!hasBlock) {
+            increaseIndent();
+        }
+
+        if (continueTarget != null && continueTarget.getName() != null) {
+            visitLabelTarget(continueTarget);
+            flush();
+        }
+
+        visit(node.getBody());
+        flush();
+
+        if (breakTarget != null && breakTarget.getName() != null) {
+            visitLabelTarget(breakTarget);
+            flush();
+        }
+
+        if (!hasBlock) {
+            decreaseIndent();
+        }
+
+        return node;
     }
 
     @Override

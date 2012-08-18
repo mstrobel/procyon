@@ -1,18 +1,20 @@
 package com.strobel.expressions;
 
+import com.strobel.compilerservices.Closure;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 
 import static com.strobel.expressions.Expression.*;
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertSame;
+import static junit.framework.Assert.*;
 
 /**
  * @author Mike Strobel
@@ -73,7 +75,6 @@ public class CompilerTests {
 
     @Test
     public void testSimpleLoop() throws Exception {
-
         final ParameterExpression lcv = variable(PrimitiveTypes.Integer, "i");
 
         final LabelTarget breakLabel = label();
@@ -115,6 +116,68 @@ public class CompilerTests {
         System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
         delegate.run();
+    }
+
+    @Test
+    public void testForEach() throws Exception {
+        final MemberExpression out = field(null, Type.of(System.class).getField("out"));
+        final ParameterExpression item = variable(Types.String, "item");
+
+        final ConstantExpression items = constant(
+            Arrays.asList("one", "two", "three", "four", "five"),
+            Types.Iterable.makeGenericType(Types.String)
+        );
+
+        final LambdaExpression<Runnable> runnable = lambda(
+            Type.of(Runnable.class),
+            block(
+                call(out, "println", constant("Starting the 'for each' loop...")),
+                forEach(
+                    item,
+                    items,
+                    call(
+                        out,
+                        "printf",
+                        constant("Got item: %s\n"),
+                        newArrayInit(
+                            Types.Object,
+                            convert(item, Types.Object)
+                        )
+                    )
+                ),
+                call(out, "println", constant("Finished the loop!"))
+            )
+        );
+
+        System.out.println();
+        System.out.println(runnable);
+
+        final Runnable delegate = runnable.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        delegate.run();
+    }
+
+    private final static class CompileIt implements Runnable {
+        private final Closure __closure;
+
+        private CompileIt(final Closure closure) {
+            __closure = closure;
+        }
+
+        @Override
+        public void run() {
+            System.out.println("Starting the 'for each' loop...");
+            String __local1;
+            for (final Iterator<String> __local0 = ((Iterable<String>)__closure.constants[0]).iterator();
+                 __local0.hasNext(); System.out.printf("Got item: %s\n", new Object[]{(Object)__local1})) {
+
+                __local1 = ((String)(__local0.next()));
+            }
+
+            System.out.println("Finished the loop!");
+        }
     }
 
     @Test

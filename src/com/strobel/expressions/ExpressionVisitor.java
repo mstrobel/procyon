@@ -37,9 +37,19 @@ public abstract class ExpressionVisitor {
 
     protected Expression visitLoop(final LoopExpression node) {
         return node.update(
-            visitLabelTarget(node.getBreakLabel()),
-            visitLabelTarget(node.getContinueLabel()),
+            visitLabelTarget(node.getBreakTarget()),
+            visitLabelTarget(node.getContinueTarget()),
             visit(node.getBody())
+        );
+    }
+
+    protected Expression visitForEach(final ForEachExpression node) {
+        return node.update(
+            (ParameterExpression) visit(node.getVariable()),
+            visit(node.getSequence()),
+            visit(node.getBody()),
+            visitLabelTarget(node.getBreakTarget()),
+            visitLabelTarget(node.getContinueTarget())
         );
     }
 
@@ -230,18 +240,19 @@ public abstract class ExpressionVisitor {
         Expression[] newNodes = null;
 
         for (int i = 0, n = nodes.size(); i < n; i++) {
-            final Expression node = nodes.get(i);
-            final Expression newNode = visit(node);
+            final Expression oldNode = nodes.get(i);
+            final Expression node = visit(oldNode);
 
-            if (newNode != node) {
-                if (newNodes == null) {
-                    newNodes = nodes.toArray();
-                }
-                newNodes[i] = newNode;
+            if (newNodes != null) {
+                newNodes[i] = node;
+            }
+            else if (node != oldNode) {
+                newNodes = nodes.toArray();
+                newNodes[i] = node;
             }
         }
 
-        return newNodes == null ? ExpressionList.empty()
+        return newNodes == null ? nodes
                                 : new ExpressionList<>(newNodes);
     }
 
@@ -292,11 +303,13 @@ public abstract class ExpressionVisitor {
                 throw Error.mustRewriteToSameNode(callerName, oldNode.getClass(), callerName);
             }
 
-            if (newNodes == null) {
-                newNodes = nodes.toArray();
+            if (newNodes != null) {
+                newNodes[i] = node;
             }
-
-            newNodes[i] = node;
+            else if (node != oldNode) {
+                newNodes = nodes.toArray();
+                newNodes[i] = node;
+            }
         }
 
         if (newNodes == null) {
@@ -318,11 +331,13 @@ public abstract class ExpressionVisitor {
                 throw Error.mustRewriteToSameNode(callerName, oldNode.getClass(), callerName);
             }
 
-            if (newNodes == null) {
-                newNodes = nodes.toArray();
+            if (newNodes != null) {
+                newNodes[i] = node;
             }
-
-            newNodes[i] = node;
+            else if (node != oldNode) {
+                newNodes = nodes.toArray();
+                newNodes[i] = node;
+            }
         }
 
         if (newNodes == null) {

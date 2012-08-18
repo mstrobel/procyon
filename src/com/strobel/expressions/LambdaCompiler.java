@@ -2886,8 +2886,8 @@ final class LambdaCompiler {
 
         pushLabelBlock(LabelScopeKind.Statement);
 
-        final LabelInfo breakTarget = defineLabel(node.getBreakLabel());
-        final LabelInfo continueTarget = defineLabel(node.getContinueLabel());
+        final LabelInfo breakTarget = defineLabel(node.getBreakTarget());
+        final LabelInfo continueTarget = defineLabel(node.getContinueTarget());
 
         continueTarget.markWithEmptyStack();
 

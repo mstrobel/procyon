@@ -26,7 +26,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public static final Binder DefaultBinder = new DefaultBinder();
     public static final char Delimiter = '.';
     public static final Missing Value = new Missing();
-    public static final Type[] EmptyTypes = new Type[0];
+    public static final Type<?>[] EmptyTypes = new Type<?>[0];
 
     public static final Type Bottom = new BottomType();
     public static final Type NullType = new NullType();

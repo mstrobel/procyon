@@ -250,18 +250,54 @@ public abstract class Expression {
         return loop(body, null, null);
     }
 
-    public static LoopExpression loop(final Expression body, final LabelTarget breakLabel) {
-        return loop(body, breakLabel, null);
+    public static LoopExpression loop(final Expression body, final LabelTarget breakTarget) {
+        return loop(body, breakTarget, null);
     }
 
-    public static LoopExpression loop(final Expression body, final LabelTarget breakLabel, final LabelTarget continueLabel) {
+    public static LoopExpression loop(final Expression body, final LabelTarget breakTarget, final LabelTarget continueLabel) {
         verifyCanRead(body, "body");
 
         if (continueLabel != null && continueLabel.getType() != PrimitiveTypes.Void) {
             throw Error.labelTypeMustBeVoid();
         }
 
-        return new LoopExpression(body, breakLabel, continueLabel);
+        return new LoopExpression(body, breakTarget, continueLabel);
+    }
+
+    public static ForEachExpression forEach(
+        final ParameterExpression variable,
+        final Expression sequence,
+        final Expression body) {
+
+        return forEach(variable, sequence, body, null, null);
+    }
+    
+    public static ForEachExpression forEach(
+        final ParameterExpression variable,
+        final Expression sequence,
+        final Expression body,
+        final LabelTarget breakTarget) {
+        
+        return forEach(variable, sequence, body, breakTarget, null);
+    }
+    
+    public static ForEachExpression forEach(
+        final ParameterExpression variable,
+        final Expression sequence,
+        final Expression body,
+        final LabelTarget breakTarget,
+        final LabelTarget continueTarget) {
+
+        VerifyArgument.notNull(variable, "variable");
+
+        verifyCanRead(sequence, "sequence");
+        verifyCanRead(body, "body");
+
+        if (continueTarget != null && continueTarget.getType() != PrimitiveTypes.Void) {
+            throw Error.labelTypeMustBeVoid();
+        }
+
+        return new ForEachExpression(variable, sequence, body, breakTarget, continueTarget);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -557,7 +593,7 @@ public abstract class Expression {
             throw Error.argumentTypesMustMatch();
         }
 
-        if (value != null && !type.isInstance(value)) {
+        if (value != null && !type.getErasedClass().isInstance(value)) {
             throw Error.argumentTypesMustMatch();
         }
 

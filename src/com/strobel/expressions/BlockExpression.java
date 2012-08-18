@@ -112,6 +112,14 @@ final class Block2 extends BlockExpression {
     final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
     }
+
+    @Override
+    BlockExpression rewrite(final ParameterExpressionList variables, final Expression[] args) {
+        assert args.length == 2;
+        assert variables == null || variables.size() == 0;
+
+        return new Block2(args[0], args[1]);
+    }
 }
 
 final class Block3 extends BlockExpression {
@@ -148,6 +156,14 @@ final class Block3 extends BlockExpression {
     @Override
     final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
+    }
+
+    @Override
+    BlockExpression rewrite(final ParameterExpressionList variables, final Expression[] args) {
+        assert args.length == 3;
+        assert variables == null || variables.size() == 0;
+
+        return new Block3(args[0], args[1], args[2]);
     }
 }
 
@@ -189,6 +205,14 @@ final class Block4 extends BlockExpression {
     @Override
     final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
+    }
+
+    @Override
+    BlockExpression rewrite(final ParameterExpressionList variables, final Expression[] args) {
+        assert args.length == 4;
+        assert variables == null || variables.size() == 0;
+
+        return new Block4(args[0], args[1], args[2], args[3]);
     }
 }
 
@@ -235,6 +259,14 @@ final class Block5 extends BlockExpression {
     final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return (ExpressionList<? extends Expression>)(_arg0 = returnReadOnlyExpressions(this, _arg0));
     }
+
+    @Override
+    BlockExpression rewrite(final ParameterExpressionList variables, final Expression[] args) {
+        assert args.length == 5;
+        assert variables == null || variables.size() == 0;
+
+        return new Block5(args[0], args[1], args[2], args[3], args[4]);
+    }
 }
 
 class BlockN extends BlockExpression {
@@ -258,6 +290,13 @@ class BlockN extends BlockExpression {
     @Override
     final ExpressionList<? extends Expression> getOrMakeExpressions() {
         return _expressions;
+    }
+
+    @Override
+    BlockExpression rewrite(final ParameterExpressionList variables, final Expression[] args) {
+        assert variables == null || variables.size() == 0;
+
+        return new BlockN(arrayToList(args));
     }
 }
 
@@ -352,7 +391,7 @@ class ScopeN extends ScopeExpression {
     }
 
     BlockExpression rewrite(final ParameterExpressionList variables, final Expression[] args) {
-        assert args.length == getExpressionCount();
+        assert args != null && args.length == getExpressionCount() || args == null && getExpressionCount() == 0;
         assert variables == null || variables.size() == getVariableCount();
 
         return new ScopeN(reuseOrValidateVariables(variables), new ExpressionList<>(args));
@@ -373,7 +412,7 @@ final class ScopeWithType extends ScopeN {
     }
 
     final BlockExpression rewrite(final ParameterExpressionList variables, final Expression[] args) {
-        assert args.length == getExpressionCount();
+        assert args != null && args.length == getExpressionCount() || args == null && getExpressionCount() == 0;
         assert variables == null || variables.size() == getVariableCount();
 
         return new ScopeWithType(reuseOrValidateVariables(variables), new ExpressionList<>(args), _type);

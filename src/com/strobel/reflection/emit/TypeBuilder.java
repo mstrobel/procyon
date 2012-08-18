@@ -6,6 +6,7 @@ import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.*;
+import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 import sun.misc.Unsafe;
 
@@ -746,17 +747,20 @@ public final class TypeBuilder<T> extends Type<T> {
 
     short getTypeToken(final Type<?> type) {
         VerifyArgument.notNull(type, "type");
-        return (short)(constantPool.getTypeInfo(type).index & 0xFFFF);
+        return (short)(constantPool.getTypeInfo(erase(type)).index & 0xFFFF);
     }
 
     short getMethodToken(final MethodBase method) {
         VerifyArgument.notNull(method, "method");
-        return (short)(constantPool.getMethodReference(method).index & 0xFFFF);
+        if (method.getDeclaringType().isInterface()) {
+            return (short)(constantPool.getInterfaceMethodReference((MethodInfo)erase(method)).index & 0xFFFF);
+        }
+        return (short)(constantPool.getMethodReference(erase(method)).index & 0xFFFF);
     }
 
     short getFieldToken(final FieldInfo field) {
         VerifyArgument.notNull(field, "field");
-        return (short)(constantPool.getFieldReference(field).index & 0xFFFF);
+        return (short)(constantPool.getFieldReference(erase(field)).index & 0xFFFF);
     }
 
     short getConstantToken(final int value) {
@@ -781,6 +785,61 @@ public final class TypeBuilder<T> extends Type<T> {
 
     short getUtf8StringToken(final String value) {
         return (short)(constantPool.getUtf8StringConstant(value).index & 0xFFFF);
+    }
+
+    private static Type<?> erase(final Type<?> t) {
+        final Type<?> def = t.isGenericType() ? t.getGenericTypeDefinition() : t;
+        return def.getErasedType();
+    }
+
+    private static MethodBase erase(final MethodBase m) {
+        if (!m.getDeclaringType().isGenericType()) {
+            return m;
+        }
+
+        final boolean isMethod = m instanceof MethodInfo;
+
+        final Object rawMethod = isMethod ? ((MethodInfo)m).getRawMethod()
+                                          : ((ConstructorInfo)m).getRawConstructor();
+
+        final Type erasedType = erase(m.getDeclaringType());
+
+        final MemberList<?> members =
+            erasedType.findMembers(
+                isMethod ? MemberType.methodsOnly() : MemberType.constructorsOnly(),
+                BindingFlags.AllDeclared,
+                Type.FilterRawMember,
+                rawMethod
+            );
+
+        if (!members.isEmpty()) {
+            return (MethodBase)members.get(0);
+        }
+
+        throw ContractUtils.unreachable();
+    }
+
+    private static FieldInfo erase(final FieldInfo f) {
+        if (!f.getDeclaringType().isGenericType()) {
+            return f;
+        }
+
+        final Type erasedType = erase(f.getDeclaringType());
+        final Object rawField = f.getRawField();
+
+        final MemberList<?> members =
+            erasedType.findMembers(
+                MemberType.fieldsOnly(),
+                BindingFlags.AllDeclared,
+                Type.FilterRawMember,
+                rawField
+            );
+
+        if (!members.isEmpty()) {
+            return (FieldInfo) members.get(0);
+        }
+
+        throw ContractUtils.unreachable();
     }
 
     // </editor-fold>

@@ -1,7 +1,14 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.*;
+import com.strobel.reflection.ConstructorInfo;
+import com.strobel.reflection.FieldInfo;
+import com.strobel.reflection.MethodBase;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.PrimitiveTypes;
+import com.strobel.reflection.Type;
+import com.strobel.reflection.TypeList;
+import com.strobel.reflection.Types;
 import com.strobel.util.TypeUtils;
 
 import javax.lang.model.type.TypeKind;
@@ -414,12 +421,35 @@ public class CodeGenerator {
 
         emit(opCode, (short)methodToken);
 
+        final TypeList parameterTypes;
+
+        if (method instanceof MethodBuilder) {
+            parameterTypes = ((MethodBuilder)method).getParameterTypes();
+        }
+        else {
+            parameterTypes = method.getParameters().getParameterTypes();
+        }
+
+        if (opCode == OpCode.INVOKEINTERFACE) {
+            int argsSize = 1;
+
+            for (final Type parameterType : parameterTypes) {
+                ++argsSize;
+                if (parameterType == PrimitiveTypes.Long || parameterType == PrimitiveTypes.Double) {
+                    ++argsSize;
+                }
+            }
+
+            emitByteOperand((byte)argsSize);
+            emitByteOperand((byte)0);
+        }
+
         registerCheckedExceptions(method);
 
         int stackChange = 0;
 
         if (method instanceof MethodBuilder) {
-            stackChange -= ((MethodBuilder)method).getParameterTypes().size();
+            stackChange -= parameterTypes.size();
         }
         else {
             stackChange -= method.getParameters().size();
@@ -615,8 +645,9 @@ public class CodeGenerator {
     public void emitNewArray(final Type<?> arrayType) {
         VerifyArgument.notNull(arrayType, "arrayType");
 
-        if (!arrayType.isArray())
+        if (!arrayType.isArray()) {
             throw Error.typeMustBeArray();
+        }
 
         Type<?> elementType = arrayType.getElementType();
 
