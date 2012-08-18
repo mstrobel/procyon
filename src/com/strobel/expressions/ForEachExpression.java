@@ -117,16 +117,20 @@ public final class ForEachExpression extends Expression {
     }
 
     private Expression reduceForArray() {
-        final ParameterExpression index = variable(PrimitiveTypes.Integer, "i");
-        final ParameterExpression length = variable(PrimitiveTypes.Integer, "n");
+        final ParameterExpression array = variable(_sequence.getType(), "$array");
+        final ParameterExpression index = variable(PrimitiveTypes.Integer, "$i");
+        final ParameterExpression length = variable(PrimitiveTypes.Integer, "$length");
+
+        final ParameterExpressionList variables = new ParameterExpressionList(array, index, length);
 
         final LabelTarget breakTarget = _breakTarget != null ? _breakTarget : label();
         final LabelTarget continueTarget = _continueTarget != null ? _continueTarget : label("update");
 
         return block(
-            new ParameterExpressionList(index, length),
+            variables,
+            assign(array, _sequence),
             assign(index, constant(0)),
-            assign(length, arrayLength(_sequence)),
+            assign(length, arrayLength(array)),
             block(
                 new ParameterExpressionList(_variable),
                 makeGoto(continueTarget),
@@ -134,7 +138,7 @@ public final class ForEachExpression extends Expression {
                     block(
                         assign(
                             _variable,
-                            convert(arrayIndex(_sequence, index), _variable.getType())
+                            convert(arrayIndex(array, index), _variable.getType())
                         ),
                         _body,
                         preIncrementAssign(index),

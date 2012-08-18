@@ -118,7 +118,7 @@ public class CompilerTests {
 
     @Test
     public void testForEachWithArray() throws Exception {
-        final MemberExpression out = field(null, Type.of(System.class).getField("out"));
+        final Expression out = field(null, Type.of(System.class).getField("out"));
         final ParameterExpression item = variable(Types.String, "item");
 
         final ConstantExpression items = constant(
@@ -158,7 +158,7 @@ public class CompilerTests {
 
     @Test
     public void testForEachWithIterable() throws Exception {
-        final MemberExpression out = field(null, Type.of(System.class).getField("out"));
+        final Expression out = field(null, Type.of(System.class).getField("out"));
         final ParameterExpression item = variable(Types.String, "item");
 
         final ConstantExpression items = constant(
