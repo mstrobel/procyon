@@ -1,6 +1,5 @@
 package com.strobel.expressions;
 
-import com.strobel.compilerservices.Closure;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
@@ -9,7 +8,6 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 
@@ -197,27 +195,6 @@ public class CompilerTests {
         System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
         delegate.run();
-    }
-
-    private final static class CompileIt implements Runnable {
-        private final Closure __closure;
-
-        private CompileIt(final Closure closure) {
-            __closure = closure;
-        }
-
-        @Override
-        public void run() {
-            System.out.println("Starting the 'for each' loop...");
-            String __local1;
-            for (final Iterator<String> __local0 = ((Iterable<String>)__closure.constants[0]).iterator();
-                 __local0.hasNext(); System.out.printf("Got item: %s\n", new Object[]{(Object)__local1})) {
-
-                __local1 = ((String)(__local0.next()));
-            }
-
-            System.out.println("Finished the loop!");
-        }
     }
 
     @Test
