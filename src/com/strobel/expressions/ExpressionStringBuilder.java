@@ -8,6 +8,7 @@ import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.util.TypeUtils;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -187,7 +188,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
             out("null");
         }
         else {
-            final String toString = value.toString();
+            final String toString = value.getClass().isArray() ? arrayToString(value) : value.toString();
 
             if (value instanceof String) {
                 out('"');
@@ -205,6 +206,35 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         }
 
         return node;
+    }
+
+    private String arrayToString(final Object value) {
+        final Type<Object> type = Type.getType(value);
+
+        if (!type.isArray()) {
+            return value.toString();
+        }
+
+        switch (type.getKind()) {
+            case BOOLEAN:
+                return Arrays.toString((boolean[])value);
+            case BYTE:
+                return Arrays.toString((byte[])value);
+            case SHORT:
+                return Arrays.toString((short[])value);
+            case INT:
+                return Arrays.toString((int[])value);
+            case LONG:
+                return Arrays.toString((long[])value);
+            case CHAR:
+                return Arrays.toString((char[])value);
+            case FLOAT:
+                return Arrays.toString((float[])value);
+            case DOUBLE:
+                return Arrays.toString((double[])value);
+            default:
+                return Arrays.toString((Object[])value);
+        }
     }
 
     @Override

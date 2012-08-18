@@ -1485,15 +1485,26 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 return reflectedType;
             }
 
-//            loadAncestors(clazz);
+            int arrayDepth = 0;
+            Class<?> actualClass = clazz;
 
-            final Type<T> resolvedType = (Type<T>)RESOLVER.resolve(clazz);
-
-            if (resolvedType != null) {
-                return resolvedType;
+            while (actualClass.isArray()) {
+                actualClass = actualClass.getComponentType();
+                ++arrayDepth;
             }
 
-            throw Error.couldNotResolveType(clazz);
+            Type<?> resolvedType = RESOLVER.resolve(actualClass);
+
+            if (resolvedType == null) {
+                throw Error.couldNotResolveType(clazz);
+            }
+
+            while (arrayDepth > 0) {
+                resolvedType = resolvedType.makeArrayType();
+                --arrayDepth;
+            }
+
+            return (Type<T>)resolvedType;
         }
     }
 

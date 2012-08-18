@@ -110,6 +110,47 @@ public final class ForEachExpression extends Expression {
 
     @Override
     public Expression reduce() {
+        if (_sequence.getType().isArray()) {
+            return reduceForArray();
+        }
+        return reduceForIterable();
+    }
+
+    private Expression reduceForArray() {
+        final ParameterExpression index = variable(PrimitiveTypes.Integer, "i");
+        final ParameterExpression length = variable(PrimitiveTypes.Integer, "n");
+
+        final LabelTarget breakTarget = _breakTarget != null ? _breakTarget : label();
+        final LabelTarget continueTarget = _continueTarget != null ? _continueTarget : label("update");
+
+        return block(
+            new ParameterExpressionList(index, length),
+            assign(index, constant(0)),
+            assign(length, arrayLength(_sequence)),
+            block(
+                new ParameterExpressionList(_variable),
+                makeGoto(continueTarget),
+                loop(
+                    block(
+                        assign(
+                            _variable,
+                            convert(arrayIndex(_sequence, index), _variable.getType())
+                        ),
+                        _body,
+                        preIncrementAssign(index),
+                        label(continueTarget),
+                        ifThen(
+                            greaterThanOrEqual(index, length),
+                            makeBreak(breakTarget)
+                        )
+                    )
+                ),
+                label(breakTarget)
+            )
+        );
+    }
+
+    private Expression reduceForIterable() {
         final Type iterableType;
         final Type iteratorType;
         final Type<?> argument = tryGetGenericEnumerableArgument();

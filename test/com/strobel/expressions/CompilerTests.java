@@ -119,7 +119,47 @@ public class CompilerTests {
     }
 
     @Test
-    public void testForEach() throws Exception {
+    public void testForEachWithArray() throws Exception {
+        final MemberExpression out = field(null, Type.of(System.class).getField("out"));
+        final ParameterExpression item = variable(Types.String, "item");
+
+        final ConstantExpression items = constant(
+            new String[] { "one", "two", "three", "four", "five" }
+        );
+
+        final LambdaExpression<Runnable> runnable = lambda(
+            Type.of(Runnable.class),
+            block(
+                call(out, "println", constant("Starting the 'for each' loop...")),
+                forEach(
+                    item,
+                    items,
+                    call(
+                        out,
+                        "printf",
+                        constant("Got item: %s\n"),
+                        newArrayInit(
+                            Types.Object,
+                            convert(item, Types.Object)
+                        )
+                    )
+                ),
+                call(out, "println", constant("Finished the loop!"))
+            )
+        );
+
+        System.out.println();
+        System.out.println(runnable);
+
+        final Runnable delegate = runnable.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        delegate.run();
+    }
+
+    @Test
+    public void testForEachWithIterable() throws Exception {
         final MemberExpression out = field(null, Type.of(System.class).getField("out"));
         final ParameterExpression item = variable(Types.String, "item");
 
