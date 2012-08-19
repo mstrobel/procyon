@@ -2127,7 +2127,7 @@ public class CodeGenerator {
     }
 
     private void emitStringTrieSwitch(final String[] keys, final StringSwitchCallback callback) throws Exception {
-        final Label defaultTarget = defineLabel();
+        final Label defaultLabel = defineLabel();
         final Label breakTarget = defineLabel();
 
         final Map<Integer, List<String>> buckets = getStringSwitchBuckets(
@@ -2155,18 +2155,18 @@ public class CodeGenerator {
             intKeys,
             new SwitchCallback() {
                 @Override
-                public void emitCase(final int key, final Label breakTarget) throws Exception {
+                public void emitCase(final int key, final Label ignore) throws Exception {
                     final List<String> bucket = buckets.get(key);
-                    stringSwitchHelper(bucket, callback, defaultTarget, breakTarget, 0);
+                    stringSwitchHelper(bucket, callback, defaultLabel, breakTarget, 0);
                 }
 
                 @Override
                 public void emitDefault(final Label breakTarget) throws Exception {
-                    emitGoto(defaultTarget);
+                    emitGoto(defaultLabel);
                 }
             });
 
-        markLabel(defaultTarget);
+        markLabel(defaultLabel);
         pop();
         callback.emitDefault(breakTarget);
         markLabel(breakTarget);
@@ -2209,7 +2209,7 @@ public class CodeGenerator {
             intKeys,
             new SwitchCallback() {
                 @Override
-                public void emitCase(final int key, final Label breakTarget) throws Exception {
+                public void emitCase(final int key, final Label ignore) throws Exception {
                     final List<String> bucket = buckets.get(key);
                     if (index + 1 == length) {
                         pop();
@@ -2258,7 +2258,7 @@ public class CodeGenerator {
             intKeys,
             new SwitchCallback() {
                 @Override
-                public void emitCase(final int key, final Label breakTarget)
+                public void emitCase(final int key, final Label ignore)
                     throws Exception {
                     final List<String> bucket = buckets.get(key);
                     Label next = null;

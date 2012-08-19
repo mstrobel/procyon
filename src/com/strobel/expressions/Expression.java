@@ -2953,6 +2953,12 @@ public abstract class Expression {
         final Expression left,
         final Expression right) {
 
+        switch (binaryType) {
+            case Equal:
+            case NotEqual:
+                return getEqualsMethodBasedBinaryOperator(binaryType, left, right);
+        }
+
         final Type leftType = left.getType();
         final Type rightType = right.getType();
 
@@ -2994,10 +3000,6 @@ public abstract class Expression {
         }
 
         switch (binaryType) {
-            case Equal:
-            case NotEqual:
-                return getEqualsMethodBasedBinaryOperator(binaryType, left, right);
-
             case GreaterThan:
             case GreaterThanOrEqual:
             case LessThan:

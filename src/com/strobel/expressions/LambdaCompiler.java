@@ -3531,8 +3531,8 @@ final class LambdaCompiler {
         for (final SwitchCase c : node.getCases()) {
             final ExpressionList<? extends Expression> testValues = c.getTestValues();
 
-            for (int j = 0, n = caseBodies.size(); j < n; j++) {
-                final String s = (String)((ConstantExpression)testValues.get(i)).getValue();
+            for (int j = 0, n = testValues.size(); j < n; j++) {
+                final String s = (String)((ConstantExpression)testValues.get(j)).getValue();
 
                 keys[i++] = s;
                 caseBodies.put(s, c.getBody());
