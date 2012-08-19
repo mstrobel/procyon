@@ -20,7 +20,6 @@ import static junit.framework.Assert.*;
  * @author Mike Strobel
  */
 public class CompilerTests {
-
     private static final RuntimeException TestRuntimeException = new RuntimeException("More bad shit happened, yo.");
 
     interface IListRetriever<T> {
@@ -32,9 +31,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testStringEquals()
-        throws Exception {
-
+    public void testStringEquals() throws Exception {
         final ParameterExpression p = parameter(Types.String, "s");
         final MemberExpression out = field(null, Type.of(System.class).getField("out"));
 
@@ -61,9 +58,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testGenericMethodCall()
-        throws Exception {
-
+    public void testGenericMethodCall() throws Exception {
         final LambdaExpression listRetriever = lambda(
             Type.of(IListRetriever.class).makeGenericType(Types.String),
             call(
@@ -87,9 +82,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testBridgeMethodGeneration()
-        throws Exception {
-
+    public void testBridgeMethodGeneration() throws Exception {
         final ParameterExpression arg = parameter(Types.String);
 
         final LambdaExpression listRetriever = lambda(
@@ -106,10 +99,8 @@ public class CompilerTests {
     }
 
     @Test
-    public void testSimpleLoop()
-        throws Exception {
+    public void testSimpleLoop() throws Exception {
         final ParameterExpression lcv = variable(PrimitiveTypes.Integer, "i");
-
         final LabelTarget breakLabel = label();
         final LabelTarget continueLabel = label();
         final MemberExpression out = field(null, Type.of(System.class).getField("out"));
@@ -156,8 +147,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testForEachWithArray()
-        throws Exception {
+    public void testForEachWithArray() throws Exception {
         final Expression out = field(null, Type.of(System.class).getField("out"));
         final ParameterExpression item = variable(Types.String, "item");
 
@@ -197,8 +187,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testForEachWithIterable()
-        throws Exception {
+    public void testForEachWithIterable() throws Exception {
         final Expression out = field(null, Type.of(System.class).getField("out"));
         final ParameterExpression item = variable(Types.String, "item");
 
@@ -239,8 +228,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void simpleLambdaTest()
-        throws Exception {
+    public void simpleLambdaTest() throws Exception {
         final ParameterExpression number = parameter(PrimitiveTypes.Integer, "number");
 
         final LambdaExpression<ITest> lambda = lambda(
@@ -287,8 +275,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void returnLabelTest()
-        throws Exception {
+    public void returnLabelTest() throws Exception {
         final ParameterExpression number = parameter(PrimitiveTypes.Integer, "number");
         final LabelTarget returnLabel = label(Types.String);
 
@@ -327,8 +314,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testIntegerLookupSwitch()
-        throws Exception {
+    public void testIntegerLookupSwitch() throws Exception {
         final ParameterExpression number = parameter(Types.Integer, "number");
 
         final LambdaExpression<Func1<Integer, String>> lambda = lambda(
@@ -380,8 +366,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testIntegerTableSwitch()
-        throws Exception {
+    public void testIntegerTableSwitch() throws Exception {
         final ParameterExpression number = parameter(Types.Integer, "number");
 
         final LambdaExpression<Func1<Integer, String>> lambda = lambda(
@@ -443,8 +428,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testEnumLookupSwitch()
-        throws Exception {
+    public void testEnumLookupSwitch() throws Exception {
         final Type<TestEnum> enumType = Type.of(TestEnum.class);
         final ParameterExpression enumValue = parameter(enumType, "e");
 
@@ -495,8 +479,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testStringTrieSwitch()
-        throws Exception {
+    public void testStringTrieSwitch() throws Exception {
         final ParameterExpression stringValue = parameter(Types.String, "s");
 
         final LambdaExpression<Func1<String, String>> lambda = lambda(
@@ -548,8 +531,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testStringTableSwitch()
-        throws Exception {
+    public void testStringTableSwitch() throws Exception {
         final ParameterExpression stringValue = parameter(Types.String, "s");
 
         final LambdaExpression<Func1<String, String>> lambda = lambda(
@@ -601,8 +583,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testTryCatchFinally()
-        throws Exception {
+    public void testTryCatchFinally() throws Exception {
         final Expression out = field(null, Type.of(System.class).getField("out"));
         final ParameterExpression tempException = variable(Types.RuntimeException, "$exception");
 
@@ -610,8 +591,7 @@ public class CompilerTests {
             Type.of(Runnable.class),
             block(
                 new ParameterExpressionList(tempException),
-                makeTry(
-                    PrimitiveTypes.Void,
+                tryCatchFinally(
                     call(Type.of(CompilerTests.class), "holdMeThrillMeKissMeThrowMe1"),
                     call(out, "println", constant("In the finally block.")),
                     makeCatch(
@@ -633,8 +613,7 @@ public class CompilerTests {
     }
 
     @Test
-    public void testTryNestedCatchFinally()
-        throws Exception {
+    public void testTryNestedCatchFinally() throws Exception {
         final Expression out = field(null, Type.of(System.class).getField("out"));
         final ParameterExpression tempException = variable(Types.RuntimeException, "$exception");
 
@@ -642,14 +621,12 @@ public class CompilerTests {
             Type.of(Runnable.class),
             block(
                 new ParameterExpressionList(tempException),
-                makeTry(
-                    PrimitiveTypes.Void,
+                tryCatchFinally(
                     call(Type.of(CompilerTests.class), "holdMeThrillMeKissMeThrowMe1"),
                     call(out, "println", constant("In the finally block.")),
                     makeCatch(
                         Type.of(AssertionError.class),
-                        makeTry(
-                            PrimitiveTypes.Void,
+                        tryCatch(
                             block(
                                 call(out, "println", constant("In the AssertionError catch block.")),
                                 call(Type.of(CompilerTests.class), "holdMeThrillMeKissMeThrowMe2")
@@ -672,7 +649,7 @@ public class CompilerTests {
 
         try {
             delegate.run();
-            fail("AssertionError should have been caught.");
+            fail("RuntimeException should have been rethrown.");
         }
         catch (AssertionError e) {
             fail("AssertionError should have been caught.");

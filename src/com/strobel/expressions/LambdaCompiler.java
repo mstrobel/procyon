@@ -2788,7 +2788,7 @@ final class LambdaCompiler {
         final Package p = creationContext != null ? creationContext.getPackage()
                                                   : LambdaCompiler.class.getPackage();
 
-        return p.getName() + ".f__Lambda" + Integer.toHexString(nextId.getAndIncrement());
+        return String.format("%s.f__Lambda[0x%2$04x]", p.getName(), nextId.getAndIncrement());
     }
 
 
