@@ -89,8 +89,8 @@ final class ErasedType<T> extends Type<T> {
                         this,
                         _originalType.getFields(),
                         TypeBindings.create(
-                            getGenericTypeParameters(),
-                            UpperBoundMapper.visit(getGenericTypeParameters())
+                            _originalType.getGenericTypeParameters(),
+                            UpperBoundMapper.visit(_originalType.getGenericTypeParameters())
                         )
                     );
                 }
@@ -105,8 +105,8 @@ final class ErasedType<T> extends Type<T> {
                     this,
                     _originalType.getConstructors(),
                     TypeBindings.create(
-                        getGenericTypeParameters(),
-                        UpperBoundMapper.visit(getGenericTypeParameters())
+                        _originalType.getGenericTypeParameters(),
+                        UpperBoundMapper.visit(_originalType.getGenericTypeParameters())
                     )
                 );
             }
@@ -117,15 +117,12 @@ final class ErasedType<T> extends Type<T> {
         if (_methods == null) {
             synchronized (CACHE_LOCK) {
                 if (_methods == null) {
-                    final TypeList genericParameters = isGenericType()
-                                                       ? getGenericTypeParameters()
-                                                       : TypeList.empty();
                     _methods = GenericEraser.visit(
                         this,
                         _originalType.getMethods(),
                         TypeBindings.create(
-                            genericParameters,
-                            UpperBoundMapper.visit(genericParameters)
+                            _originalType.getGenericTypeParameters(),
+                            UpperBoundMapper.visit(_originalType.getGenericTypeParameters())
                         )
                     );
                 }

@@ -275,6 +275,16 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             return other.isEquivalentTo(this);
         }
 
+        final boolean isArray = this.isArray();
+
+        if (isArray != other.isArray()) {
+            return false;
+        }
+
+        if (isArray) {
+            return getElementType().isEquivalentTo(other.getElementType());
+        }
+
         final boolean isWildcard = this.isWildcardType();
 
         if (isWildcard != other.isWildcardType()) {

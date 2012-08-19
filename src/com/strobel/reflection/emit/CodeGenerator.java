@@ -1212,6 +1212,7 @@ public class CodeGenerator {
         VerifyArgument.notNull(type, "type");
 
         return value == null ||
+               value instanceof Enum<?> ||
                value instanceof Type<?> ||
                value instanceof MethodBase ||
                canEmitBytecodeConstant(type);
@@ -1330,6 +1331,10 @@ public class CodeGenerator {
             default:
                 if (unboxedType == Types.String) {
                     emitString((String)value);
+                    return true;
+                }
+                if (unboxedType.isEnum()) {
+                    getField(unboxedType.getField(value.toString()));
                     return true;
                 }
                 return false;
