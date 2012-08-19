@@ -842,12 +842,23 @@ public abstract class Expression {
         return getMethodBasedUnaryOperator(ExpressionType.UnaryPlus, expression, method);
     }
 
+    public static UnaryExpression unbox(final Expression expression) {
+        return unbox(
+            VerifyArgument.notNull(expression, "expression"),
+            TypeUtils.getUnderlyingPrimitiveOrSelf(expression.getType())
+        );
+    }
+
     public static UnaryExpression unbox(final Expression expression, final Type type) {
         verifyCanRead(expression, "expression");
         VerifyArgument.notNull(type, "type");
-        if (!TypeUtils.isAutoUnboxed(type) && type != Types.Object) {
+
+        final Type sourceType = expression.getType();
+
+        if (!TypeUtils.isAutoUnboxed(sourceType) && sourceType != Types.Object || !type.isPrimitive()) {
             throw Error.invalidUnboxType();
         }
+
         return new UnaryExpression(ExpressionType.Unbox, expression, type, null);
     }
 

@@ -321,8 +321,7 @@ public class CompilerTests {
         final LambdaExpression<Func1<Integer, String>> lambda = lambda(
             Type.of(Func1.class).makeGenericType(Types.Integer, Types.String),
             makeSwitch(
-                Types.String,
-                convert(number, PrimitiveTypes.Integer),
+                unbox(number),
                 SwitchOptions.PreferLookup,
                 constant("something else"),
                 switchCase(
@@ -374,8 +373,7 @@ public class CompilerTests {
         final LambdaExpression<Func1<Integer, String>> lambda = lambda(
             Type.of(Func1.class).makeGenericType(Types.Integer, Types.String),
             makeSwitch(
-                Types.String,
-                convert(number, PrimitiveTypes.Integer),
+                unbox(number),
                 SwitchOptions.PreferTable,
                 constant("something else"),
                 switchCase(
@@ -438,7 +436,6 @@ public class CompilerTests {
         final LambdaExpression<Func1<TestEnum, String>> lambda = lambda(
             Type.of(Func1.class).makeGenericType(enumType, Types.String),
             makeSwitch(
-                Types.String,
                 enumValue,
                 constant("something else"),
                 switchCase(
@@ -489,7 +486,6 @@ public class CompilerTests {
         final LambdaExpression<Func1<String, String>> lambda = lambda(
             Type.of(Func1.class).makeGenericType(Types.String, Types.String),
             makeSwitch(
-                Types.String,
                 stringValue,
                 SwitchOptions.PreferTrie,
                 constant("something else"),
@@ -542,7 +538,6 @@ public class CompilerTests {
         final LambdaExpression<Func1<String, String>> lambda = lambda(
             Type.of(Func1.class).makeGenericType(Types.String, Types.String),
             makeSwitch(
-                Types.String,
                 stringValue,
                 SwitchOptions.PreferTable,
                 constant("something else"),
