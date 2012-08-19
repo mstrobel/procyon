@@ -14,7 +14,7 @@ import java.util.Date;
 public class ParameterExpression extends Expression {
     private final String _name;
 
-    public ParameterExpression(final String name) {
+    ParameterExpression(final String name) {
         _name = name;
     }
 

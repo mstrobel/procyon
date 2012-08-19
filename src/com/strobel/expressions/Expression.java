@@ -434,12 +434,24 @@ public abstract class Expression {
         return new CatchBlock(type, variable, body, filter);
     }
 
+    public static CatchBlock makeCatch(
+        final Type type,
+        final ParameterExpression variable,
+        final Expression body) {
+
+        return makeCatch(type, variable, body, null);
+    }
+
     public static TryExpression tryFinally(final Expression body, final Expression finallyBlock) {
         return makeTry(null, body, finallyBlock);
     }
 
     public static TryExpression tryCatch(final Expression body, final CatchBlock... handlers) {
         return makeTry(null, body, null, handlers);
+    }
+
+    public static TryExpression makeTry(final Type type, final Expression body, final CatchBlock... handlers) {
+        return makeTry(type, body, null, handlers);
     }
 
     public static TryExpression tryCatchFinally(final Expression body, final Expression finallyBlock, final CatchBlock... handlers) {
@@ -817,8 +829,8 @@ public abstract class Expression {
         if (value != null) {
             verifyCanRead(value, "value");
 
-            if (value.getType().isPrimitive()) {
-                throw Error.argumentMustNotHaveValueType();
+            if (!Types.Throwable.isAssignableFrom(value.getType())) {
+                throw Error.argumentMustBeThrowable();
             }
         }
 

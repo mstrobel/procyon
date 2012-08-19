@@ -12,7 +12,7 @@ import com.strobel.util.TypeUtils;
 public class ConstantExpression extends Expression {
     private final Object _value;
 
-    public ConstantExpression(final Object value) {
+    ConstantExpression(final Object value) {
         _value = value;
     }
 

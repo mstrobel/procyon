@@ -305,7 +305,18 @@ final class ClassWriter {
         final __ExceptionInfo[] exceptionsInfo = generator.getExceptions();
 
         if (exceptionsInfo != null) {
-            _dataBuffer.putShort(exceptionsInfo.length);
+            int tryCatchTableEntries = 0;
+
+            for (final __ExceptionInfo exception : exceptionsInfo) {
+                if (exception.getFinallyEndAddress() != -1) {
+                    tryCatchTableEntries += (exception.getNumberOfCatches() - 1) * 3;
+                }
+                else {
+                    tryCatchTableEntries += exception.getNumberOfCatches();
+                }
+            }
+
+            _dataBuffer.putShort(tryCatchTableEntries);
 
             // TODO: Some of these addresses might be wide; put them in the constants table.
 
@@ -313,24 +324,45 @@ final class ClassWriter {
                 final int[] catchAddresses = exception.getCatchAddresses();
                 final int[] catchEndAddresses = exception.getCatchEndAddresses();
                 final Type[] catchTypes = exception.getCatchClass();
-                final int[] finallyAddresses = exception.getFilterAddresses();
 
-                final int end = catchEndAddresses.length == 0
-                                ? exception.getEndAddress()
-                                : catchEndAddresses[catchEndAddresses.length - 1];
+                int finallyIndex = -1;
 
-                for (int i = 0, n = catchAddresses.length; i < n; i++) {
-                    _dataBuffer.putShort(exception.getStartAddress());
-                    _dataBuffer.putShort(exception.getEndAddress());
-                    _dataBuffer.putShort(catchAddresses[i]);
-                    _dataBuffer.putShort(_typeBuilder.getTypeToken(catchTypes[i]));
+                for (int i = 0, n = exception.getNumberOfCatches(); i < n; i++) {
+                    if (catchTypes[i] == null) {
+                        finallyIndex = i;
+                        break;
+                    }
                 }
 
-                for (final int finallyAddress : finallyAddresses) {
-                    _dataBuffer.putShort(exception.getStartAddress());
-                    _dataBuffer.putShort(end);
-                    _dataBuffer.putShort(finallyAddress);
-                    _dataBuffer.putShort(0);
+                for (int i = 0, n = exception.getNumberOfCatches(); i < n; i++) {
+                    if (catchTypes[i] != null) {
+                        // Catch
+                        _dataBuffer.putShort(exception.getStartAddress());
+                        _dataBuffer.putShort(exception.getEndAddress());
+                        _dataBuffer.putShort(catchAddresses[i]);
+                        _dataBuffer.putShort(_typeBuilder.getTypeToken(catchTypes[i]));
+
+                        if (finallyIndex != -1) {
+                            _dataBuffer.putShort(exception.getStartAddress());
+                            _dataBuffer.putShort(exception.getEndAddress());
+                            _dataBuffer.putShort(catchAddresses[finallyIndex]);
+                            _dataBuffer.putShort(0);
+
+                            _dataBuffer.putShort(catchAddresses[i]);
+                            _dataBuffer.putShort(catchEndAddresses[i]);
+                            _dataBuffer.putShort(catchAddresses[finallyIndex]);
+                            _dataBuffer.putShort(0);
+                        }
+                    }
+/*
+                    else {
+                        // Finally
+                        _dataBuffer.putShort(finallyEndAddress);
+                        _dataBuffer.putShort(catchEndAddresses[i]);
+                        _dataBuffer.putShort(finallyEndAddress);
+                        _dataBuffer.putShort(0);
+                    }
+*/
                 }
             }
         }
@@ -475,7 +507,6 @@ final class ClassWriter {
     private int writeMemberAttributes(final MemberInfo member) {
         final long flags = member.getModifiers();
         final String signature;
-        final TypeList thrownTypes;
         final ReadOnlyList<AnnotationBuilder<? extends Annotation>> annotations;
 
         int attributeCount = writeFlagAttributes(member.getModifiers());

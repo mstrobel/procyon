@@ -250,9 +250,15 @@ final class Error {
         );
     }
 
-    public static IllegalStateException argumentMustNotHaveValueType() {
-        return new IllegalStateException(
+    public static IllegalArgumentException argumentMustNotHaveValueType() {
+        return new IllegalArgumentException(
             "Argument must not have a primitive type."
+        );
+    }
+
+    public static IllegalArgumentException argumentMustBeThrowable() {
+        return new IllegalArgumentException(
+            "Argument must derive from Throwable."
         );
     }
 
@@ -696,5 +702,9 @@ final class Error {
 
     public static IllegalStateException extensionNotReduced() {
         return new IllegalStateException("Extension should have been reduced.");
+    }
+
+    public static IllegalStateException tryNotAllowedInFilter() {
+        return new IllegalStateException("Try expression is not allowed inside a filter body.");
     }
 }

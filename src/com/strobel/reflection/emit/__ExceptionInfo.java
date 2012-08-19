@@ -53,16 +53,16 @@ final class __ExceptionInfo {
     }
 
     __ExceptionInfo(final int startAddress, final Label endLabel) {
-        _startAddress=startAddress;
-        _endAddress=-1;
-        _filterAddress=new int[4];
-        _catchAddress=new int[4];
-        _catchEndAddress=new int[4];
-        _catchClass=new Type[4];
-        _currentCatch=0;
-        _endLabel=endLabel;
-        _type=new int[4];
-        _endFinally=-1;
+        _startAddress = startAddress;
+        _endAddress = -1;
+        _filterAddress = new int[4];
+        _catchAddress = new int[4];
+        _catchEndAddress = new int[4];
+        _catchClass = new Type[4];
+        _currentCatch = 0;
+        _endLabel = endLabel;
+        _type = new int[4];
+        _endFinally = -1;
         _currentState = State_Try;
     }
 
@@ -128,6 +128,10 @@ final class __ExceptionInfo {
     void markFilterAddress(final int filterAddress) {
         _currentState = State_Filter;
         markHelper(filterAddress, filterAddress, null, Filter);
+    }
+
+    void markTryEndAddress(final int tryEndAddress) {
+        _endAddress = tryEndAddress;
     }
 
     void markCatchAddress(final int catchAddress, final Type catchException) {
@@ -201,7 +205,8 @@ final class __ExceptionInfo {
     }
 
     void setFinallyEndLabel(final Label lbl) {
-        _finallyEndLabel = lbl;
+        _finallyEndLabel = _endLabel;
+        _endLabel = lbl;
     }
 
     Label getFinallyEndLabel() {

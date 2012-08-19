@@ -572,12 +572,15 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
 
     @Override
     protected Expression visitForEach(final ForEachExpression node) {
+        final ParameterExpression variable = node.getVariable();
         final LabelTarget breakTarget = node.getBreakTarget();
         final LabelTarget continueTarget = node.getContinueTarget();
         final boolean hasBlock = node.getBody() instanceof BlockExpression;
 
         out("for (");
-        visit(node.getVariable());
+        out(variable.getType().getName());
+        out(' ');
+        visit(variable);
         out(" : ");
         visit(node.getSequence());
         out(")");
@@ -745,7 +748,14 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     public SwitchCase visitSwitchCase(final SwitchCase node) {
         out("case ");
         visitExpressions('(', node.getTestValues(), ')');
-        out(": ...");
+        out(':');
+        flush();
+        increaseIndent();
+        visit(node.getBody());
+        flush();
+        out("break;");
+        decreaseIndent();
+        flush();
         return node;
     }
 
@@ -754,7 +764,29 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         out("switch ");
         out("(");
         visit(node.getSwitchValue());
-        out(") { ... }");
+        out(") {");
+
+        for (final SwitchCase switchCase : node.getCases()) {
+            flush();
+            visitSwitchCase(switchCase);
+        }
+
+        final Expression defaultBody = node.getDefaultBody();
+
+        if (defaultBody != null) {
+            flush();
+            out("default:");
+            flush();
+            increaseIndent();
+            visit(defaultBody);
+            flush();
+            out("break;");
+            decreaseIndent();
+        }
+
+        flush();
+        out('}');
+
         return node;
     }
 

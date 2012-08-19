@@ -144,6 +144,19 @@ public class CodeGenerator {
         current.done(offset());
     }
 
+    public void endTryBlock() {
+        if (_currentExceptionStackCount == 0) {
+            throw Error.notInExceptionBlock();
+        }
+
+        final __ExceptionInfo current = _currentExceptionStack[_currentExceptionStackCount - 1];
+
+        // Insert a branch to the end of the exception block.
+//        emit(OpCode.GOTO, current.getEndLabel());
+
+        current.markTryEndAddress(offset());
+    }
+
     public void beginCatchBlock(final Type<?> caughtType) {
         VerifyArgument.notNull(caughtType, "caughtType");
 
@@ -157,10 +170,10 @@ public class CodeGenerator {
 
         final __ExceptionInfo current = _currentExceptionStack[_currentExceptionStackCount - 1];
 
-        if (current.getCurrentState() == __ExceptionInfo.State_Catch) {
+//        if (current.getCurrentState() == __ExceptionInfo.State_Catch) {
             // Insert a branch if the previous clause is a Catch.
             emit(OpCode.GOTO, current.getEndLabel());
-        }
+//        }
 
         current.markCatchAddress(offset(), caughtType);
     }
@@ -172,24 +185,31 @@ public class CodeGenerator {
 
         final __ExceptionInfo current = _currentExceptionStack[_currentExceptionStackCount - 1];
         final int state = current.getCurrentState();
-        final Label endLabel = current.getEndLabel();
 
         int catchEndAddress = 0;
 
         if (state != __ExceptionInfo.State_Try) {
-            // Insert a branch if the previous clause is a Catch.
-            emit(OpCode.GOTO, endLabel);
             catchEndAddress = offset();
         }
-
-        markLabel(endLabel);
 
         final Label finallyEndLabel = defineLabel();
 
         current.setFinallyEndLabel(finallyEndLabel);
 
-        // Insert a branch to leave the Try clause.
-        emit(OpCode.GOTO, finallyEndLabel);
+        final Label endLabel = current.getEndLabel();
+
+        markLabel(endLabel);
+
+        //
+        // Insert a branch to jump past the finally block.  With the
+        // JVM, the finally block contents are inlined in the try and
+        // catch blocks.  What will actually be emitted next is the
+        // finally block as executed only when an unhandled exception
+        // occurs, so we want the preceding try/catch block past the
+        // unhandled exception code path (again, as they've already
+        // run the inlined finally block).
+        //
+        emit(OpCode.GOTO, current.getFinallyEndLabel());
 
         if (catchEndAddress == 0) {
             catchEndAddress = offset();
@@ -1390,6 +1410,10 @@ public class CodeGenerator {
             case ERROR:
             case TYPEVAR:
                 emit(OpCode.ACONST_NULL);
+                break;
+
+            case VOID:
+                emit(OpCode.NOP);
                 break;
 
             default:

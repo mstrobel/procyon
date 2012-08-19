@@ -94,10 +94,9 @@ final class LambdaCompiler {
         _hasClosureArgument = _scope.needsClosure || _boundConstants.count() > 0;
         _freeLocals = new KeyedQueue<>();
 
-        //noinspection ConstantConditions
         if (_hasClosureArgument) {
             closureField = typeBuilder.defineField(
-                "__closure",
+                "$__closure",
                 Type.of(Closure.class),
                 Modifier.PRIVATE | Modifier.FINAL
             );
@@ -641,14 +640,12 @@ final class LambdaCompiler {
             case Switch:
                 emitSwitchExpression(node, compilationFlags);
                 break;
-/*
             case Throw:
                 emitThrowUnaryExpression(node);
                 break;
             case Try:
                 emitTryExpression(node);
                 break;
-*/
             case Unbox:
                 emitUnboxUnaryExpression(node);
                 break;
@@ -3465,6 +3462,197 @@ final class LambdaCompiler {
     }
 
     // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Try Expressions">
+
+    private void emitTryExpression(final Expression expr) {
+        final TryExpression node = (TryExpression)expr;
+
+        checkTry();
+
+        //
+        // Entering 'try' block...
+        //
+
+        pushLabelBlock(LabelScopeKind.Try);
+
+        generator.beginExceptionBlock();
+
+        //
+        // Emit the try statement body.
+        //
+
+        emitExpression(node.getBody());
+
+        generator.endTryBlock();
+
+        final Expression finallyBlock = node.getFinallyBlock();
+        final Type tryType = expr.getType();
+        final LocalBuilder value;
+
+        if (tryType != PrimitiveTypes.Void) {
+            //
+            // Store the value of the try body.
+            //
+            value = getLocal(tryType);
+            generator.emitStore(value);
+        }
+        else {
+            value = null;
+        }
+
+        if (finallyBlock != null) {
+            emitExpression(finallyBlock);
+        }
+
+        //
+        // Emit the catch blocks.
+        //
+
+        for (final CatchBlock cb : node.getHandlers()) {
+            pushLabelBlock(LabelScopeKind.Catch);
+
+            //
+            // Begin the strongly typed exception block.
+            //
+            if (cb.getFilter() == null) {
+                generator.beginCatchBlock(cb.getTest());
+            }
+            else {
+                throw new UnsupportedOperationException("Filter blocks are not yet supported");
+//                generator.beginExceptFilterBlock();
+            }
+
+            enterScope(cb);
+
+            emitCatchStart(cb);
+
+            //
+            // Emit the catch block body.
+            //
+            emitExpression(cb.getBody());
+
+            if (tryType != PrimitiveTypes.Void) {
+                //
+                // Store the value of the catch block body.
+                //
+                generator.emitStore(value);
+            }
+
+            if (finallyBlock != null) {
+                emitExpression(finallyBlock);
+            }
+
+            exitScope(cb);
+
+            popLabelBlock(LabelScopeKind.Catch);
+        }
+
+        //
+        // Emit the finally block.
+        //
+
+        if (finallyBlock != null) {
+            pushLabelBlock(LabelScopeKind.Finally);
+
+            generator.beginFinallyBlock();
+
+            final LocalBuilder exceptionTemp = getLocal(Types.Throwable);
+
+            generator.emitStore(exceptionTemp);
+
+            //
+            // Emit the body.
+            //
+            emitExpression(finallyBlock);
+
+            generator.emitLoad(exceptionTemp);
+            generator.emit(OpCode.ATHROW);
+
+            generator.endExceptionBlock();
+            popLabelBlock(LabelScopeKind.Finally);
+        }
+        else {
+            generator.endExceptionBlock();
+        }
+
+        if (tryType != PrimitiveTypes.Void) {
+            generator.emitLoad(value);
+            freeLocal(value);
+        }
+
+        popLabelBlock(LabelScopeKind.Try);
+    }
+
+    private void emitCatchStart(final CatchBlock cb) {
+        if (cb.getFilter() == null) {
+            emitSaveExceptionOrPop(cb);
+            return;
+        }
+
+        //
+        // Emit filter block. Filter blocks are untyped so we need to do
+        // the type check ourselves.
+        //
+        final Label endFilter = generator.defineLabel();
+        final Label rightType = generator.defineLabel();
+
+        //
+        // Skip if it's not our exception type, but save the exception if it is
+        // so it's available to the filter.
+        //
+        generator.emit(OpCode.INSTANCEOF, cb.getTest());
+        generator.dup();
+        generator.emit(OpCode.IFNE, rightType);
+        generator.pop();
+        generator.emitBoolean(false);
+        generator.emitGoto(endFilter);
+
+        //
+        // It's our type, save it and emit the filter.
+        //
+        generator.markLabel(rightType);
+        emitSaveExceptionOrPop(cb);
+        pushLabelBlock(LabelScopeKind.Filter);
+        emitExpression(cb.getFilter());
+        popLabelBlock(LabelScopeKind.Filter);
+
+        //
+        // Begin the catch, clear the exception; we've already saved it.
+        //
+        generator.markLabel(endFilter);
+        generator.beginCatchBlock(null);
+        generator.pop();
+    }
+
+    private void checkTry() {
+        //
+        // Try inside a filter is not verifiable
+        //
+        for (LabelScopeInfo j = _labelBlock; j != null; j = j.parent) {
+            if (j.kind == LabelScopeKind.Filter) {
+                throw Error.tryNotAllowedInFilter();
+            }
+        }
+    }
+
+    private void emitSaveExceptionOrPop(final CatchBlock cb) {
+        if (cb.getVariable() != null) {
+            //
+            // If the variable is present, store the exception in the variable.
+            //
+            _scope.emitSet(cb.getVariable());
+        }
+        else {
+            //
+            // Otherwise, pop it off the stack.
+            //
+            generator.pop();
+        }
+    }
+
+    // </editor-fold>
+
 
     // <editor-fold defaultstate="collapsed" desc="Switch Expressions">
 

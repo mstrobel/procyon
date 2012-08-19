@@ -7,7 +7,7 @@ import com.strobel.reflection.Type;
  * Represents accessing a field.
  * @author Mike Strobel
  */
-class FieldExpression extends MemberExpression {
+final class FieldExpression extends MemberExpression {
 
     private final FieldInfo _field;
 

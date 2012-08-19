@@ -1,6 +1,5 @@
 package com.strobel.expressions;
 
-import com.strobel.ITest3;
 import com.strobel.reflection.*;
 import com.strobel.reflection.emit.CodeGenerator;
 import com.strobel.reflection.emit.MethodBuilder;
@@ -183,3 +182,6 @@ interface ITest2<T extends String & Comparable<String> & Serializable, T2 extend
     <X, Y> Y doSomething(X o);
 }
 
+interface ITest3<T extends Comparable<String> & Serializable, T2 extends T> {
+    T2 test(final T t);
+}
