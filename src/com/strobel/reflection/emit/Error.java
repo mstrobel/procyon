@@ -385,4 +385,8 @@ final class Error {
     public static IllegalArgumentException cannotOverrideFinalMethod() {
         return new IllegalArgumentException("Cannot override a final method.");
     }
+
+    public static IllegalStateException codeGenerationException(final Throwable t) {
+        return new IllegalStateException("An error occurred during code generation.", t);
+    }
 }

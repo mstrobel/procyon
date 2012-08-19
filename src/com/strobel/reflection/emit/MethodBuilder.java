@@ -137,7 +137,7 @@ public final class MethodBuilder extends MethodInfo {
         return _thrownTypes;
     }
 
-    TypeList getParameterTypes() {
+    public TypeList getParameterTypes() {
         return _parameterTypes;
     }
 

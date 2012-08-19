@@ -1,6 +1,8 @@
 package com.strobel.reflection.emit;
 
+import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.core.delegates.Func1;
 import com.strobel.reflection.ConstructorInfo;
 import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.MethodBase;
@@ -14,6 +16,11 @@ import com.strobel.util.TypeUtils;
 import javax.lang.model.type.TypeKind;
 import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author strobelm
@@ -23,7 +30,8 @@ import java.util.Arrays;
         "PointlessBitwiseExpression",
         "PointlessArithmeticExpression",
         "UnusedDeclaration",
-        "PackageVisibleField"
+        "PackageVisibleField",
+        "ConstantConditions"
     })
 public class CodeGenerator {
 
@@ -1935,6 +1943,366 @@ public class CodeGenerator {
 
     // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="Switches">
+
+    private final static MethodInfo StringCharAtMethod;
+    private final static MethodInfo StringLengthMethod;
+    private final static MethodInfo ObjectEqualsMethod;
+    private final static MethodInfo ObjectHashCodeMethod;
+
+    static {
+        StringCharAtMethod = Types.String.getMethod("charAt", PrimitiveTypes.Integer);
+        StringLengthMethod = Types.String.getMethod("length");
+        ObjectEqualsMethod = Types.Object.getMethod("equals", Types.Object);
+        ObjectHashCodeMethod = Types.Object.getMethod("hashCode");
+    }
+
+    public void emitSwitch(final int[] keys, final SwitchCallback callback) {
+        VerifyArgument.notNull(keys, "keys");
+
+        final float density;
+
+        if (keys.length == 0) {
+            density = 0;
+        }
+        else {
+            density = (float)keys.length / (keys[keys.length - 1] - keys[0] + 1);
+        }
+
+        emitSwitch(keys, callback, density >= 0.5f);
+    }
+
+    public void emitSwitch(final int[] keys, final SwitchCallback callback, final boolean useTable) {
+        VerifyArgument.notNull(keys, "keys");
+        VerifyArgument.notNull(callback, "callback");
+
+        final Label breakTarget = defineLabel();
+        final Label defaultLabel = defineLabel();
+        final int start = offset();
+
+        try {
+            if (keys.length > 0) {
+                final int length = keys.length;
+                final int minimum = keys[0];
+                final int maximum = keys[length - 1];
+                final int range = maximum - minimum + 1;
+
+                if (useTable) {
+                    final Label[] labels = new Label[range];
+
+                    Arrays.fill(labels, defaultLabel);
+
+                    for (final int key : keys) {
+                        labels[key - minimum] = defineLabel();
+                    }
+
+                    emit(OpCode.TABLESWITCH);
+
+                    for (int i = 0, padding = (4 - offset() % 4) % 4; i < padding; i++) {
+                        emitByteOperand(0);
+                    }
+
+                    addFixup(defaultLabel, offset(), offset() - start + 1);
+
+                    emitIntOperand(0);
+                    emitIntOperand(minimum);
+                    emitIntOperand(maximum);
+
+                    for (final Label label : labels) {
+                        addFixup(label, offset(), offset() - start + 1);
+                        emitIntOperand(0);
+                    }
+
+                    for (int i = 0; i < range; i++) {
+                        final Label label = labels[i];
+
+                        if (label != defaultLabel) {
+                            markLabel(label);
+                            callback.emitCase(i + minimum, breakTarget);
+                        }
+                    }
+                }
+                else {
+                    final Label[] labels = new Label[length];
+
+                    for (int i = 0; i < length; i++) {
+                        labels[i] = defineLabel();
+                    }
+
+                    emit(OpCode.LOOKUPSWITCH);
+
+                    for (int i = 0, padding = (4 - offset() % 4) % 4; i < padding; i++) {
+                        emitByteOperand(0);
+                    }
+
+                    addFixup(defaultLabel, offset(), offset() - start + 1);
+                    emitIntOperand(0);
+
+                    emitIntOperand(length);
+
+                    for (int i = 0; i < length; i++) {
+                        emitIntOperand(keys[i]);
+                        addFixup(labels[i], offset(), offset() - start + 1);
+                        emitIntOperand(0);
+                    }
+
+                    for (int i = 0; i < length; i++) {
+                        markLabel(labels[i]);
+                        callback.emitCase(keys[i], breakTarget);
+                    }
+                }
+            }
+
+            markLabel(defaultLabel);
+            callback.emitDefault(breakTarget);
+            markLabel(breakTarget);
+        }
+        catch (Exception e) {
+            throw Error.codeGenerationException(e);
+        }
+    }
+
+    public <E extends Enum<E>> void emitSwitch(final E[] keys, final EnumSwitchCallback<E> callback, final boolean useTable) {
+        VerifyArgument.noNullElements(keys, "keys");
+        VerifyArgument.notNull(callback, "callback");
+
+        final int[] intKeys = new int[keys.length];
+
+        for (int i = 0; i < keys.length; i++) {
+            intKeys[i] = keys[i].ordinal();
+        }
+
+        emitSwitch(
+            intKeys,
+            new SwitchCallback() {
+                @Override
+                public void emitCase(final int key, final Label breakTarget) throws Exception {
+                    final int keyIndex = ArrayUtilities.indexOf(intKeys, key);
+                    callback.emitCase(keys[keyIndex], breakTarget);
+                }
+
+                @Override
+                public void emitDefault(final Label breakTarget) throws Exception {
+                    callback.emitDefault(breakTarget);
+                }
+            },
+            useTable
+        );
+    }
+
+    public void emitSwitch(final String[] keys, final StringSwitchCallback callback) {
+        emitSwitch(keys, callback, true);
+    }
+
+    public void emitSwitch(final String[] keys, final StringSwitchCallback callback, final boolean useHash) {
+        try {
+            if (useHash) {
+                emitStringHashSwitch(keys, callback);
+            }
+            else {
+                emitStringTrieSwitch(keys, callback);
+            }
+        }
+        catch (Exception e) {
+            throw Error.codeGenerationException(e);
+        }
+    }
+
+    private static Map<Integer, List<String>> getStringSwitchBuckets(
+        final List<String> strings,
+        final Func1<String, Integer> keyCallback) {
+
+        final Map<Integer, List<String>> buckets = new HashMap<>();
+
+        for (final String s : strings) {
+            final Integer key = keyCallback.apply(s);
+            List<String> bucket = buckets.get(key);
+            if (bucket == null) {
+                buckets.put(key, bucket = new LinkedList<>());
+            }
+            bucket.add(s);
+        }
+
+        return buckets;
+    }
+
+    private void emitStringTrieSwitch(final String[] keys, final StringSwitchCallback callback) throws Exception {
+        final Label defaultTarget = defineLabel();
+        final Label breakTarget = defineLabel();
+
+        final Map<Integer, List<String>> buckets = getStringSwitchBuckets(
+            Arrays.asList(keys),
+            new Func1<String, Integer>() {
+                @Override
+                public Integer apply(final String s) {
+                    return s.length();
+                }
+            });
+
+        int i = 0;
+        final int[] intKeys = new int[buckets.size()];
+
+        for (final Integer key  : buckets.keySet()) {
+            intKeys[i++] = key;
+        }
+
+        Arrays.sort(intKeys);
+
+        dup();
+        call(StringLengthMethod);
+
+        emitSwitch(
+            intKeys,
+            new SwitchCallback() {
+                @Override
+                public void emitCase(final int key, final Label breakTarget) throws Exception {
+                    final List<String> bucket = buckets.get(key);
+                    stringSwitchHelper(bucket, callback, defaultTarget, breakTarget, 0);
+                }
+
+                @Override
+                public void emitDefault(final Label breakTarget) throws Exception {
+                    emitGoto(defaultTarget);
+                }
+            });
+
+        markLabel(defaultTarget);
+        pop();
+        callback.emitDefault(breakTarget);
+        markLabel(breakTarget);
+    }
+
+    private void stringSwitchHelper(
+        final List<String> bucket,
+        final StringSwitchCallback callback,
+        final Label defaultLabel,
+        final Label breakTarget,
+        final int index) throws Exception {
+
+        final int length = bucket.get(0).length();
+
+        final Map<Integer, List<String>> buckets = getStringSwitchBuckets(
+            bucket,
+            new Func1<String, Integer>
+                () {
+                @Override
+                public Integer apply(final String s) {
+                    return (int)s.charAt(index);
+                }
+            }
+        );
+
+        dup();
+        emitInteger(index);
+        call(StringCharAtMethod);
+
+        int i = 0;
+        final int[] intKeys = new int[buckets.size()];
+
+        for (final Integer key  : buckets.keySet()) {
+            intKeys[i++] = key;
+        }
+
+        Arrays.sort(intKeys);
+
+        emitSwitch(
+            intKeys,
+            new SwitchCallback() {
+                @Override
+                public void emitCase(final int key, final Label breakTarget) throws Exception {
+                    final List<String> bucket = buckets.get(key);
+                    if (index + 1 == length) {
+                        pop();
+                        callback.emitCase(bucket.get(0), breakTarget);
+                    }
+                    else {
+                        stringSwitchHelper(bucket, callback, defaultLabel, breakTarget, index + 1);
+                    }
+                }
+
+                @Override
+                public void emitDefault(final Label breakTarget) throws Exception {
+                    emitGoto(defaultLabel);
+                }
+            }
+        );
+    }
+
+    private void emitStringHashSwitch(final String[] keys, final StringSwitchCallback callback) throws Exception {
+        final Map<Integer, List<String>> buckets = getStringSwitchBuckets(
+            Arrays.asList(keys),
+            new Func1<String, Integer>() {
+                @Override
+                public Integer apply(final String s) {
+                    return s.hashCode();
+                }
+            }
+        );
+
+        final Label defaultLabel = defineLabel();
+        final Label breakTarget = defineLabel();
+
+        dup();
+        call(ObjectHashCodeMethod);
+
+        int i = 0;
+        final int[] intKeys = new int[buckets.size()];
+
+        for (final Integer key : buckets.keySet()) {
+            intKeys[i++] = key;
+        }
+
+        Arrays.sort(intKeys);
+
+        emitSwitch(
+            intKeys,
+            new SwitchCallback() {
+                @Override
+                public void emitCase(final int key, final Label breakTarget)
+                    throws Exception {
+                    final List<String> bucket = buckets.get(key);
+                    Label next = null;
+
+                    for (Iterator<String> it = bucket.iterator(); it.hasNext(); ) {
+                        final String string = it.next();
+
+                        if (next != null) {
+                            markLabel(next);
+                        }
+
+                        if (it.hasNext()) {
+                            dup();
+                        }
+
+                        emitString(string);
+                        call(ObjectEqualsMethod);
+
+                        if (it.hasNext()) {
+                            emit(OpCode.IFEQ, next = defineLabel());
+                            pop();
+                        }
+                        else {
+                            emit(OpCode.IFEQ, defaultLabel);
+                        }
+
+                        callback.emitCase(string, breakTarget);
+                    }
+                }
+
+                @Override
+                public void emitDefault(final Label breakTarget) throws Exception {
+                    pop();
+                }
+            }
+        );
+
+        markLabel(defaultLabel);
+        callback.emitDefault(defaultLabel);
+        markLabel(breakTarget);
+    }
+
+    // </editor-fold>
+
     // <editor-fold defaultstate="collapsed" desc="Internal Methods">
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2159,7 +2527,7 @@ public class CodeGenerator {
         // them with their proper values.
         for (int i = 0; i < _fixupCount; i++) {
             final int fixupPosition = _fixupData[i].fixupPosition;
-            updateAddress = getLabelPosition(_fixupData[i].fixupLabel) - fixupPosition + 1 /*getLabelPosition(_fixupData[i].fixupLabel) -
+            updateAddress = getLabelPosition(_fixupData[i].fixupLabel) - fixupPosition + _fixupData[i].operandSize - 1 /*getLabelPosition(_fixupData[i].fixupLabel) -
                             (fixupPosition + _fixupData[i].operandSize)*/;
 
             // Handle single byte instructions
@@ -2168,21 +2536,6 @@ public class CodeGenerator {
                 // Verify that our two-byte arg will fit into a Short.
                 if (updateAddress < Short.MIN_VALUE || updateAddress > Short.MAX_VALUE) {
                     throw Error.branchAddressTooLarge();
-/*
-                    final OpCode oldJumpOpCode = OpCode.get(newBytes[fixupPosition - 1]);
-                    switch (oldJumpOpCode) {
-                        case GOTO:
-                            newBytes[fixupPosition - 1] = (byte)OpCode.GOTO_W.getCode();
-                            break;
-                        case JSR:
-                            newBytes[fixupPosition - 1] = (byte)OpCode.JSR_W.getCode();
-                            break;
-                        default:
-                            throw Error.invalidBranchOpCode(oldJumpOpCode);
-                    }
-                    // We'll just overwrite the two NOP opcodes we left as padding.
-                    putIntOperand(newBytes, fixupPosition, updateAddress);
-*/
                 }
                 else {
                     putShortOperand(newBytes, fixupPosition, (short)updateAddress);

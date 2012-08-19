@@ -207,7 +207,8 @@ public abstract class ExpressionVisitor {
                             return visitSwitchCase(node);
                         }
                     }),
-                visit(node.getDefaultBody())
+                visit(node.getDefaultBody()),
+                node.getOptions()
             )
         );
     }

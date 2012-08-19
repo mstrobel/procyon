@@ -15,6 +15,8 @@ import java.lang.reflect.TypeVariable;
  * @author Mike Strobel
  */
 public abstract class MethodInfo extends MethodBase {
+    private MethodInfo _erasedMethodDefinition;
+
     public final boolean isAbstract() {
         return Modifier.isAbstract(getModifiers());
     }
@@ -286,6 +288,73 @@ public abstract class MethodInfo extends MethodBase {
             throw ContractUtils.unreachable();
         }
         throw Error.notGenericMethod(this);
+    }
+
+    public MethodInfo getErasedMethodDefinition() {
+        if (_erasedMethodDefinition != null) {
+            return _erasedMethodDefinition;
+        }
+
+        final Type<?> declaringType = getDeclaringType();
+
+        if (declaringType.isGenericType() && !declaringType.isGenericTypeDefinition()) {
+            final Type<?> erasedType = declaringType.getErasedType();
+
+            final MemberList<? extends MemberInfo> members = erasedType.findMembers(
+                MemberType.methodsOnly(),
+                BindingFlags.fromMember(this),
+                Type.FilterRawMember,
+                getRawMethod()
+            );
+
+            assert !members.isEmpty();
+
+            _erasedMethodDefinition = ((MethodInfo)members.get(0)).getErasedMethodDefinition();
+
+            return _erasedMethodDefinition;
+        }
+
+        if (isGenericMethod()) {
+            if (isGenericMethodDefinition()) {
+                final ParameterList oldParameters = getParameters();
+                final TypeList parameterTypes = Helper.erasure(oldParameters.getParameterTypes());
+
+                final ParameterInfo[] parameters = new ParameterInfo[oldParameters.size()];
+
+                for (int i = 0, n = parameters.length; i < n; i++) {
+                    final ParameterInfo oldParameter = oldParameters.get(i);
+                    if (parameterTypes.get(i) == oldParameter.getParameterType()) {
+                        parameters[i] = oldParameter;
+                    }
+                    else {
+                        parameters[i] = new ParameterInfo(
+                            oldParameter.getName(),
+                            oldParameter.getPosition(),
+                            parameterTypes.get(i)
+                        );
+                    }
+                }
+
+                _erasedMethodDefinition = new ReflectedMethod(
+                    declaringType,
+                    getReflectedType(),
+                    getRawMethod(),
+                    new ParameterList(parameters),
+                    Helper.erasure(getReturnType()),
+                    Helper.erasure(getThrownTypes()),
+                    TypeBindings.empty()
+                );
+
+                return _erasedMethodDefinition;
+            }
+
+            _erasedMethodDefinition = getGenericMethodDefinition().getErasedMethodDefinition();
+        }
+        else {
+            _erasedMethodDefinition = this;
+        }
+
+        return _erasedMethodDefinition;
     }
 
     public boolean containsGenericParameters() {

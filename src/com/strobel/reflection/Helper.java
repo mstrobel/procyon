@@ -823,11 +823,9 @@ final class Helper {
                 }
             }
 
-/*
-            if (t == Types.Object && p != PrimitiveTypes.Void) {
+            if (t == Types.Object && !p.isPrimitive() && !p.isInterface()) {
                 return t;
             }
-*/
 
             return null;
         }

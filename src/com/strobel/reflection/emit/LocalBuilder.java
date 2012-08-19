@@ -7,6 +7,7 @@ import com.strobel.reflection.Type;
 /**
  * @author strobelm
  */
+@SuppressWarnings("PackageVisibleField")
 public final class LocalBuilder extends LocalVariableInfo {
     private final int _localIndex;
     private final String _name;
@@ -18,7 +19,7 @@ public final class LocalBuilder extends LocalVariableInfo {
 
     public LocalBuilder(final int localIndex, final String name, final Type localType, final MethodInfo methodBuilder) {
         _localIndex = localIndex;
-        _name = name != null ? name : "__local" + localIndex;
+        _name = name != null ? name : "$" + localIndex;
         _localType = localType;
         _methodBuilder = methodBuilder;
     }

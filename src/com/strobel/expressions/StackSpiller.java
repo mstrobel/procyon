@@ -547,7 +547,8 @@ final class StackSpiller {
                     switchValue.Node,
                     defaultBody.Node,
                     node.getComparison(),
-                    cases
+                    cases,
+                    node.getOptions()
                 )
             );
         }

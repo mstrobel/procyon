@@ -4,15 +4,39 @@ import com.strobel.compilerservices.Closure;
 import com.strobel.compilerservices.DebugInfoGenerator;
 import com.strobel.core.KeyedQueue;
 import com.strobel.core.Pair;
+import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
-import com.strobel.reflection.*;
-import com.strobel.reflection.emit.*;
+import com.strobel.reflection.BindingFlags;
+import com.strobel.reflection.ConstructorInfo;
+import com.strobel.reflection.FieldInfo;
+import com.strobel.reflection.MemberInfo;
+import com.strobel.reflection.MemberList;
+import com.strobel.reflection.MemberType;
+import com.strobel.reflection.MethodBase;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.ParameterInfo;
+import com.strobel.reflection.ParameterList;
+import com.strobel.reflection.PrimitiveTypes;
+import com.strobel.reflection.Type;
+import com.strobel.reflection.TypeList;
+import com.strobel.reflection.Types;
+import com.strobel.reflection.emit.CodeGenerator;
+import com.strobel.reflection.emit.ConstructorBuilder;
+import com.strobel.reflection.emit.FieldBuilder;
+import com.strobel.reflection.emit.Label;
+import com.strobel.reflection.emit.LocalBuilder;
+import com.strobel.reflection.emit.MethodBuilder;
+import com.strobel.reflection.emit.OpCode;
+import com.strobel.reflection.emit.StringSwitchCallback;
+import com.strobel.reflection.emit.SwitchCallback;
+import com.strobel.reflection.emit.TypeBuilder;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -614,10 +638,10 @@ final class LambdaCompiler {
             case Loop:
                 emitLoopExpression(node);
                 break;
-/*
             case Switch:
                 emitSwitchExpression(node, compilationFlags);
                 break;
+/*
             case Throw:
                 emitThrowUnaryExpression(node);
                 break;
@@ -706,7 +730,8 @@ final class LambdaCompiler {
             // should not emit with tail calls.
             if (!TypeUtils.areEquivalent(node.getType(), type)) {
                 emitExpression(node);
-                assert TypeUtils.areReferenceAssignable(type, node.getType());
+                assert TypeUtils.hasIdentityPrimitiveOrBoxingConversion(type, node.getType()) |
+                       TypeUtils.areReferenceAssignable(type, node.getType());
                 generator.emitConversion(node.getType(), type);
             }
             else {
@@ -3437,6 +3462,278 @@ final class LambdaCompiler {
         emitExpression(expr.getOperand());
         generator.emit(OpCode.ATHROW);
         emitUnreachable(expr, flags);
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Switch Expressions">
+
+    private void emitSwitchExpression(final Expression expr, final int flags) {
+        final SwitchExpression node = (SwitchExpression)expr;
+
+        if (tryEmitLookupSwitch(node, flags)) {
+            return;
+        }
+
+        if (tryEmitStringSwitch(node, flags)) {
+            return;
+        }
+
+        throw ContractUtils.unsupported();
+    }
+
+    private boolean tryEmitStringSwitch(final SwitchExpression node, final int flags) {
+        final Type<?> type = node.getSwitchValue().getType();
+
+        //
+        // If we're testing anything other than strings, bail.
+        //
+        if (!TypeUtils.areEquivalent(type, Types.String)) {
+            return false;
+        }
+
+        final MethodInfo comparison = node.getComparison();
+        final MethodInfo comparerEquals = Types.Comparer.getMethod(
+            "equals",
+            BindingFlags.PublicStatic,
+            Types.Object,
+            Types.Object
+        );
+
+        //
+        // If we have a comparison other than string equality, bail.
+        //
+        if (comparison.getRawMethod() != comparerEquals.getRawMethod()) {
+            return false;
+        }
+
+        int tests = 0;
+
+        //
+        // All test values must be constant.
+        //
+        for (final SwitchCase c : node.getCases()) {
+            for (final Expression t : c.getTestValues()) {
+                if (t instanceof ConstantExpression) {
+                    ++tests;
+                }
+                else {
+                    return false;
+                }
+            }
+        }
+
+        final String[] keys = new String[tests];
+        final HashMap<String, Expression> caseBodies = new HashMap<>();
+
+        int i = 0;
+
+        for (final SwitchCase c : node.getCases()) {
+            final ExpressionList<? extends Expression> testValues = c.getTestValues();
+
+            for (int j = 0, n = caseBodies.size(); j < n; j++) {
+                final String s = (String)((ConstantExpression)testValues.get(i)).getValue();
+
+                keys[i++] = s;
+                caseBodies.put(s, c.getBody());
+            }
+        }
+
+        final SwitchOptions options = node.getOptions();
+
+        final boolean useTable = options == SwitchOptions.PreferTable ||
+                                 options != SwitchOptions.PreferTrie && tests >= 7;
+
+        emitExpression(node.getSwitchValue());
+
+        generator.emitSwitch(
+            keys,
+            new StringSwitchCallback() {
+                @Override
+                public void emitCase(final String key, final Label breakTarget) throws Exception {
+                    final Expression body = caseBodies.get(key);
+
+                    if (body == null) {
+                        return;
+                    }
+
+                    final Type nodeType = node.getType();
+
+                    if (nodeType == PrimitiveTypes.Void) {
+                        emitExpressionAsVoid(body, flags);
+                    }
+                    else {
+                        emitExpressionAsType(body, nodeType, flags);
+                    }
+
+                    generator.emitGoto(breakTarget);
+                }
+
+                @Override
+                public void emitDefault(final Label breakTarget) throws Exception {
+                    final Expression defaultBody = node.getDefaultBody();
+
+                    if (defaultBody == null) {
+                        return;
+                    }
+
+                    final Type nodeType = node.getType();
+
+                    if (nodeType == PrimitiveTypes.Void) {
+                        emitExpressionAsVoid(defaultBody, flags);
+                    }
+                    else {
+                        emitExpressionAsType(defaultBody, nodeType, flags);
+                    }
+                }
+            },
+            useTable
+        );
+
+        return true;
+    }
+
+    private boolean tryEmitLookupSwitch(final SwitchExpression node, final int flags) {
+        //
+        // If we have a comparison, bail.
+        //
+        if (node.getComparison() != null) {
+            return false;
+        }
+
+        final Type<?> type = node.getSwitchValue().getType();
+        final ReadOnlyList<SwitchCase> cases = node.getCases();
+
+        //
+        // Make sure the switch value type and the right side type are types that
+        // we can optimize.
+        //
+        if (!canOptimizeSwitchType(type) ||
+            !TypeUtils.areEquivalent(type, cases.get(0).getTestValues().get(0).getType())) {
+
+            return false;
+        }
+
+        int tests = 0;
+
+        //
+        // If not all expressions are constant, then we can't emit the jump table.
+        //
+        for (final SwitchCase c : node.getCases()) {
+            for (final Expression t : c.getTestValues()) {
+                if (t instanceof ConstantExpression) {
+                    ++tests;
+                }
+                else {
+                    return false;
+                }
+            }
+        }
+
+        final boolean isEnum = type.isEnum();
+        final int[] keys = new int[tests];
+        final HashMap<Integer, Expression> caseBodies = new HashMap<>();
+
+        int i = 0;
+
+        for (int j = 0, n = cases.size(); j < n; j++) {
+            final SwitchCase switchCase = cases.get(j);
+            final ExpressionList<? extends Expression> testValues = switchCase.getTestValues();
+
+            for (int k = 0, m = testValues.size(); k < m; k++) {
+                final int key;
+                final ConstantExpression test = (ConstantExpression)testValues.get(k);
+
+                if (isEnum) {
+                    key = ((Enum)test.getValue()).ordinal();
+                }
+                else {
+                    key = ((Number)test.getValue()).intValue();
+                }
+
+                keys[i++] = key;
+
+                if (k == m - 1) {
+                    caseBodies.put(key, switchCase.getBody());
+                }
+            }
+        }
+
+        Arrays.sort(keys);
+
+        final SwitchOptions options = node.getOptions();
+
+        final boolean useTable = options == SwitchOptions.PreferTable ||
+                                 (options != SwitchOptions.PreferLookup &&
+                                  (float)keys.length / (keys[keys.length - 1] - keys[0] + 1) >= 0.5f);
+
+        emitExpression(node.getSwitchValue());
+
+        if (isEnum) {
+            generator.call(type.getMethod("ordinal"));
+        }
+
+        generator.emitSwitch(
+            keys,
+            new SwitchCallback() {
+                @Override
+                public void emitCase(final int key, final Label breakTarget) throws Exception {
+                    final Expression body = caseBodies.get(key);
+
+                    if (body == null) {
+                        return;
+                    }
+
+                    final Type nodeType = node.getType();
+
+                    if (nodeType == PrimitiveTypes.Void) {
+                        emitExpressionAsVoid(body, flags);
+                    }
+                    else {
+                        emitExpressionAsType(body, nodeType, flags);
+                    }
+
+                    generator.emitGoto(breakTarget);
+                }
+
+                @Override
+                public void emitDefault(final Label breakTarget) throws Exception {
+                    final Expression defaultBody = node.getDefaultBody();
+
+                    if (defaultBody == null) {
+                        return;
+                    }
+
+                    final Type nodeType = node.getType();
+
+                    if (nodeType == PrimitiveTypes.Void) {
+                        emitExpressionAsVoid(defaultBody, flags);
+                    }
+                    else {
+                        emitExpressionAsType(defaultBody, nodeType, flags);
+                    }
+                }
+            },
+            useTable
+        );
+
+        return true;
+    }
+
+    private static boolean canOptimizeSwitchType(final Type<?> valueType) {
+        final Type<?> actualValueType = TypeUtils.getUnderlyingPrimitiveOrSelf(valueType);
+
+        switch (actualValueType.getKind()) {
+            case BYTE:
+            case SHORT:
+            case INT:
+            case LONG:
+            case CHAR:
+                return true;
+
+            default:
+                return actualValueType.isEnum();
+        }
     }
 
     // </editor-fold>

@@ -793,20 +793,20 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     private static MethodBase erase(final MethodBase m) {
+        if (m instanceof MethodInfo) {
+            return ((MethodInfo)m).getErasedMethodDefinition();
+        }
+
         if (!m.getDeclaringType().isGenericType()) {
             return m;
         }
 
-        final boolean isMethod = m instanceof MethodInfo;
-
-        final Object rawMethod = isMethod ? ((MethodInfo)m).getRawMethod()
-                                          : ((ConstructorInfo)m).getRawConstructor();
-
         final Type erasedType = erase(m.getDeclaringType());
+        final Object rawMethod = ((ConstructorInfo)m).getRawConstructor();
 
         final MemberList<?> members =
             erasedType.findMembers(
-                isMethod ? MemberType.methodsOnly() : MemberType.constructorsOnly(),
+                MemberType.constructorsOnly(),
                 BindingFlags.AllDeclared,
                 Type.FilterRawMember,
                 rawMethod
@@ -1015,8 +1015,9 @@ public final class TypeBuilder<T> extends Type<T> {
                                         ? ((MethodBuilder) baseMethod).getParameterTypes().getErasedTypes()
                                         : baseMethod.getParameters().getParameterTypes().getErasedTypes();
 
-        if (baseParameters.size() != parameterBuilders.length)
+        if (baseParameters.size() != parameterBuilders.length) {
             throw Error.parameterCountMismatch();
+        }
         
         for (int i = 0, n = parameterBuilders.length; i < n; i++) {
             final Class<?> c1 = parameterBuilders[i].getParameterType().getErasedClass();

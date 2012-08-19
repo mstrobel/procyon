@@ -2028,7 +2028,7 @@ public abstract class Expression {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static <T> LambdaExpression<T> lambda(
-        final Type<T> interfaceType,
+        final Type<?> interfaceType,
         final Expression body,
         final ParameterExpression... parameters) {
 
@@ -2036,7 +2036,7 @@ public abstract class Expression {
     }
 
     public static <T> LambdaExpression<T> lambda(
-        final Type<T> interfaceType,
+        final Type<?> interfaceType,
         final Expression body,
         final boolean tailCall,
         final ParameterExpression... parameters) {
@@ -2045,7 +2045,7 @@ public abstract class Expression {
     }
 
     public static <T> LambdaExpression<T> lambda(
-        final Type<T> interfaceType,
+        final Type<?> interfaceType,
         final String name,
         final Expression body,
         final boolean tailCall,
@@ -2055,7 +2055,7 @@ public abstract class Expression {
     }
 
     public static <T> LambdaExpression<T> lambda(
-        final Type<T> interfaceType,
+        final Type<?> interfaceType,
         final Expression body,
         final ParameterExpressionList parameters) {
 
@@ -2063,7 +2063,7 @@ public abstract class Expression {
     }
 
     public static <T> LambdaExpression<T> lambda(
-        final Type<T> interfaceType,
+        final Type<?> interfaceType,
         final Expression body,
         final boolean tailCall,
         final ParameterExpressionList parameters) {
@@ -2072,7 +2072,7 @@ public abstract class Expression {
     }
 
     public static <T> LambdaExpression<T> lambda(
-        final Type<T> interfaceType,
+        final Type<?> interfaceType,
         final String name,
         final Expression body,
         final boolean tailCall,
@@ -2084,7 +2084,7 @@ public abstract class Expression {
 
         validateLambdaArgs(interfaceType, body, parameters);
 
-        return new LambdaExpression<>(interfaceType, name, body, tailCall, parameters);
+        return (LambdaExpression<T>)new LambdaExpression<>(interfaceType, name, body, tailCall, parameters);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2249,7 +2249,11 @@ public abstract class Expression {
     }
 
     public static SwitchExpression makeSwitch(final Expression switchValue, final SwitchCase... cases) {
-        return makeSwitch(switchValue, null, null, arrayToReadOnlyList(cases));
+        return makeSwitch(switchValue, SwitchOptions.Default, null, null, arrayToReadOnlyList(cases));
+    }
+
+    public static SwitchExpression makeSwitch(final Expression switchValue, final SwitchOptions options, final SwitchCase... cases) {
+        return makeSwitch(switchValue, options, null, null, arrayToReadOnlyList(cases));
     }
 
     public static SwitchExpression makeSwitch(
@@ -2257,7 +2261,16 @@ public abstract class Expression {
         final Expression defaultBody,
         final SwitchCase... cases) {
 
-        return makeSwitch(switchValue, defaultBody, null, arrayToReadOnlyList(cases));
+        return makeSwitch(switchValue, SwitchOptions.Default, defaultBody, null, arrayToReadOnlyList(cases));
+    }
+
+    public static SwitchExpression makeSwitch(
+        final Expression switchValue,
+        final SwitchOptions options,
+        final Expression defaultBody,
+        final SwitchCase... cases) {
+
+        return makeSwitch(switchValue, options, defaultBody, null, arrayToReadOnlyList(cases));
     }
 
     public static SwitchExpression makeSwitch(
@@ -2266,7 +2279,36 @@ public abstract class Expression {
         final MethodInfo comparison,
         final SwitchCase... cases) {
 
-        return makeSwitch(switchValue, defaultBody, comparison, arrayToReadOnlyList(cases));
+        return makeSwitch(switchValue, SwitchOptions.Default, defaultBody, comparison, arrayToReadOnlyList(cases));
+    }
+
+    public static SwitchExpression makeSwitch(
+        final Type type,
+        final Expression switchValue,
+        final Expression defaultBody,
+        final SwitchCase... cases) {
+
+        return makeSwitch(type, switchValue, SwitchOptions.Default, defaultBody, null, arrayToReadOnlyList(cases));
+    }
+
+    public static SwitchExpression makeSwitch(
+        final Expression switchValue,
+        final SwitchOptions options,
+        final Expression defaultBody,
+        final MethodInfo comparison,
+        final SwitchCase... cases) {
+
+        return makeSwitch(switchValue, options, defaultBody, comparison, arrayToReadOnlyList(cases));
+    }
+
+    public static SwitchExpression makeSwitch(
+        final Type type,
+        final Expression switchValue,
+        final SwitchOptions options,
+        final Expression defaultBody,
+        final SwitchCase... cases) {
+
+        return makeSwitch(type, switchValue, options, defaultBody, null, arrayToReadOnlyList(cases));
     }
 
     public static SwitchExpression makeSwitch(
@@ -2276,7 +2318,18 @@ public abstract class Expression {
         final MethodInfo comparison,
         final SwitchCase... cases) {
 
-        return makeSwitch(type, switchValue, defaultBody, comparison, arrayToReadOnlyList(cases));
+        return makeSwitch(type, switchValue, SwitchOptions.Default, defaultBody, comparison, arrayToReadOnlyList(cases));
+    }
+
+    public static SwitchExpression makeSwitch(
+        final Type type,
+        final Expression switchValue,
+        final SwitchOptions options,
+        final Expression defaultBody,
+        final MethodInfo comparison,
+        final SwitchCase... cases) {
+
+        return makeSwitch(type, switchValue, options, defaultBody, comparison, arrayToReadOnlyList(cases));
     }
 
     public static SwitchExpression makeSwitch(
@@ -2285,12 +2338,23 @@ public abstract class Expression {
         final MethodInfo comparison,
         final ReadOnlyList<SwitchCase> cases) {
 
-        return makeSwitch(null, switchValue, defaultBody, comparison, cases);
+        return makeSwitch(null, switchValue, SwitchOptions.Default, defaultBody, comparison, cases);
+    }
+
+    public static SwitchExpression makeSwitch(
+        final Expression switchValue,
+        final SwitchOptions options,
+        final Expression defaultBody,
+        final MethodInfo comparison,
+        final ReadOnlyList<SwitchCase> cases) {
+
+        return makeSwitch(null, switchValue, options, defaultBody, comparison, cases);
     }
 
     public static SwitchExpression makeSwitch(
         final Type type,
         final Expression switchValue,
+        final SwitchOptions options,
         final Expression defaultBody,
         final MethodInfo comparison,
         final ReadOnlyList<SwitchCase> cases) {
@@ -2386,7 +2450,7 @@ public abstract class Expression {
             throw Error.equalityMustReturnBoolean(comparison);
         }
 
-        return new SwitchExpression(resultType, switchValue, defaultBody, actualComparison, cases);
+        return new SwitchExpression(resultType, switchValue, defaultBody, actualComparison, cases, options);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2799,8 +2863,7 @@ public abstract class Expression {
         final ExpressionType binaryType,
         final String opName,
         final Expression left,
-        final Expression right
-    ) {
+        final Expression right) {
 
         // Known comparison: numeric types, booleans, object, enums
         if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), right.getType()) &&
@@ -3343,8 +3406,10 @@ public abstract class Expression {
 
                 final Type pType = pi.getParameterType();
 
-                if (!TypeUtils.areReferenceAssignable(pex.getType(), pType)) {
-                    throw Error.parameterExpressionNotValidForDelegate(pex.getType(), pType);
+                if (!TypeUtils.areEquivalent(pex.getType(), pType)) {
+                    if (!pType.isGenericParameter() || !pType.isAssignableFrom(pex.getType())) {
+                        throw Error.parameterExpressionNotValidForDelegate(pex.getType(), pType);
+                    }
                 }
 
                 if (set.contains(pex)) {
@@ -3358,10 +3423,13 @@ public abstract class Expression {
             throw Error.incorrectNumberOfLambdaDeclarationParameters();
         }
 
-        if (method.getReturnType() != PrimitiveTypes.Void &&
-            !TypeUtils.areReferenceAssignable(method.getReturnType(), body.getType())) {
+        final Type returnType = method.getReturnType();
 
-            throw Error.expressionTypeDoesNotMatchReturn(body.getType(), method.getReturnType());
+        if (returnType != PrimitiveTypes.Void &&
+            !TypeUtils.areEquivalent(returnType, body.getType())) {
+            if (!returnType.isGenericParameter() || !returnType.isAssignableFrom(body.getType())) {
+                throw Error.expressionTypeDoesNotMatchReturn(body.getType(), returnType);
+            }
         }
     }
 

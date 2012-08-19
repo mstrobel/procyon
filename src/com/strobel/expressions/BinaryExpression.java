@@ -302,7 +302,19 @@ final class EqualsMethodBasedLogicalBinaryExpression extends BinaryExpression {
             _method = method;
         }
         else {
-            _method = Types.Object.getMethod("equals", BindingFlags.PublicInstance, Types.Object);
+            final MethodInfo equalsMethod = Types.Comparer.getMethod(
+                "equals",
+                BindingFlags.PublicStatic,
+                Types.Object,
+                Types.Object
+            );
+
+            if (TypeUtils.areEquivalent(left.getType(), right.getType())) {
+                _method = equalsMethod.makeGenericMethod(left.getType());
+            }
+            else {
+                _method = equalsMethod.makeGenericMethod(Types.Object);
+            }
         }
     }
 

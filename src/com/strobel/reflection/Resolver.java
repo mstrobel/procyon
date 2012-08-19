@@ -1249,20 +1249,33 @@ class ReflectedType<T> extends Type<T> {
             }
 
             public GenericParameter visitTypeParameter(final Type<?> type, final TypeVariable typeVariable) {
-                if (type instanceof GenericParameter) {
-                    final GenericParameter genericParameter = (GenericParameter) type;
-                    final Type declaringType = genericParameter.getDeclaringType();
-
-                    if (declaringType != null && declaringType.getErasedClass() == typeVariable.getGenericDeclaration()) {
-                        return genericParameter;
-                    }
-
-                    final MethodInfo method = genericParameter.getDeclaringMethod();
-
-                    if (method != null && method.getRawMethod() == typeVariable.getGenericDeclaration()) {
-                        return genericParameter;
-                    }
+                if (!(type instanceof GenericParameter)) {
+                    return null;
                 }
+
+                final GenericParameter genericParameter = (GenericParameter) type;
+
+                final int position = ArrayUtilities.indexOf(
+                    typeVariable.getGenericDeclaration().getTypeParameters(),
+                    typeVariable
+                );
+
+                if (position != genericParameter.getGenericParameterPosition()) {
+                    return null;
+                }
+
+                final Type declaringType = genericParameter.getDeclaringType();
+
+                if (declaringType != null && declaringType.getErasedClass() == typeVariable.getGenericDeclaration()) {
+                    return genericParameter;
+                }
+
+                final MethodInfo method = genericParameter.getDeclaringMethod();
+
+                if (method != null && method.getRawMethod() == typeVariable.getGenericDeclaration()) {
+                    return genericParameter;
+                }
+
                 return null;
             }
 

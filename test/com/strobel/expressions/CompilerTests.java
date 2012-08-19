@@ -1,5 +1,7 @@
 package com.strobel.expressions;
 
+import com.strobel.core.delegates.Action1;
+import com.strobel.core.delegates.Func1;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
@@ -24,6 +26,35 @@ public class CompilerTests {
 
     interface INeedsBridgeMethod<T extends Comparable<String>> {
         T invoke(final T t);
+    }
+
+    @Test
+    public void testStringEquals()
+        throws Exception {
+
+        final ParameterExpression p = parameter(Types.String, "s");
+        final MemberExpression out = field(null, Type.of(System.class).getField("out"));
+
+        final LambdaExpression<Action1<String>> lambda = lambda(
+            Type.of(Action1.class).makeGenericType(Types.String),
+            call(
+                out,
+                "println",
+                equal(constant("one"), p)
+            ),
+            p
+        );
+
+        System.out.println();
+        System.out.println(lambda);
+
+        final Delegate delegate = lambda.compileDelegate();
+
+        System.out.println();
+        System.out.printf("\n[%s]\n", delegate.getInstance().getClass().getSimpleName());
+
+        delegate.invokeDynamic("one");
+        delegate.invokeDynamic("two");
     }
 
     @Test
@@ -281,5 +312,173 @@ public class CompilerTests {
         System.out.println(delegate.testNumber(-15));
         System.out.println(delegate.testNumber(0));
         System.out.println(delegate.testNumber(99));
+    }
+
+    @Test
+    public void testIntegerLookupSwitch() throws Exception {
+        final ParameterExpression number = parameter(Types.Integer, "number");
+
+        final LambdaExpression<Func1<Integer, String>> lambda = lambda(
+            Type.of(Func1.class).makeGenericType(Types.Integer, Types.String),
+            makeSwitch(
+                Types.String,
+                convert(number, PrimitiveTypes.Integer),
+                SwitchOptions.PreferLookup,
+                constant("something else"),
+                switchCase(
+                    constant("one or two"),
+                    constant(1),
+                    constant(2)
+                ),
+                switchCase(
+                    constant("three"),
+                    constant(3)
+                ),
+                switchCase(
+                    constant("five"),
+                    constant(5)
+                )
+            ),
+            number
+        );
+
+        System.out.println();
+
+        System.out.println(lambda);
+
+        final Func1<Integer, String> delegate = lambda.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        delegate.apply(0);
+        delegate.apply(1);
+        delegate.apply(2);
+        delegate.apply(3);
+        delegate.apply(4);
+        delegate.apply(5);
+        delegate.apply(6);
+
+        assertEquals("something else", delegate.apply(0));
+        assertEquals("one or two", delegate.apply(1));
+        assertEquals("one or two", delegate.apply(2));
+        assertEquals("three", delegate.apply(3));
+        assertEquals("something else", delegate.apply(4));
+        assertEquals("five", delegate.apply(5));
+        assertEquals("something else", delegate.apply(6));
+    }
+
+    @Test
+    public void testIntegerTableSwitch() throws Exception {
+        final ParameterExpression number = parameter(Types.Integer, "number");
+
+        final LambdaExpression<Func1<Integer, String>> lambda = lambda(
+            Type.of(Func1.class).makeGenericType(Types.Integer, Types.String),
+            makeSwitch(
+                Types.String,
+                convert(number, PrimitiveTypes.Integer),
+                SwitchOptions.PreferTable,
+                constant("something else"),
+                switchCase(
+                    constant("one or two"),
+                    constant(1),
+                    constant(2)
+                ),
+                switchCase(
+                    constant("three"),
+                    constant(3)
+                ),
+                switchCase(
+                    constant("five"),
+                    constant(5)
+                )
+            ),
+            number
+        );
+
+        System.out.println();
+
+        System.out.println(lambda);
+
+        final Func1<Integer, String> delegate = lambda.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        delegate.apply(0);
+        delegate.apply(1);
+        delegate.apply(2);
+        delegate.apply(3);
+        delegate.apply(4);
+        delegate.apply(5);
+        delegate.apply(6);
+
+        assertEquals("something else", delegate.apply(0));
+        assertEquals("one or two", delegate.apply(1));
+        assertEquals("one or two", delegate.apply(2));
+        assertEquals("three", delegate.apply(3));
+        assertEquals("something else", delegate.apply(4));
+        assertEquals("five", delegate.apply(5));
+        assertEquals("something else", delegate.apply(6));
+    }
+
+    enum TestEnum {
+        ZERO,
+        ONE,
+        TWO,
+        THREE,
+        FOUR,
+        FIVE,
+        SIX
+    }
+
+    @Test
+    public void testEnumLookupSwitch() throws Exception {
+        final Type<TestEnum> enumType = Type.of(TestEnum.class);
+        final ParameterExpression enumValue = parameter(enumType, "e");
+
+        final LambdaExpression<Func1<TestEnum, String>> lambda = lambda(
+            Type.of(Func1.class).makeGenericType(enumType, Types.String),
+            makeSwitch(
+                Types.String,
+                enumValue,
+                constant("something else"),
+                switchCase(
+                    constant("one or two"),
+                    constant(TestEnum.ONE),
+                    constant(TestEnum.TWO)
+                ),
+                switchCase(
+                    constant("three"),
+                    constant(TestEnum.THREE)
+                ),
+                switchCase(
+                    constant("five"),
+                    constant(TestEnum.FIVE)
+                )
+            ),
+            enumValue
+        );
+
+        System.out.println();
+
+        System.out.println(lambda);
+
+        final Func1<TestEnum, String> delegate = lambda.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        delegate.apply(TestEnum.ONE);
+        delegate.apply(TestEnum.TWO);
+        delegate.apply(TestEnum.THREE);
+        delegate.apply(TestEnum.FOUR);
+        delegate.apply(TestEnum.FIVE);
+        delegate.apply(TestEnum.SIX);
+
+        assertEquals("something else", delegate.apply(TestEnum.ZERO));
+        assertEquals("one or two", delegate.apply(TestEnum.ONE));
+        assertEquals("one or two", delegate.apply(TestEnum.TWO));
+        assertEquals("three", delegate.apply(TestEnum.THREE));
+        assertEquals("something else", delegate.apply(TestEnum.FOUR));
+        assertEquals("five", delegate.apply(TestEnum.FIVE));
+        assertEquals("something else", delegate.apply(TestEnum.SIX));
     }
 }

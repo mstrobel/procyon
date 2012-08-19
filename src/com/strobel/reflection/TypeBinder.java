@@ -172,6 +172,43 @@ class TypeBinder extends TypeMapper<TypeBindings> {
     }
 
     public MethodInfo visitMethod(final Type<?> declaringType, final MethodInfo method, final TypeBindings bindings) {
+        if (method.isGenericMethod()) {
+            boolean hasChanged = false;
+
+            final MethodInfo newDefinition;
+
+            if (!method.isGenericMethodDefinition()) {
+                final MethodInfo oldDefinition = method.getGenericMethodDefinition();
+
+                newDefinition = visitMethod(declaringType, oldDefinition, bindings);
+                hasChanged = newDefinition != oldDefinition;
+            }
+            else {
+                newDefinition = method.getGenericMethodDefinition();
+            }
+
+            final TypeBindings oldBindings = method.getTypeBindings();
+            final TypeBindings newBindings;
+
+            if (oldBindings.hasUnboundParameters()) {
+                newBindings = visitTypeBindings(
+                    oldBindings,
+                    bindings.withAdditionalBindings(oldBindings)
+                );
+
+                hasChanged |= newBindings != oldBindings;
+            }
+            else {
+                newBindings = oldBindings;
+            }
+
+            if (hasChanged) {
+                return newDefinition.makeGenericMethod(newBindings.getBoundTypes());
+            }
+
+            return method;
+        }
+
         final Type<?> oldReturnType = method.getReturnType();
         final Type<?> returnType = visit(oldReturnType, bindings);
         final ParameterList oldParameters = method.getParameters();
@@ -231,7 +268,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
             newParameters,
             returnType,
             thrownTypesChanged ? new TypeList(newThrownTypes) : oldThrownTypes,
-            visitTypeBindings(method.getTypeBindings(), bindings)
+            method.getTypeBindings()
         );
     }
 
