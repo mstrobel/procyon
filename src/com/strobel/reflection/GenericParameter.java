@@ -122,10 +122,10 @@ class GenericParameter<T> extends Type<T> {
 
         if (upperBound != null && upperBound != Types.Object) {
             sb.append(" extends ");
-            if (upperBound.isGenericParameter()) {
+            if (upperBound.isGenericParameter() || upperBound == getDeclaringType()) {
                 return sb.append(upperBound.getFullName());
             }
-            return upperBound.appendBriefDescription(sb);
+            return upperBound.appendErasedDescription(sb);
         }
 
         return sb;
@@ -139,10 +139,10 @@ class GenericParameter<T> extends Type<T> {
 
         if (upperBound != null && upperBound != Types.Object) {
             sb.append(" extends ");
-            if (upperBound.isGenericParameter()) {
+            if (upperBound.isGenericParameter() || upperBound == getDeclaringType()) {
                 return sb.append(upperBound.getName());
             }
-            return upperBound.appendSimpleDescription(sb);
+            return upperBound.appendErasedDescription(sb);
         }
 
         return sb;

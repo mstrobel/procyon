@@ -1047,7 +1047,7 @@ final class RuntimeMethodInfo extends MethodInfo {
         if (TypeBinder.GET_CLASS_METHOD.equals(rawMethod)) {
             _returnType = Types.Class
                                .makeGenericType(
-                                   Type.makeExtendsWildcard(reflectedTypeCache.getRuntimeType())
+                                   Type.makeExtendsWildcard(reflectedTypeCache.getRuntimeType()/*.getErasedType()*/)
                                );
         }
         else {

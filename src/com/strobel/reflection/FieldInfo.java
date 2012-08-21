@@ -71,7 +71,14 @@ public abstract class FieldInfo extends MemberInfo {
             s.append(' ');
         }
 
-        s = getFieldType().appendBriefDescription(s);
+        final Type fieldType = getFieldType();
+
+        if (fieldType.isGenericParameter()) {
+            s.append(fieldType.getName());
+        }
+        else {
+            s = fieldType.appendBriefDescription(s);
+        }
 
         s.append(' ');
         s.append(getName());

@@ -97,7 +97,15 @@ public abstract class MethodInfo extends MethodBase {
             s.append(' ');
         }
 
-        s = getReturnType().appendBriefDescription(s);
+        final Type returnType = getReturnType();
+
+        if (returnType.isGenericParameter()) {
+            s.append(returnType.getName());
+        }
+        else {
+            s = returnType.appendSimpleDescription(s);
+        }
+
         s.append(' ');
         s.append(getName());
         s.append('(');
@@ -109,7 +117,13 @@ public abstract class MethodInfo extends MethodBase {
             if (i != 0) {
                 s.append(", ");
             }
-            s = p.getParameterType().appendBriefDescription(s);
+            final Type parameterType = p.getParameterType();
+            if (parameterType.isGenericParameter()) {
+                s.append(parameterType.getName());
+            }
+            else {
+                s = parameterType.appendSimpleDescription(s);
+            }
         }
 
         s.append(')');
@@ -154,7 +168,15 @@ public abstract class MethodInfo extends MethodBase {
             s.append(' ');
         }
 
-        s = getReturnType().appendSimpleDescription(s);
+        final Type returnType = getReturnType();
+
+        if (returnType.isGenericParameter()) {
+            s.append(returnType.getName());
+        }
+        else {
+            s = returnType.appendSimpleDescription(s);
+        }
+
         s.append(' ');
         s.append(getName());
         s.append('(');
@@ -166,7 +188,14 @@ public abstract class MethodInfo extends MethodBase {
             if (i != 0) {
                 s.append(", ");
             }
-            s = p.getParameterType().appendSimpleDescription(s);
+            final Type parameterType = p.getParameterType();
+            if (parameterType.isGenericParameter()) {
+                s.append(parameterType.getName());
+            }
+            else {
+                s = parameterType.appendSimpleDescription(s);
+            }
+
         }
 
         s.append(')');
