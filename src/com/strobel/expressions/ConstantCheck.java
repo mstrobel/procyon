@@ -10,10 +10,17 @@ import com.strobel.util.TypeUtils;
 final class ConstantCheck {
 
     static boolean isNull(final Expression e) {
-        return e.getNodeType() == ExpressionType.Constant &&
-               ((ConstantExpression)e).getValue() == null;
+        switch (e.getNodeType()) {
+            case Constant:
+                return ((ConstantExpression)e).getValue() == null;
+            case Convert:
+                return isNull(((UnaryExpression)e).getOperand());
+            case DefaultValue:
+                return !e.getType().isPrimitive();
+            default:
+                return false;
+        }
     }
-
 
     static AnalyzeTypeIsResult analyzeInstanceOf(final TypeBinaryExpression typeIs) {
         return analyzeInstanceOf(typeIs.getOperand(), typeIs.getTypeOperand());

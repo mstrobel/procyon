@@ -329,6 +329,18 @@ final class StackSpiller {
             case IsFalse:
                 result = rewriteUnaryExpression(node, stack);
                 break;
+            case ReferenceEqual:
+                result = rewriteBinaryExpression(node, stack);
+                break;
+            case ReferenceNotEqual:
+                result = rewriteBinaryExpression(node, stack);
+                break;
+            case IsNull:
+                result = rewriteUnaryExpression(node, stack);
+                break;
+            case IsNotNull:
+                result = rewriteUnaryExpression(node, stack);
+                break;
             case AddAssign:
             case AndAssign:
             case DivideAssign:

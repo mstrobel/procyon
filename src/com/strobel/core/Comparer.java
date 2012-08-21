@@ -16,6 +16,10 @@ public final class Comparer {
                           : o1.equals(o2);
     }
 
+    public static <T> boolean referenceEquals(final T o1, final T o2) {
+        return o1 == o2;
+    }
+
     public static <T extends Comparable<? super T>> int compare(final T o1, final T o2) {
         if (o1 == null) {
             return o2 == null ? 0 : -1;

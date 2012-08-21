@@ -270,6 +270,9 @@ class GenericParameter<T> extends Type<T> {
         }
         
         if (obj instanceof GenericParameter<?>) {
+            if (obj instanceof CapturedType<?>) {
+                return false;
+            }
             final GenericParameter<?> other = (GenericParameter<?>)obj;
             return other._position == _position &&
                    Comparer.equals(other.getRawTypeVariable(), _typeVariable);

@@ -26,8 +26,10 @@ final class ConstantPool {
     private final Key _lookupKey = new Key();
     private final Key _newKey = new Key();
 
+    private int _size;
+
     public void write(final CodeStream stream) {
-        stream.putShort(_pool.size() + 1);
+        stream.putShort(_size + 1);
 
         for (final Entry entry : _pool) {
             entry.accept(WRITER, stream);
@@ -35,7 +37,7 @@ final class ConstantPool {
     }
 
     public Entry get(final int index) {
-        VerifyArgument.inRange(0, _pool.size() + 1, index, "index");
+        VerifyArgument.inRange(0, _size + 1, index, "index");
 
         final Entry info = _pool.get(index - 1);
 
@@ -47,9 +49,9 @@ final class ConstantPool {
     }
 
     public Entry get(final int index, final Tag expectedType) {
-        VerifyArgument.inRange(0, _pool.size() + 1, index, "index");
+        VerifyArgument.inRange(0, _size + 1, index, "index");
 
-        final Entry entry = get(index - 1);
+        final Entry entry = get(index);
         final Tag actualType = entry.getTag();
 
         if (actualType != expectedType) {
@@ -232,8 +234,9 @@ final class ConstantPool {
 
         Entry(final ConstantPool owner) {
             this.owner = owner;
-            this.index = owner._pool.size() + 1;
+            this.index = owner._size + 1;
             owner._pool.add(this);
+            owner._size += size();
         }
 
         public abstract Tag getTag();

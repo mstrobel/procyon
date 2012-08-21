@@ -4,12 +4,28 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 
 /**
  * @author Mike Strobel
  */
 class TypeBinder extends TypeMapper<TypeBindings> {
+    final static Method GET_CLASS_METHOD;
+
+    static {
+        Method getClassMethod;
+
+        try {
+            getClassMethod = Object.class.getMethod("getClass");
+        }
+        catch (NoSuchMethodException ignored) {
+            getClassMethod = null;
+        }
+
+        GET_CLASS_METHOD = getClassMethod;
+    }
+
     public ConstructorList visit(final Type<?> declaringType, final ConstructorList constructors, final TypeBindings bindings) {
         VerifyArgument.notNull(constructors, "constructors");
 

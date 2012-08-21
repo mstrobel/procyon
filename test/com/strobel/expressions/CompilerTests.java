@@ -8,6 +8,7 @@ import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -15,6 +16,12 @@ import java.util.Locale;
 
 import static com.strobel.expressions.Expression.*;
 import static junit.framework.Assert.*;
+
+class LongConst {
+    boolean run(final long x, final long y) {
+        return Long.valueOf(x*y) != null;
+    }
+}
 
 /**
  * @author Mike Strobel
@@ -659,6 +666,71 @@ public class CompilerTests {
         }
     }
 
+    @Test
+    public void testBinaryNumericPromotion() throws Exception {
+        final ArrayList<Expression> tests = new ArrayList<>();
+
+        tests.add(
+            typeEqual(
+                convert(box(multiply(constant(3), constant(2L))), Types.Object),
+                Types.Long
+            )
+        );
+
+        tests.add(
+            typeEqual(
+                convert(box(multiply(constant(3L), constant(2))), Types.Object),
+                Types.Long
+            )
+        );
+
+        tests.add(
+            typeEqual(
+                convert(box(multiply(constant(3f), constant(2L))), Types.Object),
+                Types.Float
+            )
+        );
+
+        tests.add(
+            typeEqual(
+                convert(box(multiply(constant((short)3), constant(2f))), Types.Object),
+                Types.Float
+            )
+        );
+
+        tests.add(
+            typeEqual(
+                convert(box(multiply(constant(3d), constant((char)2))), Types.Object),
+                Types.Double
+            )
+        );
+
+        tests.add(
+            typeEqual(
+                convert(box(multiply(constant((byte)3), constant(2d))), Types.Object),
+                Types.Double
+            )
+        );
+
+        Expression body = tests.get(0);
+
+        for (int i = 1; i < tests.size(); i++) {
+             body = andAlso(body, tests.get(i));
+        }
+
+        final LambdaExpression<ISimpleTest> lambda = lambda(
+            Type.of(ISimpleTest.class),
+            body
+        );
+
+        System.out.println();
+        System.out.println(lambda);
+
+        final ISimpleTest delegate = lambda.compile();
+
+        assertTrue(delegate.test());
+    }
+
     static void holdMeThrillMeKissMeThrowMe1()
         throws AssertionError {
         throw new AssertionError("Bad shit happened, yo.");
@@ -666,5 +738,9 @@ public class CompilerTests {
 
     static void holdMeThrillMeKissMeThrowMe2() {
         throw TestRuntimeException;
+    }
+
+    interface ISimpleTest {
+        boolean test();
     }
 }

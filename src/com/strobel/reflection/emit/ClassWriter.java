@@ -3,7 +3,12 @@ package com.strobel.reflection.emit;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.*;
+import com.strobel.reflection.MemberInfo;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.MethodList;
+import com.strobel.reflection.Type;
+import com.strobel.reflection.TypeList;
+import com.strobel.reflection.Types;
 import com.strobel.util.TypeUtils;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.jvm.Target;
@@ -15,6 +20,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.List;
 
 import static com.sun.tools.javac.code.Flags.*;
 
@@ -28,21 +34,21 @@ final class ClassWriter {
     private final static int DATA_BUFFER_SIZE = 0x0fff0;
     private final static int POOL_BUFFER_SIZE = 0x1fff0;
 
+/*
     private final static int SAME_FRAME_SIZE = 64;
     private final static int SAME_LOCALS_1_STACK_ITEM_EXTENDED = 247;
     private final static int SAME_FRAME_EXTENDED = 251;
     private final static int FULL_FRAME = 255;
     private final static int MAX_LOCAL_LENGTH_DIFF = 4;
+*/
 
     private final CodeStream _dataBuffer;
     private final CodeStream _poolBuffer;
     private final CodeStream _signatureBuffer;
     private final TypeBuilder<?> _typeBuilder;
-    private final ConstantPool _constantPool;
 
     ClassWriter(final TypeBuilder<?> typeBuilder) {
         _typeBuilder = VerifyArgument.notNull(typeBuilder, "typeBuilder");
-        _constantPool = typeBuilder.constantPool;
         _dataBuffer = new CodeStream(DATA_BUFFER_SIZE);
         _poolBuffer = new CodeStream(POOL_BUFFER_SIZE);
         _signatureBuffer = new CodeStream();
@@ -375,8 +381,8 @@ final class ClassWriter {
         int attributeCount = 0;
         int genericParameterCount = 0;
 
-        final LocalInfo[] locals = getLocalInfo(method);
-        final int localCount = locals.length;
+        final List<LocalInfo> locals = getLocalInfo(method);
+        final int localCount = locals.size();
 
         if (localCount > 0) {
             final int attributeLengthIndex = writeAttribute("LocalVariableTable");
@@ -446,14 +452,12 @@ final class ClassWriter {
                !localType.isCompoundType();
     }
 
-    private LocalInfo[] getLocalInfo(final MethodBuilder builder) {
-        final CodeGenerator generator = builder.generator;
+    private List<LocalInfo> getLocalInfo(final MethodBuilder builder) {
         final boolean hasThis = !builder.isStatic();
-        final int localCount = generator.localCount + builder.getParameterTypes().size() + (hasThis ? 1 : 0);
 
         int position = 0;
 
-        final LocalInfo[] localInfo = new LocalInfo[localCount];
+        final List<LocalInfo> localInfo = new ArrayList<>();
 
         if (hasThis) {
             final LocalInfo thisInfo = new LocalInfo(
@@ -464,7 +468,7 @@ final class ClassWriter {
                 builder.generator.offset()
             );
 
-            localInfo[thisInfo.position] = thisInfo;
+            localInfo.add(thisInfo);
         }
 
         for (final ParameterBuilder p : builder.parameterBuilders) {
@@ -476,15 +480,17 @@ final class ClassWriter {
                 builder.generator.offset()
             );
 
-            localInfo[pInfo.position] = pInfo;
+            localInfo.add(pInfo);
         }
 
         final LocalBuilder[] locals = builder.generator.locals;
 
         if (locals != null) {
-            for (final LocalBuilder l : locals) {
+            for (int i = 0, n = builder.generator.localCount; i < n; i++) {
+                final LocalBuilder l = locals[i];
+
                 if (l == null) {
-                    break;
+                    continue;
                 }
 
                 final LocalInfo lInfo = new LocalInfo(
@@ -495,7 +501,7 @@ final class ClassWriter {
                     l.endOffset < 0 ? builder.generator.offset() : l.endOffset
                 );
 
-                localInfo[lInfo.position] = lInfo;
+                localInfo.add(lInfo);
             }
         }
 
@@ -852,6 +858,7 @@ final class ClassWriter {
 
     // <editor-fold defaultstate="collapsed" desc="LocalInfo Class">
 
+    @SuppressWarnings("PackageVisibleField")
     private final static class LocalInfo {
         final String name;
         final Type<?> type;

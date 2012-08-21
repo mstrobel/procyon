@@ -78,4 +78,20 @@ public enum ExpressionType {
     OnesComplement,
     IsTrue,
     IsFalse,
+    ReferenceEqual,
+    ReferenceNotEqual,
+    IsNull,
+    IsNotNull;
+
+    public boolean isEqualityOperator() {
+        switch (this) {
+            case Equal:
+            case NotEqual:
+            case ReferenceEqual:
+            case ReferenceNotEqual:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

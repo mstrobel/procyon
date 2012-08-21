@@ -203,6 +203,10 @@ public final class TypeUtils {
             return false;
         }
 
+        if (source == destination) {
+            return true;
+        }
+
         final Type unboxedSourceType = isAutoUnboxed(source) ? getUnderlyingPrimitive(source) : source;
         final Type unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
 

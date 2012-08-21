@@ -819,6 +819,26 @@ public abstract class Expression {
         return getMethodBasedCoercionOperator(ExpressionType.Convert, expression, type, method);
     }
 
+    public static UnaryExpression isNull(final Expression expression) {
+        verifyCanRead(expression, "expression");
+
+        if (expression.getType().isPrimitive()) {
+            throw Error.argumentMustBeReferenceType();
+        }
+
+        return new UnaryExpression(ExpressionType.IsNull, expression, PrimitiveTypes.Boolean, null);
+    }
+
+    public static UnaryExpression isNotNull(final Expression expression) {
+        verifyCanRead(expression, "expression");
+
+        if (expression.getType().isPrimitive()) {
+            throw Error.argumentMustBeReferenceType();
+        }
+
+        return new UnaryExpression(ExpressionType.IsNotNull, expression, PrimitiveTypes.Boolean, null);
+    }
+
     public static UnaryExpression makeThrow(final Expression expression) {
         return makeThrow(expression, PrimitiveTypes.Void);
     }
@@ -852,6 +872,18 @@ public abstract class Expression {
         }
 
         return getMethodBasedUnaryOperator(ExpressionType.UnaryPlus, expression, method);
+    }
+
+    public static Expression box(final Expression expression) {
+        verifyCanRead(expression, "expression");
+
+        final Type sourceType = expression.getType();
+
+        if (!sourceType.isPrimitive()) {
+            return expression;
+        }
+
+        return call(TypeUtils.getBoxMethod(sourceType), expression);
     }
 
     public static UnaryExpression unbox(final Expression expression) {
@@ -1203,7 +1235,7 @@ public abstract class Expression {
             final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
-                return new SimpleBinaryExpression(ExpressionType.Add, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.Add, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedBinaryOperatorOrThrow(ExpressionType.Add, "add", left, right);
@@ -1225,7 +1257,7 @@ public abstract class Expression {
             final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
-                return new SimpleBinaryExpression(ExpressionType.Subtract, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.Subtract, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedBinaryOperatorOrThrow(ExpressionType.Subtract, "subtract", left, right);
@@ -1246,8 +1278,12 @@ public abstract class Expression {
             final Type leftType = left.getType();
             final Type rightType = right.getType();
 
-            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
-                return new SimpleBinaryExpression(ExpressionType.Multiply, left, right, leftType);
+            if (TypeUtils.isArithmetic(leftType) && TypeUtils.isArithmetic(rightType)) {
+                return new SimpleBinaryExpression(
+                    ExpressionType.Multiply,
+                    left,
+                    right,
+                    performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedBinaryOperatorOrThrow(ExpressionType.Multiply, "multiply", left, right);
@@ -1269,7 +1305,7 @@ public abstract class Expression {
             final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
-                return new SimpleBinaryExpression(ExpressionType.Divide, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.Divide, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedBinaryOperatorOrThrow(ExpressionType.Divide, "divide", left, right);
@@ -1291,7 +1327,7 @@ public abstract class Expression {
             final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
-                return new SimpleBinaryExpression(ExpressionType.Modulo, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.Modulo, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedBinaryOperatorOrThrow(ExpressionType.Modulo, "modulo", left, right);
@@ -1313,7 +1349,7 @@ public abstract class Expression {
             final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
-                return new SimpleBinaryExpression(ExpressionType.LeftShift, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.LeftShift, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedBinaryOperatorOrThrow(ExpressionType.LeftShift, "shiftLeft", left, right);
@@ -1335,7 +1371,7 @@ public abstract class Expression {
             final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
-                return new SimpleBinaryExpression(ExpressionType.RightShift, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.RightShift, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedBinaryOperatorOrThrow(ExpressionType.RightShift, "shiftRight", left, right);
@@ -1357,7 +1393,7 @@ public abstract class Expression {
             final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
-                return new SimpleBinaryExpression(ExpressionType.RightShift, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.RightShift, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             throw Error.binaryOperatorNotDefined(ExpressionType.UnsignedRightShift, left.getType(), right.getType());
@@ -1379,7 +1415,7 @@ public abstract class Expression {
             final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isIntegralOrBoolean(leftType)) {
-                return new SimpleBinaryExpression(ExpressionType.And, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.And, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedBinaryOperatorOrThrow(ExpressionType.And, "and", left, right);
@@ -1401,7 +1437,7 @@ public abstract class Expression {
             final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isIntegralOrBoolean(leftType)) {
-                return new SimpleBinaryExpression(ExpressionType.Or, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.Or, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedBinaryOperatorOrThrow(ExpressionType.Or, "or", left, right);
@@ -1423,7 +1459,7 @@ public abstract class Expression {
             final Type rightType = right.getType();
 
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isIntegralOrBoolean(leftType)) {
-                return new SimpleBinaryExpression(ExpressionType.ExclusiveOr, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.ExclusiveOr, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedBinaryOperatorOrThrow(ExpressionType.ExclusiveOr, "xor", left, right);
@@ -1449,7 +1485,7 @@ public abstract class Expression {
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
                 TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), PrimitiveTypes.Boolean)) {
 
-                return new SimpleBinaryExpression(ExpressionType.AndAlso, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.AndAlso, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             throw Error.binaryOperatorNotDefined(ExpressionType.AndAlso, leftType, rightType);
@@ -1475,7 +1511,7 @@ public abstract class Expression {
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) &&
                 TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), PrimitiveTypes.Boolean)) {
 
-                return new SimpleBinaryExpression(ExpressionType.OrElse, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.OrElse, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             throw Error.binaryOperatorNotDefined(ExpressionType.OrElse, leftType, rightType);
@@ -1579,7 +1615,7 @@ public abstract class Expression {
         verifyCanRead(right, "right");
 
         if (TypeUtils.hasReferenceEquality(left.getType(), right.getType())) {
-            return new LogicalBinaryExpression(ExpressionType.Equal, left, right);
+            return new LogicalBinaryExpression(ExpressionType.ReferenceEqual, left, right);
         }
 
         throw Error.referenceEqualityNotDefined(left.getType(), right.getType());
@@ -1590,7 +1626,7 @@ public abstract class Expression {
         verifyCanRead(right, "right");
 
         if (TypeUtils.hasReferenceEquality(left.getType(), right.getType())) {
-            return new LogicalBinaryExpression(ExpressionType.NotEqual, left, right);
+            return new LogicalBinaryExpression(ExpressionType.ReferenceNotEqual, left, right);
         }
 
         throw Error.referenceEqualityNotDefined(left.getType(), right.getType());
@@ -1652,7 +1688,7 @@ public abstract class Expression {
                 if (conversion != null) {
                     throw Error.conversionIsNotSupportedForArithmeticTypes();
                 }
-                return new SimpleBinaryExpression(ExpressionType.AddAssign, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.AddAssign, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
             return getMethodBasedAssignOperatorOrThrow(ExpressionType.AddAssign, "add", left, right, conversion);
         }
@@ -1688,7 +1724,7 @@ public abstract class Expression {
                 if (conversion != null) {
                     throw Error.conversionIsNotSupportedForArithmeticTypes();
                 }
-                return new SimpleBinaryExpression(ExpressionType.SubtractAssign, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.SubtractAssign, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
             return getMethodBasedAssignOperatorOrThrow(ExpressionType.SubtractAssign, "subtract", left, right, conversion);
         }
@@ -1724,7 +1760,7 @@ public abstract class Expression {
                 if (conversion != null) {
                     throw Error.conversionIsNotSupportedForArithmeticTypes();
                 }
-                return new SimpleBinaryExpression(ExpressionType.MultiplyAssign, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.MultiplyAssign, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
             return getMethodBasedAssignOperatorOrThrow(ExpressionType.MultiplyAssign, "multiply", left, right, conversion);
         }
@@ -1760,7 +1796,7 @@ public abstract class Expression {
                 if (conversion != null) {
                     throw Error.conversionIsNotSupportedForArithmeticTypes();
                 }
-                return new SimpleBinaryExpression(ExpressionType.DivideAssign, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.DivideAssign, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
             return getMethodBasedAssignOperatorOrThrow(ExpressionType.DivideAssign, "divide", left, right, conversion);
         }
@@ -1796,7 +1832,7 @@ public abstract class Expression {
                 if (conversion != null) {
                     throw Error.conversionIsNotSupportedForArithmeticTypes();
                 }
-                return new SimpleBinaryExpression(ExpressionType.ModuloAssign, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.ModuloAssign, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
             return getMethodBasedAssignOperatorOrThrow(ExpressionType.ModuloAssign, "modulo", left, right, conversion);
         }
@@ -1832,7 +1868,7 @@ public abstract class Expression {
                 if (conversion != null) {
                     throw Error.conversionIsNotSupportedForArithmeticTypes();
                 }
-                return new SimpleBinaryExpression(ExpressionType.LeftShiftAssign, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.LeftShiftAssign, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
             return getMethodBasedAssignOperatorOrThrow(ExpressionType.LeftShiftAssign, "shiftLeft", left, right, conversion);
         }
@@ -1868,7 +1904,7 @@ public abstract class Expression {
                 if (conversion != null) {
                     throw Error.conversionIsNotSupportedForArithmeticTypes();
                 }
-                return new SimpleBinaryExpression(ExpressionType.RightShiftAssign, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.RightShiftAssign, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
             return getMethodBasedAssignOperatorOrThrow(ExpressionType.RightShiftAssign, "rightShift", left, right, conversion);
         }
@@ -1904,7 +1940,7 @@ public abstract class Expression {
                 if (conversion != null) {
                     throw Error.conversionIsNotSupportedForArithmeticTypes();
                 }
-                return new SimpleBinaryExpression(ExpressionType.UnsignedRightShiftAssign, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.UnsignedRightShiftAssign, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             throw Error.binaryOperatorNotDefined(ExpressionType.UnsignedRightShiftAssign, left.getType(), right.getType());
@@ -1941,7 +1977,7 @@ public abstract class Expression {
                 if (conversion != null) {
                     throw Error.conversionIsNotSupportedForArithmeticTypes();
                 }
-                return new SimpleBinaryExpression(ExpressionType.OrAssign, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.OrAssign, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedAssignOperatorOrThrow(ExpressionType.OrAssign, "or", left, right, conversion);
@@ -1978,7 +2014,7 @@ public abstract class Expression {
                 if (conversion != null) {
                     throw Error.conversionIsNotSupportedForArithmeticTypes();
                 }
-                return new SimpleBinaryExpression(ExpressionType.AndAssign, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.AndAssign, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedAssignOperatorOrThrow(ExpressionType.AndAssign, "and", left, right, conversion);
@@ -2015,7 +2051,7 @@ public abstract class Expression {
                 if (conversion != null) {
                     throw Error.conversionIsNotSupportedForArithmeticTypes();
                 }
-                return new SimpleBinaryExpression(ExpressionType.ExclusiveOrAssign, left, right, leftType);
+                return new SimpleBinaryExpression(ExpressionType.ExclusiveOrAssign, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
             return getMethodBasedAssignOperatorOrThrow(ExpressionType.ExclusiveOrAssign, "xor", left, right, conversion);
@@ -2862,9 +2898,11 @@ public abstract class Expression {
     }
 
     private static void verifyTypeBinaryExpressionOperand(final Expression expression, final Type type) {
+/*
         if (expression.getType().isPrimitive()) {
             throw Error.primitiveCannotBeTypeBinaryOperand();
         }
+*/
 
         if (type.isPrimitive()) {
             throw Error.primitiveCannotBeTypeBinaryType();
@@ -3695,5 +3733,25 @@ public abstract class Expression {
             }
         }
         return null;
+    }
+
+    static Type<?> performBinaryNumericPromotion(final Type leftType, final Type rightType) {
+        if (leftType == PrimitiveTypes.Double || rightType == PrimitiveTypes.Double) {
+            return PrimitiveTypes.Double;
+        }
+
+        if (leftType == PrimitiveTypes.Float || rightType == PrimitiveTypes.Float) {
+            return PrimitiveTypes.Float;
+        }
+
+        if (leftType == PrimitiveTypes.Long || rightType == PrimitiveTypes.Long) {
+            return PrimitiveTypes.Long;
+        }
+
+        if (TypeUtils.isArithmetic(leftType) || TypeUtils.isArithmetic(rightType)) {
+            return PrimitiveTypes.Integer;
+        }
+
+        return leftType;
     }
 }

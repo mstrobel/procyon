@@ -301,7 +301,9 @@ public class CodeGenerator {
 
         localBuilder = new LocalBuilder(localCount, name, localType, methodBuilder);
 
-        localCount++;
+        final int size = localType == PrimitiveTypes.Long || localType == PrimitiveTypes.Double ? 2 : 1;
+
+        localCount += size;
 
         if (locals == null) {
             locals = new LocalBuilder[DefaultLabelArraySize];
@@ -310,7 +312,7 @@ public class CodeGenerator {
             locals = enlargeArray(locals);
         }
 
-        locals[localCount - 1] = localBuilder;
+        locals[localCount - size] = localBuilder;
 
         return localBuilder;
     }
@@ -345,6 +347,22 @@ public class CodeGenerator {
 
     public void pop2() {
         emit(OpCode.POP2);
+    }
+
+    public void pop(final Type<?> type) {
+        switch (type.getKind()) {
+            case LONG:
+            case DOUBLE:
+                emit(OpCode.POP2);
+                break;
+
+            case VOID:
+                break;
+
+            default:
+                emit(OpCode.POP);
+                break;
+        }
     }
 
     // </editor-fold>
@@ -1234,6 +1252,7 @@ public class CodeGenerator {
         return value == null ||
                value instanceof Enum<?> ||
                value instanceof Type<?> ||
+               value instanceof Class<?> ||
                value instanceof MethodBase ||
                canEmitBytecodeConstant(type);
     }
@@ -1277,6 +1296,11 @@ public class CodeGenerator {
 
         if (value instanceof Type<?>) {
             emitType((Type<?>)value);
+            return;
+        }
+
+        if (value instanceof Class<?>) {
+            emitType(Type.of((Class<?>) value));
             return;
         }
 

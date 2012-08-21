@@ -1,5 +1,6 @@
 package com.strobel.expressions;
 
+import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
 import com.strobel.util.TypeUtils;
@@ -33,7 +34,7 @@ public final class TypeBinaryExpression extends Expression {
 
     @Override
     public final Type getType() {
-        return _typeOperand;
+        return PrimitiveTypes.Boolean;
     }
 
     @Override
@@ -58,7 +59,7 @@ public final class TypeBinaryExpression extends Expression {
     }
 
     private Expression reduceParameterTypeEqual(final ParameterExpression value) {
-        final Expression getClass = call(value, Types.Object.getMethod("getClass"));
+        final Expression getClass = call(value, value.getType().getMethod("getClass"));
 
         // We use reference equality when comparing to null for correctness, and reference equality
         // on types for performance.
@@ -66,7 +67,7 @@ public final class TypeBinaryExpression extends Expression {
             referenceNotEqual(value, constant(null)),
             referenceEqual(
                 getClass,
-                constant(_typeOperand.getErasedClass(), Type.of(Class.class))
+                constant(_typeOperand.getErasedClass())
             )
         );
     }
@@ -89,10 +90,7 @@ public final class TypeBinaryExpression extends Expression {
 
         // If the operand type is a final reference type, it will match if value is not null.
         if (cType.isFinal() && TypeUtils.areEquivalent(cType, _typeOperand)) {
-            return referenceNotEqual(
-                _operand,
-                constant(null, cType)
-            );
+            return isNotNull(_operand);
         }
 
         if (_operand instanceof ParameterExpression) {

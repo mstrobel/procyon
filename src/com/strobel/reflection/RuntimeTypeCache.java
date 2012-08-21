@@ -769,7 +769,10 @@ final class RuntimeTypeCache<T> {
             }
             for (int i = 0, n = methods.size(); i < n; i++) {
                 final MethodInfo otherMethod = methods.get(i);
-                if (Helper.overrides(otherMethod, method)) {
+
+                if (otherMethod.getDeclaringType() != method.getDeclaringType() &&
+                    Helper.overrides(otherMethod, method)) {
+
                     return true;
                 }
             }
@@ -1007,21 +1010,6 @@ final class RuntimeConstructorInfo extends ConstructorInfo {
 }
 
 final class RuntimeMethodInfo extends MethodInfo {
-    private final static Method GET_CLASS_METHOD;
-
-    static {
-        Method getClassMethod;
-
-        try {
-            getClassMethod = Object.class.getMethod("getClass");
-        }
-        catch (NoSuchMethodException ignored) {
-            getClassMethod = null;
-        }
-
-        GET_CLASS_METHOD = getClassMethod;
-    }
-
     private final Method _rawMethod;
     private final Type<?> _declaringType;
     private final RuntimeTypeCache<?> _reflectedTypeCache;
@@ -1049,18 +1037,18 @@ final class RuntimeMethodInfo extends MethodInfo {
         final TypeList thrownTypes,
         final TypeBindings typeBindings) {
 
-        _rawMethod = VerifyArgument.notNull(rawMethod, "rawConstructor");
+        _rawMethod = VerifyArgument.notNull(rawMethod, "rawMethod");
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _reflectedTypeCache = VerifyArgument.notNull(reflectedTypeCache, "reflectedTypeCache");
         _bindingFlags = VerifyArgument.notNull(bindingFlags, "bindingFlags");
         _modifiers = modifiers;
         _parameters = VerifyArgument.notNull(parameters, "parameters");
 
-        if (GET_CLASS_METHOD.equals(rawMethod)) {
-            _returnType = Type.of(Class.class)
-                              .makeGenericType(
-                                  Type.makeExtendsWildcard(reflectedTypeCache.getRuntimeType())
-                              );
+        if (TypeBinder.GET_CLASS_METHOD.equals(rawMethod)) {
+            _returnType = Types.Class
+                               .makeGenericType(
+                                   Type.makeExtendsWildcard(reflectedTypeCache.getRuntimeType())
+                               );
         }
         else {
             _returnType = VerifyArgument.notNull(returnType, "returnType");

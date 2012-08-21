@@ -661,7 +661,18 @@ final class LambdaCompiler {
             case IsFalse:
                 emitUnaryExpression(node, compilationFlags);
                 break;
-
+            case IsNull:
+                emitUnaryExpression(node, compilationFlags);
+                break;
+            case IsNotNull:
+                emitUnaryExpression(node, compilationFlags);
+                break;
+            case ReferenceEqual:
+                emitBinaryExpression(node, compilationFlags);
+                break;
+            case ReferenceNotEqual:
+                emitBinaryExpression(node, compilationFlags);
+                break;
             default:
                 throw ContractUtils.unreachable();
         }
@@ -710,7 +721,7 @@ final class LambdaCompiler {
                 }
                 else {
                     emitExpression(node, CompilationFlags.EmitAsNoTail | CompilationFlags.EmitNoExpressionStart);
-                    generator.emit(OpCode.POP);
+                    generator.pop(node.getType());
                 }
                 break;
         }
@@ -1001,20 +1012,20 @@ final class LambdaCompiler {
         final Label returnFalse = generator.defineLabel();
         final Label exit = generator.defineLabel();
 
-        final LocalBuilder leftStorage = getLocal(leftType);
-        final LocalBuilder rightStorage = getLocal(rightType);
+//        final LocalBuilder leftStorage = getLocal(leftType);
+//        final LocalBuilder rightStorage = getLocal(rightType);
 
         emitExpression(left);
 
-        generator.emitStore(leftStorage);
-        generator.emitLoad(leftStorage);
+//        generator.emitStore(leftStorage);
+//        generator.emitLoad(leftStorage);
 
         generator.emit(OpCode.IFEQ, returnFalse);
 
         emitExpression(right);
 
-        generator.emitStore(rightStorage);
-        generator.emitLoad(rightStorage);
+//        generator.emitStore(rightStorage);
+//        generator.emitLoad(rightStorage);
 
         generator.emit(OpCode.IFEQ, returnFalse);
         generator.emitBoolean(true);
@@ -1036,13 +1047,13 @@ final class LambdaCompiler {
         final Label returnFalse = generator.defineLabel();
         final Label exit = generator.defineLabel();
 
-        final LocalBuilder leftStorage = getLocal(leftType);
-        final LocalBuilder rightStorage = getLocal(rightType);
+//        final LocalBuilder leftStorage = getLocal(leftType);
+//        final LocalBuilder rightStorage = getLocal(rightType);
 
         emitExpression(left);
 
-        generator.emitStore(leftStorage);
-        generator.emitLoad(leftStorage);
+//        generator.emitStore(leftStorage);
+//        generator.emitLoad(leftStorage);
 
         if (leftType != PrimitiveTypes.Boolean) {
             generator.emitConversion(leftType, PrimitiveTypes.Boolean);
@@ -1052,8 +1063,8 @@ final class LambdaCompiler {
 
         emitExpression(right);
 
-        generator.emitStore(rightStorage);
-        generator.emitLoad(rightStorage);
+//        generator.emitStore(rightStorage);
+//        generator.emitLoad(rightStorage);
 
         if (rightType != PrimitiveTypes.Boolean) {
             generator.emitConversion(rightType, PrimitiveTypes.Boolean);
@@ -1097,20 +1108,20 @@ final class LambdaCompiler {
         final Label returnTrue = generator.defineLabel();
         final Label exit = generator.defineLabel();
 
-        final LocalBuilder leftStorage = getLocal(leftType);
-        final LocalBuilder rightStorage = getLocal(rightType);
+//        final LocalBuilder leftStorage = getLocal(leftType);
+//        final LocalBuilder rightStorage = getLocal(rightType);
 
         emitExpression(left);
 
-        generator.emitStore(leftStorage);
-        generator.emitLoad(leftStorage);
+//        generator.emitStore(leftStorage);
+//        generator.emitLoad(leftStorage);
 
         generator.emit(OpCode.IFNE, returnTrue);
 
         emitExpression(right);
 
-        generator.emitStore(rightStorage);
-        generator.emitLoad(rightStorage);
+//        generator.emitStore(rightStorage);
+//        generator.emitLoad(rightStorage);
 
         generator.emit(OpCode.IFNE, returnTrue);
         generator.emitBoolean(false);
@@ -1132,13 +1143,13 @@ final class LambdaCompiler {
         final Label returnTrue = generator.defineLabel();
         final Label exit = generator.defineLabel();
 
-        final LocalBuilder leftStorage = getLocal(leftType);
-        final LocalBuilder rightStorage = getLocal(rightType);
+//        final LocalBuilder leftStorage = getLocal(leftType);
+//        final LocalBuilder rightStorage = getLocal(rightType);
 
         emitExpression(left);
 
-        generator.emitStore(leftStorage);
-        generator.emitLoad(leftStorage);
+//        generator.emitStore(leftStorage);
+//        generator.emitLoad(leftStorage);
 
         if (leftType != PrimitiveTypes.Boolean) {
             generator.emitConversion(leftType, PrimitiveTypes.Boolean);
@@ -1148,8 +1159,8 @@ final class LambdaCompiler {
 
         emitExpression(right);
 
-        generator.emitStore(rightStorage);
-        generator.emitLoad(rightStorage);
+//        generator.emitStore(rightStorage);
+//        generator.emitLoad(rightStorage);
 
         if (rightType != PrimitiveTypes.Boolean) {
             generator.emitConversion(rightType, PrimitiveTypes.Boolean);
@@ -1289,10 +1300,11 @@ final class LambdaCompiler {
 
     private void emitBinaryExpression(final Expression expr, final int flags) {
         final BinaryExpression b = (BinaryExpression)expr;
+        final ExpressionType nodeType = b.getNodeType();
 
-        assert b.getNodeType() != ExpressionType.AndAlso &&
-               b.getNodeType() != ExpressionType.OrElse &&
-               b.getNodeType() != ExpressionType.Coalesce;
+        assert nodeType != ExpressionType.AndAlso &&
+               nodeType != ExpressionType.OrElse &&
+               nodeType != ExpressionType.Coalesce;
 
         if (b.getMethod() != null) {
             emitBinaryMethod(b, flags);
@@ -1302,7 +1314,10 @@ final class LambdaCompiler {
         final Expression left = b.getLeft();
         final Expression right = b.getRight();
 
-        if ((b.getNodeType() == ExpressionType.Equal || b.getNodeType() == ExpressionType.NotEqual) &&
+        final Type leftType = left.getType();
+        final Type rightType = right.getType();
+
+        if (nodeType.isEqualityOperator() &&
             (b.getType() == PrimitiveTypes.Boolean || b.getType() == Types.Boolean)) {
 
             emitExpression(getEqualityOperand(left));
@@ -1313,7 +1328,7 @@ final class LambdaCompiler {
             emitExpression(right);
         }
 
-        emitBinaryOperator(b.getNodeType(), left.getType(), right.getType(), b.getType());
+        emitBinaryOperator(nodeType, leftType, rightType, b.getType());
     }
 
     private Expression getEqualityOperand(final Expression expression) {
@@ -1343,7 +1358,7 @@ final class LambdaCompiler {
         }
     }
 
-    private void emitBinaryOperator(final ExpressionType op, final Type leftType, final Type rightType, final Type resultType) {
+    private void emitBinaryOperator(final ExpressionType op, final Type<?> leftType, final Type<?> rightType, final Type resultType) {
         final boolean leftIsNullable = TypeUtils.isAutoUnboxed(leftType);
         final boolean rightIsNullable = TypeUtils.isAutoUnboxed(rightType);
 
@@ -1359,9 +1374,15 @@ final class LambdaCompiler {
             case Coalesce: {
                 throw Error.unexpectedCoalesceOperator();
             }
+
+            case ReferenceEqual:
+            case ReferenceNotEqual: {
+                emitObjectBinaryOp(op);
+                return;
+            }
         }
 
-        if (leftIsNullable || rightIsNullable) {
+        if (leftIsNullable && TypeUtils.isArithmetic(rightType) || rightIsNullable && TypeUtils.isArithmetic(leftType)) {
             emitUnboxingBinaryOp(op, leftType, rightType, resultType);
         }
         else {
@@ -1375,7 +1396,16 @@ final class LambdaCompiler {
     }
 
     private Type<?> emitPrimitiveBinaryOp(final ExpressionType op, final Type leftType, final Type rightType) {
-        final Type<?> operandType = performBinaryNumericPromotion(leftType, rightType);
+        final Type<?> operandType;
+
+        if (TypeUtils.isArithmetic(leftType)) {
+            operandType = TypeUtils.isArithmetic(rightType)
+                          ? Expression.performBinaryNumericPromotion(leftType, rightType)
+                          : leftType;
+        }
+        else {
+            operandType = leftType;
+        }
 
         if (leftType != operandType) {
             final LocalBuilder rightStorage = getLocal(rightType);
@@ -1405,7 +1435,8 @@ final class LambdaCompiler {
                 emitDoubleBinaryOp(op);
                 break;
             default:
-                throw ContractUtils.unreachable();
+                emitObjectBinaryOp(op);
+                break;
         }
 
         switch (op) {
@@ -1420,22 +1451,6 @@ final class LambdaCompiler {
             default:
                 return operandType;
         }
-    }
-
-    private Type<?> performBinaryNumericPromotion(final Type leftType, final Type rightType) {
-        if (leftType == PrimitiveTypes.Double || rightType == PrimitiveTypes.Double) {
-            return PrimitiveTypes.Double;
-        }
-
-        if (leftType == PrimitiveTypes.Float || rightType == PrimitiveTypes.Float) {
-            return PrimitiveTypes.Float;
-        }
-
-        if (leftType == PrimitiveTypes.Long || rightType == PrimitiveTypes.Long) {
-            return PrimitiveTypes.Long;
-        }
-
-        return PrimitiveTypes.Integer;
     }
 
     private void emitUnboxingBinaryOp(final ExpressionType op, final Type leftType, final Type rightType, final Type resultType) {
@@ -1759,6 +1774,52 @@ final class LambdaCompiler {
 
             case Subtract: {
                 generator.emit(OpCode.DSUB);
+                break;
+            }
+
+            default: {
+                throw ContractUtils.unreachable();
+            }
+        }
+    }
+
+    private void emitObjectBinaryOp(final ExpressionType op) {
+        switch (op) {
+            case Equal:
+            case ReferenceEqual: {
+                final Label ifNotEqual = generator.defineLabel();
+                final Label exit = generator.defineLabel();
+
+                generator.emit(OpCode.IF_ACMPNE, ifNotEqual);
+
+                generator.emitBoolean(true);
+                generator.emitGoto(exit);
+
+                generator.markLabel(ifNotEqual);
+                generator.emitBoolean(false);
+                generator.emitGoto(exit);
+
+                generator.markLabel(exit);
+
+                break;
+            }
+
+            case NotEqual:
+            case ReferenceNotEqual: {
+                final Label ifEqual = generator.defineLabel();
+                final Label exit = generator.defineLabel();
+
+                generator.emit(OpCode.IF_ACMPEQ, ifEqual);
+
+                generator.emitBoolean(true);
+                generator.emitGoto(exit);
+
+                generator.markLabel(ifEqual);
+                generator.emitBoolean(false);
+                generator.emitGoto(exit);
+
+                generator.markLabel(exit);
+
                 break;
             }
 
@@ -3181,9 +3242,41 @@ final class LambdaCompiler {
     private void emitUnaryOperator(final ExpressionType op, final Type operandType, final Type resultType) {
         final boolean operandIsBoxed = TypeUtils.isAutoUnboxed(operandType);
 
-        if (op == ExpressionType.ArrayLength) {
-            generator.emit(OpCode.ARRAYLENGTH);
-            return;
+        switch (op) {
+            case ArrayLength: {
+                generator.emit(OpCode.ARRAYLENGTH);
+                return;
+            }
+
+            case IsNull: {
+                final Label ifNonNull = generator.defineLabel();
+                final Label exit = generator.defineLabel();
+
+                generator.emit(OpCode.IFNONNULL, ifNonNull);
+                generator.emitBoolean(true);
+                generator.emitGoto(exit);
+
+                generator.markLabel(ifNonNull);
+                generator.emitBoolean(false);
+
+                generator.markLabel(exit);
+                return;
+            }
+
+            case IsNotNull: {
+                final Label ifNull = generator.defineLabel();
+                final Label exit = generator.defineLabel();
+
+                generator.emit(OpCode.IFNULL, ifNull);
+                generator.emitBoolean(true);
+                generator.emitGoto(exit);
+
+                generator.markLabel(ifNull);
+                generator.emitBoolean(false);
+
+                generator.markLabel(exit);
+                return;
+            }
         }
 
         final Type unboxedType = TypeUtils.getUnderlyingPrimitiveOrSelf(operandType);

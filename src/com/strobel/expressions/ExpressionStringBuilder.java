@@ -187,12 +187,31 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         if (value == null) {
             out("null");
         }
+        else if (value instanceof Class<?>) {
+            out(((Class<?>)value).getSimpleName());
+            out(".class");
+        }
+        else if (value instanceof Type<?>) {
+            out(((Type<?>)value).getName());
+            out(".class");
+        }
+        else if (value instanceof Character) {
+            final char ch = (Character)value;
+            if (ch < 0x20 || ch > 0x7E) {
+                out(String.format("'\\u%1$04X'", (int)ch));
+            }
+            else {
+                out('\'');
+                out(ch);
+                out('\'');
+            }
+        }
         else {
             final String toString = value.getClass().isArray() ? arrayToString(value) : value.toString();
 
             if (value instanceof String) {
                 out('"');
-                out(((String) value).replace("\r", "\\r").replace("\n", "\\n"));
+                out(((String)value).replace("\r", "\\r").replace("\n", "\\n"));
                 out('"');
             }
             else if (toString.equals(value.getClass().toString())) {
@@ -316,6 +335,18 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
+    protected Expression visitTypeBinary(final TypeBinaryExpression node) {
+        if (node.getNodeType() == ExpressionType.TypeEqual) {
+            return visit(node.reduceTypeEqual());
+        }
+
+        visit(node.getOperand());
+        out(" instanceof ");
+        out(node.getTypeOperand().getName());
+        return node;
+    }
+
+    @Override
     protected Expression visitBinary(final BinaryExpression node) {
         if (node.getNodeType() == ExpressionType.ArrayIndex) {
             visit(node.getLeft());
@@ -331,9 +362,11 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
                     op = "=";
                     break;
                 case Equal:
+                case ReferenceEqual:
                     op = "==";
                     break;
                 case NotEqual:
+                case ReferenceNotEqual:
                     op = "!=";
                     break;
                 case AndAlso:

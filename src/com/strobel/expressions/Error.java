@@ -224,6 +224,12 @@ final class Error {
         );
     }
 
+    public static IllegalStateException invalidBoxType() {
+        return new IllegalStateException(
+            "Can only unbox from a standard boxed type or java.lang.Object to a primitive type."
+        );
+    }
+
     public static IllegalStateException argumentMustBeArray() {
         return new IllegalStateException("Argument must be an array.");
     }
@@ -706,5 +712,9 @@ final class Error {
 
     public static IllegalStateException tryNotAllowedInFilter() {
         return new IllegalStateException("Try expression is not allowed inside a filter body.");
+    }
+
+    public static IllegalArgumentException argumentMustBeReferenceType() {
+        return new IllegalArgumentException("Argument must be a reference type.");
     }
 }
