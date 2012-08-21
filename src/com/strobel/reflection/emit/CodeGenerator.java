@@ -2697,6 +2697,9 @@ public class CodeGenerator {
             for (int j = 0; j < _currentExceptionStackCount; j++) {
                 final __ExceptionInfo exceptionInfo = _currentExceptionStack[j];
                 for (final Type caughtType : exceptionInfo._catchClass) {
+                    if (caughtType == null) {
+                        break;
+                    }
                     if (caughtType.isAssignableFrom(thrownType)) {
                         return;
                     }

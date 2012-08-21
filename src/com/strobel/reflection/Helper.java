@@ -158,9 +158,9 @@ final class Helper {
     }
 
     public static boolean isAssignable(final Type t, final Type s) {
-        if (TypeUtils.isAutoUnboxed(s)) {
-            return isAssignable(t, TypeUtils.getUnderlyingPrimitive(s));
-        }
+//        if (TypeUtils.isAutoUnboxed(s)) {
+//            return isAssignable(t, TypeUtils.getUnderlyingPrimitive(s));
+//        }
 
         return isConvertible(t, s);
     }
@@ -191,9 +191,12 @@ final class Helper {
         else if (t.isGenericParameter()) {
             return isSubtypeUnchecked(t.getExtendsBound(), s);
         }
-        else if (!s.isGenericType() || !s.getTypeBindings().hasUnboundParameters()) {
-            final Type t2 = asSuper(t, s);
-            if (t2 != null && t2.isGenericType() && t2.getTypeBindings().hasUnboundParameters()) {
+        else if (s.isGenericParameter()) {
+            return isSubtypeUnchecked(t, s.getExtendsBound());
+        }
+        else if (s.isGenericType() && !s.isGenericTypeDefinition()) {
+            final Type t2 = asSuper(t, s.getGenericTypeDefinition());
+            if (t2 != null && t2.isGenericTypeDefinition()) {
                 return true;
             }
         }
@@ -246,6 +249,10 @@ final class Helper {
     public static boolean isSubtype(final Type t, final Type p, final boolean capture) {
         if (t == p) {
             return true;
+        }
+        
+        if (p == null) {
+            return false;
         }
 
         if (p.isCompoundType()) {
@@ -804,8 +811,12 @@ final class Helper {
             if (t == p) {
                 return t;
             }
+            
+            if (t == null) {
+                return null;
+            }
 
-            final Type superType = t.getBaseType();
+            final Type superType = superType(t);
 
             if (superType != null && !superType.isInterface()) {
                 final Type ancestor = asSuper(superType, p);
@@ -823,9 +834,11 @@ final class Helper {
                 }
             }
 
+/*
             if (t == Types.Object && !p.isPrimitive() && !p.isInterface()) {
                 return t;
             }
+*/
 
             return null;
         }
@@ -1087,9 +1100,9 @@ final class Helper {
         @Override
         public Type visitClassType(final Type t, final Void ignored) {
             final Type baseType = t.getBaseType();
-            if (baseType == null) {
-                return Types.Object;
-        }
+//            if (baseType == null) {
+//                return Types.Object;
+//            }
             return baseType;
         }
 
@@ -1233,6 +1246,7 @@ final class Helper {
 
         @Override
         public Boolean visitClassType(final Type t, final Type s) {
+/*
             final Type asSuper = asSuper(t, s);
             if (asSuper == null || (asSuper != s && asSuper != Types.Object)
                 // You're not allowed to write
@@ -1251,6 +1265,18 @@ final class Helper {
             return superDeclaringType == null ||
                    sDeclaringType == null ||
                    isSubtypeNoCapture(superDeclaringType, sDeclaringType);
+*/
+            final Type asSuper = asSuper(t, s);
+            return asSuper != null && asSuper == s
+                   // You're not allowed to write
+                   //     Vector<Object> vec = new Vector<String>();
+                   // But with wildcards you can write
+                   //     Vector<? extends Object> vec = new Vector<String>();
+                   // which means that subtype checking must be done
+                   // here instead of same-type checking (via containsType).
+                   && (!s.isGenericType() || containsTypeRecursive(s, asSuper))
+                   && isSubtypeNoCapture(asSuper.getDeclaringType(), s.getDeclaringType());
+
         }
 
         @Override

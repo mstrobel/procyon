@@ -17,12 +17,6 @@ import java.util.Locale;
 import static com.strobel.expressions.Expression.*;
 import static junit.framework.Assert.*;
 
-class LongConst {
-    boolean run(final long x, final long y) {
-        return Long.valueOf(x*y) != null;
-    }
-}
-
 /**
  * @author Mike Strobel
  */
@@ -169,15 +163,7 @@ public class CompilerTests {
                 forEach(
                     item,
                     items,
-                    call(
-                        out,
-                        "printf",
-                        constant("Got item: %s\n"),
-                        newArrayInit(
-                            Types.Object,
-                            convert(item, Types.Object)
-                        )
-                    )
+                    call(out, "printf", constant("Got item: %s\n"), item)
                 ),
                 call(out, "println", constant("Finished the loop!"))
             )
@@ -672,42 +658,42 @@ public class CompilerTests {
 
         tests.add(
             typeEqual(
-                convert(box(multiply(constant(3), constant(2L))), Types.Object),
+                convert(multiply(constant(3), constant(2L)), Types.Object),
                 Types.Long
             )
         );
 
         tests.add(
             typeEqual(
-                convert(box(multiply(constant(3L), constant(2))), Types.Object),
+                convert(multiply(constant(3L), constant(2)), Types.Object),
                 Types.Long
             )
         );
 
         tests.add(
             typeEqual(
-                convert(box(multiply(constant(3f), constant(2L))), Types.Object),
+                convert(multiply(constant(3f), constant(2L)), Types.Object),
                 Types.Float
             )
         );
 
         tests.add(
             typeEqual(
-                convert(box(multiply(constant((short)3), constant(2f))), Types.Object),
+                convert(multiply(constant((short)3), constant(2f)), Types.Object),
                 Types.Float
             )
         );
 
         tests.add(
             typeEqual(
-                convert(box(multiply(constant(3d), constant((char)2))), Types.Object),
+                convert(multiply(constant(3d), constant((char)2)), Types.Object),
                 Types.Double
             )
         );
 
         tests.add(
             typeEqual(
-                convert(box(multiply(constant((byte)3), constant(2d))), Types.Object),
+                convert(multiply(constant((byte)3), constant(2d)), Types.Object),
                 Types.Double
             )
         );

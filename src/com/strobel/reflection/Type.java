@@ -422,7 +422,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
         return false;
 */
-        return Helper.isAssignable(this, type);
+        return Helper.isAssignable(type, this);
     }
 
     public Package getPackage() {

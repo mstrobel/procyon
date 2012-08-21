@@ -6,10 +6,7 @@ import com.strobel.reflection.*;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static java.lang.String.format;
 
@@ -2234,7 +2231,7 @@ public abstract class Expression {
         return call(
             target,
             resolvedMethod,
-            arguments
+            adaptArguments(resolvedMethod, arguments)
         );
     }
 
@@ -2274,8 +2271,47 @@ public abstract class Expression {
 
         return call(
             resolvedMethod,
-            arguments
+            adaptArguments(resolvedMethod, arguments)
         );
+    }
+
+    private static ExpressionList<? extends Expression> adaptArguments(
+        final MethodInfo method,
+        final ExpressionList<? extends Expression> arguments) {
+        
+        if (method.getCallingConvention() == CallingConvention.VarArgs) {
+            final TypeList pt = method.getParameters().getParameterTypes();
+            final int varArgArrayPosition = pt.size() - 1;
+            final Type varArgArrayType = pt.get(varArgArrayPosition);
+            
+            final boolean needArray = arguments.size() != pt.size() ||
+                                      !TypeUtils.areEquivalent(
+                                          varArgArrayType,
+                                          arguments.get(arguments.size() - 1).getType());
+
+            if (needArray) {
+                final Expression[] newArguments = new Expression[pt.size()];
+
+                for (int i = 0; i < varArgArrayPosition; i++) {
+                    newArguments[i] = arguments.get(i);
+                }
+
+                ExpressionList<Expression> arrayInitList = ExpressionList.empty();
+
+                for (int i = varArgArrayPosition, n = arguments.size(); i < n; i++) {
+                    arrayInitList = arrayInitList.add(arguments.get(i));
+                }
+                
+                newArguments[varArgArrayPosition] = newArrayInit(
+                    varArgArrayType.getElementType(),
+                    arrayInitList
+                );
+                
+                return new ExpressionList<>(newArguments);
+            }
+        }
+        
+        return arguments;
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3620,47 +3656,26 @@ public abstract class Expression {
             methods[i] = applyTypeArgs(
                 (MethodInfo) members.get(i),
                 typeArguments
-                );
+            );
         }
-        
+
         final Type[] parameterTypes = new Type[arguments.size()];
 
         for (int i = 0, n = arguments.size(); i < n; i++) {
             parameterTypes[i] = arguments.get(i).getType();
         }
 
-        return (MethodInfo) Type.DefaultBinder.selectMethod(
-            flags, 
+        final MethodInfo result = (MethodInfo) Type.DefaultBinder.selectMethod(
+            flags,
             methods,
             parameterTypes
         );
-/*
 
-        MethodInfo method;
-
-        final int bestMethodIndex = findBestMethod(members, typeArguments, arguments);
-
-        if (bestMethodIndex == -1) {
-            if (typeArguments != null && typeArguments.size() > 0) {
-                throw Error.genericMethodWithArgsDoesNotExistOnType(methodName, type);
-            }
-            else {
-                throw Error.methodWithArgsDoesNotExistOnType(methodName, type);
-            }
+        if (result == null) {
+            throw Error.methodWithArgsDoesNotExistOnType(methodName, type);
         }
 
-        if (bestMethodIndex == -2) {
-            throw Error.methodWithMoreThanOneMatch(methodName, type);
-        }
-
-        final MethodInfo bestMatch = (MethodInfo)members.get(bestMethodIndex);
-
-        if (!typeArguments.isEmpty()) {
-            return applyTypeArgs(bestMatch, typeArguments);
-        }
-
-        return bestMatch;
-*/
+        return result;
     }
 
     private static int findBestMethod(

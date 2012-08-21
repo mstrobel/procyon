@@ -85,9 +85,12 @@ final class DefaultBinder extends Binder {
         int currentIndex = 0;
 
         for (int i = 0, n = candidates.length; i < n; i++) {
-            final ParameterList par = candidates[i].getParameters();
+            final MethodBase candidate = candidates[i];
+            final ParameterList par = candidate.getParameters();
 
-            if (par.size() != types.length) {
+            final boolean isVarArgs = candidate.getCallingConvention() == CallingConvention.VarArgs;
+            
+            if (par.size() != types.length && !isVarArgs) {
                 continue;
             }
 
@@ -98,13 +101,21 @@ final class DefaultBinder extends Binder {
                     continue;
                 }
 
-                if (!parameterType.isAssignableFrom(types[stop])) {
+                if (parameterType.isAssignableFrom(types[stop])) {
+                    continue;
+                }
+
+                if (!isVarArgs || stop != par.size() - 1) {
+                    break;
+                }
+
+                if (!parameterType.getElementType().isAssignableFrom(types[stop])) {
                     break;
                 }
             }
 
             if (stop == types.length) {
-                candidates[currentIndex++] = candidates[i];
+                candidates[currentIndex++] = candidate;
             }
         }
 
@@ -127,13 +138,35 @@ final class DefaultBinder extends Binder {
         }
 
         for (int i = 1; i < currentIndex; i++) {
+            final MethodBase m1 = candidates[currentMin];
+            final MethodBase m2 = candidates[i];
+            
+            final Type<?> varArgType1;
+            final Type<?> varArgType2;
+            
+            if (m1.getCallingConvention() == CallingConvention.VarArgs) {
+                final TypeList pt1 = m1.getParameters().getParameterTypes();
+                varArgType1 = pt1.get(pt1.size() - 1).getElementType();
+            }
+            else {
+                varArgType1 = null;
+            }
+            
+            if (m2.getCallingConvention() == CallingConvention.VarArgs) {
+                final TypeList pt2 = m2.getParameters().getParameterTypes();
+                varArgType2 = pt2.get(pt2.size() - 1).getElementType();
+            }
+            else {
+                varArgType2 = null;
+            }
+            
             final int newMin = findMostSpecificMethod(
-                candidates[currentMin],
+                m1,
                 parameterOrder,
-                null,
+                varArgType1,
                 candidates[i],
                 parameterOrder,
-                null,
+                varArgType2,
                 types,
                 null
             );

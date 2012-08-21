@@ -386,7 +386,7 @@ public final class MethodBuilder extends MethodInfo {
         VerifyArgument.notNull(code, "code");
 
         final __ExceptionInfo[] exceptions;
-        final Type<?>[] unhandledExceptions;
+//        final Type<?>[] unhandledExceptions;
         int counter = 0;
         int[] filterAddresses;
         int[] catchAddresses;
@@ -413,6 +413,7 @@ public final class MethodBuilder extends MethodInfo {
         _body = code.bakeByteArray();
 
         exceptions = code.getExceptions();
+/*
         unhandledExceptions = code.getUnhandledCheckedExceptions();
 
         for (final Type<?> unhandledExceptionType : unhandledExceptions) {
@@ -420,6 +421,7 @@ public final class MethodBuilder extends MethodInfo {
                 throw Error.checkedExceptionUnhandled(unhandledExceptionType);
             }
         }
+*/
 
         _numberOfExceptions = calculateNumberOfExceptions(exceptions);
 
