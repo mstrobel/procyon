@@ -118,15 +118,7 @@ public class CompilerTests {
                             greaterThanOrEqual(lcv, constant(5)),
                             makeBreak(breakLabel)
                         ),
-                        call(
-                            out,
-                            "printf",
-                            constant("Loop iteration #%d\n"),
-                            newArrayInit(
-                                Types.Object,
-                                convert(lcv, Types.Object)
-                            )
-                        ),
+                        call(out, "printf", constant("Loop iteration #%d\n"), lcv),
                         preIncrementAssign(lcv)
                     ),
                     breakLabel,
@@ -195,15 +187,7 @@ public class CompilerTests {
                 forEach(
                     item,
                     items,
-                    call(
-                        out,
-                        "printf",
-                        constant("Got item: %s\n"),
-                        newArrayInit(
-                            Types.Object,
-                            convert(item, Types.Object)
-                        )
-                    )
+                    call(out, "printf", constant("Got item: %s\n"), item)
                 ),
                 call(out, "println", constant("Finished the loop!"))
             )

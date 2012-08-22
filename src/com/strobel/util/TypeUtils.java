@@ -186,6 +186,10 @@ public final class TypeUtils {
     public static boolean hasIdentityPrimitiveOrBoxingConversion(final Type source, final Type destination) {
         assert source != null && destination != null;
 
+        if (destination == Types.Object) {
+            return true;
+        }
+
         final Type unboxedSource = getUnderlyingPrimitiveOrSelf(source);
         final Type unboxedDestination = getUnderlyingPrimitiveOrSelf(destination);
 

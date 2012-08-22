@@ -769,6 +769,23 @@ public class CodeGenerator {
     // LOCALS AND ARGUMENTS                                                                                               //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public void increment(final LocalBuilder local, final int delta) {
+        VerifyArgument.notNull(local, "local");
+
+        final int localIndex = translateLocal(local.getLocalIndex());
+
+        if (localIndex < 0xFF && delta <= Byte.MAX_VALUE && delta >= Byte.MIN_VALUE) {
+            emit(OpCode.IINC);
+            emitByteOperand(localIndex);
+            emitByteOperand(delta);
+        }
+        else {
+            emit(OpCode.IINC_W);
+            emitShortOperand(localIndex);
+            emitShortOperand(delta);
+        }
+    }
+
     public void emitLoad(final LocalBuilder local) {
         VerifyArgument.notNull(local, "local");
 
@@ -1817,7 +1834,7 @@ public class CodeGenerator {
 
             emitBox(sourceType);
 
-            if (!targetType.isEquivalentTo(boxedSourceType)) {
+            if (!targetType.isAssignableFrom(boxedSourceType)) {
                 emitCastToType(boxedSourceType, targetType);
             }
         }

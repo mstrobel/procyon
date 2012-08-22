@@ -262,6 +262,14 @@ final class CompilerScope {
         );
     }
 
+    LocalBuilder getLocalForVariable(final ParameterExpression variable) {
+        final Storage storage = resolveVariable(variable);
+        if (storage instanceof LocalStorage) {
+            return ((LocalStorage)storage)._local;
+        }
+        return null;
+    }
+
     void emitGet(final ParameterExpression variable) {
         resolveVariable(variable).emitLoad();
     }

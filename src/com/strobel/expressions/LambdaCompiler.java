@@ -819,6 +819,28 @@ final class LambdaCompiler {
     private void emitVariableAssignment(final BinaryExpression node, final int flags) {
         final ParameterExpression variable = (ParameterExpression)node.getLeft();
         final int emitAs = flags & CompilationFlags.EmitAsTypeMask;
+        final Expression right = node.getRight();
+        final ExpressionType rightNodeType = right.getNodeType();
+
+        if ((rightNodeType == ExpressionType.Increment ||
+             rightNodeType == ExpressionType.Decrement) &&
+            right.getType() == PrimitiveTypes.Integer) {
+
+            final LocalBuilder local = _scope.getLocalForVariable(variable);
+
+            if (local != null) {
+                generator.increment(
+                    local,
+                    rightNodeType == ExpressionType.Increment ? 1 : -1
+                );
+
+                if (emitAs != CompilationFlags.EmitAsVoidType) {
+                    emitParameterExpression(variable);
+                }
+
+                return;
+            }
+        }
 
         emitExpression(node.getRight());
 
