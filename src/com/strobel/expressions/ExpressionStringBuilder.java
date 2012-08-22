@@ -2,6 +2,7 @@ package com.strobel.expressions;
 
 import com.strobel.core.StringUtilities;
 import com.strobel.reflection.BindingFlags;
+import com.strobel.reflection.CallingConvention;
 import com.strobel.reflection.MemberInfo;
 import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.PrimitiveTypes;
@@ -116,6 +117,24 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         return esb.toString();
     }
 
+    private void visitList(final IArgumentProvider arguments) {
+        for (int i = 0, n = arguments.getArgumentCount(); i < n; i++) {
+            if (i != 0) {
+                out(", ");
+            }
+            visit(arguments.getArgument(i));
+        }
+    }
+
+    private void visitList(final ExpressionList<? extends Expression> expressions) {
+        for (int i = 0, n = expressions.size(); i < n; i++) {
+            if (i != 0) {
+                out(", ");
+            }
+            visit(expressions.get(i));
+        }
+    }
+
     private <T extends Expression> void visitExpressions(final char open, final ExpressionList<T> expressions, final char close) {
         out(open);
         if (expressions != null) {
@@ -150,13 +169,9 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     protected Expression visitExtension(final Expression node) {
         // Prefer a toString override, if available.
         final Set<BindingFlags> flags = BindingFlags.PublicInstanceExact;
-        final MethodInfo toString = node.getType().getMethod("toString", flags, null, Type.EmptyTypes);
+        final MethodInfo toString = node.getType().getMethod("toString", flags, CallingConvention.Standard, Type.EmptyTypes);
 
-        if (toString == null) {
-            return null;
-        }
-
-        if (toString.getDeclaringType() != Type.of(Expression.class)) {
+        if (toString != null && toString.getDeclaringType() != Type.of(Expression.class)) {
             out(node.toString());
             return node;
         }
@@ -645,6 +660,96 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
+    protected Expression visitNew(final NewExpression node) {
+        out("new ");
+        out(node.getType().getName());
+        out('(');
+        visitList(node);
+        out(')');
+        return node;
+    }
+
+    @Override
+    protected Expression visitNewArray(final NewArrayExpression node) {
+        out("new ");
+        out(node.getType().getElementType().getName());
+
+        if (node.getNodeType() == ExpressionType.NewArrayBounds) {
+            final ExpressionList<? extends Expression> dimensions = node.getExpressions();
+
+            for (int i = 0, n = dimensions.size(); i < n; i++) {
+                out('[');
+                visit(dimensions.get(i));
+                out(']');
+            }
+        }
+        else {
+            out("[] {");
+
+            final ExpressionList<? extends Expression> items = node.getExpressions();
+
+            if (!items.isEmpty()) {
+                out(' ');
+            }
+
+            visitList(items);
+
+            if (!items.isEmpty()) {
+                out(' ');
+            }
+
+            out('}');
+        }
+
+        return node;
+    }
+
+    @Override
+    protected Expression visitFor(final ForExpression node) {
+        final ParameterExpression variable = node.getVariable();
+        final LabelTarget breakTarget = node.getBreakTarget();
+        final LabelTarget continueTarget = node.getContinueTarget();
+        final boolean hasBlock = node.getBody() instanceof BlockExpression;
+
+        out("for (");
+        out(variable.getType().getName());
+        out(' ');
+        visit(variable);
+        out(" = ");
+        visit(node.getInitializer());
+        out("; ");
+        visit(node.getTest());
+        out("; ");
+        visit(node.getStep());
+        out(")");
+
+        flush();
+
+        if (!hasBlock) {
+            increaseIndent();
+        }
+
+        visit(node.getBody());
+        flush();
+
+        if (breakTarget != null && breakTarget.getName() != null) {
+            visitLabelTarget(breakTarget);
+            flush();
+        }
+
+        if (continueTarget != null && continueTarget.getName() != null) {
+            visitLabelTarget(continueTarget);
+            flush();
+        }
+
+        if (!hasBlock) {
+            decreaseIndent();
+        }
+
+        return node;
+    }
+
+    @Override
     protected Expression visitBlock(final BlockExpression node) {
         ++_blockDepth;
         out('{');
@@ -654,7 +759,6 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
             out(v.getType().getName());
             out(' ');
             visit(v);
-            out(";");
             flush();
         }
         for (int i = 0, n = node.getExpressionCount(); i < n; i++) {

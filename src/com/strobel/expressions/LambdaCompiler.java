@@ -384,7 +384,7 @@ final class LambdaCompiler {
         assert type != null && variable != null
             : "type != null && variable != null";
 
-        final LocalBuilder lb = generator.declareLocal(type);
+        final LocalBuilder lb = generator.declareLocal(variable.getName(), type);
 
         if (emitDebugSymbols() && variable.getName() != null) {
             _tree.getDebugInfoGenerator().setLocalName(lb, variable.getName());
@@ -2398,7 +2398,13 @@ final class LambdaCompiler {
                         return;
                     case Equal:
                     case NotEqual:
-                        emitBranchComparison(branchValue, (BinaryExpression)node, label);
+                        emitBranchEqualityComparison(branchValue, (BinaryExpression)node, label);
+                        return;
+                    case GreaterThan:
+                    case GreaterThanOrEqual:
+                    case LessThan:
+                    case LessThanOrEqual:
+                        emitBranchRelation(branchValue, (BinaryExpression) node, label);
                         return;
                 }
             }
@@ -2419,7 +2425,7 @@ final class LambdaCompiler {
         emitExpressionAndBranch(!branch, node.getOperand(), label);
     }
 
-    private void emitBranchComparison(final boolean branch, final BinaryExpression node, final Label label) {
+    private void emitBranchEqualityComparison(final boolean branch, final BinaryExpression node, final Label label) {
         assert node.getNodeType() == ExpressionType.Equal || node.getNodeType() == ExpressionType.NotEqual;
 
         // To share code paths, we want to treat NotEqual as an inverted Equal
@@ -2498,6 +2504,158 @@ final class LambdaCompiler {
                     generator.emit(branchWhenEqual ? OpCode.IF_ACMPEQ : OpCode.IF_ACMPNE, label);
                     break;
             }
+        }
+    }
+
+    private void emitBranchRelation(final boolean branch, final BinaryExpression node, final Label label) {
+        final ExpressionType op = node.getNodeType();
+
+        assert op == ExpressionType.LessThan ||
+               op == ExpressionType.LessThanOrEqual ||
+               op == ExpressionType.GreaterThan ||
+               op == ExpressionType.GreaterThanOrEqual;
+
+        if (TypeUtils.isAutoUnboxed(node.getLeft().getType()) ||
+            TypeUtils.isAutoUnboxed(node.getRight().getType())) {
+
+            emitBinaryExpression(node);
+
+            //
+            // emitBinaryExpression() takes into account the Equal/NotEqual
+            // node kind, so use the original branch value
+            //
+            emitBranchOp(branch, label);
+
+            return;
+        }
+
+        final Expression equalityOperand = getEqualityOperand(node.getLeft());
+
+        emitExpression(equalityOperand);
+        emitExpression(getEqualityOperand(node.getRight()));
+
+        final Type<?> compareType;
+
+        if (TypeUtils.isArithmetic(equalityOperand.getType())) {
+            compareType = TypeUtils.getUnderlyingPrimitiveOrSelf(equalityOperand.getType());
+        }
+        else {
+            compareType = equalityOperand.getType();
+        }
+
+        final OpCode opCode;
+        final boolean reallyBranch;
+
+        switch (compareType.getKind()) {
+            case BOOLEAN:
+            case BYTE:
+            case SHORT:
+            case INT:
+            case CHAR: {
+                switch (op) {
+                    case GreaterThan:
+                        reallyBranch = branch == (op == ExpressionType.GreaterThan);
+                        generator.emit(reallyBranch ? OpCode.IF_ICMPGT : OpCode.IF_ICMPLE, label);
+                        break;
+
+                    case GreaterThanOrEqual:
+                        reallyBranch = branch == (op == ExpressionType.GreaterThanOrEqual);
+                        generator.emit(reallyBranch ? OpCode.IF_ICMPGE : OpCode.IF_ICMPLT, label);
+                        break;
+
+                    case LessThan:
+                        reallyBranch = branch == (op == ExpressionType.LessThan);
+                        generator.emit(reallyBranch ? OpCode.IF_ICMPLT : OpCode.IF_ICMPGE, label);
+                        break;
+
+                    case LessThanOrEqual:
+                        reallyBranch = branch == (op == ExpressionType.LessThanOrEqual);
+                        generator.emit(reallyBranch ? OpCode.IF_ICMPLE : OpCode.IF_ICMPGT, label);
+                        break;
+                }
+                break;
+            }
+
+            case LONG:
+                generator.emit(OpCode.LCMP);
+                switch (op) {
+                    case GreaterThan:
+                        reallyBranch = branch == (op == ExpressionType.GreaterThan);
+                        generator.emit(reallyBranch ? OpCode.IFGT : OpCode.IFLE, label);
+                        break;
+
+                    case GreaterThanOrEqual:
+                        reallyBranch = branch == (op == ExpressionType.GreaterThanOrEqual);
+                        generator.emit(reallyBranch ? OpCode.IFGE : OpCode.IFLT, label);
+                        break;
+
+                    case LessThan:
+                        reallyBranch = branch == (op == ExpressionType.LessThan);
+                        generator.emit(reallyBranch ? OpCode.IFLT : OpCode.IFGE, label);
+                        break;
+
+                    case LessThanOrEqual:
+                        reallyBranch = branch == (op == ExpressionType.LessThanOrEqual);
+                        generator.emit(reallyBranch ? OpCode.IFLE : OpCode.IFGT, label);
+                        break;
+                }
+                break;
+
+            case FLOAT:
+                switch (op) {
+                    case GreaterThan:
+                        reallyBranch = branch == (op == ExpressionType.GreaterThan);
+                        generator.emit(reallyBranch ? OpCode.FCMPG : OpCode.FCMPL);
+                        generator.emit(reallyBranch ? OpCode.IFGT : OpCode.IFLE, label);
+                        break;
+
+                    case GreaterThanOrEqual:
+                        reallyBranch = branch == (op == ExpressionType.GreaterThanOrEqual);
+                        generator.emit(reallyBranch ? OpCode.FCMPG : OpCode.FCMPL);
+                        generator.emit(reallyBranch ? OpCode.IFGE : OpCode.IFLT, label);
+                        break;
+
+                    case LessThan:
+                        reallyBranch = branch == (op == ExpressionType.LessThan);
+                        generator.emit(reallyBranch ? OpCode.FCMPL : OpCode.FCMPG);
+                        generator.emit(reallyBranch ? OpCode.IFLT : OpCode.IFGE, label);
+                        break;
+
+                    case LessThanOrEqual:
+                        reallyBranch = branch == (op == ExpressionType.LessThanOrEqual);
+                        generator.emit(reallyBranch ? OpCode.FCMPL : OpCode.FCMPG);
+                        generator.emit(reallyBranch ? OpCode.IFLE : OpCode.IFGT, label);
+                        break;
+                }
+                break;
+
+            case DOUBLE:
+                switch (op) {
+                    case GreaterThan:
+                        reallyBranch = branch == (op == ExpressionType.GreaterThan);
+                        generator.emit(reallyBranch ? OpCode.DCMPG : OpCode.DCMPL);
+                        generator.emit(reallyBranch ? OpCode.IFGT : OpCode.IFLE, label);
+                        break;
+
+                    case GreaterThanOrEqual:
+                        reallyBranch = branch == (op == ExpressionType.GreaterThanOrEqual);
+                        generator.emit(reallyBranch ? OpCode.DCMPG : OpCode.DCMPL);
+                        generator.emit(reallyBranch ? OpCode.IFGE : OpCode.IFLT, label);
+                        break;
+
+                    case LessThan:
+                        reallyBranch = branch == (op == ExpressionType.LessThan);
+                        generator.emit(reallyBranch ? OpCode.DCMPL : OpCode.DCMPG);
+                        generator.emit(reallyBranch ? OpCode.IFLT : OpCode.IFGE, label);
+                        break;
+
+                    case LessThanOrEqual:
+                        reallyBranch = branch == (op == ExpressionType.LessThanOrEqual);
+                        generator.emit(reallyBranch ? OpCode.DCMPL : OpCode.DCMPG);
+                        generator.emit(reallyBranch ? OpCode.IFLE : OpCode.IFGT, label);
+                        break;
+                }
+                break;
         }
     }
 
@@ -3119,6 +3277,7 @@ final class LambdaCompiler {
     private void emitNewArrayExpression(final Expression expr) {
         final NewArrayExpression node = (NewArrayExpression)expr;
         final ExpressionList<? extends Expression> expressions = node.getExpressions();
+        final Type elementType = node.getType().getElementType();
 
         if (node.getNodeType() == ExpressionType.NewArrayInit) {
             generator.emitArray(
@@ -3127,7 +3286,9 @@ final class LambdaCompiler {
                 new CodeGenerator.EmitArrayElementCallback() {
                     @Override
                     public void emit(final int index) {
-                        emitExpression(expressions.get(index));
+                        final Expression element = expressions.get(index);
+                        emitExpression(element);
+                        generator.emitConversion(element.getType(), elementType);
                     }
                 }
             );

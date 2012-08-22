@@ -1,12 +1,31 @@
 package com.strobel.expressions;
 
+import com.strobel.collections.ImmutableList;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.*;
+import com.strobel.reflection.BindingFlags;
+import com.strobel.reflection.CallingConvention;
+import com.strobel.reflection.ConstructorInfo;
+import com.strobel.reflection.FieldInfo;
+import com.strobel.reflection.MemberInfo;
+import com.strobel.reflection.MemberList;
+import com.strobel.reflection.MemberType;
+import com.strobel.reflection.MethodBase;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.MethodList;
+import com.strobel.reflection.ParameterInfo;
+import com.strobel.reflection.ParameterList;
+import com.strobel.reflection.PrimitiveTypes;
+import com.strobel.reflection.Type;
+import com.strobel.reflection.TypeList;
+import com.strobel.reflection.Types;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static java.lang.String.format;
 
@@ -255,7 +274,7 @@ public abstract class Expression {
         verifyCanRead(body, "body");
 
         if (continueLabel != null && continueLabel.getType() != PrimitiveTypes.Void) {
-            throw Error.labelTypeMustBeVoid();
+            throw Error.continueTargetMustBeVoid();
         }
 
         return new LoopExpression(body, breakTarget, continueLabel);
@@ -286,15 +305,63 @@ public abstract class Expression {
         final LabelTarget continueTarget) {
 
         VerifyArgument.notNull(variable, "variable");
-
         verifyCanRead(sequence, "sequence");
-        verifyCanRead(body, "body");
+        VerifyArgument.notNull(body, "body");
 
         if (continueTarget != null && continueTarget.getType() != PrimitiveTypes.Void) {
-            throw Error.labelTypeMustBeVoid();
+            throw Error.continueTargetMustBeVoid();
         }
 
         return new ForEachExpression(variable, sequence, body, breakTarget, continueTarget);
+    }
+
+    public static ForExpression makeFor(
+        final ParameterExpression variable,
+        final Expression initializer,
+        final Expression test,
+        final Expression step,
+        final Expression body) {
+
+        return makeFor(variable, initializer, test, step, body, null, null);
+    }
+
+    public static ForExpression makeFor(
+        final ParameterExpression variable,
+        final Expression initializer,
+        final Expression test,
+        final Expression step,
+        final Expression body,
+        final LabelTarget breakTarget) {
+
+        return makeFor(variable, initializer, test, step, body, breakTarget, null);
+    }
+
+    public static ForExpression makeFor(
+        final ParameterExpression variable,
+        final Expression initializer,
+        final Expression test,
+        final Expression step,
+        final Expression body,
+        final LabelTarget breakTarget,
+        final LabelTarget continueTarget) {
+
+        VerifyArgument.notNull(variable, "variable");
+        verifyCanRead(initializer, "initializer");
+        verifyCanRead(test, "test");
+        VerifyArgument.notNull(step, "step");
+        verifyCanRead(body, "body");
+
+        if (!variable.getType().isAssignableFrom(initializer.getType()))
+            throw Error.initializerMustBeAssignableToVariable();
+
+        if (!TypeUtils.hasIdentityPrimitiveOrBoxingConversion(test.getType(), PrimitiveTypes.Boolean))
+            throw Error.testMustBeBooleanExpression();
+
+        if (continueTarget != null && continueTarget.getType() != PrimitiveTypes.Void) {
+            throw Error.continueTargetMustBeVoid();
+        }
+
+        return new ForExpression(variable, initializer, test, step, body, breakTarget, continueTarget);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -904,7 +971,8 @@ public abstract class Expression {
     }
 
     public static UnaryExpression increment(final Expression expression) {
-        return negate(expression, null);
+        return increment(
+            expression, null);
     }
 
     public static UnaryExpression increment(final Expression expression, final MethodInfo method) {
@@ -1124,6 +1192,18 @@ public abstract class Expression {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // BINARY EXPRESSIONS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static BinaryExpression makeBinary(
+        final ExpressionType binaryType,
+        final Expression first,
+        final Expression... rest) {
+
+        verifyCanRead(first, "first");
+        VerifyArgument.notEmpty(rest, "rest");
+        verifyCanRead(rest, "rest");
+
+        return aggregateBinary(binaryType, ImmutableList.of(first, rest));
+    }
 
     public static BinaryExpression makeBinary(
         final ExpressionType binaryType,
@@ -1469,6 +1549,14 @@ public abstract class Expression {
         return andAlso(left, right, null);
     }
 
+    public static BinaryExpression andAlso(final Expression first, final Expression... rest) {
+        verifyCanRead(first, "first");
+        VerifyArgument.notEmpty(rest, "rest");
+        verifyCanRead(rest, "rest");
+
+        return aggregateBinary(ExpressionType.AndAlso, ImmutableList.of(first, rest));
+    }
+
     public static BinaryExpression andAlso(final Expression left, final Expression right, final MethodInfo method) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
@@ -1493,6 +1581,14 @@ public abstract class Expression {
 
     public static BinaryExpression orElse(final Expression left, final Expression right) {
         return orElse(left, right, null);
+    }
+
+    public static BinaryExpression orElse(final Expression first, final Expression... rest) {
+        verifyCanRead(first, "first");
+        VerifyArgument.notEmpty(rest, "rest");
+        verifyCanRead(rest, "rest");
+
+        return aggregateBinary(ExpressionType.OrElse, ImmutableList.of(first, rest));
     }
 
     public static BinaryExpression orElse(final Expression left, final Expression right, final MethodInfo method) {
@@ -2301,7 +2397,7 @@ public abstract class Expression {
                 for (int i = varArgArrayPosition, n = arguments.size(); i < n; i++) {
                     arrayInitList = arrayInitList.add(arguments.get(i));
                 }
-                
+
                 newArguments[varArgArrayPosition] = newArrayInit(
                     varArgArrayType.getElementType(),
                     arrayInitList
@@ -2931,6 +3027,20 @@ public abstract class Expression {
             return (T)objectOrCollection;
         }
         return ((ExpressionList<T>)objectOrCollection).get(0);
+    }
+
+    private static BinaryExpression aggregateBinary(
+        final ExpressionType binaryType,
+        final ImmutableList<Expression> operands) {
+
+        if (operands.size() == 2)
+            return makeBinary(binaryType, operands.head, operands.tail.head);
+
+        return makeBinary(
+            binaryType,
+            operands.head,
+            aggregateBinary(binaryType, operands.tail)
+        );
     }
 
     private static void verifyTypeBinaryExpressionOperand(final Expression expression, final Type type) {

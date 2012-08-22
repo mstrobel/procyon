@@ -8,7 +8,6 @@ import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -221,6 +220,47 @@ public class CompilerTests {
     }
 
     @Test
+    public void testForLoop() throws Exception {
+        final Expression out = field(null, Type.of(System.class).getField("out"));
+        final ParameterExpression base = variable(PrimitiveTypes.Integer, "base");
+        final ParameterExpression power = variable(PrimitiveTypes.Integer, "power");
+        final ParameterExpression accumulator = variable(PrimitiveTypes.Integer, "accumulator");
+        final ParameterExpression variable = variable(PrimitiveTypes.Integer, "i");
+
+        final LambdaExpression<IntegerPowerDelegate> runnable = lambda(
+            Type.of(IntegerPowerDelegate.class),
+            block(
+                new ParameterExpressionList(accumulator),
+                assign(accumulator, base),
+                makeFor(
+                    variable,
+                    constant(1),
+                    lessThan(variable, power),
+                    preIncrementAssign(variable),
+                    multiplyAssign(accumulator, base)
+                ),
+                call(out, "printf", constant("%d^%d=%d\n"), base, power, accumulator),
+                accumulator
+            ),
+            base,
+            power
+        );
+
+        System.out.println();
+        System.out.println(runnable);
+
+        final IntegerPowerDelegate delegate = runnable.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        assertEquals(-1, delegate.transform(-1, 0));
+        assertEquals(-1, delegate.transform(-1, 1));
+        assertEquals(2, delegate.transform(2, 1));
+        assertEquals(4, delegate.transform(2, 2));
+        assertEquals(16, delegate.transform(2, 4));
+    }
+
+    @Test
     public void simpleLambdaTest() throws Exception {
         final ParameterExpression number = parameter(PrimitiveTypes.Integer, "number");
 
@@ -341,13 +381,13 @@ public class CompilerTests {
 
         System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
-        delegate.apply(0);
-        delegate.apply(1);
-        delegate.apply(2);
-        delegate.apply(3);
-        delegate.apply(4);
-        delegate.apply(5);
-        delegate.apply(6);
+        System.out.println(delegate.apply(0));
+        System.out.println(delegate.apply(1));
+        System.out.println(delegate.apply(2));
+        System.out.println(delegate.apply(3));
+        System.out.println(delegate.apply(4));
+        System.out.println(delegate.apply(5));
+        System.out.println(delegate.apply(6));
 
         assertEquals("something else", delegate.apply(0));
         assertEquals("one or two", delegate.apply(1));
@@ -393,13 +433,13 @@ public class CompilerTests {
 
         System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
-        delegate.apply(0);
-        delegate.apply(1);
-        delegate.apply(2);
-        delegate.apply(3);
-        delegate.apply(4);
-        delegate.apply(5);
-        delegate.apply(6);
+        System.out.println(delegate.apply(0));
+        System.out.println(delegate.apply(1));
+        System.out.println(delegate.apply(2));
+        System.out.println(delegate.apply(3));
+        System.out.println(delegate.apply(4));
+        System.out.println(delegate.apply(5));
+        System.out.println(delegate.apply(6));
 
         assertEquals("something else", delegate.apply(0));
         assertEquals("one or two", delegate.apply(1));
@@ -455,12 +495,12 @@ public class CompilerTests {
 
         System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
-        delegate.apply(TestEnum.ONE);
-        delegate.apply(TestEnum.TWO);
-        delegate.apply(TestEnum.THREE);
-        delegate.apply(TestEnum.FOUR);
-        delegate.apply(TestEnum.FIVE);
-        delegate.apply(TestEnum.SIX);
+        System.out.println(delegate.apply(TestEnum.ONE));
+        System.out.println(delegate.apply(TestEnum.TWO));
+        System.out.println(delegate.apply(TestEnum.THREE));
+        System.out.println(delegate.apply(TestEnum.FOUR));
+        System.out.println(delegate.apply(TestEnum.FIVE));
+        System.out.println(delegate.apply(TestEnum.SIX));
 
         assertEquals("something else", delegate.apply(TestEnum.ZERO));
         assertEquals("one or two", delegate.apply(TestEnum.ONE));
@@ -551,7 +591,6 @@ public class CompilerTests {
         );
 
         System.out.println();
-
         System.out.println(lambda);
 
         final Func1<String, String> delegate = lambda.compile();
@@ -595,7 +634,12 @@ public class CompilerTests {
             )
         );
 
+        System.out.println();
+        System.out.println(lambda);
+
         final Runnable delegate = lambda.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
         try {
             delegate.run();
@@ -638,7 +682,12 @@ public class CompilerTests {
             )
         );
 
+        System.out.println();
+        System.out.println(lambda);
+
         final Runnable delegate = lambda.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
         try {
             delegate.run();
@@ -654,59 +703,16 @@ public class CompilerTests {
 
     @Test
     public void testBinaryNumericPromotion() throws Exception {
-        final ArrayList<Expression> tests = new ArrayList<>();
-
-        tests.add(
-            typeEqual(
-                convert(multiply(constant(3), constant(2L)), Types.Object),
-                Types.Long
-            )
-        );
-
-        tests.add(
-            typeEqual(
-                convert(multiply(constant(3L), constant(2)), Types.Object),
-                Types.Long
-            )
-        );
-
-        tests.add(
-            typeEqual(
-                convert(multiply(constant(3f), constant(2L)), Types.Object),
-                Types.Float
-            )
-        );
-
-        tests.add(
-            typeEqual(
-                convert(multiply(constant((short)3), constant(2f)), Types.Object),
-                Types.Float
-            )
-        );
-
-        tests.add(
-            typeEqual(
-                convert(multiply(constant(3d), constant((char)2)), Types.Object),
-                Types.Double
-            )
-        );
-
-        tests.add(
-            typeEqual(
-                convert(multiply(constant((byte)3), constant(2d)), Types.Object),
-                Types.Double
-            )
-        );
-
-        Expression body = tests.get(0);
-
-        for (int i = 1; i < tests.size(); i++) {
-             body = andAlso(body, tests.get(i));
-        }
-
         final LambdaExpression<ISimpleTest> lambda = lambda(
             Type.of(ISimpleTest.class),
-            body
+            andAlso(
+                typeEqual(convert(multiply(constant(3), constant(2L)), Types.Object), Types.Long),
+                typeEqual(convert(multiply(constant(3L), constant(2)), Types.Object), Types.Long),
+                typeEqual(convert(multiply(constant(3f), constant(2L)), Types.Object), Types.Float),
+                typeEqual(convert(multiply(constant((short)3), constant(2f)), Types.Object), Types.Float),
+                typeEqual(convert(multiply(constant(3d), constant((char)2)), Types.Object), Types.Double),
+                typeEqual(convert(multiply(constant((byte)3), constant(2d)), Types.Object), Types.Double)
+            )
         );
 
         System.out.println();
@@ -728,5 +734,9 @@ public class CompilerTests {
 
     interface ISimpleTest {
         boolean test();
+    }
+
+    interface IntegerPowerDelegate {
+        int transform(final int base, final int power);
     }
 }

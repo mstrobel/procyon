@@ -86,16 +86,16 @@ final class DefaultBinder extends Binder {
 
         for (int i = 0, n = candidates.length; i < n; i++) {
             final MethodBase candidate = candidates[i];
-            final ParameterList par = candidate.getParameters();
-
+            final ParameterList parameters = candidate.getParameters();
+            final int parameterCount = parameters.size();
             final boolean isVarArgs = candidate.getCallingConvention() == CallingConvention.VarArgs;
-            
-            if (par.size() != types.length && !isVarArgs) {
+
+            if (parameterCount != types.length && !isVarArgs) {
                 continue;
             }
 
-            for (stop = 0; stop < types.length; stop++) {
-                final Type parameterType = par.get(stop).getParameterType();
+            for (stop = 0; stop < parameterCount; stop++) {
+                final Type parameterType = parameters.get(stop).getParameterType();
 
                 if (parameterType == types[stop] || parameterType == Types.Object) {
                     continue;
@@ -105,7 +105,7 @@ final class DefaultBinder extends Binder {
                     continue;
                 }
 
-                if (!isVarArgs || stop != par.size() - 1) {
+                if (!isVarArgs || stop != parameterCount - 1) {
                     break;
                 }
 
@@ -114,7 +114,7 @@ final class DefaultBinder extends Binder {
                 }
             }
 
-            if (stop == types.length) {
+            if (stop == parameterCount) {
                 candidates[currentIndex++] = candidate;
             }
         }

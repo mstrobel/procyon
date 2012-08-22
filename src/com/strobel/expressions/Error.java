@@ -506,8 +506,8 @@ final class Error {
         return new IllegalStateException("Label type must be void if an expression is not supplied.");
     }
 
-    public static IllegalStateException expressionTypeDoesNotMatchLabel(final Type valueType, final Type expectedType) {
-        return new IllegalStateException(
+    public static IllegalArgumentException expressionTypeDoesNotMatchLabel(final Type valueType, final Type expectedType) {
+        return new IllegalArgumentException(
             format(
                 "Expression of type '%s' cannot be used for return type '%s'.",
                 valueType.getFullName(),
@@ -516,12 +516,8 @@ final class Error {
         );
     }
 
-    public static IllegalStateException labelTypeMustBeVoid() {
-        return new IllegalStateException("Type must be void for this label argument.");
-    }
-
-    public static IllegalStateException expressionTypeCannotInitializeArrayType(final Type itemType, final Type arrayElementType) {
-        return new IllegalStateException(
+    public static IllegalArgumentException expressionTypeCannotInitializeArrayType(final Type itemType, final Type arrayElementType) {
+        return new IllegalArgumentException(
             format(
                 "An expression of type '%s' cannot be used to initialize an array of type '%s'.",
                 itemType.getFullName(),
@@ -716,5 +712,17 @@ final class Error {
 
     public static IllegalArgumentException argumentMustBeReferenceType() {
         return new IllegalArgumentException("Argument must be a reference type.");
+    }
+
+    public static IllegalArgumentException initializerMustBeAssignableToVariable() {
+        return new IllegalArgumentException("Initializer must be assignable to variable.");
+    }
+
+    public static IllegalArgumentException testMustBeBooleanExpression() {
+        return new IllegalArgumentException("Test must be a boolean expression.");
+    }
+
+    public static IllegalArgumentException continueTargetMustBeVoid() {
+        return new IllegalArgumentException("Continue label target must be void.");
     }
 }

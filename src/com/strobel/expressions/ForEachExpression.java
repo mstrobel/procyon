@@ -129,28 +129,22 @@ public final class ForEachExpression extends Expression {
         return block(
             variables,
             assign(array, _sequence),
-            assign(index, constant(0)),
             assign(length, arrayLength(array)),
-            block(
-                new ParameterExpressionList(_variable),
-                makeGoto(continueTarget),
-                loop(
-                    block(
-                        assign(
-                            _variable,
-                            convert(arrayIndex(array, index), _variable.getType())
-                        ),
-                        _body,
-                        preIncrementAssign(index),
-                        label(continueTarget),
-                        ifThen(
-                            greaterThanOrEqual(index, length),
-                            makeBreak(breakTarget)
-                        )
-                    )
-                ),
-                label(breakTarget)
-            )
+            assign(index, constant(0)),
+            loop(
+                block(
+                    new ParameterExpressionList(_variable),
+                    ifThen(
+                        not(lessThan(index, length)),
+                        makeBreak(breakTarget)
+                    ),
+                    assign(_variable, convert(arrayIndex(array, index), _variable.getType())),
+                    _body,
+                    label(continueTarget),
+                    preIncrementAssign(index)
+                )
+            ),
+            label(breakTarget)
         );
     }
 

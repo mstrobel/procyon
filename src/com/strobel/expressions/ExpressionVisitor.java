@@ -53,6 +53,18 @@ public abstract class ExpressionVisitor {
         );
     }
 
+    protected Expression visitFor(final ForExpression node) {
+        return node.update(
+            (ParameterExpression) visit(node.getVariable()),
+            visit(node.getInitializer()),
+            visit(node.getTest()),
+            visit(node.getStep()),
+            visit(node.getBody()),
+            visitLabelTarget(node.getBreakTarget()),
+            visitLabelTarget(node.getContinueTarget())
+        );
+    }
+
     protected Expression visitMember(final MemberExpression node) {
         return node.update(this.visit(node.getTarget()));
     }
