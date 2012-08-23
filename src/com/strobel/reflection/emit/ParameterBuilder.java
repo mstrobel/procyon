@@ -56,6 +56,6 @@ public final class ParameterBuilder  {
     }
 
     void setName(final String name) {
-        _name = name;
+        _name = name != null ? name : "p" + _position;
     }
 }

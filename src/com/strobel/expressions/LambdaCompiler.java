@@ -84,6 +84,12 @@ final class LambdaCompiler {
             interfaceMethod.getThrownTypes()
         );
 
+        final ParameterExpressionList lambdaParameters = lambda.getParameters();
+
+        for (int i = 0, n = lambdaParameters.size(); i < n; i++) {
+            methodBuilder.defineParameter(i, lambdaParameters.get(i).getName());
+        }
+
         typeBuilder.defineMethodOverride(methodBuilder, interfaceMethod);
 
         generator = methodBuilder.getCodeGenerator();
@@ -134,10 +140,9 @@ final class LambdaCompiler {
         method.setParameters(parameterTypes);
 
         final ParameterExpressionList lambdaParameters = lambda.getParameters();
-        final int startIndex = 1;
 
         for (int i = 0, n = lambdaParameters.size(); i < n; i++) {
-            method.defineParameter(i + startIndex, lambdaParameters.get(i).getName());
+            method.defineParameter(i, lambdaParameters.get(i).getName());
         }
 
         this.typeBuilder = method.getDeclaringType();
