@@ -725,4 +725,18 @@ final class Error {
     public static IllegalArgumentException continueTargetMustBeVoid() {
         return new IllegalArgumentException("Continue label target must be void.");
     }
+
+    public static IllegalStateException cannotAccessThisFromStaticMember() {
+        return new IllegalStateException("Cannot access 'this' from s static member.");
+    }
+
+    public static IllegalStateException incorrectlyTypedSelfExpression(final Type<?> expected, final Type<?> actual) {
+        return new IllegalStateException(
+            format(
+                "Incorrectly typed 'this' expression: expected '%s', found '%s'.",
+                expected.getName(),
+                actual.getName()
+            )
+        );
+    }
 }

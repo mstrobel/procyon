@@ -654,6 +654,14 @@ public final class TypeBuilder<T> extends Type<T> {
     public MethodBuilder defineMethod(
         final String name,
         final int modifiers,
+        final Type<?> returnType) {
+
+        return defineMethod(name, modifiers, returnType, TypeList.empty(), TypeList.empty());
+    }
+
+    public MethodBuilder defineMethod(
+        final String name,
+        final int modifiers,
         final Type<?> returnType,
         final TypeList parameterTypes) {
 

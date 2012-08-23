@@ -142,6 +142,10 @@ final class VariableBinder extends ExpressionVisitor {
 
     @Override
     protected Expression visitParameter(final ParameterExpression node) {
+        if (node instanceof SelfExpression) {
+            return node;
+        }
+
         reference(node, VariableStorageKind.Local);
 
         //

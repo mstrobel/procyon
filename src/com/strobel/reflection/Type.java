@@ -1,6 +1,7 @@
 package com.strobel.reflection;
 
 import com.strobel.core.*;
+import com.strobel.reflection.emit.TypeBuilder;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
 import com.strobel.util.TypeUtils;
@@ -268,6 +269,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         if (other == null) {
+            return false;
+        }
+
+        if (other instanceof TypeBuilder<?>) {
             return false;
         }
 

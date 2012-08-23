@@ -14,8 +14,6 @@ import com.strobel.reflection.MemberList;
 import com.strobel.reflection.MemberType;
 import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.ParameterInfo;
-import com.strobel.reflection.ParameterList;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
@@ -3262,18 +3260,25 @@ final class LambdaCompiler {
     }
 
     private void emitArguments(final MethodBase method, final IArgumentProvider args, final int skipParameters) {
-        final ParameterList parameters = method.getParameters();
+        final TypeList parameters;
+
+        if (method instanceof MethodBuilder) {
+            parameters = ((MethodBuilder)method).getParameterTypes();
+        }
+        else {
+            parameters = method.getParameters().getParameterTypes();
+        }
 
         assert args.getArgumentCount() + skipParameters == parameters.size();
 
         for (int i = skipParameters, n = parameters.size(); i < n; i++) {
-            final ParameterInfo parameter = parameters.get(i);
+            final Type<?> parameterType = parameters.get(i);
             final Expression argument = args.getArgument(i - skipParameters);
 
             emitExpression(argument);
 
-            if (argument.getType() != parameter.getParameterType()) {
-                generator.emitConversion(argument.getType(), parameter.getParameterType());
+            if (argument.getType() != parameterType) {
+                generator.emitConversion(argument.getType(), parameterType);
             }
         }
     }
@@ -3336,6 +3341,16 @@ final class LambdaCompiler {
 
     private void emitParameterExpression(final Expression expr) {
         final ParameterExpression node = (ParameterExpression)expr;
+        if (node instanceof SelfExpression) {
+            if (methodBuilder.isStatic()) {
+                throw Error.cannotAccessThisFromStaticMember();
+            }
+            if (node.getType() != typeBuilder) {
+                throw Error.incorrectlyTypedSelfExpression(typeBuilder, node.getType());
+            }
+            generator.emitThis();
+            return;
+        }
         _scope.emitGet(node);
     }
 

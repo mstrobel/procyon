@@ -19,6 +19,7 @@ import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
+import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
@@ -151,6 +152,10 @@ public abstract class Expression {
 
     public static Expression empty() {
         return new DefaultValueExpression(PrimitiveTypes.Void);
+    }
+
+    public static Expression self(final Type<?> type) {
+        return new SelfExpression(type);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3506,14 +3511,21 @@ public abstract class Expression {
                nodeKind == ExpressionType.Call ||
                nodeKind == ExpressionType.New;
 
-        final ParameterList parameters = method.getParameters();
+        final TypeList parameterTypes;
 
-        validateArgumentCount(method, nodeKind, arguments.size(), parameters);
+        if (method instanceof MethodBuilder) {
+            parameterTypes = ((MethodBuilder) method).getParameterTypes();
+        }
+        else {
+            parameterTypes = method.getParameters().getParameterTypes();
+        }
+
+        validateArgumentCount(method, nodeKind, arguments.size(), parameterTypes);
 
         T[] newArgs = null;
 
-        for (int i = 0, n = parameters.size(); i < n; i++) {
-            final Type parameterType = parameters.get(i).getParameterType();
+        for (int i = 0, n = parameterTypes.size(); i < n; i++) {
+            final Type parameterType = parameterTypes.get(i);
             final T arg = validateOneArgument(method, nodeKind, arguments.get(i), parameterType);
 
             if (arg != arguments.get(i)) {
@@ -3561,7 +3573,7 @@ public abstract class Expression {
         final MethodBase method,
         final ExpressionType nodeKind,
         final int count,
-        final ParameterList parameterTypes) {
+        final TypeList parameterTypes) {
 
         if (parameterTypes.size() == count) {
             return;
