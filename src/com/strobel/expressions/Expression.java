@@ -2183,6 +2183,15 @@ public abstract class Expression {
 
     public static <T> LambdaExpression<T> lambda(
         final Type<?> interfaceType,
+        final String name,
+        final Expression body,
+        final ParameterExpression... parameters) {
+
+        return lambda(interfaceType, name, body, false, arrayToList(parameters));
+    }
+
+    public static <T> LambdaExpression<T> lambda(
+        final Type<?> interfaceType,
         final Expression body,
         final ParameterExpression... parameters) {
 

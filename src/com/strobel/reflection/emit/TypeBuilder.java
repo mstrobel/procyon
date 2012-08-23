@@ -89,8 +89,7 @@ public final class TypeBuilder<T> extends Type<T> {
         _fields = FieldList.empty();
         _typeBindings = TypeBindings.empty();
         _annotations = ReadOnlyList.emptyList();
-
-        _protectionDomain = CallerResolver.getCallerClass(2).getProtectionDomain();
+        _protectionDomain = CallerResolver.getCallerClass(1).getProtectionDomain();
     }
 
     TypeBuilder(final String name, final int genericParameterPosition, final TypeBuilder declaringType) {

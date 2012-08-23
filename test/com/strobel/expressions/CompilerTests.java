@@ -2,6 +2,7 @@ package com.strobel.expressions;
 
 import com.strobel.core.delegates.Action1;
 import com.strobel.core.delegates.Func1;
+import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
@@ -715,8 +716,8 @@ public class CompilerTests {
         final Expression out = field(null, Type.of(System.class).getField("out"));
 
         final TypeBuilder<Runnable> typeBuilder = new TypeBuilder<>(
-            "MyClass",
-            Modifier.PUBLIC|Modifier.FINAL,
+            "TestCompileToMethod",
+            Modifier.PUBLIC | Modifier.FINAL,
             Types.Object,
             Type.list(Type.of(Runnable.class))
         );
@@ -772,6 +773,63 @@ public class CompilerTests {
         );
 
         runLambda.compileToMethod(runMethod);
+
+        final Type<Runnable> type = typeBuilder.createType();
+        final Runnable instance = type.newInstance();
+
+        instance.run();
+    }
+
+    @Test
+    public void testCompileToGeneratedMethod() throws Exception {
+        final Expression out = field(null, Type.of(System.class).getField("out"));
+
+        final TypeBuilder<Runnable> typeBuilder = new TypeBuilder<>(
+            "TestCompileToGeneratedMethod",
+            Modifier.PUBLIC | Modifier.FINAL,
+            Types.Object,
+            Type.list(Type.of(Runnable.class))
+        );
+
+        final Expression self = self(typeBuilder);
+
+        final ParameterExpression base = variable(PrimitiveTypes.Integer, "base");
+        final ParameterExpression power = variable(PrimitiveTypes.Integer, "power");
+        final ParameterExpression accumulator = variable(PrimitiveTypes.Integer, "accumulator");
+        final ParameterExpression variable = variable(PrimitiveTypes.Integer, "i");
+
+        final LambdaExpression<IntegerPowerDelegate> powerLambda = lambda(
+            Type.of(IntegerPowerDelegate.class),
+            block(
+                new ParameterExpressionList(accumulator),
+                assign(accumulator, base),
+                makeFor(
+                    variable,
+                    constant(1),
+                    lessThan(variable, power),
+                    preIncrementAssign(variable),
+                    multiplyAssign(accumulator, base)
+                ),
+                call(out, "printf", constant("%d^%d=%d\n"), base, power, accumulator),
+                accumulator
+            ),
+            base,
+            power
+        );
+
+        final MethodInfo powerMethod = powerLambda.compileToMethod(typeBuilder);
+
+        final LambdaExpression<Runnable> runLambda = lambda(
+            Type.of(Runnable.class),
+            "run",
+            call(
+                out,
+                "println",
+                call(self, powerMethod, constant(2), constant(4))
+            )
+        );
+
+        runLambda.compileToMethod(typeBuilder);
 
         final Type<Runnable> type = typeBuilder.createType();
         final Runnable instance = type.newInstance();

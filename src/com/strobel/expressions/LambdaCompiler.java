@@ -3024,11 +3024,11 @@ final class LambdaCompiler {
         emitDelegateConstruction(compiler);
     }
 
-    private static String getUniqueMethodName() {
-        return "<ExpressionCompilerImplementationDetails>{" + nextId.getAndIncrement() + "}lambda_method";
+    static String getUniqueMethodName() {
+        return String.format("lambda_method_%d", nextId.getAndIncrement());
     }
 
-    private static String getUniqueLambdaName(final Class<?> creationContext) {
+    static String getUniqueLambdaName(final Class<?> creationContext) {
         final Package p = creationContext != null ? creationContext.getPackage()
                                                   : LambdaCompiler.class.getPackage();
 

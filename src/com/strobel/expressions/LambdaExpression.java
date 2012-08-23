@@ -2,8 +2,14 @@ package com.strobel.expressions;
 
 import com.strobel.compilerservices.CallerResolver;
 import com.strobel.compilerservices.DebugInfoGenerator;
-import com.strobel.reflection.emit.MethodBuilder;
+import com.strobel.core.StringUtilities;
+import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.Type;
+import com.strobel.reflection.emit.MethodBuilder;
+import com.strobel.reflection.emit.TypeBuilder;
+
+import java.lang.reflect.Modifier;
 
 /**
  * @author Mike Strobel
@@ -96,5 +102,46 @@ public final class LambdaExpression<T> extends Expression {
 
     public final void compileToMethod(final MethodBuilder methodBuilder) {
         LambdaCompiler.compile(this, methodBuilder, DebugInfoGenerator.empty());
+    }
+
+    public final MethodInfo compileToMethod(final TypeBuilder<?> typeBuilder) {
+        final String name = getName();
+
+        return compileToMethod(
+            typeBuilder,
+            StringUtilities.isNullOrWhitespace(name)
+            ? LambdaCompiler.getUniqueMethodName()
+            : name,
+            Modifier.PUBLIC
+        );
+    }
+
+    public final MethodInfo compileToMethod(
+        final TypeBuilder<?> typeBuilder,
+        final String name) {
+
+        return compileToMethod(typeBuilder, name, Modifier.PUBLIC);
+    }
+
+    public final MethodInfo compileToMethod(
+        final TypeBuilder<?> typeBuilder,
+        final String name,
+        final int modifiers) {
+
+        VerifyArgument.notNull(typeBuilder, "typeBuilder");
+        VerifyArgument.notNullOrWhitespace(name, "name");
+
+        final MethodInfo invokeMethod = Expression.getInvokeMethod(this);
+
+        final MethodBuilder methodBuilder = typeBuilder.defineMethod(
+            name,
+            modifiers,
+            invokeMethod.getReturnType(),
+            invokeMethod.getParameters().getParameterTypes()
+        );
+
+        LambdaCompiler.compile(this, methodBuilder, DebugInfoGenerator.empty());
+
+        return methodBuilder;
     }
 }
