@@ -1503,7 +1503,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 ++arrayDepth;
             }
 
-            Type<?> resolvedType = RESOLVER.resolve(actualClass);
+            Type<?> resolvedType = resolveClassType(actualClass);
 
             if (resolvedType == null) {
                 throw Error.couldNotResolveType(clazz);
@@ -1516,6 +1516,33 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
             return (Type<T>)resolvedType;
         }
+    }
+
+    private static Type<?> resolveClassType(final Class<?> actualClass) {
+        if (actualClass.isAnonymousClass()) {
+            final Class<?>[] interfaces = actualClass.getInterfaces();
+
+            if (interfaces != null && interfaces.length != 0) {
+                return of(interfaces[0]);
+            }
+
+            return of(actualClass.getSuperclass());
+        }
+
+        final Class<?> declaringClass = actualClass.getEnclosingClass();
+
+        if (declaringClass != null) {
+            final Type<?> declaringType = of(declaringClass);
+
+            if (declaringType != null) {
+                return declaringType.getNestedType(
+                    actualClass.getSimpleName(),
+                    BindingFlags.All
+                );
+            }
+        }
+
+        return RESOLVER.resolve(actualClass);
     }
 
     public static <T> Type<T> getType(final T object) {

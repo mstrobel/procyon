@@ -22,10 +22,7 @@ import com.strobel.reflection.Types;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static java.lang.String.format;
 
@@ -3760,13 +3757,16 @@ public abstract class Expression {
             throw Error.methodDoesNotExistOnType(methodName, type);
         }
 
-        final MethodInfo[] methods = new MethodInfo[members.size()];
+        final ArrayList<MethodInfo> candidates = new ArrayList<>(members.size());
 
         for (int i = 0, n = members.size(); i < n; i++) {
-            methods[i] = applyTypeArgs(
+            final MethodInfo appliedMethod = applyTypeArgs(
                 (MethodInfo) members.get(i),
                 typeArguments
             );
+            
+            if (appliedMethod != null)
+                candidates.add(appliedMethod);
         }
 
         final Type[] parameterTypes = new Type[arguments.size()];
@@ -3777,7 +3777,7 @@ public abstract class Expression {
 
         final MethodInfo result = (MethodInfo) Type.DefaultBinder.selectMethod(
             flags,
-            methods,
+            candidates.toArray(new MethodBase[candidates.size()]),
             parameterTypes
         );
 
