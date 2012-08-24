@@ -11,14 +11,12 @@ import java.lang.reflect.Method;
  */
 public final class DynamicMethod extends MethodInfo {
     private static final Method INVOKE_EXACT;
-    private static final Method INVOKE_WITH_ARGUMENTS;
     private static final Method INVOKE;
 
     static {
         try {
             INVOKE = MethodHandle.class.getMethod("invoke", Object[].class);
             INVOKE_EXACT = MethodHandle.class.getMethod("invokeExact", Object[].class);
-            INVOKE_WITH_ARGUMENTS = MethodHandle.class.getMethod("invokeWithArguments", Object[].class);
         }
         catch (NoSuchMethodException e) {
             throw Error.targetInvocationException(e);
@@ -31,10 +29,6 @@ public final class DynamicMethod extends MethodInfo {
 
     public static DynamicMethod invokeExact(final MethodHandle methodHandle) {
         return new DynamicMethod(methodHandle.type(), INVOKE_EXACT);
-    }
-
-    public static DynamicMethod invokeWithArguments(final MethodHandle methodHandle) {
-        return new DynamicMethod(methodHandle.type(), INVOKE_WITH_ARGUMENTS);
     }
 
     private final Type<?> _returnType;

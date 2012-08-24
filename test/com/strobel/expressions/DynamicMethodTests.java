@@ -2,7 +2,6 @@ package com.strobel.expressions;
 
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.DynamicMethod;
-import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
 import org.junit.Before;
@@ -11,10 +10,10 @@ import org.junit.Test;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
+import java.util.Map;
 
 import static com.strobel.expressions.Expression.*;
-import static com.strobel.expressions.Expression.constant;
-import static java.lang.invoke.MethodHandles.*;
+import static java.lang.invoke.MethodHandles.insertArguments;
 import static java.lang.invoke.MethodType.methodType;
 import static org.junit.Assert.assertTrue;
 
@@ -41,11 +40,14 @@ public final class DynamicMethodTests {
     public void testHashMapAccess() throws Throwable {
         final MethodHandle lookupHandle = getLookupHandle(booleanProperty);
 
+        final boolean test1 = (boolean)lookupHandle.invoke();
+        final boolean test2 = (Boolean)lookupHandle.invokeWithArguments();
+
         final LambdaExpression<BooleanAccessor> accessorLambda = lambda(
             Type.of(BooleanAccessor.class),
-            convert(
-                call(constant(lookupHandle, Types.MethodHandle), DynamicMethod.invokeExact(lookupHandle)),
-                PrimitiveTypes.Boolean
+            call(
+                constant(lookupHandle, Types.MethodHandle),
+                DynamicMethod.invokeExact(lookupHandle)
             )
         );
 
@@ -57,7 +59,7 @@ public final class DynamicMethodTests {
 
     private MethodHandle getLookupHandle(final MetaProperty property) throws Throwable {
         final MethodHandle get = lookup.findVirtual(
-            HashMap.class,
+            Map.class,
             "get",
             methodType(Object.class, Object.class)
         );
