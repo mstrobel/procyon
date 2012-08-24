@@ -6,9 +6,19 @@ import com.strobel.core.Comparer;
 import java.io.Serializable;
 import java.lang.Error;
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandle;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * @author Mike Strobel
@@ -68,6 +78,8 @@ public final class Types {
     public static final Type<HashMap> HashMap;
     public static final Type<HashSet> HashSet;
 
+    public static final Type<MethodHandle> MethodHandle;
+
     static {
         Object = Type.of(Object.class);
         Enum = Type.of(Enum.class);
@@ -118,6 +130,8 @@ public final class Types {
         HashSet = Type.of(HashSet.class);
 
         Closure = Type.of(Closure.class);
+
+        MethodHandle = Type.of(MethodHandle.class);
     }
 
     static void ensureRegistered() {

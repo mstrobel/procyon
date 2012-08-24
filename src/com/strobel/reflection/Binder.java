@@ -94,7 +94,7 @@ final class DefaultBinder extends Binder {
                 continue;
             }
 
-            for (stop = 0; stop < parameterCount; stop++) {
+            for (stop = 0; stop < Math.min(parameterCount,  types.length); stop++) {
                 final Type parameterType = parameters.get(stop).getParameterType();
 
                 if (parameterType == types[stop] || parameterType == Types.Object) {
@@ -114,7 +114,9 @@ final class DefaultBinder extends Binder {
                 }
             }
 
-            if (stop == parameterCount) {
+            if (stop == parameterCount ||
+                stop == parameterCount - 1 && isVarArgs) {
+
                 candidates[currentIndex++] = candidate;
             }
         }
