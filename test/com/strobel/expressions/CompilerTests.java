@@ -2,20 +2,14 @@ package com.strobel.expressions;
 
 import com.strobel.core.delegates.Action1;
 import com.strobel.core.delegates.Func1;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.TypeList;
-import com.strobel.reflection.Types;
+import com.strobel.reflection.*;
 import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.reflection.emit.TypeBuilder;
 import org.junit.Test;
 
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
+import java.util.concurrent.Callable;
 
 import static com.strobel.expressions.Expression.*;
 import static junit.framework.Assert.*;
@@ -697,9 +691,9 @@ public class CompilerTests {
                 typeEqual(convert(multiply(constant(3), constant(2L)), Types.Object), Types.Long),
                 typeEqual(convert(multiply(constant(3L), constant(2)), Types.Object), Types.Long),
                 typeEqual(convert(multiply(constant(3f), constant(2L)), Types.Object), Types.Float),
-                typeEqual(convert(multiply(constant((short)3), constant(2f)), Types.Object), Types.Float),
-                typeEqual(convert(multiply(constant(3d), constant((char)2)), Types.Object), Types.Double),
-                typeEqual(convert(multiply(constant((byte)3), constant(2d)), Types.Object), Types.Double)
+                typeEqual(convert(multiply(constant((short) 3), constant(2f)), Types.Object), Types.Float),
+                typeEqual(convert(multiply(constant(3d), constant((char) 2)), Types.Object), Types.Double),
+                typeEqual(convert(multiply(constant((byte) 3), constant(2d)), Types.Object), Types.Double)
             )
         );
 
@@ -837,6 +831,78 @@ public class CompilerTests {
         instance.run();
     }
 
+    @Test
+    public void testNestedLambdaInvocation() throws Exception {
+        final Type<?> callable = Type.of(Callable.class).makeGenericType(Types.Object);
+
+        final Object expectedResult = this;
+        
+        final LambdaExpression<Callable<Object>> outer = lambda(
+            callable,
+            call(
+                Type.of(CompilerTests.class),
+                "invoke",
+                Type.list(Types.Object),
+                lambda(callable, constant(expectedResult))
+            )
+        );
+
+        System.out.println();
+        System.out.println(outer);
+
+        final Callable<Object> delegate = outer.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        final Object result = delegate.call();
+        
+        System.out.println(result);
+
+        assertSame(expectedResult, result);
+    }
+    
+    @Test
+    public void testNew() throws Exception {
+        final Type<NeedsTwoCtorArgs> resultType = Type.of(NeedsTwoCtorArgs.class);
+        final ConstructorInfo constructor = resultType.getConstructors(BindingFlags.All).get(0);
+        final Type<?> callable = Type.of(Callable.class).makeGenericType(resultType);
+
+        final LambdaExpression<Callable<NeedsTwoCtorArgs>> outer = lambda(
+            callable,
+            makeNew(
+                constructor,
+                constant(2),
+                constant(3d))
+        );
+
+        System.out.println();
+        System.out.println(outer);
+
+        final Callable<NeedsTwoCtorArgs> delegate = outer.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        final Object result = delegate.call();
+        
+        System.out.println(result);
+
+        assertTrue(result instanceof NeedsTwoCtorArgs);
+    }
+    
+    static <T> T invoke(final Callable<T> callback) {
+        try {
+            return callback.call();
+        }
+        catch (Exception e) {
+            throw new TargetInvocationException(e);
+        }
+    }
+
+    static final class NeedsTwoCtorArgs {
+        @SuppressWarnings("UnusedParameters")
+        NeedsTwoCtorArgs(final int x, final double y) {}
+    }
+    
     static void holdMeThrillMeKissMeThrowMe1()
         throws AssertionError {
         throw new AssertionError("Bad shit happened, yo.");

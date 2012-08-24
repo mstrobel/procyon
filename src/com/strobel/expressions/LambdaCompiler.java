@@ -49,16 +49,16 @@ final class LambdaCompiler {
     final LambdaExpression<?> lambda;
     final TypeBuilder typeBuilder;
     final MethodBuilder methodBuilder;
-    final ConstructorBuilder constructorBuilder;
-    final FieldBuilder closureField;
     final CodeGenerator generator;
 
     private final AnalyzedTree _tree;
-    private final boolean _hasClosureArgument;
     private final KeyedQueue<Type<?>, LocalBuilder> _freeLocals;
     private final BoundConstants _boundConstants;
     private final Map<LabelTarget, LabelInfo> _labelInfo = new HashMap<>();
 
+    private ConstructorBuilder _constructorBuilder;
+    private boolean _hasClosureArgument;
+    private FieldBuilder _closureField;
     private CompilerScope _scope;
     private LabelScopeInfo _labelBlock = new LabelScopeInfo(null, LabelScopeKind.Lambda);
 
@@ -95,39 +95,21 @@ final class LambdaCompiler {
         _tree = tree;
         _scope = tree.scopes.get(lambda);
         _boundConstants = tree.constants.get(lambda);
-        _hasClosureArgument = _scope.needsClosure || _boundConstants.count() > 0;
         _freeLocals = new KeyedQueue<>();
 
-        if (_hasClosureArgument) {
-            closureField = typeBuilder.defineField(
-                "$__closure",
-                Type.of(Closure.class),
-                Modifier.PRIVATE | Modifier.FINAL
-            );
-
-            constructorBuilder = typeBuilder.defineConstructor(
-                Modifier.PUBLIC,
-                Type.list(Types.Closure)
-            );
-
-            final CodeGenerator ctor = constructorBuilder.getCodeGenerator();
-
-            ctor.emitThis();
-            ctor.call(Types.Object.getConstructors().get(0));
-            ctor.emitThis();
-            ctor.emitLoadArgument(0);
-            ctor.putField(closureField);
-            ctor.emitReturn();
-        }
-        else {
-            closureField = null;
-            constructorBuilder = typeBuilder.defineDefaultConstructor();
+        if (_scope.needsClosure || _boundConstants.count() > 0) {
+            ensureClosure();
         }
 
         initializeMethod();
     }
 
-    LambdaCompiler(final AnalyzedTree tree, final LambdaExpression<?> lambda, final MethodBuilder method) {
+    LambdaCompiler(
+        final AnalyzedTree tree,
+        final LambdaExpression<?> lambda,
+        final MethodBuilder method,
+        final ConstructorBuilder constructor) {
+
         this.lambda = lambda;
 
         _hasClosureArgument = false;
@@ -145,8 +127,8 @@ final class LambdaCompiler {
 
         this.typeBuilder = method.getDeclaringType();
         this.methodBuilder = method;
-        this.constructorBuilder = null;
-        this.closureField = null;
+        this._constructorBuilder = constructor;
+        this._closureField = null;
 
         this.generator = methodBuilder.getCodeGenerator();
 
@@ -163,8 +145,8 @@ final class LambdaCompiler {
         _freeLocals = parent._freeLocals;
         this.lambda = lambda;
         this.methodBuilder = parent.methodBuilder;
-        this.closureField = parent.closureField;
-        this.constructorBuilder = parent.constructorBuilder;
+        this._closureField = parent._closureField;
+        this._constructorBuilder = parent._constructorBuilder;
         this.generator = parent.generator;
         _hasClosureArgument = parent._hasClosureArgument;
         this.typeBuilder = parent.typeBuilder;
@@ -206,7 +188,7 @@ final class LambdaCompiler {
             : "must have a Closure argument";
 
         generator.emitThis();
-        generator.getField(closureField);
+        generator.getField(_closureField);
     }
 
     void emitLambdaArgument(final int index) {
@@ -365,7 +347,7 @@ final class LambdaCompiler {
         tree.setDebugInfoGenerator(debugInfoGenerator);
 
         // 2. Create lambda compiler
-        final LambdaCompiler c = new LambdaCompiler(tree, analyzedLambda, methodBuilder);
+        final LambdaCompiler c = new LambdaCompiler(tree, analyzedLambda, methodBuilder, null);
 
         // 3. emit
         c.emitLambdaBody();
@@ -3009,19 +2991,29 @@ final class LambdaCompiler {
         // When the lambda does not have a name or the name is empty, generate a unique name for it.
         final String name = StringUtilities.isNullOrEmpty(lambda.getName()) ? getUniqueMethodName() : lambda.getName();
 
+/*
         final MethodBuilder mb = typeBuilder.defineMethod(
-            name, Modifier.PRIVATE | Modifier.STATIC,
+            name,
+            Modifier.PRIVATE | Modifier.STATIC,
             lambda.getReturnType(),
             lambda.getParameters().getParameterTypes()
         );
 
-        compiler = new LambdaCompiler(_tree, lambda, mb);
+        compiler = new LambdaCompiler(_tree, lambda, mb, this._constructorBuilder);
+*/
+        compiler = new LambdaCompiler(_tree, lambda);
 
         // 2. Emit the lambda
         compiler.emitLambdaBody(_scope, false, CompilationFlags.EmitAsNoTail);
 
+        if (_scope.needsClosure || _boundConstants.count() != 0) {
+            compiler.ensureClosure();
+        }
+
         // 3. emit the delegate creation in the outer lambda
         emitDelegateConstruction(compiler);
+
+        compiler.typeBuilder.createType();
     }
 
     static String getUniqueMethodName() {
@@ -3085,9 +3077,11 @@ final class LambdaCompiler {
     }
 
     private void emitDelegateConstruction(final LambdaCompiler inner) {
-        // new DelegateType(closure)
+        generator.emit(OpCode.NEW, inner.typeBuilder);
+        generator.dup();
         emitClosureCreation(inner);
-        generator.emitNew(inner.constructorBuilder);
+        inner.ensureConstructor();
+        generator.call(inner._constructorBuilder);
     }
 
     private void emitClosureCreation(final LambdaCompiler inner) {
@@ -3095,15 +3089,19 @@ final class LambdaCompiler {
         final boolean boundConstants = inner._boundConstants.count() > 0;
 
         if (!closure && !boundConstants) {
-            generator.emitNull();
             return;
         }
+
+        ensureClosure();
 
         final Type<Object[]> objectArrayType = Type.of(Object[].class);
 
         //
         // new Closure(constantPool, currentHoistedLocals)
         //
+
+        generator.emit(OpCode.NEW, Types.Closure);
+        generator.dup();
 
         if (boundConstants) {
             _boundConstants.emitConstant(this, inner._boundConstants.toArray(), objectArrayType);
@@ -3119,7 +3117,41 @@ final class LambdaCompiler {
             generator.emitNull();
         }
 
-        generator.emitNew(Types.Closure.getConstructor(objectArrayType, objectArrayType));
+        generator.call(Types.Closure.getConstructor(objectArrayType, objectArrayType));
+    }
+
+    private void ensureConstructor() {
+        if (_constructorBuilder == null) {
+            _constructorBuilder = typeBuilder.defineDefaultConstructor();
+        }
+    }
+    
+    private void ensureClosure() {
+        if (_hasClosureArgument) {
+            return;
+        }
+
+        _hasClosureArgument = true;
+
+        _closureField = typeBuilder.defineField(
+            "$__closure",
+            Type.of(Closure.class),
+            Modifier.PRIVATE | Modifier.FINAL
+        );
+
+        _constructorBuilder = typeBuilder.defineConstructor(
+            Modifier.PUBLIC,
+            Type.list(Types.Closure)
+        );
+
+        final CodeGenerator ctor = _constructorBuilder.getCodeGenerator();
+
+        ctor.emitThis();
+        ctor.call(Types.Object.getConstructors().get(0));
+        ctor.emitThis();
+        ctor.emitLoadArgument(0);
+        ctor.putField(_closureField);
+        ctor.emitReturn();
     }
 
     final void emitConstantArray(final Object array) {
@@ -3253,6 +3285,19 @@ final class LambdaCompiler {
         // Emit arguments
         emitArguments(method, args);
         generator.call(method);
+
+        final Type returnType = method.getReturnType();
+
+        if (returnType != PrimitiveTypes.Void &&
+            (method.isGenericMethod() || method.getDeclaringType().isGenericType())) {
+
+            final MethodInfo erasedDefinition = method.getErasedMethodDefinition();
+            if (erasedDefinition != null) {
+                generator.emitConversion(
+                    erasedDefinition.getReturnType(),
+                    returnType);
+            }
+        }
     }
 
     private void emitArguments(final MethodBase method, final IArgumentProvider args) {
@@ -3291,11 +3336,7 @@ final class LambdaCompiler {
         final NewExpression node = (NewExpression)expr;
         final ConstructorInfo constructor = node.getConstructor();
 
-        if (constructor != null) {
-            emitArguments(constructor, node);
-            generator.emitNew(constructor);
-        }
-        else {
+        if (constructor == null) {
             assert node.getArguments().size() == 0
                 : "Node with arguments must have a constructor.";
 
@@ -3303,7 +3344,13 @@ final class LambdaCompiler {
                 "Only primitive type may have no constructor set.";
 
             generator.emitDefaultValue(node.getType());
+            return;
         }
+
+        generator.emitNew(constructor.getDeclaringType());
+        generator.dup();
+        emitArguments(constructor, node);
+        generator.call(constructor);
     }
 
     private void emitNewArrayExpression(final Expression expr) {

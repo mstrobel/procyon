@@ -583,7 +583,7 @@ public final class TypeBuilder<T> extends Type<T> {
         methodBuilders.add(methodBuilder);
     }
 
-    public void defineMethodOverride(final MethodBuilder override, final MethodInfo baseMethod) {
+    public void defineMethodOverride(final MethodInfo override, final MethodInfo baseMethod) {
         VerifyArgument.notNull(override, "override");
         VerifyArgument.notNull(baseMethod, "baseMethod");
 
@@ -612,11 +612,13 @@ public final class TypeBuilder<T> extends Type<T> {
             baseParameterCount = baseMethod.getParameters().size();
         }
 
-        if (override.parameterBuilders.length != baseParameterCount) {
+        final MethodBuilder overrideBuilder = (MethodBuilder) override;
+        
+        if (overrideBuilder.parameterBuilders.length != baseParameterCount) {
             throw Error.parameterCountMismatch();
         }
 
-        if ((override.getReturnType() == PrimitiveTypes.Void) !=
+        if ((overrideBuilder.getReturnType() == PrimitiveTypes.Void) !=
             (baseMethod.getReturnType() == PrimitiveTypes.Void)) {
 
             throw Error.incompatibleReturnTypes();
@@ -640,7 +642,7 @@ public final class TypeBuilder<T> extends Type<T> {
         
         final MethodInfo base = (MethodInfo) m.get(0);
 
-        methodOverrides.add(new MethodOverride(override, base));
+        methodOverrides.add(new MethodOverride(overrideBuilder, base));
     }
 
     private static final MemberFilter RawMethodMatcher = new MemberFilter() {
@@ -791,7 +793,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     short getUtf8StringToken(final String value) {
-        return (short)(constantPool.getUtf8StringConstant(value).index & 0xFFFF);
+        return (short) (constantPool.getUtf8StringConstant(value).index & 0xFFFF);
     }
 
     private static Type<?> erase(final Type<?> t) {

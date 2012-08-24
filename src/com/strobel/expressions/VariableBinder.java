@@ -41,6 +41,10 @@ final class VariableBinder extends ExpressionVisitor {
 
         _constants.peek().addReference(node.getValue(), node.getType());
 
+//        for (int i = _constants.size() - 1; i >= 0; i--) {
+//            _constants.get(i).addReference(node.getValue(), node.getType());
+//        }
+
         return node;
     }
 
@@ -84,7 +88,7 @@ final class VariableBinder extends ExpressionVisitor {
         // Optimization: inline code for literal lambdas directly.
         if (e instanceof LambdaExpression) {
             final LambdaExpression lambda = (LambdaExpression) e;
-            final CompilerScope scope = new CompilerScope(node, false);
+            final CompilerScope scope = new CompilerScope(lambda, false);
 
             // Visit the lambda, but treat it more like a scope.
             _tree.scopes.put(lambda, scope);
@@ -251,12 +255,9 @@ final class VariableBinder extends ExpressionVisitor {
         return body;
     }
 
-    private static int hitcount = 0;
-
     private void reference(final ParameterExpression node, final VariableStorageKind storage) {
         CompilerScope definition = null;
 
-        ++hitcount;
         VariableStorageKind storageKind = storage;
 
         for (int i = _scopes.size() - 1; i >= 0; i--) {

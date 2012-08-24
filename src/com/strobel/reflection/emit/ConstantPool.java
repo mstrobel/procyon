@@ -32,7 +32,9 @@ final class ConstantPool {
         stream.putShort(_size + 1);
 
         for (final Entry entry : _pool) {
-            entry.accept(WRITER, stream);
+            if (entry != null) {
+                entry.accept(WRITER, stream);
+            }
         }
     }
 
@@ -237,6 +239,9 @@ final class ConstantPool {
             this.index = owner._size + 1;
             owner._pool.add(this);
             owner._size += size();
+            for (int i = 1; i < size(); i++) {
+                owner._pool.add(null);
+            }
         }
 
         public abstract Tag getTag();
@@ -1099,9 +1104,6 @@ final class ConstantPool {
                     return key._refIndex1 == _refIndex1;
 
                 case NameAndTypeDescriptor:
-                    return StringUtilities.equals(key._stringValue1, _stringValue1) &&
-                           StringUtilities.equals(key._stringValue2, _stringValue2);
-
                 case FieldReference:
                 case MethodReference:
                 case InterfaceMethodReference:

@@ -3654,7 +3654,7 @@ public abstract class Expression {
 
         if (returnType != PrimitiveTypes.Void &&
             !TypeUtils.areEquivalent(returnType, body.getType())) {
-            if (!returnType.isGenericParameter() || !returnType.isAssignableFrom(body.getType())) {
+            if (/*!returnType.isGenericParameter() ||*/ !returnType.isAssignableFrom(body.getType())) {
                 throw Error.expressionTypeDoesNotMatchReturn(body.getType(), returnType);
             }
         }

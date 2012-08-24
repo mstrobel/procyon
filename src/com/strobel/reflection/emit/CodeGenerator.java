@@ -662,20 +662,22 @@ public class CodeGenerator {
     // NEW OBJECT/ARRAY OPERATIONS                                                                                        //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public void emitNew(final ConstructorInfo constructor) {
-        VerifyArgument.notNull(constructor, "constructor");
-
-        final Type type = constructor.getDeclaringType();
+    public void emitNew(final Type<?> type) {
+        VerifyArgument.notNull(type, "type");
 
         if (type.containsGenericParameters()) {
             throw Error.cannotInstantiateUnboundGenericType(type);
         }
 
+        if (type.isPrimitive()) {
+            emitDefaultValue(type);
+            return;
+        }
+
         emit(OpCode.NEW, type);
-        emit(OpCode.DUP);
-        emit(OpCode.INVOKESPECIAL, constructor);
     }
 
+/*
     public void emitNew(final Type<?> type, final Type... parameterTypes) {
         VerifyArgument.notNull(type, "type");
 
@@ -687,6 +689,7 @@ public class CodeGenerator {
 
         emitNew(constructor);
     }
+*/
 
     public void emitNewArray(final Type<?> arrayType) {
         VerifyArgument.notNull(arrayType, "arrayType");

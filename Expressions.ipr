@@ -7,6 +7,16 @@
   <component name="AntConfiguration">
     <defaultAnt bundledAnt="true" />
   </component>
+  <component name="ArtifactManager">
+    <artifact type="jar" name="com.strobel:jar">
+      <output-path>$PROJECT_DIR$/out/artifacts/com.strobel_jar</output-path>
+      <root id="archive" name="com.strobel.jar">
+        <element id="module-output" name="Expressions" />
+        <element id="extracted-dir" path="$PROJECT_DIR$/lib/langtools.jar" path-in-jar="/" />
+        <element id="dir-copy" path="$PROJECT_DIR$/src" />
+      </root>
+    </artifact>
+  </component>
   <component name="CompilerConfiguration">
     <option name="DEFAULT_COMPILER" value="Javac" />
     <resourceExtensions />

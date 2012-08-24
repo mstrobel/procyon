@@ -2,6 +2,7 @@ package com.strobel.expressions;
 
 import com.strobel.core.MutableInteger;
 import com.strobel.core.StrongBox;
+import com.strobel.reflection.ConstructorInfo;
 import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
@@ -121,20 +122,28 @@ final class CompilerScope {
 
             final Type boxType = Type.of(StrongBox.class).makeGenericType(v.getType());
 
+            final ConstructorInfo constructor = boxType.getConstructor(v.getType());
+            
             if (isMethod && lc.getParameters().contains(v)) {
                 // array[i] = new StrongBox<T>(argument);
                 final int index = lc.getParameters().indexOf(v);
+                lc.generator.emitNew(boxType);
+                lc.generator.dup();
                 lc.emitLambdaArgument(index);
-                lc.generator.emitNew(boxType.getConstructor(v.getType()));
+                lc.generator.call(constructor);
             }
             else if (v == _hoistedLocals.getParentVariable()) {
                 // array[i] = new StrongBox<T>(closure.Locals);
+                lc.generator.emitNew(boxType);
+                lc.generator.dup();
                 resolveVariable(v, _closureHoistedLocals).emitLoad();
-                lc.generator.emitNew(boxType.getConstructor(v.getType()));
+                lc.generator.call(constructor);
             }
             else {
                 // array[i] = new StrongBox<T>();
                 lc.generator.emitNew(boxType);
+                lc.generator.dup();
+                lc.generator.call(boxType.getConstructor());
             }
 
             // If we want to cache this into a local, do it now.
