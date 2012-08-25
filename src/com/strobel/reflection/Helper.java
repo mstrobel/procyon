@@ -169,6 +169,14 @@ final class Helper {
         final boolean tPrimitive = t.isPrimitive();
         final boolean sPrimitive = s.isPrimitive();
 
+        if (t == Type.NullType) {
+            return !s.isPrimitive();
+        }
+
+        if (s.isGenericParameter()) {
+            return isConvertible(t, s.getExtendsBound());
+        }
+        
         if (tPrimitive == sPrimitive) {
             return isSubtypeUnchecked(t, s);
         }
@@ -235,7 +243,13 @@ final class Helper {
     }
 
     public static boolean isSuperType(final Type type, final Type other) {
-        return type == other || other == Type.Bottom || isSubtype(other, type);
+        if (type == other || other == Type.Bottom) {
+            return true;
+        }
+        if (type.isGenericParameter()) {
+            return isSuperType(type.getExtendsBound(), other);
+        }
+        return isSubtype(other, type);
     }
 
     public static boolean isSubtype(final Type t, final Type p) {
@@ -814,6 +828,13 @@ final class Helper {
             
             if (t == null) {
                 return null;
+            }
+            
+            if (t.isGenericType() &&
+                p.isGenericTypeDefinition() &&
+                t.getGenericTypeDefinition() == p) {
+
+                return p;
             }
 
             final Type superType = superType(t);
@@ -1511,7 +1532,7 @@ final class Helper {
                 }
 
                 for (final Type p : t.getTypeArguments()) {
-                    if (!p.isUnbound()) {
+                    if (p.isUnbound()) {
                         return Boolean.FALSE;
                     }
                 }

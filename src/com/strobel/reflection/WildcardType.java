@@ -19,6 +19,17 @@ final class WildcardType<T> extends Type<T> {
     }
 
     @Override
+    public StringBuilder appendSignature(final StringBuilder sb) {
+        if (_superBound != Bottom) {
+            return _superBound.appendSignature(sb.append('-'));
+        }
+        if (_extendsBound != Types.Object) {
+            return _extendsBound.appendSignature(sb.append('+'));
+        }
+        return sb.append('*');
+    }
+
+    @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
         if (_superBound != Bottom) {
             sb.append("? super ");

@@ -211,6 +211,10 @@ public final class TypeUtils {
             return true;
         }
 
+        if (source == Type.NullType) {
+            return !destination.isPrimitive();
+        }
+
         final Type unboxedSourceType = isAutoUnboxed(source) ? getUnderlyingPrimitive(source) : source;
         final Type unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
 

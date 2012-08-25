@@ -46,6 +46,10 @@ public final class ConstructorBuilder extends ConstructorInfo {
         return _methodBuilder.isTypeCreated();
     }
 
+    public MethodBuilder getMethodBuilder() {
+        return _methodBuilder;
+    }
+
     public CodeGenerator getCodeGenerator() {
         if (!returnCodeGenerator) {
             throw Error.noCodeGeneratorForDefaultConstructor();

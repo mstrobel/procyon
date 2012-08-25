@@ -159,10 +159,28 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getCache().getErasedClass();
     }
 
-    public T newInstance() {
+    public T newInstance(final Object... arguments) {
         if (Helper.isReifiable(this)) {
             try {
-                return getErasedClass().newInstance();
+                if (ArrayUtilities.isNullOrEmpty(arguments)) {
+                    return getErasedClass().newInstance();
+                }
+
+                final Type<?>[] argumentTypes = new Type<?>[arguments.length];
+
+                for (int i = 0, n = arguments.length; i < n; i++) {
+                    final Object argument = arguments[i];
+                    argumentTypes[i] = argument != null ? getType(argument)
+                                                        : Type.NullType;
+                }
+
+                final ConstructorInfo constructor = getConstructor(argumentTypes);
+                
+                if (constructor != null) {
+                    return (T) constructor.invoke(arguments);
+                }
+                
+                throw Error.couldNotResolveMatchingConstructor();
             }
             catch (Throwable t) {
                 throw Error.typeInstantiationFailed(this, t);
@@ -1376,14 +1394,20 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         s = _appendClassName(s, true, false);
 
         if (isGenericType()) {
-            final TypeList genericParameters = getTypeBindings().getBoundTypes();
-            final int count = genericParameters.size();
+            final TypeList typeArguments = getTypeBindings().getBoundTypes();
+            final int count = typeArguments.size();
 
             if (count > 0) {
                 s.append('<');
                 //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < count; ++i) {
-                    s = genericParameters.get(i).appendSignature(s);
+                    final Type type = typeArguments.get(i);
+                    if (type.isGenericTypeDefinition()) {
+                        s = type.appendErasedSignature(s);
+                    }
+                    else {
+                        s = type.appendSignature(s);
+                    }
                 }
                 s.append('>');
             }

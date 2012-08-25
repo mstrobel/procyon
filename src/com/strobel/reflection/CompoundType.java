@@ -83,7 +83,7 @@ public final class CompoundType<T> extends Type<T> {
 
     @Override
     public boolean isGenericParameter() {
-        return true;
+        return false;
     }
 
     @Override

@@ -212,4 +212,10 @@ final class Error {
     public static RuntimeException targetInvocationException(final Throwable cause) {
         return new TargetInvocationException(cause);
     }
+
+    public static MemberResolutionException couldNotResolveMatchingConstructor() {
+        return new MemberResolutionException(
+            "Could not find a constructor matching the provided arguments."
+        );
+    }
 }

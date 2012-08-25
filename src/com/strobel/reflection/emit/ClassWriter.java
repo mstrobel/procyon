@@ -134,7 +134,7 @@ final class ClassWriter {
         if (signatureRequired) {
             final int attributeLengthIndex = writeAttribute("Signature");
 
-            _dataBuffer.putShort(t.getStringToken(t.getGenericSignature()));
+            _dataBuffer.putShort(t.getUtf8StringToken(t.getGenericSignature()));
 
             endAttribute(attributeLengthIndex);
             attributeCount++;

@@ -3562,7 +3562,7 @@ public abstract class Expression {
 
         final Type argType = arg.getType();
 
-        if (!TypeUtils.areReferenceAssignable(parameterType, argType)) {
+        if (!argType.isAssignableFrom(parameterType)) {
             switch (nodeKind) {
                 case New:
                     throw Error.expressionTypeDoesNotMatchConstructorParameter(argType, parameterType);
@@ -3875,6 +3875,11 @@ public abstract class Expression {
         else if (m.isGenericMethodDefinition()) {
             final TypeList genericParameters = m.getGenericMethodParameters();
             if (genericParameters.size() == typeArgs.size()) {
+                for (int i = 0, n = genericParameters.size(); i < n; i++) {
+                    if (!genericParameters.get(i).isAssignableFrom(typeArgs.get(i))) {
+                        return null;
+                    }
+                }
                 return m.makeGenericMethod(typeArgs);
             }
         }

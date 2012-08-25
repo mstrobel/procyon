@@ -33,26 +33,30 @@ public final class DynamicMethodTests {
     }
 
     interface BooleanAccessor {
-        boolean get();
+        boolean get(final Map<String,Object> map);
     }
 
     @Test
     public void testHashMapAccess() throws Throwable {
         final MethodHandle lookupHandle = getLookupHandle(booleanProperty);
 
-        final boolean test1 = (boolean)lookupHandle.invoke();
-        final boolean test2 = (Boolean)lookupHandle.invokeWithArguments();
+        final boolean test1 = (boolean)lookupHandle.invoke(map);
+        final boolean test2 = (Boolean)lookupHandle.invokeWithArguments(map);
 
+        final ParameterExpression instance = parameter(Types.Map.makeGenericType(Types.String, Types.Object));
+        
         final LambdaExpression<BooleanAccessor> accessorLambda = lambda(
             Type.of(BooleanAccessor.class),
             call(
                 constant(lookupHandle, Types.MethodHandle),
-                DynamicMethod.invokeExact(lookupHandle)
-            )
+                DynamicMethod.invokeExact(lookupHandle),
+                instance
+            ),
+            instance
         );
 
         final BooleanAccessor accessor = accessorLambda.compile();
-        final boolean result = accessor.get();
+        final boolean result = accessor.get(map);
 
         assertTrue(result);
     }
@@ -73,8 +77,8 @@ public final class DynamicMethodTests {
                        String.class
                    )
             ),
-            0,
-            map,
+            1,
+//            map,
             property.name
         );
     }
