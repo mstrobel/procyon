@@ -4,7 +4,6 @@ import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.*;
 import com.strobel.util.EmptyArrayCache;
-import com.sun.tools.javac.code.Flags;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;

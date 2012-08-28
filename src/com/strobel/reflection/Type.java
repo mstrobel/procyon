@@ -1,15 +1,20 @@
 package com.strobel.reflection;
 
-import com.strobel.core.*;
+import com.strobel.collections.ListBuffer;
+import com.strobel.core.ArrayUtilities;
+import com.strobel.core.Comparer;
+import com.strobel.core.StringUtilities;
+import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.emit.TypeBuilder;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
 import com.strobel.util.TypeUtils;
-import com.sun.tools.javac.util.ListBuffer;
 
 import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.*;
+import java.lang.reflect.Array;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Modifier;
 import java.util.*;
 
 /**
@@ -1682,32 +1687,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             }
 
             throw Error.couldNotResolveType(type);
-        }
-    }
-
-    static Type<?> tryFind(final com.sun.tools.javac.code.Type type) {
-        final TypeKind typeKind = type.getKind();
-
-        if (typeKind == TypeKind.VOID || typeKind.isPrimitive()) {
-            return PRIMITIVE_TYPES[typeKind.ordinal()];
-        }
-
-        if (typeKind != TypeKind.DECLARED) {
-            return null;
-        }
-
-        synchronized (CACHE_LOCK) {
-            final Class<?> clazz;
-            final String className = type.asElement().flatName().toString();
-
-            try {
-                clazz = Class.forName(className);
-            }
-            catch (ClassNotFoundException e) {
-                throw Error.couldNotResolveType(className);
-            }
-
-            return CACHE.find(clazz);
         }
     }
 

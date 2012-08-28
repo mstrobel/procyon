@@ -3,6 +3,7 @@ package com.strobel.reflection.emit;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.Flags;
 import com.strobel.reflection.MemberInfo;
 import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.MethodList;
@@ -10,8 +11,6 @@ import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
 import com.strobel.util.TypeUtils;
-import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.jvm.Target;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -22,7 +21,7 @@ import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.sun.tools.javac.code.Flags.*;
+import static com.strobel.reflection.Flags.*;
 
 /**
  * @author Mike Strobel
@@ -145,8 +144,8 @@ final class ClassWriter {
 //        attributeCount += writeEnclosingMethodAttribute(t);
 
         _poolBuffer.putInt(JAVA_MAGIC);
-        _poolBuffer.putShort(Target.JDK1_5.minorVersion);
-        _poolBuffer.putShort(Target.JDK1_5.majorVersion);
+        _poolBuffer.putShort(CompilationTarget.JDK1_5.minorVersion);
+        _poolBuffer.putShort(CompilationTarget.JDK1_5.majorVersion);
 
         t.constantPool.write(_poolBuffer);
 

@@ -1,7 +1,6 @@
 package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
-import com.sun.tools.javac.code.Flags;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;

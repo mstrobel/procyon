@@ -1,6 +1,6 @@
 package com.strobel.reflection;
 
-import static com.strobel.reflection.Flags.all;
+import static com.strobel.reflection.FlagUtilities.all;
 
 /**
  * @author Mike Strobel

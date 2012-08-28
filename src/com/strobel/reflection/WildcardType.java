@@ -1,7 +1,5 @@
 package com.strobel.reflection;
 
-import com.sun.tools.javac.code.Flags;
-
 import javax.lang.model.type.TypeKind;
 
 /**

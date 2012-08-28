@@ -606,7 +606,7 @@ public class CompilerTests {
             block(
                 new ParameterExpressionList(tempException),
                 tryCatchFinally(
-                    call(Type.of(CompilerTests.class), "holdMeThrillMeKissMeThrowMe1"),
+                    call(Type.of(CompilerTests.class), "throwAssertionError"),
                     call(out, "println", constant("In the finally block.")),
                     makeCatch(
                         Type.of(AssertionError.class),
@@ -641,14 +641,14 @@ public class CompilerTests {
             block(
                 new ParameterExpressionList(tempException),
                 tryCatchFinally(
-                    call(Type.of(CompilerTests.class), "holdMeThrillMeKissMeThrowMe1"),
+                    call(Type.of(CompilerTests.class), "throwAssertionError"),
                     call(out, "println", constant("In the finally block.")),
                     makeCatch(
                         Type.of(AssertionError.class),
                         tryCatch(
                             block(
                                 call(out, "println", constant("In the AssertionError catch block.")),
-                                call(Type.of(CompilerTests.class), "holdMeThrillMeKissMeThrowMe2")
+                                call(Type.of(CompilerTests.class), "throwRuntimeException")
                             ),
                             makeCatch(
                                 Types.RuntimeException,
@@ -903,12 +903,12 @@ public class CompilerTests {
         NeedsTwoCtorArgs(final int x, final double y) {}
     }
     
-    static void holdMeThrillMeKissMeThrowMe1()
+    static void throwAssertionError()
         throws AssertionError {
         throw new AssertionError("Bad shit happened, yo.");
     }
 
-    static void holdMeThrillMeKissMeThrowMe2() {
+    static void throwRuntimeException() {
         throw TestRuntimeException;
     }
 

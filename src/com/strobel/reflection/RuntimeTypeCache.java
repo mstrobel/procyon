@@ -1,5 +1,6 @@
 package com.strobel.reflection;
 
+import com.strobel.collections.ImmutableList;
 import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
@@ -823,7 +824,7 @@ final class RuntimeTypeCache<T> {
             final Type<?> reflectedType = getReflectedType();
 
             final HashSet<Type> set = new HashSet<>();
-            final com.sun.tools.javac.util.List<Type> interfaceList = Helper.interfaces(reflectedType);
+            final ImmutableList<Type> interfaceList = Helper.interfaces(reflectedType);
 
             for (final Type interfaceType : interfaceList) {
                 final String name = interfaceType.getFullName();

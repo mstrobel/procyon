@@ -696,6 +696,13 @@ public final class TypeBuilder<T> extends Type<T> {
         return method;
     }
 
+    public MethodBuilder defineTypeInitializer() {
+        return defineMethod(
+            "<clinit>",
+            Modifier.STATIC,
+            PrimitiveTypes.Void);
+    }
+
     public FieldBuilder defineConstant(
         final String name,
         final Type<?> type,

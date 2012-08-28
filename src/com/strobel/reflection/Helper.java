@@ -1,12 +1,11 @@
 package com.strobel.reflection;
 
+import com.strobel.collections.ImmutableList;
+import com.strobel.collections.ListBuffer;
 import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.TypeUtils;
-import com.sun.tools.javac.code.Flags;
-import com.sun.tools.javac.util.List;
-import com.sun.tools.javac.util.ListBuffer;
 
 import javax.lang.model.type.TypeKind;
 import java.lang.reflect.Method;
@@ -15,7 +14,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import static com.sun.tools.javac.util.ListBuffer.lb;
+import static com.strobel.collections.ListBuffer.lb;
 
 /**
  * @author Mike Strobel
@@ -298,7 +297,7 @@ final class Helper {
     }
 
 /*
-    private static List<Type> freshTypeVariables(final List<Type> types) {
+    private static ImmutableList<Type> freshTypeVariables(final ImmutableList<Type> types) {
         final ListBuffer<Type> result = lb();
         for (final Type t : types) {
             if (t.isWildcardType()) {
@@ -354,9 +353,9 @@ final class Helper {
         final TypeList T = t.getTypeArguments();
         final TypeList S = freshTypeVariables(T);
 
-        List<Type> currentA = List.from(A.toArray());
-        List<Type> currentT = List.from(T.toArray());
-        List<Type> currentS = List.from(S.toArray());
+        ImmutableList<Type> currentA = ImmutableList.from(A.toArray());
+        ImmutableList<Type> currentT = ImmutableList.from(T.toArray());
+        ImmutableList<Type> currentS = ImmutableList.from(S.toArray());
 
         boolean captured = false;
         while (!currentA.isEmpty() &&
@@ -421,7 +420,7 @@ final class Helper {
         }
     }
 
-    static boolean containsType(List<Type> ts, List<Type> ss) {
+    static boolean containsType(ImmutableList<Type> ts, ImmutableList<Type> ss) {
         while (ts.nonEmpty() && ss.nonEmpty() && containsType(ts.head, ss.head)) {
             ts = ts.tail;
             ss = ss.tail;
@@ -451,7 +450,7 @@ final class Helper {
         return ContainsTypeRelation.visit(t, p);
     }
 
-    static boolean containsTypeEquivalent(List<Type> ts, List<Type> tp) {
+    static boolean containsTypeEquivalent(ImmutableList<Type> ts, ImmutableList<Type> tp) {
         while (ts.nonEmpty() && tp.nonEmpty() && containsTypeEquivalent(ts.head, tp.head)) {
             ts = ts.tail;
             tp = tp.tail;
@@ -569,8 +568,8 @@ final class Helper {
             return p;
         }
 
-        final List<Type> closure = union(closure(t), closure(p));
-        final List<Type> bounds = closureMin(closure);
+        final ImmutableList<Type> closure = union(closure(t), closure(p));
+        final ImmutableList<Type> bounds = closureMin(closure);
 
         if (bounds.isEmpty()) {             // length == 0
             return Types.Object;
@@ -591,7 +590,7 @@ final class Helper {
         }
 
         Type baseClass = Types.Object;
-        List<Type> interfaces = List.nil();
+        ImmutableList<Type> interfaces = ImmutableList.empty();
 
         for (final Type bound : bounds) {
             if (bound.isInterface()) {
@@ -642,7 +641,7 @@ final class Helper {
         return erasure(t, false);
     }
 
-    public static Type substitute(final Type type, final List<Type> genericParameters, final List<Type> typeArguments) {
+    public static Type substitute(final Type type, final ImmutableList<Type> genericParameters, final ImmutableList<Type> typeArguments) {
         return SubstitutingBinder.visit(
             type,
             TypeBindings.create(
@@ -672,8 +671,8 @@ final class Helper {
         }
     }
 
-    public static List<Type> interfaces(final Type type) {
-        return InterfacesVisitor.visit(type, List.<Type>nil());
+    public static ImmutableList<Type> interfaces(final Type type) {
+        return InterfacesVisitor.visit(type, ImmutableList.<Type>empty());
     }
 
     public static int rank(final Type t) {
@@ -687,7 +686,7 @@ final class Helper {
 
         int r = rank(superType(t));
 
-        for (List<Type> l = interfaces(t);
+        for (ImmutableList<Type> l = interfaces(t);
              l.nonEmpty();
              l = l.tail) {
 
@@ -731,7 +730,7 @@ final class Helper {
         return origin.isGenericParameter();
     }
 
-    public static List<Type> union(final List<Type> cl1, final List<Type> cl2) {
+    public static ImmutableList<Type> union(final ImmutableList<Type> cl1, final ImmutableList<Type> cl2) {
         if (cl1.isEmpty()) {
             return cl2;
         }
@@ -1040,41 +1039,41 @@ final class Helper {
         }
     };
 
-    private final static SimpleVisitor<List<Type>, List<Type>> InterfacesVisitor = new SimpleVisitor<List<Type>, List<Type>>() {
+    private final static SimpleVisitor<ImmutableList<Type>, ImmutableList<Type>> InterfacesVisitor = new SimpleVisitor<ImmutableList<Type>, ImmutableList<Type>>() {
         @Override
-        public List<Type> visitPrimitiveType(final Type<?> type, final List<Type> parameter) {
-            return List.nil();
+        public ImmutableList<Type> visitPrimitiveType(final Type<?> type, final ImmutableList<Type> parameter) {
+            return ImmutableList.empty();
         }
 
         @Override
-        public List<Type> visitArrayType(final Type<?> type, final List<Type> parameter) {
-            return List.nil();
+        public ImmutableList<Type> visitArrayType(final Type<?> type, final ImmutableList<Type> parameter) {
+            return ImmutableList.empty();
         }
 
         @Override
-        public List<Type> visitCapturedType(final Type<?> t, final List<Type> s) {
-            return List.nil();
+        public ImmutableList<Type> visitCapturedType(final Type<?> t, final ImmutableList<Type> s) {
+            return ImmutableList.empty();
         }
 
         @Override
-        public List<Type> visit(final Type<?> type) {
-            return List.nil();
+        public ImmutableList<Type> visit(final Type<?> type) {
+            return ImmutableList.empty();
         }
 
         @Override
-        public List<Type> visitType(final Type<?> t, final List<Type> ignored) {
-            return List.nil();
+        public ImmutableList<Type> visitType(final Type<?> t, final ImmutableList<Type> ignored) {
+            return ImmutableList.empty();
         }
 
         @Override
-        public List<Type> visitClassType(final Type<?> t, final List<Type> list) {
+        public ImmutableList<Type> visitClassType(final Type<?> t, final ImmutableList<Type> list) {
             final TypeList interfaces = t.getExplicitInterfaces();
 
             if (interfaces.isEmpty()) {
-                return List.nil();
+                return ImmutableList.empty();
             }
 
-            List<Type> result = union(list, List.from(t.getExplicitInterfaces().toArray()));
+            ImmutableList<Type> result = union(list, ImmutableList.from(t.getExplicitInterfaces().toArray()));
 
             for (final Type ifType : interfaces) {
                 if (!list.contains(ifType)) {
@@ -1086,7 +1085,7 @@ final class Helper {
         }
 
         @Override
-        public List<Type> visitTypeParameter(final Type<?> t, final List<Type> list) {
+        public ImmutableList<Type> visitTypeParameter(final Type<?> t, final ImmutableList<Type> list) {
             final Type upperBound = t.getExtendsBound();
 
             if (upperBound.isCompoundType()) {
@@ -1094,14 +1093,14 @@ final class Helper {
             }
 
             if (upperBound.isInterface()) {
-                return List.of(upperBound);
+                return ImmutableList.of(upperBound);
             }
 
-            return List.nil();
+            return ImmutableList.empty();
         }
 
         @Override
-        public List<Type> visitWildcardType(final Type<?> type, final List<Type> list) {
+        public ImmutableList<Type> visitWildcardType(final Type<?> type, final ImmutableList<Type> list) {
             return visit(type.getExtendsBound());
         }
     };
@@ -1120,11 +1119,7 @@ final class Helper {
 
         @Override
         public Type visitClassType(final Type t, final Void ignored) {
-            final Type baseType = t.getBaseType();
-//            if (baseType == null) {
-//                return Types.Object;
-//            }
-            return baseType;
+            return t.getBaseType();
         }
 
         @Override
@@ -1338,8 +1333,8 @@ final class Helper {
         public void adapt(final Type source, final Type target)
             throws AdaptFailure {
             visit(source, target);
-            List<Type> fromList = from.toList();
-            List<Type> toList = to.toList();
+            ImmutableList<Type> fromList = from.toList();
+            ImmutableList<Type> toList = to.toList();
             while (!fromList.isEmpty()) {
                 final Type t = mapping.get(fromList.head);
                 if (toList.head != t) {
@@ -1659,9 +1654,9 @@ final class Helper {
         }
     };
 
-    private final static Map<Type, List<Type>> closureCache = new HashMap<>();
+    private final static Map<Type, ImmutableList<Type>> closureCache = new HashMap<>();
 
-    public static List<Type> insert(final List<Type> cl, final Type t) {
+    public static ImmutableList<Type> insert(final ImmutableList<Type> cl, final Type t) {
         if (cl.isEmpty() || precedes(t, cl.head)) {
             return cl.prepend(t);
         }
@@ -1673,7 +1668,7 @@ final class Helper {
         }
     }
 
-    private static List<Type> closureMin(List<Type> cl) {
+    private static ImmutableList<Type> closureMin(ImmutableList<Type> cl) {
         final ListBuffer<Type> classes = lb();
         final ListBuffer<Type> interfaces = lb();
 
@@ -1701,8 +1696,8 @@ final class Helper {
         return classes.appendList(interfaces).toList();
     }
 
-    public static List<Type> closure(final Type t) {
-        List<Type> cl = closureCache.get(t);
+    public static ImmutableList<Type> closure(final Type t) {
+        ImmutableList<Type> cl = closureCache.get(t);
         if (cl == null) {
             final Type st = superType(t);
             if (!t.isCompoundType()) {
@@ -1713,13 +1708,13 @@ final class Helper {
                     cl = closure(st).prepend(t);
                 }
                 else {
-                    cl = List.of(t);
+                    cl = ImmutableList.of(t);
                 }
             }
             else {
                 cl = closure(superType(t));
             }
-            for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
+            for (ImmutableList<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
                 cl = union(cl, closure(l.head));
             }
             closureCache.put(t, cl);

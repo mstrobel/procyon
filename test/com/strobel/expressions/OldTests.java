@@ -5,8 +5,6 @@ import com.strobel.reflection.emit.CodeGenerator;
 import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.reflection.emit.OpCode;
 import com.strobel.reflection.emit.TypeBuilder;
-import com.sun.source.tree.TreeVisitor;
-import com.sun.tools.javac.tree.JCTree;
 
 import java.io.PrintStream;
 import java.io.Serializable;
@@ -100,28 +98,6 @@ public class OldTests {
         System.out.println("Type signature: " + stringArray.getSignature());
         System.out.println("Erased type signature: " + stringArray.getSignature());
         System.out.println("Element type signature: " + stringArray.getElementType().getSignature());
-    }
-
-    private static class NullTree extends JCTree {
-
-        @Override
-        public Tag getTag() {
-            return Tag.NO_TAG;
-        }
-
-        @Override
-        public void accept(final Visitor v) {
-        }
-
-        @Override
-        public <R, D> R accept(final TreeVisitor<R, D> v, final D d) {
-            return null;
-        }
-
-        @Override
-        public Kind getKind() {
-            return Kind.NULL_LITERAL;
-        }
     }
 
     private static void testTypeBuilder() {

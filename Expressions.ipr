@@ -298,6 +298,7 @@
         <w>aconst</w>
         <w>aload</w>
         <w>anewarray</w>
+        <w>anonconstr</w>
         <w>areturn</w>
         <w>arraylength</w>
         <w>astore</w>
@@ -308,6 +309,7 @@
         <w>caload</w>
         <w>castore</w>
         <w>checkcast</w>
+        <w>classfile</w>
         <w>dadd</w>
         <w>daload</w>
         <w>dastore</w>
@@ -337,8 +339,10 @@
         <w>freturn</w>
         <w>fstore</w>
         <w>fsub</w>
+        <w>generatedconstr</w>
         <w>getfield</w>
         <w>getstatic</w>
+        <w>hasinit</w>
         <w>iaload</w>
         <w>iastore</w>
         <w>icmpeq</w>
@@ -367,6 +371,7 @@
         <w>invokespecial</w>
         <w>invokestatic</w>
         <w>invokevirtual</w>
+        <w>iproxy</w>
         <w>irem</w>
         <w>ireturn</w>
         <w>ishl</w>
@@ -394,8 +399,10 @@
         <w>mergeable</w>
         <w>monitorenter</w>
         <w>monitorexit</w>
+        <w>multi</w>
         <w>multianewarray</w>
         <w>newarray</w>
+        <w>noouterthis</w>
         <w>opcode</w>
         <w>preallocation</w>
         <w>putfield</w>
@@ -406,7 +413,11 @@
         <w>sastore</w>
         <w>simplifiable</w>
         <w>sipush</w>
+        <w>strictfp</w>
+        <w>superinterface</w>
+        <w>supertype</w>
         <w>tableswitch</w>
+        <w>variable's</w>
       </words>
     </dictionary>
     <dictionary name="Mike Strobel">
@@ -462,25 +473,11 @@
   <component name="WebServicesPlugin" addRequiredLibraries="true" />
   <component name="libraryTable">
     <library name="lib">
-      <ANNOTATIONS>
-        <root url="file://$PROJECT_DIR$/lib/asm-3.3.1" />
-      </ANNOTATIONS>
       <CLASSES>
-        <root url="file://$PROJECT_DIR$/lib" />
-        <root url="file://$PROJECT_DIR$/lib" />
+        <root url="jar://$PROJECT_DIR$/lib/junit-4.5.jar!/" />
       </CLASSES>
       <JAVADOC />
-      <SOURCES>
-        <root url="file://$PROJECT_DIR$/lib" />
-        <root url="file://$PROJECT_DIR$/lib" />
-        <root url="jar://$PROJECT_DIR$/lib/cglib-src-2.2.2.jar!/src/test" />
-        <root url="jar://$PROJECT_DIR$/lib/cglib-src-2.2.2.jar!/src/proxy" />
-        <root url="file://$PROJECT_DIR$/lib/asm-3.3.1/src" />
-        <root url="file://$PROJECT_DIR$/../cowtowncoder-java-classmate-a5f941e/src/main/java" />
-        <root url="jar://$PROJECT_DIR$/lib/langtools.jar!/" />
-      </SOURCES>
-      <jarDirectory url="file://$PROJECT_DIR$/lib" recursive="false" />
-      <jarDirectory url="file://$PROJECT_DIR$/lib" recursive="false" type="SOURCES" />
+      <SOURCES />
     </library>
   </component>
 </project>
