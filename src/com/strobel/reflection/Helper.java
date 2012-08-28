@@ -172,6 +172,10 @@ final class Helper {
             return !s.isPrimitive();
         }
 
+        if (s == Types.Object) {
+            return !t.isPrimitive();
+        }
+
         if (s.isGenericParameter()) {
             return isConvertible(t, s.getExtendsBound());
         }
@@ -828,7 +832,7 @@ final class Helper {
             if (t == null) {
                 return null;
             }
-            
+
             if (t.isGenericType() &&
                 p.isGenericTypeDefinition() &&
                 t.getGenericTypeDefinition() == p) {

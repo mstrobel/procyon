@@ -8,6 +8,7 @@ import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.reflection.BindingFlags;
 import com.strobel.reflection.ConstructorInfo;
+import com.strobel.reflection.DynamicMethod;
 import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.MemberInfo;
 import com.strobel.reflection.MemberList;
@@ -3322,8 +3323,17 @@ final class LambdaCompiler {
 
             emitExpression(argument);
 
-            if (argument.getType() != parameterType) {
-                generator.emitConversion(argument.getType(), parameterType);
+            final Type argumentType = argument.getType();
+
+            if (method instanceof DynamicMethod) {
+                if (argumentType != parameterType) {
+                    generator.emitConversion(argumentType, parameterType);
+                }
+            }
+            else if (!TypeUtils.hasIdentityPrimitiveOrBoxingConversion(argumentType, parameterType) &&
+                     !TypeUtils.hasReferenceConversion(argumentType, parameterType)) {
+
+                generator.emitConversion(argumentType, parameterType);
             }
         }
     }

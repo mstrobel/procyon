@@ -3568,7 +3568,7 @@ public abstract class Expression {
 
         final Type argType = arg.getType();
 
-        if (!argType.isAssignableFrom(parameterType)) {
+        if (!parameterType.isAssignableFrom(argType)) {
             switch (nodeKind) {
                 case New:
                     throw Error.expressionTypeDoesNotMatchConstructorParameter(argType, parameterType);

@@ -898,11 +898,17 @@ public class CodeGenerator {
             absoluteIndex
         );
 
+        internalEmit(opCode);
+
         if (opCode.getOperandType() == OperandType.NoOperands) {
-            emit(opCode);
+            return;
+        }
+
+        if (absoluteIndex > Byte.MAX_VALUE)  {
+            emitShortOperand(absoluteIndex);
         }
         else {
-            emit(opCode, absoluteIndex);
+            emitByteOperand(absoluteIndex);
         }
     }
 
@@ -958,11 +964,17 @@ public class CodeGenerator {
             absoluteIndex
         );
 
+        internalEmit(opCode);
+
         if (opCode.getOperandType() == OperandType.NoOperands) {
-            emit(opCode);
+            return;
+        }
+
+        if (absoluteIndex > Byte.MAX_VALUE)  {
+            emitShortOperand(absoluteIndex);
         }
         else {
-            emit(opCode, absoluteIndex);
+            emitByteOperand(absoluteIndex);
         }
     }
 
