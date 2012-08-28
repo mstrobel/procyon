@@ -395,15 +395,15 @@ public abstract class Expression {
     // NEW ARRAY EXPRESSIONS                                                                                              //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static NewArrayExpression newArrayInit(final Type type, final Expression... initializers) {
-        return newArrayInit(type, arrayToList(initializers));
+    public static NewArrayExpression newArrayInit(final Type elementType, final Expression... initializers) {
+        return newArrayInit(elementType, arrayToList(initializers));
     }
 
-    public static NewArrayExpression newArrayInit(final Type type, final ExpressionList<? extends Expression> initializers) {
-        VerifyArgument.notNull(type, "type");
+    public static NewArrayExpression newArrayInit(final Type elementType, final ExpressionList<? extends Expression> initializers) {
+        VerifyArgument.notNull(elementType, "elementType");
         VerifyArgument.noNullElements(initializers, "initializers");
 
-        if (type.isEquivalentTo(PrimitiveTypes.Void)) {
+        if (elementType.isEquivalentTo(PrimitiveTypes.Void)) {
             throw Error.argumentCannotBeOfTypeVoid();
         }
 
@@ -412,35 +412,35 @@ public abstract class Expression {
 
             verifyCanRead(item, "initializers");
 
-            if (!TypeUtils.areReferenceAssignable(type, item.getType())) {
-                throw Error.expressionTypeCannotInitializeArrayType(item.getType(), type);
+            if (!TypeUtils.areReferenceAssignable(elementType, item.getType())) {
+                throw Error.expressionTypeCannotInitializeArrayType(item.getType(), elementType);
             }
         }
 
         return NewArrayInitExpression.make(
             ExpressionType.NewArrayInit,
-            type.makeArrayType(),
+            elementType.makeArrayType(),
             initializers
         );
     }
 
-    public static NewArrayExpression newArrayBounds(final Type type, final Expression dimension) {
-        VerifyArgument.notNull(type, "type");
+    public static NewArrayExpression newArrayBounds(final Type elementType, final Expression dimension) {
+        VerifyArgument.notNull(elementType, "elementType");
         VerifyArgument.notNull(dimension, "dimension");
 
         verifyCanRead(dimension, "dimension");
 
-        if (type.isEquivalentTo(PrimitiveTypes.Void)) {
+        if (elementType.isEquivalentTo(PrimitiveTypes.Void)) {
             throw Error.argumentCannotBeOfTypeVoid();
         }
 
-        if (!TypeUtils.isIntegral(type)) {
+        if (!TypeUtils.isIntegral(elementType)) {
             throw Error.argumentMustBeIntegral();
         }
 
         final Expression convertedDimension;
 
-        if (TypeUtils.getUnderlyingPrimitiveOrSelf(type) != PrimitiveTypes.Integer) {
+        if (TypeUtils.getUnderlyingPrimitiveOrSelf(elementType) != PrimitiveTypes.Integer) {
             convertedDimension = convert(dimension, PrimitiveTypes.Integer);
         }
         else {
@@ -449,7 +449,7 @@ public abstract class Expression {
 
         return NewArrayInitExpression.make(
             ExpressionType.NewArrayBounds,
-            type.makeArrayType(),
+            elementType.makeArrayType(),
             new ExpressionList<>(convertedDimension)
         );
     }
@@ -653,6 +653,12 @@ public abstract class Expression {
     }
 
     public static MemberExpression field(final Expression target, final FieldInfo field) {
+        VerifyArgument.notNull(field, "field");
+        
+        if (!field.isStatic() && target == null) {
+            throw Error.targetRequiredForNonStaticFieldAccess(field);
+        }
+        
         return new FieldExpression(target, field);
     }
 
@@ -2751,7 +2757,7 @@ public abstract class Expression {
                 final MemberExpression memberExpression = (MemberExpression)expression;
                 if (memberExpression.getMember() instanceof FieldInfo) {
                     final FieldInfo field = (FieldInfo)memberExpression.getMember();
-                    canWrite = !field.isEnumConstant() && !field.isFinal();
+                    canWrite = !field.isEnumConstant() /*&& !field.isFinal()*/;
                 }
                 break;
 

@@ -2,17 +2,31 @@ package com.strobel.expressions;
 
 import com.strobel.core.delegates.Action1;
 import com.strobel.core.delegates.Func1;
-import com.strobel.reflection.*;
+import com.strobel.reflection.BindingFlags;
+import com.strobel.reflection.ConstructorInfo;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.PrimitiveTypes;
+import com.strobel.reflection.TargetInvocationException;
+import com.strobel.reflection.Type;
+import com.strobel.reflection.TypeList;
+import com.strobel.reflection.Types;
+import com.strobel.reflection.emit.FieldBuilder;
 import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.reflection.emit.TypeBuilder;
 import org.junit.Test;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Modifier;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Callable;
 
 import static com.strobel.expressions.Expression.*;
 import static junit.framework.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
 
 /**
  * @author Mike Strobel
@@ -887,6 +901,47 @@ public class CompilerTests {
         System.out.println(result);
 
         assertTrue(result instanceof NeedsTwoCtorArgs);
+    }
+    
+    @Test
+    public void testTypeInitializerGeneration() throws Throwable {
+        final TypeBuilder<Runnable> typeBuilder = new TypeBuilder<>(
+            "TestTypeInitializerGeneration",
+            Modifier.PUBLIC | Modifier.FINAL,
+            Types.Object,
+            Type.list(Type.of(Runnable.class))
+        );
+
+        final FieldBuilder staticField = typeBuilder.defineField(
+            "Numbers",
+            Type.of(int[].class),
+            Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC);
+
+        final MethodBuilder typeInitializer = typeBuilder.defineTypeInitializer();
+
+        lambda(
+            Types.Runnable,
+            assign(
+                field(null, staticField),
+                newArrayInit(
+                    PrimitiveTypes.Integer,
+                    constant(1),
+                    constant(2),
+                    constant(3),
+                    constant(4),
+                    constant(5))))
+            .compileToMethod(typeInitializer);
+
+        final Type<Runnable> generatedType = typeBuilder.createType();
+
+        final MethodHandle getter = MethodHandles.lookup().findStaticGetter(
+            generatedType.getErasedClass(),
+            "Numbers",
+            int[].class);
+
+        final int[] numbers = (int[])getter.invokeExact();
+
+        assertArrayEquals(new int[] { 1, 2, 3, 4, 5 }, numbers);
     }
     
     static <T> T invoke(final Callable<T> callback) {

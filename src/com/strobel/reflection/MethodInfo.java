@@ -96,7 +96,11 @@ public abstract class MethodInfo extends MethodBase {
             s.append(' ');
         }
 
-        final Type returnType = getReturnType();
+        Type returnType = getReturnType();
+
+        while (returnType.isWildcardType()) {
+            returnType = returnType.getExtendsBound();
+        }
 
         if (returnType.isGenericParameter()) {
             s.append(returnType.getName());
@@ -116,7 +120,13 @@ public abstract class MethodInfo extends MethodBase {
             if (i != 0) {
                 s.append(", ");
             }
-            final Type parameterType = p.getParameterType();
+            
+            Type parameterType = p.getParameterType();
+
+            while (parameterType.isWildcardType()) {
+                parameterType = parameterType.getExtendsBound();
+            }
+
             if (parameterType.isGenericParameter()) {
                 s.append(parameterType.getName());
             }
@@ -167,7 +177,11 @@ public abstract class MethodInfo extends MethodBase {
             s.append(' ');
         }
 
-        final Type returnType = getReturnType();
+        Type returnType = getReturnType();
+
+        while (returnType.isWildcardType()) {
+            returnType = returnType.getExtendsBound();
+        }
 
         if (returnType.isGenericParameter()) {
             s.append(returnType.getName());
@@ -187,14 +201,19 @@ public abstract class MethodInfo extends MethodBase {
             if (i != 0) {
                 s.append(", ");
             }
-            final Type parameterType = p.getParameterType();
+
+            Type parameterType = p.getParameterType();
+
+            while (parameterType.isWildcardType()) {
+                parameterType = parameterType.getExtendsBound();
+            }
+
             if (parameterType.isGenericParameter()) {
                 s.append(parameterType.getName());
             }
             else {
                 s = parameterType.appendSimpleDescription(s);
             }
-
         }
 
         s.append(')');
@@ -212,6 +231,54 @@ public abstract class MethodInfo extends MethodBase {
                 s = t.appendSimpleDescription(s);
             }
         }
+
+        return s;
+    }
+
+    @Override
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
+        StringBuilder s = new StringBuilder();
+
+        Type returnType = getReturnType();
+
+        while (returnType.isWildcardType()) {
+            returnType = returnType.getExtendsBound();
+        }
+
+        if (returnType.isGenericParameter()) {
+            s.append(returnType.getName());
+        }
+        else {
+            s = returnType.appendBriefDescription(s);
+        }
+
+        s.append(' ');
+        s.append(getName());
+        s.append('(');
+
+        final ParameterList parameters = getParameters();
+
+        for (int i = 0, n = parameters.size(); i < n; ++i) {
+            final ParameterInfo p = parameters.get(i);
+            if (i != 0) {
+                s.append(", ");
+            }
+
+            Type parameterType = p.getParameterType();
+
+            while (parameterType.isWildcardType()) {
+                parameterType = parameterType.getExtendsBound();
+            }
+
+            if (parameterType.isGenericParameter()) {
+                s.append(parameterType.getName());
+            }
+            else {
+                s = parameterType.appendBriefDescription(s);
+            }
+        }
+
+        s.append(')');
 
         return s;
     }

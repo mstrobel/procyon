@@ -9,11 +9,17 @@ import java.lang.reflect.Modifier;
  * @author Mike Strobel
  */
 public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
-    final static Annotation[] EMPTY_ANNOTATIONS = new Annotation[0]
-        ;
+    final static Annotation[] EMPTY_ANNOTATIONS = new Annotation[0];
     final static int ENUM_MODIFIER = 0x00004000;
     final static int VARARGS_MODIFIER = 0x00000080;
 
+    private String _signature;
+    private String _erasedSignature;
+    private String _description;
+    private String _erasedDescription;
+    private String _briefDescription;
+    private String _simpleDescription;
+    
     MemberInfo() {}
 
     public abstract MemberType getMemberType();
@@ -80,4 +86,82 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
                other != null && other.getDeclaringType() == getDeclaringType() &&
                StringComparator.Ordinal.equals(getName(),  other.getName());
     }
+
+    /**
+     * Method that returns full generic signature of a type or member.
+     */
+    public String getSignature() {
+        if (_signature == null) {
+            _signature = appendSignature(new StringBuilder()).toString();
+        }
+        return _signature;
+    }
+
+    /**
+     * Method that returns type erased signature of a type or member;
+     * suitable as non-generic signature some packages need.
+     */
+    public String getErasedSignature() {
+        if (_erasedSignature == null) {
+            _erasedSignature = appendErasedSignature(new StringBuilder()).toString();
+        }
+        return _erasedSignature;
+    }
+
+    /**
+     * Human-readable brief description of a type or member, which does not
+     * include information super types, thrown exceptions, or modifiers other
+     * than 'static'.
+     */
+    public String getBriefDescription() {
+        if (_briefDescription == null) {
+            _briefDescription = appendBriefDescription(new StringBuilder()).toString();
+        }
+        return _briefDescription;
+    }
+
+    /**
+     * Human-readable full description of a type or member, which includes
+     * specification of super types (in brief format), thrown exceptions,
+     * and modifiers.
+     */
+    public String getDescription() {
+        if (_description == null) {
+            _description = appendDescription(new StringBuilder()).toString();
+        }
+        return _description;
+    }
+
+    /**
+     * Human-readable erased description of a type or member.
+     */
+    public String getErasedDescription() {
+        if (_erasedDescription == null) {
+            _erasedDescription = appendErasedDescription(new StringBuilder()).toString();
+        }
+        return _erasedDescription;
+    }
+
+    /**
+     * Human-readable simple description of a type or member, which does not
+     * include information super type or fully-qualified type names.
+     */
+    public String getSimpleDescription() {
+        if (_simpleDescription == null) {
+            _simpleDescription = appendSimpleDescription(new StringBuilder()).toString();
+        }
+        return _simpleDescription;
+    }
+
+    @Override
+    public String toString() {
+        return getSimpleDescription();
+    }
+
+    public abstract StringBuilder appendDescription(StringBuilder sb);
+    public abstract StringBuilder appendBriefDescription(StringBuilder sb);
+    public abstract StringBuilder appendErasedDescription(StringBuilder sb);
+    public abstract StringBuilder appendSignature(StringBuilder sb);
+    public abstract StringBuilder appendErasedSignature(StringBuilder sb);
+    public abstract StringBuilder appendSimpleDescription(final StringBuilder sb);
 }

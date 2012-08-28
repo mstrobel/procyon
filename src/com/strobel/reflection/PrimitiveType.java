@@ -155,7 +155,7 @@ final class PrimitiveType<T> extends Type<T> {
     }
 
     @Override
-    public StringBuilder appendFullDescription(final StringBuilder sb) {
+    public StringBuilder appendDescription(final StringBuilder sb) {
         sb.append(_description);
         return sb;
     }

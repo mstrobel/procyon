@@ -84,7 +84,7 @@ public class OldTests {
         final Type map = Type.of(HashMap.class).makeGenericType(Types.String, Types.Date);
         final MethodInfo putMethod = map.getMethod("put");
 
-        System.out.println("Full description: " + map.getFullDescription());
+        System.out.println("Full description: " + map.getDescription());
         System.out.println("Type signature: " + map.getSignature());
         System.out.println("Erased type signature: " + map.getErasedSignature());
         System.out.println("Method signature: " + putMethod.getSignature());
@@ -94,7 +94,7 @@ public class OldTests {
     private static void arrayTypeTest() {
         final Type<String[]> stringArray = Types.String.makeArrayType();
 
-        System.out.println("Full description: " + stringArray.getFullDescription());
+        System.out.println("Full description: " + stringArray.getDescription());
         System.out.println("Type signature: " + stringArray.getSignature());
         System.out.println("Erased type signature: " + stringArray.getSignature());
         System.out.println("Element type signature: " + stringArray.getElementType().getSignature());

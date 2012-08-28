@@ -169,7 +169,7 @@ public final class CompoundType<T> extends Type<T> {
     }
 
     @Override
-    public StringBuilder appendFullDescription(final StringBuilder sb) {
+    public StringBuilder appendDescription(final StringBuilder sb) {
         return appendBriefDescription(sb);
     }
 

@@ -11,6 +11,7 @@ import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
+import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
 import javax.lang.model.type.TypeKind;
@@ -720,7 +721,37 @@ public class CodeGenerator {
             elementType = arrayType.getElementType();
 
             if (elementType.isPrimitive()) {
-                emit(OpCode.NEWARRAY, elementType);
+                final byte typeCode;
+
+                switch (elementType.getKind()) {
+                    case BOOLEAN:
+                        typeCode = 4;
+                        break;
+                    case BYTE:
+                        typeCode = 8;
+                        break;
+                    case SHORT:
+                        typeCode = 9;
+                        break;
+                    case INT:
+                        typeCode = 10;
+                        break;
+                    case LONG:
+                        typeCode = 11;
+                        break;
+                    case CHAR:
+                        typeCode = 5;
+                        break;
+                    case FLOAT:
+                        typeCode = 6;
+                        break;
+                    case DOUBLE:
+                        typeCode = 7;
+                        break;
+                    default:
+                        throw ContractUtils.unreachable();
+                }
+                emit(OpCode.NEWARRAY, typeCode);
             }
             else {
                 emit(OpCode.ANEWARRAY, elementType);

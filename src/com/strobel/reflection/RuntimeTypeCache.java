@@ -51,13 +51,7 @@ final class RuntimeTypeCache<T> {
     private String _name;
     private String _fullName;
     private String _internalName;
-    private String _signature;
     private String _genericSignature;
-    private String _erasedSignature;
-    private String _description;
-    private String _briefDescription;
-    private String _simpleDescription;
-    private String _erasedDescription;
     private Package _package;
     private MemberInfoCache<RuntimeMethodInfo> _methodCache;
     private MemberInfoCache<RuntimeConstructorInfo> _constructorCache;
@@ -127,53 +121,11 @@ final class RuntimeTypeCache<T> {
         return _internalName;
     }
 
-    String getSignature() {
-        if (_signature == null) {
-            _signature = _runtimeType.appendSignature(new StringBuilder()).toString();
-        }
-        return _signature;
-    }
-
     String getGenericSignature() {
         if (_genericSignature == null) {
             _genericSignature = _runtimeType.appendGenericSignature(new StringBuilder()).toString();
         }
         return _genericSignature;
-    }
-
-    String getErasedSignature() {
-        if (_erasedSignature == null) {
-            _erasedSignature = _runtimeType.appendErasedSignature(new StringBuilder()).toString();
-        }
-        return _erasedSignature;
-    }
-
-    String getFullDescription() {
-        if (_description == null) {
-            _description = _runtimeType.appendFullDescription(new StringBuilder()).toString();
-        }
-        return _description;
-    }
-
-    String getErasedDescription() {
-        if (_erasedDescription == null) {
-            _erasedDescription = _runtimeType.appendErasedDescription(new StringBuilder()).toString();
-        }
-        return _erasedDescription;
-    }
-
-    String getBriefDescription() {
-        if (_briefDescription == null) {
-            _briefDescription = _runtimeType.appendBriefDescription(new StringBuilder()).toString();
-        }
-        return _briefDescription;
-    }
-
-    String getSimpleDescription() {
-        if (_simpleDescription == null) {
-            _simpleDescription = _runtimeType.appendSimpleDescription(new StringBuilder()).toString();
-        }
-        return _simpleDescription;
     }
 
     Type<T> getRuntimeType() {
@@ -913,12 +865,6 @@ final class RuntimeConstructorInfo extends ConstructorInfo {
     private final int _modifiers;
     private final ParameterList _parameters;
 
-    private String _signature;
-    private String _erasedSignature;
-    private String _description;
-    private String _simpleDescription;
-    private String _erasedDescription;
-
     RuntimeConstructorInfo(
         final Constructor<?> rawConstructor,
         final RuntimeTypeCache<?> reflectedTypeCache,
@@ -968,46 +914,6 @@ final class RuntimeConstructorInfo extends ConstructorInfo {
     public int getModifiers() {
         return _modifiers;
     }
-
-    @Override
-    public String getSignature() {
-        if (_signature == null) {
-            _signature = super.getSignature();
-        }
-        return _signature;
-    }
-
-    @Override
-    public String getErasedSignature() {
-        if (_erasedSignature == null) {
-            _erasedSignature = super.getErasedSignature();
-        }
-        return _erasedSignature;
-    }
-
-    @Override
-    public String getDescription() {
-        if (_description == null) {
-            _description = super.getDescription();
-        }
-        return _description;
-    }
-
-    @Override
-    public String getSimpleDescription() {
-        if (_simpleDescription == null) {
-            _simpleDescription = super.getSimpleDescription();
-        }
-        return _simpleDescription;
-    }
-
-    @Override
-    public String getErasedDescription() {
-        if (_erasedDescription == null) {
-            _erasedDescription = super.getErasedDescription();
-        }
-        return _erasedDescription;
-    }
 }
 
 final class RuntimeMethodInfo extends MethodInfo {
@@ -1020,12 +926,6 @@ final class RuntimeMethodInfo extends MethodInfo {
     private final Type<?> _returnType;
     private final TypeList _thrownTypes;
     private final TypeBindings _typeBindings;
-
-    private String _signature;
-    private String _erasedSignature;
-    private String _description;
-    private String _simpleDescription;
-    private String _erasedDescription;
 
     RuntimeMethodInfo(
         final Method rawMethod,
@@ -1109,46 +1009,6 @@ final class RuntimeMethodInfo extends MethodInfo {
     }
 
     @Override
-    public String getSignature() {
-        if (_signature == null) {
-            _signature = super.getSignature();
-        }
-        return _signature;
-    }
-
-    @Override
-    public String getErasedSignature() {
-        if (_erasedSignature == null) {
-            _erasedSignature = super.getErasedSignature();
-        }
-        return _erasedSignature;
-    }
-
-    @Override
-    public String getDescription() {
-        if (_description == null) {
-            _description = super.getDescription();
-        }
-        return _description;
-    }
-
-    @Override
-    public String getSimpleDescription() {
-        if (_simpleDescription == null) {
-            _simpleDescription = super.getSimpleDescription();
-        }
-        return _simpleDescription;
-    }
-
-    @Override
-    public String getErasedDescription() {
-        if (_erasedDescription == null) {
-            _erasedDescription = super.getErasedDescription();
-        }
-        return _erasedDescription;
-    }
-
-    @Override
     public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
         return _rawMethod.isAnnotationPresent(annotationClass);
     }
@@ -1176,11 +1036,6 @@ final class RuntimeFieldInfo extends FieldInfo {
     private final int _modifiers;
     private final Set<BindingFlags> _bindingFlags;
     private final Type<?> _fieldType;
-
-    private String _signature;
-    private String _erasedSignature;
-    private String _description;
-    private String _erasedDescription;
 
     RuntimeFieldInfo(
         final Field rawField,
@@ -1235,38 +1090,6 @@ final class RuntimeFieldInfo extends FieldInfo {
     @Override
     public int getModifiers() {
         return _modifiers;
-    }
-
-    @Override
-    public String getSignature() {
-        if (_signature == null) {
-            _signature = super.getSignature();
-        }
-        return _signature;
-    }
-
-    @Override
-    public String getErasedSignature() {
-        if (_erasedSignature == null) {
-            _erasedSignature = super.getErasedSignature();
-        }
-        return _erasedSignature;
-    }
-
-    @Override
-    public String getDescription() {
-        if (_description == null) {
-            _description = super.getDescription();
-        }
-        return _description;
-    }
-
-    @Override
-    public String getErasedDescription() {
-        if (_erasedDescription == null) {
-            _erasedDescription = super.getErasedDescription();
-        }
-        return _erasedDescription;
     }
 
     @Override

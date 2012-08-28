@@ -1181,56 +1181,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
      * Method that returns full generic signature of the type; suitable
      * as signature for things like ASM package.
      */
-    public String getSignature() {
-        return getCache().getSignature();
-    }
-
-    /**
-     * Method that returns full generic signature of the type; suitable
-     * as signature for things like ASM package.
-     */
     public String getGenericSignature() {
         return getCache().getGenericSignature();
-    }
-
-    /**
-     * Method that returns type erased signature of the type; suitable
-     * as non-generic signature some packages need
-     */
-    public String getErasedSignature() {
-        return getCache().getErasedSignature();
-    }
-
-    /**
-     * Human-readable full description of type, which includes specification
-     * of super types (in brief format)
-     */
-    public String getFullDescription() {
-        return getCache().getFullDescription();
-    }
-
-    /**
-     * Human-readable simple description, which does not include
-     * information about super types and uses simple type names instead
-     * of package-qualified names.
-     */
-    public String getSimpleDescription() {
-        return getCache().getSimpleDescription();
-    }
-
-    /**
-     * Human-readable brief description of type, which does not include
-     * information about super types.
-     */
-    public String getBriefDescription() {
-        return getCache().getBriefDescription();
-    }
-
-    /**
-     * Human-readable erased description of type.
-     */
-    public String getErasedDescription() {
-        return getCache().getErasedDescription();
     }
 
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
@@ -1281,7 +1233,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return sb.append(getClassFullName());
     }
 
-    public StringBuilder appendFullDescription(final StringBuilder sb) {
+    public StringBuilder appendDescription(final StringBuilder sb) {
         StringBuilder s = _appendClassName(sb, false, false);
 
         if (isGenericType()) {

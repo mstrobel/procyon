@@ -59,8 +59,8 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
-    public StringBuilder appendFullDescription(final StringBuilder sb) {
-        return typeBuilder.appendFullDescription(sb);
+    public StringBuilder appendDescription(final StringBuilder sb) {
+        return typeBuilder.appendDescription(sb);
     }
 
     @Override

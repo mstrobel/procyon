@@ -2,6 +2,7 @@ package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
 
+import javax.lang.model.element.Modifier;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 
@@ -46,22 +47,7 @@ public abstract class FieldInfo extends MemberInfo {
         return getDescription();
     }
 
-    public String getSignature() {
-        return appendSignature(new StringBuilder()).toString();
-    }
-
-    public String getErasedSignature() {
-        return appendErasedSignature(new StringBuilder()).toString();
-    }
-
-    public String getDescription() {
-        return appendDescription(new StringBuilder()).toString();
-    }
-
-    public String getErasedDescription() {
-        return appendErasedDescription(new StringBuilder()).toString();
-    }
-
+    @Override
     public StringBuilder appendDescription(final StringBuilder sb) {
         StringBuilder s = sb;
 
@@ -85,24 +71,76 @@ public abstract class FieldInfo extends MemberInfo {
         return s;
     }
 
-    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+    @Override
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
+        StringBuilder s = sb;
 
-        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
-            sb.append(modifier.toString());
-            sb.append(' ');
+        if (isStatic()) {
+            s.append(Modifier.STATIC.toString());
+            s.append(' ');
+        }
+        
+        final Type fieldType = getFieldType();
+
+        if (fieldType.isGenericParameter()) {
+            s.append(fieldType.getName());
+        }
+        else {
+            s = fieldType.appendBriefDescription(s);
         }
 
-        sb.append(getFieldType().getErasedClass().getName());
-        sb.append(' ');
-        sb.append(getName());
+        s.append(' ');
+        s.append(getName());
 
-        return sb;
+        return s;
     }
 
+    @Override
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        StringBuilder s = sb;
+        
+        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
+            s.append(modifier.toString());
+            s.append(' ');
+        }
+
+        s = getFieldType().getErasedType().appendErasedDescription(s);
+        s.append(' ');
+        s.append(getName());
+
+        return s;
+    }
+
+    @Override
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        StringBuilder s = sb;
+
+        if (isStatic()) {
+            s.append(Modifier.STATIC.toString());
+            s.append(' ');
+        }
+
+        final Type fieldType = getFieldType();
+
+        if (fieldType.isGenericParameter()) {
+            s.append(fieldType.getName());
+        }
+        else {
+            s = fieldType.appendSimpleDescription(s);
+        }
+
+        s.append(' ');
+        s.append(getName());
+
+        return s;
+    }
+
+    @Override
     public StringBuilder appendSignature(final StringBuilder sb) {
         return getFieldType().appendSignature(sb);
     }
 
+    @Override
     public StringBuilder appendErasedSignature(final StringBuilder sb) {
         return getFieldType().appendErasedSignature(sb);
     }

@@ -788,7 +788,7 @@ final class LambdaCompiler {
 
         switch (member.getMemberType()) {
             case Field:
-                generator.emit(OpCode.PUTFIELD, (FieldInfo)member);
+                generator.putField((FieldInfo)member);
                 break;
 
             default:
@@ -3063,7 +3063,7 @@ final class LambdaCompiler {
         // But if we're inlining the lambda, we want to leave the return
         // value on the IL stack.
         if (!inlined) {
-            generator.emitReturn(lambda.getBody().getType());
+            generator.emitReturn(lambda.getReturnType());
         }
 
         _scope.exit();

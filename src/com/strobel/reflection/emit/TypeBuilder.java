@@ -555,7 +555,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
         final ConstructorInfo baseConstructor = _baseType.getConstructor(BindingFlags.AllExact);
 
-        if (baseConstructor == null || !baseConstructor.isPublic() && !baseConstructor.isProtected()) {
+        if (baseConstructor == null || baseConstructor.isPrivate()) {
             throw Error.baseTypeHasNoDefaultConstructor(_baseType);
         }
 
@@ -939,6 +939,8 @@ public final class TypeBuilder<T> extends Type<T> {
                 _protectionDomain
             );
 
+            getUnsafeInstance().ensureClassInitialized(_generatedClass);
+
             _generatedType = Type.of(_generatedClass);
         }
         catch (Throwable t) {
@@ -1074,7 +1076,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
         for (int i = 0, j = 0, n = methodBuilders.size(); i < n; i++) {
             final MethodBuilder method = methodBuilders.get(i);
-            if (!"<init>".equals(method.getName())) {
+            if (!"<init>".equals(method.getName()) && !"<clinit>".equals(method.getName())) {
                 method.generatedMethod = generatedMethods.get(j++);
             }
         }

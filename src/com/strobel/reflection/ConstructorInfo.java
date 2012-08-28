@@ -155,7 +155,7 @@ public abstract class ConstructorInfo extends MethodBase {
 
     @Override
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        StringBuilder s = PrimitiveTypes.Void.appendBriefDescription(sb);
+        StringBuilder s = PrimitiveTypes.Void.appendSimpleDescription(sb);
 
         s.append(' ');
         s.append(getName());
@@ -186,6 +186,35 @@ public abstract class ConstructorInfo extends MethodBase {
                 s = t.appendSimpleDescription(s);
             }
         }
+
+        return s;
+    }
+    @Override
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
+        StringBuilder s = PrimitiveTypes.Void.appendBriefDescription(sb);
+
+        s.append(' ');
+        s.append(getName());
+        s.append('(');
+
+        final ParameterList parameters = getParameters();
+
+        for (int i = 0, n = parameters.size(); i < n; ++i) {
+            final ParameterInfo p = parameters.get(i);
+            if (i != 0) {
+                s.append(", ");
+            }
+            final Type parameterType = p.getParameterType();
+            if (parameterType.isGenericParameter()) {
+                s.append(parameterType.getName());
+            }
+            else {
+                s = parameterType.appendSimpleDescription(s);
+            }
+
+        }
+
+        s.append(')');
 
         return s;
     }

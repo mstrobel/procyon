@@ -1,6 +1,7 @@
 package com.strobel.expressions;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.MemberInfo;
 import com.strobel.reflection.MemberType;
 import com.strobel.reflection.MethodBase;
@@ -335,6 +336,17 @@ final class Error {
                 "method '%s.%s'.",
                 method.getDeclaringType().getFullName(),
                 method.getName()
+            )
+        );
+    }
+
+    public static IllegalStateException targetRequiredForNonStaticFieldAccess(final FieldInfo field) {
+        return new IllegalStateException(
+            format(
+                "An invocation target expression is required for access to non-static " +
+                "field '%s.%s'.",
+                field.getDeclaringType().getFullName(),
+                field.getName()
             )
         );
     }

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 
 /**
  * @author Mike Strobel
@@ -44,6 +45,9 @@ public final class Types {
     public static final Type<UUID> UUID;
 
     public static final Type<Comparer> Comparer;
+    
+    public static final Type<Runnable> Runnable;
+    public static final Type<Callable> Callable;
 
     public static final Type<Error> Error;
     public static final Type<Throwable> Throwable;
@@ -97,6 +101,9 @@ public final class Types {
         UUID = Type.of(UUID.class);
 
         Comparer = Type.of(Comparer.class);
+        
+        Runnable = Type.of(Runnable.class);
+        Callable = Type.of(Callable.class);
 
         Error = Type.of(java.lang.Error.class);
         Throwable = Type.of(Throwable.class);
