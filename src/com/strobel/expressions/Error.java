@@ -408,8 +408,8 @@ final class Error {
         return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used for parameter of type '%s' of method '%s.%s'.",
-                parameterType.getFullName(),
                 argType.getFullName(),
+                parameterType.getFullName(),
                 method.getDeclaringType().getFullName(),
                 method.getName()
             )

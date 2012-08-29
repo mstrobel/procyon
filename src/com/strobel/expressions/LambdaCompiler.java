@@ -3330,9 +3330,7 @@ final class LambdaCompiler {
                     generator.emitConversion(argumentType, parameterType);
                 }
             }
-            else if (!TypeUtils.hasIdentityPrimitiveOrBoxingConversion(argumentType, parameterType) &&
-                     !TypeUtils.hasReferenceConversion(argumentType, parameterType)) {
-
+            else if (!TypeUtils.hasReferenceConversion(argumentType, parameterType)) {
                 generator.emitConversion(argumentType, parameterType);
             }
         }

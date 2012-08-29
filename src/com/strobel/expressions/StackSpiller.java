@@ -170,6 +170,10 @@ final class StackSpiller {
             return new Result(RewriteAction.None, null);
         }
 
+        if (node.canReduce()) {
+            return rewriteReducibleExpression(node, stack);
+        }
+
         final Result result;
 
         switch (node.getNodeType()) {
