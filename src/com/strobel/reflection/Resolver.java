@@ -80,7 +80,9 @@ final class Resolver {
                 final Frame ownerFrame = findFrame(enclosingClass);
 
                 if (ownerFrame != null) {
-                    ownerFrame._type.addNestedType(_type);
+                    if (ownerFrame._type.findNestedType(_type.getErasedClass()) == null) {
+                        ownerFrame._type.addNestedType(_type);
+                    }
                     reflectionFactory = ownerFrame._reflectionFactory;
                 }
             }
@@ -438,7 +440,10 @@ final class Resolver {
 
             // Redundant: Frame constructor adds nested type to its declaring type.
             if (declaringType instanceof ReflectedType<?>) {
-                ((ReflectedType<?>) declaringType).addNestedType(currentType);
+                final ReflectedType<?> owner = (ReflectedType<?>) declaringType;
+                if (owner.findNestedType(c) == null) {
+                    owner.addNestedType(currentType);
+                }
             }
         }
 
