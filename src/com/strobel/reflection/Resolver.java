@@ -10,16 +10,22 @@ import sun.reflect.generics.scope.ClassScope;
 
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
  * @author Mike Strobel
  */
 @SuppressWarnings("unchecked")
 final class Resolver {
-    void resolveMembers(final ReflectedType<?> type) {
+    final static byte FLAG_RESOLVE_METHODS      = 0x01;
+    final static byte FLAG_RESOLVE_FIELDS       = 0x02;
+    final static byte FLAG_RESOLVE_CONSTRUCTORS = 0x04;
+    final static byte FLAG_RESOLVE_NESTED_TYPES = 0x08;
+
+    void resolveMembers(final ReflectedType<?> type, final int flags) {
         final Frame frame = new Frame(type, null);
 
-        this.visit(type, frame);
+        this.visit(type, frame, flags);
     }
 
     public final class Frame {
@@ -677,23 +683,39 @@ final class Resolver {
         return result;
     }
 
-    private Type<?> visit(final ReflectedType<?> type, final Frame frame) {
+    private Type<?> visit(final ReflectedType<?> type, final Frame frame, final int flags) {
         final Class<?> erasedClass = type.getErasedClass();
 
-        for (final Field field : erasedClass.getDeclaredFields()) {
-            visitField(field, frame);
+        if ((flags & FLAG_RESOLVE_FIELDS) == FLAG_RESOLVE_FIELDS) {
+            for (final Field field : erasedClass.getDeclaredFields()) {
+                if (type.findField(field) == null) {
+                    visitField(field, frame);
+                }
+            }
         }
 
-        for (final Method method : erasedClass.getDeclaredMethods()) {
-            visitMethod(method, frame);
+        if ((flags & FLAG_RESOLVE_METHODS) == FLAG_RESOLVE_METHODS) {
+            for (final Method method : erasedClass.getDeclaredMethods()) {
+                if (type.findMethod(method) == null) {
+                    visitMethod(method, frame);
+                }
+            }
         }
 
-        for (final Constructor<?> constructor : erasedClass.getDeclaredConstructors()) {
-            visitConstructor(constructor, frame);
+        if ((flags & FLAG_RESOLVE_CONSTRUCTORS) == FLAG_RESOLVE_CONSTRUCTORS) {
+            for (final Constructor<?> constructor : erasedClass.getDeclaredConstructors()) {
+                if (type.findConstructor(constructor) == null) {
+                    visitConstructor(constructor, frame);
+                }
+            }
         }
 
-        for (final Class<?> nestedClass : erasedClass.getDeclaredClasses()) {
-            visit(nestedClass, frame);
+        if ((flags & FLAG_RESOLVE_NESTED_TYPES) == FLAG_RESOLVE_NESTED_TYPES) {
+            for (final Class<?> nestedClass : erasedClass.getDeclaredClasses()) {
+                if (type.findNestedType(nestedClass) == null) {
+                    visit(nestedClass, frame);
+                }
+            }
         }
 
         return type;
@@ -712,51 +734,6 @@ final class Resolver {
 
         return declaringType;
     }
-
-/*
-    private Type<?> resolveType(final java.lang.reflect.Type type, final Frame frame) {
-        if (type instanceof java.lang.reflect.Type.ArrayType) {
-            final java.lang.reflect.Type.ArrayType arrayType = (java.lang.reflect.Type.ArrayType)type;
-            return resolveType(arrayType.getComponentType(), frame).makeArrayType();
-        }
-
-        final Type<?> fromLookup = frame.findType(type.asElement());
-
-        if (fromLookup != null) {
-            final List<java.lang.reflect.Type> typeArguments = type.getTypeArguments();
-            List<Type<?>> typeBindings = List.nil();
-
-            for (final java.lang.reflect.Type typeArgument : typeArguments) {
-                typeBindings = typeBindings.append(resolveType(typeArgument, frame));
-            }
-
-            if (typeBindings.isEmpty()) {
-                return fromLookup;
-            }
-
-            final TypeList resolvedTypeArgs = Type.list(typeBindings);
-
-            final Type fromCache = Type.CACHE.find(
-                Type.CACHE.key(
-                    fromLookup.getErasedClass(),
-                    resolvedTypeArgs
-                )
-            );
-
-            if (fromCache != null) {
-                return fromCache;
-            }
-
-            final GenericType genericType = new GenericType(fromLookup, resolvedTypeArgs);
-
-            Type.CACHE.add(genericType);
-
-            return genericType;
-        }
-
-        return frame.resolveType(type);
-    }
-*/
 
     private Type<?> visitMethod(final Method m, final Frame frame) {
         java.lang.reflect.Type[] parameterTypes = m.getGenericParameterTypes();
@@ -921,16 +898,28 @@ final class Resolver {
     }
 }
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings({ "unchecked", "UnusedDeclaration" })
 class ReflectedType<T> extends Type<T> {
-    private final String   _name;
-    private final String   _simpleName;
-    private final Class<T> _rawClass;
-    private       Type<?>  _baseType;
-    private       TypeList _interfaces;
-    private       boolean  _membersResolved;
-    private       boolean  _completed;
-    private       Type<?>  _declaringType;
+    private final static AtomicIntegerFieldUpdater<ReflectedType> FLAGS_UPDATER = AtomicIntegerFieldUpdater.newUpdater(
+        ReflectedType.class,
+        "_flags"
+    );
+
+    private final static byte FLAG_METHODS_RESOLVED      = 0x01;
+    private final static byte FLAG_FIELDS_RESOLVED       = 0x02;
+    private final static byte FLAG_CONSTRUCTORS_RESOLVED = 0x04;
+    private final static byte FLAG_NESTED_TYPES_RESOLVED = 0x08;
+    private final static byte FLAG_ALL_MEMBERS_RESOLVED  = 0x0F;
+    private final static byte FLAG_RESOLVING_MEMBERS     = 0x08;
+
+    private final    String   _name;
+    private final    String   _simpleName;
+    private final    Class<T> _rawClass;
+    private          Type<?>  _baseType;
+    private          TypeList _interfaces;
+    private volatile int      _flags;
+    private          boolean  _completed;
+    private          Type<?>  _declaringType;
 
     private List<GenericParameter>     _genericParameters = null;
     private List<ReflectedType<?>>     _nestedTypes       = null;
@@ -950,6 +939,28 @@ class ReflectedType<T> extends Type<T> {
         return _name;
     }
 
+    private boolean checkFlags(final int flags) {
+        return (_flags & flags) == flags;
+    }
+    
+    private void setFlags(final int flags) {
+        while (true) {
+            final int oldFlags = _flags;
+            if (FLAGS_UPDATER.compareAndSet(this, oldFlags, oldFlags | flags)) {
+                return;
+            }
+        }
+    }
+    
+    private void clearFlags(final int flags) {
+        while (true) {
+            final int oldFlags = _flags;
+            if (FLAGS_UPDATER.compareAndSet(this, oldFlags, oldFlags & ~flags)) {
+                return;
+            }
+        }
+    }
+    
     void setBaseType(final Type<?> baseType) {
         _baseType = baseType;
     }
@@ -965,10 +976,49 @@ class ReflectedType<T> extends Type<T> {
         return _genericParameters;
     }
 
+    ReflectedField findField(final Field rawField) {
+        if (_fields == null) {
+            return null;
+        }
+        for (final ReflectedField field : _fields) {
+            if (Comparer.equals(field.getRawField(), rawField)) {
+                return field;
+            }
+        }
+        return null;
+    }
+    
     ReflectedMethod findMethod(final Method rawMethod) {
+        if (_methods == null) {
+            return null;
+        }
         for (final ReflectedMethod method : _methods) {
             if (Comparer.equals(method.getRawMethod(), rawMethod)) {
                 return method;
+            }
+        }
+        return null;
+    }
+    
+    ReflectedConstructor findConstructor(final Constructor rawConstructor) {
+        if (_constructors == null) {
+            return null;
+        }
+        for (final ReflectedConstructor constructor : _constructors) {
+            if (Comparer.equals(constructor.getRawConstructor(), rawConstructor)) {
+                return constructor;
+            }
+        }
+        return null;
+    }
+    
+    ReflectedType<?> findNestedType(final Class<?> rawClass) {
+        if (_nestedTypes == null) {
+            return null;
+        }
+        for (final ReflectedType<?> nestedType : _nestedTypes) {
+            if (Comparer.equals(nestedType.getErasedClass(), rawClass)) {
+                return nestedType;
             }
         }
         return null;
@@ -993,38 +1043,58 @@ class ReflectedType<T> extends Type<T> {
 
     void addNestedType(final ReflectedType<?> nestedType) {
         VerifyArgument.notNull(nestedType, "nestedType");
+
         if (_nestedTypes == null) {
             _nestedTypes = new ArrayList<>();
         }
+
         _nestedTypes.add(nestedType);
-        _membersResolved = false;
+
+        if (!checkFlags(FLAG_RESOLVING_MEMBERS)) {
+            clearFlags(FLAG_NESTED_TYPES_RESOLVED);
+        }
     }
 
     void addMethod(final ReflectedMethod method) {
         VerifyArgument.notNull(method, "method");
+
         if (_methods == null) {
             _methods = new ArrayList<>();
         }
+
         _methods.add(method);
-        _membersResolved = false;
+
+        if (!checkFlags(FLAG_RESOLVING_MEMBERS)) {
+            clearFlags(FLAG_METHODS_RESOLVED);
+        }
     }
 
     void addConstructor(final ReflectedConstructor constructor) {
         VerifyArgument.notNull(constructor, "constructor");
+        
         if (_constructors == null) {
             _constructors = new ArrayList<>();
         }
+        
         _constructors.add(constructor);
-        _membersResolved = false;
+
+        if (!checkFlags(FLAG_RESOLVING_MEMBERS)) {
+            clearFlags(FLAG_CONSTRUCTORS_RESOLVED);
+        }
     }
 
     void addField(final ReflectedField field) {
         VerifyArgument.notNull(field, "field");
+        
         if (_fields == null) {
             _fields = new ArrayList<>();
         }
+        
         _fields.add(field);
-        _membersResolved = false;
+
+        if (!checkFlags(FLAG_RESOLVING_MEMBERS)) {
+            clearFlags(FLAG_FIELDS_RESOLVED);
+        }
     }
 
     private void completeIfNecessary() {
@@ -1038,18 +1108,24 @@ class ReflectedType<T> extends Type<T> {
     }
 
     private void ensureMembersResolved() {
-        if (!_membersResolved) {
+        while (true) {
+            if (checkFlags(FLAG_ALL_MEMBERS_RESOLVED)) {
+                return;
+            }
             synchronized (CACHE_LOCK) {
-                if (!_membersResolved) {
+                if (!checkFlags(FLAG_ALL_MEMBERS_RESOLVED)) {
+                    final int oldFlags = _flags;
 
-                    new Resolver().resolveMembers(this);
-
-                    _membersResolved = true;
+                    RESOLVER.resolveMembers(this, oldFlags ^ FLAG_ALL_MEMBERS_RESOLVED);
 
                     if (_nestedTypes != null) {
                         for (final ReflectedType<?> nestedType : _nestedTypes) {
                             nestedType.complete();
                         }
+                    }
+
+                    if (FLAGS_UPDATER.compareAndSet(this, oldFlags, FLAG_ALL_MEMBERS_RESOLVED)) {
+                        return;
                     }
                 }
             }

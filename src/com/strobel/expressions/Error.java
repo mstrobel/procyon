@@ -751,4 +751,9 @@ final class Error {
             )
         );
     }
+
+    public static IllegalArgumentException twoOrMoreOperandsRequired() {
+        return new IllegalArgumentException(
+            "At least two operands are required for a binary operation.");
+    }
 }

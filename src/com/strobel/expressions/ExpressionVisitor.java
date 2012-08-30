@@ -163,7 +163,7 @@ public abstract class ExpressionVisitor {
         return node.update(visit(node.getExpressions()));
     }
 
-    public <T> LambdaExpression<T> visitLambda(final LambdaExpression<T> node) {
+    protected <T> LambdaExpression<T> visitLambda(final LambdaExpression<T> node) {
         return node.update(visit(node.getBody()), visitAndConvertList(node.getParameters(), "visitLambda"));
     }
 
@@ -225,7 +225,7 @@ public abstract class ExpressionVisitor {
         );
     }
 
-    public static <T> ReadOnlyList<T> visit(final ReadOnlyList<T> nodes, final ElementVisitor<T> elementVisitor) {
+    protected static <T> ReadOnlyList<T> visit(final ReadOnlyList<T> nodes, final ElementVisitor<T> elementVisitor) {
         T[] newNodes = null;
 
         for (int i = 0, n = nodes.size(); i < n; i++) {

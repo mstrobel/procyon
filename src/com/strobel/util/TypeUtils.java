@@ -1,7 +1,13 @@
 package com.strobel.util;
 
-import com.strobel.reflection.*;
+import com.strobel.reflection.BindingFlags;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.PrimitiveTypes;
+import com.strobel.reflection.Type;
+import com.strobel.reflection.TypeList;
+import com.strobel.reflection.Types;
 
+import javax.lang.model.type.TypeKind;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -9,7 +15,9 @@ import java.util.Set;
  * @author Mike Strobel
  */
 public final class TypeUtils {
-    private TypeUtils() {}
+    private TypeUtils() {
+        throw ContractUtils.unreachable();
+    }
 
     public static boolean isAutoUnboxed(final Type type) {
         return type == Types.Integer ||
@@ -215,7 +223,14 @@ public final class TypeUtils {
             return !destination.isPrimitive();
         }
 
-        final Type unboxedSourceType = isAutoUnboxed(source) ? getUnderlyingPrimitive(source) : source;
+        final boolean sourceIsBoxed = isAutoUnboxed(source);
+        final boolean destinationIsBoxed = isAutoUnboxed(destination);
+
+        if (sourceIsBoxed && destinationIsBoxed) {
+            return areEquivalent(source, destination);
+        }
+
+        final Type unboxedSourceType = sourceIsBoxed ? getUnderlyingPrimitive(source) : source;
         final Type unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
 
         // Down conversion 
@@ -242,6 +257,10 @@ public final class TypeUtils {
         final Type unboxedDestinationType = isAutoUnboxed(destination)
                                             ? getUnderlyingPrimitive(destination)
                                             : destination;
+
+        if (destination == Types.String) {
+            return source.getMethod("toString", BindingFlags.PublicInstance);
+        }
 
         if (!destination.isPrimitive()) {
             return null;
@@ -439,5 +458,81 @@ public final class TypeUtils {
     public static boolean isSameOrSubType(final Type<?> type, final Type subType) {
         return areEquivalent(type, subType) ||
                subType.isSubTypeOf(type);
+    }
+
+    public static boolean isImplicitNumericConversion(final Type<?> sourceType, final Type<?> targetType) {
+        final TypeKind sourceKind = TypeUtils.getUnderlyingPrimitiveOrSelf(sourceType).getKind();
+        final TypeKind targetKind = TypeUtils.getUnderlyingPrimitiveOrSelf(targetType).getKind();
+
+        switch (sourceKind) {
+            case BYTE:
+                switch (targetKind) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                    case LONG:
+                    case CHAR:
+                    case FLOAT:
+                    case DOUBLE:
+                        return true;
+                }
+                return false;
+
+            case SHORT:
+                switch (targetKind) {
+                    case SHORT:
+                    case INT:
+                    case LONG:
+                    case CHAR:
+                    case FLOAT:
+                    case DOUBLE:
+                        return true;
+                }
+                return false;
+
+            case INT:
+                switch (targetKind) {
+                    case INT:
+                    case LONG:
+                    case CHAR:
+                    case FLOAT:
+                    case DOUBLE:
+                        return true;
+                }
+                return false;
+
+            case CHAR:
+                switch (targetKind) {
+                    case SHORT:
+                    case INT:
+                    case LONG:
+                    case CHAR:
+                    case FLOAT:
+                    case DOUBLE:
+                        return true;
+                }
+                return false;
+
+            case LONG:
+                switch (targetKind) {
+                    case LONG:
+                    case FLOAT:
+                    case DOUBLE:
+                        return true;
+                }
+                return false;
+
+            case FLOAT:
+                switch (targetKind) {
+                    case FLOAT:
+                    case DOUBLE:
+                        return true;
+                }
+                return false;
+            case DOUBLE:
+                return targetKind == TypeKind.DOUBLE;
+        }
+
+        return false;
     }
 }

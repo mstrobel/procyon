@@ -1201,11 +1201,24 @@ public abstract class Expression {
     // BINARY EXPRESSIONS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public static BinaryExpression makeBinary(final ExpressionType binaryType, final Expression... rest) {
+        VerifyArgument.notNull(binaryType, "binaryType");
+        VerifyArgument.notEmpty(rest, "rest");
+        verifyCanRead(rest, "rest");
+
+        if (rest.length < 2) {
+            throw Error.twoOrMoreOperandsRequired();
+        }
+
+        return aggregateBinary(binaryType, ImmutableList.from(rest));
+    }
+    
     public static BinaryExpression makeBinary(
         final ExpressionType binaryType,
         final Expression first,
         final Expression... rest) {
 
+        VerifyArgument.notNull(binaryType, "binaryType");
         verifyCanRead(first, "first");
         VerifyArgument.notEmpty(rest, "rest");
         verifyCanRead(rest, "rest");
@@ -1240,6 +1253,8 @@ public abstract class Expression {
         switch (binaryType) {
             case Add:
                 return add(left, right, method);
+            case Coalesce:
+                return coalesce(left, right, conversion);
             case Subtract:
                 return subtract(left, right, method);
             case Multiply:
@@ -1327,6 +1342,59 @@ public abstract class Expression {
         }
 
         return getMethodBasedBinaryOperator(ExpressionType.Add, left, right, method);
+    }
+
+    public static BinaryExpression coalesce(final Expression left, final Expression right) {
+        return coalesce(left, right, null);
+    }
+    
+    public static BinaryExpression coalesce(final Expression left, final Expression right, final LambdaExpression conversion) {
+        verifyCanRead(left, "left");
+        verifyCanRead(right, "right");
+
+        if (conversion == null) {
+            final Type resultType = validateCoalesceArgumentTypes(left.getType(), right.getType());
+            return new SimpleBinaryExpression(ExpressionType.Coalesce, left, right, resultType);
+        }
+
+        if (left.getType().isPrimitive()) {
+            throw Error.coalesceUsedOnNonNullableType();
+        }
+
+        final Type<?> delegateType = conversion.getType();
+        
+        final MethodInfo method = getInvokeMethod(conversion);
+
+        if (method.getReturnType() == PrimitiveTypes.Void) {
+            throw Error.operatorMethodMustNotReturnVoid(method);
+        }
+
+        final ParameterList parameters = method.getParameters();
+
+        assert parameters.size() == conversion.getParameters().size();
+
+        if (parameters.size() != 1) {
+            throw Error.incorrectNumberOfMethodCallArguments(method);
+        }
+
+        //
+        // The return type must match exactly.
+        //
+        if (!TypeUtils.areEquivalent(method.getReturnType(), right.getType())) {
+            throw Error.operandTypesDoNotMatchParameters(ExpressionType.Coalesce, method);
+        }
+
+        //
+        // The parameter of the conversion lambda must either be assignable from the erased
+        // or un-erased type of the left hand side.
+        //
+        if (!parameterIsAssignable(parameters.get(0).getParameterType(), TypeUtils.getUnderlyingPrimitiveOrSelf(left.getType())) &&
+            !parameterIsAssignable(parameters.get(0).getParameterType(), left.getType())) {
+
+            throw Error.operandTypesDoNotMatchParameters(ExpressionType.Coalesce, method);
+        }
+        
+        return new CoalesceConversionBinaryExpression(left, right, conversion);
     }
 
     public static BinaryExpression subtract(final Expression left, final Expression right) {
@@ -3910,5 +3978,25 @@ public abstract class Expression {
         }
 
         return leftType;
+    }
+
+    private static Type validateCoalesceArgumentTypes(final Type left, final Type right) {
+        final Type leftStripped = TypeUtils.getUnderlyingPrimitive(left);
+        
+        if (left.isPrimitive()) {
+            throw Error.coalesceUsedOnNonNullableType();
+        }
+        else if (TypeUtils.isAutoUnboxed(left) && TypeUtils.hasReferenceConversion(right, leftStripped)) {
+            return leftStripped;
+        }
+        else if (TypeUtils.hasReferenceConversion(right, left)) {
+            return left;
+        }
+        else if (TypeUtils.hasReferenceConversion(leftStripped, right)) {
+            return right;
+        }
+        else {
+            throw Error.argumentTypesMustMatch();
+        }
     }
 }
