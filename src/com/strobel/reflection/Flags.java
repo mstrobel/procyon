@@ -160,9 +160,10 @@ public class Flags {
     // bit positions, we translate them when reading and writing class
     // files into unique bits positions: ACC_SYNTHETIC <-> SYNTHETIC,
     // for example.
-    public static final int ACC_SUPER   = 0x0020;
-    public static final int ACC_BRIDGE  = 0x0040;
-    public static final int ACC_VARARGS = 0x0080;
+    public static final int ACC_SUPER     = 0x0020;
+    public static final int ACC_BRIDGE    = 0x0040;
+    public static final int ACC_VARARGS   = 0x0080;
+    public static final int ACC_SYNTHETIC = 0x1000;
 
     /*****************************************
      * Internal compiler flags (no bits in the lower 16).
