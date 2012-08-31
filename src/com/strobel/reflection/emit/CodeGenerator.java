@@ -1960,7 +1960,6 @@ public class CodeGenerator {
                     case BYTE:
                     case CHAR:
                     case SHORT:
-                        emit(OpCode.I2L);
                         return;
 
                     case LONG:
