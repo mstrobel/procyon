@@ -914,6 +914,17 @@ final class RuntimeConstructorInfo extends ConstructorInfo {
     public int getModifiers() {
         return _modifiers;
     }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (!(obj instanceof RuntimeConstructorInfo))
+            return false;
+
+        final RuntimeConstructorInfo other = (RuntimeConstructorInfo) obj;
+
+        return other._reflectedTypeCache == _reflectedTypeCache &&
+               other._rawConstructor == _rawConstructor;
+    }
 }
 
 final class RuntimeMethodInfo extends MethodInfo {
@@ -1027,6 +1038,17 @@ final class RuntimeMethodInfo extends MethodInfo {
     public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
         return _rawMethod.getAnnotation(annotationClass);
     }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (!(obj instanceof RuntimeMethodInfo))
+            return false;
+        
+        final RuntimeMethodInfo other = (RuntimeMethodInfo) obj;
+        
+        return other._declaringType == _declaringType &&
+               other._rawMethod == _rawMethod;
+    }
 }
 
 final class RuntimeFieldInfo extends FieldInfo {
@@ -1110,6 +1132,17 @@ final class RuntimeFieldInfo extends FieldInfo {
     @Override
     public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
         return _rawField.isAnnotationPresent(annotationClass);
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (!(obj instanceof RuntimeFieldInfo))
+            return false;
+
+        final RuntimeFieldInfo other = (RuntimeFieldInfo) obj;
+
+        return other._declaringType == _declaringType &&
+               other._rawField == _rawField;
     }
 }
 

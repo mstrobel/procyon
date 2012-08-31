@@ -1957,6 +1957,12 @@ public class CodeGenerator {
 
             case INT: {
                 switch (sourceKind) {
+                    case BYTE:
+                    case CHAR:
+                    case SHORT:
+                        emit(OpCode.I2L);
+                        return;
+
                     case LONG:
                         emit(OpCode.L2I);
                         return;

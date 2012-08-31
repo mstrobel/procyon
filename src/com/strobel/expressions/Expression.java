@@ -3365,6 +3365,10 @@ public abstract class Expression {
         final MethodInfo method) {
 
         assert method != null;
+        
+        if (method.isStatic()) {
+            return getStaticMethodBasedBinaryOperator(binaryType, left, right, method);
+        }
 
         final ParameterList parameters = method.getParameters();
 
