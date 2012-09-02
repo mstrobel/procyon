@@ -617,7 +617,7 @@ final class RuntimeTypeCache<T> {
                     final String name = method.getName();
                     final int methodModifiers = method.getModifiers();
 
-                    if (!filter.match(name)) {
+                    if ((methodModifiers & Flags.ACC_BRIDGE) == Flags.ACC_BRIDGE || !filter.match(name)) {
                         continue;
                     }
 
@@ -658,7 +658,7 @@ final class RuntimeTypeCache<T> {
                 for (final MethodInfo method : declaringType.getDeclaredMethods()) {
                     final String name = method.getName();
 
-                    if (!filter.match(name)) {
+                    if ((method.getModifiers() & Flags.ACC_BRIDGE) == Flags.ACC_BRIDGE || !filter.match(name)) {
                         continue;
                     }
 

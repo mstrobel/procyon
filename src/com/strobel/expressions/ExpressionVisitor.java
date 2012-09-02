@@ -31,6 +31,10 @@ public abstract class ExpressionVisitor {
         return node;
     }
 
+    protected Expression visitConcat(final ConcatExpression node) {
+        return node.update(visit(node.getOperands()));
+    }
+
     protected Expression visitGoto(final GotoExpression node) {
         return node.update(visitLabelTarget(node.getTarget()), visit(node.getValue()));
     }

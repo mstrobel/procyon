@@ -1,6 +1,7 @@
 package com.strobel.expressions;
 
 import com.strobel.collections.ImmutableList;
+import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.BindingFlags;
@@ -452,6 +453,37 @@ public abstract class Expression {
             elementType.makeArrayType(),
             new ExpressionList<>(convertedDimension)
         );
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // CONCAT EXPRESSIONS                                                                                                 //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    public static ConcatExpression concat(final Expression first, final Expression second) {
+        verifyCanRead(first, "first");
+        verifyCanRead(second, "second");
+        return concat(new ExpressionList<>(first, second));
+    }
+
+    public static ConcatExpression concat(final Expression first, final Expression second, final Expression... operands) {
+        VerifyArgument.notEmpty(operands, "operands");
+        return concat(arrayToList(ArrayUtilities.prepend(operands, first, second)));
+    }
+
+    public static ConcatExpression concat(final ExpressionList<? extends Expression> operands) {
+        VerifyArgument.noNullElements(operands, "operands");
+
+        if (operands.size() < 2) {
+            throw Error.concatRequiresAtLeastTwoOperands();
+        }
+
+        for (int i = 0, n = operands.size(); i < n; i++) {
+            final Expression item = operands.get(i);
+
+            verifyCanRead(item, "operands");
+        }
+
+        return new ConcatExpression(operands);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1317,6 +1349,10 @@ public abstract class Expression {
                 return unsignedRightShiftAssign(left, right, method, conversion);
             case SubtractAssign:
                 return subtractAssign(left, right, method, conversion);
+            case ReferenceEqual:
+                return referenceEqual(left, right);
+            case ReferenceNotEqual:
+                return referenceNotEqual(left, right);
             default:
                 throw Error.unhandledBinary(binaryType);
         }

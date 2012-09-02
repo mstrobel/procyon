@@ -303,7 +303,7 @@ final class EqualsMethodBasedLogicalBinaryExpression extends BinaryExpression {
         }
         else {
             final MethodInfo equalsMethod = Types.Comparer.getMethod(
-                "equals",
+                operator == ExpressionType.Equal ? "equals" : "notEqual",
                 BindingFlags.PublicStatic,
                 Types.Object,
                 Types.Object

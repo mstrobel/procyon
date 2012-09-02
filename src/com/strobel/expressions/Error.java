@@ -756,4 +756,10 @@ final class Error {
         return new IllegalArgumentException(
             "At least two operands are required for a binary operation.");
     }
+
+    public static IllegalArgumentException concatRequiresAtLeastTwoOperands() {
+        return new IllegalArgumentException(
+            "A concat() expression requires at least two operands."
+        );
+    }
 }

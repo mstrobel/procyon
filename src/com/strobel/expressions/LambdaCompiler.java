@@ -1429,24 +1429,6 @@ final class LambdaCompiler {
             generator.emitConversion(rightType, operandType);
         }
 
-        switch (operandType.getKind()) {
-            case INT:
-                emitIntegerBinaryOp(op);
-                break;
-            case LONG:
-                emitLongBinaryOp(op);
-                break;
-            case FLOAT:
-                emitFloatBinaryOp(op);
-                break;
-            case DOUBLE:
-                emitDoubleBinaryOp(op);
-                break;
-            default:
-                emitObjectBinaryOp(op);
-                break;
-        }
-
         switch (op) {
             case Equal:
             case GreaterThan:
@@ -1454,11 +1436,28 @@ final class LambdaCompiler {
             case LessThan:
             case LessThanOrEqual:
             case NotEqual:
-                return PrimitiveTypes.Boolean;
+            case ReferenceEqual:
+            case ReferenceNotEqual: {
+                final Label ifFalse = generator.defineLabel();
+                final Label exit = generator.defineLabel();
 
-            default:
-                return operandType;
+                emitRelationalBranchOp(op, operandType, false, ifFalse);
+
+                generator.emitBoolean(true);
+                generator.emitGoto(exit);
+
+                generator.markLabel(ifFalse);
+                generator.emitBoolean(false);
+                generator.emitGoto(exit);
+
+                generator.markLabel(exit);
+
+                return PrimitiveTypes.Boolean;
+            }
         }
+
+        emitArithmeticBinaryOp(op, operandType);
+        return operandType;
     }
 
     private void emitUnboxingBinaryOp(final ExpressionType op, final Type leftType, final Type rightType, final Type resultType) {
@@ -1645,152 +1644,6 @@ final class LambdaCompiler {
         freeLocal(rightStorage);
     }
 
-    private void emitDoubleBinaryOp(final ExpressionType op) {
-        switch (op) {
-            case Add: {
-                generator.emit(OpCode.DADD);
-                break;
-            }
-
-            case Divide: {
-                generator.emit(OpCode.DDIV);
-                break;
-            }
-
-            case Equal: {
-                final Label ifNotEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.DCMPL);
-                generator.emit(OpCode.IFNE, ifNotEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifNotEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case GreaterThan: {
-                final Label ifLessThanOrEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.DCMPL);
-                generator.emit(OpCode.IFLE, ifLessThanOrEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifLessThanOrEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case GreaterThanOrEqual: {
-                final Label ifLessThan = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.DCMPL);
-                generator.emit(OpCode.IFLT, ifLessThan);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifLessThan);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case LessThan: {
-                final Label ifGreaterThanOrEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.DCMPG);
-                generator.emit(OpCode.IFGE, ifGreaterThanOrEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifGreaterThanOrEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case LessThanOrEqual: {
-                final Label ifGreaterThan = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.DCMPG);
-                generator.emit(OpCode.IFGT, ifGreaterThan);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifGreaterThan);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case Modulo: {
-                generator.emit(OpCode.DREM);
-                break;
-            }
-
-            case Multiply: {
-                generator.emit(OpCode.DMUL);
-                break;
-            }
-
-            case NotEqual: {
-                final Label ifEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.IFEQ, ifEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case Subtract: {
-                generator.emit(OpCode.DSUB);
-                break;
-            }
-
-            default: {
-                throw ContractUtils.unreachable();
-            }
-        }
-    }
-
     private void emitObjectBinaryOp(final ExpressionType op) {
         switch (op) {
             case Equal:
@@ -1837,501 +1690,261 @@ final class LambdaCompiler {
         }
     }
 
-    private void emitFloatBinaryOp(final ExpressionType op) {
+    private void emitArithmeticBinaryOp(final ExpressionType op, final Type<?> operandType) {
         switch (op) {
             case Add: {
-                generator.emit(OpCode.FADD);
-                break;
-            }
+                switch (operandType.getKind()) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        generator.emit(OpCode.IADD);
+                        return;
 
-            case Divide: {
-                generator.emit(OpCode.FDIV);
-                break;
-            }
+                    case LONG:
+                        generator.emit(OpCode.LADD);
+                        return;
 
-            case Equal: {
-                final Label ifNotEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
+                    case CHAR:
+                        generator.emit(OpCode.IADD);
+                        return;
 
-                generator.emit(OpCode.FCMPL);
-                generator.emit(OpCode.IFNE, ifNotEqual);
+                    case FLOAT:
+                        generator.emit(OpCode.FADD);
+                        return;
 
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifNotEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case GreaterThan: {
-                final Label ifLessThanOrEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.FCMPL);
-                generator.emit(OpCode.IFLE, ifLessThanOrEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifLessThanOrEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case GreaterThanOrEqual: {
-                final Label ifLessThan = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.FCMPL);
-                generator.emit(OpCode.IFLT, ifLessThan);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifLessThan);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case LessThan: {
-                final Label ifGreaterThanOrEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.FCMPG);
-                generator.emit(OpCode.IFGE, ifGreaterThanOrEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifGreaterThanOrEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case LessThanOrEqual: {
-                final Label ifGreaterThan = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.FCMPG);
-                generator.emit(OpCode.IFGT, ifGreaterThan);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifGreaterThan);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case Modulo: {
-                generator.emit(OpCode.FREM);
-                break;
-            }
-
-            case Multiply: {
-                generator.emit(OpCode.FMUL);
-                break;
-            }
-
-            case NotEqual: {
-                final Label ifEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.IFEQ, ifEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case Subtract: {
-                generator.emit(OpCode.FSUB);
-                break;
-            }
-
-            default: {
-                throw ContractUtils.unreachable();
-            }
-        }
-    }
-
-    private void emitLongBinaryOp(final ExpressionType op) {
-        switch (op) {
-            case Add: {
-                generator.emit(OpCode.LADD);
+                    case DOUBLE:
+                        generator.emit(OpCode.DADD);
+                        return;
+                }
                 break;
             }
 
             case And:
             case AndAlso: {
-                generator.emit(OpCode.LAND);
+                switch (operandType.getKind()) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        generator.emit(OpCode.IAND);
+                        return;
+
+                    case LONG:
+                        generator.emit(OpCode.LAND);
+                        return;
+
+                    case CHAR:
+                        generator.emit(OpCode.IAND);
+                        return;
+                }
                 break;
             }
 
             case Divide: {
-                generator.emit(OpCode.LDIV);
-                break;
-            }
+                switch (operandType.getKind()) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        generator.emit(OpCode.IDIV);
+                        return;
 
-            case Equal: {
-                final Label ifNotEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
+                    case LONG:
+                        generator.emit(OpCode.LDIV);
+                        return;
 
-                generator.emit(OpCode.LCMP);
-                generator.emit(OpCode.IFNE, ifNotEqual);
+                    case CHAR:
+                        generator.emit(OpCode.IDIV);
+                        return;
 
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
+                    case FLOAT:
+                        generator.emit(OpCode.FDIV);
+                        return;
 
-                generator.markLabel(ifNotEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
+                    case DOUBLE:
+                        generator.emit(OpCode.DDIV);
+                        return;
+                }
                 break;
             }
 
             case ExclusiveOr: {
-                generator.emit(OpCode.LXOR);
-                break;
-            }
+                switch (operandType.getKind()) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        generator.emit(OpCode.IXOR);
+                        return;
 
-            case GreaterThan: {
-                final Label ifLessThanOrEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
+                    case LONG:
+                        generator.emit(OpCode.LXOR);
+                        return;
 
-                generator.emit(OpCode.LCMP);
-                generator.emit(OpCode.IFLE, ifLessThanOrEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifLessThanOrEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case GreaterThanOrEqual: {
-                final Label ifLessThan = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.LCMP);
-                generator.emit(OpCode.IFLT, ifLessThan);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifLessThan);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
+                    case CHAR:
+                        generator.emit(OpCode.IXOR);
+                        return;
+                }
                 break;
             }
 
             case LeftShift: {
-                generator.emit(OpCode.LSHL);
-                break;
-            }
+                switch (operandType.getKind()) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        generator.emit(OpCode.ISHL);
+                        return;
 
-            case LessThan: {
-                final Label ifGreaterThanOrEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
+                    case LONG:
+                        generator.emit(OpCode.LSHL);
+                        return;
 
-                generator.emit(OpCode.LCMP);
-                generator.emit(OpCode.IFGE, ifGreaterThanOrEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifGreaterThanOrEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case LessThanOrEqual: {
-                final Label ifGreaterThan = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.LCMP);
-                generator.emit(OpCode.IFGT, ifGreaterThan);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifGreaterThan);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
+                    case CHAR:
+                        generator.emit(OpCode.ISHL);
+                        return;
+                }
                 break;
             }
 
             case Modulo: {
-                generator.emit(OpCode.LREM);
+                switch (operandType.getKind()) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        generator.emit(OpCode.IREM);
+                        return;
+
+                    case LONG:
+                        generator.emit(OpCode.LREM);
+                        return;
+
+                    case CHAR:
+                        generator.emit(OpCode.IREM);
+                        return;
+
+                    case FLOAT:
+                        generator.emit(OpCode.FREM);
+                        return;
+
+                    case DOUBLE:
+                        generator.emit(OpCode.DREM);
+                        return;
+                }
                 break;
             }
 
             case Multiply: {
-                generator.emit(OpCode.LMUL);
-                break;
-            }
+                switch (operandType.getKind()) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        generator.emit(OpCode.IMUL);
+                        return;
 
-            case NotEqual: {
-                final Label ifEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
+                    case LONG:
+                        generator.emit(OpCode.LMUL);
+                        return;
 
-                generator.emit(OpCode.IFEQ, ifEqual);
+                    case CHAR:
+                        generator.emit(OpCode.IMUL);
+                        return;
 
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
+                    case FLOAT:
+                        generator.emit(OpCode.FMUL);
+                        return;
 
-                generator.markLabel(ifEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
+                    case DOUBLE:
+                        generator.emit(OpCode.DMUL);
+                        return;
+                }
                 break;
             }
 
             case Or:
             case OrElse: {
-                generator.emit(OpCode.LOR);
+                switch (operandType.getKind()) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        generator.emit(OpCode.IOR);
+                        return;
+
+                    case LONG:
+                        generator.emit(OpCode.LOR);
+                        return;
+
+                    case CHAR:
+                        generator.emit(OpCode.IOR);
+                        return;
+                }
                 break;
             }
 
             case RightShift: {
-                generator.emit(OpCode.LSHR);
+                switch (operandType.getKind()) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        generator.emit(OpCode.ISHR);
+                        return;
+
+                    case LONG:
+                        generator.emit(OpCode.LSHR);
+                        return;
+
+                    case CHAR:
+                        generator.emit(OpCode.ISHR);
+                        return;
+                }
                 break;
             }
 
             case UnsignedRightShift: {
-                generator.emit(OpCode.LUSHR);
+                switch (operandType.getKind()) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        generator.emit(OpCode.IUSHR);
+                        return;
+
+                    case LONG:
+                        generator.emit(OpCode.LUSHR);
+                        return;
+
+                    case CHAR:
+                        generator.emit(OpCode.IUSHR);
+                        return;
+                }
                 break;
             }
 
             case Subtract: {
-                generator.emit(OpCode.LSUB);
-                break;
-            }
+                switch (operandType.getKind()) {
+                    case BYTE:
+                    case SHORT:
+                    case INT:
+                        generator.emit(OpCode.ISUB);
+                        return;
 
-            default: {
-                throw ContractUtils.unreachable();
+                    case LONG:
+                        generator.emit(OpCode.LSUB);
+                        return;
+
+                    case CHAR:
+                        generator.emit(OpCode.ISUB);
+                        return;
+
+                    case FLOAT:
+                        generator.emit(OpCode.FSUB);
+                        return;
+
+                    case DOUBLE:
+                        generator.emit(OpCode.DSUB);
+                        return;
+                }
+                break;
             }
         }
-    }
 
-    private void emitIntegerBinaryOp(final ExpressionType op) {
-        switch (op) {
-            case Add: {
-                generator.emit(OpCode.IADD);
-                break;
-            }
-
-            case And:
-            case AndAlso: {
-                generator.emit(OpCode.IAND);
-                break;
-            }
-
-            case Divide: {
-                generator.emit(OpCode.IDIV);
-                break;
-            }
-
-            case Equal: {
-                final Label ifNotEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.IF_ICMPNE, ifNotEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifNotEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case ExclusiveOr: {
-                generator.emit(OpCode.IXOR);
-                break;
-            }
-
-            case GreaterThan: {
-                final Label ifLessThanOrEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.IF_ICMPLE, ifLessThanOrEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifLessThanOrEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case GreaterThanOrEqual: {
-                final Label ifLessThan = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.IF_ICMPLT, ifLessThan);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifLessThan);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case LeftShift: {
-                generator.emit(OpCode.ISHL);
-                break;
-            }
-
-            case LessThan: {
-                final Label ifGreaterThanOrEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.IF_ICMPGE, ifGreaterThanOrEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifGreaterThanOrEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case LessThanOrEqual: {
-                final Label ifGreaterThan = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.IF_ICMPGT, ifGreaterThan);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifGreaterThan);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case Modulo: {
-                generator.emit(OpCode.IREM);
-                break;
-            }
-
-            case Multiply: {
-                generator.emit(OpCode.IMUL);
-                break;
-            }
-
-            case NotEqual: {
-                final Label ifEqual = generator.defineLabel();
-                final Label exit = generator.defineLabel();
-
-                generator.emit(OpCode.IF_ICMPEQ, ifEqual);
-
-                generator.emitBoolean(true);
-                generator.emitGoto(exit);
-
-                generator.markLabel(ifEqual);
-                generator.emitBoolean(false);
-                generator.emitGoto(exit);
-
-                generator.markLabel(exit);
-
-                break;
-            }
-
-            case Or:
-            case OrElse: {
-                generator.emit(OpCode.IOR);
-                break;
-            }
-
-            case RightShift: {
-                generator.emit(OpCode.ISHR);
-                break;
-            }
-
-            case UnsignedRightShift: {
-                generator.emit(OpCode.IUSHR);
-                break;
-            }
-
-            case Subtract: {
-                generator.emit(OpCode.ISUB);
-                break;
-            }
-
-            default: {
-                throw ContractUtils.unreachable();
-            }
-        }
+        throw ContractUtils.unreachable();
     }
 
     // </editor-fold>
@@ -2406,13 +2019,17 @@ final class LambdaCompiler {
                         return;
                     case Equal:
                     case NotEqual:
-                        emitBranchEqualityComparison(branchValue, (BinaryExpression)node, label);
-                        return;
                     case GreaterThan:
                     case GreaterThanOrEqual:
                     case LessThan:
                     case LessThanOrEqual:
+                    case ReferenceEqual:
+                    case ReferenceNotEqual:
                         emitBranchRelation(branchValue, (BinaryExpression) node, label);
+                        return;
+                    case IsNull:
+                    case IsNotNull:
+                        emitBranchNullCheck(branchValue, (UnaryExpression) node, label);
                         return;
                 }
             }
@@ -2433,11 +2050,22 @@ final class LambdaCompiler {
         emitExpressionAndBranch(!branch, node.getOperand(), label);
     }
 
-    private void emitBranchEqualityComparison(final boolean branch, final BinaryExpression node, final Label label) {
-        assert node.getNodeType() == ExpressionType.Equal || node.getNodeType() == ExpressionType.NotEqual;
+    private void emitBranchNullCheck(final boolean branch, final UnaryExpression node, final Label label) {
+        emitExpression(node.getOperand());
+        emitRelationalBranchOp(node.getNodeType(), node.getOperand().getType(), branch, label);
+    }
 
-        // To share code paths, we want to treat NotEqual as an inverted Equal
-        final boolean branchWhenEqual = branch == (node.getNodeType() == ExpressionType.Equal);
+    private void emitBranchRelation(final boolean branch, final BinaryExpression node, final Label label) {
+        final ExpressionType op = node.getNodeType();
+
+        assert op == ExpressionType.Equal ||
+               op == ExpressionType.NotEqual ||
+               op == ExpressionType.LessThan ||
+               op == ExpressionType.LessThanOrEqual ||
+               op == ExpressionType.GreaterThan ||
+               op == ExpressionType.GreaterThanOrEqual ||
+               op == ExpressionType.ReferenceEqual ||
+               op == ExpressionType.ReferenceNotEqual;
 
         if (node.getMethod() != null) {
             emitBinaryMethod(node, CompilationFlags.EmitAsNoTail);
@@ -2446,82 +2074,38 @@ final class LambdaCompiler {
             // node kind, so use the original branch value
             //
             emitBranchOp(branch, label);
+            return;
         }
-        else if (ConstantCheck.isNull(node.getLeft())) {
-            emitExpression(getEqualityOperand(node.getRight()));
-            emitBranchOp(!branchWhenEqual, label);
-        }
-        else if (ConstantCheck.isNull(node.getRight())) {
-            assert !node.getLeft().getType().isPrimitive();
-            emitExpression(getEqualityOperand(node.getLeft()));
-            emitBranchOp(!branchWhenEqual, label);
-        }
-        else if (TypeUtils.isAutoUnboxed(node.getLeft().getType()) ||
-                 TypeUtils.isAutoUnboxed(node.getRight().getType())) {
 
-            emitBinaryExpression(node);
-            //
-            // emitBinaryExpression() takes into account the Equal/NotEqual
-            // node kind, so use the original branch value
-            //
-            emitBranchOp(branch, label);
-        }
-        else {
-            final Expression equalityOperand = getEqualityOperand(node.getLeft());
+        if (op == ExpressionType.ReferenceEqual ||
+            op == ExpressionType.ReferenceNotEqual) {
 
-            emitExpression(equalityOperand);
-            emitExpression(getEqualityOperand(node.getRight()));
+            if (ConstantCheck.isNull(node.getLeft())) {
+                if (ConstantCheck.isNull(node.getRight())) {
+                    generator.emitBoolean(op == ExpressionType.ReferenceEqual);
+                    emitBranchOp(branch, label);
+                    return;
+                }
 
-            final Type<?> compareType;
-
-            if (TypeUtils.isArithmetic(equalityOperand.getType())) {
-                compareType = TypeUtils.getUnderlyingPrimitiveOrSelf(equalityOperand.getType());
-            }
-            else {
-                compareType = equalityOperand.getType();
+                emitExpression(getEqualityOperand(node.getRight()));
+                generator.emit(
+                    branch ? (op == ExpressionType.ReferenceEqual ? OpCode.IFNULL : OpCode.IFNONNULL)
+                           : (op == ExpressionType.ReferenceEqual ? OpCode.IFNONNULL : OpCode.IFNULL),
+                    label
+                );
+                return;
             }
 
-            switch (compareType.getKind()) {
-                case BOOLEAN:
-                case BYTE:
-                case SHORT:
-                case INT:
-                    generator.emit(branchWhenEqual ? OpCode.IF_ICMPEQ : OpCode.IF_ICMPNE, label);
-                    break;
-
-                case LONG:
-                    generator.emit(OpCode.LCMP);
-                    generator.emit(branchWhenEqual ? OpCode.IFEQ : OpCode.IFNE, label);
-                    break;
-
-                case CHAR:
-                    generator.emit(branchWhenEqual ? OpCode.IF_ICMPEQ : OpCode.IF_ICMPNE, label);
-                    break;
-
-                case FLOAT:
-                    generator.emit(OpCode.FCMPL);
-                    generator.emit(branchWhenEqual ? OpCode.IFEQ : OpCode.IFNE, label);
-                    break;
-
-                case DOUBLE:
-                    generator.emit(OpCode.DCMPL);
-                    generator.emit(branchWhenEqual ? OpCode.IFEQ : OpCode.IFNE, label);
-                    break;
-
-                default:
-                    generator.emit(branchWhenEqual ? OpCode.IF_ACMPEQ : OpCode.IF_ACMPNE, label);
-                    break;
+            if (ConstantCheck.isNull(node.getRight())) {
+                emitExpression(getEqualityOperand(node.getLeft()));
+                generator.emit(
+                    branch ? (op == ExpressionType.ReferenceEqual ? OpCode.IFNULL : OpCode.IFNONNULL)
+                           : (op == ExpressionType.ReferenceEqual ? OpCode.IFNONNULL : OpCode.IFNULL),
+                    label
+                );
+                return;
             }
         }
-    }
-
-    private void emitBranchRelation(final boolean branch, final BinaryExpression node, final Label label) {
-        final ExpressionType op = node.getNodeType();
-
-        assert op == ExpressionType.LessThan ||
-               op == ExpressionType.LessThanOrEqual ||
-               op == ExpressionType.GreaterThan ||
-               op == ExpressionType.GreaterThanOrEqual;
 
         if (TypeUtils.isAutoUnboxed(node.getLeft().getType()) ||
             TypeUtils.isAutoUnboxed(node.getRight().getType())) {
@@ -2552,15 +2136,25 @@ final class LambdaCompiler {
         }
 
         final OpCode opCode;
+
+        emitRelationalBranchOp(op, compareType, branch, label);
+    }
+
+    private void emitRelationalBranchOp(final ExpressionType op, final Type<?> operandType, final boolean branch, final Label label) {
         final boolean reallyBranch;
 
-        switch (compareType.getKind()) {
+        switch (operandType.getKind()) {
             case BOOLEAN:
             case BYTE:
             case SHORT:
             case INT:
             case CHAR: {
                 switch (op) {
+                    case Equal:
+                        reallyBranch = branch == (op == ExpressionType.Equal);
+                        generator.emit(reallyBranch ? OpCode.IF_ICMPEQ : OpCode.IF_ICMPNE, label);
+                        break;
+
                     case GreaterThan:
                         reallyBranch = branch == (op == ExpressionType.GreaterThan);
                         generator.emit(reallyBranch ? OpCode.IF_ICMPGT : OpCode.IF_ICMPLE, label);
@@ -2580,6 +2174,11 @@ final class LambdaCompiler {
                         reallyBranch = branch == (op == ExpressionType.LessThanOrEqual);
                         generator.emit(reallyBranch ? OpCode.IF_ICMPLE : OpCode.IF_ICMPGT, label);
                         break;
+
+                    case NotEqual:
+                        reallyBranch = branch == (op == ExpressionType.NotEqual);
+                        generator.emit(reallyBranch ? OpCode.IF_ICMPNE : OpCode.IF_ICMPEQ, label);
+                        break;
                 }
                 break;
             }
@@ -2587,6 +2186,11 @@ final class LambdaCompiler {
             case LONG:
                 generator.emit(OpCode.LCMP);
                 switch (op) {
+                    case Equal:
+                        reallyBranch = branch == (op == ExpressionType.Equal);
+                        generator.emit(reallyBranch ? OpCode.IFEQ : OpCode.IFNE, label);
+                        break;
+
                     case GreaterThan:
                         reallyBranch = branch == (op == ExpressionType.GreaterThan);
                         generator.emit(reallyBranch ? OpCode.IFGT : OpCode.IFLE, label);
@@ -2605,12 +2209,23 @@ final class LambdaCompiler {
                     case LessThanOrEqual:
                         reallyBranch = branch == (op == ExpressionType.LessThanOrEqual);
                         generator.emit(reallyBranch ? OpCode.IFLE : OpCode.IFGT, label);
+                        break;
+
+                    case NotEqual:
+                        reallyBranch = branch == (op == ExpressionType.NotEqual);
+                        generator.emit(reallyBranch ? OpCode.IFNE : OpCode.IFEQ, label);
                         break;
                 }
                 break;
 
             case FLOAT:
                 switch (op) {
+                    case Equal:
+                        reallyBranch = branch == (op == ExpressionType.Equal);
+                        generator.emit(OpCode.FCMPL);
+                        generator.emit(reallyBranch ? OpCode.IFEQ : OpCode.IFNE, label);
+                        break;
+
                     case GreaterThan:
                         reallyBranch = branch == (op == ExpressionType.GreaterThan);
                         generator.emit(reallyBranch ? OpCode.FCMPG : OpCode.FCMPL);
@@ -2633,12 +2248,24 @@ final class LambdaCompiler {
                         reallyBranch = branch == (op == ExpressionType.LessThanOrEqual);
                         generator.emit(reallyBranch ? OpCode.FCMPL : OpCode.FCMPG);
                         generator.emit(reallyBranch ? OpCode.IFLE : OpCode.IFGT, label);
+                        break;
+
+                    case NotEqual:
+                        reallyBranch = branch == (op == ExpressionType.NotEqual);
+                        generator.emit(OpCode.FCMPL);
+                        generator.emit(reallyBranch ? OpCode.IFNE : OpCode.IFEQ, label);
                         break;
                 }
                 break;
 
             case DOUBLE:
                 switch (op) {
+                    case Equal:
+                        reallyBranch = branch == (op == ExpressionType.Equal);
+                        generator.emit(OpCode.DCMPL);
+                        generator.emit(reallyBranch ? OpCode.IFEQ : OpCode.IFNE, label);
+                        break;
+
                     case GreaterThan:
                         reallyBranch = branch == (op == ExpressionType.GreaterThan);
                         generator.emit(reallyBranch ? OpCode.DCMPG : OpCode.DCMPL);
@@ -2661,6 +2288,38 @@ final class LambdaCompiler {
                         reallyBranch = branch == (op == ExpressionType.LessThanOrEqual);
                         generator.emit(reallyBranch ? OpCode.DCMPL : OpCode.DCMPG);
                         generator.emit(reallyBranch ? OpCode.IFLE : OpCode.IFGT, label);
+                        break;
+
+                    case NotEqual:
+                        reallyBranch = branch == (op == ExpressionType.NotEqual);
+                        generator.emit(OpCode.DCMPL);
+                        generator.emit(reallyBranch ? OpCode.IFNE : OpCode.IFEQ, label);
+                        break;
+                }
+                break;
+
+            default:
+                switch (op) {
+                    case Equal:
+                    case ReferenceEqual:
+                        reallyBranch = branch == (op == ExpressionType.Equal || op == ExpressionType.ReferenceEqual);
+                        generator.emit(reallyBranch ? OpCode.IF_ACMPEQ : OpCode.IF_ACMPNE, label);
+                        break;
+
+                    case NotEqual:
+                    case ReferenceNotEqual:
+                        reallyBranch = branch == (op == ExpressionType.NotEqual || op == ExpressionType.ReferenceNotEqual);
+                        generator.emit(reallyBranch ? OpCode.IF_ACMPNE : OpCode.IF_ACMPEQ, label);
+                        break;
+
+                    case IsNull:
+                        reallyBranch = branch == (op == ExpressionType.IsNull);
+                        generator.emit(reallyBranch ? OpCode.IFNULL : OpCode.IFNONNULL, label);
+                        break;
+
+                    case IsNotNull:
+                        reallyBranch = branch == (op == ExpressionType.IsNotNull);
+                        generator.emit(reallyBranch ? OpCode.IFNONNULL : OpCode.IFNULL, label);
                         break;
                 }
                 break;

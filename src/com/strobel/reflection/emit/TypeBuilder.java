@@ -1089,8 +1089,15 @@ public final class TypeBuilder<T> extends Type<T> {
             fieldBuilders.get(i).generatedField = generatedFields.get(i);
         }
 
-        for (int i = 0, j = 0, n = methodBuilders.size(); i < n; i++) {
-            final MethodBuilder method = methodBuilders.get(i);
+        final ArrayList<MethodBuilder> methods = new ArrayList<>();
+
+        for (final MethodBuilder methodBuilder : methodBuilders) {
+            if ((methodBuilder.getModifiers() & Flags.ACC_BRIDGE) == 0)
+                methods.add(methodBuilder);
+        }
+
+        for (int i = 0, j = 0, n = methods.size(); i < n; i++) {
+            final MethodBuilder method = methods.get(i);
             if (!"<init>".equals(method.getName()) && !"<clinit>".equals(method.getName())) {
                 method.generatedMethod = generatedMethods.get(j++);
             }
