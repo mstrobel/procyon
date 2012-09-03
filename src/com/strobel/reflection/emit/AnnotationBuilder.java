@@ -6,9 +6,10 @@ import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.MethodList;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
-import sun.reflect.annotation.AnnotationType;
+import sun.reflect.annotation.AnnotationParser;
 
 import java.lang.annotation.Annotation;
+import java.util.HashMap;
 
 /**
  * @author Mike Strobel
@@ -17,7 +18,7 @@ public final class AnnotationBuilder<A extends Annotation> {
     private final Type<A> _annotationType;
     private final MethodList _attributes;
     private final ReadOnlyList<Object> _values;
-    
+
     private A _bakedAnnotation;
 
     private AnnotationBuilder(
@@ -28,6 +29,17 @@ public final class AnnotationBuilder<A extends Annotation> {
         _annotationType = VerifyArgument.notNull(annotationType, "annotationType");
         _attributes = VerifyArgument.notNull(attributes, "properties");
         _values = VerifyArgument.notNull(values, "values");
+    }
+
+    public A getAnnotation() {
+        if (_bakedAnnotation == null) {
+            synchronized (this) {
+                if (_bakedAnnotation == null) {
+                    bake();
+                }
+            }
+        }
+        return _bakedAnnotation;
     }
 
     public Type<A> getAnnotationType() {
@@ -159,6 +171,21 @@ public final class AnnotationBuilder<A extends Annotation> {
             return;
         }
 
-        final AnnotationType instance = AnnotationType.getInstance(_annotationType.getErasedClass());
+        final HashMap<String, Object> valueMap = new HashMap<>(_attributes.size());
+
+        for (int i = 0, n = _attributes.size(); i < n; i++) {
+            valueMap.put(
+                _attributes.get(i).getName(),
+                _values.get(i)
+            );
+        }
+
+        @SuppressWarnings({ "unchecked", "UnnecessaryLocalVariable" })
+        final A annotation = (A)AnnotationParser.annotationForMap(
+            _annotationType.getErasedClass(),
+            valueMap
+        );
+
+        _bakedAnnotation = annotation;
     }
 }
