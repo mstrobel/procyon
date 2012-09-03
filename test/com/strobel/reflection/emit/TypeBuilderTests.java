@@ -14,11 +14,6 @@ import static org.junit.Assert.assertSame;
  * @author Mike Strobel
  */
 public final class TypeBuilderTests {
-    static class TestGenericTypeImpl<T> {
-        T test(T t) {
-            return t;
-        }
-    }
     @Test
     public void testGenericTypeBuilder() throws Throwable {
         final TypeBuilder typeBuilder = new TypeBuilder(
