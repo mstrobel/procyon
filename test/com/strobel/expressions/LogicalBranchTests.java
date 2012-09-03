@@ -120,6 +120,7 @@ public class LogicalBranchTests extends AbstractCompilerTest {
 
     @Test
     public void testRelationalAndAlso() throws Throwable {
+        runRelationalBranchTest(true, constant(false), constant(true));
         runRelationalBranchTest(true, constant((byte)2), constant((byte)3));
         runRelationalBranchTest(true, constant('a'), constant('b'));
         runRelationalBranchTest(true, constant((short)2), constant((short)3));
@@ -138,6 +139,7 @@ public class LogicalBranchTests extends AbstractCompilerTest {
 
     @Test
     public void testRelationalOrElse() throws Throwable {
+        runRelationalBranchTest(false, constant(false), constant(true));
         runRelationalBranchTest(false, constant((byte)2), constant((byte)3));
         runRelationalBranchTest(false, constant('a'), constant('b'));
         runRelationalBranchTest(false, constant((short)2), constant((short)3));
@@ -163,7 +165,12 @@ public class LogicalBranchTests extends AbstractCompilerTest {
         assertFalse(runRelationalBranchTestForOp(isAnd, ExpressionType.NotEqual, larger, larger));
         assertFalse(runRelationalBranchTestForOp(isAnd, ExpressionType.NotEqual, smaller, smaller));
 
-        if (!TypeUtils.isArithmetic(smaller.getType())) {
+        final Type operandType = smaller.getType();
+        if (!TypeUtils.isArithmetic(operandType)) {
+            if (TypeUtils.isBoolean(operandType)) {
+                return;
+            }
+
             assertTrue(runRelationalBranchTestForOp(isAnd, ExpressionType.ReferenceEqual, smaller, smaller));
             assertTrue(runRelationalBranchTestForOp(isAnd, ExpressionType.ReferenceEqual, larger, larger));
             assertFalse(runRelationalBranchTestForOp(isAnd, ExpressionType.ReferenceEqual, smaller, larger));
