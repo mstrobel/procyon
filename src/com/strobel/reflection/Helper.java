@@ -680,6 +680,10 @@ final class Helper {
     }
 
     public static int rank(final Type t) {
+        if (t == null) {
+            return 0;
+        }
+
         if (t.isPrimitive() || t.isWildcardType() || t.isArray() || t == Type.Bottom || t == Type.NullType) {
             throw new AssertionError();
         }
