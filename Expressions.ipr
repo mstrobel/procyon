@@ -37,6 +37,8 @@
     <module2copyright />
   </component>
   <component name="DependencyValidationManager">
+    <scope name="Sun/Java" pattern="lib:java..*||lib:com.sun..*" />
+    <scope name="Java" pattern="lib:java..*" />
     <option name="SKIP_IMPORT_STATEMENTS" value="false" />
   </component>
   <component name="Encoding" useUTFGuessing="true" native2AsciiForPropertiesFiles="false" />

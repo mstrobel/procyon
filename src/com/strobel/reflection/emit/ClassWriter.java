@@ -706,13 +706,13 @@ final class ClassWriter {
 
         for (int i = 0, n = attributes.size(); i < n; i++) {
             final MethodInfo attribute = attributes.get(i);
-            _dataBuffer.putShort(_typeBuilder.getMethodToken(attribute));
+            _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(attribute.getName()));
             writeAttributeType(values.get(i));
         }
     }
 
     private void writeAttributeType(final Object value) {
-        final Type<?> valueType = Type.of(value.getClass());
+        final Type<?> valueType = TypeUtils.getUnderlyingPrimitiveOrSelf(Type.of(value.getClass()));
 
         switch (valueType.getKind()) {
             case BOOLEAN:
