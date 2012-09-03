@@ -55,6 +55,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
     private String          _name;
     private String          _fullName;
+    private String          _internalName;
     private Package         _package;
     private Type<?>         _baseType;
     private ConstructorList _constructors;
@@ -167,6 +168,7 @@ public final class TypeBuilder<T> extends Type<T> {
     private void initializeAsGenericParameter(final String name, final int position) {
         _name = name;
         _fullName = name;
+        _internalName = name.replace('.', '/');
         _genericParameterPosition = position;
         _isGenericParameter = true;
         _isGenericTypeDefinition = false;
@@ -187,6 +189,7 @@ public final class TypeBuilder<T> extends Type<T> {
         }
 
         _fullName = fullName;
+        _internalName = fullName.replace('.', '/');
         _isGenericTypeDefinition = false;
         _isGenericParameter = false;
         _hasBeenCreated = false;
@@ -304,6 +307,37 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
+    public String getName() {
+        return _name;
+    }
+
+    @Override
+    public String getFullName() {
+        return _fullName;
+    }
+
+    @Override
+    public String getInternalName() {
+        return super.getInternalName();
+    }
+
+    @Override
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        if (isGenericParameter()) {
+            return getExtendsBound().appendErasedDescription(sb);
+        }
+        return super.appendErasedDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        if (isGenericParameter()) {
+            return getExtendsBound().appendErasedSignature(sb);
+        }
+        return super.appendErasedSignature(sb);
+    }
+
+    @Override
     protected String getClassSimpleName() {
         return _name;
     }
@@ -385,8 +419,8 @@ public final class TypeBuilder<T> extends Type<T> {
 
     @Override
     public Type<?> getExtendsBound() {
-        if (_extendsBound != null) {
-            return _extendsBound;
+        if (_isGenericParameter) {
+            return _extendsBound != null ? _extendsBound : Types.Object;
         }
         return super.getExtendsBound();
     }

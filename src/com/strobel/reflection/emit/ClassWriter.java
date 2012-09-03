@@ -519,25 +519,30 @@ final class ClassWriter {
         switch (member.getMemberType()) {
             case Field:
                 final FieldBuilder field = (FieldBuilder)member;
-                signature = field.getFieldType().getErasedSignature();
+                signature = field.getFieldType().getSignature();
                 annotations = field.getCustomAnnotations();
                 break;
 
             case Method:
                 final MethodBuilder method = (MethodBuilder)member;
-                signature = method.getErasedSignature();
+                signature = method.getSignature();
                 annotations = method.getCustomAnnotations();
                 break;
 
             case Constructor:
                 final ConstructorBuilder constructor = (ConstructorBuilder)member;
-                signature = constructor.getErasedSignature();
+                signature = constructor.getSignature();
                 annotations = constructor.getCustomAnnotations();
                 break;
 
             default:
-                signature = ((Type<?>)member).getErasedSignature();
-                annotations = ReadOnlyList.emptyList();
+                signature = member.getSignature();
+                if (member instanceof TypeBuilder<?>) {
+                    annotations = ((TypeBuilder<?>)member).getCustomAnnotations();
+                }
+                else {
+                    annotations = ReadOnlyList.emptyList();
+                }
                 break;
         }
 

@@ -143,6 +143,31 @@ final class ErasedType<T> extends Type<T> {
     }
 
     @Override
+    public String getName() {
+        return _originalType.getName();
+    }
+
+    @Override
+    protected String getClassFullName() {
+        return _originalType.getClassFullName();
+    }
+
+    @Override
+    protected String getClassSimpleName() {
+        return _originalType.getClassSimpleName();
+    }
+
+    @Override
+    public String getFullName() {
+        return _originalType.getFullName();
+    }
+
+    @Override
+    public String getInternalName() {
+        return _originalType.getInternalName();
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public Class<T> getErasedClass() {
         return (Class<T>)_originalType.getErasedClass();

@@ -154,6 +154,11 @@ class GenericParameter<T> extends Type<T> {
     }
 
     @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        return getExtendsBound().appendErasedSignature(sb);
+    }
+
+    @Override
     public StringBuilder appendDescription(final StringBuilder sb) {
         return appendBriefDescription(sb);
     }

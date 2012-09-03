@@ -306,6 +306,23 @@ public final class MethodBuilder extends MethodInfo {
         return s;
     }
 
+    @Override
+    public StringBuilder appendSignature(final StringBuilder sb) {
+        StringBuilder s = sb;
+        s.append('(');
+
+        final TypeList parameterTypes = getParameterTypes();
+
+        for (int i = 0, n = parameterTypes.size(); i < n; ++i) {
+            s = parameterTypes.get(i).appendSignature(s);
+        }
+
+        s.append(')');
+        s = getReturnType().appendSignature(s);
+
+        return s;
+    }
+
     public GenericParameterBuilderList defineGenericParameters(final String... names) {
         VerifyArgument.notEmpty(names, "names");
 
