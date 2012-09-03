@@ -5,7 +5,26 @@ import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.*;
+import com.strobel.reflection.BindingFlags;
+import com.strobel.reflection.CallingConvention;
+import com.strobel.reflection.ConstructorInfo;
+import com.strobel.reflection.ConstructorList;
+import com.strobel.reflection.FieldInfo;
+import com.strobel.reflection.FieldList;
+import com.strobel.reflection.Flags;
+import com.strobel.reflection.MemberFilter;
+import com.strobel.reflection.MemberInfo;
+import com.strobel.reflection.MemberList;
+import com.strobel.reflection.MemberType;
+import com.strobel.reflection.MethodBase;
+import com.strobel.reflection.MethodInfo;
+import com.strobel.reflection.MethodList;
+import com.strobel.reflection.PrimitiveTypes;
+import com.strobel.reflection.Type;
+import com.strobel.reflection.TypeBindings;
+import com.strobel.reflection.TypeList;
+import com.strobel.reflection.TypeVisitor;
+import com.strobel.reflection.Types;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 import sun.misc.Unsafe;
@@ -19,6 +38,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Set;
 
 /**
@@ -52,7 +72,6 @@ public final class TypeBuilder<T> extends Type<T> {
     private       int                                                   _genericParameterPosition;
     private       boolean                                               _isGenericParameter;
     private       boolean                                               _isGenericTypeDefinition;
-    private       TypeBuilder                                           _genericTypeDefinition;
     private       TypeBindings                                          _typeBindings;
     private       ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
     private final ProtectionDomain                                      _protectionDomain;
@@ -335,7 +354,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
     @Override
     public boolean isGenericType() {
-        return _genericTypeDefinition != null;
+        return _isGenericTypeDefinition;
     }
 
     @Override
@@ -353,10 +372,10 @@ public final class TypeBuilder<T> extends Type<T> {
 
     @Override
     public Type getGenericTypeDefinition() {
-        if (isGenericType()) {
-            return _genericTypeDefinition;
+        if (isGenericTypeDefinition()) {
+            return this;
         }
-        return super.getGenericTypeDefinition();
+        throw  Error.notGenericType(this);
     }
 
     @Override
@@ -502,6 +521,9 @@ public final class TypeBuilder<T> extends Type<T> {
 
     @Override
     protected Type makeGenericTypeCore(final TypeList typeArguments) {
+        if (!isGenericTypeDefinition()) {
+            throw Error.notGenericTypeDefinition(this);
+        }
         return TypeBuilderInstantiation.makeGenericType(this, typeArguments);
     }
 
@@ -770,6 +792,32 @@ public final class TypeBuilder<T> extends Type<T> {
         _fields = new FieldList(ArrayUtilities.append(_fields.toArray(), field));
 
         return field;
+    }
+
+    public GenericParameterBuilder<?>[] defineGenericParameters(final String... names) {
+        if (!_typeBindings.isEmpty()) {
+            throw Error.defineGenericParametersAlreadyCalled();
+        }
+
+        VerifyArgument.notEmpty(names, "names");
+
+        final String[] defensiveCopy = Arrays.copyOf(names, names.length);
+
+        VerifyArgument.noNullElements(defensiveCopy, "names");
+
+        _isGenericTypeDefinition = true;
+
+        final GenericParameterBuilder<?>[] genericParameters = new GenericParameterBuilder<?>[names.length];
+
+        for (int i = 0, n = names.length; i < n; i++) {
+            genericParameters[i] = new GenericParameterBuilder<>(
+                new TypeBuilder(names[i], i, this)
+            );
+        }
+
+        _typeBindings = TypeBindings.createUnbound(Type.list(genericParameters));
+
+        return genericParameters;
     }
 
     // </editor-fold>
@@ -1092,8 +1140,9 @@ public final class TypeBuilder<T> extends Type<T> {
         final ArrayList<MethodBuilder> methods = new ArrayList<>();
 
         for (final MethodBuilder methodBuilder : methodBuilders) {
-            if ((methodBuilder.getModifiers() & Flags.ACC_BRIDGE) == 0)
+            if ((methodBuilder.getModifiers() & Flags.ACC_BRIDGE) == 0) {
                 methods.add(methodBuilder);
+            }
         }
 
         for (int i = 0, j = 0, n = methods.size(); i < n; i++) {

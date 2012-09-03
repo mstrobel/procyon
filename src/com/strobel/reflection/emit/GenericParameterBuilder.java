@@ -12,6 +12,7 @@ import java.util.Set;
  */
 @SuppressWarnings("unchecked")
 public final class GenericParameterBuilder<T> extends Type<T> {
+    @SuppressWarnings("PackageVisibleField")
     final TypeBuilder typeBuilder;
 
     GenericParameterBuilder(final TypeBuilder typeBuilder) {

@@ -389,4 +389,27 @@ final class Error {
     public static IllegalStateException codeGenerationException(final Throwable t) {
         return new IllegalStateException("An error occurred during code generation.", t);
     }
+
+    public static RuntimeException notGenericType(final Type type) {
+        return new UnsupportedOperationException(
+            format(
+                "Type '%s' is not a generic type.",
+                type.getFullName()
+            )
+        );
+    }
+
+    public static UnsupportedOperationException notGenericTypeDefinition(final Type<?> type) {
+        return new UnsupportedOperationException(
+            format(
+                "Type '%s' is not a generic type definition.",
+                type.getFullName()
+            )
+        );
+    }
+
+    public static IllegalStateException defineGenericParametersAlreadyCalled() {
+        return new IllegalStateException("defineGenericParameters() has already been called.");
+
+    }
 }
