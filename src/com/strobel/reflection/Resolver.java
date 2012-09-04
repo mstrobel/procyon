@@ -355,7 +355,12 @@ final class Resolver {
                         }
                     }
                     else {
-                        resolvedTypeArguments[i] = resolveType(typeArg);
+                        if (typeArg == null) {
+                            resolvedTypeArguments[i] = rawType.getGenericTypeParameters().get(i);
+                        }
+                        else {
+                            resolvedTypeArguments[i] = resolveType(typeArg);
+                        }
                     }
                 }
 
