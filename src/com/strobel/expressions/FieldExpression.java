@@ -22,7 +22,7 @@ final class FieldExpression extends MemberExpression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return _field.getFieldType();
     }
 }

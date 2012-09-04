@@ -242,7 +242,7 @@ class LogicalBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return PrimitiveTypes.Boolean;
     }
 
@@ -269,7 +269,7 @@ final class CompareMethodBasedLogicalBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return PrimitiveTypes.Boolean;
     }
 
@@ -319,7 +319,7 @@ final class EqualsMethodBasedLogicalBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return PrimitiveTypes.Boolean;
     }
 
@@ -343,7 +343,7 @@ final class AssignBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return getLeft().getType();
     }
 
@@ -372,7 +372,7 @@ final class CoalesceConversionBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return getRight().getType();
     }
 
@@ -426,7 +426,7 @@ class SimpleBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return _type;
     }
 }

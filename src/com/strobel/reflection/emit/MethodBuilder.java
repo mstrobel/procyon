@@ -15,7 +15,7 @@ import java.util.Arrays;
 @SuppressWarnings({"PackageVisibleField", "unchecked"})
 public final class MethodBuilder extends MethodInfo {
     private final String _name;
-    private final TypeBuilder _declaringType;
+    private final TypeBuilder<?> _declaringType;
     private final int _modifiers;
 
     private Type<?> _returnType;
@@ -40,7 +40,7 @@ public final class MethodBuilder extends MethodInfo {
         final Type<?> returnType,
         final TypeList parameterTypes,
         final TypeList thrownTypes,
-        final TypeBuilder declaringType) {
+        final TypeBuilder<?> declaringType) {
 
         _name = VerifyArgument.notNullOrWhitespace(name, "name");
         _modifiers = modifiers;
@@ -93,7 +93,7 @@ public final class MethodBuilder extends MethodInfo {
     }
 
     @Override
-    public Type getReturnType() {
+    public Type<?> getReturnType() {
         return _returnType;
     }
 
@@ -116,7 +116,7 @@ public final class MethodBuilder extends MethodInfo {
     }
 
     @Override
-    public TypeBuilder getDeclaringType() {
+    public TypeBuilder<?> getDeclaringType() {
         return _declaringType;
     }
 

@@ -28,7 +28,7 @@ public final class LabelExpression extends Expression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return _target.getType();
     }
 

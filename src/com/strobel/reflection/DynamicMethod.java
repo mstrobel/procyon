@@ -53,7 +53,7 @@ public final class DynamicMethod extends MethodInfo {
     }
 
     @Override
-    public Type getReturnType() {
+    public Type<?> getReturnType() {
         return _returnType;
     }
 

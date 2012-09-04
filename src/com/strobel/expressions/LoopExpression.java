@@ -35,7 +35,7 @@ public final class LoopExpression extends Expression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return _breakTarget == null ? PrimitiveTypes.Void : _breakTarget.getType();
     }
 

@@ -292,7 +292,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    public Type getReflectedType() {
+    public Type<?> getReflectedType() {
         return _declaringType;
     }
 
@@ -318,7 +318,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
     @Override
     public String getInternalName() {
-        return super.getInternalName();
+        return _internalName;
     }
 
     @Override
@@ -343,7 +343,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    public Type getBaseType() {
+    public Type<?> getBaseType() {
         return _baseType;
     }
 
@@ -353,7 +353,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public Type<?> getDeclaringType() {
         return _declaringType;
     }
 
@@ -405,7 +405,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    public Type getGenericTypeDefinition() {
+    public Type<?> getGenericTypeDefinition() {
         if (isGenericTypeDefinition()) {
             return this;
         }
@@ -554,7 +554,7 @@ public final class TypeBuilder<T> extends Type<T> {
     // <editor-fold defaultstate="collapsed" desc="Type Manipulation">
 
     @Override
-    protected Type makeGenericTypeCore(final TypeList typeArguments) {
+    protected Type<?> makeGenericTypeCore(final TypeList typeArguments) {
         if (!isGenericTypeDefinition()) {
             throw Error.notGenericTypeDefinition(this);
         }
@@ -683,7 +683,7 @@ public final class TypeBuilder<T> extends Type<T> {
         verifyNotGeneric();
         verifyNotCreated();
 
-        final Type baseDeclaringType = baseMethod.getDeclaringType().isGenericType()
+        final Type<?> baseDeclaringType = baseMethod.getDeclaringType().isGenericType()
                                        ? baseMethod.getDeclaringType().getGenericTypeDefinition()
                                        : baseMethod.getDeclaringType().getErasedType();
 
@@ -914,7 +914,7 @@ public final class TypeBuilder<T> extends Type<T> {
             return m;
         }
 
-        final Type erasedType = erase(m.getDeclaringType());
+        final Type<?> erasedType = erase(m.getDeclaringType());
         final Object rawMethod = ((ConstructorInfo) m).getRawConstructor();
 
         final MemberList<?> members =
@@ -937,7 +937,7 @@ public final class TypeBuilder<T> extends Type<T> {
             return f;
         }
 
-        final Type erasedType = erase(f.getDeclaringType());
+        final Type<?> erasedType = erase(f.getDeclaringType());
         final Object rawField = f.getRawField();
 
         final MemberList<?> members =
@@ -1072,7 +1072,7 @@ public final class TypeBuilder<T> extends Type<T> {
                                                   .getParameterTypes()
                                                   .getErasedTypes();
 
-        final Type returnType = baseMethod.getReturnType() == PrimitiveTypes.Void
+        final Type<?> returnType = baseMethod.getReturnType() == PrimitiveTypes.Void
                                 ? baseMethod.getReturnType()
                                 : baseMethod.getReturnType().getErasedType();
 
@@ -1091,8 +1091,8 @@ public final class TypeBuilder<T> extends Type<T> {
         code.emitThis();
 
         for (int i = 0, parameterTypesSize = parameterTypes.size(); i < parameterTypesSize; i++) {
-            final Type s = parameterTypes.get(i);
-            final Type t = override.parameterBuilders[i].getParameterType().getErasedType();
+            final Type<?> s = parameterTypes.get(i);
+            final Type<?> t = override.parameterBuilders[i].getParameterType().getErasedType();
 
             code.emitLoadArgument(i);
             code.emitConversion(s, t);

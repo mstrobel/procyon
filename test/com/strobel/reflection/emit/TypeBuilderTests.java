@@ -24,7 +24,7 @@ public final class TypeBuilderTests {
 
     @Test
     public void testGenericTypeBuilder() throws Throwable {
-        final TypeBuilder typeBuilder = new TypeBuilder(
+        final TypeBuilder<?> typeBuilder = new TypeBuilder<>(
             TypeBuilderTests.class.getPackage().getName() + ".TestGenericType",
             Modifier.PUBLIC | Modifier.FINAL,
             Types.Object,

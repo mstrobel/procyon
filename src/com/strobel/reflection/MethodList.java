@@ -11,6 +11,7 @@ import java.util.List;
 public final class MethodList extends MemberList<MethodInfo> {
     private final static MethodList EMPTY = new MethodList();
 
+    @SuppressWarnings("unchecked")
     public static MethodList empty() {
         return EMPTY;
     }

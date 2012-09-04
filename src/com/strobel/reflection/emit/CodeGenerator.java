@@ -271,11 +271,11 @@ public class CodeGenerator {
     // LOCAL DECLARATIONS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public LocalBuilder declareLocal(final Type localType) {
+    public LocalBuilder declareLocal(final Type<?> localType) {
         return declareLocal(null, localType);
     }
 
-    public LocalBuilder declareLocal(final String name, final Type localType) {
+    public LocalBuilder declareLocal(final String name, final Type<?> localType) {
         VerifyArgument.notNull(localType, "localType");
 
         // Declare a local of type "local". The current active lexical scope
@@ -480,7 +480,7 @@ public class CodeGenerator {
         if (opCode == OpCode.INVOKEINTERFACE) {
             int argsSize = 1;
 
-            for (final Type parameterType : parameterTypes) {
+            for (final Type<?> parameterType : parameterTypes) {
                 ++argsSize;
                 if (parameterType == PrimitiveTypes.Long || parameterType == PrimitiveTypes.Double) {
                     ++argsSize;
@@ -715,7 +715,7 @@ public class CodeGenerator {
         VerifyArgument.notNull(arrayType, "arrayType");
         VerifyArgument.isPositive(dimensionsToInitialize, "dimensionsToInitialize");
 
-        Type elementType;
+        Type<?> elementType;
 
         if (dimensionsToInitialize == 1) {
             elementType = arrayType.getElementType();
@@ -1865,9 +1865,9 @@ public class CodeGenerator {
         emitLoad(targetLocal);
     }
 
-    private void emitCastToType(final Type sourceType, final Type targetType) {
+    private void emitCastToType(final Type<?> sourceType, final Type<?> targetType) {
         if (!sourceType.isPrimitive() && targetType.isPrimitive()) {
-            final Type boxedTargetType = TypeUtils.getBoxedType(targetType);
+            final Type<?> boxedTargetType = TypeUtils.getBoxedType(targetType);
 
             if (!sourceType.isEquivalentTo(boxedTargetType)) {
                 emitCastToType(sourceType, boxedTargetType);
@@ -1876,7 +1876,7 @@ public class CodeGenerator {
             emitUnbox(targetType);
         }
         else if (sourceType.isPrimitive() && !targetType.isPrimitive()) {
-            final Type boxedSourceType = TypeUtils.getBoxedType(sourceType);
+            final Type<?> boxedSourceType = TypeUtils.getBoxedType(sourceType);
 
             emitBox(sourceType);
 
@@ -2756,7 +2756,7 @@ public class CodeGenerator {
         }
 
         for (int i = 0, n = thrownTypes.size(); i < n; i++) {
-            final Type thrownType = thrownTypes.get(i);
+            final Type<?> thrownType = thrownTypes.get(i);
 
             if (Types.RuntimeException.isAssignableFrom(thrownType)) {
                 continue;
@@ -2764,7 +2764,7 @@ public class CodeGenerator {
 
             for (int j = 0; j < _currentExceptionStackCount; j++) {
                 final __ExceptionInfo exceptionInfo = _currentExceptionStack[j];
-                for (final Type caughtType : exceptionInfo._catchClass) {
+                for (final Type<?> caughtType : exceptionInfo._catchClass) {
                     if (caughtType == null) {
                         break;
                     }

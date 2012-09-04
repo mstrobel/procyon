@@ -33,7 +33,7 @@ public final class TypeBinaryExpression extends Expression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return PrimitiveTypes.Boolean;
     }
 

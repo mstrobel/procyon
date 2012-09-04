@@ -53,7 +53,7 @@ public abstract class Expression {
      * Gets the static type of the expression that this {@link Expression} represents.
      * @return the {@link Type} that represents the static type of the expression.
      */
-    public com.strobel.reflection.Type getType() {
+    public Type<?> getType() {
         throw Error.extensionMustOverride("Expression.getType()");
     }
 

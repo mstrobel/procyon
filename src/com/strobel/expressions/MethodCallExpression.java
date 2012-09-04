@@ -28,7 +28,7 @@ public class MethodCallExpression extends Expression implements IArgumentProvide
     }
 
     @Override
-    public Type getType() {
+    public Type<?> getType() {
         return _method.getReturnType();
     }
 

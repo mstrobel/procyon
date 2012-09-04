@@ -20,7 +20,7 @@ public abstract class MethodInfo extends MethodBase {
         return Modifier.isAbstract(getModifiers());
     }
 
-    public abstract Type getReturnType();
+    public abstract Type<?> getReturnType();
 
     @Override
     public final MemberType getMemberType() {
@@ -570,7 +570,7 @@ class ReflectedMethod extends MethodInfo {
     }
 
     @Override
-    public Type getReturnType() {
+    public Type<?> getReturnType() {
         return _returnType;
     }
 
@@ -695,7 +695,7 @@ final class GenericMethod extends MethodInfo {
     }
 
     @Override
-    public Type getReturnType() {
+    public Type<?> getReturnType() {
         return _returnType;
     }
 

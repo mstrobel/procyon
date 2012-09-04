@@ -55,7 +55,7 @@ public final class ForEachExpression extends Expression {
     }
 
     @Override
-    public Type getType() {
+    public Type<?> getType() {
         if (_breakTarget != null) {
             return _breakTarget.getType();
         }

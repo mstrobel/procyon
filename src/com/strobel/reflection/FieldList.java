@@ -8,6 +8,7 @@ import java.util.List;
 public final class FieldList extends MemberList<FieldInfo> {
     private final static FieldList EMPTY = new FieldList();
 
+    @SuppressWarnings("unchecked")
     public static FieldList empty() {
         return EMPTY;
     }

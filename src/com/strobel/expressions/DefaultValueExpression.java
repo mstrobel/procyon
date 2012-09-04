@@ -18,7 +18,7 @@ public final class DefaultValueExpression extends Expression {
     }
 
     @Override
-    public Type getType() {
+    public Type<?> getType() {
         return _type;
     }
 

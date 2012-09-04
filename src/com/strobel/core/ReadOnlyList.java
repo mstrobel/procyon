@@ -31,7 +31,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     }
 
     @SuppressWarnings("unchecked")
-    public ReadOnlyList(final Class<T> elementType, final List<? extends T> elements) {
+    public ReadOnlyList(final Class<? extends T> elementType, final List<? extends T> elements) {
         VerifyArgument.notNull(elementType, "elementType");
         VerifyArgument.notNull(elements, "elements");
 
@@ -72,7 +72,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
         return _offset;
     }
 
-    protected final T[] getElements() {
+    protected T[] getElements() {
         return _elements;
     }
 

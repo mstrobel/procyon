@@ -1,6 +1,7 @@
 package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.util.TypeUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 public class TypeList extends MemberList<Type> {
     private final static TypeList EMPTY = new TypeList();
 
+    @SuppressWarnings("unchecked")
     public static TypeList empty() {
         return EMPTY;
     }
@@ -122,7 +124,7 @@ public class TypeList extends MemberList<Type> {
         }
 
         for (int i = 0, n = this.size(); i < n; i++) {
-            if (!this.get(i).isEquivalentTo(types.get(i))) {
+            if (!TypeUtils.areEquivalent(this.get(i), types.get(i))) {
                 return false;
             }
         }

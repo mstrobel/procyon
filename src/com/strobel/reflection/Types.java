@@ -101,7 +101,7 @@ public final class Types {
         UUID = Type.of(UUID.class);
 
         Comparer = Type.of(Comparer.class);
-        
+
         Runnable = Type.of(Runnable.class);
         Callable = Type.of(Callable.class);
 

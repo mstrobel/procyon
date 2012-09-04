@@ -5,6 +5,7 @@ import javax.lang.model.type.TypeKind;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings("unchecked")
 final class NullType extends Type {
     @Override
     public TypeKind getKind() {
@@ -17,7 +18,6 @@ final class NullType extends Type {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public Object accept(final TypeVisitor visitor, final Object parameter) {
         return visitor.visitType(this, parameter);
     }

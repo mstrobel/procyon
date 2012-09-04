@@ -23,7 +23,7 @@ public class ParameterExpression extends Expression {
     }
 
     @Override
-    public Type getType() {
+    public Type<?> getType() {
         return Types.Object;
     }
 
@@ -98,7 +98,7 @@ final class TypedParameterExpression extends ParameterExpression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return _type;
     }
 }
@@ -112,7 +112,7 @@ final class PrimitiveParameterExpression extends ParameterExpression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return _type;
     }
 }

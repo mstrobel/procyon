@@ -19,7 +19,7 @@ public class NewArrayExpression extends Expression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return _type;
     }
 

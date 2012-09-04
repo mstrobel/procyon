@@ -29,7 +29,7 @@ public class BlockExpression extends Expression {
     }
 
     @Override
-    public Type getType() {
+    public Type<?> getType() {
         final int expressionCount = getExpressionCount();
         assert expressionCount > 0;
         return getExpression(expressionCount - 1).getType();
@@ -407,7 +407,7 @@ final class ScopeWithType extends ScopeN {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return _type;
     }
 

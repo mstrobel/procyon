@@ -8,6 +8,7 @@ import java.util.List;
 public final class ConstructorList extends MemberList<ConstructorInfo> {
     private final static ConstructorList EMPTY = new ConstructorList();
 
+    @SuppressWarnings("unchecked")
     public static ConstructorList empty() {
         return EMPTY;
     }

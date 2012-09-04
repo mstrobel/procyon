@@ -39,7 +39,7 @@ public final class NewExpression extends Expression implements IArgumentProvider
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return _constructor.getDeclaringType();
     }
 

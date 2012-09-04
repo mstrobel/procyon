@@ -10,6 +10,7 @@ import java.util.List;
 public final class GenericParameterBuilderList extends MemberList<GenericParameterBuilder> {
     private final static GenericParameterBuilderList EMPTY = new GenericParameterBuilderList();
 
+    @SuppressWarnings("unchecked")
     public static GenericParameterBuilderList empty() {
         return EMPTY;
     }

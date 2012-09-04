@@ -29,7 +29,7 @@ public class ConditionalExpression extends Expression {
     }
 
     @Override
-    public Type getType() {
+    public Type<?> getType() {
         return _ifTrue.getType();
     }
 
@@ -94,7 +94,7 @@ class FullConditionalExpressionWithType extends FullConditionalExpression {
     }
 
     @Override
-    public Type getType() {
+    public Type<?> getType() {
         return _type;
     }
 }

@@ -980,7 +980,7 @@ final class RuntimeMethodInfo extends MethodInfo {
     }
 
     @Override
-    public Type getReturnType() {
+    public Type<?> getReturnType() {
         return _returnType;
     }
 

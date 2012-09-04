@@ -21,7 +21,7 @@ public class ConstantExpression extends Expression {
     }
 
     @Override
-    public Type getType() {
+    public Type<?> getType() {
         if (_value == null) {
             return Types.Object;
         }
@@ -58,7 +58,7 @@ class TypedConstantExpression extends ConstantExpression {
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return _type;
     }
 }

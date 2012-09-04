@@ -1,6 +1,5 @@
 package com.strobel.core;
 
-import java.util.Iterator;
 import java.util.ListIterator;
 import java.util.RandomAccess;
 
@@ -21,8 +20,6 @@ public interface IReadOnlyList<T> extends Iterable<T>, RandomAccess {
 
     T[] toArray();
     <T> T[] toArray(T[] a);
-
-    Iterator<T> iterator();
 
     ListIterator<T> listIterator();
     ListIterator<T> listIterator(int index);

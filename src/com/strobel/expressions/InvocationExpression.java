@@ -17,7 +17,7 @@ public final class InvocationExpression extends Expression implements IArgumentP
     }
 
     @Override
-    public final Type getType() {
+    public final Type<?> getType() {
         return _returnType;
     }
 

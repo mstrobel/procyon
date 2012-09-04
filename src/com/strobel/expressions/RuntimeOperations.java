@@ -1,6 +1,6 @@
 package com.strobel.expressions;
 
-import com.strobel.core.StrongBox;
+import com.strobel.core.IStrongBox;
 import com.strobel.util.ContractUtils;
 
 /**
@@ -45,14 +45,14 @@ public final class RuntimeOperations {
         }
 
         public Object get(final int index) {
-            return getStrongBox(index).value;
+            return getStrongBox(index).get();
         }
 
         public void set(final int index, final Object value) {
-            getStrongBox(index).value = value;
+            getStrongBox(index).set(value);
         }
 
-        private StrongBox getStrongBox(final int index) {
+        private IStrongBox getStrongBox(final int index) {
             //
             // We lookup the closure using two integers:
             //   1) The high dword is the number of parents to go up
@@ -72,7 +72,7 @@ public final class RuntimeOperations {
             //
             // Return the variable storage.
             //
-            return (StrongBox)result[(int)closureKey];
+            return (IStrongBox)result[(int)closureKey];
         }
     }
 }

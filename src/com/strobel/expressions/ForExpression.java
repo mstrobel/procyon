@@ -65,7 +65,7 @@ public final class ForExpression extends Expression {
     }
 
     @Override
-    public Type getType() {
+    public Type<?> getType() {
         if (_breakTarget != null) {
             return _breakTarget.getType();
         }

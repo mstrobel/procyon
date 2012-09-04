@@ -931,7 +931,7 @@ class ReflectedType<T> extends Type<T> {
     private          boolean  _completed;
     private          Type<?>  _declaringType;
 
-    private List<GenericParameter>     _genericParameters = null;
+    private List<GenericParameter<?>>     _genericParameters = null;
     private List<ReflectedType<?>>     _nestedTypes       = null;
     private List<ReflectedMethod>      _methods           = null;
     private List<ReflectedField>       _fields            = null;
@@ -979,7 +979,7 @@ class ReflectedType<T> extends Type<T> {
         _interfaces = VerifyArgument.notNull(interfaces, "interfaces");
     }
 
-    List<GenericParameter> getGenericParameters() {
+    List<GenericParameter<?>> getGenericParameters() {
         if (_genericParameters == null) {
             return Collections.emptyList();
         }

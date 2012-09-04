@@ -19,7 +19,7 @@ public final class TypeUtils {
         throw ContractUtils.unreachable();
     }
 
-    public static boolean isAutoUnboxed(final Type type) {
+    public static boolean isAutoUnboxed(final Type<?> type) {
         return type == Types.Integer ||
                type == Types.Long ||
                type == Types.Double ||
@@ -30,7 +30,7 @@ public final class TypeUtils {
                type == Types.Character;
     }
 
-    public static Type getUnderlyingPrimitive(final Type type) {
+    public static Type<?> getUnderlyingPrimitive(final Type<?> type) {
         if (type == Types.Integer) {
             return PrimitiveTypes.Integer;
         }
@@ -58,19 +58,19 @@ public final class TypeUtils {
         return null;
     }
 
-    public static Type getBoxedTypeOrSelf(final Type type) {
-        final Type boxedType = getBoxedType(type);
+    public static Type<?> getBoxedTypeOrSelf(final Type<?> type) {
+        final Type<?> boxedType = getBoxedType(type);
         return boxedType != null ? boxedType : type;
     }
 
-    public static Type getUnderlyingPrimitiveOrSelf(final Type type) {
+    public static Type<?> getUnderlyingPrimitiveOrSelf(final Type<?> type) {
         if (isAutoUnboxed(type)) {
             return getUnderlyingPrimitive(type);
         }
         return type;
     }
 
-    public static Type getBoxedType(final Type type) {
+    public static Type<?> getBoxedType(final Type<?> type) {
         if (isAutoUnboxed(type)) {
             return type;
         }
@@ -104,9 +104,9 @@ public final class TypeUtils {
         return null;
     }
 
-    public static boolean isArithmetic(final Type type) {
-        final Type underlyingPrimitive = getUnderlyingPrimitive(type);
-        final Type actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
+    public static boolean isArithmetic(final Type<?> type) {
+        final Type<?> underlyingPrimitive = getUnderlyingPrimitive(type);
+        final Type<?> actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
 
         return actualType == PrimitiveTypes.Integer ||
                actualType == PrimitiveTypes.Long ||
@@ -117,9 +117,9 @@ public final class TypeUtils {
                actualType == PrimitiveTypes.Character;
     }
 
-    public static boolean isIntegralOrBoolean(final Type type) {
-        final Type underlyingPrimitive = getUnderlyingPrimitive(type);
-        final Type actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
+    public static boolean isIntegralOrBoolean(final Type<?> type) {
+        final Type<?> underlyingPrimitive = getUnderlyingPrimitive(type);
+        final Type<?> actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
 
         return actualType == PrimitiveTypes.Integer ||
                actualType == PrimitiveTypes.Long ||
@@ -129,9 +129,9 @@ public final class TypeUtils {
                actualType == PrimitiveTypes.Boolean;
     }
 
-    public static boolean isIntegral(final Type type) {
-        final Type underlyingPrimitive = getUnderlyingPrimitive(type);
-        final Type actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
+    public static boolean isIntegral(final Type<?> type) {
+        final Type<?> underlyingPrimitive = getUnderlyingPrimitive(type);
+        final Type<?> actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
 
         return actualType == PrimitiveTypes.Integer ||
                actualType == PrimitiveTypes.Long ||
@@ -140,11 +140,11 @@ public final class TypeUtils {
                actualType == PrimitiveTypes.Character;
     }
 
-    public static boolean isBoolean(final Type type) {
+    public static boolean isBoolean(final Type<?> type) {
         return type == PrimitiveTypes.Boolean || type == Types.Boolean;
     }
 
-    public static boolean areEquivalent(final Type class1, final Type class2) {
+    public static boolean areEquivalent(final Type<?> class1, final Type<?> class2) {
         return class1 == null ? class2 == null
                               : class1.isEquivalentTo(class2);
     }
@@ -191,25 +191,25 @@ public final class TypeUtils {
                set1.containsAll(set2);
     }
 
-    public static boolean hasIdentityPrimitiveOrBoxingConversion(final Type source, final Type destination) {
+    public static boolean hasIdentityPrimitiveOrBoxingConversion(final Type<?> source, final Type<?> destination) {
         assert source != null && destination != null;
 
         if (destination == Types.Object) {
             return true;
         }
 
-        final Type unboxedSource = getUnderlyingPrimitiveOrSelf(source);
-        final Type unboxedDestination = getUnderlyingPrimitiveOrSelf(destination);
+        final Type<?> unboxedSource = getUnderlyingPrimitiveOrSelf(source);
+        final Type<?> unboxedDestination = getUnderlyingPrimitiveOrSelf(destination);
 
         // Identity conversion
         return unboxedSource == unboxedDestination ||
                areEquivalent(unboxedSource, unboxedDestination);
     }
 
-    public static boolean hasReferenceConversion(final Type source, final Type destination) {
+    public static boolean hasReferenceConversion(final Type<?> source, final Type<?> destination) {
         assert source != null && destination != null;
 
-        // void -> void conversion is handled elsewhere (it's an identity conversion) 
+        // void -> void conversion is handled elsewhere (it's an identity conversion)
         // All other void conversions are disallowed.
         if (source == PrimitiveTypes.Void || destination == PrimitiveTypes.Void) {
             return false;
@@ -230,19 +230,19 @@ public final class TypeUtils {
             return areEquivalent(source, destination);
         }
 
-        final Type unboxedSourceType = sourceIsBoxed ? getUnderlyingPrimitive(source) : source;
-        final Type unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
+        final Type<?> unboxedSourceType = sourceIsBoxed ? getUnderlyingPrimitive(source) : source;
+        final Type<?> unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
 
         if (unboxedSourceType.isPrimitive() || unboxedDestinationType.isPrimitive()) {
             return false;
         }
 
-        // Down conversion 
+        // Down conversion
         if (unboxedSourceType.isAssignableFrom(unboxedDestinationType)) {
             return true;
         }
 
-        // Up conversion 
+        // Up conversion
         if (unboxedDestinationType.isAssignableFrom(unboxedSourceType)) {
             return true;
         }
@@ -252,13 +252,13 @@ public final class TypeUtils {
             return true;
         }
 
-        // Object conversion 
+        // Object conversion
         return source == Types.Object || destination == Types.Object;
     }
 
-    public static MethodInfo getCoercionMethod(final Type source, final Type destination) {
+    public static MethodInfo getCoercionMethod(final Type<?> source, final Type<?> destination) {
         // NOTE: If destination type is an autoboxing type, we will need an implicit box later.
-        final Type unboxedDestinationType = isAutoUnboxed(destination)
+        final Type<?> unboxedDestinationType = isAutoUnboxed(destination)
                                             ? getUnderlyingPrimitive(destination)
                                             : destination;
 
@@ -313,7 +313,7 @@ public final class TypeUtils {
         return null;
     }
 
-    public static MethodInfo getBoxMethod(final Type type) {
+    public static MethodInfo getBoxMethod(final Type<?> type) {
         final Type<?> boxedType;
         final Type<?> primitiveType;
 
@@ -342,7 +342,7 @@ public final class TypeUtils {
         return boxMethod;
     }
 
-    public static MethodInfo getUnboxMethod(final Type type) {
+    public static MethodInfo getUnboxMethod(final Type<?> type) {
         final Type<?> boxedType;
         final Type<?> primitiveType;
 
@@ -407,7 +407,7 @@ public final class TypeUtils {
         return unboxMethod;
     }
 
-    public static boolean areReferenceAssignable(final Type destination, final Type source) {
+    public static boolean areReferenceAssignable(final Type<?> destination, final Type<?> source) {
         if (destination == Types.Object) {
             return true;
         }
@@ -416,7 +416,7 @@ public final class TypeUtils {
                !destination.isPrimitive() && !source.isPrimitive() && destination.isAssignableFrom(source);
     }
 
-    public static boolean hasReferenceEquality(final Type left, final Type right) {
+    public static boolean hasReferenceEquality(final Type<?> left, final Type<?> right) {
         if (left.isPrimitive() || right.isPrimitive()) {
             return false;
         }
@@ -432,7 +432,7 @@ public final class TypeUtils {
                areReferenceAssignable(right, left);
     }
 
-    public static boolean hasBuiltInEqualityOperator(final Type left, final Type right) {
+    public static boolean hasBuiltInEqualityOperator(final Type<?> left, final Type<?> right) {
         // If we have an interface and a reference type, then we can do reference equality.
         if (left.isInterface() && !right.isPrimitive()) {
             return true;
@@ -461,11 +461,11 @@ public final class TypeUtils {
         return true;
     }
 
-    public static boolean isValidInvocationTargetType(final MethodInfo method, final Type targetType) {
+    public static boolean isValidInvocationTargetType(final MethodInfo method, final Type<?> targetType) {
         return areReferenceAssignable(method.getDeclaringType(), targetType);
     }
 
-    public static boolean isSameOrSubType(final Type<?> type, final Type subType) {
+    public static boolean isSameOrSubType(final Type<?> type, final Type<?> subType) {
         return areEquivalent(type, subType) ||
                subType.isSubTypeOf(type);
     }

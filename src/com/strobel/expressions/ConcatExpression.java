@@ -23,7 +23,7 @@ public final class ConcatExpression extends Expression {
     }
 
     @Override
-    public Type getType() {
+    public Type<?> getType() {
         return Types.String;
     }
 
