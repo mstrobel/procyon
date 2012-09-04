@@ -1801,7 +1801,7 @@ public abstract class Expression {
     }
 
     public static BinaryExpression notEqual(final Expression left, final Expression right) {
-        return equal(left, right, null);
+        return notEqual(left, right, null);
     }
 
     public static BinaryExpression notEqual(final Expression left, final Expression right, final MethodInfo method) {
