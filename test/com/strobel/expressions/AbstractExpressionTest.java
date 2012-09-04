@@ -11,7 +11,7 @@ import java.util.Queue;
 /**
  * @author Mike Strobel
  */
-public abstract class AbstractCompilerTest {
+public abstract class AbstractExpressionTest {
     private final static ThreadLocal<Queue<Object>> OUTPUT_QUEUE = new ThreadLocal<Queue<Object>>() {
         @Override
         protected Queue<Object> initialValue() {
@@ -45,7 +45,7 @@ public abstract class AbstractCompilerTest {
     public static Expression makePush(final Expression value) {
         return Expression.call(
             Expression.call(
-                Type.of(AbstractCompilerTest.class),
+                Type.of(AbstractExpressionTest.class),
                 "queue"
             ),
             "add",

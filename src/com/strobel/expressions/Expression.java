@@ -1519,7 +1519,7 @@ public abstract class Expression {
                 return new SimpleBinaryExpression(ExpressionType.Modulo, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
-            return getMethodBasedBinaryOperatorOrThrow(ExpressionType.Modulo, "modulo", left, right);
+            return getMethodBasedBinaryOperatorOrThrow(ExpressionType.Modulo, "mod", left, right);
         }
 
         return getMethodBasedBinaryOperator(ExpressionType.Modulo, left, right, method);

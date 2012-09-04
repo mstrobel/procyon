@@ -233,6 +233,10 @@ public final class TypeUtils {
         final Type unboxedSourceType = sourceIsBoxed ? getUnderlyingPrimitive(source) : source;
         final Type unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
 
+        if (unboxedSourceType.isPrimitive() || unboxedDestinationType.isPrimitive()) {
+            return false;
+        }
+
         // Down conversion 
         if (unboxedSourceType.isAssignableFrom(unboxedDestinationType)) {
             return true;
@@ -259,12 +263,14 @@ public final class TypeUtils {
                                             : destination;
 
         if (destination == Types.String) {
-            return source.getMethod("toString", BindingFlags.PublicInstance);
+            return Types.String.getMethod("valueOf", source);
         }
 
+/*
         if (!destination.isPrimitive()) {
             return null;
         }
+*/
 
         final MethodInfo method;
 
@@ -293,6 +299,10 @@ public final class TypeUtils {
             method = source.getMethod("charValue", BindingFlags.PublicInstance);
         }
         else {
+            method = destination.getMethod("valueOf", BindingFlags.PublicStatic, source);
+        }
+
+        if (method == null) {
             return null;
         }
 

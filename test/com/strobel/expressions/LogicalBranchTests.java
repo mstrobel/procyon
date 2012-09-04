@@ -14,7 +14,7 @@ import static org.junit.Assert.*;
 /**
  * @author Mike Strobel
  */
-public class LogicalBranchTests extends AbstractCompilerTest {
+public class LogicalBranchTests extends AbstractExpressionTest {
     final static class OrCountdown {
         private final int _initialValue;
         private int _value;

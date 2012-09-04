@@ -9,7 +9,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * @author Mike Strobel
  */
-public class ConcatTests extends AbstractCompilerTest {
+public class ConcatTests extends AbstractExpressionTest {
     @Test
     public void testConcat() throws Throwable {
         final LambdaExpression<Runnable> test = lambda(
