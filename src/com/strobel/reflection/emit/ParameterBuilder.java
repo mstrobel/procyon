@@ -47,7 +47,7 @@ public final class ParameterBuilder  {
         return _name;
     }
 
-    public Type getParameterType() {
+    public Type<?> getParameterType() {
         return _parameterType;
     }
 

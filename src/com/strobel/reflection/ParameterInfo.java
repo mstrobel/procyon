@@ -6,9 +6,9 @@ package com.strobel.reflection;
 public class ParameterInfo {
     private final String _name;
     private final int _position;
-    private final Type _parameterType;
+    private final Type<?> _parameterType;
 
-    public ParameterInfo(final String name, final int position, final Type parameterType) {
+    public ParameterInfo(final String name, final int position, final Type<?> parameterType) {
         _name = name;
         _position = position;
         _parameterType = parameterType;
@@ -18,7 +18,7 @@ public class ParameterInfo {
         return _name;
     }
 
-    public Type getParameterType() {
+    public Type<?> getParameterType() {
         return _parameterType;
     }
 

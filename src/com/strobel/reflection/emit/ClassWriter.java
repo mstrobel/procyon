@@ -7,6 +7,7 @@ import com.strobel.reflection.Flags;
 import com.strobel.reflection.MemberInfo;
 import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.MethodList;
+import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
@@ -299,6 +300,13 @@ final class ClassWriter {
         final ParameterBuilder[] parameters = method.parameterBuilders;
 
         maxLocals += parameters.length;
+
+        for (final ParameterBuilder parameter : parameters) {
+            final Type<?> parameterType = parameter.getParameterType();
+            if (parameterType == PrimitiveTypes.Double || parameterType == PrimitiveTypes.Long) {
+                ++maxLocals;
+            }
+        }
 
         _dataBuffer.putShort(maxLocals);
         _dataBuffer.putInt(generator.offset());
