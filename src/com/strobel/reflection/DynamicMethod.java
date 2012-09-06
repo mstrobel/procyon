@@ -24,20 +24,25 @@ public final class DynamicMethod extends MethodInfo {
     }
 
     public static DynamicMethod invoke(final MethodHandle methodHandle) {
-        return new DynamicMethod(methodHandle.type(), INVOKE);
+        return new DynamicMethod(methodHandle, INVOKE);
     }
 
     public static DynamicMethod invokeExact(final MethodHandle methodHandle) {
-        return new DynamicMethod(methodHandle.type(), INVOKE_EXACT);
+        return new DynamicMethod(methodHandle, INVOKE_EXACT);
     }
 
     private final Type<?> _returnType;
     private final ParameterList _parameters;
     private final Method _invokeMethod;
+    private final MethodHandle _methodHandle;
 
-    private DynamicMethod(final MethodType methodType, final Method invokeMethod) {
-        _returnType = Type.of(VerifyArgument.notNull(methodType, "methodType").returnType());
+    private DynamicMethod(final MethodHandle methodHandle, final Method invokeMethod) {
+        _methodHandle = VerifyArgument.notNull(methodHandle, "methodHandle");
         _invokeMethod = VerifyArgument.notNull(invokeMethod, "invokeMethod");
+        
+        final MethodType methodType = methodHandle.type();
+        
+        _returnType = Type.of(methodType.returnType());
 
         final ParameterInfo[] parameters = new ParameterInfo[methodType.parameterCount()];
 
@@ -50,6 +55,10 @@ public final class DynamicMethod extends MethodInfo {
         }
 
         _parameters = new ParameterList(parameters);
+    }
+
+    public MethodHandle getHandle() {
+        return _methodHandle;
     }
 
     @Override

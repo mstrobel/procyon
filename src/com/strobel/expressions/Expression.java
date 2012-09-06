@@ -7,6 +7,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.BindingFlags;
 import com.strobel.reflection.CallingConvention;
 import com.strobel.reflection.ConstructorInfo;
+import com.strobel.reflection.DynamicMethod;
 import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.MemberInfo;
 import com.strobel.reflection.MemberList;
@@ -2399,16 +2400,25 @@ public abstract class Expression {
         final ExpressionList<? extends Expression> arguments) {
 
         VerifyArgument.notNull(method, "method");
+        
+        final Expression actualTarget;
+        
+        if (target == null && method instanceof DynamicMethod) {
+            actualTarget = constant(((DynamicMethod) method).getHandle(), Types.MethodHandle);
+        }
+        else {
+            actualTarget = target;
+        }
 
-        validateStaticOrInstanceMethod(target, method);
+        validateStaticOrInstanceMethod(actualTarget, method);
 
         final ExpressionList<?> argumentList = validateArgumentTypes(method, ExpressionType.Call, arguments);
 
-        if (target == null) {
+        if (actualTarget == null) {
             return new MethodCallExpressionN(method, argumentList);
         }
 
-        return new InstanceMethodCallExpressionN(method, target, arguments);
+        return new InstanceMethodCallExpressionN(method, actualTarget, arguments);
     }
 
     public static MethodCallExpression call(
