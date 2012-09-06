@@ -215,35 +215,16 @@ public final class TypeUtils {
             return false;
         }
 
-        if (source == destination) {
-            return true;
-        }
-
-        if (source == Type.NullType) {
-            return !destination.isPrimitive();
-        }
-
-        final boolean sourceIsBoxed = isAutoUnboxed(source);
-        final boolean destinationIsBoxed = isAutoUnboxed(destination);
-
-        if (sourceIsBoxed && destinationIsBoxed) {
-            return areEquivalent(source, destination);
-        }
-
-        final Type<?> unboxedSourceType = sourceIsBoxed ? getUnderlyingPrimitive(source) : source;
-        final Type<?> unboxedDestinationType = isAutoUnboxed(destination) ? getUnderlyingPrimitive(destination) : destination;
-
-        if (unboxedSourceType.isPrimitive() || unboxedDestinationType.isPrimitive()) {
+        if (source.isPrimitive() || destination.isPrimitive()) {
             return false;
         }
-
-        // Down conversion
-        if (unboxedSourceType.isAssignableFrom(unboxedDestinationType)) {
+        
+        if (areEquivalent(source, destination)) {
             return true;
         }
-
-        // Up conversion
-        if (unboxedDestinationType.isAssignableFrom(unboxedSourceType)) {
+        
+        // Object conversion
+        if (source == Types.Object || destination == Types.Object) {
             return true;
         }
 
@@ -252,8 +233,13 @@ public final class TypeUtils {
             return true;
         }
 
-        // Object conversion
-        return source == Types.Object || destination == Types.Object;
+        // Up conversion
+        if (destination.isAssignableFrom(source)) {
+            return true;
+        }
+
+        // Down conversion
+        return source.isAssignableFrom(destination);
     }
 
     public static MethodInfo getCoercionMethod(final Type<?> source, final Type<?> destination) {
