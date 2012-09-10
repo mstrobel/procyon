@@ -696,6 +696,14 @@ final class Resolver {
     private Type<?> visit(final ReflectedType<?> type, final Frame frame, final int flags) {
         final Class<?> erasedClass = type.getErasedClass();
 
+        if ((flags & FLAG_RESOLVE_NESTED_TYPES) == FLAG_RESOLVE_NESTED_TYPES) {
+            for (final Class<?> nestedClass : erasedClass.getDeclaredClasses()) {
+                if (type.findNestedType(nestedClass) == null) {
+                    visit(nestedClass, frame);
+                }
+            }
+        }
+
         if ((flags & FLAG_RESOLVE_FIELDS) == FLAG_RESOLVE_FIELDS) {
             for (final Field field : erasedClass.getDeclaredFields()) {
                 if (type.findField(field) == null) {
@@ -716,14 +724,6 @@ final class Resolver {
             for (final Constructor<?> constructor : erasedClass.getDeclaredConstructors()) {
                 if (type.findConstructor(constructor) == null) {
                     visitConstructor(constructor, frame);
-                }
-            }
-        }
-
-        if ((flags & FLAG_RESOLVE_NESTED_TYPES) == FLAG_RESOLVE_NESTED_TYPES) {
-            for (final Class<?> nestedClass : erasedClass.getDeclaredClasses()) {
-                if (type.findNestedType(nestedClass) == null) {
-                    visit(nestedClass, frame);
                 }
             }
         }
@@ -920,7 +920,7 @@ class ReflectedType<T> extends Type<T> {
     private final static byte FLAG_CONSTRUCTORS_RESOLVED = 0x04;
     private final static byte FLAG_NESTED_TYPES_RESOLVED = 0x08;
     private final static byte FLAG_ALL_MEMBERS_RESOLVED  = 0x0F;
-    private final static byte FLAG_RESOLVING_MEMBERS     = 0x08;
+    private final static byte FLAG_RESOLVING_MEMBERS     = 0x10;
 
     private final    String   _name;
     private final    String   _simpleName;
@@ -1124,6 +1124,8 @@ class ReflectedType<T> extends Type<T> {
             }
             synchronized (CACHE_LOCK) {
                 if (!checkFlags(FLAG_ALL_MEMBERS_RESOLVED)) {
+                    setFlags(FLAG_RESOLVING_MEMBERS);
+
                     final int oldFlags = _flags;
 
                     RESOLVER.resolveMembers(this, oldFlags ^ FLAG_ALL_MEMBERS_RESOLVED);
