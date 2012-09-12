@@ -441,19 +441,19 @@ public final class TypeBuilder<T> extends Type<T> {
 
     @Override
     public ConstructorList getConstructors(final Set<BindingFlags> bindingFlags) {
-        verifyNotCreated();
+        verifyCreated();
         return _generatedType.getConstructors(bindingFlags);
     }
 
     @Override
     public MemberList getMembers(final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
-        verifyNotCreated();
+        verifyCreated();
         return _generatedType.getMembers(bindingFlags, memberTypes);
     }
 
     @Override
     public MemberList getMember(final String name, final Set<BindingFlags> bindingFlags, final Set<MemberType> memberTypes) {
-        verifyNotCreated();
+        verifyCreated();
         return _generatedType.getMember(name, bindingFlags, memberTypes);
     }
 
@@ -464,19 +464,19 @@ public final class TypeBuilder<T> extends Type<T> {
         final CallingConvention callingConvention,
         final Type... parameterTypes) {
 
-        verifyNotCreated();
+        verifyCreated();
         return _generatedType.getMethod(name, bindingFlags, callingConvention, parameterTypes);
     }
 
     @Override
     public MethodList getMethods(final Set<BindingFlags> bindingFlags, final CallingConvention callingConvention) {
-        verifyNotCreated();
+        verifyCreated();
         return _generatedType.getMethods(bindingFlags, callingConvention);
     }
 
     @Override
     public Type<?> getNestedType(final String fullName, final Set<BindingFlags> bindingFlags) {
-        verifyNotCreated();
+        verifyCreated();
         return _generatedType.getNestedType(fullName, bindingFlags);
     }
 
@@ -488,13 +488,13 @@ public final class TypeBuilder<T> extends Type<T> {
 
     @Override
     public FieldList getFields(final Set<BindingFlags> bindingFlags) {
-        verifyNotCreated();
+        verifyCreated();
         return _generatedType.getFields(bindingFlags);
     }
 
     @Override
     public FieldInfo getField(final String name, final Set<BindingFlags> bindingFlags) {
-        verifyNotCreated();
+        verifyCreated();
         return _generatedType.getField(name, bindingFlags);
     }
 

@@ -21,6 +21,18 @@ final class ConstantCheck {
                 return false;
         }
     }
+    
+    static boolean isTrue(final Expression e) {
+        return TypeUtils.getUnderlyingPrimitiveOrSelf(e.getType()) == PrimitiveTypes.Boolean &&
+               e.getNodeType() == ExpressionType.Constant &&
+               Boolean.TRUE.equals(((ConstantExpression)e).getValue());
+    }
+
+    static boolean isFalse(final Expression e) {
+        return TypeUtils.getUnderlyingPrimitiveOrSelf(e.getType()) == PrimitiveTypes.Boolean &&
+               e.getNodeType() == ExpressionType.Constant &&
+               Boolean.FALSE.equals(((ConstantExpression)e).getValue());
+    }
 
     static AnalyzeTypeIsResult analyzeInstanceOf(final TypeBinaryExpression typeIs) {
         return analyzeInstanceOf(typeIs.getOperand(), typeIs.getTypeOperand());

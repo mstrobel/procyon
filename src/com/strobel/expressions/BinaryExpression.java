@@ -27,7 +27,7 @@ public class BinaryExpression extends Expression {
         return null;
     }
 
-    public LambdaExpression getConversion() {
+    public LambdaExpression<?> getConversion() {
         return null;
     }
 
@@ -61,7 +61,7 @@ public class BinaryExpression extends Expression {
         final Expression right,
         final Type type,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         if (nodeType == ExpressionType.Assign) {
             assert method == null &&
@@ -89,7 +89,7 @@ public class BinaryExpression extends Expression {
         return new SimpleBinaryExpression(nodeType, left, right, type);
     }
 
-    public BinaryExpression update(final Expression left, final LambdaExpression conversion, final Expression right) {
+    public BinaryExpression update(final Expression left, final LambdaExpression<?> conversion, final Expression right) {
         if (left == getLeft() && right == getRight() && conversion == getConversion()) {
             return this;
         }
@@ -123,7 +123,7 @@ public class BinaryExpression extends Expression {
 
         Expression r = Expression.makeBinary(op, _left, _right, getMethod());
 
-        final LambdaExpression conversion = getConversion();
+        final LambdaExpression<?> conversion = getConversion();
 
         if (conversion != null) {
             r = Expression.invoke(conversion, r);
@@ -156,7 +156,7 @@ public class BinaryExpression extends Expression {
                 getMethod()
             );
 
-            final LambdaExpression conversion = getConversion();
+            final LambdaExpression<?> conversion = getConversion();
 
             if (conversion != null) {
                 temp2EqualsTemp1Member = Expression.invoke(conversion, temp2EqualsTemp1Member);
@@ -359,15 +359,15 @@ final class AssignBinaryExpression extends BinaryExpression {
  * null conversion lambda.
  */
 final class CoalesceConversionBinaryExpression extends BinaryExpression {
-    private final LambdaExpression _conversion;
+    private final LambdaExpression<?> _conversion;
 
-    CoalesceConversionBinaryExpression(final Expression left, final Expression right, final LambdaExpression conversion) {
+    CoalesceConversionBinaryExpression(final Expression left, final Expression right, final LambdaExpression<?> conversion) {
         super(left, right);
         _conversion = conversion;
     }
 
     @Override
-    public final LambdaExpression getConversion() {
+    public final LambdaExpression<?> getConversion() {
         return _conversion;
     }
 
@@ -383,7 +383,7 @@ final class CoalesceConversionBinaryExpression extends BinaryExpression {
 }
 
 final class OpAssignMethodConversionBinaryExpression extends MethodBinaryExpression {
-    private final LambdaExpression _conversion;
+    private final LambdaExpression<?> _conversion;
 
     OpAssignMethodConversionBinaryExpression(
         final ExpressionType nodeType,
@@ -391,7 +391,7 @@ final class OpAssignMethodConversionBinaryExpression extends MethodBinaryExpress
         final Expression right,
         final Type type,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         super(nodeType, left, right, type, method);
 
@@ -399,7 +399,7 @@ final class OpAssignMethodConversionBinaryExpression extends MethodBinaryExpress
     }
 
     @Override
-    public final LambdaExpression getConversion() {
+    public final LambdaExpression<?> getConversion() {
         return _conversion;
     }
 }

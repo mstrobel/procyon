@@ -1,6 +1,7 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.MemberInfo;
 import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.Type;
 import com.strobel.util.ContractUtils;
@@ -39,6 +40,15 @@ final class Error {
     public static RuntimeException typeIsGeneric() {
         return new IllegalStateException(
             "Operation is not valid on bound generic types."
+        );
+    }
+
+    public static IllegalArgumentException memberContainsUnboundGenericParameters(final MemberInfo member) {
+        return new IllegalArgumentException(
+            format(
+                "Member '%s' has unbound generic parameters in its signature.",
+                member.getName()
+            )
         );
     }
 
@@ -411,5 +421,9 @@ final class Error {
     public static IllegalStateException defineGenericParametersAlreadyCalled() {
         return new IllegalStateException("defineGenericParameters() has already been called.");
 
+    }
+
+    public static IllegalArgumentException argumentMustBeTypeBuilder() {
+        return new IllegalArgumentException("Argument must be a TypeBuilder.");
     }
 }

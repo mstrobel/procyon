@@ -1,5 +1,6 @@
 package com.strobel.expressions;
 
+import com.strobel.core.MutableInteger;
 import com.strobel.core.delegates.Action1;
 import com.strobel.core.delegates.Func1;
 import com.strobel.reflection.BindingFlags;
@@ -27,6 +28,7 @@ import java.util.concurrent.Callable;
 import static com.strobel.expressions.Expression.*;
 import static junit.framework.Assert.*;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author Mike Strobel
@@ -41,7 +43,7 @@ public class CompilerTests {
     interface INeedsBridgeMethod<T extends Comparable<String>> {
         T invoke(final T t);
     }
-
+    
     @Test
     public void testStringEquals() throws Exception {
         final ParameterExpression p = parameter(Types.String, "s");
@@ -644,6 +646,48 @@ public class CompilerTests {
             fail("AssertionError should have been caught.");
         }
     }
+    
+    @Test
+    public void testTryFinally() throws Exception {
+        final MutableInteger counter = new MutableInteger(0);
+        final Expression counterConstant = constant(counter);
+        final ParameterExpression shouldThrow = parameter(PrimitiveTypes.Boolean);
+        
+        final LambdaExpression<ShouldThrowDelegate> lambda = lambda(
+            Type.of(ShouldThrowDelegate.class),
+            tryFinally(
+                call(Type.of(CompilerTests.class), "maybeThrow", shouldThrow),
+                call(counterConstant, "increment")
+            ),
+            shouldThrow
+        );
+
+        System.out.println();
+        System.out.println(lambda);
+
+        final ShouldThrowDelegate delegate = lambda.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        try {
+            delegate.maybeThrow(false);
+        }
+        catch (Throwable t) {
+            fail("Exception should not have been thrown.");
+        }
+
+        assertEquals(1, counter.getValue());
+        counter.setValue(0);
+
+        try {
+            delegate.maybeThrow(true);
+            fail("Exception should have been thrown.");
+        }
+        catch (Throwable ignored) {
+        }
+
+        assertEquals(1, counter.getValue());
+    }
 
     @Test
     public void testTryNestedCatchFinally() throws Exception {
@@ -953,6 +997,12 @@ public class CompilerTests {
         }
     }
 
+    static void maybeThrow(final boolean throwException) {
+        if (throwException) {
+            throw new RuntimeException();
+        }
+    }
+
     static final class NeedsTwoCtorArgs {
         @SuppressWarnings("UnusedParameters")
         NeedsTwoCtorArgs(final int x, final double y) {}
@@ -971,6 +1021,10 @@ public class CompilerTests {
         boolean test();
     }
 
+    interface ShouldThrowDelegate {
+        void maybeThrow(final boolean throwException);
+    }
+    
     interface IntegerPowerDelegate {
         int transform(final int base, final int power);
     }

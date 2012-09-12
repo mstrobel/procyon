@@ -87,7 +87,7 @@ final class ErasedType<T> extends Type<T> {
                 if (_fields == null) {
                     _fields = GenericEraser.visit(
                         this,
-                        _originalType.getFields(),
+                        _originalType.getFields(BindingFlags.All),
                         TypeBindings.create(
                             _originalType.getGenericTypeParameters(),
                             UpperBoundMapper.visit(_originalType.getGenericTypeParameters())
@@ -103,7 +103,7 @@ final class ErasedType<T> extends Type<T> {
             if (_constructors == null) {
                 _constructors = GenericEraser.visit(
                     this,
-                    _originalType.getConstructors(),
+                    _originalType.getConstructors(BindingFlags.All),
                     TypeBindings.create(
                         _originalType.getGenericTypeParameters(),
                         UpperBoundMapper.visit(_originalType.getGenericTypeParameters())
@@ -119,7 +119,7 @@ final class ErasedType<T> extends Type<T> {
                 if (_methods == null) {
                     _methods = GenericEraser.visit(
                         this,
-                        _originalType.getMethods(),
+                        _originalType.getMethods(BindingFlags.All),
                         TypeBindings.create(
                             _originalType.getGenericTypeParameters(),
                             UpperBoundMapper.visit(_originalType.getGenericTypeParameters())

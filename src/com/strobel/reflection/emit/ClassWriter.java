@@ -322,7 +322,12 @@ final class ClassWriter {
 
             for (final __ExceptionInfo exception : exceptionsInfo) {
                 if (exception.getFinallyEndAddress() != -1) {
-                    tryCatchTableEntries += (exception.getNumberOfCatches() - 1) * 3;
+                    if (exception.getNumberOfCatches() == 1) {
+                        tryCatchTableEntries += 2;
+                    }
+                    else {
+                        tryCatchTableEntries += (exception.getNumberOfCatches() - 1) * 3;
+                    }
                 }
                 else {
                     tryCatchTableEntries += exception.getNumberOfCatches();
@@ -367,15 +372,21 @@ final class ClassWriter {
                             _dataBuffer.putShort(0);
                         }
                     }
-/*
-                    else {
-                        // Finally
-                        _dataBuffer.putShort(finallyEndAddress);
-                        _dataBuffer.putShort(catchEndAddresses[i]);
-                        _dataBuffer.putShort(finallyEndAddress);
-                        _dataBuffer.putShort(0);
-                    }
-*/
+                }
+
+                if (finallyIndex != -1 && exception.getNumberOfCatches() == 1) {
+                    // No catch blocks; only finally.
+                    _dataBuffer.putShort(exception.getStartAddress());
+                    _dataBuffer.putShort(exception.getEndAddress());
+                    _dataBuffer.putShort(catchAddresses[finallyIndex]);
+                    _dataBuffer.putShort(0);
+
+                    final int storeOpSize = OpCode.get(body[exception.getFinallyEndAddress()]).getSizeWithOperands();
+
+                    _dataBuffer.putShort(catchAddresses[finallyIndex]);
+                    _dataBuffer.putShort(exception.getFinallyEndAddress() + storeOpSize);
+                    _dataBuffer.putShort(catchAddresses[finallyIndex]);
+                    _dataBuffer.putShort(0);
                 }
             }
         }

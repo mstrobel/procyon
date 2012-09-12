@@ -2008,6 +2008,7 @@ final class LambdaCompiler {
             if (node.getType() == PrimitiveTypes.Boolean) {
                 switch (node.getNodeType()) {
                     case Not:
+                    case IsFalse:
                         emitBranchNot(branchValue, (UnaryExpression)node, label);
                         return;
                     case AndAlso:
@@ -2101,6 +2102,41 @@ final class LambdaCompiler {
                 generator.emit(
                     branch ? (op == ExpressionType.ReferenceEqual ? OpCode.IFNULL : OpCode.IFNONNULL)
                            : (op == ExpressionType.ReferenceEqual ? OpCode.IFNONNULL : OpCode.IFNULL),
+                    label
+                );
+                return;
+            }
+        }
+        else if (op == ExpressionType.Equal ||
+                 op == ExpressionType.NotEqual) {
+
+            if (ConstantCheck.isTrue(node.getLeft())) {
+                if (ConstantCheck.isTrue(node.getRight())) {
+                    if (branch == (op == ExpressionType.Equal)) {
+                        generator.emitGoto(label);
+                    }
+                    return;
+                }
+
+                if (ConstantCheck.isFalse(node.getRight())) {
+                    if (branch == (op == ExpressionType.NotEqual)) {
+                        generator.emitGoto(label);
+                    }
+                    return;
+                }
+
+                emitExpression(getEqualityOperand(node.getRight()));
+                emitBranchOp(
+                    branch == (op == ExpressionType.Equal),
+                    label
+                );
+                return;
+            }
+
+            if (ConstantCheck.isTrue(node.getRight())) {
+                emitExpression(getEqualityOperand(node.getLeft()));
+                emitBranchOp(
+                    branch == (op == ExpressionType.Equal),
                     label
                 );
                 return;

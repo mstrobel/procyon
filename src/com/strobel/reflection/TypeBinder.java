@@ -125,6 +125,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
         if (!TypeUtils.areEquivalent(oldDeclaringType, declaringType) &&
             oldDeclaringType.isGenericTypeDefinition() &&
+            declaringType.isGenericType() &&
             TypeUtils.areEquivalent(oldDeclaringType, declaringType.getGenericTypeDefinition())) {
 
             actualDeclaringType = declaringType;
@@ -323,6 +324,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
 
         if (!TypeUtils.areEquivalent(oldDeclaringType, declaringType) &&
             oldDeclaringType.isGenericTypeDefinition() &&
+            declaringType.isGenericType() &&
             TypeUtils.areEquivalent(oldDeclaringType, declaringType.getGenericTypeDefinition())) {
 
             actualDeclaringType = declaringType;

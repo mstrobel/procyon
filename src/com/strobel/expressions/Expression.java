@@ -679,7 +679,7 @@ public abstract class Expression {
         VerifyArgument.notNull(member, "member");
 
         if (member instanceof FieldInfo) {
-            return Expression.field(target, (FieldInfo)member);
+            return Expression.field(target, (FieldInfo) member);
         }
 
         throw Error.memberNotField(member);
@@ -687,11 +687,37 @@ public abstract class Expression {
 
     public static MemberExpression field(final Expression target, final FieldInfo field) {
         VerifyArgument.notNull(field, "field");
-        
+
         if (!field.isStatic() && target == null) {
             throw Error.targetRequiredForNonStaticFieldAccess(field);
         }
-        
+
+        return new FieldExpression(target, field);
+    }
+
+    public static MemberExpression field(final Type<?> declaringType, final String fieldName) {
+        VerifyArgument.notNull(declaringType, "declaringType");
+        VerifyArgument.notNull(fieldName, "fieldName");
+
+        final FieldInfo field = findField(
+            declaringType,
+            fieldName,
+            StaticMemberBindingFlags
+        );
+
+        return new FieldExpression(null, field);
+    }
+
+    public static MemberExpression field(final Expression target, final String fieldName) {
+        verifyCanRead(target, "target");
+        VerifyArgument.notNull(fieldName, "fieldName");
+
+        final FieldInfo field = findField(
+            target.getType(),
+            fieldName,
+            InstanceMemberBindingFlags
+        );
+
         return new FieldExpression(target, field);
     }
 
@@ -1281,7 +1307,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         switch (binaryType) {
             case Add:
@@ -1385,7 +1411,7 @@ public abstract class Expression {
         return coalesce(left, right, null);
     }
     
-    public static BinaryExpression coalesce(final Expression left, final Expression right, final LambdaExpression conversion) {
+    public static BinaryExpression coalesce(final Expression left, final Expression right, final LambdaExpression<?> conversion) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
 
@@ -1878,7 +1904,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         verifyCanRead(left, "left");
         verifyCanWrite(left, "left");
@@ -1914,7 +1940,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         verifyCanRead(left, "left");
         verifyCanWrite(left, "left");
@@ -1950,7 +1976,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         verifyCanRead(left, "left");
         verifyCanWrite(left, "left");
@@ -1986,7 +2012,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         verifyCanRead(left, "left");
         verifyCanWrite(left, "left");
@@ -2022,7 +2048,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         verifyCanRead(left, "left");
         verifyCanWrite(left, "left");
@@ -2058,7 +2084,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         verifyCanRead(left, "left");
         verifyCanWrite(left, "left");
@@ -2094,7 +2120,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         verifyCanRead(left, "left");
         verifyCanWrite(left, "left");
@@ -2130,7 +2156,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         verifyCanRead(left, "left");
         verifyCanWrite(left, "left");
@@ -2167,7 +2193,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         verifyCanRead(left, "left");
         verifyCanWrite(left, "left");
@@ -2204,7 +2230,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         verifyCanRead(left, "left");
         verifyCanWrite(left, "left");
@@ -2241,7 +2267,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         verifyCanRead(left, "left");
         verifyCanWrite(left, "left");
@@ -2365,12 +2391,12 @@ public abstract class Expression {
     // INVOKE EXPRESSIONS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static InvocationExpression invoke(final LambdaExpression expression, final Expression... arguments) {
+    public static InvocationExpression invoke(final LambdaExpression<?> expression, final Expression... arguments) {
         VerifyArgument.noNullElements(arguments, "arguments");
         return invoke(expression, new ExpressionList<>(arguments));
     }
 
-    public static InvocationExpression invoke(final LambdaExpression expression, final ExpressionList<? extends Expression> arguments) {
+    public static InvocationExpression invoke(final LambdaExpression<?> expression, final ExpressionList<? extends Expression> arguments) {
         verifyCanRead(expression, "expression");
 
         final MethodInfo method = getInvokeMethod(expression);
@@ -2452,7 +2478,7 @@ public abstract class Expression {
             methodName,
             typeArguments,
             arguments,
-            InstanceMethodBindingFlags
+            InstanceMemberBindingFlags
         );
 
         return call(
@@ -2493,7 +2519,7 @@ public abstract class Expression {
             methodName,
             typeArguments,
             arguments,
-            StaticMethodBindingFlags
+            StaticMemberBindingFlags
         );
 
         return call(
@@ -3483,7 +3509,7 @@ public abstract class Expression {
         final String name,
         final Expression left,
         final Expression right,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         final MethodInfo method = getBinaryOperatorMethod(binaryType, left.getType(), right.getType(), name);
 
@@ -3499,7 +3525,7 @@ public abstract class Expression {
         final String name,
         final Expression left,
         final Expression right,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         BinaryExpression b = getMethodBasedBinaryOperatorOrThrow(binaryType, name, left, right);
 
@@ -3529,7 +3555,7 @@ public abstract class Expression {
         final Expression left,
         final Expression right,
         final MethodInfo method,
-        final LambdaExpression conversion) {
+        final LambdaExpression<?> conversion) {
 
         BinaryExpression b = getMethodBasedBinaryOperator(binaryType, left, right, method);
 
@@ -3555,7 +3581,7 @@ public abstract class Expression {
     }
 
     private static void validateOpAssignConversionLambda(
-        final LambdaExpression conversion,
+        final LambdaExpression<?> conversion,
         final Expression left,
         final MethodInfo method,
         final ExpressionType nodeType) {
@@ -3870,20 +3896,39 @@ public abstract class Expression {
         }
     }
 
-    private final static Set<BindingFlags> StaticMethodBindingFlags = BindingFlags.set(
+    private final static Set<BindingFlags> StaticMemberBindingFlags = BindingFlags.set(
         BindingFlags.Static,
         BindingFlags.Public,
         BindingFlags.NonPublic,
         BindingFlags.FlattenHierarchy
     );
 
-    private final static Set<BindingFlags> InstanceMethodBindingFlags = BindingFlags.set(
+    private final static Set<BindingFlags> InstanceMemberBindingFlags = BindingFlags.set(
         BindingFlags.Instance,
         BindingFlags.Public,
         BindingFlags.NonPublic,
         BindingFlags.FlattenHierarchy
     );
 
+    private static FieldInfo findField(
+        final Type declaringType,
+        final String fieldName,
+        final Set<BindingFlags> flags) {
+
+        final MemberList members = declaringType.findMembers(
+            MemberType.fieldsOnly(),
+            flags,
+            Type.FilterNameIgnoreCase,
+            fieldName
+        );
+
+        if (members == null || members.size() == 0) {
+            throw Error.fieldDoesNotExistOnType(fieldName, declaringType);
+        }
+
+        return (FieldInfo) members.get(0);
+    }
+    
     private static MethodInfo findMethod(
         final Type type,
         final String methodName,

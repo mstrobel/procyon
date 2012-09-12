@@ -436,6 +436,16 @@ final class Error {
         );
     }
 
+    public static IllegalStateException fieldDoesNotExistOnType(final String fieldName, final Type type) {
+        return new IllegalStateException(
+            format(
+                "No field '%s' exists on type '%s'.",
+                fieldName,
+                type.getFullName()
+            )
+        );
+    }
+
     public static IllegalStateException genericMethodWithArgsDoesNotExistOnType(final String methodName, final Type type) {
         return new IllegalStateException(
             format(
