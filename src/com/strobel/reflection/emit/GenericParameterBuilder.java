@@ -40,7 +40,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
-    public Type getBaseType() {
+    public Type<? super T> getBaseType() {
         return typeBuilder.getBaseType();
     }
 

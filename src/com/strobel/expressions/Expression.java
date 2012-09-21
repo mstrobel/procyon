@@ -25,6 +25,7 @@ import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
+import java.lang.invoke.MethodHandle;
 import java.util.*;
 
 import static java.lang.String.format;
@@ -2430,7 +2431,11 @@ public abstract class Expression {
         final Expression actualTarget;
         
         if (target == null && method instanceof DynamicMethod) {
-            actualTarget = constant(((DynamicMethod) method).getHandle(), Types.MethodHandle);
+            final MethodHandle handle = ((DynamicMethod) method).getHandle();
+            if (handle == null) {
+                throw Error.dynamicMethodCallRequiresTargetOrMethodHandle();
+            }
+            actualTarget = constant(handle, Types.MethodHandle);
         }
         else {
             actualTarget = target;

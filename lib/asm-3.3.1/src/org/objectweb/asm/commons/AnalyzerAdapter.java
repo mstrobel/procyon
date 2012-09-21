@@ -708,7 +708,7 @@ public class AnalyzerAdapter extends MethodAdapter {
                 t2 = pop();
                 t3 = pop();
                 t4 = pop();
-                push(t2);
+                pusoh(t2);
                 push(t1);
                 push(t4);
                 push(t3);

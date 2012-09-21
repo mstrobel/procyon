@@ -132,7 +132,7 @@ final class GenericType<T> extends Type<T> {
     }
 
     @Override
-    public Type getBaseType() {
+    public Type<? super T> getBaseType() {
         ensureBaseType();
         final Type baseType = _baseType;
         return baseType == NullType ? null : baseType;

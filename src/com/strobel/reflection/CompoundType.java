@@ -42,7 +42,7 @@ public final class CompoundType<T> extends Type<T> {
     }
 
     @Override
-    public Type getBaseType() {
+    public Type<? super T> getBaseType() {
         return _baseType;
     }
 

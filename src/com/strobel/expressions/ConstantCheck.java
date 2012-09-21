@@ -2,6 +2,7 @@ package com.strobel.expressions;
 
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
+import com.strobel.reflection.Types;
 import com.strobel.util.TypeUtils;
 
 /**
@@ -20,6 +21,11 @@ final class ConstantCheck {
             default:
                 return false;
         }
+    }
+    
+    static boolean isStringLiteral(final Expression e) {
+        return TypeUtils.getUnderlyingPrimitiveOrSelf(e.getType()) == Types.String &&
+               e.getNodeType() == ExpressionType.Constant;
     }
     
     static boolean isTrue(final Expression e) {

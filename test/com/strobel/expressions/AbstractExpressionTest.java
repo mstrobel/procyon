@@ -68,6 +68,7 @@ public abstract class AbstractExpressionTest {
         final OutputInfo outputInfo = THREAD_OUT.get();
         outputInfo.systemStream = System.out;
         System.setOut(outputInfo.recorderStream);
+        System.setProperty("com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses", "true");
     }
 
     @After

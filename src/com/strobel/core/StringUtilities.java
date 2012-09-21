@@ -68,31 +68,58 @@ public final class StringUtilities {
         return true;
     }
 
-    public static boolean startsWithIgnoreCase(final String s, final String prefix) {
-        return startsWithIgnoreCase(s, prefix, 0);
+    public static boolean startsWith(final CharSequence value, final CharSequence prefix) {
+        return substringEquals(
+            VerifyArgument.notNull(value, "value"),
+            0,
+            VerifyArgument.notNull(prefix, "prefix"),
+            0,
+            prefix.length(),
+            StringComparison.Ordinal
+        );
     }
 
-    public static boolean startsWithIgnoreCase(final String s, final String prefix, final int offset) {
-        final int sourceLength = VerifyArgument.notNull(s, "s").length();
-        final int prefixLength = VerifyArgument.notNull(prefix, "prefix").length();
+    public static boolean startsWithIgnoreCase(final CharSequence value, final String prefix) {
+        return substringEquals(
+            VerifyArgument.notNull(value, "value"),
+            0,
+            VerifyArgument.notNull(prefix, "prefix"),
+            0,
+            prefix.length(),
+            StringComparison.OrdinalIgnoreCase
+        );
+    }
 
-        final int n = sourceLength - offset;
+    public static boolean endsWith(final CharSequence value, final CharSequence suffix) {
+        final int valueLength = VerifyArgument.notNull(value, "value").length();
+        final int suffixLength = VerifyArgument.notNull(suffix, "suffix").length();
+        final int testOffset = valueLength - suffixLength;
 
-        if (prefixLength > n) {
-            return false;
-        }
+        return testOffset >= 0 &&
+               substringEquals(
+                   value,
+                   testOffset,
+                   suffix,
+                   0,
+                   suffixLength,
+                   StringComparison.Ordinal
+               );
+    }
 
-        for (int i = 0; i < prefixLength; i++) {
-            final char c1 = s.charAt(offset + i);
-            final char c2 = prefix.charAt(i);
-            if (c1 != c2) {
-                if (Character.toLowerCase(c1) != Character.toLowerCase(c2)) {
-                    return false;
-                }
-            }
-        }
+    public static boolean endsWithIgnoreCase(final CharSequence value, final String suffix) {
+        final int valueLength = VerifyArgument.notNull(value, "value").length();
+        final int suffixLength = VerifyArgument.notNull(suffix, "suffix").length();
+        final int testOffset = valueLength - suffixLength;
 
-        return true;
+        return testOffset >= 0 &&
+               substringEquals(
+                   value,
+                   testOffset,
+                   suffix,
+                   0,
+                   suffixLength,
+                   StringComparison.OrdinalIgnoreCase
+               );
     }
 
     public static String concat(final Iterable<String> values) {
@@ -152,9 +179,9 @@ public final class StringUtilities {
     }
 
     public static boolean substringEquals(
-        final String value,
+        final CharSequence value,
         final int offset,
-        final String comparand,
+        final CharSequence comparand,
         final int comparandOffset,
         final int substringLength) {
 
@@ -169,9 +196,9 @@ public final class StringUtilities {
     }
 
     public static boolean substringEquals(
-        final String value,
+        final CharSequence value,
         final int offset,
-        final String comparand,
+        final CharSequence comparand,
         final int comparandOffset,
         final int substringLength,
         final StringComparison comparison) {
@@ -210,5 +237,250 @@ public final class StringUtilities {
         }
 
         return true;
+    }
+
+    public static boolean isTrue(final String value) {
+        if (isNullOrWhitespace(value)) {
+            return false;
+        }
+
+        final String trimmedValue = value.trim();
+
+        if (trimmedValue.length() == 1) {
+            final char ch = Character.toLowerCase(trimmedValue.charAt(0));
+            return ch == 't' || ch == 'y' || ch == '1';
+        }
+
+        return StringComparator.OrdinalIgnoreCase.equals(trimmedValue, "true") ||
+               StringComparator.OrdinalIgnoreCase.equals(trimmedValue, "yes");
+    }
+
+    public static boolean isFalse(final String value) {
+        if (isNullOrWhitespace(value)) {
+            return false;
+        }
+
+        final String trimmedValue = value.trim();
+
+        if (trimmedValue.length() == 1) {
+            final char ch = Character.toLowerCase(trimmedValue.charAt(0));
+            return ch == 'f' || ch == 'n' || ch == '0';
+        }
+
+        return StringComparator.OrdinalIgnoreCase.equals(trimmedValue, "false") ||
+               StringComparator.OrdinalIgnoreCase.equals(trimmedValue, "no");
+    }
+
+    public static String removeLeft(final String value, final String prefix) {
+        return removeLeft(value, prefix, false);
+    }
+
+    public static String removeLeft(final String value, final String prefix, final boolean ignoreCase) {
+        VerifyArgument.notNull(value, "value");
+
+        if (isNullOrEmpty(prefix)) {
+            return value;
+        }
+
+        final int prefixLength = prefix.length();
+        final int remaining = value.length() - prefixLength;
+
+        if (remaining < 0) {
+            return value;
+        }
+
+        if (remaining == 0) {
+            if (ignoreCase) {
+                return value.equalsIgnoreCase(prefix) ? EMPTY : value;
+            }
+            return value.equals(prefix) ? EMPTY : value;
+        }
+
+        if (ignoreCase) {
+            return startsWithIgnoreCase(value, prefix)
+                   ? value.substring(prefixLength)
+                   : value;
+        }
+
+        return value.startsWith(prefix)
+               ? value.substring(prefixLength)
+               : value;
+    }
+
+    public static String removeLeft(final String value, final char[] removeChars) {
+        VerifyArgument.notNull(value, "value");
+        VerifyArgument.notNull(removeChars, "removeChars");
+
+        final int totalLength = value.length();
+        int start = 0;
+
+        while (start < totalLength && ArrayUtilities.contains(removeChars, value.charAt(start))) {
+            ++start;
+        }
+
+        return start > 0 ? value.substring(start) : value;
+    }
+
+    public static String removeRight(final String value, final String suffix) {
+        return removeRight(value, suffix, false);
+    }
+
+    public static String removeRight(final String value, final String suffix, final boolean ignoreCase) {
+        VerifyArgument.notNull(value, "value");
+
+        if (isNullOrEmpty(suffix)) {
+            return value;
+        }
+
+        final int valueLength = value.length();
+        final int suffixLength = suffix.length();
+        final int end = valueLength - suffixLength;
+
+        if (end < 0) {
+            return value;
+        }
+
+        if (end == 0) {
+            if (ignoreCase) {
+                return value.equalsIgnoreCase(suffix) ? EMPTY : value;
+            }
+            return value.equals(suffix) ? EMPTY : value;
+        }
+
+        if (ignoreCase) {
+            return endsWithIgnoreCase(value, suffix)
+                   ? value.substring(0, end)
+                   : value;
+        }
+
+        return value.endsWith(suffix)
+               ? value.substring(0, end)
+               : value;
+    }
+
+    public static String removeRight(final String value, final char[] removeChars) {
+        VerifyArgument.notNull(value, "value");
+        VerifyArgument.notNull(removeChars, "removeChars");
+
+        final int totalLength = value.length();
+        int length = totalLength;
+
+        while (length > 0 && ArrayUtilities.contains(removeChars, value.charAt(length - 1))) {
+            --length;
+        }
+
+        return length == totalLength ? value : value.substring(0, length);
+    }
+
+    public static String padLeft(final String value, final int length) {
+        VerifyArgument.notNull(value, "value");
+        VerifyArgument.isNonNegative(length, "length");
+
+        if (length == 0) {
+            return value;
+        }
+
+        return String.format("%1$" + length + "s", value);
+    }
+
+    public static String padRight(final String value, final int length) {
+        VerifyArgument.notNull(value, "value");
+        VerifyArgument.isNonNegative(length, "length");
+
+        if (length == 0) {
+            return value;
+        }
+
+        return String.format("%1$-" + length + "s", value);
+    }
+
+    public static String trimLeft(final String value) {
+        VerifyArgument.notNull(value, "value");
+
+        final int totalLength = value.length();
+        int start = 0;
+
+        while (start < totalLength && value.charAt(start) <= ' ') {
+            ++start;
+        }
+
+        return start > 0 ? value.substring(start) : value;
+    }
+
+    public static String trimRight(final String value) {
+        VerifyArgument.notNull(value, "value");
+
+        final int totalLength = value.length();
+        int length = totalLength;
+
+        while (length > 0 && value.charAt(length - 1) <= ' ') {
+            --length;
+        }
+
+        return length == totalLength ? value : value.substring(0, length);
+    }
+
+    public static String trimAndRemoveLeft(final String value, final String prefix) {
+        return trimAndRemoveLeft(value, prefix, false);
+    }
+
+    public static String trimAndRemoveLeft(final String value, final String prefix, final boolean ignoreCase) {
+        VerifyArgument.notNull(value, "value");
+
+        final String trimmedValue = value.trim();
+        final String result = removeLeft(trimmedValue, prefix, ignoreCase);
+
+        //noinspection StringEquality
+        if (result == trimmedValue) {
+            return trimmedValue;
+        }
+
+        return trimLeft(result);
+    }
+
+    public static String trimAndRemoveLeft(final String value, final char[] removeChars) {
+        VerifyArgument.notNull(value, "value");
+
+        final String trimmedValue = value.trim();
+        final String result = removeLeft(trimmedValue, removeChars);
+
+        //noinspection StringEquality
+        if (result == trimmedValue) {
+            return trimmedValue;
+        }
+
+        return trimLeft(result);
+    }
+
+    public static String trimAndRemoveRight(final String value, final String suffix) {
+        return trimAndRemoveRight(value, suffix, false);
+    }
+
+    public static String trimAndRemoveRight(final String value, final String suffix, final boolean ignoreCase) {
+        VerifyArgument.notNull(value, "value");
+
+        final String trimmedValue = value.trim();
+        final String result = removeRight(trimmedValue, suffix, ignoreCase);
+
+        //noinspection StringEquality
+        if (result == trimmedValue) {
+            return trimmedValue;
+        }
+
+        return trimRight(result);
+    }
+
+    public static String trimAndRemoveRight(final String value, final char[] removeChars) {
+        VerifyArgument.notNull(value, "value");
+
+        final String trimmedValue = value.trim();
+        final String result = removeRight(trimmedValue, removeChars);
+
+        //noinspection StringEquality
+        if (result == trimmedValue) {
+            return trimmedValue;
+        }
+
+        return trimRight(result);
     }
 }

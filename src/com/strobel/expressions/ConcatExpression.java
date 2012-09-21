@@ -1,5 +1,7 @@
 package com.strobel.expressions;
 
+import com.strobel.collections.ImmutableList;
+import com.strobel.collections.ListBuffer;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
 
@@ -56,17 +58,56 @@ public final class ConcatExpression extends Expression {
 
     @Override
     public Expression reduce() {
+        final ExpressionList<? extends Expression> originalOperands = _operands;
+        final ListBuffer<Expression> reducedOperands = ListBuffer.lb();
+
+        for (int i = 0, n = originalOperands.size(); i < n; i++) {
+            final Expression operand = originalOperands.get(i);
+            
+            if (!ConstantCheck.isStringLiteral(operand)) {
+                reducedOperands.add(operand);
+                continue;
+            }
+            
+            StringBuilder sb = null; 
+            
+            for (int j = i + 1; j < n; j++) {
+                final Expression nextOperand = originalOperands.get(j);
+
+                if (!ConstantCheck.isStringLiteral(nextOperand)) {
+                    break;
+                }
+                
+                if (sb == null) {
+                    sb = new StringBuilder();
+                    sb.append((String)((ConstantExpression)operand).getValue());
+                }
+            
+                sb.append((String)((ConstantExpression)nextOperand).getValue());
+                ++i;
+            }
+
+            reducedOperands.add(
+                sb != null ? constant(sb.toString())
+                           : operand
+            );
+        }
+
         final ParameterExpression sb = variable(Types.StringBuilder);
-        final ExpressionList<? extends Expression> operands = _operands;
-        final Expression[] body = new Expression[operands.size() + 2];
+        final Expression[] body = new Expression[reducedOperands.size() + 2];
 
         body[0] = assign(
             sb,
             makeNew(Types.StringBuilder.getConstructor())
         );
 
-        for (int i = 0, n = operands.size(); i < n; i++) {
-            body[i + 1] = call(sb, "append", operands.get(i));
+        int i = 0;
+
+        for (ImmutableList<Expression> o = reducedOperands.toList();
+             o.nonEmpty();
+             o = o.tail) {
+
+            body[++i] = call(sb, "append", o.head);
         }
 
         body[body.length - 1] = call(sb, "toString");

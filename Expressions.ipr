@@ -311,6 +311,7 @@
         <w>bastore</w>
         <w>bipush</w>
         <w>caload</w>
+        <w>canonicalization</w>
         <w>castore</w>
         <w>checkcast</w>
         <w>classfile</w>
@@ -422,6 +423,7 @@
         <w>superinterface</w>
         <w>supertype</w>
         <w>tableswitch</w>
+        <w>tmpdir</w>
         <w>variable's</w>
       </words>
     </dictionary>

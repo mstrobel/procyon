@@ -772,4 +772,12 @@ final class Error {
             "A concat() expression requires at least two operands."
         );
     }
+
+    public static IllegalArgumentException dynamicMethodCallRequiresTargetOrMethodHandle() {
+        return new IllegalArgumentException(
+            "Invocation target required for DynamicMethod call.  A target " +
+            "instance must be provided, or the DynamicMethod must be constructed " +
+            "from a MethodHandle."
+        );
+    }
 }

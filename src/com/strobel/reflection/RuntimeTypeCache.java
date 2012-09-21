@@ -1155,7 +1155,7 @@ final class RuntimeType<T> extends Type<T> {
     private final TypeBindings _typeBindings;
     private final TypeBindings _allBindings;
 
-    private Type _baseType;
+    private Type<? super T> _baseType;
     private TypeList _interfaces;
     private FieldList _fields;
     private ConstructorList _constructors;
@@ -1175,16 +1175,17 @@ final class RuntimeType<T> extends Type<T> {
         return _reflectedType;
     }
 
+    @SuppressWarnings("unchecked")
     private void ensureBaseType() {
         if (_baseType == null) {
             synchronized (CACHE_LOCK) {
                 if (_baseType == null) {
                     final Type genericBaseType = _basedOn.getBaseType();
                     if (genericBaseType == null || genericBaseType == NullType) {
-                        _baseType = NullType;
+                        _baseType = (Type<? super T>) NullType;
                     }
                     else {
-                        _baseType = GenericBinder.visit(genericBaseType, _allBindings);
+                        _baseType = (Type<? super T>) GenericBinder.visit(genericBaseType, _allBindings);
                     }
                 }
             }
@@ -1262,9 +1263,9 @@ final class RuntimeType<T> extends Type<T> {
     }
 
     @Override
-    public Type getBaseType() {
+    public Type<? super T> getBaseType() {
         ensureBaseType();
-        final Type<?> baseType = _baseType;
+        final Type<? super T> baseType = _baseType;
         return baseType == NullType ? null : baseType;
     }
 

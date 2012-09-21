@@ -5,6 +5,7 @@ import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.io.PathHelper;
 import com.strobel.reflection.BindingFlags;
 import com.strobel.reflection.CallingConvention;
 import com.strobel.reflection.ConstructorInfo;
@@ -46,6 +47,9 @@ import java.util.Set;
  */
 @SuppressWarnings( { "unchecked", "PackageVisibleField" })
 public final class TypeBuilder<T> extends Type<T> {
+    private final static String DumpGeneratedClassesProperty = "com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses";
+    private final static String GeneratedClassOutputPathProperty = "com.strobel.reflection.emit.TypeBuilder.GeneratedClassOutputPath";
+
     final ConstantPool                          constantPool;
     final ArrayList<ConstructorBuilder>         constructorBuilders;
     final ArrayList<MethodBuilder>              methodBuilders;
@@ -57,7 +61,7 @@ public final class TypeBuilder<T> extends Type<T> {
     private String          _fullName;
     private String          _internalName;
     private Package         _package;
-    private Type<?>         _baseType;
+    private Type<? super T> _baseType;
     private ConstructorList _constructors;
     private MethodList      _methods;
     private FieldList       _fields;
@@ -82,7 +86,7 @@ public final class TypeBuilder<T> extends Type<T> {
     public TypeBuilder(
         final String name,
         final int modifiers,
-        final Type<?> baseType,
+        final Type baseType,
         final TypeList interfaces) {
 
         this();
@@ -135,7 +139,7 @@ public final class TypeBuilder<T> extends Type<T> {
         );
     }
 
-    TypeBuilder(final String name, final int modifiers, final Type<?> baseType, final TypeBuilder declaringType) {
+    TypeBuilder(final String name, final int modifiers, final Type baseType, final TypeBuilder declaringType) {
         this();
 
         initialize(
@@ -150,7 +154,7 @@ public final class TypeBuilder<T> extends Type<T> {
     TypeBuilder(
         final String name,
         final int modifiers,
-        final Type<?> baseType,
+        final Type<? super T> baseType,
         final TypeList interfaces,
         final TypeBuilder declaringType) {
 
@@ -178,7 +182,7 @@ public final class TypeBuilder<T> extends Type<T> {
     private void initialize(
         final String fullName,
         final int modifiers,
-        final Type<?> baseType,
+        final Type baseType,
         final TypeList interfaces,
         final TypeBuilder declaringType) {
 
@@ -217,8 +221,8 @@ public final class TypeBuilder<T> extends Type<T> {
         _interfaces = interfaces != null ? interfaces : TypeList.empty();
         updateExtendsBound();
     }
-
-    final void setBaseType(final Type<?> baseType) {
+    
+    final void setBaseType(final Type baseType) {
         verifyNotGeneric();
         verifyNotCreated();
 
@@ -343,7 +347,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    public Type<?> getBaseType() {
+    public Type<? super T> getBaseType() {
         return _baseType;
     }
 
@@ -1147,7 +1151,22 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     private void dump(final byte[] classBytes) {
-        final File temp = new File(System.getenv("TEMP") + File.separator + getInternalName() + ".class");
+        if (!StringUtilities.isTrue(System.getProperty(DumpGeneratedClassesProperty, "false"))) {
+            return;
+        }
+
+        final String outputPathSetting = System.getProperty(GeneratedClassOutputPathProperty);
+
+        final String outputDirectory = outputPathSetting != null
+                                       ? PathHelper.getFullPath(outputPathSetting)
+                                       : PathHelper.getTempPath();
+
+        final String outputFile = PathHelper.combine(
+            outputDirectory,
+            getInternalName().replace('/', PathHelper.DirectorySeparator) + ".class"
+        );
+
+        final File temp = new File(outputFile);
         final File parentDirectory = temp.getParentFile();
 
         if (!parentDirectory.exists() && !parentDirectory.mkdirs()) {

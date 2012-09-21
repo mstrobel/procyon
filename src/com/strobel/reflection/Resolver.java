@@ -922,20 +922,21 @@ class ReflectedType<T> extends Type<T> {
     private final static byte FLAG_ALL_MEMBERS_RESOLVED  = 0x0F;
     private final static byte FLAG_RESOLVING_MEMBERS     = 0x10;
 
-    private final    String   _name;
-    private final    String   _simpleName;
-    private final    Class<T> _rawClass;
-    private          Type<?>  _baseType;
-    private          TypeList _interfaces;
-    private volatile int      _flags;
-    private          boolean  _completed;
-    private          Type<?>  _declaringType;
+    private final    String          _name;
+    private final    String          _simpleName;
+    private final    Class<T>        _rawClass;
+    private          Type<? super T> _baseType;
+    private          TypeList        _interfaces;
+    private volatile int             _flags;
+    private          boolean         _completed;
+    private          Type<?>         _declaringType;
 
-    private List<GenericParameter<?>>     _genericParameters = null;
+    private List<GenericParameter<?>>  _genericParameters = null;
     private List<ReflectedType<?>>     _nestedTypes       = null;
     private List<ReflectedMethod>      _methods           = null;
     private List<ReflectedField>       _fields            = null;
     private List<ReflectedConstructor> _constructors      = null;
+
     private TypeBindings _typeBindings;
 
     ReflectedType(final Class<T> rawClass) {
@@ -972,7 +973,7 @@ class ReflectedType<T> extends Type<T> {
     }
     
     void setBaseType(final Type<?> baseType) {
-        _baseType = baseType;
+        _baseType = (Type<? super T>) baseType;
     }
 
     void setInterfaces(final TypeList interfaces) {
@@ -1196,7 +1197,7 @@ class ReflectedType<T> extends Type<T> {
     }
 
     @Override
-    public Type getBaseType() {
+    public Type<? super T> getBaseType() {
         return _baseType;
     }
 

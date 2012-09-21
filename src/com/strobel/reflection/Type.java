@@ -133,7 +133,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return TypeKind.DECLARED;
     }
 
-    public Type getBaseType() {
+    public Type<? super T> getBaseType() {
         return Type.of(Object.class);
     }
 
