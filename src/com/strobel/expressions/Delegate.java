@@ -14,6 +14,7 @@ public final class Delegate<T> {
     private final T _instance;
     private final MethodInfo _method;
     private MethodHandle _methodHandle;
+    private MethodHandle _spreadInvoker;
 
     Delegate(final T instance, final MethodInfo method) {
         _instance = VerifyArgument.notNull(instance, "instance");
@@ -27,17 +28,29 @@ public final class Delegate<T> {
     public final MethodInfo getMethod() {
         return _method;
     }
-
-    public final Object invokeDynamic(final Object... args) throws TargetInvocationException {
-        try {
-            if (_methodHandle == null) {
+    
+    public final MethodHandle getMethodHandle() {
+        if (_methodHandle == null) {
+            try {
                 _methodHandle = MethodHandles
                     .lookup()
                     .unreflect(_method.getRawMethod())
-                    .bindTo(_instance)
-                    .asSpreader(Object[].class, _method.getParameters().size());
+                    .bindTo(_instance);
             }
-            return _methodHandle.invoke(args);
+            catch (IllegalAccessException e) {
+                throw new IllegalStateException("Could not resolve method handle.");
+            }
+        }
+        return _methodHandle;
+    }
+
+    public final Object invokeDynamic(final Object... args) throws TargetInvocationException {
+        try {
+            if (_spreadInvoker == null) {
+                final MethodHandle methodHandle = getMethodHandle();
+                _spreadInvoker = methodHandle.asSpreader(Object[].class, _method.getParameters().size());
+            }
+            return _spreadInvoker.invoke(args);
         }
         catch (Throwable t) {
             throw new TargetInvocationException(t);

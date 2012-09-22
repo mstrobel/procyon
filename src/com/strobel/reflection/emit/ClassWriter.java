@@ -99,7 +99,7 @@ final class ClassWriter {
             _dataBuffer.putShort(t.getTypeToken(baseType));
         }
         else {
-            _dataBuffer.putShort(0);
+            _dataBuffer.putShort(t.getTypeToken(Types.Object));
         }
 
         _dataBuffer.putShort(interfaceTypes.size());

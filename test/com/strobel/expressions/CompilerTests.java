@@ -33,7 +33,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * @author Mike Strobel
  */
-public class CompilerTests {
+public final class CompilerTests extends AbstractExpressionTest {
     private static final RuntimeException TestRuntimeException = new RuntimeException("More bad shit happened, yo.");
 
     interface IListRetriever<T> {
@@ -986,6 +986,41 @@ public class CompilerTests {
         final int[] numbers = (int[])getter.invokeExact();
 
         assertArrayEquals(new int[] { 1, 2, 3, 4, 5 }, numbers);
+    }
+    
+    @Test
+    public void testUntypedLambdaCreation() throws Throwable {
+        final ParameterExpression p1 = parameter(PrimitiveTypes.Integer);
+        final ParameterExpression p2 = parameter(PrimitiveTypes.Long);
+        final ParameterExpression p3 = parameter(Types.String);
+
+        final LambdaExpression<?> e = lambda(
+            andAlso(
+                lessThan(convert(p1, PrimitiveTypes.Long), p2),
+                isNotNull(p3)
+            ),
+            p1,
+            p2,
+            p3
+        );
+
+        final MethodInfo invokeMethod = Expression.getInvokeMethod(e);
+        final Type<?> returnType = invokeMethod.getReturnType();
+        final TypeList parameterTypes = invokeMethod.getParameters().getParameterTypes();
+        final Type delegateType = invokeMethod.getDeclaringType();
+
+        assertTrue(delegateType.isGenericType());
+        assertEquals(Types.String, delegateType.getTypeArguments().get(0));
+
+        assertEquals(PrimitiveTypes.Boolean, returnType);
+        assertEquals(PrimitiveTypes.Integer, parameterTypes.get(0));
+        assertEquals(PrimitiveTypes.Long, parameterTypes.get(1));
+        assertEquals(Types.String, parameterTypes.get(2));
+
+        final Delegate<?> delegate = e.compileDelegate();
+        final boolean result = (boolean) delegate.getMethodHandle().invokeExact(2, 3L, "moo");
+
+        assertTrue(result);
     }
     
     static <T> T invoke(final Callable<T> callback) {

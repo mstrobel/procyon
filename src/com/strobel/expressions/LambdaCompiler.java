@@ -31,6 +31,7 @@ import com.strobel.reflection.emit.SwitchCallback;
 import com.strobel.reflection.emit.TypeBuilder;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
+import com.sun.deploy.panel.ITreeNode;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;

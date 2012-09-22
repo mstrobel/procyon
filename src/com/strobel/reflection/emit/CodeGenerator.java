@@ -884,14 +884,7 @@ public class CodeGenerator {
             throw Error.argumentIndexOutOfRange(methodBuilder, index);
         }
 
-        final int absoluteIndex;
-
-        if (methodBuilder.isStatic()) {
-            absoluteIndex = index;
-        }
-        else {
-            absoluteIndex = index + 1;
-        }
+        final int absoluteIndex = translateParameter(index);
 
         final OpCode opCode = getLocalLoadOpCode(
             parameterTypes.get(index),
@@ -950,14 +943,7 @@ public class CodeGenerator {
             throw Error.argumentIndexOutOfRange(methodBuilder, index);
         }
 
-        final int absoluteIndex;
-
-        if (methodBuilder.isStatic()) {
-            absoluteIndex = index;
-        }
-        else {
-            absoluteIndex = index + 1;
-        }
+        final int absoluteIndex = translateParameter(index);
 
         final OpCode opCode = getLocalStoreOpCode(
             parameterTypes.get(index),
@@ -1158,6 +1144,27 @@ public class CodeGenerator {
         }
     }
 
+    final int translateParameter(final int localIndex) {
+        int index = localIndex;
+
+        if (methodBuilder != null) {
+            if (!methodBuilder.isStatic()) {
+                ++index;
+            }
+
+            final TypeList parameterTypes = methodBuilder.getParameterTypes();
+            
+            for (int i = 0, n = parameterTypes.size(); i < localIndex && i < n; i++) {
+                final TypeKind kind = parameterTypes.get(i).getKind();
+                if (kind == TypeKind.LONG || kind == TypeKind.DOUBLE) {
+                    ++index;
+                }
+            }
+        }
+
+        return index;
+    }
+    
     final int translateLocal(final int localIndex) {
         int index = localIndex;
 

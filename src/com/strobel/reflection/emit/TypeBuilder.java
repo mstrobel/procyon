@@ -210,7 +210,12 @@ public final class TypeBuilder<T> extends Type<T> {
             _name = fullName.substring(lastDotIndex + 1);
         }
 
-        _modifiers = modifiers & Modifier.classModifiers();
+        if (Modifier.isInterface(modifiers)) {
+            _modifiers = modifiers & (Modifier.interfaceModifiers() | Modifier.INTERFACE);
+        }
+        else {
+            _modifiers = modifiers & Modifier.classModifiers();
+        }
 
         setBaseType(baseType);
         setInterfaces(interfaces);

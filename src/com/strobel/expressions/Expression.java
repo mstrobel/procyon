@@ -940,7 +940,8 @@ public abstract class Expression {
 
         if (method == null) {
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(expression.getType(), type) ||
-                TypeUtils.hasReferenceConversion(expression.getType(), type)) {
+                TypeUtils.hasReferenceConversion(expression.getType(), type) ||
+                TypeUtils.isImplicitNumericConversion(expression.getType(), type)) {
 
                 return new UnaryExpression(ExpressionType.Convert, expression, type, null);
             }
@@ -2319,6 +2320,53 @@ public abstract class Expression {
     // LAMBDA EXPRESSIONS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public static LambdaExpression<?> lambda(
+        final String name,
+        final Expression body,
+        final ParameterExpression... parameters) {
+
+        return lambda(null, name, body, false, arrayToList(parameters));
+    }
+
+    public static LambdaExpression<?> lambda(
+        final Expression body,
+        final ParameterExpression... parameters) {
+
+        return lambda(null, null, body, false, arrayToList(parameters));
+    }
+
+    public static LambdaExpression<?> lambda(
+        final Expression body,
+        final boolean tailCall,
+        final ParameterExpression... parameters) {
+
+        return lambda(null, null, body, tailCall, arrayToList(parameters));
+    }
+
+    public static LambdaExpression<?> lambda(
+        final String name,
+        final Expression body,
+        final boolean tailCall,
+        final ParameterExpression... parameters) {
+
+        return lambda(null, name, body, false, arrayToList(parameters));
+    }
+
+    public static LambdaExpression<?> lambda(
+        final Expression body,
+        final ParameterExpressionList parameters) {
+
+        return lambda(null, null, body, false, parameters);
+    }
+
+    public static LambdaExpression<?> lambda(
+        final Expression body,
+        final boolean tailCall,
+        final ParameterExpressionList parameters) {
+
+        return lambda(null, null, body, tailCall, parameters);
+    }
+    
     public static <T> LambdaExpression<T> lambda(
         final Type<?> interfaceType,
         final String name,
@@ -2379,11 +2427,12 @@ public abstract class Expression {
         final boolean tailCall,
         final ParameterExpressionList parameters) {
 
-        VerifyArgument.notNull(interfaceType, "interfaceType");
         VerifyArgument.notNull(body, "body");
         VerifyArgument.noNullElements(parameters, "parameters");
 
-        validateLambdaArgs(interfaceType, body, parameters);
+        if (interfaceType != null) {
+            validateLambdaArgs(interfaceType, body, parameters);
+        }
 
         return (LambdaExpression<T>)new LambdaExpression<>(interfaceType, name, body, tailCall, parameters);
     }

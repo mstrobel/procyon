@@ -30,15 +30,27 @@ public final class LambdaExpression<T> extends Expression {
         final boolean tailCall,
         final ParameterExpressionList parameters) {
 
-        assert interfaceType != null;
+        if (interfaceType != null) {
+            _interfaceType = interfaceType;
+        }
+        else {
+            _interfaceType = resolveDelegateType(body, parameters);
+        }
 
         _name = name;
         _body = body;
         _tailCall = tailCall;
         _parameters = parameters;
-        _interfaceType = interfaceType;
         _returnType = _interfaceType.getMethods().get(0).getReturnType();
         _creationContext = CallerResolver.getCallerClass(2);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> Type<T> resolveDelegateType(final Expression body, final ParameterExpressionList parameters) {
+        return (Type<T>) CustomDelegateTypeCache.get(
+            body.getType(),
+            parameters.getParameterTypes()
+        );
     }
 
     @Override
@@ -145,3 +157,4 @@ public final class LambdaExpression<T> extends Expression {
         return methodBuilder;
     }
 }
+
