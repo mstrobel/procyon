@@ -77,6 +77,8 @@ public abstract class AbstractExpressionTest {
         outputInfo.recorder.reset();
         System.setOut(outputInfo.systemStream);
         outputInfo.systemStream = null;
+        final Queue<Object> queue = OUTPUT_QUEUE.get();
+        queue.clear();
     }
 
     @SuppressWarnings("PackageVisibleField")
