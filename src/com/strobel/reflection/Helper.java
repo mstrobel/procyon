@@ -156,37 +156,37 @@ final class Helper {
             isAssignable(t, s);
     }
 
-    public static boolean isAssignable(final Type t, final Type s) {
-//        if (TypeUtils.isAutoUnboxed(s)) {
-//            return isAssignable(t, TypeUtils.getUnderlyingPrimitive(s));
+    public static boolean isAssignable(final Type sourceType, final Type targetType) {
+//        if (TypeUtils.isAutoUnboxed(targetType)) {
+//            return isAssignable(sourceType, TypeUtils.getUnderlyingPrimitive(targetType));
 //        }
 
-        return isConvertible(t, s);
+        return isConvertible(sourceType, targetType);
     }
 
-    public static boolean isConvertible(final Type t, final Type s) {
-        final boolean tPrimitive = t.isPrimitive();
-        final boolean sPrimitive = s.isPrimitive();
+    public static boolean isConvertible(final Type sourceType, final Type targetType) {
+        final boolean tPrimitive = sourceType.isPrimitive();
+        final boolean sPrimitive = targetType.isPrimitive();
 
-        if (t == Type.NullType) {
-            return !s.isPrimitive();
+        if (sourceType == Type.NullType) {
+            return !targetType.isPrimitive();
         }
 
-        if (s == Types.Object) {
-            return !t.isPrimitive();
+        if (targetType == Types.Object) {
+            return true;
         }
 
-        if (s.isGenericParameter()) {
-            return isConvertible(t, s.getExtendsBound());
+        if (targetType.isGenericParameter()) {
+            return isConvertible(sourceType, targetType.getExtendsBound());
         }
         
         if (tPrimitive == sPrimitive) {
-            return isSubtypeUnchecked(t, s);
+            return isSubtypeUnchecked(sourceType, targetType);
         }
 
         return tPrimitive
-               ? isSubtype(TypeUtils.getBoxedTypeOrSelf(t), s)
-               : isSubtype(TypeUtils.getUnderlyingPrimitiveOrSelf(t), s);
+               ? isSubtype(TypeUtils.getBoxedTypeOrSelf(sourceType), targetType)
+               : isSubtype(TypeUtils.getUnderlyingPrimitiveOrSelf(sourceType), targetType);
     }
 
     public static boolean isSubtypeUnchecked(final Type t, final Type s) {

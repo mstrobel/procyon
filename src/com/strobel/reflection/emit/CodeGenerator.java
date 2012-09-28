@@ -470,6 +470,8 @@ public class CodeGenerator {
 
         final TypeList parameterTypes;
 
+        int formalParametersSize = 0;
+
         if (method instanceof MethodBuilder) {
             parameterTypes = ((MethodBuilder)method).getParameterTypes();
         }
@@ -477,15 +479,15 @@ public class CodeGenerator {
             parameterTypes = method.getParameters().getParameterTypes();
         }
 
-        if (opCode == OpCode.INVOKEINTERFACE) {
-            int argsSize = 1;
-
-            for (final Type<?> parameterType : parameterTypes) {
-                ++argsSize;
-                if (parameterType == PrimitiveTypes.Long || parameterType == PrimitiveTypes.Double) {
-                    ++argsSize;
-                }
+        for (final Type<?> parameterType : parameterTypes) {
+            ++formalParametersSize;
+            if (parameterType == PrimitiveTypes.Long || parameterType == PrimitiveTypes.Double) {
+                ++formalParametersSize;
             }
+        }
+
+        if (opCode == OpCode.INVOKEINTERFACE) {
+            final int argsSize = 1 + formalParametersSize;
 
             emitByteOperand((byte)argsSize);
             emitByteOperand((byte)0);
@@ -493,17 +495,15 @@ public class CodeGenerator {
 
         registerCheckedExceptions(method);
 
-        int stackChange = 0;
+        int stackChange = -formalParametersSize;
 
-        if (method instanceof MethodBuilder) {
-            stackChange -= parameterTypes.size();
-        }
-        else {
-            stackChange -= method.getParameters().size();
-        }
+        final Type<?> returnType = method.getReturnType();
 
-        if (method.getReturnType() != PrimitiveTypes.Void) {
+        if (returnType != PrimitiveTypes.Void) {
             ++stackChange;
+            if (returnType == PrimitiveTypes.Long || returnType == PrimitiveTypes.Double) {
+                ++stackChange;
+            }
         }
 
         updateStackSize(opCode, stackChange);
