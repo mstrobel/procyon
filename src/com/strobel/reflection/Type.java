@@ -45,6 +45,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     protected static final MemberInfo[] EmptyMembers = EmptyArrayCache.fromElementType(MemberInfo.class);
 
     protected static final Set<BindingFlags> DefaultLookup = BindingFlags.PublicAll;
+    protected static final WildcardType<Object> UnboundedWildcard;
 
     // </editor-fold>
 
@@ -274,8 +275,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public boolean hasSuperBound() {
-        return isWildcardType() &&
-               (getSuperBound() != Bottom || getExtendsBound() == Types.Object);
+        return isWildcardType() && getSuperBound() != Bottom;
     }
 
     public Type<?> getExtendsBound() {
@@ -1470,6 +1470,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             Types.ensureRegistered();
 
             TYPE_BINDER = new TypeBinder();
+
+            UnboundedWildcard = new WildcardType<>(Type.of(Object.class), Type.Bottom);
         }
     }
 
@@ -1673,10 +1675,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public static WildcardType<?> makeWildcard() {
-        return new WildcardType<>(
-            Types.Object,
-            Bottom
-        );
+        return UnboundedWildcard;
     }
 
     public static CompoundType<?> makeCompoundType(final TypeList bounds) {

@@ -2,6 +2,8 @@ package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
 
+import javax.lang.model.type.TypeKind;
+
 /**
  * @author Mike Strobel
  */
@@ -23,5 +25,20 @@ final class CapturedType<T> extends GenericParameter<T> implements ICapturedType
     @Override
     public Type<?> getWildcard() {
         return _wildcard;
+    }
+
+    @Override
+    public boolean isGenericParameter() {
+        return false;
+    }
+
+    @Override
+    public TypeKind getKind() {
+        return TypeKind.WILDCARD;
+    }
+
+    @Override
+    public boolean isWildcardType() {
+        return true;
     }
 }

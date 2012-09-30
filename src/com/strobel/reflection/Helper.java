@@ -839,31 +839,44 @@ final class Helper {
                 return null;
             }
 
-            if (t.isGenericType() &&
-                p.isGenericType() &&
-                t.getGenericTypeDefinition() == p.getGenericTypeDefinition()) {
+            if (t.isGenericType()) {
+                if (p.isGenericType()) {
+                    if (t.getGenericTypeDefinition() == p.getGenericTypeDefinition()) {
 
-                boolean areTypeArgumentsAssignable = true;
+                        boolean areTypeArgumentsAssignable = true;
 
-                final TypeList ta = t.getTypeArguments();
-                final TypeList tp = p.getTypeArguments();
+                        final TypeList ta = t.getTypeArguments();
+                        final TypeList tp = p.getTypeArguments();
 
-                for (int i = 0, n = ta.size(); i < n; i++) {
-                    final Type<?> at = ta.get(i);
-                    final Type<?> ap = tp.get(i);
+                        for (int i = 0, n = ta.size(); i < n; i++) {
+                            final Type<?> at = ta.get(i);
+                            final Type<?> ap = tp.get(i);
 
-                    if (ap.hasExtendsBound() && ap.getExtendsBound() == p) {
-                        continue;
-                    }
+                            if (ap == at)
+                                continue;
 
-                    if (!ap.isAssignableFrom(at)) {
-                        areTypeArgumentsAssignable = false;
-                        break;
+                            if (ap.hasExtendsBound()) {
+                                final Type<?> extendsBound = ap.getExtendsBound();
+                                if (extendsBound == p || extendsBound.isAssignableFrom(at)) {
+                                    continue;
+                                }
+                            }
+
+                            if (ap.hasSuperBound() && isSuperType(at, ap.getSuperBound())) {
+                                continue;
+                            }
+
+                            areTypeArgumentsAssignable = false;
+                            break;
+                        }
+
+                        if (areTypeArgumentsAssignable) {
+                            return t;
+                        }
                     }
                 }
-
-                if (areTypeArgumentsAssignable) {
-                    return p;
+                else if (p instanceof ErasedType<?> && t.getErasedType() == p) {
+                    return t;
                 }
             }
 
@@ -1315,14 +1328,14 @@ final class Helper {
                    isSubtypeNoCapture(superDeclaringType, sDeclaringType);
 */
             final Type asSuper = asSuper(t, s);
-            return asSuper != null && asSuper == s
+            return asSuper != null //&& asSuper == s
                    // You're not allowed to write
                    //     Vector<Object> vec = new Vector<String>();
                    // But with wildcards you can write
                    //     Vector<? extends Object> vec = new Vector<String>();
                    // which means that subtype checking must be done
                    // here instead of same-type checking (via containsType).
-                   && (!s.isGenericType() || containsTypeRecursive(s, asSuper))
+                   && (!s.isGenericParameter() && !s.isWildcardType() || containsTypeRecursive(s, asSuper))
                    && isSubtypeNoCapture(asSuper.getDeclaringType(), s.getDeclaringType());
         }
 
@@ -1732,10 +1745,10 @@ final class Helper {
         if (cl == null) {
             final Type st = superType(t);
             if (!t.isCompoundType()) {
-                if (st.getKind() == TypeKind.DECLARED) {
+                if (st != null && st.getKind() == TypeKind.DECLARED) {
                     cl = insert(closure(st), t);
                 }
-                else if (st.getKind() == TypeKind.TYPEVAR) {
+                else if (st != null && st.getKind() == TypeKind.TYPEVAR) {
                     cl = closure(st).prepend(t);
                 }
                 else {
