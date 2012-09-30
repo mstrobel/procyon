@@ -268,12 +268,12 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                getExtendsBound() == Types.Object;
     }
 
-    public boolean isExtendsBound() {
+    public boolean hasExtendsBound() {
         return isGenericParameter() ||
                isWildcardType() && getSuperBound() == Bottom;
     }
 
-    public boolean isSuperBound() {
+    public boolean hasSuperBound() {
         return isWildcardType() &&
                (getSuperBound() != Bottom || getExtendsBound() == Types.Object);
     }

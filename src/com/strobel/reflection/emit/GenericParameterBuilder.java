@@ -276,7 +276,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
-    public boolean isExtendsBound() {
+    public boolean hasExtendsBound() {
         return false;
     }
 

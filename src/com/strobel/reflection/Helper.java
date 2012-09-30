@@ -19,7 +19,7 @@ import static com.strobel.collections.ListBuffer.lb;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings({"unchecked"})
+@SuppressWarnings({ "unchecked" })
 final class Helper {
 
     private Helper() {}
@@ -105,7 +105,7 @@ final class Helper {
     public static boolean overrides(final MethodBase method, final MethodBase other, final boolean checkResult) {
         return method instanceof MethodInfo &&
                other instanceof MethodInfo &&
-               overrides((MethodInfo) method, (MethodInfo) other, checkResult);
+               overrides((MethodInfo)method, (MethodInfo)other, checkResult);
     }
 
     public static boolean overrides(final MethodInfo method, final MethodInfo other, final boolean checkResult) {
@@ -157,9 +157,9 @@ final class Helper {
     }
 
     public static boolean isAssignable(final Type sourceType, final Type targetType) {
-//        if (TypeUtils.isAutoUnboxed(targetType)) {
-//            return isAssignable(sourceType, TypeUtils.getUnderlyingPrimitive(targetType));
-//        }
+        if (targetType.isGenericParameter() || targetType.hasExtendsBound()) {
+            return isConvertible(sourceType, targetType.getExtendsBound());
+        }
 
         return isConvertible(sourceType, targetType);
     }
@@ -179,7 +179,7 @@ final class Helper {
         if (targetType.isGenericParameter()) {
             return isConvertible(sourceType, targetType.getExtendsBound());
         }
-        
+
         if (tPrimitive == sPrimitive) {
             return isSubtypeUnchecked(sourceType, targetType);
         }
@@ -206,8 +206,8 @@ final class Helper {
             return isSubtypeUnchecked(t, s.getExtendsBound());
         }
         else if (s.isGenericType() && !s.isGenericTypeDefinition()) {
-            final Type t2 = asSuper(t, s.getGenericTypeDefinition());
-            if (t2 != null && t2.isGenericTypeDefinition()) {
+            final Type t2 = asSuper(t, s);
+            if (t2 != null) {
                 return true;
             }
         }
@@ -267,7 +267,7 @@ final class Helper {
         if (t == p) {
             return true;
         }
-        
+
         if (p == null) {
             return false;
         }
@@ -385,7 +385,7 @@ final class Helper {
                         Si.getWildcard()
                     );
                 }
-                else if (Ti.isExtendsBound()) {
+                else if (Ti.hasExtendsBound()) {
                     currentS.head = Si = new CapturedType(
                         Si.getDeclaringType(),
                         glb(Ti.getExtendsBound(), substitute(Ui, A, S)),
@@ -548,13 +548,13 @@ final class Helper {
             return t.isUnbound();
         }
 
-        if (p.isSuperBound()) {
-            return t.isSuperBound() &&
+        if (p.hasSuperBound()) {
+            return t.hasSuperBound() &&
                    isSameType(p.getSuperBound(), t.getSuperBound());
         }
 
-        return p.isExtendsBound() &&
-               t.isExtendsBound() &&
+        return p.hasExtendsBound() &&
+               t.hasExtendsBound() &&
                isSameType(p.getExtendsBound(), t.getExtendsBound());
     }
 
@@ -800,14 +800,16 @@ final class Helper {
     }
 
     public static boolean inSamePackage(final Type t1, final Type t2) {
-        if (t1 == t2)
+        if (t1 == t2) {
             return true;
+        }
 
         final String name1 = t1.getFullName();
         final String name2 = t2.getFullName();
 
-        if (name1 == null || name2 == null)
+        if (name1 == null || name2 == null) {
             return false;
+        }
 
         final int packageEnd1 = name1.lastIndexOf('.');
         final int packageEnd2 = name2.lastIndexOf('.');
@@ -832,16 +834,37 @@ final class Helper {
             if (t == p) {
                 return t;
             }
-            
+
             if (t == null) {
                 return null;
             }
 
             if (t.isGenericType() &&
-                p.isGenericTypeDefinition() &&
-                t.getGenericTypeDefinition() == p) {
+                p.isGenericType() &&
+                t.getGenericTypeDefinition() == p.getGenericTypeDefinition()) {
 
-                return p;
+                boolean areTypeArgumentsAssignable = true;
+
+                final TypeList ta = t.getTypeArguments();
+                final TypeList tp = p.getTypeArguments();
+
+                for (int i = 0, n = ta.size(); i < n; i++) {
+                    final Type<?> at = ta.get(i);
+                    final Type<?> ap = tp.get(i);
+
+                    if (ap.hasExtendsBound() && ap.getExtendsBound() == p) {
+                        continue;
+                    }
+
+                    if (!ap.isAssignableFrom(at)) {
+                        areTypeArgumentsAssignable = false;
+                        break;
+                    }
+                }
+
+                if (areTypeArgumentsAssignable) {
+                    return p;
+                }
             }
 
             final Type superType = superType(t);
@@ -924,8 +947,8 @@ final class Helper {
 
         @Override
         public Boolean visitWildcardType(final Type type, final Type parameter) {
-            return parameter.isSuperBound() &&
-                   !parameter.isExtendsBound() &&
+            return parameter.hasSuperBound() &&
+                   !parameter.hasExtendsBound() &&
                    visit(type, upperBound(parameter));
         }
 
@@ -943,10 +966,10 @@ final class Helper {
     private final static TypeMapper<Void> UpperBoundVisitor = new TypeMapper<Void>() {
         @Override
         public Type visitWildcardType(final Type t, final Void ignored) {
-            if (t.isSuperBound()) {
+            if (t.hasSuperBound()) {
                 final Type lowerBound = t.getSuperBound();
 
-                if (lowerBound.isExtendsBound()) {
+                if (lowerBound.hasExtendsBound()) {
                     return visit(lowerBound.getExtendsBound());
                 }
 
@@ -966,7 +989,7 @@ final class Helper {
     private final static TypeMapper<Void> LowerBoundVisitor = new TypeMapper<Void>() {
         @Override
         public Type visitWildcardType(final Type t, final Void ignored) {
-            return t.isExtendsBound() ? Type.Bottom : visit(t.getSuperBound());
+            return t.hasExtendsBound() ? Type.Bottom : visit(t.getSuperBound());
         }
 
         @Override
@@ -1010,9 +1033,9 @@ final class Helper {
 
         private Type U(Type t) {
             while (t.isWildcardType()) {
-                if (t.isSuperBound()) {
+                if (t.hasSuperBound()) {
                     final Type lowerBound = t.getSuperBound();
-                    if (lowerBound.isExtendsBound()) {
+                    if (lowerBound.hasExtendsBound()) {
                         return lowerBound.getExtendsBound();
                     }
                     return Types.Object;
@@ -1024,7 +1047,7 @@ final class Helper {
 
         private Type L(Type t) {
             while (t.isWildcardType()) {
-                if (t.isExtendsBound()) {
+                if (t.hasExtendsBound()) {
                     return Type.Bottom;
                 }
                 else {
@@ -1042,76 +1065,77 @@ final class Helper {
         public Boolean visitWildcardType(final Type t, final Type p) {
             return isSameWildcard(t, p) ||
                    isCaptureOf(p, t) ||
-                   ((t.isExtendsBound() || isSubtypeNoCapture(L(t), lowerBound(p))) &&
-                    (t.isSuperBound() || isSubtypeNoCapture(upperBound(p), U(t))));
+                   ((t.hasExtendsBound() || isSubtypeNoCapture(L(t), lowerBound(p))) &&
+                    (t.hasSuperBound() || isSubtypeNoCapture(upperBound(p), U(t))));
         }
     };
 
-    private final static SimpleVisitor<ImmutableList<Type>, ImmutableList<Type>> InterfacesVisitor = new SimpleVisitor<ImmutableList<Type>, ImmutableList<Type>>() {
-        @Override
-        public ImmutableList<Type> visitPrimitiveType(final Type<?> type, final ImmutableList<Type> parameter) {
-            return ImmutableList.empty();
-        }
-
-        @Override
-        public ImmutableList<Type> visitArrayType(final Type<?> type, final ImmutableList<Type> parameter) {
-            return ImmutableList.empty();
-        }
-
-        @Override
-        public ImmutableList<Type> visitCapturedType(final Type<?> t, final ImmutableList<Type> s) {
-            return ImmutableList.empty();
-        }
-
-        @Override
-        public ImmutableList<Type> visit(final Type<?> type) {
-            return ImmutableList.empty();
-        }
-
-        @Override
-        public ImmutableList<Type> visitType(final Type<?> t, final ImmutableList<Type> ignored) {
-            return ImmutableList.empty();
-        }
-
-        @Override
-        public ImmutableList<Type> visitClassType(final Type<?> t, final ImmutableList<Type> list) {
-            final TypeList interfaces = t.getExplicitInterfaces();
-
-            if (interfaces.isEmpty()) {
+    private final static SimpleVisitor<ImmutableList<Type>, ImmutableList<Type>> InterfacesVisitor =
+        new SimpleVisitor<ImmutableList<Type>, ImmutableList<Type>>() {
+            @Override
+            public ImmutableList<Type> visitPrimitiveType(final Type<?> type, final ImmutableList<Type> parameter) {
                 return ImmutableList.empty();
             }
 
-            ImmutableList<Type> result = union(list, ImmutableList.from(t.getExplicitInterfaces().toArray()));
+            @Override
+            public ImmutableList<Type> visitArrayType(final Type<?> type, final ImmutableList<Type> parameter) {
+                return ImmutableList.empty();
+            }
 
-            for (final Type ifType : interfaces) {
-                if (!list.contains(ifType)) {
-                    result = union(result, visit(ifType, result));
+            @Override
+            public ImmutableList<Type> visitCapturedType(final Type<?> t, final ImmutableList<Type> s) {
+                return ImmutableList.empty();
+            }
+
+            @Override
+            public ImmutableList<Type> visit(final Type<?> type) {
+                return ImmutableList.empty();
+            }
+
+            @Override
+            public ImmutableList<Type> visitType(final Type<?> t, final ImmutableList<Type> ignored) {
+                return ImmutableList.empty();
+            }
+
+            @Override
+            public ImmutableList<Type> visitClassType(final Type<?> t, final ImmutableList<Type> list) {
+                final TypeList interfaces = t.getExplicitInterfaces();
+
+                if (interfaces.isEmpty()) {
+                    return ImmutableList.empty();
                 }
+
+                ImmutableList<Type> result = union(list, ImmutableList.from(t.getExplicitInterfaces().toArray()));
+
+                for (final Type ifType : interfaces) {
+                    if (!list.contains(ifType)) {
+                        result = union(result, visit(ifType, result));
+                    }
+                }
+
+                return result;
             }
 
-            return result;
-        }
+            @Override
+            public ImmutableList<Type> visitTypeParameter(final Type<?> t, final ImmutableList<Type> list) {
+                final Type upperBound = t.getExtendsBound();
 
-        @Override
-        public ImmutableList<Type> visitTypeParameter(final Type<?> t, final ImmutableList<Type> list) {
-            final Type upperBound = t.getExtendsBound();
+                if (upperBound.isCompoundType()) {
+                    return interfaces(upperBound);
+                }
 
-            if (upperBound.isCompoundType()) {
-                return interfaces(upperBound);
+                if (upperBound.isInterface()) {
+                    return ImmutableList.of(upperBound);
+                }
+
+                return ImmutableList.empty();
             }
 
-            if (upperBound.isInterface()) {
-                return ImmutableList.of(upperBound);
+            @Override
+            public ImmutableList<Type> visitWildcardType(final Type<?> type, final ImmutableList<Type> list) {
+                return visit(type.getExtendsBound());
             }
-
-            return ImmutableList.empty();
-        }
-
-        @Override
-        public ImmutableList<Type> visitWildcardType(final Type<?> type, final ImmutableList<Type> list) {
-            return visit(type.getExtendsBound());
-        }
-    };
+        };
 
     public static Type superType(final Type t) {
         return SuperTypeVisitor.visit(t);
@@ -1244,7 +1268,7 @@ final class Helper {
             boolean changed = false;
             for (final Type orig : to.toList()) {
                 Type<?> s = rewriteSupers(orig);
-                if (s.isSuperBound() && !s.isExtendsBound()) {
+                if (s.hasSuperBound() && !s.hasExtendsBound()) {
                     s = new WildcardType<>(
                         Types.Object,
                         Type.Bottom
@@ -1300,7 +1324,6 @@ final class Helper {
                    // here instead of same-type checking (via containsType).
                    && (!s.isGenericType() || containsTypeRecursive(s, asSuper))
                    && isSubtypeNoCapture(asSuper.getDeclaringType(), s.getDeclaringType());
-
         }
 
         @Override
@@ -1375,10 +1398,10 @@ final class Helper {
         @Override
         public Void visitWildcardType(final Type source, final Type target)
             throws AdaptFailure {
-            if (source.isExtendsBound()) {
+            if (source.hasExtendsBound()) {
                 adaptRecursive(upperBound(source), upperBound(target));
             }
-            else if (source.isSuperBound()) {
+            else if (source.hasSuperBound()) {
                 adaptRecursive(lowerBound(source), lowerBound(target));
             }
             return null;
@@ -1392,11 +1415,11 @@ final class Helper {
             // the old mapping will be merged with the new
             Type val = mapping.get(source);
             if (val != null) {
-                if (val.isSuperBound() && target.isSuperBound()) {
+                if (val.hasSuperBound() && target.hasSuperBound()) {
                     val = isSubtype(lowerBound(val), lowerBound(target))
                           ? target : val;
                 }
-                else if (val.isExtendsBound() && target.isExtendsBound()) {
+                else if (val.hasExtendsBound() && target.hasExtendsBound()) {
                     val = isSubtype(upperBound(val), upperBound(target))
                           ? val : target;
                 }
