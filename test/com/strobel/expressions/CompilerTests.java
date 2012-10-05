@@ -918,7 +918,52 @@ public final class CompilerTests extends AbstractExpressionTest {
 
         assertSame(expectedResult, result);
     }
-    
+
+    @Test
+    public void testNestedLambdaClosureAccess() throws Throwable {
+        final Type<?> callable = Type.of(Callable.class).makeGenericType(Types.Integer);
+
+        final int expectedResult = 84;
+        final ParameterExpression temp = variable(PrimitiveTypes.Integer);
+        final ParameterExpression innerTemp = variable(PrimitiveTypes.Integer);
+
+        final LambdaExpression outer = lambda(
+            block(
+                new ParameterExpression[] { temp },
+                assign(temp, constant(42)),
+                call(
+                    Type.of(CompilerTests.class),
+                    "invoke",
+                    Type.list(Types.Integer),
+                    lambda(
+                        callable,
+                        block(
+                            new ParameterExpression[] { innerTemp },
+                            assign(innerTemp, temp),
+                            assign(temp, multiply(temp, constant(2))),
+                            innerTemp
+                        )
+                    )
+                ),
+                temp
+            )
+        );
+
+        System.out.println();
+        System.out.println(outer);
+
+        final Delegate delegate = outer.compileDelegate();
+        final MethodHandle handle = delegate.getMethodHandle();
+
+        System.out.printf("\n[%s]\n", handle.getClass().getSimpleName());
+
+        final int result = (int) handle.invokeExact();
+
+        System.out.println(result);
+
+        assertEquals(expectedResult, result);
+    }
+
     @Test
     public void testNew() throws Exception {
         final Type<NeedsTwoCtorArgs> resultType = Type.of(NeedsTwoCtorArgs.class);

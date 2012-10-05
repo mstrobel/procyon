@@ -215,14 +215,14 @@ public final class TypeUtils {
             return false;
         }
 
-        if (source.isPrimitive() || destination.isPrimitive()) {
-            return false;
-        }
-        
         if (areEquivalent(source, destination)) {
             return true;
         }
-        
+
+        if (source.isPrimitive() || destination.isPrimitive()) {
+            return false;
+        }
+
         // Object conversion
         if (source == Types.Object || destination == Types.Object) {
             return true;

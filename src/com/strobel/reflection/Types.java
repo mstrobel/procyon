@@ -1,7 +1,16 @@
 package com.strobel.reflection;
 
 import com.strobel.compilerservices.Closure;
+import com.strobel.core.BooleanBox;
+import com.strobel.core.ByteBox;
+import com.strobel.core.CharacterBox;
 import com.strobel.core.Comparer;
+import com.strobel.core.DoubleBox;
+import com.strobel.core.FloatBox;
+import com.strobel.core.IntegerBox;
+import com.strobel.core.LongBox;
+import com.strobel.core.ShortBox;
+import com.strobel.core.StrongBox;
 
 import java.io.Serializable;
 import java.lang.Error;
@@ -84,6 +93,16 @@ public final class Types {
 
     public static final Type<MethodHandle> MethodHandle;
 
+    public static final Type<StrongBox> StrongBox;
+    public static final Type<BooleanBox> BooleanBox;
+    public static final Type<CharacterBox> CharacterBox;
+    public static final Type<ByteBox> ByteBox;
+    public static final Type<ShortBox> ShortBox;
+    public static final Type<IntegerBox> IntegerBox;
+    public static final Type<LongBox> LongBox;
+    public static final Type<FloatBox> FloatBox;
+    public static final Type<DoubleBox> DoubleBox;
+
     static {
         Object = Type.of(Object.class);
         Enum = Type.of(Enum.class);
@@ -139,6 +158,16 @@ public final class Types {
         Closure = Type.of(Closure.class);
 
         MethodHandle = Type.of(MethodHandle.class);
+
+        StrongBox = Type.of(StrongBox.class);
+        BooleanBox = Type.of(BooleanBox.class);
+        CharacterBox = Type.of(CharacterBox.class);
+        ByteBox = Type.of(ByteBox.class);
+        ShortBox = Type.of(ShortBox.class);
+        IntegerBox = Type.of(IntegerBox.class);
+        LongBox = Type.of(LongBox.class);
+        FloatBox = Type.of(FloatBox.class);
+        DoubleBox = Type.of(DoubleBox.class);
     }
 
     static void ensureRegistered() {

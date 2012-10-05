@@ -135,6 +135,15 @@ public final class TypeTests {
         assertFalse(l.makeGenericType(s).isAssignableFrom(a));
         
         // ArrayList<String> a; List<T> l = a;
+        assertTrue(l.isAssignableFrom(a.makeGenericType(s)));
+
+        // ArrayList<? extends String> a; List<T> l = a;
+        assertTrue(l.isAssignableFrom(a.makeGenericType(Type.makeExtendsWildcard(s))));
+
+        // ArrayList<? super String> a; List<T> l = a;
         assertTrue(l.isAssignableFrom(a.makeGenericType(Type.makeSuperWildcard(s))));
+
+        // ArrayList<?> a; List<T> l = a;
+        assertTrue(l.isAssignableFrom(a.makeGenericType(Type.makeWildcard())));
     }
 }

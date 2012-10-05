@@ -9,6 +9,7 @@ import com.strobel.reflection.Type;
 import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.reflection.emit.TypeBuilder;
 
+import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Modifier;
 
 /**
@@ -110,6 +111,10 @@ public final class LambdaExpression<T> extends Expression {
 
     public final Delegate<T> compileDelegate() {
         return LambdaCompiler.compile(this, DebugInfoGenerator.empty());
+    }
+
+    public final MethodHandle compileHandle() {
+        return LambdaCompiler.compile(this, DebugInfoGenerator.empty()).getMethodHandle();
     }
 
     public final void compileToMethod(final MethodBuilder methodBuilder) {

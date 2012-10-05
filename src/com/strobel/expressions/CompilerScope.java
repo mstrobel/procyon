@@ -120,8 +120,7 @@ final class CompilerScope {
             lc.generator.dup();
             lc.generator.emitInteger(i++);
 
-            final Type boxType = Type.of(StrongBox.class).makeGenericType(v.getType());
-
+            final Type boxType = StrongBox.getBoxType(v.getType());
             final ConstructorInfo constructor = boxType.getConstructor(v.getType());
             
             if (isMethod && lc.getParameters().contains(v)) {
@@ -490,7 +489,7 @@ final class CompilerScope {
             super(array.compiler, variable);
             _array = array;
             _index = index;
-            _boxType = Type.of(StrongBox.class).makeGenericType(variable.getType());
+            _boxType = StrongBox.getBoxType(variable.getType());
             _boxValueField = _boxType.getField("value");
         }
 
@@ -532,7 +531,7 @@ final class CompilerScope {
 
         private LocalBoxStorage(final LambdaCompiler compiler, final ParameterExpression variable) {
             super(compiler, variable);
-            _boxType = Type.of(StrongBox.class).makeGenericType(variable.getType());
+            _boxType = StrongBox.getBoxType(variable.getType());
             _boxValueField = _boxType.getField("value");
             _boxLocal = compiler.getNamedLocal(_boxType, variable);
         }

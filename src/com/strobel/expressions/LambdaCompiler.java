@@ -31,7 +31,6 @@ import com.strobel.reflection.emit.SwitchCallback;
 import com.strobel.reflection.emit.TypeBuilder;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
-import com.sun.deploy.panel.ITreeNode;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -2749,18 +2748,26 @@ final class LambdaCompiler {
         // Need to emit the expression start for the lambda body
         flags = updateEmitExpressionStartFlag(flags, CompilationFlags.EmitExpressionStart);
 
-        if (lambda.getReturnType() == PrimitiveTypes.Void) {
-            emitExpressionAsVoid(lambda.getBody(), flags);
+        final Expression body = lambda.getBody();
+        final Type<?> bodyType = body.getType();
+        final Type returnType = lambda.getReturnType();
+
+        if (returnType == PrimitiveTypes.Void) {
+            emitExpressionAsVoid(body, flags);
         }
         else {
-            emitExpression(lambda.getBody(), flags);
+            emitExpression(body, flags);
+
+            if (!TypeUtils.hasReferenceConversion(bodyType, returnType)) {
+                generator.emitConversion(bodyType, returnType);
+            }
         }
 
         // Return must be the last instruction in a CLI method.
         // But if we're inlining the lambda, we want to leave the return
         // value on the IL stack.
         if (!inlined) {
-            generator.emitReturn(lambda.getReturnType());
+            generator.emitReturn(returnType);
         }
 
         _scope.exit();
