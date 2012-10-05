@@ -147,12 +147,10 @@ final class StackSpiller {
             }
 
             // Clone the lambda, replacing the body & variables 
-            return new LambdaExpression<>(
-                lambda.getType(),
-                lambda.getName(),
+            return lambda.update(
                 newBody,
-                lambda.isTailCall(),
-                lambda.getParameters());
+                lambda.getParameters()
+            );
         }
 
         return lambda;

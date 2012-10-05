@@ -22,7 +22,7 @@ public final class LambdaExpression<T> extends Expression {
     private final Type<T> _interfaceType;
     private final boolean _tailCall;
     private final Type _returnType;
-    private final Class<?> _creationContext;
+    private Class<?> _creationContext;
 
     LambdaExpression(
         final Type<T> interfaceType,
@@ -88,7 +88,18 @@ public final class LambdaExpression<T> extends Expression {
         if (body == _body && parameters == _parameters) {
             return this;
         }
-        return Expression.lambda(_interfaceType, getName(), body, isTailCall(), parameters);
+
+        final LambdaExpression<T> updatedLambda = Expression.lambda(
+            _interfaceType,
+            getName(),
+            body,
+            isTailCall(),
+            parameters
+        );
+
+        updatedLambda._creationContext = _creationContext;
+
+        return updatedLambda;
     }
 
     @Override
