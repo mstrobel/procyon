@@ -72,7 +72,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
         return _offset;
     }
 
-    protected T[] getElements() {
+    protected final T[] getElements() {
         return _elements;
     }
 

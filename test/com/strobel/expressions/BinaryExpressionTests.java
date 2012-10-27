@@ -7,7 +7,7 @@ import java.math.BigInteger;
 import java.util.concurrent.Callable;
 
 import static com.strobel.expressions.Expression.*;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 /**
  * @author Mike Strobel
@@ -52,5 +52,13 @@ public class BinaryExpressionTests extends AbstractExpressionTest {
         assertEquals(expectedModResult, result[4]);
         assertEquals(expectedShLResult, result[5]);
         assertEquals(expectedShRResult, result[6]);
+    }
+
+    @Test
+    public void testComparisonOperators() throws Throwable {
+        assertResultTrue(lessThanOrEqual(constant(1), constant(1)));
+        assertResultTrue(lessThan(constant(2), constant(3L)));
+        assertResultFalse(greaterThan(constant(2d), constant(3d)));
+        assertResultTrue(lessThanOrEqual(constant(2f), constant((byte)2)));
     }
 }

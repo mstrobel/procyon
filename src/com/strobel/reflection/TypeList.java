@@ -1,9 +1,11 @@
 package com.strobel.reflection;
 
+import com.strobel.core.HashUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.TypeUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -162,5 +164,26 @@ public class TypeList extends MemberList<Type> {
         }
         
         return new TypeList(erasedTypes);
+    }
+
+    @Override
+    public int hashCode() {
+        int hashCode = HashUtilities.NullHashCode;
+
+        for (final Type<?> type : super.getElements()) {
+            hashCode = HashUtilities.combineHashCodes(hashCode, type.hashCode());
+        }
+
+        return hashCode;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        return super.equals(obj);
+    }
+
+    public boolean equals(final TypeList other) {
+        return other == this ||
+               other != null && Arrays.equals(super.getElements(), other.getElements());
     }
 }

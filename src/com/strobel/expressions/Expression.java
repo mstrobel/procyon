@@ -3668,8 +3668,9 @@ public abstract class Expression {
         final Expression left,
         final Expression right) {
 
-        if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), right.getType()) &&
-            TypeUtils.isArithmetic(left.getType())) {
+        if (TypeUtils.isArithmetic(left.getType()) &&
+            (TypeUtils.isArithmetic(right.getType()) ||
+             TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), right.getType()))) {
 
             return new LogicalBinaryExpression(binaryType, left, right);
         }

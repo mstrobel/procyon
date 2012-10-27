@@ -8,6 +8,9 @@ import java.io.PrintStream;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
+import static com.strobel.expressions.Expression.lambda;
+import static org.junit.Assert.*;
+
 /**
  * @author Mike Strobel
  */
@@ -93,5 +96,45 @@ public abstract class AbstractExpressionTest {
             this.recorder = new OutputRecorder(System.out, outputQueue);
             this.recorderStream = new PrintStream(recorder);
         }
+    }
+
+    protected static void assertResultTrue(final Expression e) throws Throwable {
+        assertTrue((boolean)lambda(e).compileHandle().invokeExact());
+    }
+
+    protected static void assertResultFalse(final Expression e) throws Throwable {
+        assertFalse((boolean)lambda(e).compileHandle().invokeExact());
+    }
+
+    protected static <T> void assertResultEquals(final Expression e, final T result) throws Throwable {
+        assertEquals(result, lambda(e).compileHandle().invoke());
+    }
+
+    protected static void assertResultEquals(final Expression e, final byte result) throws Throwable {
+        assertEquals(result, (byte)lambda(e).compileHandle().invokeExact());
+    }
+
+    protected static void assertResultEquals(final Expression e, final char result) throws Throwable {
+        assertEquals(result, (char)lambda(e).compileHandle().invokeExact());
+    }
+
+    protected static void assertResultEquals(final Expression e, final short result) throws Throwable {
+        assertEquals(result, (short)lambda(e).compileHandle().invokeExact());
+    }
+
+    protected static void assertResultEquals(final Expression e, final int result) throws Throwable {
+        assertEquals(result, (int)lambda(e).compileHandle().invokeExact());
+    }
+
+    protected static void assertResultEquals(final Expression e, final long result) throws Throwable {
+        assertEquals(result, (long)lambda(e).compileHandle().invokeExact());
+    }
+
+    protected static void assertResultEquals(final Expression e, final float result) throws Throwable {
+        assertEquals(result, (float)lambda(e).compileHandle().invokeExact());
+    }
+
+    protected static void assertResultEquals(final Expression e, final double result) throws Throwable {
+        assertEquals(result, (double)lambda(e).compileHandle().invokeExact());
     }
 }

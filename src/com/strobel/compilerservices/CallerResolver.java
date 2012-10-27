@@ -11,10 +11,9 @@ public final class CallerResolver extends SecurityManager {
         return super.getClassContext();
     }
 
-    /*
-    * Indexes into the current method call context with a given
-    * offset.
-    */
+    /**
+     * Indexes into the current method call context with a given offset.
+     */
     public static Class getCallerClass(final int callerOffset) {
         return CALLER_RESOLVER.getClassContext()[CALL_CONTEXT_OFFSET + callerOffset];
     }
