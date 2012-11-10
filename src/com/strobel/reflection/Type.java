@@ -257,6 +257,40 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return false;
     }
 
+    public boolean containsGenericParameter(final Type<?> genericParameter) {
+        if (!VerifyArgument.notNull(genericParameter, "genericParameter").isGenericParameter()) {
+            throw Error.notGenericParameter(genericParameter);
+        }
+
+        if (hasElementType()) {
+            return getRootElementType().containsGenericParameter(genericParameter);
+        }
+
+        if (isGenericParameter()) {
+            return genericParameter == this ||
+                   getExtendsBound().containsGenericParameter(genericParameter);
+        }
+
+        if (isWildcardType()) {
+            return hasSuperBound() && getSuperBound().containsGenericParameter(genericParameter) ||
+                   getExtendsBound().containsGenericParameter(genericParameter);
+        }
+
+        if (!isGenericType()) {
+            return false;
+        }
+
+        final TypeBindings typeArguments = getTypeBindings();
+
+        for (int i = 0, n = typeArguments.size(); i < n; i++) {
+            if (typeArguments.getBoundType(i).containsGenericParameters()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public boolean isBoundedType() {
         return this.isGenericParameter() ||
                this.isWildcardType() ||
