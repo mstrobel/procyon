@@ -31,14 +31,40 @@
       <entry name="?*.tld" />
       <entry name="?*.ftl" />
     </wildcardResourcePatterns>
-    <annotationProcessing enabled="false" useClasspath="true" />
+    <annotationProcessing>
+      <profile default="true" name="Default" enabled="false">
+        <processorPath useClasspath="true" />
+      </profile>
+    </annotationProcessing>
   </component>
   <component name="CopyrightManager" default="">
-    <module2copyright />
+    <copyright>
+      <option name="notice" value="&amp;#36;file.fileName&#10;&#10;Copyright (c) &amp;#36;today.year Mike Strobel&#10;&#10;This source code is based on the Dynamic Language Runtime from Microsoft,&#10;  Copyright (c) Microsoft Corporation.&#10;&#10;This source code is subject to terms and conditions of the Apache License, Version 2.0.&#10;A copy of the license can be found in the License.html file at the root of this distribution.&#10;By using this source code in any fashion, you are agreeing to be bound by the terms of the&#10;Apache License, Version 2.0.&#10;&#10;You must not remove this notice, or any other, from this software." />
+      <option name="keyword" value="Copyright" />
+      <option name="allowReplaceKeyword" value="" />
+      <option name="myName" value="DLR" />
+      <option name="myLocal" value="true" />
+    </copyright>
+    <copyright>
+      <option name="notice" value="&amp;#36;file.fileName&#10;&#10;Copyright (c) &amp;#36;today.year Mike Strobel&#10;&#10;This source code is subject to terms and conditions of the Apache License, Version 2.0.&#10;A copy of the license can be found in the License.html file at the root of this distribution.&#10;By using this source code in any fashion, you are agreeing to be bound by the terms of the&#10;Apache License, Version 2.0.&#10;&#10;You must not remove this notice, or any other, from this software." />
+      <option name="keyword" value="Copyright" />
+      <option name="allowReplaceKeyword" value="" />
+      <option name="myName" value="Non-DLR" />
+      <option name="myLocal" value="true" />
+    </copyright>
+    <module2copyright>
+      <element module="com.strobel.expressions" copyright="DLR" />
+      <element module="com.strobel" copyright="Non-DLR" />
+    </module2copyright>
+    <LanguageOptions name="JAVA">
+      <option name="fileTypeOverride" value="3" />
+    </LanguageOptions>
   </component>
   <component name="DependencyValidationManager">
     <scope name="Sun/Java" pattern="lib:java..*||lib:com.sun..*" />
     <scope name="Java" pattern="lib:java..*" />
+    <scope name="com.strobel.expressions" pattern="src:com.strobel.expressions..*" />
+    <scope name="com.strobel" pattern="file:src//*&amp;&amp;!file:src/com/strobel/expressions//*||file:test//*" />
     <option name="SKIP_IMPORT_STATEMENTS" value="false" />
   </component>
   <component name="Encoding" useUTFGuessing="true" native2AsciiForPropertiesFiles="false" />
