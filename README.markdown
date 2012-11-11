@@ -21,6 +21,7 @@ All types are exposed through a single class `Type` class.  `Type` can represent
 
 For faster lookups, many common type definitions are exposed as constants in the `Types` and `PrimitiveTypes` classes.  And what about generic types?  How would one obtain the type of `List<T>`?  What about `List<String>`, or `List<? extends Comparable>`?  
   
+    :::java
     // Unbound List<T> generic type definition:
     Type<List> list = Types.List;
     
@@ -36,6 +37,7 @@ The `Type` class provides most of the facilities of `System.Type`, including tho
 
 This is where the good stuff is.  It's almost an exact port of `System.Linq.Expressions`, but with more relaxed rules related to type compatibility.  The API consists of a comprehensive set of expression types and a set of factory methods for constructing them.  Consider the example below, which represents a for-each loop over an array of strings that prints a message for each string.  
   
+    :::java
     final ParameterExpression item = variable(Types.String, "item");
 
     final ConstantExpression items = constant(
