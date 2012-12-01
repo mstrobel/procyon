@@ -588,10 +588,5 @@ final class CompilerScope {
             compiler.generator.emitLoad(_boxLocal);
             compiler.generator.getField(_boxValueField);
         }
-
-        @Override
-        void freeLocal() {
-            compiler.freeLocal(_boxLocal);
-        }
     }
 }
