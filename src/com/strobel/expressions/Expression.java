@@ -4158,7 +4158,7 @@ public abstract class Expression {
         else if (TypeUtils.hasReferenceConversion(right, left)) {
             return left;
         }
-        else if (TypeUtils.hasReferenceConversion(leftStripped, right)) {
+        else if (TypeUtils.isAutoUnboxed(left) && TypeUtils.hasReferenceConversion(leftStripped, right)) {
             return right;
         }
         else {

@@ -54,6 +54,9 @@ public class CodeGenerator {
     final static int DefaultLabelArraySize = 16;
     final static int DefaultExceptionArraySize = 8;
 
+    private final static int MIN_BYTE = 0x00;
+    private final static int MAX_BYTE = 0xFF;
+
     private CodeStream _codeStream;
 
     private int[] _labelList;
@@ -821,7 +824,7 @@ public class CodeGenerator {
 
         final int localIndex = translateLocal(local.getLocalIndex());
 
-        if (localIndex < 0xFF && delta <= Byte.MAX_VALUE && delta >= Byte.MIN_VALUE) {
+        if (localIndex < MAX_BYTE && delta <= Byte.MAX_VALUE && delta >= Byte.MIN_VALUE) {
             emit(OpCode.IINC);
             emitByteOperand(localIndex);
             emitByteOperand(delta);
@@ -910,7 +913,7 @@ public class CodeGenerator {
             return;
         }
 
-        if (absoluteIndex > Byte.MAX_VALUE)  {
+        if (absoluteIndex > MAX_BYTE)  {
             emitShortOperand(absoluteIndex);
         }
         else {
@@ -934,7 +937,7 @@ public class CodeGenerator {
             return;
         }
 
-        if (absoluteIndex > Byte.MAX_VALUE) {
+        if (absoluteIndex > MAX_BYTE) {
             emitShortOperand(absoluteIndex);
         }
         else {
@@ -969,7 +972,7 @@ public class CodeGenerator {
             return;
         }
 
-        if (absoluteIndex > Byte.MAX_VALUE)  {
+        if (absoluteIndex > MAX_BYTE)  {
             emitShortOperand(absoluteIndex);
         }
         else {
@@ -993,7 +996,7 @@ public class CodeGenerator {
             return;
         }
 
-        if (absoluteIndex > Byte.MAX_VALUE) {
+        if (absoluteIndex > MAX_BYTE) {
             emitShortOperand(absoluteIndex);
         }
         else {
@@ -1018,7 +1021,7 @@ public class CodeGenerator {
                     case 3:
                         return OpCode.ILOAD_3;
                     default:
-                        return localIndex > Byte.MAX_VALUE ? OpCode.ILOAD_W : OpCode.ILOAD;
+                        return localIndex > MAX_BYTE ? OpCode.ILOAD_W : OpCode.ILOAD;
                 }
 
             case LONG:
@@ -1032,7 +1035,7 @@ public class CodeGenerator {
                     case 3:
                         return OpCode.LLOAD_3;
                     default:
-                        return localIndex > Byte.MAX_VALUE ? OpCode.LLOAD_W : OpCode.LLOAD;
+                        return localIndex > MAX_BYTE ? OpCode.LLOAD_W : OpCode.LLOAD;
                 }
 
             case FLOAT:
@@ -1046,7 +1049,7 @@ public class CodeGenerator {
                     case 3:
                         return OpCode.FLOAD_3;
                     default:
-                        return localIndex > Byte.MAX_VALUE ? OpCode.FLOAD_W : OpCode.FLOAD;
+                        return localIndex > MAX_BYTE ? OpCode.FLOAD_W : OpCode.FLOAD;
                 }
 
             case DOUBLE:
@@ -1060,7 +1063,7 @@ public class CodeGenerator {
                     case 3:
                         return OpCode.DLOAD_3;
                     default:
-                        return localIndex > Byte.MAX_VALUE ? OpCode.DLOAD_W : OpCode.DLOAD;
+                        return localIndex > MAX_BYTE ? OpCode.DLOAD_W : OpCode.DLOAD;
                 }
 
             default:
@@ -1074,7 +1077,7 @@ public class CodeGenerator {
                     case 3:
                         return OpCode.ALOAD_3;
                     default:
-                        return localIndex > Byte.MAX_VALUE ? OpCode.ALOAD_W : OpCode.ALOAD;
+                        return localIndex > MAX_BYTE ? OpCode.ALOAD_W : OpCode.ALOAD;
                 }
         }
     }
@@ -1537,7 +1540,7 @@ public class CodeGenerator {
     }
 
     public void emitCharacter(final char value) {
-        if (value <= Byte.MAX_VALUE) {
+        if (value <= MAX_BYTE) {
             emitByte((byte)value);
         }
         else {
@@ -1674,7 +1677,7 @@ public class CodeGenerator {
     }
 
     protected void emitLoadConstant(final int token) {
-        if (token < Byte.MIN_VALUE || token > Byte.MAX_VALUE) {
+        if (token < MIN_BYTE || token > MAX_BYTE) {
             emit(OpCode.LDC_W);
             emitShortOperand(token);
         }
@@ -2484,7 +2487,7 @@ public class CodeGenerator {
             _codeStream.putByte((byte)(opCode.getCode() & 0xFF));
         }
         else {
-            _codeStream.putByte((byte)((opCode.getCode() >> 16) & 0xFF));
+            _codeStream.putByte((byte)((opCode.getCode() >> 8) & 0xFF));
             _codeStream.putByte((byte)((opCode.getCode() >> 0) & 0xFF));
         }
         updateStackSize(opCode, opCode.getStackChange());
