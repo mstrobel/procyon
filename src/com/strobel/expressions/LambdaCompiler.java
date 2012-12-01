@@ -1221,24 +1221,27 @@ final class LambdaCompiler {
 
     private void emitReferenceCoalesceWithoutConversion(final BinaryExpression b) {
         final Label end = generator.defineLabel();
-        final Label cast = generator.defineLabel();
+
+        final boolean needConvertLeft = !TypeUtils.areEquivalent(b.getLeft().getType(), b.getType());
+        final boolean needConvertRight = !TypeUtils.areEquivalent(b.getRight().getType(), b.getType());
+
+        final Label convertLeft = needConvertLeft ? generator.defineLabel() : null;
 
         emitExpression(b.getLeft());
 
         generator.dup();
-        generator.emit(OpCode.IFNONNULL, cast);
+        generator.emit(OpCode.IFNONNULL, needConvertLeft ? convertLeft : end);
         generator.pop();
 
         emitExpression(b.getRight());
 
-        if (!TypeUtils.areEquivalent(b.getRight().getType(), b.getType())) {
+        if (needConvertRight) {
             generator.emitConversion(b.getRight().getType(), b.getType());
         }
 
-        generator.emitGoto(end);
-        generator.markLabel(cast);
-
-        if (!TypeUtils.areEquivalent(b.getLeft().getType(), b.getType())) {
+        if (needConvertLeft) {
+            generator.emitGoto(end);
+            generator.markLabel(convertLeft);
             generator.emitConversion(b.getLeft().getType(), b.getType());
         }
 
