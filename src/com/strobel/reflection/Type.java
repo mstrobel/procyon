@@ -181,11 +181,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public T newInstance(final Object... arguments) {
         if (Helper.isReifiable(this)) {
             try {
-                if (ArrayUtilities.isNullOrEmpty(arguments)) {
-                    return getErasedClass().newInstance();
-                }
+                final Type<?>[] argumentTypes;
 
-                final Type<?>[] argumentTypes = new Type<?>[arguments.length];
+                if (ArrayUtilities.isNullOrEmpty(arguments)) {
+                    argumentTypes = EmptyArrayCache.fromElementType(Type.class);
+                }
+                else {
+                    argumentTypes = new Type<?>[arguments.length];
+                }
 
                 for (int i = 0, n = arguments.length; i < n; i++) {
                     final Object argument = arguments[i];

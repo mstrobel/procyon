@@ -42,11 +42,16 @@ final class CustomDelegateTypeCache {
             VerifyArgument.notNull(parameterTypes, "parameterTypes");
 
             _types = new TypeKind[parameterTypes.size() + 1];
-            _types[0] = returnType.getKind();
+            _types[0] = coalesceKind(returnType);
 
             for (int i = 0, n = parameterTypes.size(); i < n; i++) {
-                _types[i + 1] = parameterTypes.get(i).getKind();
+                _types[i + 1] = coalesceKind(parameterTypes.get(i));
             }
+        }
+
+        private TypeKind coalesceKind(final Type<?> type) {
+            final TypeKind kind = type.getKind();
+            return kind.ordinal() <= TypeKind.VOID.ordinal() ? kind : TypeKind.DECLARED;
         }
 
         @Override

@@ -538,6 +538,7 @@ public final class TypeUtils {
                         return true;
                 }
                 return false;
+
             case DOUBLE:
                 return targetKind == TypeKind.DOUBLE;
         }

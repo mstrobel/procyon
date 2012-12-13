@@ -778,6 +778,16 @@ final class Error {
         );
     }
 
+    public static IllegalStateException incorrectlyTypedSuperExpression(final Type<?> expected, final Type<?> actual) {
+        return new IllegalStateException(
+            format(
+                "Incorrectly typed 'super' expression: expected '%s', found '%s'.",
+                expected.getName(),
+                actual.getName()
+            )
+        );
+    }
+
     public static IllegalArgumentException twoOrMoreOperandsRequired() {
         return new IllegalArgumentException(
             "At least two operands are required for a binary operation.");

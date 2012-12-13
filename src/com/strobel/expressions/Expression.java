@@ -37,12 +37,17 @@ import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
+import com.strobel.reflection.emit.ConstructorBuilder;
 import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
 import java.lang.invoke.MethodHandle;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static java.lang.String.format;
 
@@ -175,6 +180,10 @@ public abstract class Expression {
 
     public static Expression self(final Type<?> type) {
         return new SelfExpression(type);
+    }
+
+    public static Expression base(final Type<?> type) {
+        return new SuperExpression(type);
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -957,7 +966,7 @@ public abstract class Expression {
         if (method == null) {
             if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(expression.getType(), type) ||
                 TypeUtils.hasReferenceConversion(expression.getType(), type) ||
-                TypeUtils.isImplicitNumericConversion(expression.getType(), type)) {
+                TypeUtils.isArithmetic(expression.getType()) && TypeUtils.isArithmetic(type)) {
 
                 return new UnaryExpression(ExpressionType.Convert, expression, type, null);
             }
@@ -1582,7 +1591,7 @@ public abstract class Expression {
             final Type leftType = left.getType();
             final Type rightType = right.getType();
 
-            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
+            if (TypeUtils.isArithmetic(leftType) && TypeUtils.isIntegral(rightType)) {
                 return new SimpleBinaryExpression(ExpressionType.LeftShift, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
@@ -1604,7 +1613,7 @@ public abstract class Expression {
             final Type leftType = left.getType();
             final Type rightType = right.getType();
 
-            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
+            if (TypeUtils.isArithmetic(leftType) && TypeUtils.isIntegral(rightType)) {
                 return new SimpleBinaryExpression(ExpressionType.RightShift, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
@@ -1626,7 +1635,7 @@ public abstract class Expression {
             final Type leftType = left.getType();
             final Type rightType = right.getType();
 
-            if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType) && TypeUtils.isArithmetic(leftType)) {
+            if (TypeUtils.isArithmetic(leftType) && TypeUtils.isIntegral(rightType)) {
                 return new SimpleBinaryExpression(ExpressionType.RightShift, left, right, performBinaryNumericPromotion(leftType, rightType));
             }
 
@@ -1904,7 +1913,7 @@ public abstract class Expression {
         verifyCanRead(right, "right");
 
         if (!TypeUtils.areReferenceAssignable(left.getType(), right.getType())) {
-            throw Error.expressionTypeDoesNotMatchAssignment(right.getType(), left.getType());
+            throw Error.expressionTypeDoesNotMatchAssignment(left.getType(), right.getType());
         }
 
         return new AssignBinaryExpression(left, right);
@@ -3745,6 +3754,9 @@ public abstract class Expression {
 
         if (method instanceof MethodBuilder) {
             parameterTypes = ((MethodBuilder) method).getParameterTypes();
+        }
+        else if (method instanceof ConstructorBuilder) {
+            parameterTypes = ((ConstructorBuilder) method).getMethodBuilder().getParameterTypes();
         }
         else {
             parameterTypes = method.getParameters().getParameterTypes();

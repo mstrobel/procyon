@@ -231,4 +231,14 @@ final class Error {
             "Could not find a constructor matching the provided arguments."
         );
     }
+
+    public static RuntimeException invalidAncestorType(final Type<?> ancestorType, final Type<?> declaringType) {
+        return new RuntimeException(
+            format(
+                "Type '%s' is not an ancestor of type '%s'.",
+                ancestorType.getFullName(),
+                declaringType.getFullName()
+            )
+        );
+    }
 }

@@ -18,6 +18,7 @@ import com.strobel.collections.ListBuffer;
 import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.emit.TypeBuilder;
 import com.strobel.util.TypeUtils;
 
 import javax.lang.model.type.TypeKind;
@@ -171,7 +172,15 @@ final class Helper {
 
     public static boolean isAssignable(final Type sourceType, final Type targetType) {
         if (targetType.isGenericParameter() || targetType.hasExtendsBound()) {
-            return isConvertible(sourceType, targetType.getExtendsBound());
+            return isAssignable(sourceType, targetType.getExtendsBound());
+        }
+
+        if (sourceType instanceof TypeBuilder) {
+            return isAssignable(sourceType.getBaseType(), targetType);
+        }
+
+        if (targetType instanceof TypeBuilder) {
+            return targetType == sourceType;
         }
 
         return isConvertible(sourceType, targetType);

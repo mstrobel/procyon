@@ -570,7 +570,7 @@ final class StackSpiller {
                 cases = new ReadOnlyList<>(clone);
             }
 
-            new Result(
+            return new Result(
                 action,
                 new SwitchExpression(
                     node.getType(),
@@ -730,7 +730,7 @@ final class StackSpiller {
         // Expression is evaluated on a stack in current state
         final Result right = rewriteExpression(node.getRight(), stack);
         if (right.Action != RewriteAction.None) {
-            new Result(right.Action, Expression.assign(node.getLeft(), right.Node));
+            return new Result(right.Action, Expression.assign(node.getLeft(), right.Node));
         }
         return new Result(right.Action, node);
     }

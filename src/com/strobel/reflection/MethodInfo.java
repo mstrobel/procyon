@@ -86,6 +86,39 @@ public abstract class MethodInfo extends MethodBase {
         }
     }
 
+    public MethodInfo findOverriddenMethod() {
+        final Type baseType = getDeclaringType().getBaseType();
+
+        if (baseType == null || baseType == Type.NullType) {
+            return null;
+        }
+
+        return findBaseMethod(baseType);
+    }
+
+    public MethodInfo findBaseMethod(final Type<?> relativeTo) {
+        VerifyArgument.notNull(relativeTo, "relativeTo");
+
+        final Type<?> declaringType = getDeclaringType();
+
+        if (!relativeTo.isAssignableFrom(declaringType)) {
+            throw Error.invalidAncestorType(relativeTo, declaringType);
+        }
+
+        if (isStatic() || isPrivate() || declaringType.isInterface()) {
+            return null;
+        }
+
+        final ParameterList parameters = getParameters();
+
+        return relativeTo.getMethod(
+            getName(),
+            BindingFlags.AllInstance,
+            getCallingConvention(),
+            parameters.getParameterTypes().toArray(new Type[parameters.size()])
+        );
+    }
+
     @Override
     public StringBuilder appendDescription(final StringBuilder sb) {
         StringBuilder s = new StringBuilder();
