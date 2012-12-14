@@ -432,32 +432,20 @@ public final class TypeUtils {
     }
 
     public static boolean hasBuiltInEqualityOperator(final Type<?> left, final Type<?> right) {
-        // If we have an interface and a reference type, then we can do reference equality.
-        if (left.isInterface() && !right.isPrimitive()) {
-            return true;
-        }
-
-        if (right.isInterface() && !left.isPrimitive()) {
-            return true;
-        }
-
-        // If we have two reference types, and one is assignable to the other, then we can do reference equality.
-        if (!left.isPrimitive() && !right.isPrimitive()) {
-            if (areReferenceAssignable(left, right) || areReferenceAssignable(right, left)) {
-                return true;
+        if (left.isPrimitive() || right.isPrimitive()) {
+            if (left == PrimitiveTypes.Boolean) {
+                return hasIdentityPrimitiveOrBoxingConversion(left, right);
             }
+
+            if (right == PrimitiveTypes.Boolean) {
+                return hasIdentityPrimitiveOrBoxingConversion(right, left);
+            }
+
+            return isArithmetic(left) && isArithmetic(right);
         }
 
-        // Otherwise, if the types are not the same then we definitely do not have a built-in equality operator.
-        if (!areEquivalent(left, right)) {
-            return false;
-        }
-
-        // We have two identical value types, modulo boxed state.  (If they were both the
-        // same reference type then we would have returned true earlier.)
-        assert left.isPrimitive() || right.isPrimitive();
-
-        return true;
+        return left.isEnum() && hasIdentityPrimitiveOrBoxingConversion(left, right) ||
+               right.isEnum() && hasIdentityPrimitiveOrBoxingConversion(right, left);
     }
 
     public static boolean isValidInvocationTargetType(final MethodInfo method, final Type<?> targetType) {

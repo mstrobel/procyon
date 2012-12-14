@@ -308,16 +308,16 @@ public abstract class Expression {
 
         return forEach(variable, sequence, body, null, null);
     }
-    
+
     public static ForEachExpression forEach(
         final ParameterExpression variable,
         final Expression sequence,
         final Expression body,
         final LabelTarget breakTarget) {
-        
+
         return forEach(variable, sequence, body, breakTarget, null);
     }
-    
+
     public static ForEachExpression forEach(
         final ParameterExpression variable,
         final Expression sequence,
@@ -1289,7 +1289,7 @@ public abstract class Expression {
 
         return aggregateBinary(binaryType, ImmutableList.from(rest));
     }
-    
+
     public static BinaryExpression makeBinary(
         final ExpressionType binaryType,
         final Expression first,
@@ -1428,7 +1428,7 @@ public abstract class Expression {
     public static BinaryExpression coalesce(final Expression left, final Expression right) {
         return coalesce(left, right, null);
     }
-    
+
     public static BinaryExpression coalesce(final Expression left, final Expression right, final LambdaExpression<?> conversion) {
         verifyCanRead(left, "left");
         verifyCanRead(right, "right");
@@ -1443,7 +1443,7 @@ public abstract class Expression {
         }
 
         final Type<?> delegateType = conversion.getType();
-        
+
         final MethodInfo method = getInvokeMethod(conversion);
 
         if (method.getReturnType() == PrimitiveTypes.Void) {
@@ -1474,7 +1474,7 @@ public abstract class Expression {
 
             throw Error.operandTypesDoNotMatchParameters(ExpressionType.Coalesce, method);
         }
-        
+
         return new CoalesceConversionBinaryExpression(left, right, conversion);
     }
 
@@ -2382,7 +2382,7 @@ public abstract class Expression {
 
         return lambda(null, null, body, tailCall, parameters);
     }
-    
+
     public static <T> LambdaExpression<T> lambda(
         final Type<?> interfaceType,
         final String name,
@@ -2492,9 +2492,9 @@ public abstract class Expression {
         final ExpressionList<? extends Expression> arguments) {
 
         VerifyArgument.notNull(method, "method");
-        
+
         final Expression actualTarget;
-        
+
         if (target == null && method instanceof DynamicMethod) {
             final MethodHandle handle = ((DynamicMethod) method).getHandle();
             if (handle == null) {
@@ -2524,7 +2524,7 @@ public abstract class Expression {
 
         return call(target, methodName, TypeList.empty(), arrayToList(arguments));
     }
-    
+
     public static MethodCallExpression call(
         final Expression target,
         final String methodName,
@@ -2601,12 +2601,12 @@ public abstract class Expression {
     private static ExpressionList<? extends Expression> adaptArguments(
         final MethodInfo method,
         final ExpressionList<? extends Expression> arguments) {
-        
+
         if (method.getCallingConvention() == CallingConvention.VarArgs) {
             final TypeList pt = method.getParameters().getParameterTypes();
             final int varArgArrayPosition = pt.size() - 1;
             final Type varArgArrayType = pt.get(varArgArrayPosition);
-            
+
             final boolean needArray = arguments.size() != pt.size() ||
                                       !TypeUtils.areEquivalent(
                                           varArgArrayType,
@@ -2629,11 +2629,11 @@ public abstract class Expression {
                     varArgArrayType.getElementType(),
                     arrayInitList
                 );
-                
+
                 return new ExpressionList<>(newArguments);
             }
         }
-        
+
         return arguments;
     }
 
@@ -3299,13 +3299,24 @@ public abstract class Expression {
         final Expression left,
         final Expression right) {
 
-        // Known comparison: numeric types, booleans, object, enums
-        if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(left.getType(), right.getType()) &&
-            (TypeUtils.isArithmetic(left.getType()) ||
-             left.getType() == Types.Object ||
-             TypeUtils.isBoolean(left.getType()) ||
-             left.getType().isEnum())) {
+        final Type<?> leftType = left.getType();
+        final Type<?> rightType = right.getType();
 
+        // Built-in primitive and enum operators
+        if (TypeUtils.hasBuiltInEqualityOperator(leftType, rightType)) {
+            if (leftType.isEnum() || rightType.isEnum()) {
+                return new LogicalBinaryExpression(binaryType, left, right);
+            }
+
+            return new LogicalBinaryExpression(
+                binaryType,
+                leftType.isPrimitive() ? left : unbox(left),
+                rightType.isPrimitive() ? right : unbox(right)
+            );
+        }
+
+        // Non-primitive null comparisons of the form x==null, x!=null, null==x or null!=x
+        if (isNullComparison(left, right)) {
             return new LogicalBinaryExpression(binaryType, left, right);
         }
 
@@ -3316,13 +3327,7 @@ public abstract class Expression {
             return b;
         }
 
-        if (TypeUtils.hasBuiltInEqualityOperator(left.getType(), right.getType()) ||
-            isNullComparison(left, right)) {
-
-            return new LogicalBinaryExpression(binaryType, left, right);
-        }
-
-        throw Error.binaryOperatorNotDefined(binaryType, left.getType(), right.getType());
+        throw Error.binaryOperatorNotDefined(binaryType, leftType, rightType);
     }
 
     private static MethodInfo getBinaryOperatorMethod(
@@ -3507,7 +3512,7 @@ public abstract class Expression {
         final MethodInfo method) {
 
         assert method != null;
-        
+
         if (method.isStatic()) {
             return getStaticMethodBasedBinaryOperator(binaryType, left, right, method);
         }
@@ -3701,8 +3706,8 @@ public abstract class Expression {
     }
 
     private static boolean isNullConstant(final Expression e) {
-        return e instanceof ConstantExpression &&
-               ((ConstantExpression)e).getValue() == null;
+        return e instanceof ConstantExpression && ((ConstantExpression)e).getValue() == null ||
+               e instanceof DefaultValueExpression && !e.getType().isPrimitive();
     }
 
     private static boolean isNullComparison(final Expression left, final Expression right) {
@@ -3999,7 +4004,7 @@ public abstract class Expression {
 
         return (FieldInfo) members.get(0);
     }
-    
+
     private static MethodInfo findMethod(
         final Type type,
         final String methodName,
@@ -4025,7 +4030,7 @@ public abstract class Expression {
                 (MethodInfo) members.get(i),
                 typeArguments
             );
-            
+
             if (appliedMethod != null)
                 candidates.add(appliedMethod);
         }
@@ -4148,7 +4153,7 @@ public abstract class Expression {
 
     private static Type validateCoalesceArgumentTypes(final Type left, final Type right) {
         final Type leftStripped = TypeUtils.getUnderlyingPrimitive(left);
-        
+
         if (left.isPrimitive()) {
             throw Error.coalesceUsedOnNonNullableType();
         }
