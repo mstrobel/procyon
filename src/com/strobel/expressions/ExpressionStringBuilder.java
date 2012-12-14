@@ -304,7 +304,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         switch (node.getNodeType()) {
             case Convert:
                 out('(');
-                out(node.getType().getName());
+                out(node.getType().getSimpleDescription());
                 out(')');
                 break;
             case Not:
@@ -678,7 +678,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     @Override
     protected Expression visitNew(final NewExpression node) {
         out("new ");
-        out(node.getType().getName());
+        out(node.getType().getSimpleDescription());
         out('(');
         visitList(node);
         out(')');
@@ -688,7 +688,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     @Override
     protected Expression visitNewArray(final NewArrayExpression node) {
         out("new ");
-        out(node.getType().getElementType().getName());
+        out(node.getType().getElementType().getSimpleDescription());
 
         if (node.getNodeType() == ExpressionType.NewArrayBounds) {
             final ExpressionList<? extends Expression> dimensions = node.getExpressions();
@@ -728,7 +728,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         final boolean hasBlock = node.getBody() instanceof BlockExpression;
 
         out("for (");
-        out(variable.getType().getName());
+        out(variable.getType().getSimpleDescription());
         out(' ');
         visit(variable);
         out(" = ");
@@ -772,7 +772,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
         increaseIndent();
         flush();
         for (final Expression v : node.getVariables()) {
-            out(v.getType().getName());
+            out(v.getType().getSimpleDescription());
             out(' ');
             visit(v);
             flush();
@@ -812,7 +812,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
             out(".");
         }
         else {
-            out(node.getMethod().getDeclaringType().getName());
+            out(node.getMethod().getDeclaringType().getSimpleDescription());
             out(".");
         }
 

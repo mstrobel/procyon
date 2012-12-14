@@ -165,7 +165,7 @@ final class Error {
         return new IllegalStateException(
             format(
                 "MethodBase '%s.%s' cannot be used as an operator because it is static.",
-                method.getDeclaringType().getFullName(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName()
             )
         );
@@ -175,7 +175,7 @@ final class Error {
         return new IllegalStateException(
             format(
                 "MethodBase '%s.%s' cannot be used as an operator because it returns void.",
-                method.getDeclaringType().getFullName(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName()
             )
         );
@@ -186,7 +186,7 @@ final class Error {
             format(
                 "MethodBase '%s.%s' cannot be used as an operator because its parameters do not match " +
                 "its return value.",
-                method.getDeclaringType().getFullName(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName()
             )
         );
@@ -197,7 +197,7 @@ final class Error {
             format(
                 "The return type for operator '%s' does not match the declaring type of method '%s.%s'.",
                 expressionType,
-                method.getDeclaringType().getFullName(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName()
             )
         );
@@ -207,7 +207,7 @@ final class Error {
         return new IllegalStateException(
             format(
                 "The return type of operator method '%s.%s' does not match the method's declaring type.",
-                method.getDeclaringType().getFullName(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName()
             )
         );
@@ -229,7 +229,7 @@ final class Error {
         return new IllegalStateException(
             format(
                 "Incorrect number of arguments supplied for call to method '%s.%s'",
-                method.getDeclaringType().getFullName(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName()
             )
         );
@@ -290,7 +290,7 @@ final class Error {
             format(
                 "The operator method '%s.%s' must return the same type as its declaring type " +
                 "or a derived type.",
-                method.getDeclaringType().getFullName(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName()
             )
         );
@@ -301,7 +301,7 @@ final class Error {
             format(
                 "The operator method '%s.%s' for operator '%s' must return the same type as its " +
                 "declaring type or a derived type.",
-                method.getDeclaringType().getFullName(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName(),
                 operator
             )
@@ -350,7 +350,7 @@ final class Error {
             format(
                 "An invocation target expression is required for a call to non-static " +
                 "method '%s.%s'.",
-                method.getDeclaringType().getFullName(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName()
             )
         );
@@ -361,7 +361,7 @@ final class Error {
             format(
                 "An invocation target expression is required for access to non-static " +
                 "field '%s.%s'.",
-                field.getDeclaringType().getFullName(),
+                field.getDeclaringType().getBriefDescription(),
                 field.getName()
             )
         );
@@ -372,7 +372,7 @@ final class Error {
             format(
                 "An invocation target expression cannot be used to call static " +
                 "method '%s.%s'.",
-                method.getDeclaringType().getFullName(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName()
             )
         );
@@ -383,8 +383,8 @@ final class Error {
             format(
                 "Expression of type '%s' is not a valid invocation target for instance " +
                 "method '%s.%s'.",
-                targetType.getFullName(),
-                method.getDeclaringType().getFullName(),
+                targetType.getBriefDescription(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName()
             )
         );
@@ -394,8 +394,8 @@ final class Error {
         return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used for constructor parameter of type '%s'.",
-                parameterType.getFullName(),
-                argType.getFullName()
+                parameterType.getBriefDescription(),
+                argType.getBriefDescription()
             )
         );
     }
@@ -404,8 +404,8 @@ final class Error {
         return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used as the body of a lambda with return type '%s'.",
-                bodyType.getFullName(),
-                returnType.getFullName()
+                bodyType.getBriefDescription(),
+                returnType.getBriefDescription()
             )
         );
     }
@@ -414,8 +414,8 @@ final class Error {
         return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used for parameter of type '%s'.",
-                parameterType.getFullName(),
-                argType.getFullName()
+                parameterType.getBriefDescription(),
+                argType.getBriefDescription()
             )
         );
     }
@@ -424,9 +424,9 @@ final class Error {
         return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used for parameter of type '%s' of method '%s.%s'.",
-                argType.getFullName(),
-                parameterType.getFullName(),
-                method.getDeclaringType().getFullName(),
+                argType.getBriefDescription(),
+                parameterType.getBriefDescription(),
+                method.getDeclaringType().getBriefDescription(),
                 method.getName()
             )
         );
@@ -436,8 +436,8 @@ final class Error {
         return new IllegalStateException(
             format(
                 "Expression of type '%s' cannot be used for assignment to type '%s'.",
-                rightType.getFullName(),
-                leftType.getFullName()
+                rightType.getBriefDescription(),
+                leftType.getBriefDescription()
             )
         );
     }
@@ -447,7 +447,7 @@ final class Error {
             format(
                 "No method '%s' exists on type '%s'.",
                 methodName,
-                type.getFullName()
+                type.getBriefDescription()
             )
         );
     }
@@ -457,7 +457,7 @@ final class Error {
             format(
                 "No field '%s' exists on type '%s'.",
                 fieldName,
-                type.getFullName()
+                type.getBriefDescription()
             )
         );
     }
@@ -468,7 +468,7 @@ final class Error {
                 "No generic method '%s' on type '%s' is compatible with the supplied type arguments and arguments.  " +
                 "No type arguments should be provided if the method is non-generic.",
                 methodName,
-                type.getFullName()
+                type.getBriefDescription()
             )
         );
     }
@@ -478,7 +478,7 @@ final class Error {
             format(
                 "No method '%s' on type '%s' is compatible with the supplied arguments.",
                 methodName,
-                type.getFullName()
+                type.getBriefDescription()
             )
         );
     }
@@ -488,7 +488,7 @@ final class Error {
             format(
                 "More than one method '%s' on type '%s' is compatible with the supplied arguments.",
                 methodName,
-                type.getFullName()
+                type.getBriefDescription()
             )
         );
     }
@@ -534,8 +534,8 @@ final class Error {
         return new IllegalStateException(
             format(
                 "ParameterExpression of type '%s' cannot be used for delegate parameter of type '%s'.",
-                parameterType.getFullName(),
-                delegateParameterType.getFullName()
+                parameterType.getBriefDescription(),
+                delegateParameterType.getBriefDescription()
             )
         );
     }
@@ -548,8 +548,8 @@ final class Error {
         return new IllegalArgumentException(
             format(
                 "Expression of type '%s' cannot be used for return type '%s'.",
-                valueType.getFullName(),
-                expectedType.getFullName()
+                valueType.getBriefDescription(),
+                expectedType.getBriefDescription()
             )
         );
     }
@@ -558,8 +558,8 @@ final class Error {
         return new IllegalArgumentException(
             format(
                 "An expression of type '%s' cannot be used to initialize an array of type '%s'.",
-                itemType.getFullName(),
-                arrayElementType.getFullName()
+                itemType.getBriefDescription(),
+                arrayElementType.getBriefDescription()
             )
         );
     }
@@ -568,8 +568,8 @@ final class Error {
         return new IllegalStateException(
             format(
                 "A variable of type '%s' cannot be used with a catch block with filter type '%s'.",
-                variableType.getFullName(),
-                catchType.getFullName()
+                variableType.getBriefDescription(),
+                catchType.getBriefDescription()
             )
         );
     }
@@ -613,8 +613,8 @@ final class Error {
         return new IllegalStateException(
             format(
                 "Test value of type '%s' cannot be used for the comparison method parameter of type '%s'.",
-                testValueType.getFullName(),
-                parameterType.getFullName()
+                testValueType.getBriefDescription(),
+                parameterType.getBriefDescription()
             )
         );
     }
@@ -772,6 +772,16 @@ final class Error {
         return new IllegalStateException(
             format(
                 "Incorrectly typed 'this' expression: expected '%s', found '%s'.",
+                expected.getName(),
+                actual.getName()
+            )
+        );
+    }
+
+    public static IllegalStateException incorrectlyTypedSuperExpression(final Type<?> expected, final Type<?> actual) {
+        return new IllegalStateException(
+            format(
+                "Incorrectly typed 'super' expression: expected '%s', found '%s'.",
                 expected.getName(),
                 actual.getName()
             )

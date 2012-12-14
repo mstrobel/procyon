@@ -253,7 +253,7 @@ public enum OpCode {
     }
 
     public boolean isWide() {
-        return (_code & WIDE) == WIDE;
+        return ((_code >> 8) & WIDE) == WIDE;
     }
     
     public OperandType getOperandType() {
@@ -261,7 +261,7 @@ public enum OpCode {
     }
 
     public int getSize() {
-        return ((_code >> 16) == 0xc4) ? 2 : 1;
+        return ((_code >> 8) == 0xc4) ? 2 : 1;
     }
 
     public int getSizeWithOperands() {

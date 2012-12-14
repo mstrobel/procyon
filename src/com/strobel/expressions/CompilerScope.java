@@ -459,15 +459,25 @@ final class CompilerScope {
 
     private final class LocalStorage extends Storage {
         private final LocalBuilder _local;
+        private final boolean _named;
 
         private LocalStorage(final LambdaCompiler compiler, final ParameterExpression variable) {
             super(compiler, variable);
-            _local = compiler.getNamedLocal(variable.getType(), variable);
+            _named = variable.getName() != null;
+            _local = _named ? compiler.getNamedLocal(variable.getType(), variable)
+                            : compiler.getLocal(variable.getType());
         }
 
         @Override
         void emitStore() {
             compiler.generator.emitStore(_local);
+        }
+
+        @Override
+        void freeLocal() {
+            if (!_named) {
+                compiler.freeLocal(_local);
+            }
         }
 
         @Override

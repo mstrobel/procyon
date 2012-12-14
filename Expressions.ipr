@@ -17,7 +17,8 @@
     </artifact>
   </component>
   <component name="CompilerConfiguration">
-    <option name="DEFAULT_COMPILER" value="Javac" />
+    <option name="DEFAULT_COMPILER" value="Eclipse" />
+    <addNotNullAssertions enabled="false" />
     <resourceExtensions />
     <wildcardResourcePatterns>
       <entry name="?*.properties" />
@@ -31,11 +32,7 @@
       <entry name="?*.tld" />
       <entry name="?*.ftl" />
     </wildcardResourcePatterns>
-    <annotationProcessing>
-      <profile default="true" name="Default" enabled="false">
-        <processorPath useClasspath="true" />
-      </profile>
-    </annotationProcessing>
+    <annotationProcessing enabled="false" useClasspath="true" />
   </component>
   <component name="CopyrightManager" default="">
     <copyright>
@@ -66,6 +63,9 @@
     <scope name="com.strobel.expressions" pattern="src:com.strobel.expressions..*" />
     <scope name="com.strobel" pattern="file:src//*&amp;&amp;!file:src/com/strobel/expressions//*||file:test//*" />
     <option name="SKIP_IMPORT_STATEMENTS" value="false" />
+  </component>
+  <component name="EclipseCompilerSettings">
+    <option name="MAXIMUM_HEAP_SIZE" value="512" />
   </component>
   <component name="Encoding" useUTFGuessing="true" native2AsciiForPropertiesFiles="false" />
   <component name="EntryPointsManager">

@@ -69,6 +69,9 @@ public final class TypeTests {
         // Iterable i = new ArrayList<String>();
         assertTrue(i.getErasedType().isAssignableFrom(a.makeGenericType(s)));
 
+        // Iterable i = new ArrayList();
+        assertTrue(i.getErasedType().isAssignableFrom(a.getErasedType()));
+
         // Iterable<CharSequence> i = new ArrayList<String>();
         assertFalse(i.makeGenericType(c).isAssignableFrom(a.makeGenericType(s)));
 
@@ -158,5 +161,8 @@ public final class TypeTests {
 
         // ArrayList<?> a; List<T> l = a;
         assertTrue(l.isAssignableFrom(a.makeGenericType(Type.makeWildcard())));
+
+        // ArrayList a; List l = a;
+        assertTrue(l.getErasedType().isAssignableFrom(a.getErasedType()));
     }
 }

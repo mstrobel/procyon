@@ -433,6 +433,8 @@ final class LambdaCompiler {
         private static final int EmitExpressionStartMask = 0x000f;
         private static final int EmitAsTypeMask = 0x00f0;
         private static final int EmitAsTailCallMask = 0x0f00;
+
+        private static final int EmitAsSuperCall = 0x1000;
     }
 
     private static int updateEmitAsTailCallFlag(final int flags, final int newValue) {
@@ -1221,24 +1223,27 @@ final class LambdaCompiler {
 
     private void emitReferenceCoalesceWithoutConversion(final BinaryExpression b) {
         final Label end = generator.defineLabel();
-        final Label cast = generator.defineLabel();
+
+        final boolean needConvertLeft = !TypeUtils.areEquivalent(b.getLeft().getType(), b.getType());
+        final boolean needConvertRight = !TypeUtils.areEquivalent(b.getRight().getType(), b.getType());
+
+        final Label convertLeft = needConvertLeft ? generator.defineLabel() : null;
 
         emitExpression(b.getLeft());
 
         generator.dup();
-        generator.emit(OpCode.IFNONNULL, cast);
+        generator.emit(OpCode.IFNONNULL, needConvertLeft ? convertLeft : end);
         generator.pop();
 
         emitExpression(b.getRight());
 
-        if (!TypeUtils.areEquivalent(b.getRight().getType(), b.getType())) {
+        if (needConvertRight) {
             generator.emitConversion(b.getRight().getType(), b.getType());
         }
 
-        generator.emitGoto(end);
-        generator.markLabel(cast);
-
-        if (!TypeUtils.areEquivalent(b.getLeft().getType(), b.getType())) {
+        if (needConvertLeft) {
+            generator.emitGoto(end);
+            generator.markLabel(convertLeft);
             generator.emitConversion(b.getLeft().getType(), b.getType());
         }
 
@@ -1441,8 +1446,22 @@ final class LambdaCompiler {
             freeLocal(rightStorage);
         }
 
-        if (rightType != operandType) {
-            generator.emitConversion(rightType, operandType);
+        final Type<?> rightOperandType;
+
+        switch (op) {
+            case LeftShift:
+            case RightShift:
+            case UnsignedRightShift:
+                rightOperandType = PrimitiveTypes.Integer;
+                break;
+
+            default:
+                rightOperandType = operandType;
+                break;
+        }
+
+        if (rightType != rightOperandType) {
+            generator.emitConversion(rightType, rightOperandType);
         }
 
         switch (op) {
@@ -1997,12 +2016,20 @@ final class LambdaCompiler {
         int finalFlags = flags;
 
         if (node.getValue() != null) {
-            if (node.getTarget().getType() == PrimitiveTypes.Void) {
+            final Type targetType = node.getTarget().getType();
+
+            if (targetType == PrimitiveTypes.Void) {
                 emitExpressionAsVoid(node.getValue(), flags);
             }
             else {
+                final Type<?> valueType = node.getValue().getType();
+
                 finalFlags = updateEmitExpressionStartFlag(flags, CompilationFlags.EmitExpressionStart);
                 emitExpression(node.getValue(), finalFlags);
+
+                if (!TypeUtils.hasReferenceConversion(valueType, targetType)) {
+                    generator.emitConversion(valueType, targetType);
+                }
             }
         }
 
@@ -2998,13 +3025,31 @@ final class LambdaCompiler {
             emitExpression(target);
         }
 
-        emitMethodCall(method, expr, targetType, flags);
+        emitMethodCall(
+            method,
+            expr,
+            targetType,
+            target instanceof SuperExpression ? flags | CompilationFlags.EmitAsSuperCall
+                                              : flags
+        );
     }
 
-    private void emitMethodCall(final MethodInfo method, final IArgumentProvider args, final Type objectType, final int flags) {
+    private void emitMethodCall(final MethodInfo method, final IArgumentProvider args, final Type<?> objectType, final int flags) {
         // Emit arguments
         emitArguments(method, args);
-        generator.call(method);
+
+        if ((flags & CompilationFlags.EmitAsSuperCall) != 0) {
+            final MethodInfo superMethod = objectType.getMethod(
+                method.getName(),
+                BindingFlags.AllInstance,
+                method.getParameters().getParameterTypes().toArray()
+            );
+
+            generator.call(OpCode.INVOKESPECIAL, superMethod);
+        }
+        else {
+            generator.call(method);
+        }
 
         final Type returnType = method.getReturnType();
 
@@ -3029,6 +3074,9 @@ final class LambdaCompiler {
 
         if (method instanceof MethodBuilder) {
             parameters = ((MethodBuilder)method).getParameterTypes();
+        }
+        else if (method instanceof ConstructorBuilder) {
+            parameters = ((ConstructorBuilder)method).getMethodBuilder().getParameterTypes();
         }
         else {
             parameters = method.getParameters().getParameterTypes();
@@ -3115,13 +3163,22 @@ final class LambdaCompiler {
 
     private void emitParameterExpression(final Expression expr) {
         final ParameterExpression node = (ParameterExpression)expr;
-        if (node instanceof SelfExpression) {
+        if (node instanceof SelfExpression || node instanceof SuperExpression) {
             if (methodBuilder.isStatic()) {
                 throw Error.cannotAccessThisFromStaticMember();
             }
-            if (node.getType() != typeBuilder) {
-                throw Error.incorrectlyTypedSelfExpression(typeBuilder, node.getType());
+
+            if (node instanceof SelfExpression) {
+                if (node.getType() != typeBuilder) {
+                    throw Error.incorrectlyTypedSelfExpression(typeBuilder, node.getType());
+                }
             }
+            else {
+                if (node.getType() != typeBuilder.getBaseType()) {
+                    throw Error.incorrectlyTypedSuperExpression(typeBuilder, node.getType());
+                }
+            }
+
             generator.emitThis();
             return;
         }
@@ -3149,7 +3206,7 @@ final class LambdaCompiler {
             return;
         }
 
-        final Type type = node.getOperand().getType();
+        final Type type = node.getTypeOperand();
 
         //
         // Try to determine the result statically

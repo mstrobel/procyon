@@ -34,3 +34,20 @@ final class SelfExpression extends ParameterExpression {
         return _type;
     }
 }
+
+/**
+ * @author Mike Strobel
+ */
+final class SuperExpression extends ParameterExpression {
+    private final Type<?> _type;
+
+    SuperExpression(final Type<?> type) {
+        super("super");
+        _type = type;
+    }
+
+    @Override
+    public Type<?> getType() {
+        return _type;
+    }
+}

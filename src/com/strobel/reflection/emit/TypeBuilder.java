@@ -15,6 +15,7 @@ package com.strobel.reflection.emit;
 
 import com.strobel.compilerservices.CallerResolver;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.Pair;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
@@ -33,6 +34,7 @@ import com.strobel.reflection.MemberType;
 import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.MethodList;
+import com.strobel.reflection.ParameterInfo;
 import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeBindings;
@@ -53,6 +55,7 @@ import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Set;
 
 /**
@@ -60,7 +63,7 @@ import java.util.Set;
  */
 @SuppressWarnings( { "unchecked", "PackageVisibleField" })
 public final class TypeBuilder<T> extends Type<T> {
-    private final static String DumpGeneratedClassesProperty = "com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses";
+    private final static String DumpGeneratedClassesProperty     = "com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses";
     private final static String GeneratedClassOutputPathProperty = "com.strobel.reflection.emit.TypeBuilder.GeneratedClassOutputPath";
 
     final ConstantPool                          constantPool;
@@ -239,7 +242,7 @@ public final class TypeBuilder<T> extends Type<T> {
         _interfaces = interfaces != null ? interfaces : TypeList.empty();
         updateExtendsBound();
     }
-    
+
     final void setBaseType(final Type baseType) {
         verifyNotGeneric();
         verifyNotCreated();
@@ -431,7 +434,7 @@ public final class TypeBuilder<T> extends Type<T> {
         if (isGenericTypeDefinition()) {
             return this;
         }
-        throw  Error.notGenericType(this);
+        throw Error.notGenericType(this);
     }
 
     @Override
@@ -528,6 +531,9 @@ public final class TypeBuilder<T> extends Type<T> {
 
     @Override
     public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
+        if (isGenericParameter()) {
+            return visitor.visitTypeParameter(this, parameter);
+        }
         return visitor.visitClassType(this, parameter);
     }
 
@@ -639,7 +645,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
         final ConstructorBuilder constructor = new ConstructorBuilder(
             modifiers & Modifier.constructorModifiers(),
-            TypeList.empty(),
+            baseConstructor.getParameters().getParameterTypes(),
             TypeList.empty(),
             this
         );
@@ -647,6 +653,11 @@ public final class TypeBuilder<T> extends Type<T> {
         final CodeGenerator code = constructor.getCodeGenerator();
 
         code.emitThis();
+
+        for (final ParameterInfo parameter : baseConstructor.getParameters()) {
+            code.emitLoadArgument(parameter.getPosition());
+        }
+
         code.call(baseConstructor);
         code.emitReturn();
 
@@ -706,8 +717,8 @@ public final class TypeBuilder<T> extends Type<T> {
         verifyNotCreated();
 
         final Type<?> baseDeclaringType = baseMethod.getDeclaringType().isGenericType()
-                                       ? baseMethod.getDeclaringType().getGenericTypeDefinition()
-                                       : baseMethod.getDeclaringType().getErasedType();
+                                          ? baseMethod.getDeclaringType().getGenericTypeDefinition()
+                                          : baseMethod.getDeclaringType().getErasedType();
 
         final MemberList<? extends MemberInfo> m = baseDeclaringType
             .findMembers(
@@ -1095,8 +1106,8 @@ public final class TypeBuilder<T> extends Type<T> {
                                                   .getErasedTypes();
 
         final Type<?> returnType = baseMethod.getReturnType() == PrimitiveTypes.Void
-                                ? baseMethod.getReturnType()
-                                : baseMethod.getReturnType().getErasedType();
+                                   ? baseMethod.getReturnType()
+                                   : baseMethod.getReturnType().getErasedType();
 
         final TypeList thrownTypes = baseMethod.getThrownTypes().getErasedTypes();
 
@@ -1208,23 +1219,43 @@ public final class TypeBuilder<T> extends Type<T> {
             fieldBuilders.get(i).generatedField = generatedFields.get(i);
         }
 
-        final ArrayList<MethodBuilder> methods = new ArrayList<>();
+        final HashMap<TypeList, ConstructorInfo> constructorLookup = new HashMap<>();
+        final HashMap<Pair<String, TypeList>, MethodInfo> methodLookup = new HashMap<>();
+
+        for (final ConstructorInfo constructor : generatedConstructors) {
+            constructorLookup.put(
+                constructor.getParameters().getParameterTypes(),
+                constructor
+            );
+
+            constructor.getRawConstructor().setAccessible(true);
+        }
+
+        for (final MethodInfo method : generatedMethods) {
+            if ((method.getModifiers() & Flags.ACC_BRIDGE) == 0) {
+                methodLookup.put(
+                    Pair.create(
+                        method.getName(),
+                        method.getParameters().getParameterTypes()
+                    ),
+                    method
+                );
+            }
+        }
+
+        for (final ConstructorBuilder constructorBuilder : constructorBuilders) {
+            constructorBuilder.generatedConstructor = constructorLookup.get(
+                constructorBuilder.getParameterTypes()
+            );
+        }
 
         for (final MethodBuilder methodBuilder : methodBuilders) {
-            if ((methodBuilder.getModifiers() & Flags.ACC_BRIDGE) == 0) {
-                methods.add(methodBuilder);
-            }
-        }
-
-        for (int i = 0, j = 0, n = methods.size(); i < n; i++) {
-            final MethodBuilder method = methods.get(i);
-            if (!"<init>".equals(method.getName()) && !"<clinit>".equals(method.getName())) {
-                method.generatedMethod = generatedMethods.get(j++);
-            }
-        }
-
-        for (int i = 0, n = constructorBuilders.size(); i < n; i++) {
-            constructorBuilders.get(i).generatedConstructor = generatedConstructors.get(i);
+            methodBuilder.generatedMethod = methodLookup.get(
+                Pair.create(
+                    methodBuilder.getName(),
+                    methodBuilder.getParameterTypes()
+                )
+            );
         }
     }
 

@@ -85,6 +85,28 @@ public final class CompilerTests extends AbstractExpressionTest {
     }
 
     @Test
+    public void testCoalesce() throws Exception {
+        final ParameterExpression p = parameter(Types.String, "s");
+
+        final LambdaExpression<Func1<String, String>> lambda = lambda(
+            Type.of(Func1.class).makeGenericType(Types.String, Types.String),
+            coalesce(p, constant("null")),
+            p
+        );
+
+        System.out.println();
+        System.out.println(lambda);
+
+        final Func1<String, String> delegate = lambda.compile();
+
+        System.out.println();
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        assertEquals("notnull", delegate.apply("notnull"));
+        assertEquals("null", delegate.apply(null));
+    }
+
+    @Test
     public void testGenericMethodCall() throws Exception {
         final LambdaExpression listRetriever = lambda(
             Type.of(IListRetriever.class).makeGenericType(Types.String),

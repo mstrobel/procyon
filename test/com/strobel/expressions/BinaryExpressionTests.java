@@ -16,7 +16,10 @@ package com.strobel.expressions;
 import com.strobel.reflection.Types;
 import org.junit.Test;
 
+import javax.lang.model.type.TypeKind;
+import java.lang.invoke.MethodHandle;
 import java.math.BigInteger;
+import java.util.EnumSet;
 import java.util.concurrent.Callable;
 
 import static com.strobel.expressions.Expression.*;
@@ -73,5 +76,99 @@ public class BinaryExpressionTests extends AbstractExpressionTest {
         assertResultTrue(lessThan(constant(2), constant(3L)));
         assertResultFalse(greaterThan(constant(2d), constant(3d)));
         assertResultTrue(lessThanOrEqual(constant(2f), constant((byte)2)));
+    }
+    
+    @Test
+    public void testComparisonOperatorsByteByte() throws Throwable {
+        assertResultTrue(lessThanOrEqual(constant((byte)0), constant((byte)1)));
+        assertResultTrue(lessThanOrEqual(constant((byte)1), constant((byte)1)));
+        assertResultFalse(lessThanOrEqual(constant((byte)1), constant((byte)0)));
+
+        assertResultTrue(lessThan(constant((byte)0), constant((byte)1)));
+        assertResultFalse(lessThan(constant((byte)1), constant((byte)1)));
+        assertResultFalse(lessThan(constant((byte)1), constant((byte)0)));
+
+        assertResultFalse(greaterThanOrEqual(constant((byte)0), constant((byte)1)));
+        assertResultTrue(greaterThanOrEqual(constant((byte)1), constant((byte)1)));
+        assertResultTrue(greaterThanOrEqual(constant((byte)1), constant((byte)0)));
+
+        assertResultFalse(greaterThan(constant((byte)0), constant((byte)1)));
+        assertResultFalse(greaterThan(constant((byte)1), constant((byte)1)));
+        assertResultTrue(greaterThan(constant((byte)1), constant((byte)0)));
+
+        assertResultFalse(equal(constant((byte)0), constant((byte)1)));
+        assertResultTrue(equal(constant((byte)1), constant((byte)1)));
+        assertResultFalse(equal(constant((byte)1), constant((byte)0)));
+
+        assertResultTrue(notEqual(constant((byte)0), constant((byte)1)));
+        assertResultFalse(notEqual(constant((byte)1), constant((byte)1)));
+        assertResultTrue(notEqual(constant((byte)1), constant((byte)0)));
+    }
+
+    @Test
+    public void testComparisonOperatorsByteChar() throws Throwable {
+        assertResultTrue(lessThanOrEqual(constant((byte)0), constant((char)1)));
+        assertResultTrue(lessThanOrEqual(constant((byte)1), constant((char)1)));
+        assertResultFalse(lessThanOrEqual(constant((byte)1), constant((char)0)));
+
+        assertResultTrue(lessThan(constant((byte)0), constant((char)1)));
+        assertResultFalse(lessThan(constant((byte)1), constant((char)1)));
+        assertResultFalse(lessThan(constant((byte)1), constant((char)0)));
+
+        assertResultFalse(greaterThanOrEqual(constant((byte)0), constant((char)1)));
+        assertResultTrue(greaterThanOrEqual(constant((byte)1), constant((char)1)));
+        assertResultTrue(greaterThanOrEqual(constant((byte)1), constant((byte)0)));
+
+        assertResultFalse(greaterThan(constant((byte)0), constant((char)1)));
+        assertResultFalse(greaterThan(constant((byte)1), constant((char)1)));
+        assertResultTrue(greaterThan(constant((byte)1), constant((char)0)));
+
+        assertResultFalse(equal(constant((byte)0), constant((char)1)));
+        assertResultTrue(equal(constant((byte)1), constant((char)1)));
+        assertResultFalse(equal(constant((byte)1), constant((char)0)));
+
+        assertResultTrue(notEqual(constant((byte)0), constant((char)1)));
+        assertResultFalse(notEqual(constant((byte)1), constant((char)1)));
+        assertResultTrue(notEqual(constant((byte)1), constant((char)0)));
+    }
+
+    @Test
+    public void testBad() throws Throwable {
+        final LambdaExpression<?> l = lambda(equal(constant((byte)1), constant((char)1)));
+        final MethodHandle h = l.compileHandle();
+        assertTrue((boolean)h.invokeExact());
+
+        assertResultTrue(equal(constant((byte)1), box(constant((char)1))));
+        assertResultTrue(equal(box(constant((byte)1)), constant((char)1)));
+        
+        final String s = "        assertResultTrue(lessThanOrEqual(constant((%1$s)0), constant((%2$s)1)));\n" +
+                   "        assertResultTrue(lessThanOrEqual(constant((%1$s)1), constant((%2$s)1)));\n" +
+                   "        assertResultFalse(lessThanOrEqual(constant((%1$s)1), constant((%2$s)0)));\n" +
+                   "\n" +
+                   "        assertResultTrue(lessThan(constant((%1$s)0), constant((%2$s)1)));\n" +
+                   "        assertResultFalse(lessThan(constant((%1$s)1), constant((%2$s)1)));\n" +
+                   "        assertResultFalse(lessThan(constant((%1$s)1), constant((%2$s)0)));\n" +
+                   "\n" +
+                   "        assertResultFalse(greaterThanOrEqual(constant((%1$s)0), constant((%2$s)1)));\n" +
+                   "        assertResultTrue(greaterThanOrEqual(constant((%1$s)1), constant((%2$s)1)));\n" +
+                   "        assertResultTrue(greaterThanOrEqual(constant((%1$s)1), constant((%2$s)0)));\n" +
+                   "\n" +
+                   "        assertResultFalse(greaterThan(constant((%1$s)0), constant((%2$s)1)));\n" +
+                   "        assertResultFalse(greaterThan(constant((%1$s)1), constant((%2$s)1)));\n" +
+                   "        assertResultTrue(greaterThan(constant((%1$s)1), constant((%2$s)0)));\n" +
+                   "\n" +
+                   "        assertResultFalse(equal(constant((%1$s)0), constant((%2$s)1)));\n" +
+                   "        assertResultTrue(equal(constant((%1$s)1), constant((%2$s)1)));\n" +
+                   "        assertResultFalse(equal(constant((%1$s)1), constant((%2$s)0)));\n" +
+                   "\n" +
+                   "        assertResultTrue(notEqual(constant((%1$s)0), constant((%2$s)1)));\n" +
+                   "        assertResultFalse(notEqual(constant((%1$s)1), constant((%2$s)1)));\n" +
+                   "        assertResultTrue(notEqual(constant((%1$s)1), constant((%2$s)0)));\n";
+
+        for (final TypeKind tk1 : EnumSet.allOf(TypeKind.class)) {
+            for (final TypeKind tk2 : EnumSet.allOf(TypeKind.class)) {
+
+            }
+        }
     }
 }
