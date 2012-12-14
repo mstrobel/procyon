@@ -19,6 +19,7 @@ package com.strobel.reflection.emit;
 @SuppressWarnings("PackageVisibleField")
 final class __FixupData {
     Label fixupLabel;
+    int offsetOrigin;
     int fixupPosition;
     int operandSize;
 }

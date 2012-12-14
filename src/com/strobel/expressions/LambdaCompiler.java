@@ -44,6 +44,7 @@ import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.reflection.emit.OpCode;
 import com.strobel.reflection.emit.StringSwitchCallback;
 import com.strobel.reflection.emit.SwitchCallback;
+import com.strobel.reflection.emit.SwitchOptions;
 import com.strobel.reflection.emit.TypeBuilder;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
@@ -83,7 +84,7 @@ final class LambdaCompiler {
         this.lambda = lambda;
 
         typeBuilder = new TypeBuilder(
-            getUniqueLambdaName(lambda.getCreationContext()),
+            getUniqueLambdaName(lambda.getName(), lambda.getCreationContext()),
             Modifier.PUBLIC | Modifier.FINAL,
             Types.Object,
             Type.list(lambda.getType())
@@ -784,16 +785,21 @@ final class LambdaCompiler {
     }
 
     private void emitMemberAssignment(final BinaryExpression node, final int flags) {
-        final MemberExpression lvalue = (MemberExpression)node.getLeft();
-        final MemberInfo member = lvalue.getMember();
+        final MemberExpression lValue = (MemberExpression)node.getLeft();
+        final Expression rValue = node.getRight();
+        final MemberInfo member = lValue.getMember();
 
         // emit "this", if any
-        if (lvalue.getTarget() != null) {
-            emitExpression(lvalue.getTarget());
+        if (lValue.getTarget() != null) {
+            emitExpression(lValue.getTarget());
         }
 
         // emit value
-        emitExpression(node.getRight());
+        emitExpression(rValue);
+
+        if (!TypeUtils.hasReferenceConversion(rValue.getType(), lValue.getType())) {
+            generator.emitConversion(rValue.getType(), lValue.getType());
+        }
 
         LocalBuilder temp = null;
 
@@ -846,7 +852,11 @@ final class LambdaCompiler {
             }
         }
 
-        emitExpression(node.getRight());
+        emitExpression(right);
+
+        if (!TypeUtils.hasReferenceConversion(right.getType(), variable.getType())) {
+            generator.emitConversion(right.getType(), variable.getType());
+        }
 
         if (emitAs != CompilationFlags.EmitAsVoidType) {
             generator.dup();
@@ -857,6 +867,7 @@ final class LambdaCompiler {
 
     private void emitIndexAssignment(final BinaryExpression node, final int flags) {
         final Expression left = node.getLeft();
+        final Expression right = node.getRight();
         final BinaryExpression index = (BinaryExpression)left;
         final int emitAs = flags & CompilationFlags.EmitAsTypeMask;
 
@@ -867,7 +878,11 @@ final class LambdaCompiler {
         emitExpression(index.getRight());
 
         // Emit the value
-        emitExpression(node.getRight());
+        emitExpression(right);
+
+        if (!TypeUtils.hasReferenceConversion(right.getType(), left.getType())) {
+            generator.emitConversion(right.getType(), left.getType());
+        }
 
         // Save the expression value, if needed
         LocalBuilder temp = null;
@@ -2759,9 +2774,13 @@ final class LambdaCompiler {
         return String.format("lambda_method_%d", nextId.getAndIncrement());
     }
 
-    static String getUniqueLambdaName(final Class<?> creationContext) {
+    static String getUniqueLambdaName(final String name, final Class<?> creationContext) {
         final Package p = creationContext != null ? creationContext.getPackage()
                                                   : LambdaCompiler.class.getPackage();
+
+        if (name != null) {
+            return String.format("%s.%s[0x%3$04x]", p.getName(), name, nextId.getAndIncrement());
+        }
 
         return String.format("%s.f__Lambda[0x%2$04x]", p.getName(), nextId.getAndIncrement());
     }
@@ -3856,9 +3875,6 @@ final class LambdaCompiler {
 
         final SwitchOptions options = node.getOptions();
 
-        final boolean useTable = options == SwitchOptions.PreferTable ||
-                                 options != SwitchOptions.PreferTrie && tests >= 7;
-
         emitExpression(node.getSwitchValue());
 
         generator.emitSwitch(
@@ -3902,7 +3918,7 @@ final class LambdaCompiler {
                     }
                 }
             },
-            useTable
+            options
         );
 
         return true;
@@ -3976,11 +3992,13 @@ final class LambdaCompiler {
 
         Arrays.sort(keys);
 
-        final SwitchOptions options = node.getOptions();
+        SwitchOptions options = node.getOptions();
 
-        final boolean useTable = options == SwitchOptions.PreferTable ||
-                                 (options != SwitchOptions.PreferLookup &&
-                                  (float)keys.length / (keys[keys.length - 1] - keys[0] + 1) >= 0.5f);
+        if (options == SwitchOptions.Default &&
+            (float)keys.length / (keys[keys.length - 1] - keys[0] + 1) >= 0.5f) {
+
+            options = SwitchOptions.PreferTable;
+        }
 
         emitExpression(node.getSwitchValue());
 
@@ -4029,7 +4047,7 @@ final class LambdaCompiler {
                     }
                 }
             },
-            useTable
+            options
         );
 
         return true;

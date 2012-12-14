@@ -551,6 +551,7 @@ public class CodeGenerator {
         // replaced with the correct offset to branch during the fixup process.
 
         final int tempVal = label.getLabelValue();
+        final int fixupOrigin = _codeStream.getLength();
 
         emit(opCode);
 
@@ -558,7 +559,7 @@ public class CodeGenerator {
             // HACK: To avoid resizing the byte array to accommodate wide jump labels,
             // we just pad the two bytes after a short jump label with NOP opcodes.
             // TODO: Fix this later.
-            addFixup(label, _codeStream.getLength(), 2);
+            addFixup(label, fixupOrigin, _codeStream.getLength(), 2);
             _codeStream.putShort(0);
 /*
             internalEmit(OpCode.NOP);
@@ -566,7 +567,7 @@ public class CodeGenerator {
 */
         }
         else if (opCode.getOperandType() == OperandType.BranchW) {
-            addFixup(label, _codeStream.getLength(), 4);
+            addFixup(label, fixupOrigin, _codeStream.getLength(), 4);
             _codeStream.putInt(0);
         }
     }
@@ -2113,16 +2114,22 @@ public class CodeGenerator {
             density = (float)keys.length / (keys[keys.length - 1] - keys[0] + 1);
         }
 
-        emitSwitch(keys, callback, density >= 0.5f);
+        emitSwitch(
+            keys,
+            callback, density >= 0.5f ? SwitchOptions.PreferTable
+                                      : SwitchOptions.PreferLookup
+        );
     }
 
-    public void emitSwitch(final int[] keys, final SwitchCallback callback, final boolean useTable) {
+    public void emitSwitch(final int[] keys, final SwitchCallback callback, final SwitchOptions options) {
         VerifyArgument.notNull(keys, "keys");
         VerifyArgument.notNull(callback, "callback");
+        VerifyArgument.notNull(options, "options");
 
         final Label breakTarget = defineLabel();
         final Label defaultLabel = defineLabel();
         final int start = offset();
+        final boolean useTable = options != SwitchOptions.PreferLookup;
 
         try {
             if (keys.length > 0) {
@@ -2131,7 +2138,7 @@ public class CodeGenerator {
                 final int maximum = keys[length - 1];
                 final int range = maximum - minimum + 1;
 
-                if (useTable) {
+                if (useTable && range >= 0) {
                     final Label[] labels = new Label[range];
 
                     Arrays.fill(labels, defaultLabel);
@@ -2146,14 +2153,14 @@ public class CodeGenerator {
                         emitByteOperand(0);
                     }
 
-                    addFixup(defaultLabel, offset(), offset() - start + 1);
+                    addFixup(defaultLabel, start, offset(), 4);
 
                     emitIntOperand(0);
                     emitIntOperand(minimum);
                     emitIntOperand(maximum);
 
                     for (final Label label : labels) {
-                        addFixup(label, offset(), offset() - start + 1);
+                        addFixup(label, start, offset(), 4);
                         emitIntOperand(0);
                     }
 
@@ -2179,14 +2186,14 @@ public class CodeGenerator {
                         emitByteOperand(0);
                     }
 
-                    addFixup(defaultLabel, offset(), offset() - start + 1);
+                    addFixup(defaultLabel, start, offset(), 4);
                     emitIntOperand(0);
 
                     emitIntOperand(length);
 
                     for (int i = 0; i < length; i++) {
                         emitIntOperand(keys[i]);
-                        addFixup(labels[i], offset(), offset() - start + 1);
+                        addFixup(labels[i], start, offset(), 4);
                         emitIntOperand(0);
                     }
 
@@ -2206,9 +2213,14 @@ public class CodeGenerator {
         }
     }
 
-    public <E extends Enum<E>> void emitSwitch(final E[] keys, final EnumSwitchCallback<E> callback, final boolean useTable) {
+    public <E extends Enum<E>> void emitSwitch(final E[] keys, final EnumSwitchCallback<E> callback) {
+        emitSwitch(keys, callback, SwitchOptions.Default);
+    }
+
+    public <E extends Enum<E>> void emitSwitch(final E[] keys, final EnumSwitchCallback<E> callback, final SwitchOptions options) {
         VerifyArgument.noNullElements(keys, "keys");
         VerifyArgument.notNull(callback, "callback");
+        VerifyArgument.notNull(options, "options");
 
         final int[] intKeys = new int[keys.length];
 
@@ -2230,21 +2242,25 @@ public class CodeGenerator {
                     callback.emitDefault(breakTarget);
                 }
             },
-            useTable
+            options
         );
     }
 
     public void emitSwitch(final String[] keys, final StringSwitchCallback callback) {
-        emitSwitch(keys, callback, true);
+        emitSwitch(keys, callback, SwitchOptions.Default);
     }
 
-    public void emitSwitch(final String[] keys, final StringSwitchCallback callback, final boolean useHash) {
+    public void emitSwitch(final String[] keys, final StringSwitchCallback callback, final SwitchOptions options) {
         try {
-            if (useHash) {
-                emitStringHashSwitch(keys, callback);
+            if (options == SwitchOptions.PreferTrie) {
+                emitStringTrieSwitch(keys, callback);
             }
             else {
-                emitStringTrieSwitch(keys, callback);
+                emitStringHashSwitch(
+                    keys,
+                    callback,
+                    options != null ? options
+                                    : SwitchOptions.Default);
             }
         }
         catch (Exception e) {
@@ -2372,7 +2388,7 @@ public class CodeGenerator {
         );
     }
 
-    private void emitStringHashSwitch(final String[] keys, final StringSwitchCallback callback) throws Exception {
+    private void emitStringHashSwitch(final String[] keys, final StringSwitchCallback callback, final SwitchOptions options) throws Exception {
         final Map<Integer, List<String>> buckets = getStringSwitchBuckets(
             Arrays.asList(keys),
             new Func1<String, Integer>() {
@@ -2437,11 +2453,12 @@ public class CodeGenerator {
                 public void emitDefault(final Label breakTarget) throws Exception {
                     pop();
                 }
-            }
+            },
+            options
         );
 
         markLabel(defaultLabel);
-        callback.emitDefault(defaultLabel);
+        callback.emitDefault(breakTarget);
         markLabel(breakTarget);
     }
 
@@ -2570,9 +2587,11 @@ public class CodeGenerator {
         putLongOperand(codes, index, Double.doubleToRawLongBits(value));
     }
 
-    private void addFixup(final Label label, final int position, final int operandSize) {
-        // Notes the label, position, and instruction size of a new fixup.  Expands
-        // all of the fixup arrays as appropriate.
+    private void addFixup(final Label label, final int offsetOrigin, final int fixupPosition, final int operandSize) {
+        //
+        // Notes the label, offset origin, position, and instruction size of a new fixup.
+        // Expands all of the fixup arrays as appropriate.
+        //
 
         if (_fixupData == null) {
             _fixupData = new __FixupData[DefaultFixupArraySize];
@@ -2586,7 +2605,8 @@ public class CodeGenerator {
             _fixupData[_fixupCount] = new __FixupData();
         }
 
-        _fixupData[_fixupCount].fixupPosition = position;
+        _fixupData[_fixupCount].offsetOrigin = offsetOrigin;
+        _fixupData[_fixupCount].fixupPosition = fixupPosition;
         _fixupData[_fixupCount].fixupLabel = label;
         _fixupData[_fixupCount].operandSize = operandSize;
 
@@ -2671,8 +2691,8 @@ public class CodeGenerator {
         // them with their proper values.
         for (int i = 0; i < _fixupCount; i++) {
             final int fixupPosition = _fixupData[i].fixupPosition;
-            updateAddress = getLabelPosition(_fixupData[i].fixupLabel) - fixupPosition + _fixupData[i].operandSize - 1 /*getLabelPosition(_fixupData[i].fixupLabel) -
-                            (fixupPosition + _fixupData[i].operandSize)*/;
+            updateAddress = getLabelPosition(_fixupData[i].fixupLabel) - _fixupData[i].offsetOrigin /*getLabelPosition(_fixupData[i].fixupLabel) -
+                            (fixupPosition + _fixupData[i].adjustment)*/;
 
             // Handle single byte instructions
             // Throw an exception if they're trying to store a jump in a single byte instruction that doesn't fit.

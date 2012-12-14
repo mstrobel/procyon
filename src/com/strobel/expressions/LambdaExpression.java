@@ -154,8 +154,8 @@ public final class LambdaExpression<T> extends Expression {
         return compileToMethod(
             typeBuilder,
             StringUtilities.isNullOrWhitespace(name)
-            ? LambdaCompiler.getUniqueMethodName()
-            : name,
+                ? LambdaCompiler.getUniqueMethodName()
+                : name,
             Modifier.PUBLIC
         );
     }

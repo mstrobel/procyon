@@ -39,6 +39,7 @@ import com.strobel.reflection.TypeList;
 import com.strobel.reflection.Types;
 import com.strobel.reflection.emit.ConstructorBuilder;
 import com.strobel.reflection.emit.MethodBuilder;
+import com.strobel.reflection.emit.SwitchOptions;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
@@ -1912,7 +1913,7 @@ public abstract class Expression {
         verifyCanWrite(left, "left");
         verifyCanRead(right, "right");
 
-        if (!TypeUtils.areReferenceAssignable(left.getType(), right.getType())) {
+        if (!left.getType().isAssignableFrom(right.getType())) {
             throw Error.expressionTypeDoesNotMatchAssignment(left.getType(), right.getType());
         }
 
@@ -2466,12 +2467,12 @@ public abstract class Expression {
     // INVOKE EXPRESSIONS                                                                                                 //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public static InvocationExpression invoke(final LambdaExpression<?> expression, final Expression... arguments) {
+    public static InvocationExpression invoke(final Expression expression, final Expression... arguments) {
         VerifyArgument.noNullElements(arguments, "arguments");
         return invoke(expression, new ExpressionList<>(arguments));
     }
 
-    public static InvocationExpression invoke(final LambdaExpression<?> expression, final ExpressionList<? extends Expression> arguments) {
+    public static InvocationExpression invoke(final Expression expression, final ExpressionList<? extends Expression> arguments) {
         verifyCanRead(expression, "expression");
 
         final MethodInfo method = getInvokeMethod(expression);

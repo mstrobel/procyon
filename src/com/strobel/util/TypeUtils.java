@@ -118,6 +118,12 @@ public final class TypeUtils {
     }
 
     public static boolean isArithmetic(final Type<?> type) {
+        return isNumeric(type) ||
+               type == PrimitiveTypes.Character ||
+               type == Types.Character;
+    }
+
+    public static boolean isNumeric(final Type<?> type) {
         final Type<?> underlyingPrimitive = getUnderlyingPrimitive(type);
         final Type<?> actualType = underlyingPrimitive != null ? underlyingPrimitive : type;
 
@@ -207,7 +213,7 @@ public final class TypeUtils {
     public static boolean hasIdentityPrimitiveOrBoxingConversion(final Type<?> source, final Type<?> destination) {
         assert source != null && destination != null;
 
-        if (destination == Types.Object) {
+        if (source == Types.Object || destination == Types.Object) {
             return true;
         }
 

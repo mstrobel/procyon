@@ -163,14 +163,19 @@ final class Helper {
     }
 
     public static boolean covariantReturnType(final Type t, final Type s) {
-        return
-            isSameType(t, s) ||
-            !t.isPrimitive() &&
-            !s.isPrimitive() &&
-            isAssignable(t, s);
+        return isSameType(t, s) ||
+               !t.isPrimitive() &&
+               !s.isPrimitive() &&
+               isAssignable(t, s);
     }
 
     public static boolean isAssignable(final Type sourceType, final Type targetType) {
+        if (VerifyArgument.notNull(sourceType, "sourceType") ==
+            VerifyArgument.notNull(targetType, "targetType")) {
+
+            return true;
+        }
+
         if (targetType.isGenericParameter() || targetType.hasExtendsBound()) {
             return isAssignable(sourceType, targetType.getExtendsBound());
         }
@@ -180,7 +185,10 @@ final class Helper {
         }
 
         if (targetType instanceof TypeBuilder) {
-            return targetType == sourceType;
+            final TypeBuilder targetTypeBuilder = (TypeBuilder) targetType;
+
+            return targetTypeBuilder.isCreated() &&
+                   isAssignable(sourceType, targetTypeBuilder.createType());
         }
 
         return isConvertible(sourceType, targetType);

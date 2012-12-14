@@ -450,6 +450,14 @@ public final class TypeBuilder<T> extends Type<T> {
         return super.getExtendsBound();
     }
 
+    @Override
+    public boolean isAssignableFrom(final Type type) {
+        if (_hasBeenCreated) {
+            return _generatedType.isAssignableFrom(type);
+        }
+        return super.isAssignableFrom(type);
+    }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Member Information Overrides">

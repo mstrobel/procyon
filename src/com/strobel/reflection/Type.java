@@ -345,8 +345,11 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             return false;
         }
 
-        if (other instanceof TypeBuilder<?>) {
-            return false;
+        if (other instanceof TypeBuilder) {
+            final TypeBuilder typeBuilder = (TypeBuilder) other;
+
+            return typeBuilder.isCreated() &&
+                   isEquivalentTo(typeBuilder.createType());
         }
 
         if (other instanceof RuntimeType<?>) {
@@ -473,33 +476,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public boolean isAssignableFrom(final Type type) {
-/*
-        if (type == null) {
-            return false;
-        }
-
-        if (type == Bottom) {
-            return true;
-        }
-
-        if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(this, type)) {
-            return true;
-        }
-
-        if (type.isSubTypeOf(this)) {
-            return true;
-        }
-
-        if (this.isInterface()) {
-            return type.implementsInterface(this);
-        }
-        else if (isGenericParameter()) {
-            return getUpperBound().isAssignableFrom(type) &&
-                   type.isAssignableFrom(getLowerBound());
-        }
-
-        return false;
-*/
         return Helper.isAssignable(type, this);
     }
 

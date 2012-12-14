@@ -14,7 +14,7 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.expressions;
+package com.strobel.reflection.emit;
 
 /**
  * @author Mike Strobel
