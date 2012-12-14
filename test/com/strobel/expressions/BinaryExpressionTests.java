@@ -16,14 +16,11 @@ package com.strobel.expressions;
 import com.strobel.reflection.Types;
 import org.junit.Test;
 
-import javax.lang.model.type.TypeKind;
-import java.lang.invoke.MethodHandle;
 import java.math.BigInteger;
-import java.util.EnumSet;
 import java.util.concurrent.Callable;
 
 import static com.strobel.expressions.Expression.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * @author Mike Strobel
@@ -132,15 +129,8 @@ public class BinaryExpressionTests extends AbstractExpressionTest {
         assertResultTrue(notEqual(constant((byte)1), constant((char)0)));
     }
 
-    @Test
-    public void testBad() throws Throwable {
-        final LambdaExpression<?> l = lambda(equal(constant((byte)1), constant((char)1)));
-        final MethodHandle h = l.compileHandle();
-        assertTrue((boolean)h.invokeExact());
-
-        assertResultTrue(equal(constant((byte)1), box(constant((char)1))));
-        assertResultTrue(equal(box(constant((byte)1)), constant((char)1)));
-        
+/*
+    private static void generateTests() throws Throwable {
         final String s = "        assertResultTrue(lessThanOrEqual(constant((%1$s)0), constant((%2$s)1)));\n" +
                    "        assertResultTrue(lessThanOrEqual(constant((%1$s)1), constant((%2$s)1)));\n" +
                    "        assertResultFalse(lessThanOrEqual(constant((%1$s)1), constant((%2$s)0)));\n" +
@@ -171,4 +161,5 @@ public class BinaryExpressionTests extends AbstractExpressionTest {
             }
         }
     }
+*/
 }
