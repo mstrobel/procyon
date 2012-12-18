@@ -3992,14 +3992,6 @@ final class LambdaCompiler {
 
         Arrays.sort(keys);
 
-        SwitchOptions options = node.getOptions();
-
-        if (options == SwitchOptions.Default &&
-            (float)keys.length / (keys[keys.length - 1] - keys[0] + 1) >= 0.5f) {
-
-            options = SwitchOptions.PreferTable;
-        }
-
         emitExpression(node.getSwitchValue());
 
         if (isEnum) {
@@ -4047,7 +4039,7 @@ final class LambdaCompiler {
                     }
                 }
             },
-            options
+            node.getOptions()
         );
 
         return true;

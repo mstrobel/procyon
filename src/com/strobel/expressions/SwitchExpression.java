@@ -186,6 +186,7 @@ public final class SwitchExpression extends Expression {
 
         final SwitchExpression hashSwitch = makeSwitch(
             call(switchValue, "hashCode"),
+            _options,
             hashCases
         );
 
@@ -198,7 +199,7 @@ public final class SwitchExpression extends Expression {
         final SwitchExpression resultSwitch = makeSwitch(
             _type,
             caseIndex,
-            _options,
+            SwitchOptions.PreferTable,
             _defaultBody,
             null,
             resultCases

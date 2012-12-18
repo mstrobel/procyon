@@ -2129,7 +2129,7 @@ public class CodeGenerator {
         final Label breakTarget = defineLabel();
         final Label defaultLabel = defineLabel();
         final int start = offset();
-        final boolean useTable = options != SwitchOptions.PreferLookup;
+        final SwitchOptions resolvedOptions = resolveSwitchOptions(keys, options);
 
         try {
             if (keys.length > 0) {
@@ -2138,7 +2138,7 @@ public class CodeGenerator {
                 final int maximum = keys[length - 1];
                 final int range = maximum - minimum + 1;
 
-                if (useTable && range >= 0) {
+                if (resolvedOptions == SwitchOptions.PreferTable && range >= 0) {
                     final Label[] labels = new Label[range];
 
                     Arrays.fill(labels, defaultLabel);
@@ -2211,6 +2211,18 @@ public class CodeGenerator {
         catch (Exception e) {
             throw Error.codeGenerationException(e);
         }
+    }
+
+    private static SwitchOptions resolveSwitchOptions(final int[] keys, final SwitchOptions options) {
+        if (options == SwitchOptions.Default || options == null) {
+            if (keys.length > 0 && (float)keys.length / (keys[keys.length - 1] - keys[0] + 1) >= 0.5f) {
+                return SwitchOptions.PreferTable;
+            }
+            else {
+                return SwitchOptions.PreferLookup;
+            }
+        }
+        return options;
     }
 
     public <E extends Enum<E>> void emitSwitch(final E[] keys, final EnumSwitchCallback<E> callback) {
