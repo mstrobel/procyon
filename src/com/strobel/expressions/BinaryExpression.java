@@ -295,8 +295,30 @@ final class CompareMethodBasedLogicalBinaryExpression extends BinaryExpression {
     }
 
     @Override
-    public MethodInfo getMethod() {
+    public final MethodInfo getMethod() {
         return _method;
+    }
+
+    @Override
+    public final Expression reduce() {
+        if (canReduce()) {
+            switch (_operator) {
+                case GreaterThan:
+                    return greaterThan(call(_method, getLeft(), getRight()), constant(0));
+                case GreaterThanOrEqual:
+                    return greaterThanOrEqual(call(_method, getLeft(), getRight()), constant(0));
+                case LessThan:
+                    return lessThan(call(_method, getLeft(), getRight()), constant(0));
+                case LessThanOrEqual:
+                    return lessThanOrEqual(call(_method, getLeft(), getRight()), constant(0));
+            }
+        }
+        return this;
+    }
+
+    @Override
+    public final boolean canReduce() {
+        return _method.getReturnType() == PrimitiveTypes.Integer;
     }
 }
 

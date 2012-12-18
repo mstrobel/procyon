@@ -68,6 +68,63 @@ public class BinaryExpressionTests extends AbstractExpressionTest {
     }
 
     @Test
+    public void testMethodBasedComparisonOperators() throws Throwable {
+        Expression zero = constant(new BigInteger("0"));
+        Expression one = constant(new BigInteger("1"));
+
+        assertResultTrue(lessThanOrEqual(zero, one));
+        assertResultTrue(lessThanOrEqual(one, one));
+        assertResultFalse(lessThanOrEqual(one, zero));
+
+        assertResultTrue(lessThan(zero, one));
+        assertResultFalse(lessThan(one, one));
+        assertResultFalse(lessThan(one, zero));
+
+        assertResultFalse(greaterThanOrEqual(zero, one));
+        assertResultTrue(greaterThanOrEqual(one, one));
+        assertResultTrue(greaterThanOrEqual(one, zero));
+
+        assertResultFalse(greaterThan(zero, one));
+        assertResultFalse(greaterThan(one, one));
+        assertResultTrue(greaterThan(one, zero));
+
+        assertResultFalse(equal(zero, one));
+        assertResultTrue(equal(one, one));
+        assertResultFalse(equal(one, zero));
+
+        assertResultTrue(notEqual(zero, one));
+        assertResultFalse(notEqual(one, one));
+        assertResultTrue(notEqual(one, zero));
+
+        zero = constant(new BigInteger("0"), Types.Object);
+        one = constant(new BigInteger("1"), Types.Object);
+
+        assertResultTrue(lessThanOrEqual(zero, one));
+        assertResultTrue(lessThanOrEqual(one, one));
+        assertResultFalse(lessThanOrEqual(one, zero));
+
+        assertResultTrue(lessThan(zero, one));
+        assertResultFalse(lessThan(one, one));
+        assertResultFalse(lessThan(one, zero));
+
+        assertResultFalse(greaterThanOrEqual(zero, one));
+        assertResultTrue(greaterThanOrEqual(one, one));
+        assertResultTrue(greaterThanOrEqual(one, zero));
+
+        assertResultFalse(greaterThan(zero, one));
+        assertResultFalse(greaterThan(one, one));
+        assertResultTrue(greaterThan(one, zero));
+
+        assertResultFalse(equal(zero, one));
+        assertResultTrue(equal(one, one));
+        assertResultFalse(equal(one, zero));
+
+        assertResultTrue(notEqual(zero, one));
+        assertResultFalse(notEqual(one, one));
+        assertResultTrue(notEqual(one, zero));
+    }
+    
+    @Test
     public void testComparisonOperators() throws Throwable {
         assertResultTrue(lessThanOrEqual(constant(1), constant(1)));
         assertResultTrue(lessThan(constant(2), constant(3L)));

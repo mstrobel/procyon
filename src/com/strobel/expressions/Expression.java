@@ -3469,38 +3469,38 @@ public abstract class Expression {
 
         MethodInfo method;
 
-        if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType)) {
-            final Type comparable = Type.of(Comparable.class);
-            final Type leftComparable = comparable.makeGenericType(leftType);
+        if (TypeUtils.areEquivalent(leftType, rightType)) {
+            final Type comparable = Types.Comparable.makeGenericType(leftType);
 
-            if (leftType.implementsInterface(leftComparable)) {
+            if (leftType.implementsInterface(comparable)) {
                 method = getMethodValidated(
-                    leftType,
-                    "compareTo",
-                    BindingFlags.PublicInstance,
+                    Types.Comparer,
+                    "compare",
+                    BindingFlags.PublicStatic,
                     CallingConvention.Standard,
-                    leftType
+                    Types.Comparable,
+                    Types.Comparable
                 );
 
                 if (method != null) {
+                    method = method.makeGenericMethod(leftType);
                     return new CompareMethodBasedLogicalBinaryExpression(binaryType, left, right, method);
                 }
             }
+        }
 
-            final Type rightComparable = comparable.makeGenericType(leftType);
+        if (TypeUtils.hasIdentityPrimitiveOrBoxingConversion(leftType, rightType)) {
+            method = getMethodValidated(
+                Types.Comparer,
+                "compare",
+                BindingFlags.PublicStatic,
+                CallingConvention.Standard,
+                Types.Object,
+                Types.Object
+            );
 
-            if (rightType.implementsInterface(rightComparable)) {
-                method = getMethodValidated(
-                    rightType,
-                    "compareTo",
-                    BindingFlags.PublicInstance,
-                    CallingConvention.Standard,
-                    rightType
-                );
-
-                if (method != null) {
-                    return new CompareMethodBasedLogicalBinaryExpression(binaryType, left, right, method);
-                }
+            if (method != null) {
+                return new CompareMethodBasedLogicalBinaryExpression(binaryType, left, right, method);
             }
         }
 
@@ -3709,7 +3709,7 @@ public abstract class Expression {
         final BinaryExpression b = getCompareMethodBasedBinaryOperator(binaryType, left, right);
 
         if (b != null) {
-            return null;
+            return b;
         }
 
         throw Error.binaryOperatorNotDefined(binaryType, left.getType(), right.getType());
