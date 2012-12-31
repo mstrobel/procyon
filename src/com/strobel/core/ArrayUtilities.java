@@ -13,17 +13,26 @@
 
 package com.strobel.core;
 
+import com.strobel.collections.ArrayIterator;
+import com.strobel.collections.Cache;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
 
 import java.lang.reflect.Array;
+import java.util.AbstractList;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.RandomAccess;
 
 /**
  * @author Mike Strobel
  */
 @SuppressWarnings("unchecked")
 public final class ArrayUtilities {
+    private final static Cache<Class<?>, Class<?>> GLOBAL_ARRAY_TYPE_CACHE = Cache.createTopLevelCache();
+    private final static Cache<Class<?>, Class<?>> ARRAY_TYPE_CACHE = Cache.createThreadLocalCache(GLOBAL_ARRAY_TYPE_CACHE);
+
     private ArrayUtilities() {
         throw ContractUtils.unreachable();
     }
@@ -31,6 +40,69 @@ public final class ArrayUtilities {
     public static boolean isArray(final Object value) {
         return value != null &&
                value.getClass().isArray();
+    }
+
+    public static <T> T[] create(final Class<T> elementType, final int length) {
+        return (T[])Array.newInstance(elementType, length);
+    }
+
+    public static Object createAny(final Class<?> elementType, final int length) {
+        return Array.newInstance(elementType, length);
+    }
+
+    public static Object copyOf(final Object array, final int newLength) {
+        return copyOf(VerifyArgument.notNull(array, "array"), newLength, array.getClass());
+    }
+
+    public static Object copyOf(final Object array, final int newLength, final Class<?> newType) {
+        final Object copy = newType == Object[].class
+                            ? new Object[newLength]
+                            : Array.newInstance(newType.getComponentType(), newLength);
+
+        //noinspection SuspiciousSystemArraycopy
+        System.arraycopy(array, 0, copy, 0, Math.min(Array.getLength(array), newLength));
+
+        return copy;
+    }
+
+    public static Object copyOfRange(final Object array, final int from, final int to) {
+        return copyOfRange(VerifyArgument.notNull(array, "array"), from, to, array.getClass());
+    }
+
+    public static Object copyOfRange(final Object array, final int from, final int to, final Class<?> newType) {
+        final int newLength = to - from;
+
+        if (newLength < 0) {
+            throw new IllegalArgumentException(from + " > " + to);
+        }
+
+        final Object copy = newType == Object[].class
+                            ? new Object[newLength]
+                            : Array.newInstance(newType.getComponentType(), newLength);
+
+        //noinspection SuspiciousSystemArraycopy
+        System.arraycopy(
+            array,
+            from,
+            copy,
+            0,
+            Math.min(Array.getLength(array) - from, newLength)
+        );
+
+        return copy;
+    }
+
+    public static <T> Class<T[]> makeArrayType(final Class<T> elementType) {
+        final Class<?> arrayType = ARRAY_TYPE_CACHE.get(elementType);
+
+        if (arrayType != null) {
+            return (Class<T[]>)arrayType;
+        }
+
+        return (Class<T[]>)ARRAY_TYPE_CACHE.cache(
+            elementType,
+            Array.newInstance(elementType, 0).getClass()
+        );
     }
 
     public static <T> T[] copy(final T[] source, final T[] target) {
@@ -265,6 +337,41 @@ public final class ArrayUtilities {
         return newArray;
     }
 
+    public static <T> T[] remove(final T[] array, final int index, final int length) {
+        VerifyArgument.notNull(array, "array");
+        VerifyArgument.validElementRange(array.length, index, index + length);
+
+        if (array.length == length) {
+            return EmptyArrayCache.fromArrayType(array.getClass());
+        }
+
+        final T[] newArray = (T[])Array.newInstance(
+            array.getClass().getComponentType(),
+            array.length - length
+        );
+
+        System.arraycopy(array, 0, newArray, 0, index);
+
+        final int remaining = newArray.length - index;
+
+        if (remaining > 0) {
+            System.arraycopy(array, index + length, newArray, index, remaining);
+        }
+
+        return newArray;
+    }
+
+    public static <T> T[] replace(final T[] array, final int index, final T item) {
+        VerifyArgument.notNull(array, "array");
+        VerifyArgument.inRange(0, array.length - 1, index, "index");
+
+        final T[] newArray = Arrays.copyOf(array, array.length);
+
+        newArray[index] = item;
+
+        return newArray;
+    }
+
     public static <T> boolean isNullOrEmpty(final T[] array) {
         return array == null || array.length == 0;
     }
@@ -400,6 +507,8 @@ public final class ArrayUtilities {
 
         return newArray;
     }
+
+    // <editor-fold defaultstate="collapsed" desc="Primitive Array Specializations of Search Functions">
 
     ////////////////////////////////////////////////////////////////////////////////
     // PRIMITIVE ARRAY SPECIALIZATIONS OF SEARCH FUNCTIONS                        //
@@ -1920,4 +2029,124 @@ public final class ArrayUtilities {
 
         return newArray;
     }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Iterable Wrappers">
+
+    public static <T> Iterable<T> toIterable(final T... array) {
+        return new Iterable<T>() {
+            @Override
+            public Iterator<T> iterator() {
+                return new ArrayIterator<>(array);
+            }
+        };
+    }
+
+    public static Iterable<Object> toIterable(final Object array) {
+        if (!isArray(array)) {
+            throw new IllegalArgumentException("Value is not an array.");
+        }
+
+        return new Iterable<Object>() {
+            @Override
+            public Iterator<Object> iterator() {
+                return new Iterator<Object>() {
+                    private final int _length = Array.getLength(array);
+                    private int _index = 0;
+
+                    @Override
+                    public boolean hasNext() {
+                        return _index < _length;
+                    }
+
+                    @Override
+                    public Object next() {
+                        if (hasNext()) {
+                            return Array.get(array, _index++);
+                        }
+                        throw new IllegalStateException();
+                    }
+
+                    @Override
+                    public void remove() {
+                        throw ContractUtils.unsupported();
+                    }
+                };
+            }
+        };
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Unmodifiable List Wrapper">
+
+    @SafeVarargs
+    public static <T> List<T> asUnmodifiableList(final T... items) {
+        return new UnmodifiableArrayList<>(items);
+    }
+
+    private static class UnmodifiableArrayList<E> extends AbstractList<E> implements RandomAccess {
+        private final E[] _array;
+
+        UnmodifiableArrayList(final E[] array) {
+            _array = VerifyArgument.notNull(array, "array");
+        }
+
+        public int size() {
+            return _array.length;
+        }
+
+        public Object[] toArray() {
+            return _array.clone();
+        }
+
+        public <T> T[] toArray(final T[] a) {
+            final int length = size();
+            if (a.length < length) {
+                return Arrays.copyOf(
+                    this._array, length,
+                    (Class<? extends T[]>)a.getClass()
+                );
+            }
+            //noinspection SuspiciousSystemArraycopy
+            System.arraycopy(this._array, 0, a, 0, length);
+            if (a.length > length) {
+                a[length] = null;
+            }
+            return a;
+        }
+
+        public E get(final int index) {
+            return _array[index];
+        }
+
+        public E set(final int index, final E element) {
+            throw ContractUtils.unsupported();
+        }
+
+        public int indexOf(final Object o) {
+            if (o == null) {
+                for (int i = 0; i < _array.length; i++) {
+                    if (_array[i] == null) {
+                        return i;
+                    }
+                }
+            }
+            else {
+                for (int i = 0; i < _array.length; i++) {
+                    if (o.equals(_array[i])) {
+                        return i;
+                    }
+                }
+            }
+            return -1;
+        }
+
+        public boolean contains(final Object o) {
+            return indexOf(o) != -1;
+        }
+    }
+
+    // </editor-fold>
 }

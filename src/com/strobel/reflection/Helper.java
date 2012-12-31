@@ -33,7 +33,7 @@ import static com.strobel.collections.ListBuffer.lb;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings({ "unchecked" })
+@SuppressWarnings( { "unchecked" })
 final class Helper {
 
     private Helper() {}
@@ -119,7 +119,7 @@ final class Helper {
     public static boolean overrides(final MethodBase method, final MethodBase other, final boolean checkResult) {
         return method instanceof MethodInfo &&
                other instanceof MethodInfo &&
-               overrides((MethodInfo)method, (MethodInfo)other, checkResult);
+               overrides((MethodInfo) method, (MethodInfo) other, checkResult);
     }
 
     public static boolean overrides(final MethodInfo method, final MethodInfo other, final boolean checkResult) {
@@ -176,8 +176,12 @@ final class Helper {
             return true;
         }
 
-        if (targetType.isGenericParameter() || targetType.hasExtendsBound()) {
+        if (targetType.hasExtendsBound()) {
             return isAssignable(sourceType, targetType.getExtendsBound());
+        }
+
+        if (sourceType.hasSuperBound()) {
+            return isSuperType(targetType, sourceType.getSuperBound());
         }
 
         if (sourceType instanceof TypeBuilder) {
@@ -399,15 +403,15 @@ final class Helper {
             if (currentS.head != currentT.head) {
                 captured = true;
 
-                final WildcardType Ti = (WildcardType)currentT.head;
+                final WildcardType Ti = (WildcardType) currentT.head;
                 Type Ui = currentA.head.getExtendsBound();
-                CapturedType Si = (CapturedType)currentS.head;
+                CapturedType Si = (CapturedType) currentS.head;
 
                 if (Ui == null) {
                     Ui = Types.Object;
                 }
 
-                if (Ti.isUnbound()) {
+                if (Ti.isUnbounded()) {
                     currentS.head = Si = new CapturedType(
                         Si.getDeclaringType(),
                         substitute(Ui, A, S),
@@ -566,7 +570,7 @@ final class Helper {
     public static boolean isCaptureOf(final Type p, final Type t) {
         return p.isGenericParameter() &&
                p instanceof ICapturedType &&
-               isSameWildcard(t, ((ICapturedType)p).getWildcard());
+               isSameWildcard(t, ((ICapturedType) p).getWildcard());
     }
 
     public static boolean isSameWildcard(final Type t, final Type p) {
@@ -574,8 +578,8 @@ final class Helper {
             return false;
         }
 
-        if (p.isUnbound()) {
-            return t.isUnbound();
+        if (p.isUnbounded()) {
+            return t.isUnbounded();
         }
 
         if (p.hasSuperBound()) {
@@ -870,8 +874,12 @@ final class Helper {
             }
 
             if (t.isGenericType()) {
-                if (p.isGenericType()) {
+                if (p.isGenericType() || p.isRawType()) {
                     if (t.getGenericTypeDefinition() == p.getGenericTypeDefinition()) {
+
+                        if (p.isRawType()) {
+                            return t;
+                        }
 
                         boolean areTypeArgumentsAssignable = true;
 
@@ -882,18 +890,27 @@ final class Helper {
                             final Type<?> at = ta.get(i);
                             final Type<?> ap = tp.get(i);
 
-                            if (ap == at)
+                            if (ap == at) {
                                 continue;
+                            }
 
-                            if (ap.hasExtendsBound()) {
-                                final Type<?> extendsBound = ap.getExtendsBound();
-                                if (extendsBound == p || extendsBound.isAssignableFrom(at)) {
+                            final Type<?> apb;
+
+                            if (ap.hasSuperBound()) {
+                                apb = ap.getSuperBound();
+                                if (isSuperType(at, apb)) {
                                     continue;
                                 }
                             }
+                            else {
+                                apb = ap;
+                            }
 
-                            if (ap.hasSuperBound() && isSuperType(at, ap.getSuperBound())) {
-                                continue;
+                            if (apb.hasExtendsBound()) {
+                                final Type<?> extendsBound = apb.getExtendsBound();
+                                if (extendsBound == p || extendsBound.isAssignableFrom(at)) {
+                                    continue;
+                                }
                             }
 
                             areTypeArgumentsAssignable = false;
@@ -904,9 +921,6 @@ final class Helper {
                             return t;
                         }
                     }
-                }
-                else if (p instanceof ErasedType<?> && t.getErasedType() == p) {
-                    return t;
                 }
             }
 
@@ -1264,7 +1278,7 @@ final class Helper {
         }
 
         public Boolean visitType(final Type t, final Type s) {
-            if (t.isGenericParameter()) {
+            if (t.hasExtendsBound()) {
                 return isSubtypeNoCapture(t.getExtendsBound(), s);
             }
             return Boolean.FALSE;
@@ -1396,7 +1410,7 @@ final class Helper {
 
         ListBuffer<Type> from;
         ListBuffer<Type> to;
-        Map<Type, Type> mapping;
+        Map<Type, Type>  mapping;
 
         Adapter(final ListBuffer<Type> from, final ListBuffer<Type> to) {
             this.from = from;
@@ -1601,7 +1615,7 @@ final class Helper {
                 }
 
                 for (final Type p : t.getTypeArguments()) {
-                    if (p.isUnbound()) {
+                    if (p.isUnbounded()) {
                         return Boolean.FALSE;
                     }
                 }
@@ -1817,7 +1831,7 @@ final class Helper {
                 return false;
             }
 
-            final TypePair typePair = (TypePair)obj;
+            final TypePair typePair = (TypePair) obj;
 
             return Helper.isSameType(t1, typePair.t1) &&
                    Helper.isSameType(t2, typePair.t2);

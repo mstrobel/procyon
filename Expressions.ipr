@@ -17,7 +17,7 @@
     </artifact>
   </component>
   <component name="CompilerConfiguration">
-    <option name="DEFAULT_COMPILER" value="Eclipse" />
+    <option name="DEFAULT_COMPILER" value="compAPI" />
     <resourceExtensions />
     <wildcardResourcePatterns>
       <entry name="?*.properties" />

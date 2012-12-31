@@ -14,6 +14,7 @@
 package com.strobel.reflection;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.util.ContractUtils;
 
 import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
@@ -28,6 +29,7 @@ final class PrimitiveType<T> extends Type<T> {
     private final String _signature;
     private final String _description;
     private final TypeKind _kind;
+    private final ArrayType<T[]> _arrayType;
 
     PrimitiveType(final Class<T> clazz, final char signature, final String description, final TypeKind kind) {
         _class = VerifyArgument.notNull(clazz, "clazz");
@@ -39,6 +41,7 @@ final class PrimitiveType<T> extends Type<T> {
         _kind = VerifyArgument.notNull(kind, "kind");
         _signature = String.valueOf(signature);
         _description = VerifyArgument.notNull(description, "description");
+        _arrayType = kind == TypeKind.VOID ? null : new ArrayType<T[]>(this);
     }
 
     @Override
@@ -108,6 +111,14 @@ final class PrimitiveType<T> extends Type<T> {
     @Override
     public TypeList getNestedTypes(final Set<BindingFlags> bindingFlags) {
         return TypeList.empty();
+    }
+
+    @Override
+    public final Type<T[]> makeArrayType() {
+        if (getKind() == TypeKind.VOID) {
+            throw ContractUtils.unsupported();
+        }
+        return _arrayType;
     }
 
     @Override

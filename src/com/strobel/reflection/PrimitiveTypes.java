@@ -13,7 +13,10 @@
 
 package com.strobel.reflection;
 
+import com.strobel.core.ArrayUtilities;
+
 import javax.lang.model.type.TypeKind;
+import java.util.List;
 
 /**
  * @author strobelm
@@ -31,6 +34,10 @@ public final class PrimitiveTypes {
     public final static Type<Float> Float = new PrimitiveType<>(java.lang.Float.TYPE, 'F', "float", TypeKind.FLOAT);
     public final static Type<Double> Double = new PrimitiveType<>(java.lang.Double.TYPE, 'D', "double", TypeKind.DOUBLE);
 
+    private final static List<Type<?>> AllPrimitives = ArrayUtilities.asUnmodifiableList(
+        Void, Boolean, Byte, Short, Character, Integer, Long,  Float, Double
+    );
+
     static {
         Type.CACHE.add(PrimitiveTypes.Void);
         Type.CACHE.add(PrimitiveTypes.Boolean);
@@ -47,5 +54,9 @@ public final class PrimitiveTypes {
         if (Void != Type.CACHE.find(java.lang.Void.TYPE)) {
             throw new IllegalStateException("Primitive types were not successfully registered!");
         }
+    }
+
+    public static List<Type<?>> allPrimitives() {
+        return AllPrimitives;
     }
 }

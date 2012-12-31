@@ -280,8 +280,8 @@ final class Resolver {
                     return null;
                 }
 
-                Type<?> upperBound = Type.Bottom;
-                Type<?> lowerBound = Types.Object;
+                Type<?> upperBound = Types.Object;
+                Type<?> lowerBound = Type.Bottom;
 
                 if (resolvedUpperBounds != null) {
                     if (resolvedUpperBounds.size() == 1) {
@@ -301,7 +301,7 @@ final class Resolver {
                     }
                 }
 
-                return new WildcardType(lowerBound, upperBound);
+                return new WildcardType(upperBound, lowerBound);
             }
 
             // Now redundant to findType()...
@@ -630,8 +630,8 @@ final class Resolver {
             return null;
         }
 
-        Type<?> upperBound = Type.Bottom;
-        Type<?> lowerBound = Types.Object;
+        Type<?> upperBound = Types.Object;
+        Type<?> lowerBound = Type.Bottom;
 
         if (resolvedUpperBounds != null) {
             if (resolvedUpperBounds.size() == 1) {
@@ -651,7 +651,7 @@ final class Resolver {
             }
         }
 
-        return new WildcardType(lowerBound, upperBound);
+        return new WildcardType(upperBound, lowerBound);
     }
 
     private Type<?> visitParameterizedType(final ParameterizedType type, final Frame frame) {
