@@ -407,6 +407,12 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
+    public boolean isInstance(final Object o) {
+        return _hasBeenCreated &&
+               _generatedClass.isInstance(o);
+    }
+
+    @Override
     public boolean isGenericParameter() {
         return _isGenericParameter;
     }

@@ -31,6 +31,11 @@ final class NullType extends Type {
     }
 
     @Override
+    public boolean isInstance(final Object o) {
+        return o == null;
+    }
+
+    @Override
     public Object accept(final TypeVisitor visitor, final Object parameter) {
         return visitor.visitType(this, parameter);
     }

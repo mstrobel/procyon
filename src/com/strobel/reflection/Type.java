@@ -456,7 +456,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     public boolean isInstance(final Object o) {
         return o != null &&
-               isAssignableFrom(of(o.getClass()));
+               getErasedClass().isInstance(o);
     }
 
     @SuppressWarnings("UnusedParameters")

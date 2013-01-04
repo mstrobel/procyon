@@ -295,7 +295,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
 
     @Override
     public boolean isInstance(final Object o) {
-        return super.isInstance(o);
+        return typeBuilder.isInstance(o);
     }
 
     @Override
