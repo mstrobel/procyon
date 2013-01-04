@@ -1102,7 +1102,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return makeGenericTypeCore(typeArguments);
     }
 
-    public final Type<? extends T> makeGenericType(final Type<?>... typeArguments) {
+    public final Type<T> makeGenericType(final Type<?>... typeArguments) {
         return makeGenericTypeCore(
             list(
                 VerifyArgument.noNullElements(typeArguments, "typeArguments")
