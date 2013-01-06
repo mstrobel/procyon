@@ -17,7 +17,8 @@
     </artifact>
   </component>
   <component name="CompilerConfiguration">
-    <option name="DEFAULT_COMPILER" value="Eclipse" />
+    <option name="DEFAULT_COMPILER" value="Javac" />
+    <addNotNullAssertions enabled="false" />
     <resourceExtensions />
     <wildcardResourcePatterns>
       <entry name="?*.properties" />
@@ -266,6 +267,8 @@
   <component name="ProjectCodeStyleSettingsManager">
     <option name="PER_PROJECT_SETTINGS">
       <value>
+        <option name="FIELD_NAME_PREFIX" value="_" />
+        <option name="RIGHT_MARGIN" value="160" />
         <XML>
           <option name="XML_LEGACY_SETTINGS_IMPORTED" value="true" />
         </XML>
@@ -316,6 +319,7 @@
         </codeStyleSettings>
       </value>
     </option>
+    <option name="USE_PER_PROJECT_SETTINGS" value="true" />
   </component>
   <component name="ProjectDictionaryState">
     <dictionary name="strobelm">
@@ -470,6 +474,7 @@
         <w>goto</w>
         <w>initializers</w>
         <w>javac</w>
+        <w>nullable</w>
         <w>opcode</w>
         <w>opcodes</w>
         <w>overridable</w>
@@ -490,6 +495,7 @@
   </component>
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/Assembler/Assembler.iml" filepath="$PROJECT_DIR$/Assembler/Assembler.iml" />
       <module fileurl="file://$PROJECT_DIR$/Expressions.iml" filepath="$PROJECT_DIR$/Expressions.iml" />
     </modules>
   </component>
