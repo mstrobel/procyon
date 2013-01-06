@@ -1776,7 +1776,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return new TypeList(types);
     }
 
-    public static TypeList list(final List<? extends Type> types) {
+    public static TypeList list(final List<? extends Type<?>> types) {
         return new TypeList(types);
     }
 

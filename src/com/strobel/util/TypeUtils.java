@@ -203,8 +203,8 @@ public final class TypeUtils {
             return false;
         }
 
-        final Set<Type> set1 = new HashSet<>(types1);
-        final Set<Type> set2 = new HashSet<>(types2);
+        final Set<Type<?>> set1 = new HashSet<>(types1);
+        final Set<Type<?>> set2 = new HashSet<>(types2);
 
         return set1.size() == set2.size() &&
                set1.containsAll(set2);

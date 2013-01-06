@@ -24,7 +24,8 @@ import java.util.List;
 /**
  * @author Mike Strobel
  */
-public class TypeList extends MemberList<Type> {
+@SuppressWarnings("unchecked")
+public class TypeList extends MemberList<Type<?>> {
     private final static TypeList EMPTY = new TypeList();
 
     @SuppressWarnings("unchecked")
@@ -68,15 +69,15 @@ public class TypeList extends MemberList<Type> {
     }
 
     public TypeList(final Type... elements) {
-        super(Type.class, elements);
+        super((Class<Type<?>>) (Class)Type.class, elements);
     }
 
-    public TypeList(final List<? extends Type> elements) {
-        super(Type.class, elements);
+    public TypeList(final List<? extends Type<?>> elements) {
+        super((Class<Type<?>>) (Class)Type.class, elements);
     }
 
     public TypeList(final Type[] elements, final int offset, final int length) {
-        super(Type.class, elements, offset, length);
+        super((Class<Type<?>>) (Class)Type.class, elements, offset, length);
     }
 
     @Override
@@ -96,6 +97,19 @@ public class TypeList extends MemberList<Type> {
     public final boolean containsGenericParameters() {
         for (int i = 0, n = this.size(); i < n; i++) {
             if (this.get(i).containsGenericParameters()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public final boolean containsGenericParameter(final Type<?> genericParameter) {
+        if (!VerifyArgument.notNull(genericParameter, "genericParameter").isGenericParameter()) {
+            throw Error.notGenericParameter(genericParameter);
+        }
+
+        for (int i = 0, n = this.size(); i < n; i++) {
+            if (this.get(i).containsGenericParameter(genericParameter)) {
                 return true;
             }
         }
@@ -166,16 +180,17 @@ public class TypeList extends MemberList<Type> {
     }
 
     public final TypeList getErasedTypes() {
-        if (isEmpty())
+        if (isEmpty()) {
             return empty();
+        }
 
         final int size = size();
         final Type<?>[] erasedTypes = new Type<?>[size];
-        
+
         for (int i = 0; i < size; i++) {
             erasedTypes[i] = get(i).getErasedType();
         }
-        
+
         return new TypeList(erasedTypes);
     }
 

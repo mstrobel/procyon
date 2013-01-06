@@ -238,12 +238,19 @@ class ReflectedConstructor extends ConstructorInfo {
     private final ParameterList _parameters;
     private final Constructor _rawConstructor;
     private final TypeList _thrownTypes;
+    private final SignatureType _signatureType;
 
     ReflectedConstructor(final Type declaringType, final Constructor rawConstructor, final ParameterList parameters, final TypeList thrownTypes) {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _rawConstructor = VerifyArgument.notNull(rawConstructor, "rawConstructor");
         _parameters = VerifyArgument.notNull(parameters, "parameters");
         _thrownTypes = VerifyArgument.notNull(thrownTypes, "thrownTypes");
+        _signatureType = new SignatureType(PrimitiveTypes.Void, _parameters.getParameterTypes());
+    }
+
+    @Override
+    public SignatureType getSignatureType() {
+        return _signatureType;
     }
 
     @Override

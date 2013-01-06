@@ -788,8 +788,8 @@ final class RuntimeTypeCache<T> {
 
             final Type<?> reflectedType = getReflectedType();
 
-            final HashSet<Type> set = new HashSet<>();
-            final ImmutableList<Type> interfaceList = Helper.interfaces(reflectedType);
+            final HashSet<Type<?>> set = new HashSet<>();
+            final ImmutableList<Type<?>> interfaceList = Helper.interfaces(reflectedType);
 
             for (final Type interfaceType : interfaceList) {
                 final String name = interfaceType.getFullName();
@@ -877,6 +877,7 @@ final class RuntimeConstructorInfo extends ConstructorInfo {
     private final Set<BindingFlags> _bindingFlags;
     private final int _modifiers;
     private final ParameterList _parameters;
+    private final SignatureType _signatureType;
 
     RuntimeConstructorInfo(
         final Constructor<?> rawConstructor,
@@ -890,10 +891,16 @@ final class RuntimeConstructorInfo extends ConstructorInfo {
         _bindingFlags = VerifyArgument.notNull(bindingFlags, "bindingFlags");
         _modifiers = modifiers;
         _parameters = VerifyArgument.notNull(parameters, "parameters");
+        _signatureType = new SignatureType(PrimitiveTypes.Void, _parameters.getParameterTypes());
     }
 
     Set<BindingFlags> getBindingFlags() {
         return _bindingFlags;
+    }
+
+    @Override
+    public SignatureType getSignatureType() {
+        return _signatureType;
     }
 
     @Override
@@ -947,7 +954,7 @@ final class RuntimeMethodInfo extends MethodInfo {
     private final int _modifiers;
     private final Set<BindingFlags> _bindingFlags;
     private final ParameterList _parameters;
-    private final Type<?> _returnType;
+    private final SignatureType _signatureType;
     private final TypeList _thrownTypes;
     private final TypeBindings _typeBindings;
 
@@ -969,16 +976,19 @@ final class RuntimeMethodInfo extends MethodInfo {
         _modifiers = modifiers;
         _parameters = VerifyArgument.notNull(parameters, "parameters");
 
+        final Type<?> actualReturnType;
+
         if (TypeBinder.GET_CLASS_METHOD.equals(rawMethod)) {
-            _returnType = Types.Class
+            actualReturnType = Types.Class
                                .makeGenericType(
                                    Type.makeExtendsWildcard(reflectedTypeCache.getRuntimeType()/*.getErasedType()*/)
                                );
         }
         else {
-            _returnType = VerifyArgument.notNull(returnType, "returnType");
+            actualReturnType = VerifyArgument.notNull(returnType, "returnType");
         }
 
+        _signatureType = new SignatureType(actualReturnType, _parameters.getParameterTypes());
         _thrownTypes = VerifyArgument.notNull(thrownTypes, "thrownTypes");
         _typeBindings = VerifyArgument.notNull(typeBindings, "typeBindings");
     }
@@ -994,7 +1004,12 @@ final class RuntimeMethodInfo extends MethodInfo {
 
     @Override
     public Type<?> getReturnType() {
-        return _returnType;
+        return _signatureType.getReturnType();
+    }
+
+    @Override
+    public SignatureType getSignatureType() {
+        return _signatureType;
     }
 
     @Override

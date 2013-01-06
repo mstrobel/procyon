@@ -4,41 +4,67 @@ public enum OperandType {
     /**
      * Opcode is not followed by any operands.
      */
-    NoOperands(1),
+    None(0),
     /**
-     * Opcode is followed by a byte indicating a type.
+     * Opcode is followed by a primitive type code.
      */
-    Type(2),
+    PrimitiveTypeCode(1),
+    /**
+     * Opcode is followed by a type reference.
+     */
+    TypeReference(2),
+    /**
+     * Opcode is followed by a type reference and an unsigned byte.
+     */
+    TypeReferenceU1(3),
+    /**
+     * Opcode is followed by a method reference.
+     */
+    MethodReference(2),
+    /**
+     * Opcode is followed by a field reference.
+     */
+    FieldReference(2),
     /**
      * Opcode is followed by a 2-byte branch offset.
      */
-    BranchTarget(3),
+    BranchTarget(2),
     /**
-     * Opcode is followed by a 4-byte branch offset.
+     * Opcode is followed by a signed byte.
      */
-    BranchTargetWide(5),
+    I1(1),
     /**
-     * Opcode is followed by a signed byte value.
+     * Opcode is followed by a signed short integer.
      */
-    I1(2),
+    I2(2),
     /**
-     * Opcode is followed by a 1-byte index into the constant pool.
+     * Opcode is followed by a signed integer.
      */
-    CPRef(2),
+    I4(4),
     /**
-     * Opcode is followed by a 2-byte index into the constant pool.
+     * Opcode is followed by a signed long integer.
      */
-    CPRefWide(3),
+    I8(8),
     /**
-     * Opcode is followed by a 2-byte index into the constant pool,
-     * an unsigned byte value.
+     * Opcode is followed by an unsigned byte.
      */
-    CPRefWideU1(4),
+    U1(1),
     /**
-     * Opcode is followed by a 2-byte index into the constant pool.,
-     * an unsigned byte value, and a zero byte.
+     * Opcode is followed by an unsigned short integer.
      */
-    CPRefWideU1Zero(5),
+    U2(2),
+    /**
+     * Opcode is followed by a 4-byte floating point number.
+     */
+    R4(4),
+    /**
+     * Opcode is followed by an 8-byte floating point number.
+     */
+    R8(8),
+    /**
+     * Opcode is followed by a string.
+     */
+    String(2),
     /**
      * Opcode is followed by variable number of operands, depending
      * on the instruction.
@@ -47,42 +73,25 @@ public enum OperandType {
     /**
      * Opcode is followed by a 1-byte reference to a local variable.
      */
-    Local(2),
+    Local(1),
     /**
-     * Opcode is followed by a 1-byte reference to a local variable,
+     * Opcode is followed by a 1-byte reference to a local variable
      * and a signed byte value.
      */
-    LocalI1(3),
+    LocalI1(2),
     /**
-     * Opcode is followed by a signed short value.
+     * Opcode is followed by a 2-byte reference to a local variable
+     * and a signed short integer.
      */
-    I2(3),
-    /**
-     * Wide opcode is not followed by any operands.
-     */
-    WideNoOperands(2),
-    /**
-     * Wide opcode is followed by a 2-byte index into the constant pool.
-     */
-    WideCPRefWide(4),
-    /**
-     * Wide opcode is followed by a 2-byte index into the constant pool,
-     * and a signed short value.
-     */
-    WideCPRefWideI2(6),
-    /**
-     * Opcode was not recognized.
-     */
-    Unknown(1);
+    LocalI2(4);
 
-    @SuppressWarnings("PackageVisibleField")
-    final int length;
+    private final int size;
 
-    OperandType(final int length) {
-        this.length = length;
+    OperandType(final int size) {
+        this.size = size;
     }
 
-    public int size() {
-        return length;
+    public final int getBaseSize() {
+        return this.size;
     }
 }
