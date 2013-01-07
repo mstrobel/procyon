@@ -1,7 +1,7 @@
 package com.strobel.assembler;
 
 import com.strobel.core.StringUtilities;
-import com.strobel.reflection.*;
+import com.strobel.reflection.SimpleType;
 import com.strobel.util.ContractUtils;
 
 import java.lang.reflect.Modifier;
@@ -46,6 +46,10 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return false;
     }
 
+    public boolean isCompoundType() {
+        return (getFlags() & Flags.COMPOUND) == Flags.COMPOUND;
+    }
+
     public boolean isBoundedType() {
         return this.isGenericParameter() ||
                this.isWildcardType() ||
@@ -67,11 +71,11 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return isWildcardType() && !BuiltinTypes.Bottom.equals(getSuperBound());
     }
 
-    public Type<?> getExtendsBound() {
+    public TypeReference getExtendsBound() {
         throw ContractUtils.unsupported();
     }
 
-    public Type<?> getSuperBound() {
+    public TypeReference getSuperBound() {
         throw ContractUtils.unsupported();
     }
 
@@ -127,7 +131,8 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     @Override
     public boolean isGenericDefinition() {
-        return false;
+        return hasGenericParameters() &&
+               isDefinition();
     }
 
     @Override
@@ -183,8 +188,8 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     protected StringBuilder appendBriefDescription(final StringBuilder sb) {
         StringBuilder s = appendName(sb, true, true);
 
-        if (this instanceof IGenericTypeInstance) {
-            final List<TypeReference> typeArguments = ((IGenericTypeInstance) this).getTypeArguments();
+        if (this instanceof IGenericInstance) {
+            final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
             final int count = typeArguments.size();
 
             if (count > 0) {
@@ -206,8 +211,8 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     protected StringBuilder appendSimpleDescription(final StringBuilder sb) {
         StringBuilder s = appendName(sb, false, false);
 
-        if (this instanceof IGenericTypeInstance) {
-            final List<TypeReference> typeArguments = ((IGenericTypeInstance) this).getTypeArguments();
+        if (this instanceof IGenericInstance) {
+            final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
             final int count = typeArguments.size();
 
             if (count > 0) {
@@ -234,8 +239,8 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     protected StringBuilder appendDescription(final StringBuilder sb) {
         StringBuilder s = appendName(sb, false, false);
 
-        if (this instanceof IGenericTypeInstance) {
-            final List<TypeReference> typeArguments = ((IGenericTypeInstance) this).getTypeArguments();
+        if (this instanceof IGenericInstance) {
+            final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
             final int count = typeArguments.size();
 
             if (count > 0) {
@@ -277,7 +282,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         StringBuilder s = sb;
 
         if (isGenericParameter()) {
-            final Type<?> extendsBound = getExtendsBound();
+            final TypeReference extendsBound = getExtendsBound();
 
             s.append(getName());
 
@@ -291,8 +296,8 @@ public abstract class TypeReference extends MemberReference implements IGenericP
             return s;
         }
 
-        if (this instanceof IGenericTypeInstance) {
-            final List<TypeReference> typeArguments = ((IGenericTypeInstance) this).getTypeArguments();
+        if (this instanceof IGenericInstance) {
+            final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
             final int count = typeArguments.size();
 
             if (count > 0) {
@@ -314,8 +319,8 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         s.append('L');
         s = appendName(s, true, false);
 
-        if (this instanceof IGenericTypeInstance) {
-            final List<TypeReference> typeArguments = ((IGenericTypeInstance) this).getTypeArguments();
+        if (this instanceof IGenericInstance) {
+            final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
             final int count = typeArguments.size();
 
             if (count > 0) {
@@ -349,8 +354,8 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
         appendName(sb, true, true);
 
-        if (this instanceof IGenericTypeInstance) {
-            final List<TypeReference> typeArguments = ((IGenericTypeInstance) this).getTypeArguments();
+        if (this instanceof IGenericInstance) {
+            final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
             final int count = typeArguments.size();
 
             if (count > 0) {

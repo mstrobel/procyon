@@ -111,8 +111,8 @@ public final class GenericParameter extends TypeReference implements IAnnotation
     }
 
     @Override
-    public int getModifiers() {
-        return 0;
+    public long getFlags() {
+        return 0L;
     }
 
     @Override

@@ -36,6 +36,10 @@ public abstract class MemberReference implements IAnnotationsProvider {
 
     public abstract TypeReference getDeclaringType();
 
+    public boolean isEquivalentTo(final MemberReference member) {
+        return member == this;
+    }
+
     // <editor-fold defaultstate="collapsed" desc="Annotations">
 
     @Override
@@ -52,7 +56,11 @@ public abstract class MemberReference implements IAnnotationsProvider {
 
     // <editor-fold defaultstate="collapsed" desc="Member Attributes">
 
-    public abstract int getModifiers();
+    public abstract long getFlags();
+
+    public final int getModifiers() {
+        return Flags.toModifiers(getFlags());
+    }
 
     public final boolean isFinal() {
         return Modifier.isFinal(getModifiers());
@@ -154,11 +162,11 @@ public abstract class MemberReference implements IAnnotationsProvider {
     protected abstract StringBuilder appendErasedSignature(StringBuilder sb);
     protected abstract StringBuilder appendSimpleDescription(final StringBuilder sb);
 
-    // </editor-fold>
-
     @Override
     public String toString() {
-        return getFullName();
+        return getSimpleDescription();
     }
+
+    // </editor-fold>
 }
 
