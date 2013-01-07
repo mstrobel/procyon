@@ -62,6 +62,10 @@ public abstract class MethodReference extends MemberReference implements IMethod
 
     // <editor-fold defaultstate="collapsed" desc="Generics">
 
+    public boolean isGenericMethod() {
+        return hasGenericParameters();
+    }
+
     @Override
     public boolean hasGenericParameters() {
         return !getGenericParameters().isEmpty();

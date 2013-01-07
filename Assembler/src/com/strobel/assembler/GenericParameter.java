@@ -6,12 +6,12 @@ import com.strobel.core.VerifyArgument;
 import java.util.Collections;
 import java.util.List;
 
-public final class GenericParameter extends TypeReference implements IAnnotationsProvider {
+public final class GenericParameter extends TypeReference {
     private String _name;
     private int _position;
     private GenericParameterType _type = GenericParameterType.Type;
     private IGenericParameterProvider _owner;
-    private List<TypeReference> _upperBounds;
+    private TypeReference _extendsBound;
     private List<ICustomAnnotation> _customAnnotations;
 
     GenericParameter(final String name) {
@@ -78,19 +78,21 @@ public final class GenericParameter extends TypeReference implements IAnnotation
         return _owner;
     }
 
-    public boolean hasUpperBounds() {
-        return !getUpperBounds().isEmpty();
+    @Override
+    public boolean hasExtendsBound() {
+        return true;
     }
 
-    public List<TypeReference> getUpperBounds() {
-        if (_upperBounds == null) {
+    @Override
+    public TypeReference getExtendsBound() {
+        if (_extendsBound == null) {
             synchronized (this) {
-                if (_upperBounds == null) {
-                    _upperBounds = populateUpperBounds();
+                if (_extendsBound == null) {
+                    _extendsBound = populateExtendsBound();
                 }
             }
         }
-        return _upperBounds;
+        return _extendsBound;
     }
 
     @Override
@@ -112,7 +114,7 @@ public final class GenericParameter extends TypeReference implements IAnnotation
 
     @Override
     public long getFlags() {
-        return 0L;
+        return Flags.PUBLIC;
     }
 
     @Override
@@ -156,8 +158,8 @@ public final class GenericParameter extends TypeReference implements IAnnotation
         return Collections.emptyList();
     }
 
-    private List<TypeReference> populateUpperBounds() {
-        return Collections.emptyList();
+    private TypeReference populateExtendsBound() {
+        return BuiltinTypes.Object;
     }
 
     // </editor-fold>

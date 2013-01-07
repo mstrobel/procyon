@@ -2,6 +2,7 @@ package com.strobel.assembler;
 
 import com.strobel.reflection.Types;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -10,8 +11,24 @@ import java.util.List;
  * Time: 4:51 PM
  */
 public abstract class TypeDefinition extends TypeReference {
-    public abstract TypeReference getBaseType();
-    public abstract List<TypeReference> getExplicitInterfaces();
+    public TypeReference getBaseType() {
+        if (this == BuiltinTypes.Object) {
+            return null;
+        }
+        return BuiltinTypes.Object;
+    }
+
+    public List<TypeReference> getExplicitInterfaces() {
+        return Collections.emptyList();
+    }
+
+    // <editor-fold defaultstate="collapsed" desc="Members">
+
+    public abstract List<FieldDefinition> getDeclaredFields();
+    public abstract List<MethodDefinition> getDeclaredMethods();
+    public abstract List<TypeDefinition> getDeclaredTypes();
+
+    // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Name and Signature Formatting">
 

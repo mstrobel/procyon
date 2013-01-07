@@ -17,6 +17,7 @@ public enum SimpleType {
     Object,
     Array,
     TypeVariable,
+    Wildcard,
     Void;
 
     public final boolean isPrimitive() {
@@ -24,6 +25,7 @@ public enum SimpleType {
             case Object:
             case Array:
             case TypeVariable:
+            case Wildcard:
             case Void:
                 return false;
             default:
@@ -36,6 +38,7 @@ public enum SimpleType {
             case Object:
             case Array:
             case TypeVariable:
+            case Wildcard:
                 return false;
             default:
                 return true;
@@ -183,6 +186,7 @@ public enum SimpleType {
             case Object:
             case Array:
             case TypeVariable:
+            case Wildcard:
             case Void:
                 return true;
             default:
