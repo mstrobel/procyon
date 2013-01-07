@@ -1,7 +1,5 @@
 package com.strobel.reflection;
 
-import com.strobel.util.ContractUtils;
-
 /**
  * User: Mike Strobel
  * Date: 1/6/13
@@ -18,12 +16,14 @@ public enum SimpleType {
     Double,
     Object,
     Array,
+    TypeVariable,
     Void;
 
     public final boolean isPrimitive() {
         switch (this) {
             case Object:
             case Array:
+            case TypeVariable:
             case Void:
                 return false;
             default:
@@ -35,6 +35,7 @@ public enum SimpleType {
         switch (this) {
             case Object:
             case Array:
+            case TypeVariable:
                 return false;
             default:
                 return true;
@@ -58,12 +59,9 @@ public enum SimpleType {
                 return 32;
             case Double:
                 return 64;
-            case Object:
-            case Array:
-            case Void:
+            default:
                 return 0;
         }
-        throw ContractUtils.unreachable();
     }
 
     public final int stackSlots() {
@@ -80,21 +78,13 @@ public enum SimpleType {
 
     public final boolean isSingleWord() {
         switch (this) {
-            case Boolean:
-            case Byte:
-            case Character:
-            case Short:
-            case Integer:
-            case Float:
-            case Object:
-            case Array:
-                return true;
             case Long:
             case Double:
             case Void:
                 return false;
+            default:
+                return true;
         }
-        throw ContractUtils.unreachable();
     }
 
     public final boolean isDoubleWord() {
@@ -192,6 +182,7 @@ public enum SimpleType {
         switch (this) {
             case Object:
             case Array:
+            case TypeVariable:
             case Void:
                 return true;
             default:
