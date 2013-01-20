@@ -224,7 +224,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         final int packageEnd = packageName.length();
 
         for (int i = 0; i < packageEnd; i++) {
-            final char c = name.charAt(i);
+            final char c = packageName.charAt(i);
             sb.append(c == '.' ? '/' : c);
         }
 

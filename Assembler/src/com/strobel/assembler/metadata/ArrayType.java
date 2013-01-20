@@ -7,9 +7,11 @@ import com.strobel.core.VerifyArgument;
  */
 public final class ArrayType extends TypeSpecification {
     private final TypeReference _elementType;
+    private final String _name;
 
     ArrayType(final TypeReference elementType) {
         _elementType = VerifyArgument.notNull(elementType, "elementType");
+        _name = elementType.getName() + "[]";
     }
 
     @Override
@@ -54,6 +56,16 @@ public final class ArrayType extends TypeSpecification {
     @Override
     public long getFlags() {
         return Flags.PUBLIC;
+    }
+
+    @Override
+    public String getName() {
+        return _name;
+    }
+
+    @Override
+    public String getPackageName() {
+        return _elementType.getPackageName();
     }
 
     public StringBuilder appendDescription(final StringBuilder sb) {

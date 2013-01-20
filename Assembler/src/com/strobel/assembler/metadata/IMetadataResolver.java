@@ -6,7 +6,9 @@ package com.strobel.assembler.metadata;
  * Time: 5:07 PM
  */
 public interface IMetadataResolver {
-    TypeDefinition resolve(final TypeReference type);
-    FieldDefinition resolve(final FieldReference field);
-    MethodDefinition resolve(final MethodReference method);
+    public TypeReference lookupType(final String descriptor);
+
+    public TypeDefinition resolve(final TypeReference type);
+    public FieldDefinition resolve(final FieldReference field);
+    public MethodDefinition resolve(final MethodReference method);
 }

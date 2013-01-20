@@ -28,8 +28,8 @@ public final class ConstantPool {
 
     private int _size;
 
-    public void write(final CodeOutputStream stream) {
-        stream.putShort(_size + 1);
+    public void write(final Buffer stream) {
+        stream.writeShort(_size + 1);
 
         for (final Entry entry : _pool) {
             if (entry != null) {
@@ -506,109 +506,109 @@ public final class ConstantPool {
 
     // <editor-fold defaultstate="collapsed" desc="Writer Class">
 
-    private final static class Writer implements Visitor<Void, CodeOutputStream> {
+    private final static class Writer implements Visitor<Void, Buffer> {
 
         @Override
-        public Void visitTypeInfo(final TypeInfoEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putShort(info.nameIndex);
+        public Void visitTypeInfo(final TypeInfoEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeShort(info.nameIndex);
             return null;
         }
 
         @Override
-        public Void visitDoubleConstant(final DoubleConstantEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putDouble(info.value);
+        public Void visitDoubleConstant(final DoubleConstantEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeDouble(info.value);
             return null;
         }
 
         @Override
-        public Void visitFieldReference(final FieldReferenceEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putShort(info.typeInfoIndex);
-            codeStream.putShort(info.nameAndTypeDescriptorIndex);
+        public Void visitFieldReference(final FieldReferenceEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeShort(info.typeInfoIndex);
+            codeStream.writeShort(info.nameAndTypeDescriptorIndex);
             return null;
         }
 
         @Override
-        public Void visitFloatConstant(final FloatConstantEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putFloat(info.value);
+        public Void visitFloatConstant(final FloatConstantEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeFloat(info.value);
             return null;
         }
 
         @Override
-        public Void visitIntegerConstant(final IntegerConstantEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putInteger(info.value);
+        public Void visitIntegerConstant(final IntegerConstantEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeInt(info.value);
             return null;
         }
 
         @Override
-        public Void visitInterfaceMethodReference(final InterfaceMethodReferenceEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putShort(info.typeInfoIndex);
-            codeStream.putShort(info.nameAndTypeDescriptorIndex);
+        public Void visitInterfaceMethodReference(final InterfaceMethodReferenceEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeShort(info.typeInfoIndex);
+            codeStream.writeShort(info.nameAndTypeDescriptorIndex);
             return null;
         }
 
         @Override
-        public Void visitInvokeDynamicInfo(final InvokeDynamicInfoEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putShort(info.bootstrapMethodAttributeIndex);
-            codeStream.putShort(info.nameAndTypeDescriptorIndex);
+        public Void visitInvokeDynamicInfo(final InvokeDynamicInfoEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeShort(info.bootstrapMethodAttributeIndex);
+            codeStream.writeShort(info.nameAndTypeDescriptorIndex);
             return null;
         }
 
         @Override
-        public Void visitLongConstant(final LongConstantEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putLong(info.value);
+        public Void visitLongConstant(final LongConstantEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeLong(info.value);
             return null;
         }
 
         @Override
-        public Void visitNameAndTypeDescriptor(final NameAndTypeDescriptorEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putShort(info.nameIndex);
-            codeStream.putShort(info.typeDescriptorIndex);
+        public Void visitNameAndTypeDescriptor(final NameAndTypeDescriptorEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeShort(info.nameIndex);
+            codeStream.writeShort(info.typeDescriptorIndex);
             return null;
         }
 
         @Override
-        public Void visitMethodReference(final MethodReferenceEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putShort(info.typeInfoIndex);
-            codeStream.putShort(info.nameAndTypeDescriptorIndex);
+        public Void visitMethodReference(final MethodReferenceEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeShort(info.typeInfoIndex);
+            codeStream.writeShort(info.nameAndTypeDescriptorIndex);
             return null;
         }
 
         @Override
-        public Void visitMethodHandle(final MethodHandleEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putShort(info.referenceKind.ordinal());
-            codeStream.putShort(info.referenceIndex);
+        public Void visitMethodHandle(final MethodHandleEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeShort(info.referenceKind.ordinal());
+            codeStream.writeShort(info.referenceIndex);
             return null;
         }
 
         @Override
-        public Void visitMethodType(final MethodTypeEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putShort(info.descriptorIndex);
+        public Void visitMethodType(final MethodTypeEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeShort(info.descriptorIndex);
             return null;
         }
 
         @Override
-        public Void visitStringConstant(final StringConstantEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putShort(info.stringIndex);
+        public Void visitStringConstant(final StringConstantEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeShort(info.stringIndex);
             return null;
         }
 
         @Override
-        public Void visitUtf8StringConstant(final Utf8StringConstantEntry info, final CodeOutputStream codeStream) {
-            codeStream.putByte(info.getTag().value);
-            codeStream.putUtf8(info.value);
+        public Void visitUtf8StringConstant(final Utf8StringConstantEntry info, final Buffer codeStream) {
+            codeStream.writeByte(info.getTag().value);
+            codeStream.writeUtf8(info.value);
             return null;
         }
     }

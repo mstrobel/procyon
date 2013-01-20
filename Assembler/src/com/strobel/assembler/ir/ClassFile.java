@@ -5,13 +5,10 @@ import com.strobel.assembler.ir.attributes.CodeAttribute;
 import com.strobel.assembler.ir.attributes.SignatureAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.util.EmptyArrayCache;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -19,13 +16,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * @author Mike Strobel
  */
-final class ClassFile implements ClassReader<IMetadataScope> {
+final class ClassFile implements ClassReader {
     final static long MAGIC = 0xCAFEBABEL;
 
     final long magic;
     final int majorVersion;
     final int minorVersion;
-    final File file;
     final Buffer buffer;
     final ConstantPool constantPool;
     final int accessFlags;
@@ -35,15 +31,17 @@ final class ClassFile implements ClassReader<IMetadataScope> {
     final List<FieldInfo> fields;
     final List<MethodInfo> methods;
     final List<SourceAttribute> attributes;
+    final String name;
+    final String packageName;
 
     private final AtomicBoolean _completed;
-    private TypeSystem _typeSystem;
+
+    private TypeDefinition _thisType;
 
     private ClassFile(
         final long magic,
         final int majorVersion,
         final int minorVersion,
-        final File file,
         final Buffer buffer,
         final ConstantPool constantPool,
         final int accessFlags,
@@ -54,85 +52,93 @@ final class ClassFile implements ClassReader<IMetadataScope> {
         this.magic = magic;
         this.majorVersion = majorVersion;
         this.minorVersion = minorVersion;
-        this.file = file;
         this.buffer = buffer;
         this.constantPool = constantPool;
         this.accessFlags = accessFlags;
         this.thisClassEntry = VerifyArgument.notNull(thisClassEntry, "thisClassEntry");
-        this.baseClassEntry = VerifyArgument.notNull(baseClassEntry, "baseClassEntry");
+        this.baseClassEntry = baseClassEntry;
         this.interfaceEntries = VerifyArgument.notNull(interfaceEntries, "interfaceEntries");
         this.attributes = new ArrayList<>();
         this.fields = new ArrayList<>();
         this.methods = new ArrayList<>();
 
+        final String internalName = thisClassEntry.getName();
+
+        final int delimiter = internalName.lastIndexOf('/');
+
+        if (delimiter < 0) {
+            this.packageName = StringUtilities.EMPTY;
+            this.name = internalName;
+        }
+        else {
+            this.packageName = internalName.substring(0, delimiter);
+            this.name = internalName.substring(delimiter + 1);
+        }
+
         _completed = new AtomicBoolean();
     }
 
-    final synchronized void complete(final TypeDefinition typeDefinition, final TypeSystem typeSystem) {
-/*
+    final synchronized void complete(final TypeDefinition thisType, final IMetadataResolver resolver) {
         if (_completed.getAndSet(true)) {
             return;
         }
 
-        _typeSystem = typeSystem;
+        _thisType = thisType;
+
+        final Scope scope = new Scope(resolver);
 
         final int fieldCount = buffer.readUnsignedShort();
 
         for (int i = 0; i < fieldCount; i++) {
             final int accessFlags = buffer.readUnsignedShort();
 
-            final ConstantPool.Utf8StringConstantEntry name = (ConstantPool.Utf8StringConstantEntry) constantPool.get(
-                buffer.readUnsignedShort(),
-                ConstantPool.Tag.Utf8StringConstant
-            );
-
-            final ConstantPool.Utf8StringConstantEntry descriptor = (ConstantPool.Utf8StringConstantEntry) constantPool.get(
-                buffer.readUnsignedShort(),
-                ConstantPool.Tag.Utf8StringConstant
-            );
+            final String name = constantPool.lookupUtf8Constant(buffer.readUnsignedShort());
+            final String descriptor = constantPool.lookupUtf8Constant(buffer.readUnsignedShort());
 
             final SourceAttribute[] attributes;
             final int attributeCount = buffer.readUnsignedShort();
 
             if (attributeCount > 0) {
                 attributes = new SourceAttribute[attributeCount];
-                readAttributes(scope, buffer, attributes);
+                SourceAttribute.readAttributes(resolver, scope, buffer, attributes);
             }
             else {
                 attributes = EmptyArrayCache.fromElementType(SourceAttribute.class);
             }
+
+            final FieldInfo field = new FieldInfo(accessFlags, name, descriptor, attributes);
+
+            fields.add(field);
+        }
+
+        final int methodCount = buffer.readUnsignedShort();
+
+        for (int i = 0; i < methodCount; i++) {
+            final int accessFlags = buffer.readUnsignedShort();
+
+            final String name = constantPool.lookupUtf8Constant(buffer.readUnsignedShort());
+            final String descriptor = constantPool.lookupUtf8Constant(buffer.readUnsignedShort());
+
+            final SourceAttribute[] attributes;
+            final int attributeCount = buffer.readUnsignedShort();
+
+            if (attributeCount > 0) {
+                attributes = new SourceAttribute[attributeCount];
+                SourceAttribute.readAttributes(resolver, scope, buffer, attributes);
+            }
+            else {
+                attributes = EmptyArrayCache.fromElementType(SourceAttribute.class);
+            }
+
+            final MethodInfo field = new MethodInfo(accessFlags, name, descriptor, attributes);
+
+            methods.add(field);
         }
 
         buffer.reset(0);
-*/
     }
 
-    static ClassFile load(final File file) {
-        try (final InputStream inputStream = new FileInputStream(file)) {
-            final Buffer input;
-            final ClassFile classFile;
-
-            final byte[] data;
-
-            try {
-                data = new byte[inputStream.available()];
-                inputStream.read(data);
-                input = new Buffer(data);
-                classFile = readClass(file, input);
-                inputStream.close();
-            }
-            catch (IOException e) {
-                throw new UndeclaredThrowableException(e);
-            }
-
-            return classFile;
-        }
-        catch (IOException e) {
-            throw new UndeclaredThrowableException(e);
-        }
-    }
-
-    static ClassFile readClass(final File file, final Buffer b) throws IOException {
+    static ClassFile readClass(final Buffer b) {
         final long magic = b.readInt() & 0xFFFFFFFFL;
 
         if (magic != MAGIC) {
@@ -147,7 +153,17 @@ final class ClassFile implements ClassReader<IMetadataScope> {
         final int accessFlags = b.readUnsignedShort();
 
         final ConstantPool.TypeInfoEntry thisClass = (ConstantPool.TypeInfoEntry) constantPool.get(b.readUnsignedShort(), ConstantPool.Tag.TypeInfo);
-        final ConstantPool.TypeInfoEntry baseClass = (ConstantPool.TypeInfoEntry) constantPool.get(b.readUnsignedShort(), ConstantPool.Tag.TypeInfo);
+        final ConstantPool.TypeInfoEntry baseClass;
+
+        final int baseClassToken = b.readUnsignedShort();
+
+        if (baseClassToken == 0) {
+            baseClass = null;
+        }
+        else {
+            baseClass = constantPool.getEntry(baseClassToken);
+        }
+
         final ConstantPool.TypeInfoEntry interfaces[] = new ConstantPool.TypeInfoEntry[b.readUnsignedShort()];
 
         for (int i = 0; i < interfaces.length; i++) {
@@ -158,7 +174,6 @@ final class ClassFile implements ClassReader<IMetadataScope> {
             magic,
             majorVersion,
             minorVersion,
-            file,
             b,
             constantPool,
             accessFlags,
@@ -171,7 +186,9 @@ final class ClassFile implements ClassReader<IMetadataScope> {
     // <editor-fold defaultstate="collapsed" desc="ClassReader Implementation">
 
     @Override
-    public void accept(final IMetadataScope scope, final ClassVisitor<IMetadataScope> visitor) {
+    public void accept(final IMetadataResolver resolver, final ClassVisitor<IMetadataScope> visitor) {
+        final IMetadataScope scope = new Scope(resolver);
+
         visitHeader(scope, visitor);
     }
 
@@ -230,6 +247,80 @@ final class ClassFile implements ClassReader<IMetadataScope> {
             this.descriptor = descriptor;
             this.attributes = attributes;
             this.codeAttribute = (CodeAttribute) SourceAttribute.find(AttributeNames.Code, attributes);
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Metadata Scope">
+
+    private class Scope implements IMetadataScope {
+        private final MetadataParser _parser;
+
+        Scope(final IMetadataResolver resolver) {
+            _parser = new MetadataParser(VerifyArgument.notNull(resolver, "resolver"));
+        }
+
+        @Override
+        public TypeReference lookupType(final int token) {
+            final ConstantPool.Entry entry = constantPool.get(token);
+
+            if (entry instanceof ConstantPool.TypeInfoEntry) {
+                final ConstantPool.TypeInfoEntry typeInfo = (ConstantPool.TypeInfoEntry) entry;
+
+                if (typeInfo == thisClassEntry || thisClassEntry.getName().equals(typeInfo.getName())) {
+                    return _thisType;
+                }
+
+                return _parser.parseTypeDescriptor(typeInfo.getName());
+            }
+
+            final String typeName = constantPool.lookupConstant(token);
+
+            if (thisClassEntry.getName().equals(typeName)) {
+                return _thisType;
+            }
+
+            return _parser.parseTypeDescriptor(typeName);
+        }
+
+        @Override
+        public FieldReference lookupField(final int token) {
+            final ConstantPool.FieldReferenceEntry entry = constantPool.getEntry(token);
+            return lookupField(entry.typeInfoIndex, entry.nameAndTypeDescriptorIndex);
+        }
+
+        @Override
+        public MethodReference lookupMethod(final int token) {
+            final ConstantPool.FieldReferenceEntry entry = constantPool.getEntry(token);
+            return lookupMethod(entry.typeInfoIndex, entry.nameAndTypeDescriptorIndex);
+        }
+
+        @Override
+        public FieldReference lookupField(final int typeToken, final int nameAndTypeToken) {
+            final ConstantPool.NameAndTypeDescriptorEntry nameAndDescriptor = constantPool.getEntry(nameAndTypeToken);
+
+            return _parser.parseField(
+                lookupType(typeToken),
+                nameAndDescriptor.getName(),
+                nameAndDescriptor.getType()
+            );
+        }
+
+        @Override
+        public MethodReference lookupMethod(final int typeToken, final int nameAndTypeToken) {
+            final ConstantPool.NameAndTypeDescriptorEntry nameAndDescriptor = constantPool.getEntry(nameAndTypeToken);
+
+            return _parser.parseMethod(
+                lookupType(typeToken),
+                nameAndDescriptor.getName(),
+                nameAndDescriptor.getType()
+            );
+        }
+
+        @Override
+        public <T> T lookupConstant(final int token) {
+            return constantPool.lookupConstant(token);
         }
     }
 

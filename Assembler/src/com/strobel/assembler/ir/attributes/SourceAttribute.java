@@ -1,9 +1,7 @@
 package com.strobel.assembler.ir.attributes;
 
 import com.strobel.assembler.ir.AnnotationReader;
-import com.strobel.assembler.metadata.Buffer;
-import com.strobel.assembler.metadata.IMetadataScope;
-import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.assembler.metadata.annotations.AnnotationElement;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.VerifyArgument;
@@ -63,13 +61,13 @@ public class SourceAttribute {
         return null;
     }
 
-    public static void readAttributes(final IMetadataScope scope, final Buffer input, final SourceAttribute[] attributes) {
+    public static void readAttributes(final IMetadataResolver resolver, final IMetadataScope scope, final Buffer input, final SourceAttribute[] attributes) {
         for (int i = 0; i < attributes.length; i++) {
-            attributes[i] = readAttribute(scope, input);
+            attributes[i] = readAttribute(resolver, scope, input);
         }
     }
 
-    public static SourceAttribute readAttribute(final IMetadataScope scope, final Buffer buffer) {
+    public static SourceAttribute readAttribute(final IMetadataResolver resolver, final IMetadataScope scope, final Buffer buffer) {
         final int nameIndex = buffer.readUnsignedShort();
         final int length = buffer.readInt();
         final String name = scope.lookupConstant(nameIndex);
@@ -96,6 +94,9 @@ public class SourceAttribute {
                 final int maxLocals = buffer.readUnsignedShort();
                 final int codeOffset = buffer.position();
                 final int codeLength = buffer.readInt();
+                final byte[] code = new byte[codeLength];
+
+                buffer.read(code, 0, codeLength);
 
                 final int exceptionTableLength = buffer.readUnsignedShort();
                 final ExceptionTableEntry[] exceptionTable = new ExceptionTableEntry[exceptionTableLength];
@@ -104,7 +105,15 @@ public class SourceAttribute {
                     final int startOffset = buffer.readUnsignedShort();
                     final int endOffset = buffer.readUnsignedShort();
                     final int handlerOffset = buffer.readUnsignedShort();
-                    final TypeReference catchType = scope.lookupType(buffer.readUnsignedShort());
+                    final int catchTypeToken = buffer.readUnsignedShort();
+                    final TypeReference catchType;
+
+                    if (catchTypeToken == 0) {
+                        catchType = null;
+                    }
+                    else {
+                        catchType = resolver.lookupType(scope.<String>lookupConstant(catchTypeToken));
+                    }
 
                     exceptionTable[k] = new ExceptionTableEntry(
                         startOffset,
@@ -117,7 +126,7 @@ public class SourceAttribute {
                 final int attributeCount = buffer.readUnsignedShort();
                 final SourceAttribute[] attributes = new SourceAttribute[attributeCount];
 
-                readAttributes(scope, buffer, attributes);
+                readAttributes(resolver, scope, buffer, attributes);
 
                 return new CodeAttribute(
                     length,
@@ -170,7 +179,7 @@ public class SourceAttribute {
                     entries[i] = new LocalVariableTableEntry(
                         variableIndex,
                         variableName,
-                        scope.lookupType(descriptor),
+                        resolver.lookupType(descriptor),
                         scopeOffset,
                         scopeLength
                     );

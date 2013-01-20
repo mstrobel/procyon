@@ -10,7 +10,9 @@ public final class Wildcard extends TypeReference {
 
     private final TypeReference _bound;
     private final boolean _hasSuperBound;
-    
+
+    private String _name;
+
     private Wildcard(final TypeReference extendsBound, final TypeReference superBound) {
         _hasSuperBound = superBound != BuiltinTypes.Bottom;
         _bound = _hasSuperBound ? superBound : extendsBound;
@@ -31,6 +33,14 @@ public final class Wildcard extends TypeReference {
     @Override
     public long getFlags() {
         return Flags.PUBLIC;
+    }
+
+    @Override
+    public String getName() {
+        if (_name == null) {
+            _name = appendSimpleDescription(new StringBuilder()).toString();
+        }
+        return _name;
     }
 
     @Override
@@ -72,6 +82,11 @@ public final class Wildcard extends TypeReference {
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Name and Signature Formatting">
+
+    @Override
+    protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+        return appendSimpleDescription(sb);
+    }
 
     @Override
     public StringBuilder appendSignature(final StringBuilder sb) {

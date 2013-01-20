@@ -65,7 +65,7 @@ public class Buffer {
         else {
             _data = new byte[initialSize];
         }
-        _length = 0;
+        _length = initialSize;
         _position = 0;
     }
 
@@ -93,7 +93,7 @@ public class Buffer {
             return 0;
         }
 
-        System.arraycopy(buffer, _position, buffer, offset, actualLength);
+        System.arraycopy(_data, _position, buffer, offset, actualLength);
 
         _position += actualLength;
 
@@ -291,7 +291,7 @@ public class Buffer {
     }
 
     @SuppressWarnings("ConstantConditions")
-    public Buffer putUtf8(final String s) {
+    public Buffer writeUtf8(final String s) {
         final int charLength = s.length();
 
         ensureWriteableBytes(2 + charLength);

@@ -96,11 +96,7 @@ public abstract class MemberReference implements IAnnotationsProvider {
 
     // <editor-fold defaultstate="collapsed" desc="Name and Signature Formatting">
 
-    public String getName() {
-        final StringBuilder name = new StringBuilder();
-        appendName(name, false, false);
-        return name.toString();
-    }
+    public abstract String getName();
 
     public String getFullName() {
         final StringBuilder name = new StringBuilder();

@@ -7,7 +7,7 @@ import java.util.List;
  * Date: 1/6/13
  * Time: 5:40 PM
  */
-public interface IMethodSignature {
+public interface IMethodSignature extends IGenericParameterProvider {
     boolean hasParameters();
     List<ParameterDefinition> getParameters();
     TypeReference getReturnType();

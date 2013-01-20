@@ -5,7 +5,7 @@ import com.strobel.assembler.Collection;
 /**
  * @author Mike Strobel
  */
-final class ParameterDefinitionCollection extends Collection<ParameterDefinition> {
+public final class ParameterDefinitionCollection extends Collection<ParameterDefinition> {
     final IMethodSignature signature;
 
     ParameterDefinitionCollection(final IMethodSignature signature) {

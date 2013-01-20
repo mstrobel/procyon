@@ -17,6 +17,11 @@ public final class PrimitiveType extends TypeDefinition {
     }
 
     @Override
+    public String getName() {
+        return _simpleType.getPrimitiveName();
+    }
+
+    @Override
     public String getPackageName() {
         return null;
     }

@@ -1,4 +1,7 @@
-package com.strobel.assembler.metadata;
+package com.strobel.assembler.ir;
+
+import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.TypeReference;
 
 import static java.lang.String.format;
 

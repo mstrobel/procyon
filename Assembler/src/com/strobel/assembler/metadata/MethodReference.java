@@ -1,5 +1,7 @@
 package com.strobel.assembler.metadata;
 
+import com.strobel.util.ContractUtils;
+
 import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.List;
@@ -85,7 +87,14 @@ public abstract class MethodReference extends MemberReference implements IMethod
 
     // <editor-fold defaultstate="collapsed" desc="Member Resolution">
 
-    public abstract MethodDefinition resolve();
+    public MethodDefinition resolve() {
+        final TypeReference declaringType = getDeclaringType();
+
+        if (declaringType == null)
+            throw ContractUtils.unsupported();
+
+        return declaringType.resolve(this);
+    }
 
     // </editor-fold>
 

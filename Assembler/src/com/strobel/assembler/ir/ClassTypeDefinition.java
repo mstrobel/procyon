@@ -6,11 +6,6 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Collections;
 import java.util.List;
 
@@ -28,12 +23,15 @@ public final class ClassTypeDefinition extends TypeDefinition {
     private final List<MethodDefinition> _methodsView;
     private final List<TypeDefinition> _nestedTypesView;
 
-    private ClassTypeDefinition(final ClassFile classFile, final TypeSystem typeSystem) {
+    private ClassTypeDefinition(final ClassFile classFile, final MetadataSystem metadataSystem) {
         VerifyArgument.notNull(classFile, "classFile");
-        VerifyArgument.notNull(typeSystem, "typeSystem");
+        VerifyArgument.notNull(metadataSystem, "metadataSystem");
 
         _classFile = classFile;
-        _classFile.complete(this, typeSystem);
+
+        metadataSystem.addTypeDefinition(this);
+
+        _classFile.complete(this, metadataSystem);
         _fields = new FieldDefinition[_classFile.fields.size()];
         _methods = new MethodDefinition[_classFile.methods.size()];
         _nestedTypes = EmptyArrayCache.fromElementType(TypeDefinition.class);
@@ -41,9 +39,16 @@ public final class ClassTypeDefinition extends TypeDefinition {
         _methodsView = ArrayUtilities.asUnmodifiableList(_methods);
         _nestedTypesView = ArrayUtilities.asUnmodifiableList(_nestedTypes);
 
-        complete(typeSystem);
+        complete(metadataSystem);
 
-        _baseType = typeSystem.lookupType(_classFile.baseClassEntry.getName());
+        final ConstantPool.TypeInfoEntry baseClassEntry = _classFile.baseClassEntry;
+
+        if (baseClassEntry != null) {
+            _baseType = metadataSystem.lookupType(baseClassEntry.getName());
+        }
+        else {
+            _baseType = null;
+        }
 
         final ConstantPool.TypeInfoEntry[] interfaceEntries = _classFile.interfaceEntries;
 
@@ -54,11 +59,21 @@ public final class ClassTypeDefinition extends TypeDefinition {
             final TypeReference[] interfaceTypes = new TypeDefinition[interfaceEntries.length];
 
             for (int i = 0; i < interfaceTypes.length; i++) {
-                interfaceTypes[i] = typeSystem.lookupType(interfaceEntries[i].getName());
+                interfaceTypes[i] = metadataSystem.lookupType(interfaceEntries[i].getName());
             }
 
             _interfaceTypes = ArrayUtilities.asUnmodifiableList(interfaceTypes);
         }
+    }
+
+    @Override
+    public String getName() {
+        return _classFile.name;
+    }
+
+    @Override
+    public String getPackageName() {
+        return _classFile.packageName;
     }
 
     @Override
@@ -98,32 +113,16 @@ public final class ClassTypeDefinition extends TypeDefinition {
 
     // <editor-fold defaultstate="collapsed" desc="Resolution">
 
-    private void complete(final TypeSystem typeSystem) {
-        throw ContractUtils.unreachable();
+    private void complete(final MetadataSystem metadataSystem) {
+//        throw ContractUtils.unreachable();
     }
 
-    public static ClassTypeDefinition load(final TypeSystem typeSystem, final File file) {
-        VerifyArgument.notNull(typeSystem, "typeSystem");
-        VerifyArgument.notNull(file, "file");
+    public static ClassTypeDefinition load(final MetadataSystem metadataSystem, final Buffer data) {
+        VerifyArgument.notNull(metadataSystem, "metadataSystem");
+        VerifyArgument.notNull(data, "data");
 
-        final ClassTypeDefinition typeDefinition;
-
-        try (final InputStream inputStream = new FileInputStream(file)) {
-            final Buffer input;
-            final ClassFile classFile;
-
-            final byte[] data;
-
-            data = new byte[inputStream.available()];
-            inputStream.read(data);
-            input = new Buffer(data);
-            classFile = ClassFile.readClass(file, input);
-            typeDefinition = new ClassTypeDefinition(classFile, typeSystem);
-            typeSystem.registerType(typeDefinition);
-        }
-        catch (IOException e) {
-            throw new UndeclaredThrowableException(e);
-        }
+        final ClassFile classFile = ClassFile.readClass(data);
+        final ClassTypeDefinition typeDefinition = new ClassTypeDefinition(classFile, metadataSystem);
 
         return typeDefinition;
     }

@@ -16,17 +16,20 @@ package com.strobel.core;
 /**
  * @author Mike Strobel
  */
-public abstract class Freezable {
+public abstract class Freezable implements IFreezable {
     private boolean _isFrozen;
 
+    @Override
     public boolean canFreeze() {
         return !isFrozen();
     }
 
+    @Override
     public final boolean isFrozen() {
         return _isFrozen;
     }
 
+    @Override
     public final void freeze()
         throws IllegalStateException {
         if (!canFreeze()) {
@@ -57,6 +60,7 @@ public abstract class Freezable {
         }
     }
 
+    @Override
     public final boolean tryFreeze() {
         if (!canFreeze()) {
             return false;
@@ -71,6 +75,7 @@ public abstract class Freezable {
         }
     }
 
+    @Override
     public final void freezeIfUnfrozen() throws IllegalStateException {
         if (isFrozen()) {
             return;

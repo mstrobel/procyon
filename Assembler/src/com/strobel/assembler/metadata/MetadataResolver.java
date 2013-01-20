@@ -58,7 +58,6 @@ public abstract class MetadataResolver implements IMetadataResolver {
 
     // <editor-fold defaultstate="collapsed" desc="Member Resolution Helpers">
 
-
     final FieldDefinition getField(final TypeDefinition declaringType, final FieldReference reference) {
         TypeDefinition type = declaringType;
 

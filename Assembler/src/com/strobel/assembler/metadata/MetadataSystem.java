@@ -1,0 +1,108 @@
+package com.strobel.assembler.metadata;
+
+import com.strobel.assembler.ir.ClassTypeDefinition;
+import com.strobel.core.VerifyArgument;
+
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * @author Mike Strobel
+ */
+public class MetadataSystem extends MetadataResolver {
+    private final ConcurrentHashMap<String, TypeDefinition> _types;
+    private final ITypeLoader _typeLoader;
+
+    public MetadataSystem() {
+        this(System.getProperty("java.class.path"));
+    }
+
+    public MetadataSystem(final String classPath) {
+        this(new ClasspathTypeLoader(VerifyArgument.notNull(classPath, "classPath")));
+    }
+
+    public MetadataSystem(final ITypeLoader typeLoader) {
+        _typeLoader = VerifyArgument.notNull(typeLoader, "typeLoader");
+        _types = new ConcurrentHashMap<>();
+    }
+
+    public void addTypeDefinition(final TypeDefinition type) {
+        VerifyArgument.notNull(type, "type");
+        _types.putIfAbsent(type.getInternalName(), type);
+    }
+
+    @Override
+    protected TypeDefinition resolveCore(final TypeReference type) {
+        VerifyArgument.notNull(type, "type");
+        return resolveType(type.getInternalName());
+    }
+
+    @Override
+    public TypeReference lookupType(final String descriptor) {
+        return resolveType(descriptor);
+    }
+
+    private TypeDefinition resolveType(final String descriptor) {
+        VerifyArgument.notNull(descriptor, "descriptor");
+
+        final int primitiveHash = hashPrimitiveName(descriptor);
+        final TypeDefinition primitiveType = PRIMITIVE_TYPES[primitiveHash];
+
+        if (primitiveType != null && descriptor.equals(primitiveType.getName())) {
+            return primitiveType;
+        }
+
+        TypeDefinition cachedDefinition = _types.get(descriptor);
+
+        if (cachedDefinition != null)
+            return cachedDefinition;
+
+        System.out.println("Resolving " + descriptor + "...");
+
+        final Buffer buffer = new Buffer(0);
+
+        if (!_typeLoader.tryLoadType(descriptor, buffer)) {
+            return null;
+        }
+
+        final ClassTypeDefinition definition = ClassTypeDefinition.load(this, buffer);
+
+        cachedDefinition = _types.putIfAbsent(descriptor, definition);
+
+        if (cachedDefinition != null) {
+            return cachedDefinition;
+        }
+
+        return definition;
+    }
+
+    // <editor-fold defaultstate="collapsed" desc="Primitive Lookup">
+
+    private final static TypeDefinition[] PRIMITIVE_TYPES = new TypeDefinition[16];
+
+    static {
+        final TypeDefinition[] allPrimitives = {
+            BuiltinTypes.Boolean,
+            BuiltinTypes.Byte,
+            BuiltinTypes.Character,
+            BuiltinTypes.Short,
+            BuiltinTypes.Integer,
+            BuiltinTypes.Long,
+            BuiltinTypes.Float,
+            BuiltinTypes.Double,
+            BuiltinTypes.Void
+        };
+
+        for (final TypeDefinition t : allPrimitives) {
+            PRIMITIVE_TYPES[hashPrimitiveName(t.getName())] = t;
+        }
+    }
+
+    private static int hashPrimitiveName(final String name) {
+        if (name.length() < 3) {
+            return 0;
+        }
+        return (name.charAt(0) + name.charAt(2)) % 16;
+    }
+
+    // </editor-fold>
+}
