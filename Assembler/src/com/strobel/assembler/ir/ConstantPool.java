@@ -1,25 +1,12 @@
-/*
- * ConstantPool.java
- *
- * Copyright (c) 2012 Mike Strobel
- *
- * This source code is subject to terms and conditions of the Apache License, Version 2.0.
- * A copy of the license can be found in the License.html file at the root of this distribution.
- * By using this source code in any fashion, you are agreeing to be bound by the terms of the
- * Apache License, Version 2.0.
- *
- * You must not remove this notice, or any other, from this software.
- */
+package com.strobel.assembler.ir;
 
-package com.strobel.reflection.emit;
-
+import com.strobel.assembler.metadata.Buffer;
+import com.strobel.assembler.metadata.FieldReference;
+import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.HashUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.FieldInfo;
-import com.strobel.reflection.MethodBase;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.Type;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -31,7 +18,7 @@ import java.util.HashMap;
  * @author strobelm
  */
 @SuppressWarnings({"PublicField", "ProtectedField"})
-final class ConstantPool {
+public final class ConstantPool {
     private final static Writer WRITER = new Writer();
 
     private final ArrayList<Entry> _pool = new ArrayList<>();
@@ -41,7 +28,7 @@ final class ConstantPool {
 
     private int _size;
 
-    public void write(final CodeStream stream) {
+    public void write(final CodeOutputStream stream) {
         stream.putShort(_size + 1);
 
         for (final Entry entry : _pool) {
@@ -49,6 +36,19 @@ final class ConstantPool {
                 entry.accept(WRITER, stream);
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T extends Entry> T getEntry(final int index) {
+        VerifyArgument.inRange(0, _size + 1, index, "index");
+
+        final Entry info = _pool.get(index - 1);
+
+        if (info == null) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        return (T)info;
     }
 
     public Entry get(final int index) {
@@ -82,166 +82,272 @@ final class ConstantPool {
         return entry;
     }
 
-    public Utf8StringConstant getUtf8StringConstant(final String value) {
+    public String lookupStringConstant(final int index) {
+        final StringConstantEntry entry = (StringConstantEntry) get(index, Tag.StringConstant);
+        return entry.getValue();
+    }
+    
+    public String lookupUtf8Constant(final int index) {
+        final Utf8StringConstantEntry entry = (Utf8StringConstantEntry) get(index, Tag.Utf8StringConstant);
+        return entry.value;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T lookupConstant(final int index) {
+        final ConstantEntry entry = (ConstantEntry) get(index);
+        return (T) entry.getConstantValue();
+    }
+    
+    public int lookupIntegerConstant(final int index) {
+        final IntegerConstantEntry entry = (IntegerConstantEntry) get(index, Tag.IntegerConstant);
+        return entry.value;
+    }
+    
+    public long lookupLongConstant(final int index) {
+        final LongConstantEntry entry = (LongConstantEntry) get(index, Tag.LongConstant);
+        return entry.value;
+    }
+
+    public float lookupFloatConstant(final int index) {
+        final FloatConstantEntry entry = (FloatConstantEntry) get(index, Tag.FloatConstant);
+        return entry.value;
+    }
+
+    public double lookupDoubleConstant(final int index) {
+        final DoubleConstantEntry entry = (DoubleConstantEntry) get(index, Tag.DoubleConstant);
+        return entry.value;
+    }
+    
+    public Utf8StringConstantEntry getUtf8StringConstant(final String value) {
         _lookupKey.set(value);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new Utf8StringConstant(this, value);
+            entry = new Utf8StringConstantEntry(this, value);
         }
         _lookupKey.clear();
-        return (Utf8StringConstant)entry;
+        return (Utf8StringConstantEntry) entry;
     }
 
-    public StringConstant getStringConstant(final String value) {
-        final Utf8StringConstant utf8Constant = getUtf8StringConstant(value);
+    public StringConstantEntry getStringConstant(final String value) {
+        final Utf8StringConstantEntry utf8Constant = getUtf8StringConstant(value);
         _lookupKey.set(Tag.StringConstant, utf8Constant.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new StringConstant(this, utf8Constant.index);
+            entry = new StringConstantEntry(this, utf8Constant.index);
         }
         _lookupKey.clear();
-        return (StringConstant)entry;
+        return (StringConstantEntry) entry;
     }
 
-    public IntegerConstant getIntegerConstant(final int value) {
+    public IntegerConstantEntry getIntegerConstant(final int value) {
         _lookupKey.set(value);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new IntegerConstant(this, value);
+            entry = new IntegerConstantEntry(this, value);
         }
         _lookupKey.clear();
-        return (IntegerConstant)entry;
+        return (IntegerConstantEntry) entry;
     }
 
-    public FloatConstant getFloatConstant(final float value) {
+    public FloatConstantEntry getFloatConstant(final float value) {
         _lookupKey.set(value);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new FloatConstant(this, value);
+            entry = new FloatConstantEntry(this, value);
         }
         _lookupKey.clear();
-        return (FloatConstant)entry;
+        return (FloatConstantEntry) entry;
     }
 
-    public LongConstant getLongConstant(final long value) {
+    public LongConstantEntry getLongConstant(final long value) {
         _lookupKey.set(value);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new LongConstant(this, value);
+            entry = new LongConstantEntry(this, value);
         }
         _lookupKey.clear();
-        return (LongConstant)entry;
+        return (LongConstantEntry) entry;
     }
 
-    public DoubleConstant getDoubleConstant(final double value) {
+    public DoubleConstantEntry getDoubleConstant(final double value) {
         _lookupKey.set(value);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new DoubleConstant(this, value);
+            entry = new DoubleConstantEntry(this, value);
         }
         _lookupKey.clear();
-        return (DoubleConstant)entry;
+        return (DoubleConstantEntry) entry;
     }
 
-    public TypeInfo getTypeInfo(final Type<?> type) {
-        final Utf8StringConstant name = getUtf8StringConstant(type.getInternalName());
+    public TypeInfoEntry getTypeInfo(final TypeReference type) {
+        final Utf8StringConstantEntry name = getUtf8StringConstant(type.getInternalName());
         _lookupKey.set(Tag.TypeInfo, name.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new TypeInfo(this, name.index);
+            entry = new TypeInfoEntry(this, name.index);
         }
         _lookupKey.clear();
-        return (TypeInfo)entry;
+        return (TypeInfoEntry) entry;
     }
 
-    public FieldReference getFieldReference(final FieldInfo field) {
-        final TypeInfo typeInfo = getTypeInfo(field.getDeclaringType());
-        final NameAndTypeDescriptor nameAndDescriptor = getNameAndTypeDescriptor(
+    public FieldReferenceEntry getFieldReference(final FieldReference field) {
+        final TypeInfoEntry typeInfo = getTypeInfo(field.getDeclaringType());
+        final NameAndTypeDescriptorEntry nameAndDescriptor = getNameAndTypeDescriptor(
             field.getName(),
             field.getErasedSignature()
         );
         _lookupKey.set(Tag.FieldReference, typeInfo.index, nameAndDescriptor.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new FieldReference(this, typeInfo.index, nameAndDescriptor.index);
+            entry = new FieldReferenceEntry(this, typeInfo.index, nameAndDescriptor.index);
         }
         _lookupKey.clear();
-        return (FieldReference)entry;
+        return (FieldReferenceEntry) entry;
     }
 
-    public MethodReference getMethodReference(final MethodBase method) {
-        final TypeInfo typeInfo = getTypeInfo(method.getDeclaringType());
-        final NameAndTypeDescriptor nameAndDescriptor = getNameAndTypeDescriptor(
+    public MethodReferenceEntry getMethodReference(final MethodReference method) {
+        final TypeInfoEntry typeInfo = getTypeInfo(method.getDeclaringType());
+        final NameAndTypeDescriptorEntry nameAndDescriptor = getNameAndTypeDescriptor(
             method.getName(),
             method.getErasedSignature()
         );
         _lookupKey.set(Tag.MethodReference, typeInfo.index, nameAndDescriptor.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new MethodReference(this, typeInfo.index, nameAndDescriptor.index);
+            entry = new MethodReferenceEntry(this, typeInfo.index, nameAndDescriptor.index);
         }
         _lookupKey.clear();
-        return (MethodReference)entry;
+        return (MethodReferenceEntry) entry;
     }
 
-    public InterfaceMethodReference getInterfaceMethodReference(final MethodInfo method) {
-        final TypeInfo typeInfo = getTypeInfo(method.getDeclaringType());
-        final NameAndTypeDescriptor nameAndDescriptor = getNameAndTypeDescriptor(
+    public InterfaceMethodReferenceEntry getInterfaceMethodReference(final MethodReference method) {
+        final TypeInfoEntry typeInfo = getTypeInfo(method.getDeclaringType());
+        final NameAndTypeDescriptorEntry nameAndDescriptor = getNameAndTypeDescriptor(
             method.getName(),
             method.getErasedSignature()
         );
         _lookupKey.set(Tag.InterfaceMethodReference, typeInfo.index, nameAndDescriptor.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new InterfaceMethodReference(this, typeInfo.index, nameAndDescriptor.index);
+            entry = new InterfaceMethodReferenceEntry(this, typeInfo.index, nameAndDescriptor.index);
         }
         _lookupKey.clear();
-        return (InterfaceMethodReference)entry;
+        return (InterfaceMethodReferenceEntry) entry;
     }
 
-    NameAndTypeDescriptor getNameAndTypeDescriptor(final String name, final String typeDescriptor) {
-        final Utf8StringConstant utf8Name = getUtf8StringConstant(name);
-        final Utf8StringConstant utf8Descriptor = getUtf8StringConstant(typeDescriptor);
+    NameAndTypeDescriptorEntry getNameAndTypeDescriptor(final String name, final String typeDescriptor) {
+        final Utf8StringConstantEntry utf8Name = getUtf8StringConstant(name);
+        final Utf8StringConstantEntry utf8Descriptor = getUtf8StringConstant(typeDescriptor);
         _lookupKey.set(Tag.NameAndTypeDescriptor, utf8Name.index, utf8Descriptor.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new NameAndTypeDescriptor(this, utf8Name.index, utf8Descriptor.index);
+            entry = new NameAndTypeDescriptorEntry(this, utf8Name.index, utf8Descriptor.index);
         }
         _lookupKey.clear();
-        return (NameAndTypeDescriptor)entry;
+        return (NameAndTypeDescriptorEntry) entry;
     }
 
-    MethodHandle getMethodHandle(final ReferenceKind referenceKind, final int referenceIndex) {
+    MethodHandleEntry getMethodHandle(final ReferenceKind referenceKind, final int referenceIndex) {
         _lookupKey.set(Tag.MethodHandle, referenceIndex, referenceKind);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new MethodHandle(this, referenceKind, referenceIndex);
+            entry = new MethodHandleEntry(this, referenceKind, referenceIndex);
         }
         _lookupKey.clear();
-        return (MethodHandle)entry;
+        return (MethodHandleEntry) entry;
     }
 
-    MethodType getMethodType(final int descriptorIndex) {
+    MethodTypeEntry getMethodType(final int descriptorIndex) {
         _lookupKey.set(Tag.MethodType, descriptorIndex);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new MethodType(this, descriptorIndex);
+            entry = new MethodTypeEntry(this, descriptorIndex);
         }
         _lookupKey.clear();
-        return (MethodType)entry;
+        return (MethodTypeEntry) entry;
     }
 
-    InvokeDynamicInfo getInvokeDynamicInfo(
+    InvokeDynamicInfoEntry getInvokeDynamicInfo(
         final int bootstrapMethodAttributeIndex,
         final int nameAndTypeDescriptorIndex) {
         _lookupKey.set(Tag.InvokeDynamicInfo, bootstrapMethodAttributeIndex, nameAndTypeDescriptorIndex);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
-            entry = new InvokeDynamicInfo(this, bootstrapMethodAttributeIndex, nameAndTypeDescriptorIndex);
+            entry = new InvokeDynamicInfoEntry(this, bootstrapMethodAttributeIndex, nameAndTypeDescriptorIndex);
         }
         _lookupKey.clear();
-        return (InvokeDynamicInfo)entry;
+        return (InvokeDynamicInfoEntry) entry;
     }
+
+   static ConstantPool read(final Buffer b) {
+        boolean skipOne = false;
+
+        final ConstantPool pool = new ConstantPool();
+        final int size = b.readUnsignedShort();
+        final Key key = new Key();
+
+        for (int i = 1; i < size; i++) {
+            if (skipOne) {
+                skipOne = false;
+                continue;
+            }
+
+            key.clear();
+
+            final Tag tag = Tag.fromValue(b.readUnsignedByte());
+
+            switch (tag) {
+                case Utf8StringConstant:
+                    new Utf8StringConstantEntry(pool, b.readUtf8());
+                    break;
+                case IntegerConstant:
+                    new IntegerConstantEntry(pool, b.readInt());
+                    break;
+                case FloatConstant:
+                    new FloatConstantEntry(pool, b.readFloat());
+                    break;
+                case LongConstant:
+                    new LongConstantEntry(pool, b.readLong());
+                    skipOne = true;
+                    break;
+                case DoubleConstant:
+                    new DoubleConstantEntry(pool, b.readDouble());
+                    skipOne = true;
+                    break;
+                case TypeInfo:
+                    new TypeInfoEntry(pool, b.readUnsignedShort());
+                    break;
+                case StringConstant:
+                    new StringConstantEntry(pool, b.readUnsignedShort());
+                    break;
+                case FieldReference:
+                    new FieldReferenceEntry(pool, b.readUnsignedShort(), b.readUnsignedShort());
+                    break;
+                case MethodReference:
+                    new MethodReferenceEntry(pool, b.readUnsignedShort(), b.readUnsignedShort());
+                    break;
+                case InterfaceMethodReference:
+                    new InterfaceMethodReferenceEntry(pool, b.readUnsignedShort(), b.readUnsignedShort());
+                    break;
+                case NameAndTypeDescriptor:
+                    new NameAndTypeDescriptorEntry(pool, b.readUnsignedShort(), b.readUnsignedShort());
+                    break;
+                case MethodHandle:
+                    new MethodHandleEntry(pool, ReferenceKind.fromTag(b.readUnsignedByte()), b.readUnsignedShort());
+                    break;
+                case MethodType:
+                    new MethodTypeEntry(pool, b.readUnsignedShort());
+                    break;
+                case InvokeDynamicInfo:
+                    new InvokeDynamicInfoEntry(pool, b.readUnsignedShort(), b.readUnsignedShort());
+                    break;
+            }
+        }
+
+        return pool;
+    }
+
+    // <editor-fold defaultstate="collapsed" desc="Entry Base Class">
 
     public static abstract class Entry {
         protected final int index;
@@ -257,11 +363,13 @@ final class ConstantPool {
             }
         }
 
+        abstract void fixupKey(final Key key);
+
         public abstract Tag getTag();
 
         /**
          * The number of slots in the constant pool used by this entry.
-         * 2 for DoubleConstant and LongConstant; 1 for everything else.
+         * 2 for DoubleConstantEntry and LongConstantEntry; 1 for everything else.
          */
         public int size() {
             return 1;
@@ -271,6 +379,18 @@ final class ConstantPool {
 
         public abstract <R, D> R accept(Visitor<R, D> visitor, D data);
     }
+
+    public static abstract class ConstantEntry extends Entry {
+        ConstantEntry(final ConstantPool owner) {
+            super(owner);
+        }
+
+        public abstract Object getConstantValue();
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="ReferenceKind Enum">
 
     public static enum ReferenceKind {
         GetField(1, "getfield"),
@@ -317,6 +437,10 @@ final class ConstantPool {
         }
     }
 
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Tag Enum">
+
     public static enum Tag {
         Utf8StringConstant(1),
         IntegerConstant(3),
@@ -338,43 +462,68 @@ final class ConstantPool {
         Tag(final int value) {
             this.value = value;
         }
+
+        public static Tag fromValue(final int value) {
+            VerifyArgument.inRange(Tag.Utf8StringConstant.value, Tag.InvokeDynamicInfo.value, value, "value");
+            return lookup[value];
+        }
+
+        private final static Tag[] lookup;
+
+        static {
+            final Tag[] values = Tag.values();
+
+            lookup = new Tag[Tag.InvokeDynamicInfo.value + 1];
+
+            for (int i = 0; i < values.length; i++) {
+                lookup[values[i].value] = values[i];
+            }
+        }
     }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Visitor Interface">
 
     public interface Visitor<R, P> {
-        R visitTypeInfo(TypeInfo info, P p);
-        R visitDoubleConstant(DoubleConstant info, P p);
-        R visitFieldReference(FieldReference info, P p);
-        R visitFloatConstant(FloatConstant info, P p);
-        R visitIntegerConstant(IntegerConstant info, P p);
-        R visitInterfaceMethodReference(InterfaceMethodReference info, P p);
-        R visitInvokeDynamicInfo(InvokeDynamicInfo info, P p);
-        R visitLongConstant(LongConstant info, P p);
-        R visitNameAndTypeDescriptor(NameAndTypeDescriptor info, P p);
-        R visitMethodReference(MethodReference info, P p);
-        R visitMethodHandle(MethodHandle info, P p);
-        R visitMethodType(MethodType info, P p);
-        R visitStringConstant(StringConstant info, P p);
-        R visitUtf8StringConstant(Utf8StringConstant info, P p);
+        R visitTypeInfo(TypeInfoEntry info, P p);
+        R visitDoubleConstant(DoubleConstantEntry info, P p);
+        R visitFieldReference(FieldReferenceEntry info, P p);
+        R visitFloatConstant(FloatConstantEntry info, P p);
+        R visitIntegerConstant(IntegerConstantEntry info, P p);
+        R visitInterfaceMethodReference(InterfaceMethodReferenceEntry info, P p);
+        R visitInvokeDynamicInfo(InvokeDynamicInfoEntry info, P p);
+        R visitLongConstant(LongConstantEntry info, P p);
+        R visitNameAndTypeDescriptor(NameAndTypeDescriptorEntry info, P p);
+        R visitMethodReference(MethodReferenceEntry info, P p);
+        R visitMethodHandle(MethodHandleEntry info, P p);
+        R visitMethodType(MethodTypeEntry info, P p);
+        R visitStringConstant(StringConstantEntry info, P p);
+        R visitUtf8StringConstant(Utf8StringConstantEntry info, P p);
     }
 
-    private final static class Writer implements Visitor<Void, CodeStream> {
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Writer Class">
+
+    private final static class Writer implements Visitor<Void, CodeOutputStream> {
 
         @Override
-        public Void visitTypeInfo(final TypeInfo info, final CodeStream codeStream) {
+        public Void visitTypeInfo(final TypeInfoEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putShort(info.nameIndex);
             return null;
         }
 
         @Override
-        public Void visitDoubleConstant(final DoubleConstant info, final CodeStream codeStream) {
+        public Void visitDoubleConstant(final DoubleConstantEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putDouble(info.value);
             return null;
         }
 
         @Override
-        public Void visitFieldReference(final FieldReference info, final CodeStream codeStream) {
+        public Void visitFieldReference(final FieldReferenceEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putShort(info.typeInfoIndex);
             codeStream.putShort(info.nameAndTypeDescriptorIndex);
@@ -382,21 +531,21 @@ final class ConstantPool {
         }
 
         @Override
-        public Void visitFloatConstant(final FloatConstant info, final CodeStream codeStream) {
+        public Void visitFloatConstant(final FloatConstantEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putFloat(info.value);
             return null;
         }
 
         @Override
-        public Void visitIntegerConstant(final IntegerConstant info, final CodeStream codeStream) {
+        public Void visitIntegerConstant(final IntegerConstantEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
-            codeStream.putInt(info.value);
+            codeStream.putInteger(info.value);
             return null;
         }
 
         @Override
-        public Void visitInterfaceMethodReference(final InterfaceMethodReference info, final CodeStream codeStream) {
+        public Void visitInterfaceMethodReference(final InterfaceMethodReferenceEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putShort(info.typeInfoIndex);
             codeStream.putShort(info.nameAndTypeDescriptorIndex);
@@ -404,7 +553,7 @@ final class ConstantPool {
         }
 
         @Override
-        public Void visitInvokeDynamicInfo(final InvokeDynamicInfo info, final CodeStream codeStream) {
+        public Void visitInvokeDynamicInfo(final InvokeDynamicInfoEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putShort(info.bootstrapMethodAttributeIndex);
             codeStream.putShort(info.nameAndTypeDescriptorIndex);
@@ -412,14 +561,14 @@ final class ConstantPool {
         }
 
         @Override
-        public Void visitLongConstant(final LongConstant info, final CodeStream codeStream) {
+        public Void visitLongConstant(final LongConstantEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putLong(info.value);
             return null;
         }
 
         @Override
-        public Void visitNameAndTypeDescriptor(final NameAndTypeDescriptor info, final CodeStream codeStream) {
+        public Void visitNameAndTypeDescriptor(final NameAndTypeDescriptorEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putShort(info.nameIndex);
             codeStream.putShort(info.typeDescriptorIndex);
@@ -427,7 +576,7 @@ final class ConstantPool {
         }
 
         @Override
-        public Void visitMethodReference(final MethodReference info, final CodeStream codeStream) {
+        public Void visitMethodReference(final MethodReferenceEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putShort(info.typeInfoIndex);
             codeStream.putShort(info.nameAndTypeDescriptorIndex);
@@ -435,7 +584,7 @@ final class ConstantPool {
         }
 
         @Override
-        public Void visitMethodHandle(final MethodHandle info, final CodeStream codeStream) {
+        public Void visitMethodHandle(final MethodHandleEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putShort(info.referenceKind.ordinal());
             codeStream.putShort(info.referenceIndex);
@@ -443,31 +592,35 @@ final class ConstantPool {
         }
 
         @Override
-        public Void visitMethodType(final MethodType info, final CodeStream codeStream) {
+        public Void visitMethodType(final MethodTypeEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putShort(info.descriptorIndex);
             return null;
         }
 
         @Override
-        public Void visitStringConstant(final StringConstant info, final CodeStream codeStream) {
+        public Void visitStringConstant(final StringConstantEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putShort(info.stringIndex);
             return null;
         }
 
         @Override
-        public Void visitUtf8StringConstant(final Utf8StringConstant info, final CodeStream codeStream) {
+        public Void visitUtf8StringConstant(final Utf8StringConstantEntry info, final CodeOutputStream codeStream) {
             codeStream.putByte(info.getTag().value);
             codeStream.putUtf8(info.value);
             return null;
         }
     }
 
-    public static final class TypeInfo extends Entry {
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Entry Implementations">
+
+    public static final class TypeInfoEntry extends Entry {
         public final int nameIndex;
 
-        public TypeInfo(final ConstantPool owner, final int nameIndex) {
+        public TypeInfoEntry(final ConstantPool owner, final int nameIndex) {
             super(owner);
             this.nameIndex = nameIndex;
             owner._newKey.set(getTag(), nameIndex);
@@ -476,7 +629,12 @@ final class ConstantPool {
         }
 
         public String getName() {
-            return ((Utf8StringConstant)owner.get(nameIndex, Tag.Utf8StringConstant)).value;
+            return ((Utf8StringConstantEntry) owner.get(nameIndex, Tag.Utf8StringConstant)).value;
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(Tag.TypeInfo, nameIndex);
         }
 
         @Override
@@ -500,10 +658,10 @@ final class ConstantPool {
         }
     }
 
-    public static final class MethodType extends Entry {
+    public static final class MethodTypeEntry extends Entry {
         public final int descriptorIndex;
 
-        public MethodType(final ConstantPool owner, final int descriptorIndex) {
+        public MethodTypeEntry(final ConstantPool owner, final int descriptorIndex) {
             super(owner);
             this.descriptorIndex = descriptorIndex;
             owner._newKey.set(getTag(), descriptorIndex);
@@ -512,7 +670,12 @@ final class ConstantPool {
         }
 
         public String getType() {
-            return ((Utf8StringConstant)owner.get(descriptorIndex, Tag.Utf8StringConstant)).value;
+            return ((Utf8StringConstantEntry) owner.get(descriptorIndex, Tag.Utf8StringConstant)).value;
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(Tag.MethodType, descriptorIndex);
         }
 
         @Override
@@ -532,7 +695,7 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "MethodType[index: " + index + ", descriptorIndex: " + descriptorIndex + "]";
+            return "MethodTypeEntry[index: " + index + ", descriptorIndex: " + descriptorIndex + "]";
         }
     }
 
@@ -559,16 +722,16 @@ final class ConstantPool {
             return 5;
         }
 
-        public TypeInfo getClassInfo() {
-            return (TypeInfo)owner.get(typeInfoIndex, Tag.TypeInfo);
+        public TypeInfoEntry getClassInfo() {
+            return (TypeInfoEntry) owner.get(typeInfoIndex, Tag.TypeInfo);
         }
 
         public String getClassName() {
             return getClassInfo().getName();
         }
 
-        public NameAndTypeDescriptor getNameAndTypeInfo() {
-            return (NameAndTypeDescriptor)owner.get(nameAndTypeDescriptorIndex, Tag.NameAndTypeDescriptor);
+        public NameAndTypeDescriptorEntry getNameAndTypeInfo() {
+            return (NameAndTypeDescriptorEntry) owner.get(nameAndTypeDescriptorIndex, Tag.NameAndTypeDescriptor);
         }
 
         @Override
@@ -583,9 +746,14 @@ final class ConstantPool {
         }
     }
 
-    public static final class FieldReference extends ReferenceEntry {
-        public FieldReference(final ConstantPool owner, final int typeIndex, final int nameAndTypeDescriptorIndex) {
+    public static final class FieldReferenceEntry extends ReferenceEntry {
+        public FieldReferenceEntry(final ConstantPool owner, final int typeIndex, final int nameAndTypeDescriptorIndex) {
             super(owner, Tag.FieldReference, typeIndex, nameAndTypeDescriptorIndex);
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(Tag.FieldReference, typeInfoIndex, nameAndTypeDescriptorIndex);
         }
 
         @Override
@@ -594,9 +762,14 @@ final class ConstantPool {
         }
     }
 
-    public static final class MethodReference extends ReferenceEntry {
-        public MethodReference(final ConstantPool owner, final int typeIndex, final int nameAndTypeDescriptorIndex) {
+    public static final class MethodReferenceEntry extends ReferenceEntry {
+        public MethodReferenceEntry(final ConstantPool owner, final int typeIndex, final int nameAndTypeDescriptorIndex) {
             super(owner, Tag.MethodReference, typeIndex, nameAndTypeDescriptorIndex);
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(Tag.MethodReference, typeInfoIndex, nameAndTypeDescriptorIndex);
         }
 
         @Override
@@ -605,9 +778,14 @@ final class ConstantPool {
         }
     }
 
-    public static final class InterfaceMethodReference extends ReferenceEntry {
-        public InterfaceMethodReference(final ConstantPool owner, final int typeIndex, final int nameAndTypeDescriptorIndex) {
+    public static final class InterfaceMethodReferenceEntry extends ReferenceEntry {
+        public InterfaceMethodReferenceEntry(final ConstantPool owner, final int typeIndex, final int nameAndTypeDescriptorIndex) {
             super(owner, Tag.InterfaceMethodReference, typeIndex, nameAndTypeDescriptorIndex);
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(Tag.InterfaceMethodReference, typeInfoIndex, nameAndTypeDescriptorIndex);
         }
 
         @Override
@@ -616,11 +794,11 @@ final class ConstantPool {
         }
     }
 
-    public static class MethodHandle extends Entry {
+    public static class MethodHandleEntry extends Entry {
         public final ReferenceKind referenceKind;
         public final int referenceIndex;
 
-        public MethodHandle(final ConstantPool owner, final ReferenceKind referenceKind, final int referenceIndex) {
+        public MethodHandleEntry(final ConstantPool owner, final ReferenceKind referenceKind, final int referenceIndex) {
             super(owner);
             this.referenceKind = referenceKind;
             this.referenceIndex = referenceIndex;
@@ -641,7 +819,12 @@ final class ConstantPool {
                     expected = actual;
             }
 
-            return (ReferenceEntry)owner.get(referenceIndex, expected);
+            return (ReferenceEntry) owner.get(referenceIndex, expected);
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(Tag.MethodHandle, referenceIndex, referenceKind);
         }
 
         @Override
@@ -660,17 +843,22 @@ final class ConstantPool {
         }
     }
 
-    public static class NameAndTypeDescriptor extends Entry {
+    public static class NameAndTypeDescriptorEntry extends Entry {
         public final int nameIndex;
         public final int typeDescriptorIndex;
 
-        public NameAndTypeDescriptor(final ConstantPool owner, final int nameIndex, final int typeDescriptorIndex) {
+        public NameAndTypeDescriptorEntry(final ConstantPool owner, final int nameIndex, final int typeDescriptorIndex) {
             super(owner);
             this.nameIndex = nameIndex;
             this.typeDescriptorIndex = typeDescriptorIndex;
             owner._newKey.set(getTag(), nameIndex, typeDescriptorIndex);
             owner._entryMap.put(owner._newKey.clone(), this);
             owner._newKey.clear();
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(Tag.NameAndTypeDescriptor, nameIndex, typeDescriptorIndex);
         }
 
         public Tag getTag() {
@@ -682,11 +870,11 @@ final class ConstantPool {
         }
 
         public String getName() {
-            return ((Utf8StringConstant)owner.get(nameIndex, Tag.Utf8StringConstant)).value;
+            return ((Utf8StringConstantEntry) owner.get(nameIndex, Tag.Utf8StringConstant)).value;
         }
 
         public String getType() {
-            return ((Utf8StringConstant)owner.get(typeDescriptorIndex, Tag.Utf8StringConstant)).value;
+            return ((Utf8StringConstantEntry) owner.get(typeDescriptorIndex, Tag.Utf8StringConstant)).value;
         }
 
         public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
@@ -695,16 +883,16 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "NameAndTypeDescriptor[index: " + index + ", descriptorIndex: " + nameIndex + ", typeDescriptorIndex: " + typeDescriptorIndex + "]";
+            return "NameAndTypeDescriptorEntry[index: " + index + ", descriptorIndex: " + nameIndex + ", typeDescriptorIndex: " + typeDescriptorIndex + "]";
         }
     }
 
-    public static class InvokeDynamicInfo extends Entry {
+    public static class InvokeDynamicInfoEntry extends Entry {
 
         public final int bootstrapMethodAttributeIndex;
         public final int nameAndTypeDescriptorIndex;
 
-        public InvokeDynamicInfo(
+        public InvokeDynamicInfoEntry(
             final ConstantPool owner,
             final int bootstrapMethodAttributeIndex,
             final int nameAndTypeDescriptorIndex) {
@@ -717,6 +905,11 @@ final class ConstantPool {
             owner._newKey.clear();
         }
 
+        @Override
+        void fixupKey(final Key key) {
+            key.set(Tag.InvokeDynamicInfo, bootstrapMethodAttributeIndex, nameAndTypeDescriptorIndex);
+        }
+
         public Tag getTag() {
             return Tag.InvokeDynamicInfo;
         }
@@ -725,8 +918,8 @@ final class ConstantPool {
             return 5;
         }
 
-        public NameAndTypeDescriptor getNameAndTypeDescriptor() {
-            return (NameAndTypeDescriptor)owner.get(nameAndTypeDescriptorIndex, Tag.NameAndTypeDescriptor);
+        public NameAndTypeDescriptorEntry getNameAndTypeDescriptor() {
+            return (NameAndTypeDescriptorEntry) owner.get(nameAndTypeDescriptorIndex, Tag.NameAndTypeDescriptor);
         }
 
         public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
@@ -735,7 +928,7 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "InvokeDynamicInfo[bootstrapMethodAttributeIndex: " +
+            return "InvokeDynamicInfoEntry[bootstrapMethodAttributeIndex: " +
                    bootstrapMethodAttributeIndex +
                    ", nameAndTypeDescriptorIndex: " +
                    nameAndTypeDescriptorIndex +
@@ -743,15 +936,20 @@ final class ConstantPool {
         }
     }
 
-    public static final class DoubleConstant extends Entry {
+    public static final class DoubleConstantEntry extends ConstantEntry {
         public final double value;
 
-        public DoubleConstant(final ConstantPool owner, final double value) {
+        public DoubleConstantEntry(final ConstantPool owner, final double value) {
             super(owner);
             this.value = value;
             owner._newKey.set(value);
             owner._entryMap.put(owner._newKey.clone(), this);
             owner._newKey.clear();
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(value);
         }
 
         @Override
@@ -776,19 +974,29 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "DoubleConstant[index: " + index + ", value: " + value + "]";
+            return "DoubleConstantEntry[index: " + index + ", value: " + value + "]";
+        }
+
+        @Override
+        public Object getConstantValue() {
+            return value;
         }
     }
 
-    public static final class FloatConstant extends Entry {
+    public static final class FloatConstantEntry extends ConstantEntry {
         public final float value;
 
-        public FloatConstant(final ConstantPool owner, final float value) {
+        public FloatConstantEntry(final ConstantPool owner, final float value) {
             super(owner);
             this.value = value;
             owner._newKey.set(value);
             owner._entryMap.put(owner._newKey.clone(), this);
             owner._newKey.clear();
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(value);
         }
 
         @Override
@@ -808,19 +1016,29 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "FloatConstant[index: " + index + ", value: " + value + "]";
+            return "FloatConstantEntry[index: " + index + ", value: " + value + "]";
+        }
+
+        @Override
+        public Object getConstantValue() {
+            return value;
         }
     }
 
-    public static final class IntegerConstant extends Entry {
+    public static final class IntegerConstantEntry extends ConstantEntry {
         public final int value;
 
-        public IntegerConstant(final ConstantPool owner, final int value) {
+        public IntegerConstantEntry(final ConstantPool owner, final int value) {
             super(owner);
             this.value = value;
             owner._newKey.set(value);
             owner._entryMap.put(owner._newKey.clone(), this);
             owner._newKey.clear();
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(value);
         }
 
         @Override
@@ -840,19 +1058,29 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "IntegerConstant[index: " + index + ", value: " + value + "]";
+            return "IntegerConstantEntry[index: " + index + ", value: " + value + "]";
+        }
+
+        @Override
+        public Object getConstantValue() {
+            return value;
         }
     }
 
-    public static final class LongConstant extends Entry {
+    public static final class LongConstantEntry extends ConstantEntry {
         public final long value;
 
-        public LongConstant(final ConstantPool owner, final long value) {
+        public LongConstantEntry(final ConstantPool owner, final long value) {
             super(owner);
             this.value = value;
             owner._newKey.set(value);
             owner._entryMap.put(owner._newKey.clone(), this);
             owner._newKey.clear();
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(value);
         }
 
         @Override
@@ -877,14 +1105,19 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "LongConstant[index: " + index + ", value: " + value + "]";
+            return "LongConstantEntry[index: " + index + ", value: " + value + "]";
+        }
+
+        @Override
+        public Object getConstantValue() {
+            return value;
         }
     }
 
-    public static final class StringConstant extends Entry {
+    public static final class StringConstantEntry extends ConstantEntry {
         public final int stringIndex;
 
-        public StringConstant(final ConstantPool owner, final int stringIndex) {
+        public StringConstantEntry(final ConstantPool owner, final int stringIndex) {
             super(owner);
             this.stringIndex = stringIndex;
             owner._newKey.set(getTag(), stringIndex);
@@ -893,7 +1126,12 @@ final class ConstantPool {
         }
 
         public String getValue() {
-            return ((Utf8StringConstant)owner.get(stringIndex)).value;
+            return ((Utf8StringConstantEntry) owner.get(stringIndex)).value;
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(Tag.StringConstant, stringIndex);
         }
 
         @Override
@@ -913,19 +1151,29 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "StringConstant[index: " + index + ", stringIndex: " + stringIndex + "]";
+            return "StringConstantEntry[index: " + index + ", stringIndex: " + stringIndex + "]";
+        }
+
+        @Override
+        public Object getConstantValue() {
+            return getValue();
         }
     }
 
-    public static final class Utf8StringConstant extends Entry {
+    public static final class Utf8StringConstantEntry extends ConstantEntry {
         public final String value;
 
-        public Utf8StringConstant(final ConstantPool owner, final String value) {
+        public Utf8StringConstantEntry(final ConstantPool owner, final String value) {
             super(owner);
             this.value = value;
             owner._newKey.set(getTag(), value);
             owner._entryMap.put(owner._newKey.clone(), this);
             owner._newKey.clear();
+        }
+
+        @Override
+        void fixupKey(final Key key) {
+            key.set(value);
         }
 
         @Override
@@ -963,9 +1211,18 @@ final class ConstantPool {
 
         @Override
         public String toString() {
-            return "Utf8StringConstant[index: " + index + ", value: " + value + "]";
+            return "Utf8StringConstantEntry[index: " + index + ", value: " + value + "]";
+        }
+
+        @Override
+        public Object getConstantValue() {
+            return value;
         }
     }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Key Class">
 
     private static final class Key {
         private Tag _tag;
@@ -996,7 +1253,7 @@ final class ConstantPool {
         public void set(final long longValue) {
             _tag = Tag.LongConstant;
             _longValue = longValue;
-            _hashCode = 0x7FFFFFFF & (_tag.value + (int)longValue);
+            _hashCode = 0x7FFFFFFF & (_tag.value + (int) longValue);
         }
 
         public void set(final float floatValue) {
@@ -1008,7 +1265,7 @@ final class ConstantPool {
         public void set(final double doubleValue) {
             _tag = Tag.DoubleConstant;
             _longValue = Double.doubleToLongBits(doubleValue);
-            _hashCode = 0x7FFFFFFF & (_tag.value + (int)_longValue);
+            _hashCode = 0x7FFFFFFF & (_tag.value + (int) _longValue);
         }
 
         public void set(final String utf8Value) {
@@ -1094,7 +1351,7 @@ final class ConstantPool {
                 return false;
             }
 
-            final Key key = (Key)obj;
+            final Key key = (Key) obj;
             if (key._tag != _tag) {
                 return false;
             }
@@ -1129,4 +1386,6 @@ final class ConstantPool {
             return false;
         }
     }
+
+    // </editor-fold>
 }

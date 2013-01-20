@@ -20,6 +20,64 @@ public enum SimpleType {
     Wildcard,
     Void;
 
+    public final String getDescriptorPrefix() {
+        switch (this) {
+            case Boolean:
+                return "Z";
+            case Byte:
+                return "B";
+            case Character:
+                return "C";
+            case Short:
+                return "S";
+            case Integer:
+                return "I";
+            case Long:
+                return "J";
+            case Float:
+                return "F";
+            case Double:
+                return "D";
+            case Object:
+                return "L";
+            case Array:
+                return "[";
+            case TypeVariable:
+                return "T";
+            case Wildcard:
+                return "*";
+            case Void:
+                return "V";
+            default:
+                return "L";
+        }
+    }
+
+    public final String getPrimitiveName() {
+        switch (this) {
+            case Boolean:
+                return "boolean";
+            case Byte:
+                return "byte";
+            case Character:
+                return "char";
+            case Short:
+                return "short";
+            case Integer:
+                return "int";
+            case Long:
+                return "long";
+            case Float:
+                return "float";
+            case Double:
+                return "double";
+            case Void:
+                return "void";
+            default:
+                return null;
+        }
+    }
+
     public final boolean isPrimitive() {
         switch (this) {
             case Object:

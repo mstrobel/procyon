@@ -496,4 +496,26 @@ public final class StringUtilities {
 
         return trimRight(result);
     }
+
+    public static int getUtf8ByteCount(final String value) {
+        VerifyArgument.notNull(value, "value");
+
+        if (value.isEmpty()) {
+            return 0;
+        }
+
+        int count = 0;
+
+        for (int i = 0, n = value.length(); i < n; ++i, ++count) {
+            final char c = value.charAt(i);
+            if (c > 0x07FF) {
+                count += 2;
+            }
+            else if (c > 0x007F) {
+                ++count;
+            }
+        }
+
+        return count;
+    }
 }

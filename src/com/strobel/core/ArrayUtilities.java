@@ -17,7 +17,9 @@ import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
 
 import java.lang.reflect.Array;
+import java.util.AbstractList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * @author Mike Strobel
@@ -168,10 +170,6 @@ public final class ArrayUtilities {
         VerifyArgument.elementsOfType(array.getClass().getComponentType(), values, "values");
 
         final int newItemCount = values.length;
-
-        if (newItemCount == 0) {
-            return array;
-        }
 
         final T[] newArray = (T[])Array.newInstance(
             array.getClass().getComponentType(),
@@ -1180,11 +1178,6 @@ public final class ArrayUtilities {
         }
 
         final int newItemCount = values.length;
-
-        if (newItemCount == 0) {
-            return array;
-        }
-
         final boolean[] newArray = new boolean[array.length + newItemCount];
 
         System.arraycopy(array, 0, newArray, 0, index);
@@ -1283,11 +1276,6 @@ public final class ArrayUtilities {
         }
 
         final int newItemCount = values.length;
-
-        if (newItemCount == 0) {
-            return array;
-        }
-
         final char[] newArray = new char[array.length + newItemCount];
 
         System.arraycopy(array, 0, newArray, 0, index);
@@ -1386,11 +1374,6 @@ public final class ArrayUtilities {
         }
 
         final int newItemCount = values.length;
-
-        if (newItemCount == 0) {
-            return array;
-        }
-
         final byte[] newArray = new byte[array.length + newItemCount];
 
         System.arraycopy(array, 0, newArray, 0, index);
@@ -1489,11 +1472,6 @@ public final class ArrayUtilities {
         }
 
         final int newItemCount = values.length;
-
-        if (newItemCount == 0) {
-            return array;
-        }
-
         final short[] newArray = new short[array.length + newItemCount];
 
         System.arraycopy(array, 0, newArray, 0, index);
@@ -1592,11 +1570,6 @@ public final class ArrayUtilities {
         }
 
         final int newItemCount = values.length;
-
-        if (newItemCount == 0) {
-            return array;
-        }
-
         final int[] newArray = new int[array.length + newItemCount];
 
         System.arraycopy(array, 0, newArray, 0, index);
@@ -1695,11 +1668,6 @@ public final class ArrayUtilities {
         }
 
         final int newItemCount = values.length;
-
-        if (newItemCount == 0) {
-            return array;
-        }
-
         final long[] newArray = new long[array.length + newItemCount];
 
         System.arraycopy(array, 0, newArray, 0, index);
@@ -1798,11 +1766,6 @@ public final class ArrayUtilities {
         }
 
         final int newItemCount = values.length;
-
-        if (newItemCount == 0) {
-            return array;
-        }
-
         final float[] newArray = new float[array.length + newItemCount];
 
         System.arraycopy(array, 0, newArray, 0, index);
@@ -1901,11 +1864,6 @@ public final class ArrayUtilities {
         }
 
         final int newItemCount = values.length;
-
-        if (newItemCount == 0) {
-            return array;
-        }
-
         final double[] newArray = new double[array.length + newItemCount];
 
         System.arraycopy(array, 0, newArray, 0, index);
@@ -1919,5 +1877,28 @@ public final class ArrayUtilities {
         System.arraycopy(values, 0, newArray, index, newItemCount);
 
         return newArray;
+    }
+
+    @SafeVarargs
+    public static <T> List<T> asUnmodifiableList(final T... items) {
+        return new UnmodifiableArrayList<>(items);
+    }
+
+    private final static class UnmodifiableArrayList<T> extends AbstractList<T> {
+        private final T[] _array;
+
+        private UnmodifiableArrayList(final T[] array) {
+            _array = VerifyArgument.notNull(array, "array");
+        }
+
+        @Override
+        public T get(final int index) {
+            return _array[index];
+        }
+
+        @Override
+        public int size() {
+            return _array.length;
+        }
     }
 }

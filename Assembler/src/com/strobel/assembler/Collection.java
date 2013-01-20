@@ -1,5 +1,7 @@
 package com.strobel.assembler;
 
+import com.strobel.core.VerifyArgument;
+
 import java.util.AbstractList;
 import java.util.ArrayList;
 
@@ -31,13 +33,15 @@ public class Collection<E> extends AbstractList<E> {
 
     @Override
     public final E set(final int index, final E element) {
+        VerifyArgument.notNull(element, "element");
+        beforeSet(index, element);
         _items.set(index, element);
-        afterSet(index, element);
         return super.set(index, element);
     }
 
     @Override
     public final void add(final int index, final E element) {
+        VerifyArgument.notNull(element, "element");
         final boolean append = index == size();
         _items.add(index, element);
         afterAdd(index, element, append);
@@ -71,7 +75,7 @@ public class Collection<E> extends AbstractList<E> {
     }
 
     protected void afterAdd(final int index, final E e, final boolean appended) {}
-    protected void afterSet(final int index, final E e) {}
+    protected void beforeSet(final int index, final E e) {}
     protected void afterRemove(final int index, final E e) {}
     protected void beforeClear() {}
 }

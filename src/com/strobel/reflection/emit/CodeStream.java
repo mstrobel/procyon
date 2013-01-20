@@ -196,7 +196,8 @@ public final class CodeStream {
      * @param s a String.
      * @return this byte stream.
      */
-    public CodeStream putUTF8(final String s) {
+    @SuppressWarnings("ConstantConditions")
+    public CodeStream putUtf8(final String s) {
         final int charLength = s.length();
 
         ensureCapacity(2 + charLength);
