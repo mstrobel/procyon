@@ -195,4 +195,19 @@ final class Error {
             )
         );
     }
+
+    public static RuntimeException invalidSignatureUnresolvedTypeVariable(
+        final String signature,
+        final String variableName,
+        final int position) {
+
+        return new IllegalArgumentException(
+            format(
+                "Invalid signature: unresoled type variable '%s' at position %d.  (%s)",
+                variableName,
+                position,
+                signature
+            )
+        );
+    }
 }

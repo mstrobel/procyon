@@ -114,7 +114,13 @@ public class Collection<E> extends AbstractList<E> implements IFreezable {
         _isFrozen = true;
     }
 
-    protected void freezeCore() {}
+    protected void freezeCore() {
+        for (final E item : _items) {
+            if (item instanceof IFreezable) {
+                ((IFreezable) item).freezeIfUnfrozen();
+            }
+        }
+    }
 
     protected final void verifyNotFrozen() {
         if (isFrozen()) {

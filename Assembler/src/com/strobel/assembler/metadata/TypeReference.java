@@ -1,5 +1,6 @@
 package com.strobel.assembler.metadata;
 
+import com.strobel.core.ArrayUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.SimpleType;
@@ -18,6 +19,21 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     private ArrayType _arrayType;
 
     public TypeReference() {}
+
+    @Override
+    public boolean containsGenericParameters() {
+        if (this instanceof IGenericInstance) {
+            final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
+
+            for (int i = 0, n = typeArguments.size(); i < n; i++) {
+                if (typeArguments.get(i).containsGenericParameters()) {
+                    return true;
+                }
+            }
+        }
+
+        return super.containsGenericParameters();
+    }
 
     public String getPackageName() {
         return StringUtilities.EMPTY;
@@ -62,19 +78,22 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         if (_arrayType == null) {
             synchronized (this) {
                 if (_arrayType == null) {
-                    _arrayType = ArrayType.create(_arrayType);
+                    _arrayType = ArrayType.create(this);
                 }
             }
         }
         return _arrayType;
     }
 
-    public TypeSpecification makeGenericType(final TypeReference... typeArguments) {
+    public TypeReference makeGenericType(final TypeReference... typeArguments) {
         VerifyArgument.notEmpty(typeArguments, "typeArguments");
         VerifyArgument.noNullElements(typeArguments, "typeArguments");
 
         if (isGenericDefinition()) {
-            throw ContractUtils.unreachable();
+            return new ParameterizedType(
+                this,
+                ArrayUtilities.asUnmodifiableList(typeArguments)
+            );
         }
 
         throw Error.notGenericType(this);

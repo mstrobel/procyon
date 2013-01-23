@@ -111,6 +111,10 @@ final class MetadataHelper {
             }
         }
 
+        if (_resolver instanceof IGenericContext) {
+            return ((IGenericContext) _resolver).findTypeVariable(name);
+        }
+
         return null;
     }
 

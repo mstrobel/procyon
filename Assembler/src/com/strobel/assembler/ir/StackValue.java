@@ -1,7 +1,6 @@
-package com.strobel.assembler.metadata;
+package com.strobel.assembler.ir;
 
-import com.strobel.assembler.ir.Instruction;
-import com.strobel.assembler.ir.OpCode;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
 

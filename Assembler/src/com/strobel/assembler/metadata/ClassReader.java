@@ -3,6 +3,6 @@ package com.strobel.assembler.metadata;
 /**
  * @author Mike Strobel
  */
-public interface ClassReader {
-    void accept(final IMetadataResolver metadataResolver, final ClassVisitor<IMetadataScope> visitor);
+public interface ClassReader<P> {
+    void accept(final P parameter, final ClassVisitor<P> visitor);
 }

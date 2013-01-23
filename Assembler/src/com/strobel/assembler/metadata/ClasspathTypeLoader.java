@@ -47,6 +47,7 @@ public final class ClasspathTypeLoader implements ITypeLoader {
 
         try {
             data = resource.getBytes();
+            assert data.length == resource.getContentLength();
         }
         catch (IOException e) {
             return false;

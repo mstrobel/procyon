@@ -1,6 +1,6 @@
 package com.strobel.assembler.metadata;
 
-import com.strobel.assembler.ir.ClassTypeDefinition;
+import com.strobel.assembler.ir.ClassFileReader;
 import com.strobel.core.VerifyArgument;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,11 +37,11 @@ public class MetadataSystem extends MetadataResolver {
     }
 
     @Override
-    public TypeReference lookupType(final String descriptor) {
+    protected TypeReference lookupTypeCore(final String descriptor) {
         return resolveType(descriptor);
     }
 
-    private TypeDefinition resolveType(final String descriptor) {
+    protected TypeDefinition resolveType(final String descriptor) {
         VerifyArgument.notNull(descriptor, "descriptor");
 
         final int primitiveHash = hashPrimitiveName(descriptor);
@@ -53,10 +53,9 @@ public class MetadataSystem extends MetadataResolver {
 
         TypeDefinition cachedDefinition = _types.get(descriptor);
 
-        if (cachedDefinition != null)
+        if (cachedDefinition != null) {
             return cachedDefinition;
-
-        System.out.println("Resolving " + descriptor + "...");
+        }
 
         final Buffer buffer = new Buffer(0);
 
@@ -64,8 +63,12 @@ public class MetadataSystem extends MetadataResolver {
             return null;
         }
 
-        final ClassTypeDefinition definition = ClassTypeDefinition.load(this, buffer);
+//        final ClassTypeDefinition definition = ClassTypeDefinition.load(this, buffer);
+        final ClassFileReader reader = ClassFileReader.readClass(this, buffer);
+        final TypeDefinitionBuilder builder = new TypeDefinitionBuilder(this);
+        final MutableTypeDefinition definition = new MutableTypeDefinition();
 
+        reader.accept(definition, builder);
         cachedDefinition = _types.putIfAbsent(descriptor, definition);
 
         if (cachedDefinition != null) {

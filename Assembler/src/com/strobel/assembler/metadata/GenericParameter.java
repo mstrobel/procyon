@@ -3,6 +3,7 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.Types;
 
 import java.util.Collections;
 import java.util.List;
@@ -14,6 +15,11 @@ public final class GenericParameter extends TypeReference {
     private IGenericParameterProvider _owner;
     private TypeReference _extendsBound;
     private List<CustomAnnotation> _customAnnotations;
+
+    public GenericParameter(final String name) {
+        _name = name != null ? name : StringUtilities.EMPTY;
+        _extendsBound = BuiltinTypes.Object;
+    }
 
     public GenericParameter(final String name, final TypeReference extendsBound) {
         _name = name != null ? name : StringUtilities.EMPTY;
@@ -29,6 +35,10 @@ public final class GenericParameter extends TypeReference {
 
         _type = owner instanceof MethodReference ? GenericParameterType.Method
                                                  : GenericParameterType.Type;
+    }
+
+    void setExtendsBound(final TypeReference extendsBound) {
+        _extendsBound = extendsBound;
     }
 
     @Override
@@ -114,32 +124,70 @@ public final class GenericParameter extends TypeReference {
 
     @Override
     protected StringBuilder appendDescription(final StringBuilder sb) {
-        return null;
+        sb.append(getFullName());
+
+        final TypeReference upperBound = getExtendsBound();
+
+        if (upperBound != null && !upperBound.equals(BuiltinTypes.Object)) {
+            sb.append(" extends ");
+            if (upperBound.isGenericParameter() || upperBound.equals(getDeclaringType())) {
+                return sb.append(upperBound.getFullName());
+            }
+            return upperBound.appendErasedDescription(sb);
+        }
+
+        return sb;
     }
 
     @Override
     protected StringBuilder appendBriefDescription(final StringBuilder sb) {
-        return null;
+        sb.append(getFullName());
+
+        final TypeReference upperBound = getExtendsBound();
+
+        if (upperBound != null && !upperBound.equals(Types.Object)) {
+            sb.append(" extends ");
+            if (upperBound.isGenericParameter() || upperBound.equals(getDeclaringType())) {
+                return sb.append(upperBound.getName());
+            }
+            return upperBound.appendErasedDescription(sb);
+        }
+
+        return sb;
     }
 
     @Override
     protected StringBuilder appendErasedDescription(final StringBuilder sb) {
-        return null;
+        return getExtendsBound().appendErasedDescription(sb);
     }
 
     @Override
     protected StringBuilder appendSignature(final StringBuilder sb) {
-        return null;
+        return sb.append('T')
+                 .append(getName())
+                 .append(';');
     }
 
     @Override
     protected StringBuilder appendErasedSignature(final StringBuilder sb) {
-        return null;
+        return getExtendsBound().appendErasedSignature(sb);
     }
 
     @Override
     protected StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        return null;
+        sb.append(getFullName());
+
+        final TypeReference upperBound = getExtendsBound();
+
+        if (upperBound != null && !upperBound.equals(Types.Object)) {
+            sb.append(" extends ");
+            if (upperBound.isGenericParameter() || upperBound.equals(getDeclaringType())) {
+                return sb.append(upperBound.getName());
+            }
+            return upperBound.appendErasedDescription(sb);
+        }
+
+        return sb;
     }
 
     @Override

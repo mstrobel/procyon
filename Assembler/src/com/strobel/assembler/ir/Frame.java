@@ -1,4 +1,4 @@
-package com.strobel.assembler.metadata;
+package com.strobel.assembler.ir;
 
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.EmptyArrayCache;

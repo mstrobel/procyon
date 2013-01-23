@@ -6,6 +6,9 @@ package com.strobel.assembler.metadata;
  * Time: 5:07 PM
  */
 public interface IMetadataResolver {
+    public void pushFrame(final IResolverFrame frame);
+    public void popFrame();
+
     public TypeReference lookupType(final String descriptor);
 
     public TypeDefinition resolve(final TypeReference type);

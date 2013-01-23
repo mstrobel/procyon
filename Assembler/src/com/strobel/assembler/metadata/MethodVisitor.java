@@ -1,5 +1,6 @@
 package com.strobel.assembler.metadata;
 
+import com.strobel.assembler.ir.Frame;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionVisitor;
 import com.strobel.assembler.ir.attributes.SourceAttribute;

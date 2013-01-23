@@ -1,4 +1,4 @@
-package com.strobel.assembler.metadata;
+package com.strobel.assembler.ir;
 
 /**
  * User: Mike Strobel

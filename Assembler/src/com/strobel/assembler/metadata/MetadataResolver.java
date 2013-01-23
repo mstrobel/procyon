@@ -4,11 +4,43 @@ import com.strobel.core.StringComparator;
 import com.strobel.core.VerifyArgument;
 
 import java.util.List;
+import java.util.Stack;
 
 /**
  * @author Mike Strobel
  */
 public abstract class MetadataResolver implements IMetadataResolver {
+    private final Stack<IResolverFrame> _frames;
+
+    protected MetadataResolver() {
+        _frames = new Stack<>();
+    }
+
+    @Override
+    public final TypeReference lookupType(final String descriptor) {
+        for (int i = _frames.size() - 1; i >= 0; i--) {
+            final TypeReference type = _frames.get(i).findType(descriptor);
+
+            if (type != null) {
+                return type;
+            }
+        }
+
+        return lookupTypeCore(descriptor);
+    }
+
+    protected abstract TypeReference lookupTypeCore(final String descriptor);
+
+    @Override
+    public void pushFrame(final IResolverFrame frame) {
+        _frames.push(VerifyArgument.notNull(frame, "frame"));
+    }
+
+    @Override
+    public void popFrame() {
+        _frames.pop();
+    }
+
     @Override
     public TypeDefinition resolve(final TypeReference type) {
         final TypeReference t = VerifyArgument.notNull(type, "type").getUnderlyingType();
@@ -23,12 +55,24 @@ public abstract class MetadataResolver implements IMetadataResolver {
             return getNestedType(declaringType.getDeclaredTypes(), type);
         }
 
+        if (!_frames.isEmpty()) {
+            final String descriptor = type.getInternalName();
+
+            for (int i = _frames.size() - 1; i >= 0; i--) {
+                final TypeReference resolved = _frames.get(i).findType(descriptor);
+
+                if (resolved instanceof TypeDefinition) {
+                    return (TypeDefinition) resolved;
+                }
+            }
+        }
+
         return resolveCore(t);
     }
 
     protected abstract TypeDefinition resolveCore(final TypeReference type);
 
-        @Override
+    @Override
     public FieldDefinition resolve(final FieldReference field) {
         final TypeDefinition declaringType = resolve(VerifyArgument.notNull(field, "field").getDeclaringType());
 
@@ -102,17 +146,17 @@ public abstract class MetadataResolver implements IMetadataResolver {
         return null;
     }
 
-    static TypeDefinition getNestedType (final List<TypeDefinition> candidates, final TypeReference reference) {
+    static TypeDefinition getNestedType(final List<TypeDefinition> candidates, final TypeReference reference) {
         for (int i = 0, n = candidates.size(); i < n; i++) {
             final TypeDefinition candidate = candidates.get(i);
 
-            if (StringComparator.Ordinal.equals(candidate.getName(), reference.getName()))
+            if (StringComparator.Ordinal.equals(candidate.getName(), reference.getName())) {
                 return candidate;
+            }
         }
 
         return null;
     }
-
 
     static FieldDefinition getField(final List<FieldDefinition> candidates, final FieldReference reference) {
         for (int i = 0, n = candidates.size(); i < n; i++) {

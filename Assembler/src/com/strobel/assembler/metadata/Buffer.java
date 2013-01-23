@@ -362,7 +362,7 @@ public class Buffer {
     }
 
     protected void verifyReadableBytes(final int size) {
-        if (VerifyArgument.isNonNegative(size, "size") > 0 && _position + size >= _length) {
+        if (VerifyArgument.isNonNegative(size, "size") > 0 && _position + size > _length) {
             throw new BufferUnderflowException();
         }
     }
