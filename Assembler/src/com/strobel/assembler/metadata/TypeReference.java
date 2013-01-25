@@ -279,8 +279,16 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     protected StringBuilder appendSimpleDescription(final StringBuilder sb) {
         StringBuilder s = appendName(sb, false, false);
 
-        if (this instanceof IGenericInstance) {
-            final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
+        if (isGenericType()) {
+            final List<? extends TypeReference> typeArguments;
+
+            if (this instanceof IGenericInstance) {
+                typeArguments = ((IGenericInstance) this).getTypeArguments();
+            }
+            else {
+                typeArguments = getGenericParameters();
+            }
+
             final int count = typeArguments.size();
 
             if (count > 0) {
@@ -293,6 +301,9 @@ public abstract class TypeReference extends MemberReference implements IGenericP
                 }
                 s.append('>');
             }
+
+        }
+        if (this instanceof IGenericInstance) {
         }
 
         return s;

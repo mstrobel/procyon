@@ -1,5 +1,6 @@
 package com.strobel.assembler.metadata;
 
+import com.strobel.assembler.ir.ClassFileReader;
 import com.strobel.reflection.SimpleType;
 
 /**
@@ -30,7 +31,21 @@ public final class BuiltinTypes {
         Void = new PrimitiveType(SimpleType.Void);
         Bottom = null;
 
-        final MetadataSystem metadataSystem = new MetadataSystem();
-        Object = metadataSystem.lookupType("java/lang/Object").resolve();
+        final Buffer buffer = new Buffer();
+        final ITypeLoader typeLoader = new ClasspathTypeLoader(System.getProperty("java.class.path"));
+
+        if (!typeLoader.tryLoadType("java/lang/Object", buffer)) {
+            throw Error.couldNotLoadObjectType();
+        }
+
+        final MutableTypeDefinition object = new MutableTypeDefinition();
+
+        Object = object;
+
+        final MetadataSystem metadataSystem = MetadataSystem.instance();
+        final ClassFileReader reader = ClassFileReader.readClass(metadataSystem, buffer);
+        final TypeDefinitionBuilder builder = new TypeDefinitionBuilder(metadataSystem);
+
+        reader.accept(object, builder);
     }
 }

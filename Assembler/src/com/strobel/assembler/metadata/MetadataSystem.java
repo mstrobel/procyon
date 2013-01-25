@@ -1,16 +1,31 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.ir.ClassFileReader;
+import com.strobel.core.Fences;
 import com.strobel.core.VerifyArgument;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @author Mike Strobel
  */
 public class MetadataSystem extends MetadataResolver {
+    private static MetadataSystem _instance;
+
     private final ConcurrentHashMap<String, TypeDefinition> _types;
     private final ITypeLoader _typeLoader;
+
+    public static MetadataSystem instance() {
+        if (_instance == null) {
+            synchronized (MetadataSystem.class) {
+                if (_instance == null) {
+                    _instance = Fences.orderWrites(new MetadataSystem());
+                }
+            }
+        }
+        return _instance;
+    }
 
     public MetadataSystem() {
         this(System.getProperty("java.class.path"));
@@ -37,6 +52,17 @@ public class MetadataSystem extends MetadataResolver {
     }
 
     @Override
+    protected TypeDefinition getNestedType(final List<TypeDefinition> candidates, final TypeReference reference) {
+        final TypeDefinition baseResult = super.getNestedType(candidates, reference);
+
+        if (baseResult != null) {
+            return baseResult;
+        }
+
+        return resolveType(reference.getDeclaringType().getInternalName() + "$" + reference.getName());
+    }
+
+    @Override
     protected TypeReference lookupTypeCore(final String descriptor) {
         return resolveType(descriptor);
     }
@@ -44,11 +70,21 @@ public class MetadataSystem extends MetadataResolver {
     protected TypeDefinition resolveType(final String descriptor) {
         VerifyArgument.notNull(descriptor, "descriptor");
 
-        final int primitiveHash = hashPrimitiveName(descriptor);
-        final TypeDefinition primitiveType = PRIMITIVE_TYPES[primitiveHash];
+        if (descriptor.length() == 1) {
+            final int primitiveHash = descriptor.charAt(0) - 'B';
+            final TypeDefinition primitiveType = PRIMITIVE_TYPES_BY_DESCRIPTOR[primitiveHash];
 
-        if (primitiveType != null && descriptor.equals(primitiveType.getName())) {
-            return primitiveType;
+            if (primitiveType != null) {
+                return primitiveType;
+            }
+        }
+        else {
+            final int primitiveHash = hashPrimitiveName(descriptor);
+            final TypeDefinition primitiveType = PRIMITIVE_TYPES_BY_NAME[primitiveHash];
+
+            if (primitiveType != null && descriptor.equals(primitiveType.getName())) {
+                return primitiveType;
+            }
         }
 
         TypeDefinition cachedDefinition = _types.get(descriptor);
@@ -80,7 +116,8 @@ public class MetadataSystem extends MetadataResolver {
 
     // <editor-fold defaultstate="collapsed" desc="Primitive Lookup">
 
-    private final static TypeDefinition[] PRIMITIVE_TYPES = new TypeDefinition[16];
+    private final static TypeDefinition[] PRIMITIVE_TYPES_BY_NAME = new TypeDefinition[16];
+    private final static TypeDefinition[] PRIMITIVE_TYPES_BY_DESCRIPTOR = new TypeDefinition['Z' - 'B' + 1];
 
     static {
         final TypeDefinition[] allPrimitives = {
@@ -96,7 +133,8 @@ public class MetadataSystem extends MetadataResolver {
         };
 
         for (final TypeDefinition t : allPrimitives) {
-            PRIMITIVE_TYPES[hashPrimitiveName(t.getName())] = t;
+            PRIMITIVE_TYPES_BY_DESCRIPTOR[hashPrimitiveName(t.getName())] = t;
+            PRIMITIVE_TYPES_BY_DESCRIPTOR[t.getInternalName().charAt(0) - 'B'] = t;
         }
     }
 

@@ -189,11 +189,13 @@ public class SourceAttribute {
             }
 
             case AttributeNames.EnclosingMethod: {
+                final int typeToken = buffer.readUnsignedShort();
+                final int methodToken = buffer.readUnsignedShort();
+
                 return new EnclosingMethodAttribute(
-                    scope.lookupMethod(
-                        buffer.readUnsignedShort(),
-                        buffer.readUnsignedShort()
-                    )
+                    scope.lookupType(typeToken),
+                    methodToken > 0 ? scope.lookupMethod(typeToken, methodToken)
+                                    : null
                 );
             }
 

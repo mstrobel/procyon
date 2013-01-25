@@ -3,7 +3,6 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.Types;
 
 import java.util.Collections;
 import java.util.List;
@@ -145,7 +144,7 @@ public final class GenericParameter extends TypeReference {
 
         final TypeReference upperBound = getExtendsBound();
 
-        if (upperBound != null && !upperBound.equals(Types.Object)) {
+        if (upperBound != null && !upperBound.equals(BuiltinTypes.Object)) {
             sb.append(" extends ");
             if (upperBound.isGenericParameter() || upperBound.equals(getDeclaringType())) {
                 return sb.append(upperBound.getName());
@@ -179,12 +178,12 @@ public final class GenericParameter extends TypeReference {
 
         final TypeReference upperBound = getExtendsBound();
 
-        if (upperBound != null && !upperBound.equals(Types.Object)) {
+        if (upperBound != null && !upperBound.equals(BuiltinTypes.Object)) {
             sb.append(" extends ");
             if (upperBound.isGenericParameter() || upperBound.equals(getDeclaringType())) {
                 return sb.append(upperBound.getName());
             }
-            return upperBound.appendErasedDescription(sb);
+            return upperBound.appendSimpleDescription(sb);
         }
 
         return sb;

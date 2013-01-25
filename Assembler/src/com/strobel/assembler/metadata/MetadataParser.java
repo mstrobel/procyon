@@ -53,7 +53,30 @@ public final class MetadataParser {
 
     public TypeReference parseTypeDescriptor(final String descriptor) {
         VerifyArgument.notNull(descriptor, "descriptor");
-        return _resolver.lookupType(descriptor);
+
+        int arrayDepth = 0;
+
+        while (descriptor.charAt(arrayDepth) == '[') {
+            ++arrayDepth;
+        }
+
+        if (arrayDepth == 0) {
+            return _resolver.lookupType(descriptor);
+        }
+
+        final TypeReference elementType = _resolver.lookupType(descriptor.substring(arrayDepth));
+
+        if (elementType == null) {
+            return null;
+        }
+
+        TypeReference result = elementType.makeArrayType();
+
+        while (--arrayDepth > 0) {
+            result = result.makeArrayType();
+        }
+
+        return result;
     }
 
     public TypeReference parseTypeSignature(final String signature) {
@@ -103,6 +126,13 @@ public final class MetadataParser {
 
     public TypeReference lookupType(final String packageName, final String typeName) {
         final TypeReference reference = new UnresolvedType(packageName, typeName);
+        final TypeReference resolved = _resolver.resolve(reference);
+
+        return resolved != null ? resolved : reference;
+    }
+
+    public TypeReference lookupType(final TypeReference declaringType, final String typeName) {
+        final TypeReference reference = new UnresolvedType(declaringType, typeName);
         final TypeReference resolved = _resolver.resolve(reference);
 
         return resolved != null ? resolved : reference;
@@ -264,15 +294,10 @@ public final class MetadataParser {
 
                         i = position.getValue();
 
-                        if (i < n && signature.charAt(i) == ':') {
-
-                        }
-                        else {
-                            typeVariable.setExtendsBound(
-                                resolvedExtendsBound != null ? resolvedExtendsBound
-                                                             : extendsBound
-                            );
-                        }
+                        typeVariable.setExtendsBound(
+                            resolvedExtendsBound != null ? resolvedExtendsBound
+                                                         : extendsBound
+                        );
 
                         typeVariableStart = i--;
                         break;
@@ -326,11 +351,14 @@ public final class MetadataParser {
             interfaceTypes.add(r != null ? r : t);
         }
 
-        return new CompoundTypeReference(
-            baseType,
-            interfaceTypes != null ? interfaceTypes
-                                   : Collections.<TypeReference>emptyList()
-        );
+        if (interfaceTypes != null) {
+            if (BuiltinTypes.Object.equals(baseType) && interfaceTypes.size() == 1) {
+                return interfaceTypes.get(0);
+            }
+            return new CompoundTypeReference(baseType, interfaceTypes);
+        }
+
+        return baseType;
     }
 
     private TypeReference parseTopLevelSignature(final String s, final MutableInteger position) {
@@ -443,7 +471,7 @@ public final class MetadataParser {
 
                     i = position.getValue();
 
-                    if (s.charAt(i) != ';') {
+                    if (s.charAt(i) != ';' && s.charAt(i) != '.') {
                         throw Error.invalidSignatureUnexpectedToken(s, i);
                     }
 
@@ -452,17 +480,26 @@ public final class MetadataParser {
                     boolean hasBoundTypes = false;
 
                     for (final TypeReference typeArgument : typeArguments) {
-                        if (!typeArgument.isGenericParameter()) {
+                        if (!typeArgument.isGenericParameter() || !resolvedType.equals(((GenericParameter) typeArgument).getOwner())) {
                             hasBoundTypes = true;
                             break;
                         }
                     }
 
+                    TypeReference result;
+
                     if (hasBoundTypes) {
-                        return resolvedType.makeGenericType(typeArguments);
+                        result = resolvedType.makeGenericType(typeArguments);
+                    }
+                    else {
+                        result = resolvedType;
                     }
 
-                    return resolvedType;
+                    if (s.charAt(i) == '.') {
+                        result = parseInnerType(result, s, position);
+                    }
+
+                    return result;
                 }
 
                 default: {
@@ -472,6 +509,58 @@ public final class MetadataParser {
         }
 
         throw Error.invalidSignatureUnexpectedEnd(s, i);
+    }
+
+    private TypeReference parseInnerType(final TypeReference declaringType, final String s, final MutableInteger position) {
+        final boolean isGenericDefinition = declaringType.isGenericDefinition();
+
+        if (isGenericDefinition) {
+            pushGenericContext(declaringType);
+        }
+
+        try {
+            final StringBuilder name = new StringBuilder();
+
+            for (int i = position.getValue(); i < s.length(); i = position.increment().getValue()) {
+                final char ch = s.charAt(i);
+
+                switch (ch) {
+                    case '<':
+                        final TypeReference type = lookupType(declaringType, name.toString());
+                        final TypeReference[] typeArgs = new TypeReference[type.getGenericParameters().size()];
+
+                        parseTypeParameters(s, position, typeArgs);
+
+                        final TypeReference genericType = type.makeGenericType(typeArgs);
+
+                        if (i < s.length() - 1 && s.charAt(i + 1) == '.') {
+                            return parseInnerType(genericType, s, position.increment().increment());
+                        }
+
+                        if (s.charAt(position.getValue()) != ';') {
+                            throw Error.invalidSignatureUnexpectedToken(s, position.getValue());
+                        }
+
+                        position.increment();
+                        return genericType;
+
+                    case ';':
+                        position.increment();
+                        return lookupType(declaringType, name.toString());
+
+                    default:
+                        name.append(ch);
+                        break;
+                }
+            }
+
+            throw Error.invalidSignatureUnexpectedEnd(s, position.getValue());
+        }
+        finally {
+            if (isGenericDefinition) {
+                popGenericContext();
+            }
+        }
     }
 
     private void parseTypeParameters(
@@ -702,6 +791,11 @@ public final class MetadataParser {
 
         @Override
         public IGenericParameterProvider getGenericDefinition() {
+            return _genericDefinition;
+        }
+
+        @Override
+        public TypeReference getUnderlyingType() {
             return _genericDefinition;
         }
     }

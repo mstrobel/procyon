@@ -6,6 +6,8 @@ import com.strobel.assembler.metadata.annotations.AnnotationElement;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.VerifyArgument;
 
+import java.util.List;
+
 /**
  * @author Mike Strobel
  */
@@ -31,6 +33,12 @@ public abstract class MetadataReader {
         final int length = buffer.readInt();
         final IMetadataScope scope = getScope();
         final String name = scope.lookupConstant(nameIndex);
+
+        return readAttributeCore(name, buffer, length);
+    }
+
+    protected SourceAttribute readAttributeCore(final String name, final Buffer buffer, final int length) {
+        final IMetadataScope scope = getScope();
 
         if (length == 0) {
             return SourceAttribute.create(name);
@@ -149,19 +157,15 @@ public abstract class MetadataReader {
             }
 
             case AttributeNames.EnclosingMethod: {
+                final int typeToken = buffer.readUnsignedShort();
+                final int methodToken = buffer.readUnsignedShort();
+
                 return new EnclosingMethodAttribute(
-                    scope.lookupMethod(
-                        buffer.readUnsignedShort(),
-                        buffer.readUnsignedShort()
-                    )
+                    scope.lookupType(typeToken),
+                    methodToken > 0 ? scope.lookupMethod(typeToken, methodToken)
+                                    : null
                 );
             }
-
-/*
-            case AttributeNames.InnerClasses: {
-                throw ContractUtils.unreachable();
-            }
-*/
 
             case AttributeNames.RuntimeVisibleAnnotations:
             case AttributeNames.RuntimeInvisibleAnnotations: {
@@ -206,6 +210,83 @@ public abstract class MetadataReader {
                 final byte[] blob = new byte[length];
                 buffer.read(blob, 0, blob.length);
                 return new BlobAttribute(name, blob);
+            }
+        }
+    }
+
+    protected void inflateAttributes(final SourceAttribute[] attributes) {
+        VerifyArgument.noNullElements(attributes, "attributes");
+
+        if (attributes.length == 0) {
+            return;
+        }
+
+        Buffer buffer = null;
+
+        for (int i = 0; i < attributes.length; i++) {
+            final SourceAttribute attribute = attributes[i];
+
+            if (attribute instanceof BlobAttribute) {
+                if (buffer == null) {
+                    buffer = new Buffer(attribute.getLength());
+                }
+                else if (buffer.size() < attribute.getLength()) {
+                    buffer.reset(attribute.getLength());
+                }
+
+                System.arraycopy(
+                    ((BlobAttribute) attribute).getData(),
+                    0,
+                    buffer.array(),
+                    0,
+                    attribute.getLength()
+                );
+
+                attributes[i] = readAttributeCore(
+                    attribute.getName(),
+                    buffer,
+                    attribute.getLength()
+                );
+            }
+        }
+    }
+
+    protected void inflateAttributes(final List<SourceAttribute> attributes) {
+        VerifyArgument.noNullElements(attributes, "attributes");
+
+        if (attributes.isEmpty()) {
+            return;
+        }
+
+        Buffer buffer = null;
+
+        for (int i = 0; i < attributes.size(); i++) {
+            final SourceAttribute attribute = attributes.get(i);
+
+            if (attribute instanceof BlobAttribute) {
+                if (buffer == null) {
+                    buffer = new Buffer(attribute.getLength());
+                }
+                else if (buffer.size() < attribute.getLength()) {
+                    buffer.reset(attribute.getLength());
+                }
+
+                System.arraycopy(
+                    ((BlobAttribute) attribute).getData(),
+                    0,
+                    buffer.array(),
+                    0,
+                    attribute.getLength()
+                );
+
+                attributes.set(
+                    i,
+                    readAttributeCore(
+                        attribute.getName(),
+                        buffer,
+                        attribute.getLength()
+                    )
+                );
             }
         }
     }

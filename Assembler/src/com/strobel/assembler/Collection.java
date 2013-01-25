@@ -84,8 +84,11 @@ public class Collection<E> extends AbstractList<E> implements IFreezable {
     }
 
     protected void afterAdd(final int index, final E e, final boolean appended) {}
+
     protected void beforeSet(final int index, final E e) {}
+
     protected void afterRemove(final int index, final E e) {}
+
     protected void beforeClear() {}
 
     // <editor-fold defaultstate="collapsed" desc="IFreezable Implementation">
@@ -101,7 +104,11 @@ public class Collection<E> extends AbstractList<E> implements IFreezable {
     }
 
     @Override
-    public final void freeze() throws IllegalStateException {
+    public final void freeze() {
+        freeze(true);
+    }
+
+    public final void freeze(final boolean freezeContents) {
         if (!canFreeze()) {
             throw new IllegalStateException(
                 "Collection cannot be frozen.  Be sure to check canFreeze() before calling " +
@@ -109,15 +116,17 @@ public class Collection<E> extends AbstractList<E> implements IFreezable {
             );
         }
 
-        freezeCore();
+        freezeCore(freezeContents);
 
         _isFrozen = true;
     }
 
-    protected void freezeCore() {
-        for (final E item : _items) {
-            if (item instanceof IFreezable) {
-                ((IFreezable) item).freezeIfUnfrozen();
+    protected void freezeCore(final boolean freezeContents) {
+        if (freezeContents) {
+            for (final E item : _items) {
+                if (item instanceof IFreezable) {
+                    ((IFreezable) item).freezeIfUnfrozen();
+                }
             }
         }
     }

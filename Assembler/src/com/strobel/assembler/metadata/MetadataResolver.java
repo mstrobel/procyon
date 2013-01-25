@@ -146,7 +146,7 @@ public abstract class MetadataResolver implements IMetadataResolver {
         return null;
     }
 
-    static TypeDefinition getNestedType(final List<TypeDefinition> candidates, final TypeReference reference) {
+    protected TypeDefinition getNestedType(final List<TypeDefinition> candidates, final TypeReference reference) {
         for (int i = 0, n = candidates.size(); i < n; i++) {
             final TypeDefinition candidate = candidates.get(i);
 
@@ -254,7 +254,7 @@ public abstract class MetadataResolver implements IMetadataResolver {
                        areEquivalent((IGenericInstance) a, (IGenericInstance) b);
             }
 
-            return areEquivalent(a.getUnderlyingType(), b.getUnderlyingType());
+            return areEquivalent(a.getGenericParameters(), b.getGenericParameters());
         }
 
         if (a.isArray()) {
@@ -292,7 +292,7 @@ public abstract class MetadataResolver implements IMetadataResolver {
         return true;
     }
 
-    static boolean areEquivalent(final List<TypeReference> a, final List<TypeReference> b) {
+    static boolean areEquivalent(final List<? extends TypeReference> a, final List<? extends TypeReference> b) {
         final int count = a.size();
 
         if (b.size() != count) {

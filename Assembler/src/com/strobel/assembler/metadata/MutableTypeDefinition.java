@@ -1,6 +1,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
+import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.IFreezable;
 import com.strobel.core.StringUtilities;
 
@@ -15,6 +16,7 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
     final Collection<MethodDefinition> declaredMethods;
     final GenericParameterCollection genericParameters;
     final Collection<TypeReference> explicitInterfaces;
+    final Collection<CustomAnnotation> customAnnotations;
 
     private int _flags;
     private String _name;
@@ -22,6 +24,7 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
     private TypeReference _declaringType;
     private TypeReference _baseType = BuiltinTypes.Object;
     private boolean _isFrozen;
+    private TypeReference _rawType;
 
     public MutableTypeDefinition() {
         this.declaredFields = new Collection<>();
@@ -29,6 +32,7 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
         this.declaredMethods = new Collection<>();
         this.genericParameters = new GenericParameterCollection(this);
         this.explicitInterfaces = new Collection<>();
+        this.customAnnotations = new Collection<>();
     }
 
     @Override
@@ -68,6 +72,16 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
         return explicitInterfaces;
     }
 
+    @Override
+    public boolean hasAnnotations() {
+        return !customAnnotations.isEmpty();
+    }
+
+    @Override
+    public List<CustomAnnotation> getAnnotations() {
+        return customAnnotations;
+    }
+
     public void setFlags(final int flags) {
         verifyNotFrozen();
         _flags = flags;
@@ -100,6 +114,19 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
     @Override
     public List<GenericParameter> getGenericParameters() {
         return genericParameters;
+    }
+
+    @Override
+    public TypeReference getRawType() {
+        if (_rawType == null) {
+            synchronized (this) {
+                if (_rawType == null) {
+                    _rawType = isGenericDefinition() ? new RawType(this)
+                                                     : this;
+                }
+            }
+        }
+        return _rawType;
     }
 
     // </editor-fold>
@@ -139,7 +166,7 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
     public final void freeze() throws IllegalStateException {
         if (!canFreeze()) {
             throw new IllegalStateException(
-                "Object cannot be frozen.  Be sure to check canFreeze() before calling " +
+                "Type cannot be frozen.  Be sure to check canFreeze() before calling " +
                 "freeze(), or use the tryFreeze() method instead."
             );
         }
@@ -150,7 +177,7 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
     }
 
     protected void freezeCore() {
-        this.declaredTypes.freeze();
+        this.declaredTypes.freeze(false);
         this.declaredMethods.freeze();
         this.declaredFields.freeze();
         this.genericParameters.freeze();
@@ -159,14 +186,14 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
 
     protected final void verifyNotFrozen() {
         if (isFrozen()) {
-            throw new IllegalStateException("Frozen object cannot be modified.");
+            throw new IllegalStateException("A frozen type definition cannot be modified.");
         }
     }
 
     protected final void verifyFrozen() {
         if (!isFrozen()) {
             throw new IllegalStateException(
-                "Object must be frozen before performing this operation."
+                "Type must be frozen before performing this operation."
             );
         }
     }

@@ -210,4 +210,8 @@ final class Error {
             )
         );
     }
+
+    public static RuntimeException couldNotLoadObjectType() {
+        throw new IllegalStateException("Could not load metadata for java.lang.Object.");
+    }
 }

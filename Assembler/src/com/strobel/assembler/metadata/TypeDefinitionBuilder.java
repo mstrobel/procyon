@@ -56,10 +56,21 @@ public class TypeDefinitionBuilder implements ClassVisitor<MutableTypeDefinition
                     _parser.parseGenericParameters(type.genericParameters, genericSignature, position);
                 }
 
-                final boolean isGenericDefinition = type.isGenericDefinition();
+                int genericContextCount = 0;
 
-                if (isGenericDefinition) {
-                    _parser.pushGenericContext(type);
+                TypeReference currentType = type;
+
+                while (currentType != null) {
+                    if (currentType.isGenericDefinition()) {
+                        _parser.pushGenericContext(currentType);
+                        ++genericContextCount;
+                    }
+
+                    if (currentType.isStatic()) {
+                        break;
+                    }
+
+                    currentType = currentType.getDeclaringType();
                 }
 
                 try {
@@ -81,7 +92,7 @@ public class TypeDefinitionBuilder implements ClassVisitor<MutableTypeDefinition
                     }
                 }
                 finally {
-                    if (isGenericDefinition) {
+                    while (genericContextCount-- > 0) {
                         _parser.popGenericContext();
                     }
                 }
@@ -116,7 +127,12 @@ public class TypeDefinitionBuilder implements ClassVisitor<MutableTypeDefinition
         final String name,
         final TypeReference fieldType) {
 
-        return null;
+        return new FieldDefinitionBuilder(
+            type,
+            flags,
+            name,
+            fieldType
+        );
     }
 
     @Override
@@ -134,7 +150,10 @@ public class TypeDefinitionBuilder implements ClassVisitor<MutableTypeDefinition
 
     @Override
     public void visitEnd(final MutableTypeDefinition type) {
+        type.freezeIfUnfrozen();
     }
+
+    // <editor-fold defaultstate="collapsed" desc="ResolverFrame Class">
 
     private final class ResolverFrame implements IResolverFrame {
         final HashMap<String, TypeReference> types = new HashMap<>();
@@ -182,4 +201,6 @@ public class TypeDefinitionBuilder implements ClassVisitor<MutableTypeDefinition
             return null;
         }
     }
+
+    // </editor-fold>
 }

@@ -2,6 +2,11 @@ package com.strobel.assembler.ir;
 
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.*;
+import com.strobel.assembler.metadata.annotations.CustomAnnotation;
+import com.strobel.assembler.metadata.annotations.InnerClassEntry;
+import com.strobel.assembler.metadata.annotations.InnerClassesAttribute;
+import com.strobel.core.ArrayUtilities;
+import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.EmptyArrayCache;
@@ -94,6 +99,41 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         return _scope;
     }
 
+    @Override
+    protected SourceAttribute readAttributeCore(final String name, final Buffer buffer, final int length) {
+        if (AttributeNames.InnerClasses.equals(name)) {
+            final InnerClassEntry[] entries = new InnerClassEntry[buffer.readUnsignedShort()];
+
+            for (int i = 0; i < entries.length; i++) {
+                final int innerClassIndex = buffer.readUnsignedShort();
+                final int outerClassIndex = buffer.readUnsignedShort();
+                final int shortNameIndex = buffer.readUnsignedShort();
+                final int accessFlags = buffer.readUnsignedShort();
+
+                final ConstantPool.TypeInfoEntry innerClass = constantPool.getEntry(innerClassIndex);
+                final ConstantPool.TypeInfoEntry outerClass;
+
+                if (outerClassIndex != 0) {
+                    outerClass = constantPool.getEntry(outerClassIndex);
+                }
+                else {
+                    outerClass = null;
+                }
+
+                entries[i] = new InnerClassEntry(
+                    innerClass.getName(),
+                    outerClass != null ? outerClass.getName() : null,
+                    shortNameIndex != 0 ? constantPool.<String>lookupConstant(shortNameIndex) : null,
+                    accessFlags
+                );
+            }
+
+            return new InnerClassesAttribute(length, ArrayUtilities.asUnmodifiableList(entries));
+        }
+
+        return super.readAttributeCore(name, buffer, length);
+    }
+
     final synchronized void complete(final TypeDefinition thisType) {
         if (_completed.getAndSet(true)) {
             return;
@@ -175,6 +215,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private void readAttributesPhaseOne(final Buffer buffer, final SourceAttribute[] attributes) {
         for (int i = 0; i < attributes.length; i++) {
             final int nameIndex = buffer.readUnsignedShort();
@@ -216,6 +257,11 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     final int token = buffer.readUnsignedShort();
                     final String signature = scope.lookupConstant(token);
                     attributes[i] = new SignatureAttribute(signature);
+                    continue;
+                }
+
+                case AttributeNames.InnerClasses: {
+                    attributes[i] = readAttributeCore(name, buffer, length);
                     continue;
                 }
 
@@ -352,7 +398,12 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             _resolverFrame.addType(type);
 
             try {
+                populateDeclaringType(type);
                 visitHeader(type, visitor);
+                populateNamedInnerTypes(type);
+                visitFields(type, visitor);
+                visitAttributes(type, visitor);
+                visitor.visitEnd(type);
             }
             finally {
                 _resolverFrame.removeType(type);
@@ -362,6 +413,116 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             resolver.popFrame();
         }
     }
+
+    private void populateDeclaringType(final MutableTypeDefinition type) {
+        final InnerClassesAttribute innerClasses = SourceAttribute.find(AttributeNames.InnerClasses, this.attributes);
+
+        if (innerClasses == null) {
+            return;
+        }
+
+        for (final InnerClassEntry entry : innerClasses.getEntries()) {
+            final String outerClassName = entry.getOuterClassName();
+            final String innerClassName = entry.getInnerClassName();
+
+            if (Comparer.equals(innerClassName, type.getInternalName()) && outerClassName != null) {
+                final String simpleName = entry.getShortName();
+                final TypeReference outerType = _scope._parser.parseTypeDescriptor(outerClassName);
+                final TypeDefinition resolvedOuterType = outerType.resolve();
+
+                if (resolvedOuterType != null) {
+                    type.setDeclaringType(outerType);
+                }
+
+                if (simpleName != null) {
+                    type.setName(simpleName);
+                }
+
+                return;
+            }
+        }
+    }
+
+    private void populateNamedInnerTypes(final MutableTypeDefinition type) {
+        final InnerClassesAttribute innerClasses = SourceAttribute.find(AttributeNames.InnerClasses, this.attributes);
+
+        if (innerClasses == null) {
+            return;
+        }
+
+        for (final InnerClassEntry entry : innerClasses.getEntries()) {
+            final String outerClassName = entry.getOuterClassName();
+
+            if (outerClassName == null) {
+                continue;
+            }
+
+            final TypeReference innerType = _scope._parser.parseTypeDescriptor(entry.getInnerClassName());
+            final TypeDefinition resolvedInnerType = innerType.resolve();
+
+            if (resolvedInnerType != null &&
+                Comparer.equals(type.getInternalName(), outerClassName)) {
+
+                type.getDeclaredTypes().add(resolvedInnerType);
+            }
+        }
+    }
+
+    private void populateAnonymousInnerTypes(final MutableTypeDefinition type) {
+        final InnerClassesAttribute innerClasses = SourceAttribute.find(AttributeNames.InnerClasses, this.attributes);
+
+        if (innerClasses == null) {
+            return;
+        }
+
+        for (final InnerClassEntry entry : innerClasses.getEntries()) {
+            final String outerClassName = entry.getOuterClassName();
+
+            if (outerClassName != null) {
+                continue;
+            }
+
+            final TypeReference innerType = _scope._parser.parseTypeDescriptor(entry.getInnerClassName());
+            final TypeDefinition resolvedInnerType = innerType.resolve();
+
+            if (resolvedInnerType != null &&
+                Comparer.equals(type.getInternalName(), outerClassName)) {
+
+                type.getDeclaredTypes().add(resolvedInnerType);
+            }
+        }
+    }
+
+    private void visitAttributes(final MutableTypeDefinition type, final ClassVisitor<MutableTypeDefinition> visitor) {
+        inflateAttributes(this.attributes);
+
+        for (final SourceAttribute attribute : attributes) {
+            visitor.visitAttribute(type, attribute);
+        }
+
+        final AnnotationsAttribute visibleAnnotations = SourceAttribute.find(
+            AttributeNames.RuntimeVisibleAnnotations,
+            this.attributes
+        );
+
+        final AnnotationsAttribute invisibleAnnotations = SourceAttribute.find(
+            AttributeNames.RuntimeInvisibleAnnotations,
+            this.attributes
+        );
+
+        if (visibleAnnotations != null) {
+            for (final CustomAnnotation annotation : visibleAnnotations.getAnnotations()) {
+                visitor.visitAnnotation(type, annotation, true);
+            }
+        }
+
+        if (invisibleAnnotations != null) {
+            for (final CustomAnnotation annotation : invisibleAnnotations.getAnnotations()) {
+                visitor.visitAnnotation(type, annotation, false);
+            }
+        }
+    }
+
     private void visitHeader(final MutableTypeDefinition type, final ClassVisitor<MutableTypeDefinition> visitor) {
         final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, attributes);
         final String[] interfaceNames = new String[interfaceEntries.length];
@@ -380,17 +541,69 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             baseClassEntry != null ? baseClassEntry.getName() : null,
             interfaceNames
         );
+    }
 
-        for (final MethodInfo method : methods) {
-            final SignatureAttribute sigAttr = SourceAttribute.find(AttributeNames.Signature, method.attributes);
-            if (sigAttr != null) {
-                _scope._parser.pushGenericContext(type);
-                try {
-                    final IMethodSignature ms = _scope._parser.parseMethodSignature(sigAttr.getSignature());
+    @SuppressWarnings("ConstantConditions")
+    private void visitFields(final MutableTypeDefinition type, final ClassVisitor<MutableTypeDefinition> visitor) {
+        final boolean isGenericDefinition = type.isGenericDefinition();
+
+        if (isGenericDefinition) {
+            _scope._parser.pushGenericContext(type);
+        }
+
+        try {
+            for (final FieldInfo field : fields) {
+                final TypeReference fieldType;
+                final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, field.attributes);
+
+                if (signature != null) {
+                    fieldType = _scope._parser.parseTypeSignature(signature.getSignature());
                 }
-                finally {
-                    _scope._parser.popGenericContext();
+                else {
+                    fieldType = _scope._parser.parseTypeSignature(field.descriptor);
                 }
+
+                final FieldVisitor<MutableTypeDefinition> fieldVisitor = visitor.visitField(
+                    type,
+                    field.accessFlags,
+                    field.name,
+                    fieldType
+                );
+
+                inflateAttributes(field.attributes);
+
+                for (final SourceAttribute attribute : field.attributes) {
+                    fieldVisitor.visitAttribute(type, attribute);
+                }
+
+                final AnnotationsAttribute visibleAnnotations = SourceAttribute.find(
+                    AttributeNames.RuntimeVisibleAnnotations,
+                    field.attributes
+                );
+
+                final AnnotationsAttribute invisibleAnnotations = SourceAttribute.find(
+                    AttributeNames.RuntimeInvisibleAnnotations,
+                    field.attributes
+                );
+
+                if (visibleAnnotations != null) {
+                    for (final CustomAnnotation annotation : visibleAnnotations.getAnnotations()) {
+                        fieldVisitor.visitAnnotation(type, annotation, true);
+                    }
+                }
+
+                if (invisibleAnnotations != null) {
+                    for (final CustomAnnotation annotation : invisibleAnnotations.getAnnotations()) {
+                        fieldVisitor.visitAnnotation(type, annotation, false);
+                    }
+                }
+
+                fieldVisitor.visitEnd(type);
+            }
+        }
+        finally {
+            if (isGenericDefinition) {
+                _scope._parser.popGenericContext();
             }
         }
     }
