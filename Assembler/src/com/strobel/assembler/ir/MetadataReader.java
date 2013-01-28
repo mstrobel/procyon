@@ -12,15 +12,11 @@ import java.util.List;
  * @author Mike Strobel
  */
 public abstract class MetadataReader {
-    private final IMetadataResolver _resolver;
-    private final MetadataParser _parser;
-
-    protected MetadataReader(final IMetadataResolver resolver) {
-        _resolver = VerifyArgument.notNull(resolver, "resolver");
-        _parser = new MetadataParser(resolver);
+    protected MetadataReader() {
     }
 
     protected abstract IMetadataScope getScope();
+    protected abstract MetadataParser getParser();
 
     public void readAttributes(final Buffer input, final SourceAttribute[] attributes) {
         for (int i = 0; i < attributes.length; i++) {
@@ -147,7 +143,7 @@ public abstract class MetadataReader {
                     entries[i] = new LocalVariableTableEntry(
                         variableIndex,
                         variableName,
-                        _parser.parseTypeSignature(descriptor),
+                        getParser().parseTypeSignature(descriptor),
                         scopeOffset,
                         scopeLength
                     );

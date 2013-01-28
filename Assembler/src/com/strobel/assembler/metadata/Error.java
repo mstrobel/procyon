@@ -203,7 +203,7 @@ final class Error {
 
         return new IllegalArgumentException(
             format(
-                "Invalid signature: unresoled type variable '%s' at position %d.  (%s)",
+                "Invalid signature: unresolved type variable '%s' at position %d.  (%s)",
                 variableName,
                 position,
                 signature

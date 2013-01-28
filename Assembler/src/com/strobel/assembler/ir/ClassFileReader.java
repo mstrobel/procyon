@@ -57,7 +57,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         final ConstantPool.TypeInfoEntry baseClassEntry,
         final ConstantPool.TypeInfoEntry[] interfaceEntries) {
 
-        super(resolver);
+        super();
 
         _resolverFrame = new ResolverFrame();
 
@@ -98,6 +98,11 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
     @Override
     protected IMetadataScope getScope() {
         return _scope;
+    }
+
+    @Override
+    protected MetadataParser getParser() {
+        return _scope._parser;
     }
 
     @Override
