@@ -80,7 +80,7 @@ public abstract class MetadataReader {
                         catchType = null;
                     }
                     else {
-                        catchType = _resolver.lookupType(scope.<String>lookupConstant(catchTypeToken));
+                        catchType = scope.lookupType(catchTypeToken);
                     }
 
                     exceptionTable[k] = new ExceptionTableEntry(
@@ -230,7 +230,7 @@ public abstract class MetadataReader {
                 if (buffer == null) {
                     buffer = new Buffer(attribute.getLength());
                 }
-                else if (buffer.size() < attribute.getLength()) {
+                else {
                     buffer.reset(attribute.getLength());
                 }
 

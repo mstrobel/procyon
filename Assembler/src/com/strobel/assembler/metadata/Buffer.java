@@ -62,7 +62,7 @@ public class Buffer {
         if (VerifyArgument.isNonNegative(initialSize, "initialSize") == 0) {
             _data = EmptyArrayCache.EMPTY_BYTE_ARRAY;
         }
-        else {
+        else if (initialSize > _data.length || initialSize < _data.length / 4) {
             _data = new byte[initialSize];
         }
         _length = initialSize;

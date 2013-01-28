@@ -20,6 +20,7 @@ public class TypeDefinitionBuilder implements ClassVisitor<MutableTypeDefinition
     }
 
     @Override
+    @SuppressWarnings("ConstantConditions")
     public void visit(
         final MutableTypeDefinition type,
         final int majorVersion,
@@ -140,12 +141,16 @@ public class TypeDefinitionBuilder implements ClassVisitor<MutableTypeDefinition
         final MutableTypeDefinition type,
         final int flags,
         final String name,
-        final TypeReference returnType,
-        final TypeReference[] genericParameterTypes,
-        final TypeReference[] formalParameterTypes,
-        final TypeReference[] thrownTypes) {
+        final IMethodSignature signature,
+        final TypeReference... thrownTypes) {
 
-        return null;
+        return new MethodDefinitionBuilder(
+            type,
+            flags,
+            name,
+            signature,
+            thrownTypes
+        );
     }
 
     @Override

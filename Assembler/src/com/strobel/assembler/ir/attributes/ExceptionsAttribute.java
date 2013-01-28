@@ -15,7 +15,7 @@ public final class ExceptionsAttribute extends SourceAttribute {
     public ExceptionsAttribute(final TypeReference... exceptionTypes) {
         super(
             AttributeNames.Exceptions,
-            VerifyArgument.noNullElements(exceptionTypes, "exceptionTypes").length * 2
+            2 * (1 + VerifyArgument.noNullElements(exceptionTypes, "exceptionTypes").length)
         );
         _exceptionTypes = ArrayUtilities.asUnmodifiableList(exceptionTypes);
     }

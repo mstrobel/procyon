@@ -30,10 +30,8 @@ public interface ClassVisitor<P> {
         final P parameter,
         final int flags,
         final String name,
-        final TypeReference returnType,
-        final TypeReference[] genericParameterTypes,
-        final TypeReference[] formalParameterTypes,
-        final TypeReference[] thrownTypes);
+        final IMethodSignature signature,
+        final TypeReference... thrownTypes);
 
     void visitEnd(final P parameter);
 }

@@ -22,7 +22,7 @@ public abstract class ParameterReference {
         return _name;
     }
 
-    public void setName(final String name) {
+    protected void setName(final String name) {
         _name = name;
     }
 

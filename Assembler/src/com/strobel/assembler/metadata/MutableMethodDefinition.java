@@ -9,29 +9,23 @@ import java.util.List;
 /**
  * @author Mike Strobel
  */
-public final class MutableFieldDefinition extends FieldDefinition implements IFreezable {
-    final Collection<CustomAnnotation> customAnnotations = new Collection<>();
+public final class MutableMethodDefinition extends MethodDefinition implements IFreezable {
+    final Collection<CustomAnnotation> customAnnotations;
+    final Collection<GenericParameter> genericParameters;
+    final Collection<TypeReference> thrownTypes;
+    final ParameterDefinitionCollection parameters;
 
     private int _flags;
     private String _name;
-    private TypeReference _fieldType;
+    private TypeReference _returnType;
     private TypeReference _declaringType;
-    private Object _constantValue;
     private boolean _isFrozen;
 
-    @Override
-    public boolean hasConstantValue() {
-        return _constantValue != null;
-    }
-
-    @Override
-    public Object getConstantValue() {
-        return _constantValue;
-    }
-
-    @Override
-    public TypeReference getFieldType() {
-        return _fieldType;
+    public MutableMethodDefinition() {
+        customAnnotations = new Collection<>();
+        genericParameters = new GenericParameterCollection(this);
+        parameters = new ParameterDefinitionCollection(this);
+        thrownTypes = new Collection<>();
     }
 
     @Override
@@ -50,6 +44,16 @@ public final class MutableFieldDefinition extends FieldDefinition implements IFr
     }
 
     @Override
+    public TypeReference getReturnType() {
+        return _returnType;
+    }
+
+    @Override
+    public List<ParameterDefinition> getParameters() {
+        return parameters;
+    }
+
+    @Override
     public boolean hasAnnotations() {
         return !customAnnotations.isEmpty();
     }
@@ -59,9 +63,19 @@ public final class MutableFieldDefinition extends FieldDefinition implements IFr
         return customAnnotations;
     }
 
+    @Override
+    public List<TypeReference> getThrownTypes() {
+        return thrownTypes;
+    }
+
     public void setFlags(final int flags) {
         verifyNotFrozen();
         _flags = flags;
+    }
+
+    public void setReturnType(final TypeReference returnType) {
+        verifyNotFrozen();
+        _returnType = returnType;
     }
 
     public void setName(final String name) {
@@ -69,19 +83,9 @@ public final class MutableFieldDefinition extends FieldDefinition implements IFr
         _name = name;
     }
 
-    public void setFieldType(final TypeReference fieldType) {
-        verifyNotFrozen();
-        _fieldType = fieldType;
-    }
-
     public void setDeclaringType(final TypeReference declaringType) {
         verifyNotFrozen();
         _declaringType = declaringType;
-    }
-
-    public void setConstantValue(final Object constantValue) {
-        verifyNotFrozen();
-        _constantValue = constantValue;
     }
 
     @Override

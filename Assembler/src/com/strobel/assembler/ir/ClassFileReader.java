@@ -402,6 +402,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 visitHeader(type, visitor);
                 populateNamedInnerTypes(type);
                 visitFields(type, visitor);
+                visitMethods(type, visitor);
                 visitAttributes(type, visitor);
                 visitor.visitEnd(type);
             }
@@ -441,6 +442,26 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 return;
             }
         }
+    }
+
+    private void visitHeader(final MutableTypeDefinition type, final ClassVisitor<MutableTypeDefinition> visitor) {
+        final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, attributes);
+        final String[] interfaceNames = new String[interfaceEntries.length];
+
+        for (int i = 0; i < interfaceEntries.length; i++) {
+            interfaceNames[i] = interfaceEntries[i].getName();
+        }
+
+        visitor.visit(
+            type,
+            majorVersion,
+            minorVersion,
+            accessFlags,
+            thisClassEntry.getName(),
+            signature != null ? signature.getSignature() : null,
+            baseClassEntry != null ? baseClassEntry.getName() : null,
+            interfaceNames
+        );
     }
 
     private void populateNamedInnerTypes(final MutableTypeDefinition type) {
@@ -491,56 +512,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 type.getDeclaredTypes().add(resolvedInnerType);
             }
         }
-    }
-
-    private void visitAttributes(final MutableTypeDefinition type, final ClassVisitor<MutableTypeDefinition> visitor) {
-        inflateAttributes(this.attributes);
-
-        for (final SourceAttribute attribute : attributes) {
-            visitor.visitAttribute(type, attribute);
-        }
-
-        final AnnotationsAttribute visibleAnnotations = SourceAttribute.find(
-            AttributeNames.RuntimeVisibleAnnotations,
-            this.attributes
-        );
-
-        final AnnotationsAttribute invisibleAnnotations = SourceAttribute.find(
-            AttributeNames.RuntimeInvisibleAnnotations,
-            this.attributes
-        );
-
-        if (visibleAnnotations != null) {
-            for (final CustomAnnotation annotation : visibleAnnotations.getAnnotations()) {
-                visitor.visitAnnotation(type, annotation, true);
-            }
-        }
-
-        if (invisibleAnnotations != null) {
-            for (final CustomAnnotation annotation : invisibleAnnotations.getAnnotations()) {
-                visitor.visitAnnotation(type, annotation, false);
-            }
-        }
-    }
-
-    private void visitHeader(final MutableTypeDefinition type, final ClassVisitor<MutableTypeDefinition> visitor) {
-        final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, attributes);
-        final String[] interfaceNames = new String[interfaceEntries.length];
-
-        for (int i = 0; i < interfaceEntries.length; i++) {
-            interfaceNames[i] = interfaceEntries[i].getName();
-        }
-
-        visitor.visit(
-            type,
-            majorVersion,
-            minorVersion,
-            accessFlags,
-            thisClassEntry.getName(),
-            signature != null ? signature.getSignature() : null,
-            baseClassEntry != null ? baseClassEntry.getName() : null,
-            interfaceNames
-        );
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -604,6 +575,127 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         finally {
             if (isGenericDefinition) {
                 _scope._parser.popGenericContext();
+            }
+        }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private void visitMethods(final MutableTypeDefinition type, final ClassVisitor<MutableTypeDefinition> visitor) {
+        final boolean isGenericDefinition = type.isGenericDefinition();
+
+        int genericContextCount = 0;
+
+        TypeReference currentType = type;
+
+        while (currentType != null) {
+            if (currentType.isGenericDefinition()) {
+                _scope._parser.pushGenericContext(currentType);
+                ++genericContextCount;
+            }
+
+            if (currentType.isStatic()) {
+                break;
+            }
+
+            currentType = currentType.getDeclaringType();
+        }
+
+        try {
+            for (final MethodInfo method : methods) {
+                final IMethodSignature methodSignature;
+                final TypeReference[] thrownTypes;
+
+                final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, method.attributes);
+
+                if (signature != null) {
+                    methodSignature = _scope._parser.parseMethodSignature(signature.getSignature());
+                }
+                else {
+                    methodSignature = _scope._parser.parseMethodSignature(method.descriptor);
+                }
+
+                inflateAttributes(method.attributes);
+
+                final ExceptionsAttribute exceptions = SourceAttribute.find(AttributeNames.Exceptions, method.attributes);
+
+                if (exceptions != null) {
+                    final List<TypeReference> exceptionTypes = exceptions.getExceptionTypes();
+                    thrownTypes = exceptionTypes.toArray(new TypeReference[exceptionTypes.size()]);
+                }
+                else {
+                    thrownTypes = EmptyArrayCache.fromElementType(TypeReference.class);
+                }
+
+                final MethodVisitor<MutableTypeDefinition> methodVisitor = visitor.visitMethod(
+                    type,
+                    method.accessFlags,
+                    method.name,
+                    methodSignature,
+                    thrownTypes
+                );
+
+                for (final SourceAttribute attribute : method.attributes) {
+                    methodVisitor.visitAttribute(type, attribute);
+                }
+
+                final AnnotationsAttribute visibleAnnotations = SourceAttribute.find(
+                    AttributeNames.RuntimeVisibleAnnotations,
+                    method.attributes
+                );
+
+                final AnnotationsAttribute invisibleAnnotations = SourceAttribute.find(
+                    AttributeNames.RuntimeInvisibleAnnotations,
+                    method.attributes
+                );
+
+                if (visibleAnnotations != null) {
+                    for (final CustomAnnotation annotation : visibleAnnotations.getAnnotations()) {
+                        methodVisitor.visitAnnotation(type, annotation, true);
+                    }
+                }
+
+                if (invisibleAnnotations != null) {
+                    for (final CustomAnnotation annotation : invisibleAnnotations.getAnnotations()) {
+                        methodVisitor.visitAnnotation(type, annotation, false);
+                    }
+                }
+
+                methodVisitor.visitEnd(type);
+            }
+        }
+        finally {
+            while (genericContextCount-- > 0) {
+                _scope._parser.popGenericContext();
+            }
+        }
+    }
+
+    private void visitAttributes(final MutableTypeDefinition type, final ClassVisitor<MutableTypeDefinition> visitor) {
+        inflateAttributes(this.attributes);
+
+        for (final SourceAttribute attribute : attributes) {
+            visitor.visitAttribute(type, attribute);
+        }
+
+        final AnnotationsAttribute visibleAnnotations = SourceAttribute.find(
+            AttributeNames.RuntimeVisibleAnnotations,
+            this.attributes
+        );
+
+        final AnnotationsAttribute invisibleAnnotations = SourceAttribute.find(
+            AttributeNames.RuntimeInvisibleAnnotations,
+            this.attributes
+        );
+
+        if (visibleAnnotations != null) {
+            for (final CustomAnnotation annotation : visibleAnnotations.getAnnotations()) {
+                visitor.visitAnnotation(type, annotation, true);
+            }
+        }
+
+        if (invisibleAnnotations != null) {
+            for (final CustomAnnotation annotation : invisibleAnnotations.getAnnotations()) {
+                visitor.visitAnnotation(type, annotation, false);
             }
         }
     }

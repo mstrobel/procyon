@@ -11,10 +11,11 @@ import com.strobel.assembler.metadata.annotations.CustomAnnotation;
  * Date: 1/6/13
  * Time: 4:03 PM
  */
-public interface MethodVisitor<P> extends InstructionVisitor<P> {
+public interface MethodVisitor<P> {
     boolean canVisitBody(final P parameter);
 
-    void visitBody(final P parameter);
+    InstructionVisitor<P> visitBody(final P parameter);
+
     void visitEnd(final P parameter);
     void visitFrame(final P parameter, final Frame frame);
 
