@@ -50,6 +50,12 @@ public final class ParameterDefinition extends ParameterReference implements IAn
 
     @Override
     public ParameterDefinition resolve() {
+        final TypeReference resolvedParameterType = super.getParameterType().resolve();
+
+        if (resolvedParameterType != null) {
+            setParameterType(resolvedParameterType);
+        }
+
         return this;
     }
 

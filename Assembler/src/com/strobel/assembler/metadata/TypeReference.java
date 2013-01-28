@@ -85,6 +85,20 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return _arrayType;
     }
 
+    public TypeReference makeGenericType(final List<TypeReference> typeArguments) {
+        VerifyArgument.notEmpty(typeArguments, "typeArguments");
+        VerifyArgument.noNullElements(typeArguments, "typeArguments");
+
+        if (isGenericDefinition()) {
+            return new ParameterizedType(
+                this,
+                ArrayUtilities.asUnmodifiableList(typeArguments.toArray(new TypeReference[typeArguments.size()]))
+            );
+        }
+
+        throw Error.notGenericType(this);
+    }
+
     public TypeReference makeGenericType(final TypeReference... typeArguments) {
         VerifyArgument.notEmpty(typeArguments, "typeArguments");
         VerifyArgument.noNullElements(typeArguments, "typeArguments");
@@ -454,26 +468,40 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     // <editor-fold defaultstate="collapsed" desc="Member Resolution">
 
-    public TypeDefinition resolve() {
+    public TypeReference resolve() {
         final TypeReference declaringType = getDeclaringType();
 
-        if (declaringType == null) {
-            throw ContractUtils.unsupported();
-        }
-
-        return declaringType.resolve(this);
+        return declaringType != null ? declaringType.resolve(this) : null;
     }
 
     public FieldDefinition resolve(final FieldReference field) {
-        throw ContractUtils.unsupported();
+        final TypeReference resolvedType = this.resolve();
+
+        if (resolvedType != null) {
+            return resolvedType.resolve(field);
+        }
+
+        return null;
     }
 
     public MethodDefinition resolve(final MethodReference method) {
-        throw ContractUtils.unsupported();
+        final TypeReference resolvedType = this.resolve();
+
+        if (resolvedType != null) {
+            return resolvedType.resolve(method);
+        }
+
+        return null;
     }
 
     public TypeDefinition resolve(final TypeReference type) {
-        throw ContractUtils.unsupported();
+        final TypeReference resolvedType = this.resolve();
+
+        if (resolvedType != null) {
+            return resolvedType.resolve(type);
+        }
+
+        return null;
     }
 
     // </editor-fold>

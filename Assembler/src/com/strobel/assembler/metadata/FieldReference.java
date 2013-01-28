@@ -21,8 +21,9 @@ public abstract class FieldReference extends MemberReference {
     public FieldDefinition resolve() {
         final TypeReference declaringType = getDeclaringType();
 
-        if (declaringType == null)
+        if (declaringType == null) {
             throw ContractUtils.unsupported();
+        }
 
         return declaringType.resolve(this);
     }

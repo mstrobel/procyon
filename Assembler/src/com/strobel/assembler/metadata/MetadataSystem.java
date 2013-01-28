@@ -102,7 +102,7 @@ public class MetadataSystem extends MetadataResolver {
 //        final ClassTypeDefinition definition = ClassTypeDefinition.load(this, buffer);
         final ClassFileReader reader = ClassFileReader.readClass(this, buffer);
         final TypeDefinitionBuilder builder = new TypeDefinitionBuilder(this);
-        final MutableTypeDefinition definition = new MutableTypeDefinition();
+        final MutableTypeDefinition definition = new MutableTypeDefinition(this);
 
         reader.accept(definition, builder);
         cachedDefinition = _types.putIfAbsent(descriptor, definition);

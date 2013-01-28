@@ -11,6 +11,7 @@ import java.util.List;
  * @author Mike Strobel
  */
 public final class MutableTypeDefinition extends TypeDefinition implements IFreezable {
+    final IMetadataResolver resolver;
     final Collection<FieldDefinition> declaredFields;
     final Collection<TypeDefinition> declaredTypes;
     final Collection<MethodDefinition> declaredMethods;
@@ -24,9 +25,11 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
     private TypeReference _declaringType;
     private TypeReference _baseType = BuiltinTypes.Object;
     private boolean _isFrozen;
+    private boolean _completed;
     private TypeReference _rawType;
 
-    public MutableTypeDefinition() {
+    public MutableTypeDefinition(final IMetadataResolver resolver) {
+        this.resolver = resolver;
         this.declaredFields = new Collection<>();
         this.declaredTypes = new Collection<>();
         this.declaredMethods = new Collection<>();
@@ -38,6 +41,56 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
     @Override
     public boolean isDefinition() {
         return true;
+    }
+
+    @Override
+    public TypeDefinition resolve() {
+        return this;
+    }
+
+    public void complete() {
+        if (_completed) {
+            return;
+        }
+
+        synchronized (this) {
+            if (_completed) {
+                return;
+            }
+
+            _completed = true;
+
+            boolean completed = true;
+
+            try {
+                for (int i = 0; i < declaredFields.size(); i++) {
+                    final FieldDefinition field = declaredFields.get(i);
+                    final FieldDefinition resolvedField = field.resolve();
+
+                    if (resolvedField != null) {
+                        declaredFields.set(i, resolvedField);
+                    }
+                    else {
+                        completed = false;
+                    }
+                }
+
+                for (int i = 0; i < declaredMethods.size(); i++) {
+                    final MethodDefinition method = declaredMethods.get(i);
+                    final MethodDefinition resolvedMethod = method.resolve();
+
+                    if (resolvedMethod != null) {
+                        declaredMethods.set(i, resolvedMethod);
+                    }
+                    else {
+                        completed = false;
+                    }
+                }
+            }
+            finally {
+                _completed = completed;
+            }
+        }
     }
 
     // <editor-fold defaultstate="collapsed" desc="Type Attributes">
@@ -150,6 +203,25 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
 
     // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="Type and Member Resolution">
+
+    @Override
+    public FieldDefinition resolve(final FieldReference field) {
+        return resolver.resolve(field);
+    }
+
+    @Override
+    public MethodDefinition resolve(final MethodReference method) {
+        return resolver.resolve(method);
+    }
+
+    @Override
+    public TypeDefinition resolve(final TypeReference type) {
+        return resolver.resolve(type);
+    }
+
+    // </editor-fold>
+
     // <editor-fold defaultstate="collapsed" desc="IFreezable Implementation">
 
     @Override
@@ -171,6 +243,7 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
             );
         }
 
+        resolve();
         freezeCore();
 
         _isFrozen = true;
@@ -181,7 +254,7 @@ public final class MutableTypeDefinition extends TypeDefinition implements IFree
         this.declaredMethods.freeze();
         this.declaredFields.freeze();
         this.genericParameters.freeze();
-        this.explicitInterfaces.freeze();
+        this.explicitInterfaces.freeze(false);
     }
 
     protected final void verifyNotFrozen() {

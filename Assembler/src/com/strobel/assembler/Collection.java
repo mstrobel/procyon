@@ -39,8 +39,7 @@ public class Collection<E> extends AbstractList<E> implements IFreezable {
         verifyNotFrozen();
         VerifyArgument.notNull(element, "element");
         beforeSet(index, element);
-        _items.set(index, element);
-        return super.set(index, element);
+        return _items.set(index, element);
     }
 
     @Override
@@ -66,7 +65,7 @@ public class Collection<E> extends AbstractList<E> implements IFreezable {
     public final void clear() {
         verifyNotFrozen();
         beforeClear();
-        super.clear();
+        _items.clear();
     }
 
     @Override

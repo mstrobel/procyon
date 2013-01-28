@@ -20,6 +20,7 @@ public final class MutableMethodDefinition extends MethodDefinition implements I
     private TypeReference _returnType;
     private TypeReference _declaringType;
     private boolean _isFrozen;
+    private boolean _isResolved;
 
     public MutableMethodDefinition() {
         customAnnotations = new Collection<>();
@@ -68,6 +69,11 @@ public final class MutableMethodDefinition extends MethodDefinition implements I
         return thrownTypes;
     }
 
+    @Override
+    public List<GenericParameter> getGenericParameters() {
+        return genericParameters;
+    }
+
     public void setFlags(final int flags) {
         verifyNotFrozen();
         _flags = flags;
@@ -91,6 +97,57 @@ public final class MutableMethodDefinition extends MethodDefinition implements I
     @Override
     protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
         return sb.append(_name);
+    }
+
+    @Override
+    public MethodDefinition resolve() {
+        if (_isResolved) {
+            return this;
+        }
+
+        synchronized (this) {
+            if (_isResolved) {
+                return this;
+            }
+
+            boolean resolved = true;
+
+            final TypeReference returnType = _returnType.resolve();
+
+            if (returnType != null) {
+                _returnType = returnType;
+            }
+            else {
+                resolved = false;
+            }
+
+            for (final ParameterDefinition parameter : parameters) {
+                final ParameterDefinition resolvedParameter = parameter.resolve();
+
+                if (resolvedParameter != null) {
+                    parameters.set(parameter.getPosition(), parameter);
+                }
+                else {
+                    resolved = false;
+                }
+            }
+
+            for (int i = 0; i < thrownTypes.size(); i++) {
+                final TypeReference thrownType = thrownTypes.get(i);
+                final TypeReference resolvedThrownType = thrownType.resolve();
+
+                if (resolvedThrownType != null) {
+                    thrownTypes.set(i, resolvedThrownType);
+                }
+                else {
+                    resolved = false;
+                }
+            }
+
+            _isResolved = resolved;
+        }
+
+        return this;
     }
 
     // <editor-fold defaultstate="collapsed" desc="IFreezable Implementation">
@@ -120,6 +177,7 @@ public final class MutableMethodDefinition extends MethodDefinition implements I
     }
 
     protected void freezeCore() {
+        resolve();
         customAnnotations.freeze();
     }
 

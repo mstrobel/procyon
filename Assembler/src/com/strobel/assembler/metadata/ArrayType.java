@@ -75,4 +75,14 @@ public final class ArrayType extends TypeSpecification {
     public static ArrayType create(final TypeReference elementType) {
         return new ArrayType(elementType);
     }
+
+    @Override
+    public TypeReference resolve() {
+        final TypeReference resolvedElementType = _elementType.resolve();
+
+        if (resolvedElementType != null && !resolvedElementType.equals(_elementType))
+            return resolvedElementType.makeArrayType();
+
+        return super.resolve();
+    }
 }

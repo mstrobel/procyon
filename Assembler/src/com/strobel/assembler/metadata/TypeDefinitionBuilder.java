@@ -155,6 +155,7 @@ public class TypeDefinitionBuilder implements ClassVisitor<MutableTypeDefinition
 
     @Override
     public void visitEnd(final MutableTypeDefinition type) {
+        type.complete();
         type.freezeIfUnfrozen();
     }
 

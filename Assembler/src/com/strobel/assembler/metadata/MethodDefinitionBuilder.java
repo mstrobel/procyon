@@ -28,6 +28,10 @@ public class MethodDefinitionBuilder implements MethodVisitor<MutableTypeDefinit
         _method.setName(VerifyArgument.notNull(name, "name"));
         _method.setReturnType(signature.getReturnType());
 
+        for (final GenericParameter genericParameter : signature.getGenericParameters()) {
+            _method.genericParameters.add(genericParameter);
+        }
+
         for (final ParameterDefinition parameter : signature.getParameters()) {
             _method.parameters.add(parameter);
         }
@@ -51,6 +55,8 @@ public class MethodDefinitionBuilder implements MethodVisitor<MutableTypeDefinit
 
     @Override
     public void visitEnd(final MutableTypeDefinition declaringType) {
+        _method.setDeclaringType(declaringType);
+        declaringType.declaredMethods.add(_method);
     }
 
     @Override

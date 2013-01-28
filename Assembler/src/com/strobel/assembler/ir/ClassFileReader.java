@@ -11,6 +11,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.EmptyArrayCache;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -204,7 +205,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 }
             }
 
-            final MutableTypeDefinition type = new MutableTypeDefinition();
+            final MutableTypeDefinition type = new MutableTypeDefinition(resolver);
 
             accept(type, new TypeDefinitionBuilder(resolver));
 
@@ -423,13 +424,28 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         }
 
         for (final InnerClassEntry entry : innerClasses.getEntries()) {
-            final String outerClassName = entry.getOuterClassName();
             final String innerClassName = entry.getInnerClassName();
 
-            if (Comparer.equals(innerClassName, type.getInternalName()) && outerClassName != null) {
+            String outerClassName = entry.getOuterClassName();
+
+            if (Comparer.equals(innerClassName, type.getInternalName())) {
                 final String simpleName = entry.getShortName();
-                final TypeReference outerType = _scope._parser.parseTypeDescriptor(outerClassName);
-                final TypeDefinition resolvedOuterType = outerType.resolve();
+                final TypeReference outerType;
+                final TypeReference resolvedOuterType;
+
+                if (outerClassName == null) {
+                    final int delimiterIndex = innerClassName.indexOf('$');
+
+                    if (delimiterIndex >= 0) {
+                        outerClassName = innerClassName.substring(0, delimiterIndex);
+                    }
+                    else {
+                        continue;
+                    }
+                }
+
+                outerType = _scope._parser.parseTypeDescriptor(outerClassName);
+                resolvedOuterType = outerType.resolve();
 
                 if (resolvedOuterType != null) {
                     type.setDeclaringType(outerType);
@@ -479,12 +495,12 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             }
 
             final TypeReference innerType = _scope._parser.parseTypeDescriptor(entry.getInnerClassName());
-            final TypeDefinition resolvedInnerType = innerType.resolve();
+            final TypeReference resolvedInnerType = innerType.resolve();
 
-            if (resolvedInnerType != null &&
+            if (resolvedInnerType instanceof TypeDefinition &&
                 Comparer.equals(type.getInternalName(), outerClassName)) {
 
-                type.getDeclaredTypes().add(resolvedInnerType);
+                type.getDeclaredTypes().add((TypeDefinition) resolvedInnerType);
             }
         }
     }
@@ -504,12 +520,12 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             }
 
             final TypeReference innerType = _scope._parser.parseTypeDescriptor(entry.getInnerClassName());
-            final TypeDefinition resolvedInnerType = innerType.resolve();
+            final TypeReference resolvedInnerType = innerType.resolve();
 
-            if (resolvedInnerType != null &&
+            if (resolvedInnerType instanceof TypeDefinition &&
                 Comparer.equals(type.getInternalName(), outerClassName)) {
 
-                type.getDeclaredTypes().add(resolvedInnerType);
+                type.getDeclaredTypes().add((TypeDefinition) resolvedInnerType);
             }
         }
     }
@@ -581,8 +597,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
     @SuppressWarnings("ConstantConditions")
     private void visitMethods(final MutableTypeDefinition type, final ClassVisitor<MutableTypeDefinition> visitor) {
-        final boolean isGenericDefinition = type.isGenericDefinition();
-
         int genericContextCount = 0;
 
         TypeReference currentType = type;
@@ -600,7 +614,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             currentType = currentType.getDeclaringType();
         }
 
-        try {
+        try (final AutoCloseable ignored = _scope._parser.suppressTypeResolution()) {
             for (final MethodInfo method : methods) {
                 final IMethodSignature methodSignature;
                 final TypeReference[] thrownTypes;
@@ -662,6 +676,9 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
                 methodVisitor.visitEnd(type);
             }
+        }
+        catch (Exception e) {
+            throw new UndeclaredThrowableException(e);
         }
         finally {
             while (genericContextCount-- > 0) {

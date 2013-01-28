@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Mike Strobel
@@ -16,10 +17,22 @@ import java.util.Stack;
 public final class MetadataParser {
     private final Stack<IGenericContext> _genericContexts;
     private final IMetadataResolver _resolver;
+    private final AtomicInteger _suppressResolveDepth = new AtomicInteger();
 
     public MetadataParser(final IMetadataResolver resolver) {
         _resolver = VerifyArgument.notNull(resolver, "resolver");
         _genericContexts = new Stack<>();
+    }
+
+    public AutoCloseable suppressTypeResolution() {
+        _suppressResolveDepth.incrementAndGet();
+
+        return new AutoCloseable() {
+            @Override
+            public void close() throws Exception {
+                _suppressResolveDepth.decrementAndGet();
+            }
+        };
     }
 
     public void pushGenericContext(final IGenericParameterProvider provider) {
@@ -126,6 +139,11 @@ public final class MetadataParser {
 
     public TypeReference lookupType(final String packageName, final String typeName) {
         final TypeReference reference = new UnresolvedType(packageName, typeName);
+
+        if (_suppressResolveDepth.get() > 0) {
+            return reference;
+        }
+
         final TypeReference resolved = _resolver.resolve(reference);
 
         return resolved != null ? resolved : reference;
@@ -133,6 +151,11 @@ public final class MetadataParser {
 
     public TypeReference lookupType(final TypeReference declaringType, final String typeName) {
         final TypeReference reference = new UnresolvedType(declaringType, typeName);
+
+        if (_suppressResolveDepth.get() > 0) {
+            return reference;
+        }
+
         final TypeReference resolved = _resolver.resolve(reference);
 
         return resolved != null ? resolved : reference;
@@ -161,14 +184,7 @@ public final class MetadataParser {
 
         if (ch == '<') {
             genericParameters = new ArrayList<>();
-
             parseGenericParameters(genericParameters, signature, position);
-
-//            if (signature.charAt(position.getValue()) != '>') {
-//                throw Error.invalidSignatureExpectedEndOfTypeVariables(signature, 0);
-//            }
-
-//            position.increment();
             ch = signature.charAt(position.getValue());
         }
         else {
@@ -420,7 +436,7 @@ public final class MetadataParser {
         assert s.charAt(i) == 'L';
 
         final TypeReference resolvedType;
-        final TypeReference[] typeArguments;
+        final List<TypeReference> typeArguments;
 
         final StringBuilder packageBuilder = new StringBuilder();
         final StringBuilder nameBuilder = new StringBuilder();
@@ -454,16 +470,15 @@ public final class MetadataParser {
                 case '<': {
                     resolvedType = lookupType(packageBuilder.toString(), nameBuilder.toString());
 
-                    if (!resolvedType.isGenericType()) {
+                    if (!resolvedType.isGenericType() && !(resolvedType instanceof UnresolvedType)) {
                         throw Error.invalidSignatureNonGenericTypeTypeArguments(resolvedType);
                     }
 
                     pushGenericContext(resolvedType);
 
                     try {
-                        typeArguments = new TypeReference[resolvedType.getGenericParameters().size()];
                         position.setValue(i);
-                        parseTypeParameters(s, position, typeArguments);
+                        typeArguments = parseTypeParameters(s, position);
                     }
                     finally {
                         popGenericContext();
@@ -527,9 +542,7 @@ public final class MetadataParser {
                 switch (ch) {
                     case '<':
                         final TypeReference type = lookupType(declaringType, name.toString());
-                        final TypeReference[] typeArgs = new TypeReference[type.getGenericParameters().size()];
-
-                        parseTypeParameters(s, position, typeArgs);
+                        final List<TypeReference> typeArgs = parseTypeParameters(s, position);
 
                         final TypeReference genericType = type.makeGenericType(typeArgs);
 
@@ -563,28 +576,29 @@ public final class MetadataParser {
         }
     }
 
-    private void parseTypeParameters(
-        final String s,
-        final MutableInteger position,
-        final TypeReference[] typeArguments) {
+    private List<TypeReference> parseTypeParameters(final String s, final MutableInteger position) {
 
-        int i = position.getValue();
-
-        assert s.charAt(i) == '<';
+        assert s.charAt(position.getValue()) == '<';
 
         position.increment();
 
-        for (int j = 0; j < typeArguments.length; j++) {
-            typeArguments[j] = parseTypeArgument(s, position);
+        List<TypeReference> typeArguments = null;
+
+        while (s.charAt(position.getValue()) != '>') {
+            if (typeArguments == null) {
+                typeArguments = new ArrayList<>();
+            }
+            typeArguments.add(parseTypeArgument(s, position));
         }
 
-        i = position.getValue();
-
-        if (s.charAt(i) != '>') {
-            throw Error.invalidSignatureExpectedEndOfTypeArguments(s, i);
+        if (position.getValue() >= s.length() || s.charAt(position.getValue()) != '>') {
+            throw Error.invalidSignatureExpectedEndOfTypeArguments(s, position.getValue());
         }
 
         position.increment();
+
+        return typeArguments != null ? typeArguments
+                                     : Collections.<TypeReference>emptyList();
     }
 
     private TypeReference parseTypeArgument(final String s, final MutableInteger position) {
@@ -604,7 +618,7 @@ public final class MetadataParser {
             case '-':
                 return Wildcard.makeSuper(parseTypeArgument(s, position.increment()));
             case '[':
-                return parseTypeArgument(s, position.increment()).makeArrayType();
+                return parseTopLevelSignature(s, position);
             case 'L':
                 return finishTopLevelType(s, position);
             case 'T':
@@ -798,6 +812,26 @@ public final class MetadataParser {
         public TypeReference getUnderlyingType() {
             return _genericDefinition;
         }
+
+        @Override
+        public TypeDefinition resolve() {
+            return _resolver.resolve(this);
+        }
+
+        @Override
+        public FieldDefinition resolve(final FieldReference field) {
+            return _resolver.resolve(field);
+        }
+
+        @Override
+        public MethodDefinition resolve(final MethodReference method) {
+            return _resolver.resolve(method);
+        }
+
+        @Override
+        public TypeDefinition resolve(final TypeReference type) {
+            return _resolver.resolve(type);
+        }
     }
 
     // </editor-fold>
@@ -879,6 +913,19 @@ public final class MetadataParser {
         }
 
         @Override
+        public TypeSpecification makeGenericType(final List<TypeReference> typeArguments) {
+            VerifyArgument.notEmpty(typeArguments, "typeArguments");
+            VerifyArgument.noNullElements(typeArguments, "typeArguments");
+
+            final TypeDefinition resolved = this.resolve();
+
+            return new UnresolvedGenericType(
+                resolved != null ? resolved : this,
+                ArrayUtilities.asUnmodifiableList(typeArguments.toArray(new TypeReference[typeArguments.size()]))
+            );
+        }
+
+        @Override
         public TypeSpecification makeGenericType(final TypeReference... typeArguments) {
             VerifyArgument.notEmpty(typeArguments, "typeArguments");
             VerifyArgument.noNullElements(typeArguments, "typeArguments");
@@ -934,7 +981,7 @@ public final class MetadataParser {
                     genericParameters.add(genericParameter);
                 }
 
-                genericParameters.freeze();
+                genericParameters.freeze(false);
 
                 _genericParameters = genericParameters;
             }

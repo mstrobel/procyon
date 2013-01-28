@@ -38,7 +38,7 @@ public abstract class ParameterReference {
         return _parameterType;
     }
 
-    public void setParameterType(final TypeReference parameterType) {
+    protected void setParameterType(final TypeReference parameterType) {
         _parameterType = parameterType;
     }
 

@@ -38,11 +38,11 @@ public final class BuiltinTypes {
             throw Error.couldNotLoadObjectType();
         }
 
-        final MutableTypeDefinition object = new MutableTypeDefinition();
+        final MetadataSystem metadataSystem = MetadataSystem.instance();
+        final MutableTypeDefinition object = new MutableTypeDefinition(metadataSystem);
 
         Object = object;
 
-        final MetadataSystem metadataSystem = MetadataSystem.instance();
         final ClassFileReader reader = ClassFileReader.readClass(metadataSystem, buffer);
         final TypeDefinitionBuilder builder = new TypeDefinitionBuilder(metadataSystem);
 

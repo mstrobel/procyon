@@ -28,11 +28,11 @@ public final class ParameterDefinitionCollection extends Collection<ParameterDef
     protected void beforeSet(final int index, final ParameterDefinition p) {
         final ParameterDefinition current = get(index);
 
-        p.setMethod(signature);
-        p.setPosition(index);
-
         current.setMethod(null);
         current.setPosition(-1);
+
+        p.setMethod(signature);
+        p.setPosition(index);
     }
 
     @Override
