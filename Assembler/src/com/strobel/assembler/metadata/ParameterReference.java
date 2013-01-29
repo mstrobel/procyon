@@ -19,7 +19,17 @@ public abstract class ParameterReference {
     }
 
     public String getName() {
+        if (_name == null) {
+            if (_position < 0) {
+                return "undefined";
+            }
+            return "p" + _position;
+        }
         return _name;
+    }
+
+    protected boolean hasName() {
+        return !StringUtilities.isNullOrEmpty(_name);
     }
 
     protected void setName(final String name) {

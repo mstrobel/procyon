@@ -655,6 +655,12 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
                 for (final SourceAttribute attribute : method.attributes) {
                     methodVisitor.visitAttribute(type, attribute);
+
+                    if (attribute instanceof CodeAttribute) {
+                        for (final SourceAttribute bodyAttribute : ((CodeAttribute) attribute).getAttributes()) {
+                            methodVisitor.visitAttribute(type, bodyAttribute);
+                        }
+                    }
                 }
 
                 final AnnotationsAttribute visibleAnnotations = SourceAttribute.find(

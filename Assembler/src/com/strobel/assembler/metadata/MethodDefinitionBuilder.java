@@ -3,10 +3,15 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.ir.Frame;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionVisitor;
+import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.LocalVariableTableAttribute;
+import com.strobel.assembler.ir.attributes.LocalVariableTableEntry;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
+
+import java.util.List;
 
 /**
  * @author Mike Strobel
@@ -69,6 +74,29 @@ public class MethodDefinitionBuilder implements MethodVisitor<MutableTypeDefinit
 
     @Override
     public void visitAttribute(final MutableTypeDefinition declaringType, final SourceAttribute attribute) {
+        switch (attribute.getName()) {
+            case AttributeNames.Synthetic: {
+                _method.setFlags(_method.getFlags() | Flags.SYNTHETIC);
+            }
+
+            case AttributeNames.LocalVariableTable:
+            case AttributeNames.LocalVariableTypeTable: {
+                final LocalVariableTableAttribute lvt = (LocalVariableTableAttribute) attribute;
+                final List<LocalVariableTableEntry> entries = lvt.getEntries();
+                final List<ParameterDefinition> parameters = _method.getParameters();
+
+                if (entries.size() >= parameters.size()) {
+                    for (int i = 0; i < parameters.size(); i++) {
+                        final int entryIndex = _method.isStatic() ? i : i + 1;
+                        final ParameterDefinition parameter = parameters.get(i);
+
+                        if (!parameter.hasName()) {
+                            parameter.setName(entries.get(entryIndex).getName());
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Override

@@ -74,9 +74,9 @@ public final class MutableMethodDefinition extends MethodDefinition implements I
         return genericParameters;
     }
 
-    public void setFlags(final int flags) {
+    public void setFlags(final long flags) {
         verifyNotFrozen();
-        _flags = flags;
+        _flags = (int) (flags & Flags.MethodFlags);
     }
 
     public void setReturnType(final TypeReference returnType) {
