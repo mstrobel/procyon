@@ -57,7 +57,7 @@ public abstract class MethodReference extends MemberReference implements IMethod
     }
 
     public final boolean isVarArgs() {
-        return (getModifiers() & MODIFIER_VARARGS) != 0;
+        return (getModifiers() & Flags.ACC_VARARGS) != 0;
     }
 
     // </editor-fold>

@@ -9,8 +9,16 @@ public final class Label {
     @SuppressWarnings("PackageVisibleField")
     int index;
 
-    Label(final int label) {
+    public Label(final int label) {
         this.index = label;
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
+    public void setIndex(final int index) {
+        this.index = index;
     }
 
     public int hashCode() {

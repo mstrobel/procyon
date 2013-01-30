@@ -12,12 +12,6 @@ import java.util.List;
  * Time: 4:38 PM
  */
 public abstract class MemberReference implements IAnnotationsProvider {
-    static final int MODIFIER_BRIDGE     = 0x00000040;
-    static final int MODIFIER_VARARGS    = 0x00000080;
-    static final int MODIFIER_SYNTHETIC  = 0x00001000;
-    static final int MODIFIER_ANNOTATION = 0x00002000;
-    static final int MODIFIER_ENUM       = 0x00004000;
-
     protected MemberReference() {
     }
 
@@ -86,6 +80,14 @@ public abstract class MemberReference implements IAnnotationsProvider {
 
     public final boolean isStatic() {
         return Modifier.isStatic(getModifiers());
+    }
+
+    public final boolean isSynthetic() {
+        return (getModifiers() & Flags.SYNTHETIC) == Flags.SYNTHETIC;
+    }
+
+    public final boolean isDeprecated() {
+        return (getModifiers() & Flags.DEPRECATED) == Flags.DEPRECATED;
     }
 
     public final boolean isPackagePrivate() {
@@ -167,4 +169,3 @@ public abstract class MemberReference implements IAnnotationsProvider {
 
     // </editor-fold>
 }
-

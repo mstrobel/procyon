@@ -43,7 +43,7 @@ public abstract class TypeDefinition extends TypeReference {
 
     @Override
     public StringBuilder appendDescription(final StringBuilder sb) {
-        StringBuilder s = super.appendGenericSignature(sb);
+        StringBuilder s = super.appendDescription(sb);
 
         final TypeReference baseType = getBaseType();
 

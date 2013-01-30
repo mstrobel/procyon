@@ -61,8 +61,8 @@ public abstract class FieldReference extends MemberReference {
     protected StringBuilder appendBriefDescription(final StringBuilder sb) {
         StringBuilder s = sb;
 
-        if (isStatic()) {
-            s.append(Modifier.STATIC.toString());
+        for (final Modifier modifier : Flags.asModifierSet(getModifiers())) {
+            s.append(modifier.toString());
             s.append(' ');
         }
 
@@ -111,8 +111,8 @@ public abstract class FieldReference extends MemberReference {
     protected StringBuilder appendSimpleDescription(final StringBuilder sb) {
         StringBuilder s = sb;
 
-        if (isStatic()) {
-            s.append(Modifier.STATIC.toString());
+        for (final Modifier modifier : Flags.asModifierSet(getModifiers())) {
+            s.append(modifier.toString());
             s.append(' ');
         }
 

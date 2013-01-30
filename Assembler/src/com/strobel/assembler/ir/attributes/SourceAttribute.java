@@ -134,6 +134,7 @@ public class SourceAttribute {
                     maxLocals,
                     codeOffset,
                     codeLength,
+                    buffer,
                     exceptionTable,
                     attributes
                 );

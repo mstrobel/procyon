@@ -685,6 +685,7 @@
         <w>dword</w>
         <w>enqueuing</w>
         <w>fixup</w>
+        <w>fixups</w>
         <w>functor</w>
         <w>goto</w>
         <w>initializers</w>

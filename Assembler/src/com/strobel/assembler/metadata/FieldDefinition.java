@@ -4,7 +4,7 @@ public abstract class FieldDefinition extends FieldReference implements IConstan
     // <editor-fold defaultstate="collapsed" desc="Field Attributes">
 
     public final boolean isEnumConstant() {
-        return (getModifiers() & MODIFIER_ENUM) != 0;
+        return (getModifiers() & Flags.ENUM) != 0;
     }
 
     @Override

@@ -38,33 +38,17 @@ public enum OperandType {
      */
     I2(2),
     /**
-     * Opcode is followed by a signed integer.
-     */
-    I4(4),
-    /**
      * Opcode is followed by a signed long integer.
      */
     I8(8),
     /**
      * Opcode is followed by an unsigned byte.
      */
-    U1(1),
+    Constant(1),
     /**
      * Opcode is followed by an unsigned short integer.
      */
-    U2(2),
-    /**
-     * Opcode is followed by a 4-byte floating point number.
-     */
-    R4(4),
-    /**
-     * Opcode is followed by an 8-byte floating point number.
-     */
-    R8(8),
-    /**
-     * Opcode is followed by a string.
-     */
-    String(2),
+    WideConstant(2),
     /**
      * Opcode is followed by variable number of operands, depending
      * on the instruction.

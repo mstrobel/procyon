@@ -20,9 +20,9 @@ public interface InstructionVisitor<P> {
     void visitBranch(final P parameter, final OpCode opCode, final Instruction target);
     void visitVariable(final P parameter, final OpCode opCode, final VariableReference variable);
     void visitVariable(final P parameter, final OpCode opCode, final VariableReference variable, int operand);
-    void visitType(final P parameter, final OpCode opCode, final TypeReference variable);
-    void visitMethod(final P parameter, final OpCode opCode, final MethodReference variable);
-    void visitField(final P parameter, final OpCode opCode, final FieldReference variable);
+    void visitType(final P parameter, final OpCode opCode, final TypeReference type);
+    void visitMethod(final P parameter, final OpCode opCode, final MethodReference method);
+    void visitField(final P parameter, final OpCode opCode, final FieldReference field);
 
     void visitLabel(final P parameter, final Label label);
 

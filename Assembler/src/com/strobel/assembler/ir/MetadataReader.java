@@ -98,6 +98,7 @@ public abstract class MetadataReader {
                     maxLocals,
                     codeOffset,
                     codeLength,
+                    buffer,
                     exceptionTable,
                     attributes
                 );

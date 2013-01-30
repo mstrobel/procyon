@@ -2,6 +2,7 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.ir.ClassFileReader;
 import com.strobel.reflection.SimpleType;
+import com.strobel.util.ContractUtils;
 
 /**
  * @author Mike Strobel
@@ -47,5 +48,28 @@ public final class BuiltinTypes {
         final TypeDefinitionBuilder builder = new TypeDefinitionBuilder(metadataSystem);
 
         reader.accept(object, builder);
+    }
+
+    public static TypeDefinition fromPrimitiveTypeCode(final int code) {
+        switch (code) {
+            case 4:
+                return Boolean;
+            case 8:
+                return Byte;
+            case 9:
+                return Short;
+            case 10:
+                return Integer;
+            case 11:
+                return Long;
+            case 5:
+                return Character;
+            case 6:
+                return Float;
+            case 7:
+                return Double;
+            default:
+                throw ContractUtils.unreachable();
+        }
     }
 }

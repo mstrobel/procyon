@@ -12,11 +12,11 @@ public abstract class VariableReference {
     private int _index = -1;
     private TypeReference _variableType;
 
-    VariableReference(final TypeReference variableType) {
+    protected VariableReference(final TypeReference variableType) {
         _variableType = variableType;
     }
 
-    VariableReference(final String name, final TypeReference variableType) {
+    protected VariableReference(final String name, final TypeReference variableType) {
         _name = name;
         _variableType = variableType;
     }
@@ -33,7 +33,7 @@ public abstract class VariableReference {
         return null;
     }
 
-    public final void setName(final String name) {
+    protected final void setName(final String name) {
         _name = name;
     }
 
@@ -41,7 +41,7 @@ public abstract class VariableReference {
         return _index;
     }
 
-    final void setIndex(final int index) {
+    protected final void setIndex(final int index) {
         _index = index;
     }
 
@@ -49,7 +49,7 @@ public abstract class VariableReference {
         return _variableType;
     }
 
-    public final void setVariableType(final TypeReference variableType) {
+    protected final void setVariableType(final TypeReference variableType) {
         _variableType = variableType;
     }
 

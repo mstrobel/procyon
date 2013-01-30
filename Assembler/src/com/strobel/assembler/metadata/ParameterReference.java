@@ -19,9 +19,9 @@ public abstract class ParameterReference {
     }
 
     public String getName() {
-        if (_name == null) {
+        if (StringUtilities.isNullOrEmpty(_name)) {
             if (_position < 0) {
-                return "undefined";
+                return _name;
             }
             return "p" + _position;
         }

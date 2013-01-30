@@ -77,6 +77,12 @@ public class MethodDefinitionBuilder implements MethodVisitor<MutableTypeDefinit
         switch (attribute.getName()) {
             case AttributeNames.Synthetic: {
                 _method.setFlags(_method.getFlags() | Flags.SYNTHETIC);
+                break;
+            }
+
+            case AttributeNames.Deprecated: {
+                _method.setFlags(_method.getFlags() | Flags.DEPRECATED);
+                break;
             }
 
             case AttributeNames.LocalVariableTable:
@@ -85,16 +91,20 @@ public class MethodDefinitionBuilder implements MethodVisitor<MutableTypeDefinit
                 final List<LocalVariableTableEntry> entries = lvt.getEntries();
                 final List<ParameterDefinition> parameters = _method.getParameters();
 
-                if (entries.size() >= parameters.size()) {
-                    for (int i = 0; i < parameters.size(); i++) {
-                        final int entryIndex = _method.isStatic() ? i : i + 1;
-                        final ParameterDefinition parameter = parameters.get(i);
+                for (int i = 0; i < entries.size(); i++) {
+                    final LocalVariableTableEntry entry = entries.get(i);
+                    final int parameterIndex = _method.isStatic() ? entry.getIndex() : entry.getIndex() - 1;
+
+                    if (parameterIndex >= 0 && parameterIndex < parameters.size()) {
+                        final ParameterDefinition parameter = parameters.get(parameterIndex);
 
                         if (!parameter.hasName()) {
-                            parameter.setName(entries.get(entryIndex).getName());
+                            parameter.setName(entry.getName());
                         }
                     }
                 }
+
+                break;
             }
         }
     }

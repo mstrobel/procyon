@@ -1,7 +1,10 @@
 package com.strobel.assembler.ir.attributes;
 
+import com.strobel.assembler.metadata.Buffer;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.VerifyArgument;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -10,8 +13,7 @@ import java.util.List;
 public final class CodeAttribute extends SourceAttribute {
     private final int _maxStack;
     private final int _maxLocals;
-    private final int _codeOffset;
-    private final int _codeLength;
+    private final Buffer _code;
     private final List<ExceptionTableEntry> _exceptionTableEntriesView;
     private final List<SourceAttribute> _attributesView;
 
@@ -21,17 +23,49 @@ public final class CodeAttribute extends SourceAttribute {
         final int maxLocals,
         final int codeOffset,
         final int codeLength,
+        final Buffer buffer,
         final ExceptionTableEntry[] exceptionTableEntries,
         final SourceAttribute[] attributes) {
 
         super(AttributeNames.Code, size);
 
+        VerifyArgument.notNull(buffer, "buffer");
+        VerifyArgument.notNull(exceptionTableEntries, "exceptionTableEntries");
+        VerifyArgument.notNull(attributes, "attributes");
+
         _maxStack = maxStack;
         _maxLocals = maxLocals;
-        _codeOffset = codeOffset;
-        _codeLength = codeLength;
+
+        final Buffer code = new Buffer(codeLength);
+
+        System.arraycopy(
+            buffer.array(),
+            codeOffset,
+            code.array(),
+            0,
+            codeLength
+        );
+
+        _code = code;
         _attributesView = ArrayUtilities.asUnmodifiableList(attributes.clone());
         _exceptionTableEntriesView = ArrayUtilities.asUnmodifiableList(exceptionTableEntries.clone());
+    }
+
+    public CodeAttribute(
+        final int size,
+        final int maxStack,
+        final int maxLocals,
+        final SourceAttribute[] attributes) {
+
+        super(AttributeNames.Code, size);
+
+        VerifyArgument.notNull(attributes, "attributes");
+
+        _maxStack = maxStack;
+        _maxLocals = maxLocals;
+        _code = null;
+        _attributesView = ArrayUtilities.asUnmodifiableList(attributes.clone());
+        _exceptionTableEntriesView = Collections.emptyList();
     }
 
     public int getMaxStack() {
@@ -42,12 +76,12 @@ public final class CodeAttribute extends SourceAttribute {
         return _maxLocals;
     }
 
-    public int getCodeOffset() {
-        return _codeOffset;
+    public boolean hasCode() {
+        return _code != null;
     }
 
-    public int getCodeLength() {
-        return _codeLength;
+    public Buffer getCode() {
+        return _code;
     }
 
     public List<ExceptionTableEntry> getExceptionTableEntries() {

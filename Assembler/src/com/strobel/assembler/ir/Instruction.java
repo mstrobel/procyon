@@ -26,9 +26,19 @@ public final class Instruction {
         _opCode = opCode;
     }
 
+    public Instruction(final OpCode opCode) {
+        _opCode = opCode;
+        _operand = null;
+    }
+
     public Instruction(final OpCode opCode, final Object operand) {
         _opCode = opCode;
         _operand = operand;
+    }
+
+    public Instruction(final OpCode opCode, final Object... operands) {
+        _opCode = opCode;
+        _operand = VerifyArgument.notNull(operands, "operands");
     }
 
     public boolean hasOffset() {
@@ -83,6 +93,10 @@ public final class Instruction {
         _operand = operand;
     }
 
+    public boolean hasLabel() {
+        return _label != null;
+    }
+
     public Label getLabel() {
         return _label;
     }
@@ -105,6 +119,16 @@ public final class Instruction {
 
     public void setNext(final Instruction next) {
         _next = next;
+    }
+
+    @Override
+    protected Instruction clone() {
+        final Instruction copy = new Instruction(_opCode, _operand);
+
+        copy._offset = _offset;
+        copy._label = _label;
+
+        return copy;
     }
 
     // <editor-fold defaultstate="collapsed" desc="Size Calculation">
@@ -142,13 +166,9 @@ public final class Instruction {
 
             case I1:
             case I2:
-            case I4:
             case I8:
-            case U1:
-            case U2:
-            case R4:
-            case R8:
-            case String:
+            case Constant:
+            case WideConstant:
                 return opCodeSize + operandType.getBaseSize();
 
             case Switch:
@@ -186,7 +206,7 @@ public final class Instruction {
             throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
         }
 
-        return new Instruction(opCode, null);
+        return new Instruction(opCode);
     }
 
     public static Instruction create(final OpCode opCode, final Instruction target) {
@@ -221,10 +241,10 @@ public final class Instruction {
         return new Instruction(opCode, value);
     }
 
-    public static Instruction create(final OpCode opCode, final long value) {
+    public static Instruction create(final OpCode opCode, final short value) {
         VerifyArgument.notNull(opCode, "opCode");
 
-        if (opCode.getOperandType() != OperandType.I8) {
+        if (!checkOperand(opCode.getOperandType(), value)) {
             throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
         }
 
@@ -234,7 +254,7 @@ public final class Instruction {
     public static Instruction create(final OpCode opCode, final float value) {
         VerifyArgument.notNull(opCode, "opCode");
 
-        if (opCode.getOperandType() != OperandType.R4) {
+        if (opCode.getOperandType() != OperandType.Constant && opCode.getOperandType() != OperandType.WideConstant) {
             throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
         }
 
@@ -244,7 +264,17 @@ public final class Instruction {
     public static Instruction create(final OpCode opCode, final double value) {
         VerifyArgument.notNull(opCode, "opCode");
 
-        if (opCode.getOperandType() != OperandType.R8) {
+        if (opCode.getOperandType() != OperandType.WideConstant) {
+            throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
+        }
+
+        return new Instruction(opCode, value);
+    }
+
+    public static Instruction create(final OpCode opCode, final long value) {
+        VerifyArgument.notNull(opCode, "opCode");
+
+        if (opCode.getOperandType() != OperandType.I8 && opCode.getOperandType() != OperandType.WideConstant) {
             throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
         }
 
@@ -263,6 +293,7 @@ public final class Instruction {
 
     public static Instruction create(final OpCode opCode, final VariableReference variable, final int operand) {
         VerifyArgument.notNull(opCode, "opCode");
+        VerifyArgument.notNull(variable, "variable");
 
         if (!checkOperand(opCode.getOperandType(), operand)) {
             throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
@@ -282,6 +313,36 @@ public final class Instruction {
         return new Instruction(opCode, type);
     }
 
+    public static Instruction create(final OpCode opCode, final TypeReference type, final int operand) {
+        VerifyArgument.notNull(opCode, "opCode");
+
+        if (!checkOperand(opCode.getOperandType(), type) || !checkOperand(opCode.getOperandType(), operand)) {
+            throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
+        }
+
+        return new Instruction(opCode, new Object[] { type, operand });
+    }
+
+    public static Instruction create(final OpCode opCode, final MethodReference method) {
+        VerifyArgument.notNull(opCode, "opCode");
+
+        if (!checkOperand(opCode.getOperandType(), method)) {
+            throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
+        }
+
+        return new Instruction(opCode, method);
+    }
+
+    public static Instruction create(final OpCode opCode, final FieldReference field) {
+        VerifyArgument.notNull(opCode, "opCode");
+
+        if (!checkOperand(opCode.getOperandType(), field)) {
+            throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
+        }
+
+        return new Instruction(opCode, field);
+    }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Operand Checks">
@@ -299,18 +360,16 @@ public final class Instruction {
             case I2:
             case LocalI2:
                 return value >= Short.MIN_VALUE && value <= Short.MAX_VALUE;
-            case I4:
-                return value >= Integer.MIN_VALUE && value <= Integer.MAX_VALUE;
-            case U1:
+            case TypeReferenceU1:
                 return value >= U1_MIN_VALUE && value <= U1_MAX_VALUE;
-            case U2:
-                return value >= U2_MIN_VALUE && value <= U2_MAX_VALUE;
             default:
                 return false;
         }
     }
 
     private static boolean checkOperand(final OperandType operandType, final TypeReference type) {
+        VerifyArgument.notNull(type, "type");
+
         switch (operandType) {
             case PrimitiveTypeCode:
                 return type.getSimpleType().isPrimitive();
@@ -322,11 +381,37 @@ public final class Instruction {
         }
     }
 
+    private static boolean checkOperand(final OperandType operandType, final MethodReference method) {
+        VerifyArgument.notNull(method, "method");
+
+        switch (operandType) {
+            case MethodReference:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static boolean checkOperand(final OperandType operandType, final FieldReference field) {
+        VerifyArgument.notNull(field, "field");
+
+        switch (operandType) {
+            case FieldReference:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Visitor Acceptor">
 
     public <P> void accept(final InstructionVisitor<P> visitor, final P parameter) {
+        if (hasLabel()) {
+            visitor.visitLabel(parameter, _label);
+        }
+
         switch (_opCode.getOperandType()) {
             case None:
                 visitor.visit(parameter, _opCode);
@@ -352,7 +437,6 @@ public final class Instruction {
 
             case I1:
             case I2:
-            case I4:
                 visitor.visit(parameter, _opCode, ((Number) _operand).intValue());
                 break;
 
@@ -360,21 +444,27 @@ public final class Instruction {
                 visitor.visit(parameter, _opCode, ((Number) _operand).longValue());
                 break;
 
-            case U1:
-            case U2:
-                visitor.visit(parameter, _opCode, ((Number) _operand).intValue());
-                break;
+            case Constant:
+            case WideConstant:
+                if (_operand instanceof String) {
+                    visitor.visit(parameter, _opCode, (String) _operand);
+                }
+                else {
+                    final Number number = (Number) _operand;
 
-            case R4:
-                visitor.visit(parameter, _opCode, ((Number) _operand).floatValue());
-                break;
-
-            case R8:
-                visitor.visit(parameter, _opCode, ((Number) _operand).doubleValue());
-                break;
-
-            case String:
-                visitor.visit(parameter, _opCode, (String) _operand);
+                    if (_operand instanceof Long) {
+                        visitor.visit(parameter, _opCode, number.longValue());
+                    }
+                    else if (_operand instanceof Float) {
+                        visitor.visit(parameter, _opCode, number.floatValue());
+                    }
+                    else if (_operand instanceof Double) {
+                        visitor.visit(parameter, _opCode, number.doubleValue());
+                    }
+                    else {
+                        visitor.visit(parameter, _opCode, number.intValue());
+                    }
+                }
                 break;
 
             case Switch:

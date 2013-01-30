@@ -164,11 +164,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     public final boolean isAnnotation() {
         return isInterface() &&
-               (getModifiers() & MODIFIER_ANNOTATION) != 0;
-    }
-
-    public final boolean isSynthetic() {
-        return (getModifiers() & MODIFIER_SYNTHETIC) != 0;
+               (getModifiers() & Flags.ANNOTATION) != 0;
     }
 
     public final boolean isClass() {
@@ -180,7 +176,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     }
 
     public final boolean isEnum() {
-        return (getModifiers() & MODIFIER_ENUM) != 0;
+        return (getModifiers() & Flags.ENUM) != 0;
     }
 
     public boolean isNested() {

@@ -518,4 +518,64 @@ public final class StringUtilities {
 
         return count;
     }
+
+    public static String escape(final String value) {
+        return escape(value, false);
+    }
+
+    public static String escape(final String value, final boolean quote) {
+        final StringBuilder sb = new StringBuilder();
+
+        if (quote) {
+            sb.append('"');
+        }
+
+        for (int i = 0, n = value.length(); i < n; i++) {
+            final char ch = value.charAt(i);
+
+            switch (ch) {
+                case '\t':
+                    sb.append('\\');
+                    sb.append('t');
+                    break;
+                case '\b':
+                    sb.append('\\');
+                    sb.append('b');
+                    break;
+                case '\n':
+                    sb.append('\\');
+                    sb.append('n');
+                    break;
+                case '\r':
+                    sb.append('\\');
+                    sb.append('r');
+                    break;
+                case '\f':
+                    sb.append('\\');
+                    sb.append('f');
+                    break;
+                case '\"':
+                    sb.append('\\');
+                    sb.append('"');
+                    break;
+                case '\\':
+                    sb.append('\\');
+                    sb.append('\\');
+                    break;
+                default:
+                    if (ch >= 192) {
+                        sb.append(String.format("\\u%1$04x;", (int) ch));
+                    }
+                    else {
+                        sb.append(ch);
+                    }
+            }
+        }
+
+        if (quote) {
+            sb.append('"');
+        }
+
+        return sb.toString();
+    }
 }

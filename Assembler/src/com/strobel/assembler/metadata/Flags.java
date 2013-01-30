@@ -417,6 +417,22 @@ public class Flags {
         return modifiers;
     }
 
+    public static boolean testAny(final int value, final int flags) {
+        return (value & flags) != 0;
+    }
+
+    public static boolean testAll(final int value, final int flags) {
+        return (value & flags) == flags;
+    }
+
+    public static boolean testAny(final long value, final long flags) {
+        return (value & flags) != 0;
+    }
+
+    public static boolean testAll(final long value, final long flags) {
+        return (value & flags) == flags;
+    }
+
     // Cache of modifier sets.
     private static final Map<Long, Set<Modifier>> modifierSets =
         new java.util.concurrent.ConcurrentHashMap<>(64);

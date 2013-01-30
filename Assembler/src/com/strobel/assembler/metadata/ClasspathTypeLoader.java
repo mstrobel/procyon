@@ -16,6 +16,10 @@ import java.net.URL;
 public final class ClasspathTypeLoader implements ITypeLoader {
     private final URLClassPath _classPath;
 
+    public ClasspathTypeLoader() {
+        this(System.getProperty("java.class.path"));
+    }
+
     public ClasspathTypeLoader(final String classPath) {
         final String[] parts = VerifyArgument.notNull(classPath, "classPath").split(";");
         final URL[] urls = new URL[parts.length];
@@ -41,7 +45,7 @@ public final class ClasspathTypeLoader implements ITypeLoader {
             return false;
         }
 
-        System.out.println("Loading " + internalName + "...");
+//        System.out.println("Loading " + internalName + "...");
 
         final byte[] data;
 
