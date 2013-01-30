@@ -733,13 +733,23 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
     private void visitMethodBody(final MutableTypeDefinition type, final MethodInfo methodInfo, final MethodVisitor<MutableTypeDefinition> visitor) {
         if (methodInfo.codeAttribute instanceof CodeAttribute) {
+            final CodeAttribute codeAttribute = (CodeAttribute) methodInfo.codeAttribute;
+
             final MethodReader<MutableTypeDefinition> reader = new MethodReader<>(
-                (CodeAttribute) methodInfo.codeAttribute,
+                codeAttribute,
                 _scope
             );
 
             if (visitor.canVisitBody(type)) {
-                reader.accept(type, visitor, visitor.visitBody(type));
+                reader.accept(
+                    type,
+                    visitor,
+                    visitor.visitBody(
+                        type,
+                        codeAttribute.getMaxStack(),
+                        codeAttribute.getMaxLocals()
+                    )
+                );
             }
         }
     }

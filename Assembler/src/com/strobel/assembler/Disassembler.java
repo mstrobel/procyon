@@ -19,6 +19,8 @@ public final class Disassembler {
             return;
         }
 
+        final MutableTypeDefinition type = new MutableTypeDefinition(MetadataSystem.instance());
+
         final ClassFileReader reader = ClassFileReader.readClass(
             ClassFileReader.OPTION_PROCESS_CODE | ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
             MetadataSystem.instance(),
@@ -26,21 +28,18 @@ public final class Disassembler {
         );
 
         final ClassPrinter classPrinter = new ClassPrinter(printer);
-        final MutableTypeDefinition typeDefinition= new MutableTypeDefinition(MetadataSystem.instance());
 
-        reader.accept(typeDefinition, classPrinter);
+        reader.accept(type, classPrinter);
     }
 
     public static void main(final String[] args) {
         final CodePrinter printer = new CodePrinter(System.out);
 
         if (args.length == 0) {
-            disassemble("com/strobel/core/StringUtilities", printer);
+            disassemble("com/strobel/assembler/Disassembler", printer);
         }
         else {
             disassemble(args[0], printer);
         }
-
-        printer.flush();
     }
 }

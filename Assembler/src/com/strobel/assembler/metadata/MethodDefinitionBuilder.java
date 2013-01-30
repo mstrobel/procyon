@@ -54,7 +54,7 @@ public class MethodDefinitionBuilder implements MethodVisitor<MutableTypeDefinit
     }
 
     @Override
-    public InstructionVisitor<MutableTypeDefinition> visitBody(final MutableTypeDefinition declaringType) {
+    public InstructionVisitor<MutableTypeDefinition> visitBody(final MutableTypeDefinition declaringType, final int maxStack, final int maxLocals) {
         throw ContractUtils.unsupported();
     }
 

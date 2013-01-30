@@ -116,7 +116,9 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
     }
 
     @Override
-    public InstructionVisitor<MutableTypeDefinition> visitBody(final MutableTypeDefinition _) {
+    public InstructionVisitor<MutableTypeDefinition> visitBody(final MutableTypeDefinition _, final int maxStack, final int maxLocals) {
+        _printer.println("  Code:");
+        _printer.printf("    stack=%d, locals=%d, arguments=%d\n", maxStack, maxLocals, _signature.getParameters().size());
         return new InstructionPrinter();
     }
 
@@ -332,11 +334,11 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
             printOpCode(op);
 
             _printer.print(' ');
-            _printer.print(method.getDeclaringType().getBriefDescription());
+            _printer.print(method.getDeclaringType().getInternalName());
             _printer.print('.');
             _printer.print(method.getName());
             _printer.print(':');
-            _printer.print(method.getSignature());
+            _printer.print(method.getErasedSignature());
 
             endLine();
         }
@@ -346,11 +348,11 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
             printOpCode(op);
 
             _printer.print(' ');
-            _printer.print(field.getDeclaringType().getBriefDescription());
+            _printer.print(field.getDeclaringType().getInternalName());
             _printer.print('.');
             _printer.print(field.getName());
             _printer.print(':');
-            _printer.print(field.getSignature());
+            _printer.print(field.getErasedSignature());
 
             endLine();
         }

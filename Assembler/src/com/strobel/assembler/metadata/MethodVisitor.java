@@ -14,7 +14,7 @@ import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 public interface MethodVisitor<P> {
     boolean canVisitBody(final P parameter);
 
-    InstructionVisitor<P> visitBody(final P parameter);
+    InstructionVisitor<P> visitBody(final P parameter, final int maxStack, final int maxLocals);
 
     void visitEnd(final P parameter);
     void visitFrame(final P parameter, final Frame frame);
