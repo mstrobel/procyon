@@ -137,6 +137,86 @@ public final class VerifyArgument {
         return collection;
     }
 
+    public static <T> T[] noNullElementsAndNotEmpty(final T[] array, final String parameterName) {
+        notEmpty(array, parameterName);
+
+        for (final T item : array) {
+            if (item == null) {
+                throw new IllegalArgumentException(
+                    format("Argument '%s' must not have any null elements.", parameterName)
+                );
+            }
+        }
+
+        return array;
+    }
+
+    public static <T> T[] noNullElementsAndNotEmpty(final T[] array, final int offset, final int length, final String parameterName) {
+        notEmpty(array, parameterName);
+
+        for (int i = offset, end = offset + length; i < end; i++) {
+            final T item = array[i];
+            if (item == null) {
+                throw new IllegalArgumentException(
+                    format(
+                        "Argument '%s' must not have any null elements in the range (%s, %s].",
+                        parameterName,
+                        offset,
+                        offset + length
+                    )
+                );
+            }
+        }
+
+        return array;
+    }
+
+    public static <T extends Iterable<?>> T noNullElementsAndNotEmpty(final T collection, final String parameterName) {
+        notNull(collection, parameterName);
+
+        if (collection instanceof List && collection instanceof RandomAccess) {
+            final List<?> list = (List<?>)collection;
+
+            if (list.isEmpty()) {
+                throw new IllegalArgumentException(
+                    format("Argument '%s' must be a non-empty collection.", parameterName)
+                );
+            }
+
+            //noinspection ForLoopReplaceableByForEach
+            for (int i = 0, n = list.size(); i < n; i++) {
+                if (list.get(i) == null) {
+                    throw new IllegalArgumentException(
+                        format("Argument '%s' must not have any null elements.", parameterName)
+                    );
+                }
+            }
+
+            return collection;
+        }
+
+        final Iterator iterator = collection.iterator();
+
+        if (!iterator.hasNext()) {
+            throw new IllegalArgumentException(
+                format("Argument '%s' must be a non-empty collection.", parameterName)
+            );
+        }
+
+        do {
+            final Object item = iterator.next();
+
+            if (item == null) {
+                throw new IllegalArgumentException(
+                    format("Argument '%s' must not have any null elements.", parameterName)
+                );
+            }
+        }
+        while (iterator.hasNext());
+
+        return collection;
+    }
+
     public static <T> T[] elementsOfType(final Class<?> elementType, final T[] values, final String parameterName) {
         VerifyArgument.notNull(elementType, "elementType");
         VerifyArgument.notNull(values, "values");
