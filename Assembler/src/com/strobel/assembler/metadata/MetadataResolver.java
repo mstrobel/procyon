@@ -45,16 +45,6 @@ public abstract class MetadataResolver implements IMetadataResolver {
     public TypeDefinition resolve(final TypeReference type) {
         final TypeReference t = VerifyArgument.notNull(type, "type").getUnderlyingType();
 
-        if (t.isNested()) {
-            final TypeReference declaringType = t.getDeclaringType().resolve();
-
-            if (!(declaringType instanceof TypeDefinition)) {
-                return null;
-            }
-
-            return getNestedType(((TypeDefinition) declaringType).getDeclaredTypes(), type);
-        }
-
         if (!_frames.isEmpty()) {
             final String descriptor = type.getInternalName();
 
@@ -65,6 +55,16 @@ public abstract class MetadataResolver implements IMetadataResolver {
                     return (TypeDefinition) resolved;
                 }
             }
+        }
+
+        if (t.isNested()) {
+            final TypeReference declaringType = t.getDeclaringType().resolve();
+
+            if (!(declaringType instanceof TypeDefinition)) {
+                return null;
+            }
+
+            return getNestedType(((TypeDefinition) declaringType).getDeclaredTypes(), type);
         }
 
         return resolveCore(t);

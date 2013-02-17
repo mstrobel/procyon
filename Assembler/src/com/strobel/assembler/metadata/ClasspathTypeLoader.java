@@ -9,10 +9,11 @@ import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.security.*;
 
 /**
-* @author Mike Strobel
-*/
+ * @author Mike Strobel
+ */
 public final class ClasspathTypeLoader implements ITypeLoader {
     private final URLClassPath _classPath;
 
@@ -21,7 +22,7 @@ public final class ClasspathTypeLoader implements ITypeLoader {
     }
 
     public ClasspathTypeLoader(final String classPath) {
-        final String[] parts = VerifyArgument.notNull(classPath, "classPath").split(";");
+        final String[] parts = VerifyArgument.notNull(classPath, "classPath").split(System.getProperty("path.separator"));
         final URL[] urls = new URL[parts.length];
 
         for (int i = 0; i < parts.length; i++) {

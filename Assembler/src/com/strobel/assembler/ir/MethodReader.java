@@ -2,6 +2,7 @@ package com.strobel.assembler.ir;
 
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.*;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 
 import java.util.Arrays;
@@ -11,7 +12,7 @@ import java.util.List;
  * @author Mike Strobel
  */
 public class MethodReader<P> implements CodeReader<P> {
-    private final static String[] LOCAL_VARIABLE_TABLES = { AttributeNames.LocalVariableTypeTable, AttributeNames.LocalVariableTable };
+    private final static String[] LOCAL_VARIABLE_TABLES = {AttributeNames.LocalVariableTypeTable, AttributeNames.LocalVariableTable};
 
     private final CodeAttribute _code;
     private final IMetadataScope _scope;
@@ -25,7 +26,7 @@ public class MethodReader<P> implements CodeReader<P> {
     public void accept(final P parameter, final InstructionVisitor<P> visitor) {
         accept(parameter, null, visitor);
     }
-    
+
     @SuppressWarnings("ConstantConditions")
     public void accept(final P parameter, final MethodVisitor<P> methodVisitor, final InstructionVisitor<P> visitor) {
         final Buffer b = _code.getCode();
@@ -45,6 +46,14 @@ public class MethodReader<P> implements CodeReader<P> {
 
                     if (locals[localIndex] == null) {
                         locals[localIndex] = new VariableDefinition(entry.getName(), entry.getType());
+                    }
+                    else if (!locals[localIndex].hasName() &&
+                             !StringUtilities.isNullOrEmpty(entry.getName())) {
+
+                        locals[localIndex] = new VariableDefinition(
+                            entry.getName(),
+                            locals[localIndex].getVariableType()
+                        );
                     }
                 }
             }
@@ -85,7 +94,8 @@ public class MethodReader<P> implements CodeReader<P> {
                 }
 
                 case TypeReference: {
-                    inst = Instruction.create(op, _scope.lookupType(b.readUnsignedShort()));
+                    final int typeToken = b.readUnsignedShort();
+                    inst = Instruction.create(op, _scope.lookupType(typeToken));
                     break;
                 }
 
@@ -110,7 +120,7 @@ public class MethodReader<P> implements CodeReader<P> {
                     inst = new Instruction(op);
 
                     if (op.isWide()) {
-                        targetOffset = offset + (int) _scope.lookupConstant(b.readUnsignedShort());
+                        targetOffset = offset + _scope.<Integer>lookupConstant(b.readUnsignedShort());
                     }
                     else {
                         targetOffset = offset + (int) b.readShort();
@@ -130,6 +140,9 @@ public class MethodReader<P> implements CodeReader<P> {
                         inst.setLabel(new Label(offset));
                     }
                     else if (targetOffset > b.size()) {
+                        //
+                        // Target is a label after the last instruction.  Insert a dummy NOP.
+                        //
                         inst.setOperand(new Instruction(targetOffset, OpCode.NOP));
                     }
                     else {
@@ -169,7 +182,8 @@ public class MethodReader<P> implements CodeReader<P> {
                 }
 
                 case WideConstant: {
-                    inst = new Instruction(op, _scope.lookupConstant(b.readUnsignedShort()));
+                    final int constantToken = b.readUnsignedShort();
+                    inst = new Instruction(op, _scope.lookupConstant(constantToken));
                     break;
                 }
 
@@ -270,6 +284,7 @@ public class MethodReader<P> implements CodeReader<P> {
                         }
 
                         switchInfo.setKeys(keys);
+                        switchInfo.setTargets(targets);
                     }
 
                     break;
@@ -409,8 +424,9 @@ public class MethodReader<P> implements CodeReader<P> {
                 final Instruction inst = body.get(i);
                 final int lineNumber = lineNumbers != null ? lineNumbers[i] : -1;
 
-                if (lineNumber >= 0)
+                if (lineNumber >= 0) {
                     methodVisitor.visitLineNumber(parameter, inst, lineNumber);
+                }
             }
         }
 

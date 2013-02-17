@@ -22,7 +22,7 @@ public abstract class VariableReference {
     }
 
     public final String getName() {
-        if (!StringUtilities.isNullOrEmpty(_name)) {
+        if (hasName()) {
             return _name;
         }
 
@@ -31,6 +31,10 @@ public abstract class VariableReference {
         }
 
         return null;
+    }
+
+    public final boolean hasName() {
+        return !StringUtilities.isNullOrEmpty(_name);
     }
 
     protected final void setName(final String name) {

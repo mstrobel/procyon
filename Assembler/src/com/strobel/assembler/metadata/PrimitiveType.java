@@ -62,6 +62,11 @@ public final class PrimitiveType extends TypeDefinition {
     }
 
     @Override
+    public SimpleType getSimpleType() {
+        return _simpleType;
+    }
+
+    @Override
     public TypeReference getDeclaringType() {
         return null;
     }

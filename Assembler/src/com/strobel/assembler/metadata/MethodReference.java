@@ -104,7 +104,7 @@ public abstract class MethodReference extends MemberReference implements IMethod
     public StringBuilder appendDescription(final StringBuilder sb) {
         StringBuilder s = new StringBuilder();
 
-        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
+        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers() & ~Flags.ACC_VARARGS)) {
             s.append(modifier.toString());
             s.append(' ');
         }
@@ -200,7 +200,7 @@ public abstract class MethodReference extends MemberReference implements IMethod
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         StringBuilder s = new StringBuilder();
 
-        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
+        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers() & ~Flags.ACC_VARARGS)) {
             s.append(modifier.toString());
             s.append(' ');
         }
@@ -346,7 +346,7 @@ public abstract class MethodReference extends MemberReference implements IMethod
             }
         }
 
-        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
+        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers() & ~Flags.ACC_VARARGS)) {
             sb.append(modifier.toString());
             sb.append(' ');
         }

@@ -75,11 +75,8 @@ public class Collection<E> extends AbstractList<E> implements IFreezable {
         @SuppressWarnings("SuspiciousMethodCalls")
         final int index = _items.indexOf(o);
 
-        if (index < 0) {
-            return false;
-        }
-
-        return remove(index) != null;
+        return index >= 0 &&
+               remove(index) != null;
     }
 
     protected void afterAdd(final int index, final E e, final boolean appended) {}

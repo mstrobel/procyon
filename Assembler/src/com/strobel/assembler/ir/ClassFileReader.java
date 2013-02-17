@@ -509,6 +509,10 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 continue;
             }
 
+            if (Comparer.equals(type.getInternalName(), entry.getInnerClassName())) {
+                continue;
+            }
+
             final TypeReference innerType = _scope._parser.parseTypeDescriptor(entry.getInnerClassName());
             final TypeReference resolvedInnerType = innerType.resolve();
 
@@ -895,6 +899,12 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
         @Override
         public <T> T lookupConstant(final int token) {
+            final ConstantPool.Entry entry = constantPool.get(token);
+
+            if (entry.getTag() == ConstantPool.Tag.TypeInfo) {
+                return (T) lookupType(token);
+            }
+
             return constantPool.lookupConstant(token);
         }
     }

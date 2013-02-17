@@ -1,6 +1,8 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.CodePrinter;
+import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.SignatureAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
@@ -21,18 +23,11 @@ public class FieldPrinter implements FieldVisitor<MutableTypeDefinition> {
         _flags = flags;
         _name = VerifyArgument.notNull(name, "name");
         _fieldType = VerifyArgument.notNull(fieldType, "fieldType");
+
+        printDescription();
     }
 
-    @Override
-    public void visitAttribute(final MutableTypeDefinition _, final SourceAttribute attribute) {
-    }
-
-    @Override
-    public void visitAnnotation(final MutableTypeDefinition _, final CustomAnnotation annotation, final boolean visible) {
-    }
-
-    @Override
-    public void visitEnd(final MutableTypeDefinition _) {
+    private void printDescription() {
         final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(_flags & Flags.VarFlags & ~Flags.ENUM);
         final List<String> flagStrings = new ArrayList<>();
 
@@ -50,5 +45,23 @@ public class FieldPrinter implements FieldVisitor<MutableTypeDefinition> {
         _printer.printf(_name);
         _printer.print(';');
         _printer.println();
+    }
+
+    @Override
+    public void visitAttribute(final MutableTypeDefinition _, final SourceAttribute attribute) {
+        switch (attribute.getName()) {
+            case AttributeNames.Signature: {
+                _printer.printf("  Signature: %s", ((SignatureAttribute)attribute).getSignature());
+                _printer.println();
+            }
+        }
+    }
+
+    @Override
+    public void visitAnnotation(final MutableTypeDefinition _, final CustomAnnotation annotation, final boolean visible) {
+    }
+
+    @Override
+    public void visitEnd(final MutableTypeDefinition _) {
     }
 }

@@ -449,6 +449,9 @@ public final class Instruction {
                 if (_operand instanceof String) {
                     visitor.visit(parameter, _opCode, (String) _operand);
                 }
+                else if (_operand instanceof TypeReference) {
+                    visitor.visit(parameter, _opCode, (TypeReference) _operand);
+                }
                 else {
                     final Number number = (Number) _operand;
 

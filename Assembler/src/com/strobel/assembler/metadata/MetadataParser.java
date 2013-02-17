@@ -24,6 +24,10 @@ public final class MetadataParser {
         _genericContexts = new Stack<>();
     }
 
+    public final IMetadataResolver getResolver() {
+        return _resolver;
+    }
+
     public AutoCloseable suppressTypeResolution() {
         _suppressResolveDepth.incrementAndGet();
 
@@ -77,7 +81,7 @@ public final class MetadataParser {
             return _resolver.lookupType(descriptor);
         }
 
-        final TypeReference elementType = _resolver.lookupType(descriptor.substring(arrayDepth));
+        final TypeReference elementType = parseTypeSignature(descriptor.substring(arrayDepth));
 
         if (elementType == null) {
             return null;
@@ -94,12 +98,14 @@ public final class MetadataParser {
 
     public TypeReference parseTypeSignature(final String signature) {
         VerifyArgument.notNull(signature, "signature");
+
         return parseTopLevelSignature(signature, new MutableInteger(0));
     }
 
     public TypeReference parseTypeSignature(final String signature, final MutableInteger position) {
         VerifyArgument.notNull(signature, "signature");
         VerifyArgument.notNull(position, "position");
+
         return parseTopLevelSignature(signature, position);
     }
 
@@ -120,9 +126,9 @@ public final class MetadataParser {
     }
 
     public MethodReference parseMethod(final TypeReference declaringType, final String name, final String descriptor) {
-        final boolean pushGenericContext = declaringType.containsGenericParameters();
+        final boolean needGenericContext = declaringType.containsGenericParameters();
 
-        if (pushGenericContext) {
+        if (needGenericContext) {
             pushGenericContext(declaringType);
         }
 
@@ -131,7 +137,7 @@ public final class MetadataParser {
             return lookupMethod(declaringType, name, signature);
         }
         finally {
-            if (pushGenericContext) {
+            if (needGenericContext) {
                 popGenericContext();
             }
         }

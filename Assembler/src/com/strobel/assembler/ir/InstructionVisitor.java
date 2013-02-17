@@ -11,6 +11,7 @@ public interface InstructionVisitor<P> {
     void visit(final P parameter, final Instruction instruction);
 
     void visit(final P parameter, final OpCode opCode);
+    void visit(final P parameter, final OpCode opCode, final TypeReference value);
     void visit(final P parameter, final OpCode opCode, final int value);
     void visit(final P parameter, final OpCode opCode, final long value);
     void visit(final P parameter, final OpCode opCode, final float value);

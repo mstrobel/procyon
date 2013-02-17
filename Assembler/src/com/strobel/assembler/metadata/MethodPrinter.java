@@ -2,6 +2,8 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.CodePrinter;
 import com.strobel.assembler.ir.*;
+import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.SignatureAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
@@ -38,7 +40,7 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
     }
 
     private void printDescription() {
-        final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(_flags & Flags.VarFlags & ~Flags.ENUM);
+        final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(_flags & Flags.MethodFlags);
         final List<String> flagStrings = new ArrayList<>();
 
         for (final Flags.Flag flag : flagSet) {
@@ -80,7 +82,14 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
 
             final ParameterDefinition parameter = parameters.get(i);
 
-            _printer.print(parameter.getParameterType().getBriefDescription());
+            if (Flags.testAny(_flags, Flags.ACC_VARARGS) && i == parameters.size() - 1) {
+                _printer.print(parameter.getParameterType().getUnderlyingType().getBriefDescription());
+                _printer.print("...");
+            }
+            else {
+                _printer.print(parameter.getParameterType().getBriefDescription());
+            }
+
             _printer.print(' ');
 
             final String parameterName = parameter.getName();
@@ -108,6 +117,35 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         _printer.println(";");
+
+        flagStrings.clear();
+
+        if (Flags.testAny(_flags, Flags.PUBLIC)) {
+            flagStrings.add("ACC_PUBLIC");
+        }
+
+        if (Flags.testAny(_flags, Flags.ACC_SUPER)) {
+            flagStrings.add("ACC_SUPER");
+        }
+
+        if (Flags.testAny(_flags, Flags.ACC_BRIDGE)) {
+            flagStrings.add("ACC_BRIDGE");
+        }
+
+        if (Flags.testAny(_flags, Flags.ACC_VARARGS)) {
+            flagStrings.add("ACC_VARARGS");
+        }
+
+        if (Flags.testAny(_flags, Flags.ACC_SYNTHETIC)) {
+            flagStrings.add("ACC_SYNTHETIC");
+        }
+
+        if (flagStrings.isEmpty()) {
+            return;
+        }
+
+        _printer.printf("  Flags: %s", StringUtilities.join(", ", flagStrings));
+        _printer.println();
     }
 
     @Override
@@ -136,6 +174,12 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
 
     @Override
     public void visitAttribute(final MutableTypeDefinition _, final SourceAttribute attribute) {
+        switch (attribute.getName()) {
+            case AttributeNames.Signature: {
+                _printer.printf("  Signature: %s", ((SignatureAttribute) attribute).getSignature());
+                _printer.println();
+            }
+        }
     }
 
     @Override
@@ -173,9 +217,9 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         private boolean _hasLabel;
 
         private void printOpCode(final OpCode opCode) {
-            if (!_hasLabel) {
-                _printer.printf("       ");
-            }
+//            if (!_hasLabel) {
+//                _printer.printf("       ");
+//            }
             _printer.printf("%1$-" + MAX_OPCODE_LENGTH + "s", OPCODE_NAMES[opCode.ordinal()]);
         }
 
@@ -184,6 +228,7 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
             VerifyArgument.notNull(instruction, "instruction");
 
             try {
+                _printer.printf("%1$5d: ", instruction.getOffset());
                 instruction.accept(this, _);
             }
             catch (Throwable t) {
@@ -212,6 +257,17 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         @Override
         public void visit(final MutableTypeDefinition _, final OpCode op) {
             printOpCode(op);
+            endLine();
+        }
+
+        @Override
+        public void visit(final MutableTypeDefinition _, final OpCode op, final TypeReference value) {
+            printOpCode(op);
+
+            _printer.print(' ');
+            _printer.print(value.getErasedSignature());
+            _printer.print(".class");
+
             endLine();
         }
 
@@ -276,12 +332,12 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
             printOpCode(op);
             _printer.print(' ');
 
-            if (target.hasLabel()) {
-                _printer.printf("L%d", target.getLabel().index);
-            }
-            else {
-                _printer.printf("#%d", target.getOffset());
-            }
+//            if (target.hasLabel()) {
+//                _printer.printf("L%d", target.getLabel().index);
+//            }
+//            else {
+                _printer.printf("%d", target.getOffset());
+//            }
 
             endLine();
         }
@@ -289,14 +345,9 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         @Override
         public void visitVariable(final MutableTypeDefinition _, final OpCode op, final VariableReference variable) {
             printOpCode(op);
-            _printer.print(' ');
 
-            if (StringUtilities.isNullOrEmpty(variable.getName())) {
-                _printer.print("$" + variable.getIndex());
-            }
-            else {
-                _printer.print(variable.getName());
-            }
+            _printer.print(' ');
+            _printer.print(variable.getName());
 
             endLine();
         }
@@ -359,8 +410,8 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
 
         @Override
         public void visitLabel(final MutableTypeDefinition _, final Label label) {
-            _printer.printf("%1$5s: ", "L" + label.index);
-            _hasLabel = true;
+//            _printer.printf("%1$5s: ", "L" + label.index);
+//            _hasLabel = true;
         }
 
         @Override
