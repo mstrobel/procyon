@@ -14,11 +14,11 @@ import java.util.List;
 
 public class FieldPrinter implements FieldVisitor {
     private final CodePrinter _printer;
-    private final int _flags;
+    private final long _flags;
     private final String _name;
     private final TypeReference _fieldType;
 
-    public FieldPrinter(final CodePrinter printer, final int flags, final String name, final TypeReference fieldType) {
+    public FieldPrinter(final CodePrinter printer, final long flags, final String name, final TypeReference fieldType) {
         _printer = VerifyArgument.notNull(printer, "printer");
         _flags = flags;
         _name = VerifyArgument.notNull(name, "name");

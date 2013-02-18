@@ -48,8 +48,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
     private final AtomicBoolean _completed;
     private final Scope _scope;
 
-    private String simpleName;
-
     private ClassFileReader(
         final int options,
         final IMetadataResolver resolver,
@@ -421,7 +419,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             String outerClassName = entry.getOuterClassName();
 
             if (Comparer.equals(innerClassName, this.internalName)) {
-                final String simpleName = entry.getShortName();
                 final TypeReference outerType;
                 final TypeReference resolvedOuterType;
 
@@ -441,10 +438,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
                 if (resolvedOuterType != null) {
                     visitor.visitOuterType(outerType);
-                }
-
-                if (simpleName != null) {
-                    this.simpleName = simpleName;
                 }
 
                 return;
@@ -510,12 +503,13 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         }
 
         for (final InnerClassEntry entry : innerClasses.getEntries()) {
-            final String outerClassName = entry.getOuterClassName();
+            final String simpleName = entry.getShortName();
 
-            if (outerClassName != null) {
+            if (!StringUtilities.isNullOrEmpty(simpleName)) {
                 continue;
             }
 
+            final String outerClassName = entry.getOuterClassName();
             final String innerClassName = entry.getInnerClassName();
 
             if (Comparer.equals(innerClassName, this.internalName)) {

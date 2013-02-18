@@ -28,14 +28,14 @@ import java.util.List;
 
 public class MethodPrinter implements MethodVisitor {
     private final CodePrinter _printer;
-    private final int _flags;
+    private final long _flags;
     private final String _name;
     private final IMethodSignature _signature;
     private final TypeReference[] _thrownTypes;
 
     public MethodPrinter(
         final CodePrinter printer,
-        final int flags,
+        final long flags,
         final String name,
         final IMethodSignature signature,
         final TypeReference... thrownTypes) {

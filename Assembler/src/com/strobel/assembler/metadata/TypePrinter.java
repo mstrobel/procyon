@@ -23,7 +23,7 @@ public class TypePrinter implements TypeVisitor {
     public void visit(
         final int majorVersion,
         final int minorVersion,
-        final int flags,
+        final long flags,
         final String name,
         final String genericSignature,
         final String baseTypeName,
@@ -76,13 +76,13 @@ public class TypePrinter implements TypeVisitor {
     }
 
     @Override
-    public FieldPrinter visitField(final int flags, final String name, final TypeReference fieldType) {
+    public FieldPrinter visitField(final long flags, final String name, final TypeReference fieldType) {
         _printer.println();
         return new FieldPrinter(_printer, flags, name, fieldType);
     }
 
     @Override
-    public MethodPrinter visitMethod(final int flags, final String name, final IMethodSignature signature, final TypeReference... thrownTypes) {
+    public MethodPrinter visitMethod(final long flags, final String name, final IMethodSignature signature, final TypeReference... thrownTypes) {
         _printer.println();
         return new MethodPrinter(_printer, flags, name, signature, thrownTypes);
     }

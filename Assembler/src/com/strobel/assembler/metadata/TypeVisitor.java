@@ -12,7 +12,7 @@ public interface TypeVisitor {
     void visit(
         final int majorVersion,
         final int minorVersion,
-        final int flags,
+        final long flags,
         final String name,
         final String genericSignature,
         final String baseTypeName,
@@ -25,12 +25,12 @@ public interface TypeVisitor {
     void visitAnnotation(final CustomAnnotation annotation, final boolean visible);
 
     FieldVisitor visitField(
-        final int flags,
+        final long flags,
         final String name,
         final TypeReference fieldType);
 
     MethodVisitor visitMethod(
-        final int flags,
+        final long flags,
         final String name,
         final IMethodSignature signature,
         final TypeReference... thrownTypes);

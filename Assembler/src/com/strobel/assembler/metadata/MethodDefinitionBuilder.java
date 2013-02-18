@@ -22,7 +22,7 @@ public class MethodDefinitionBuilder implements MethodVisitor {
 
     public MethodDefinitionBuilder(
         final TypeDefinition declaringType,
-        final int flags,
+        final long flags,
         final String name,
         final IMethodSignature signature,
         final TypeReference... thrownTypes) {

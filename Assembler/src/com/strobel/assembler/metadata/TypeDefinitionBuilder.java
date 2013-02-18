@@ -50,7 +50,7 @@ public class TypeDefinitionBuilder implements TypeVisitor {
     public void visit(
         final int majorVersion,
         final int minorVersion,
-        final int flags,
+        final long flags,
         final String name,
         final String genericSignature,
         final String baseTypeName,
@@ -207,7 +207,7 @@ public class TypeDefinitionBuilder implements TypeVisitor {
 
     @Override
     public FieldVisitor visitField(
-        final int flags,
+        final long flags,
         final String name,
         final TypeReference fieldType) {
 
@@ -221,7 +221,7 @@ public class TypeDefinitionBuilder implements TypeVisitor {
 
     @Override
     public MethodVisitor visitMethod(
-        final int flags,
+        final long flags,
         final String name,
         final IMethodSignature signature,
         final TypeReference... thrownTypes) {

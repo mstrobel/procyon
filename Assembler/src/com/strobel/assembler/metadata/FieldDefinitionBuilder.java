@@ -14,7 +14,7 @@ public class FieldDefinitionBuilder implements FieldVisitor {
 
     public FieldDefinitionBuilder(
         final TypeDefinition declaringType,
-        final int flags,
+        final long flags,
         final String name,
         final TypeReference fieldType) {
 
