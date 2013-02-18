@@ -1,24 +1,40 @@
+/*
+ * TypeReference.java
+ *
+ * Copyright (c) 2013 Mike Strobel
+ *
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0.
+ * A copy of the license can be found in the License.html file at the root of this distribution.
+ * By using this source code in any fashion, you are agreeing to be bound by the terms of the
+ * Apache License, Version 2.0.
+ *
+ * You must not remove this notice, or any other, from this software.
+ */
+
 package com.strobel.assembler.metadata;
 
+import com.strobel.compilerservices.RuntimeHelpers;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.SimpleType;
 import com.strobel.util.ContractUtils;
 
-import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * User: Mike Strobel
- * Date: 1/6/13
- * Time: 2:08 PM
- */
 public abstract class TypeReference extends MemberReference implements IGenericParameterProvider {
+    static {
+        RuntimeHelpers.ensureClassInitialized(PrimitiveTypes.class);
+    }
+
+    private String _name;
+    private TypeReference _declaringType;
     private ArrayType _arrayType;
 
-    public TypeReference() {}
+    public TypeReference() {
+    }
 
     @Override
     public boolean containsGenericParameters() {
@@ -35,35 +51,45 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return super.containsGenericParameters();
     }
 
+    @Override
+    public String getName() {
+        return _name;
+    }
+
     public String getPackageName() {
         return StringUtilities.EMPTY;
     }
 
-    protected String getRawFullName() {
-        final StringBuilder name = new StringBuilder();
-        appendName(name, true, true);
-        return name.toString();
+    @Override
+    public TypeReference getDeclaringType() {
+        return _declaringType;
     }
 
-    public String getFullName() {
-        final StringBuilder name = new StringBuilder();
-        appendName(name, true, true);
-        return name.toString();
+    protected void setName(final String name) {
+        _name = name;
     }
 
-    public String getInternalName() {
-        final StringBuilder name = new StringBuilder();
-        appendName(name, true, false);
-        return name.toString();
+    protected void setDeclaringType(final TypeReference declaringType) {
+        _declaringType = declaringType;
     }
+
+    public abstract String getSimpleName();
+
+    public abstract String getFullName();
+
+    public abstract String getInternalName();
 
     public TypeReference getUnderlyingType() {
         return this;
     }
 
+    public TypeReference getElementType() {
+        return null;
+    }
+
     @Override
     public int hashCode() {
-        return getErasedSignature().hashCode();
+        return getInternalName().hashCode();
     }
 
     @Override
@@ -74,7 +100,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     // <editor-fold defaultstate="collapsed" desc="Specification Factories">
 
-    public TypeSpecification makeArrayType() {
+    public TypeReference makeArrayType() {
         if (_arrayType == null) {
             synchronized (this) {
                 if (_arrayType == null) {
@@ -122,7 +148,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     }
 
     public boolean isCompoundType() {
-        return (getFlags() & Flags.COMPOUND) == Flags.COMPOUND;
+        return false;
     }
 
     public boolean isBoundedType() {
@@ -160,23 +186,6 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     public SimpleType getSimpleType() {
         return SimpleType.Object;
-    }
-
-    public final boolean isAnnotation() {
-        return isInterface() &&
-               (getModifiers() & Flags.ANNOTATION) != 0;
-    }
-
-    public final boolean isClass() {
-        return !isPrimitive() && !isInterface() && !isEnum();
-    }
-
-    public final boolean isInterface() {
-        return Modifier.isInterface(getModifiers());
-    }
-
-    public final boolean isEnum() {
-        return (getModifiers() & Flags.ENUM) != 0;
     }
 
     public boolean isNested() {
@@ -230,21 +239,38 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     // <editor-fold defaultstate="collapsed" desc="Name and Signature Formatting">
 
+    /**
+     * Human-readable brief description of a type or member, which does not include information super types, thrown exceptions, or modifiers other than
+     * 'static'.
+     */
+    public String getBriefDescription() {
+        return appendBriefDescription(new StringBuilder()).toString();
+    }
+
+    /**
+     * Human-readable full description of a type or member, which includes specification of super types (in brief format), thrown exceptions, and modifiers.
+     */
+    public String getDescription() {
+        return appendDescription(new StringBuilder()).toString();
+    }
+
+    /**
+     * Human-readable erased description of a type or member.
+     */
+    public String getErasedDescription() {
+        return appendErasedDescription(new StringBuilder()).toString();
+    }
+
+    /**
+     * Human-readable simple description of a type or member, which does not include information super type or fully-qualified type names.
+     */
+    public String getSimpleDescription() {
+        return appendSimpleDescription(new StringBuilder()).toString();
+    }
+
     @Override
     protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
-        final String name = getName();
-
-        if (fullName) {
-            final TypeReference declaringType = getDeclaringType();
-
-            if (declaringType != null) {
-                return declaringType.appendName(sb, fullName, dottedName).append('$').append(name);
-            }
-        }
-        else {
-            return sb.append(name);
-        }
-
+        final String name = fullName ? getName() : getSimpleName();
         final String packageName = getPackageName();
 
         if (StringUtilities.isNullOrEmpty(packageName)) {
@@ -269,7 +295,6 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return sb.append(name);
     }
 
-    @Override
     protected StringBuilder appendBriefDescription(final StringBuilder sb) {
         StringBuilder s = appendName(sb, true, true);
 
@@ -292,9 +317,8 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return s;
     }
 
-    @Override
     protected StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        StringBuilder s = appendName(sb, false, false);
+        StringBuilder s = sb.append(getSimpleName());
 
         if (isGenericType()) {
             final List<? extends TypeReference> typeArguments;
@@ -318,7 +342,6 @@ public abstract class TypeReference extends MemberReference implements IGenericP
                 }
                 s.append('>');
             }
-
         }
         if (this instanceof IGenericInstance) {
         }
@@ -326,12 +349,10 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return s;
     }
 
-    @Override
     protected StringBuilder appendErasedDescription(final StringBuilder sb) {
         return appendName(sb, true, true);
     }
 
-    @Override
     protected StringBuilder appendDescription(final StringBuilder sb) {
         StringBuilder s = appendName(sb, false, false);
 
@@ -354,7 +375,6 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return s;
     }
 
-    @Override
     protected StringBuilder appendSignature(final StringBuilder sb) {
         if (isGenericParameter()) {
             sb.append('T');
@@ -366,7 +386,6 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return appendClassSignature(sb);
     }
 
-    @Override
     protected StringBuilder appendErasedSignature(final StringBuilder sb) {
         if (isGenericType() && !isGenericDefinition()) {
             return getUnderlyingType().appendErasedSignature(sb);
@@ -379,10 +398,11 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
         if (isGenericParameter()) {
             final TypeReference extendsBound = getExtendsBound();
+            final TypeDefinition resolvedBound = extendsBound.resolve();
 
             s.append(getName());
 
-            if (extendsBound.isInterface()) {
+            if (resolvedBound != null && resolvedBound.isInterface()) {
                 s.append(':');
             }
 
@@ -471,7 +491,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     // <editor-fold defaultstate="collapsed" desc="Member Resolution">
 
-    public TypeReference resolve() {
+    public TypeDefinition resolve() {
         final TypeReference declaringType = getDeclaringType();
 
         return declaringType != null ? declaringType.resolve(this) : null;

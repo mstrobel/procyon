@@ -40,14 +40,14 @@ public final class BuiltinTypes {
         }
 
         final MetadataSystem metadataSystem = MetadataSystem.instance();
-        final MutableTypeDefinition object = new MutableTypeDefinition(metadataSystem);
+        final TypeDefinition object = new TypeDefinition(metadataSystem);
 
         Object = object;
 
         final ClassFileReader reader = ClassFileReader.readClass(metadataSystem, buffer);
-        final TypeDefinitionBuilder builder = new TypeDefinitionBuilder(metadataSystem);
+        final TypeDefinitionBuilder builder = new TypeDefinitionBuilder();
 
-        reader.accept(object, builder);
+        reader.accept(builder);
     }
 
     public static TypeDefinition fromPrimitiveTypeCode(final int code) {

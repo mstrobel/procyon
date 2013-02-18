@@ -24,6 +24,11 @@ public final class Wildcard extends TypeReference {
     }
 
     @Override
+    public String getSimpleName() {
+        return _name;
+    }
+
+    @Override
     public SimpleType getSimpleType() {
         return SimpleType.Wildcard;
     }
@@ -31,16 +36,21 @@ public final class Wildcard extends TypeReference {
     // <editor-fold defaultstate="collapsed" desc="Type Attributes">
 
     @Override
-    public long getFlags() {
-        return Flags.PUBLIC;
-    }
-
-    @Override
     public String getName() {
         if (_name == null) {
             _name = appendSimpleDescription(new StringBuilder()).toString();
         }
         return _name;
+    }
+
+    @Override
+    public String getFullName() {
+        return getName();
+    }
+
+    @Override
+    public String getInternalName() {
+        return getName();
     }
 
     @Override
@@ -127,7 +137,7 @@ public final class Wildcard extends TypeReference {
         if (_hasSuperBound) {
             sb.append("? super ");
             if (_bound.isGenericParameter()) {
-                return sb.append(_bound.getName());
+                return sb.append(_bound.getSimpleName());
             }
             return _bound.appendSimpleDescription(sb);
         }
@@ -139,7 +149,7 @@ public final class Wildcard extends TypeReference {
         sb.append("? extends ");
 
         if (_bound.isGenericParameter()) {
-            return sb.append(_bound.getName());
+            return sb.append(_bound.getSimpleName());
         }
 
         return _bound.appendSimpleDescription(sb);

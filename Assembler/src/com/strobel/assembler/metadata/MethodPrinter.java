@@ -1,3 +1,16 @@
+/*
+ * MethodPrinter.java
+ *
+ * Copyright (c) 2013 Mike Strobel
+ *
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0.
+ * A copy of the license can be found in the License.html file at the root of this distribution.
+ * By using this source code in any fashion, you are agreeing to be bound by the terms of the
+ * Apache License, Version 2.0.
+ *
+ * You must not remove this notice, or any other, from this software.
+ */
+
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.CodePrinter;
@@ -13,10 +26,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
-/**
- * @author Mike Strobel
- */
-public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
+public class MethodPrinter implements MethodVisitor {
     private final CodePrinter _printer;
     private final int _flags;
     private final String _name;
@@ -149,31 +159,31 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
     }
 
     @Override
-    public boolean canVisitBody(final MutableTypeDefinition _) {
+    public boolean canVisitBody() {
         return true;
     }
 
     @Override
-    public InstructionVisitor<MutableTypeDefinition> visitBody(final MutableTypeDefinition _, final int maxStack, final int maxLocals) {
+    public InstructionVisitor visitBody(final int maxStack, final int maxLocals) {
         _printer.println("  Code:");
         _printer.printf("    stack=%d, locals=%d, arguments=%d\n", maxStack, maxLocals, _signature.getParameters().size());
         return new InstructionPrinter();
     }
 
     @Override
-    public void visitEnd(final MutableTypeDefinition _) {
+    public void visitEnd() {
     }
 
     @Override
-    public void visitFrame(final MutableTypeDefinition _, final Frame frame) {
+    public void visitFrame(final Frame frame) {
     }
 
     @Override
-    public void visitLineNumber(final MutableTypeDefinition _, final Instruction instruction, final int lineNumber) {
+    public void visitLineNumber(final Instruction instruction, final int lineNumber) {
     }
 
     @Override
-    public void visitAttribute(final MutableTypeDefinition _, final SourceAttribute attribute) {
+    public void visitAttribute(final SourceAttribute attribute) {
         switch (attribute.getName()) {
             case AttributeNames.Signature: {
                 _printer.printf("  Signature: %s", ((SignatureAttribute) attribute).getSignature());
@@ -183,7 +193,7 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
     }
 
     @Override
-    public void visitAnnotation(final MutableTypeDefinition _, final CustomAnnotation annotation, final boolean visible) {
+    public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
     }
 
     // <editor-fold defaultstate="collapsed" desc="InstructionPrinter Class">
@@ -212,24 +222,18 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         OPCODE_NAMES = names;
     }
 
-    private final class InstructionPrinter implements InstructionVisitor<MutableTypeDefinition> {
-
-        private boolean _hasLabel;
-
+    private final class InstructionPrinter implements InstructionVisitor {
         private void printOpCode(final OpCode opCode) {
-//            if (!_hasLabel) {
-//                _printer.printf("       ");
-//            }
             _printer.printf("%1$-" + MAX_OPCODE_LENGTH + "s", OPCODE_NAMES[opCode.ordinal()]);
         }
 
         @Override
-        public void visit(final MutableTypeDefinition _, final Instruction instruction) {
+        public void visit(final Instruction instruction) {
             VerifyArgument.notNull(instruction, "instruction");
 
             try {
                 _printer.printf("%1$5d: ", instruction.getOffset());
-                instruction.accept(this, _);
+                instruction.accept(this);
             }
             catch (Throwable t) {
                 printOpCode(instruction.getOpCode());
@@ -255,13 +259,13 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         @Override
-        public void visit(final MutableTypeDefinition _, final OpCode op) {
+        public void visit(final OpCode op) {
             printOpCode(op);
             endLine();
         }
 
         @Override
-        public void visit(final MutableTypeDefinition _, final OpCode op, final TypeReference value) {
+        public void visitConstant(final OpCode op, final TypeReference value) {
             printOpCode(op);
 
             _printer.print(' ');
@@ -272,13 +276,12 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         private void endLine() {
-            _hasLabel = false;
             _printer.println();
             _printer.flush();
         }
 
         @Override
-        public void visit(final MutableTypeDefinition _, final OpCode op, final int value) {
+        public void visitConstant(final OpCode op, final int value) {
             printOpCode(op);
 
             _printer.print(' ');
@@ -288,7 +291,7 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         @Override
-        public void visit(final MutableTypeDefinition _, final OpCode op, final long value) {
+        public void visitConstant(final OpCode op, final long value) {
             printOpCode(op);
 
             _printer.print(' ');
@@ -298,7 +301,7 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         @Override
-        public void visit(final MutableTypeDefinition _, final OpCode op, final float value) {
+        public void visitConstant(final OpCode op, final float value) {
             printOpCode(op);
 
             _printer.print(' ');
@@ -308,7 +311,7 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         @Override
-        public void visit(final MutableTypeDefinition _, final OpCode op, final double value) {
+        public void visitConstant(final OpCode op, final double value) {
             printOpCode(op);
 
             _printer.print(' ');
@@ -318,7 +321,7 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         @Override
-        public void visit(final MutableTypeDefinition _, final OpCode op, final String value) {
+        public void visitConstant(final OpCode op, final String value) {
             printOpCode(op);
 
             _printer.print(' ');
@@ -328,22 +331,17 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         @Override
-        public void visitBranch(final MutableTypeDefinition _, final OpCode op, final Instruction target) {
+        public void visitBranch(final OpCode op, final Instruction target) {
             printOpCode(op);
-            _printer.print(' ');
 
-//            if (target.hasLabel()) {
-//                _printer.printf("L%d", target.getLabel().index);
-//            }
-//            else {
-                _printer.printf("%d", target.getOffset());
-//            }
+            _printer.print(' ');
+            _printer.printf("%d", target.getOffset());
 
             endLine();
         }
 
         @Override
-        public void visitVariable(final MutableTypeDefinition _, final OpCode op, final VariableReference variable) {
+        public void visitVariable(final OpCode op, final VariableReference variable) {
             printOpCode(op);
 
             _printer.print(' ');
@@ -353,7 +351,7 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         @Override
-        public void visitVariable(final MutableTypeDefinition _, final OpCode op, final VariableReference variable, final int operand) {
+        public void visitVariable(final OpCode op, final VariableReference variable, final int operand) {
             printOpCode(op);
             _printer.print(' ');
 
@@ -371,7 +369,7 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         @Override
-        public void visitType(final MutableTypeDefinition _, final OpCode op, final TypeReference type) {
+        public void visitType(final OpCode op, final TypeReference type) {
             printOpCode(op);
 
             _printer.print(' ');
@@ -381,7 +379,7 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         @Override
-        public void visitMethod(final MutableTypeDefinition _, final OpCode op, final MethodReference method) {
+        public void visitMethod(final OpCode op, final MethodReference method) {
             printOpCode(op);
 
             _printer.print(' ');
@@ -395,7 +393,7 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         @Override
-        public void visitField(final MutableTypeDefinition _, final OpCode op, final FieldReference field) {
+        public void visitField(final OpCode op, final FieldReference field) {
             printOpCode(op);
 
             _printer.print(' ');
@@ -409,13 +407,11 @@ public class MethodPrinter implements MethodVisitor<MutableTypeDefinition> {
         }
 
         @Override
-        public void visitLabel(final MutableTypeDefinition _, final Label label) {
-//            _printer.printf("%1$5s: ", "L" + label.index);
-//            _hasLabel = true;
+        public void visitLabel(final Label label) {
         }
 
         @Override
-        public void visitSwitch(final MutableTypeDefinition _, final OpCode op, final SwitchInfo switchInfo) {
+        public void visitSwitch(final OpCode op, final SwitchInfo switchInfo) {
             printOpCode(op);
             endLine();
         }

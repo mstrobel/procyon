@@ -407,81 +407,80 @@ public final class Instruction {
 
     // <editor-fold defaultstate="collapsed" desc="Visitor Acceptor">
 
-    public <P> void accept(final InstructionVisitor<P> visitor, final P parameter) {
+    public void accept(final InstructionVisitor visitor) {
         if (hasLabel()) {
-            visitor.visitLabel(parameter, _label);
+            visitor.visitLabel(_label);
         }
 
         switch (_opCode.getOperandType()) {
             case None:
-                visitor.visit(parameter, _opCode);
+                visitor.visit(_opCode);
                 break;
 
             case PrimitiveTypeCode:
             case TypeReference:
             case TypeReferenceU1:
-                visitor.visitType(parameter, _opCode, (TypeReference) _operand);
+                visitor.visitType(_opCode, (TypeReference) _operand);
                 break;
 
             case MethodReference:
-                visitor.visitMethod(parameter, _opCode, (MethodReference) _operand);
+                visitor.visitMethod(_opCode, (MethodReference) _operand);
                 break;
 
             case FieldReference:
-                visitor.visitField(parameter, _opCode, (FieldReference) _operand);
+                visitor.visitField(_opCode, (FieldReference) _operand);
                 break;
 
             case BranchTarget:
-                visitor.visitBranch(parameter, _opCode, (Instruction) _operand);
+                visitor.visitBranch(_opCode, (Instruction) _operand);
                 break;
 
             case I1:
             case I2:
-                visitor.visit(parameter, _opCode, ((Number) _operand).intValue());
+                visitor.visitConstant(_opCode, ((Number) _operand).intValue());
                 break;
 
             case I8:
-                visitor.visit(parameter, _opCode, ((Number) _operand).longValue());
+                visitor.visitConstant(_opCode, ((Number) _operand).longValue());
                 break;
 
             case Constant:
             case WideConstant:
                 if (_operand instanceof String) {
-                    visitor.visit(parameter, _opCode, (String) _operand);
+                    visitor.visitConstant(_opCode, (String) _operand);
                 }
                 else if (_operand instanceof TypeReference) {
-                    visitor.visit(parameter, _opCode, (TypeReference) _operand);
+                    visitor.visitConstant(_opCode, (TypeReference) _operand);
                 }
                 else {
                     final Number number = (Number) _operand;
 
                     if (_operand instanceof Long) {
-                        visitor.visit(parameter, _opCode, number.longValue());
+                        visitor.visitConstant(_opCode, number.longValue());
                     }
                     else if (_operand instanceof Float) {
-                        visitor.visit(parameter, _opCode, number.floatValue());
+                        visitor.visitConstant(_opCode, number.floatValue());
                     }
                     else if (_operand instanceof Double) {
-                        visitor.visit(parameter, _opCode, number.doubleValue());
+                        visitor.visitConstant(_opCode, number.doubleValue());
                     }
                     else {
-                        visitor.visit(parameter, _opCode, number.intValue());
+                        visitor.visitConstant(_opCode, number.intValue());
                     }
                 }
                 break;
 
             case Switch:
-                visitor.visitSwitch(parameter, _opCode, (SwitchInfo) _operand);
+                visitor.visitSwitch(_opCode, (SwitchInfo) _operand);
                 break;
 
             case Local:
-                visitor.visitVariable(parameter, _opCode, (VariableReference) _operand);
+                visitor.visitVariable(_opCode, (VariableReference) _operand);
                 break;
 
             case LocalI1:
             case LocalI2:
                 visitor.visitVariable(
-                    parameter,
                     _opCode,
                     this.<VariableReference>getOperand(0),
                     this.<Number>getOperand(1).intValue()

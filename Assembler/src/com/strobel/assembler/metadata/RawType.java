@@ -13,13 +13,23 @@ public final class RawType extends TypeReference {
     }
 
     @Override
+    public String getFullName() {
+        return _genericTypeDefinition.getFullName();
+    }
+
+    @Override
+    public String getInternalName() {
+        return _genericTypeDefinition.getInternalName();
+    }
+
+    @Override
     public TypeReference getDeclaringType() {
         return _genericTypeDefinition.getDeclaringType();
     }
 
     @Override
-    public long getFlags() {
-        return _genericTypeDefinition.getFlags();
+    public String getSimpleName() {
+        return _genericTypeDefinition.getSimpleName();
     }
 
     @Override

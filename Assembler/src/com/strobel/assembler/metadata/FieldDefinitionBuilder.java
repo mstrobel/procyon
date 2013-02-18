@@ -9,11 +9,11 @@ import com.strobel.core.VerifyArgument;
 /**
  * @author Mike Strobel
  */
-public class FieldDefinitionBuilder implements FieldVisitor<MutableTypeDefinition> {
-    private final MutableFieldDefinition _field;
+public class FieldDefinitionBuilder implements FieldVisitor {
+    private final FieldDefinition _field;
 
     public FieldDefinitionBuilder(
-        final TypeReference declaringType,
+        final TypeDefinition declaringType,
         final int flags,
         final String name,
         final TypeReference fieldType) {
@@ -21,19 +21,19 @@ public class FieldDefinitionBuilder implements FieldVisitor<MutableTypeDefinitio
         VerifyArgument.notNull(name, "name");
         VerifyArgument.notNull(fieldType, "fieldType");
 
-        _field = new MutableFieldDefinition();
+        _field = new FieldDefinition(declaringType.getResolver());
         _field.setDeclaringType(declaringType);
         _field.setFlags(flags);
         _field.setName(name);
         _field.setFieldType(fieldType);
     }
 
-    public FieldDefinitionBuilder(final MutableFieldDefinition field) {
+    public FieldDefinitionBuilder(final FieldDefinition field) {
         _field = VerifyArgument.notNull(field, "field");
     }
 
     @Override
-    public void visitAttribute(final MutableTypeDefinition declaringType, final SourceAttribute attribute) {
+    public void visitAttribute(final SourceAttribute attribute) {
         switch (attribute.getName()) {
             case AttributeNames.ConstantValue: {
                 final ConstantValueAttribute cva = (ConstantValueAttribute) attribute;
@@ -44,15 +44,14 @@ public class FieldDefinitionBuilder implements FieldVisitor<MutableTypeDefinitio
     }
 
     @Override
-    public void visitAnnotation(final MutableTypeDefinition declaringType, final CustomAnnotation annotation, final boolean visible) {
+    public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
         if (visible) {
-            _field.getAnnotations().add(annotation);
+            _field.getAnnotationsInternal().add(annotation);
         }
     }
 
     @Override
-    public void visitEnd(final MutableTypeDefinition declaringType) {
-        _field.setDeclaringType(declaringType);
-        declaringType.declaredFields.add(_field);
+    public void visitEnd() {
+        _field.getDeclaringType().getDeclaredFieldsInternal().add(_field);
     }
 }

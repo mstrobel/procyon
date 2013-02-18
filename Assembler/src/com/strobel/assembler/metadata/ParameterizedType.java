@@ -25,13 +25,23 @@ final class ParameterizedType extends TypeReference implements IGenericInstance 
     }
 
     @Override
+    public String getFullName() {
+        return _genericDefinition.getFullName();
+    }
+
+    @Override
+    public String getInternalName() {
+        return _genericDefinition.getInternalName();
+    }
+
+    @Override
     public TypeReference getDeclaringType() {
         return _genericDefinition.getDeclaringType();
     }
 
     @Override
-    public long getFlags() {
-        return _genericDefinition.getFlags();
+    public String getSimpleName() {
+        return _genericDefinition.getSimpleName();
     }
 
     @Override

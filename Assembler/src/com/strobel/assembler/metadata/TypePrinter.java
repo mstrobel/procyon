@@ -12,17 +12,15 @@ import java.util.List;
 /**
  * @author Mike Strobel
  */
-public class ClassPrinter implements ClassVisitor<MutableTypeDefinition> {
+public class TypePrinter implements TypeVisitor {
     private final CodePrinter _printer;
 
-    public ClassPrinter(final CodePrinter printer) {
-
+    public TypePrinter(final CodePrinter printer) {
         _printer = printer;
     }
 
     @Override
     public void visit(
-        final MutableTypeDefinition _,
         final int majorVersion,
         final int minorVersion,
         final int flags,
@@ -58,26 +56,38 @@ public class ClassPrinter implements ClassVisitor<MutableTypeDefinition> {
     }
 
     @Override
-    public void visitAttribute(final MutableTypeDefinition _, final SourceAttribute attribute) {
+    public void visitParser(final MetadataParser parser) {
     }
 
     @Override
-    public void visitAnnotation(final MutableTypeDefinition _, final CustomAnnotation annotation, final boolean visible) {
+    public void visitOuterType(final TypeReference type) {
     }
 
     @Override
-    public FieldPrinter visitField(final MutableTypeDefinition _, final int flags, final String name, final TypeReference fieldType) {
+    public void visitInnerType(final TypeDefinition type) {
+    }
+
+    @Override
+    public void visitAttribute(final SourceAttribute attribute) {
+    }
+
+    @Override
+    public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
+    }
+
+    @Override
+    public FieldPrinter visitField(final int flags, final String name, final TypeReference fieldType) {
         _printer.println();
         return new FieldPrinter(_printer, flags, name, fieldType);
     }
 
     @Override
-    public MethodPrinter visitMethod(final MutableTypeDefinition _, final int flags, final String name, final IMethodSignature signature, final TypeReference... thrownTypes) {
+    public MethodPrinter visitMethod(final int flags, final String name, final IMethodSignature signature, final TypeReference... thrownTypes) {
         _printer.println();
         return new MethodPrinter(_printer, flags, name, signature, thrownTypes);
     }
 
     @Override
-    public void visitEnd(final MutableTypeDefinition _) {
+    public void visitEnd() {
     }
 }

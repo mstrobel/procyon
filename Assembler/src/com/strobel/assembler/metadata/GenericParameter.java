@@ -1,48 +1,58 @@
+
+/*
+ * GenericParameter.java
+ *
+ * Copyright (c) 2013 Mike Strobel
+ *
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0.
+ * A copy of the license can be found in the License.html file at the root of this distribution.
+ * By using this source code in any fashion, you are agreeing to be bound by the terms of the
+ * Apache License, Version 2.0.
+ *
+ * You must not remove this notice, or any other, from this software.
+ */
+
 package com.strobel.assembler.metadata;
 
-import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 
-import java.util.Collections;
 import java.util.List;
 
-public final class GenericParameter extends TypeReference {
-    private String _name;
+public final class GenericParameter extends TypeDefinition {
     private int _position;
     private GenericParameterType _type = GenericParameterType.Type;
     private IGenericParameterProvider _owner;
     private TypeReference _extendsBound;
-    private List<CustomAnnotation> _customAnnotations;
 
     public GenericParameter(final String name) {
-        _name = name != null ? name : StringUtilities.EMPTY;
         _extendsBound = BuiltinTypes.Object;
+        setName(name != null ? name : StringUtilities.EMPTY);
     }
 
     public GenericParameter(final String name, final TypeReference extendsBound) {
-        _name = name != null ? name : StringUtilities.EMPTY;
         _extendsBound = VerifyArgument.notNull(extendsBound, "extendsBound");
+        setName(name != null ? name : StringUtilities.EMPTY);
     }
 
-    void setPosition(final int position) {
+    protected final void setPosition(final int position) {
         _position = position;
     }
 
-    void setOwner(final IGenericParameterProvider owner) {
+    protected final void setOwner(final IGenericParameterProvider owner) {
         _owner = owner;
 
         _type = owner instanceof MethodReference ? GenericParameterType.Method
                                                  : GenericParameterType.Type;
     }
 
-    void setExtendsBound(final TypeReference extendsBound) {
+    protected final void setExtendsBound(final TypeReference extendsBound) {
         _extendsBound = extendsBound;
     }
 
     @Override
     public String getName() {
-        final String name = _name;
+        final String name = super.getName();
 
         if (!StringUtilities.isNullOrEmpty(name)) {
             return name;
@@ -53,6 +63,11 @@ public final class GenericParameter extends TypeReference {
 
     @Override
     public String getFullName() {
+        return getName();
+    }
+
+    @Override
+    public String getInternalName() {
         return getName();
     }
 
@@ -91,7 +106,8 @@ public final class GenericParameter extends TypeReference {
 
     @Override
     public boolean hasExtendsBound() {
-        return true;
+        return _extendsBound != null &&
+               !MetadataResolver.areEquivalent(_extendsBound, BuiltinTypes.Object);
     }
 
     @Override
@@ -105,21 +121,25 @@ public final class GenericParameter extends TypeReference {
     }
 
     @Override
-    public List<CustomAnnotation> getAnnotations() {
-        if (_customAnnotations == null) {
-            synchronized (this) {
-                if (_customAnnotations == null) {
-                    _customAnnotations = populateCustomAnnotations();
+    public TypeDefinition resolve() {
+        if (_owner instanceof TypeReference &&
+            !(_owner instanceof TypeDefinition)) {
+            final TypeDefinition resolvedOwner = ((TypeReference) _owner).resolve();
+
+            if (resolvedOwner != null) {
+                final List<GenericParameter> genericParameters = resolvedOwner.getGenericParameters();
+
+                if (_position >= 0 &&
+                    _position < genericParameters.size()) {
+
+                    return genericParameters.get(_position);
                 }
             }
         }
-        return _customAnnotations;
+        return null;
     }
 
-    @Override
-    public long getFlags() {
-        return Flags.PUBLIC;
-    }
+    // <editor-fold defaultstate="collapsed" desc="Name and Signature Formatting">
 
     @Override
     protected StringBuilder appendDescription(final StringBuilder sb) {
@@ -181,23 +201,12 @@ public final class GenericParameter extends TypeReference {
         if (upperBound != null && !upperBound.equals(BuiltinTypes.Object)) {
             sb.append(" extends ");
             if (upperBound.isGenericParameter() || upperBound.equals(getDeclaringType())) {
-                return sb.append(upperBound.getName());
+                return sb.append(upperBound.getSimpleName());
             }
             return upperBound.appendSimpleDescription(sb);
         }
 
         return sb;
-    }
-
-    @Override
-    public TypeDefinition resolve() {
-        return null;
-    }
-
-    // <editor-fold defaultstate="collapsed" desc="Metadata Loading">
-
-    private List<CustomAnnotation> populateCustomAnnotations() {
-        return Collections.emptyList();
     }
 
     // </editor-fold>

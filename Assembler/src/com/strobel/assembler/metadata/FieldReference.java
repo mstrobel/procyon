@@ -14,7 +14,9 @@ public abstract class FieldReference extends MemberReference {
 
     @Override
     public boolean containsGenericParameters() {
-        return getFieldType().containsGenericParameters() ||
+        final TypeReference fieldType = getFieldType();
+
+        return fieldType != null && fieldType.containsGenericParameters() ||
                super.containsGenericParameters();
     }
 
@@ -33,69 +35,6 @@ public abstract class FieldReference extends MemberReference {
     @Override
     protected abstract StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName);
 
-    @Override
-    protected StringBuilder appendDescription(final StringBuilder sb) {
-        StringBuilder s = sb;
-
-        for (final Modifier modifier : Flags.asModifierSet(getModifiers())) {
-            s.append(modifier.toString());
-            s.append(' ');
-        }
-
-        final TypeReference fieldType = getFieldType();
-
-        if (fieldType.isGenericParameter()) {
-            s.append(fieldType.getName());
-        }
-        else {
-            s = fieldType.appendBriefDescription(s);
-        }
-
-        s.append(' ');
-        s.append(getName());
-
-        return s;
-    }
-
-    @Override
-    protected StringBuilder appendBriefDescription(final StringBuilder sb) {
-        StringBuilder s = sb;
-
-        for (final Modifier modifier : Flags.asModifierSet(getModifiers())) {
-            s.append(modifier.toString());
-            s.append(' ');
-        }
-
-        final TypeReference fieldType = getFieldType();
-
-        if (fieldType.isGenericParameter()) {
-            s.append(fieldType.getName());
-        }
-        else {
-            s = fieldType.appendBriefDescription(s);
-        }
-
-        s.append(' ');
-        s.append(getName());
-
-        return s;
-    }
-
-    @Override
-    protected StringBuilder appendErasedDescription(final StringBuilder sb) {
-        StringBuilder s = sb;
-
-        for (final Modifier modifier : Flags.asModifierSet(getModifiers())) {
-            s.append(modifier.toString());
-            s.append(' ');
-        }
-
-        s = getFieldType().getRawType().appendErasedDescription(s);
-        s.append(' ');
-        s.append(getName());
-
-        return s;
-    }
 
     @Override
     protected StringBuilder appendSignature(final StringBuilder sb) {
@@ -105,30 +44,6 @@ public abstract class FieldReference extends MemberReference {
     @Override
     protected StringBuilder appendErasedSignature(final StringBuilder sb) {
         return getFieldType().appendErasedSignature(sb);
-    }
-
-    @Override
-    protected StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        StringBuilder s = sb;
-
-        for (final Modifier modifier : Flags.asModifierSet(getModifiers())) {
-            s.append(modifier.toString());
-            s.append(' ');
-        }
-
-        final TypeReference fieldType = getFieldType();
-
-        if (fieldType.isGenericParameter()) {
-            s.append(fieldType.getName());
-        }
-        else {
-            s = fieldType.appendSimpleDescription(s);
-        }
-
-        s.append(' ');
-        s.append(getName());
-
-        return s;
     }
 
     // </editor-fold>

@@ -50,52 +50,6 @@ public abstract class MemberReference implements IAnnotationsProvider {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="Member Attributes">
-
-    public abstract long getFlags();
-
-    public final int getModifiers() {
-        return Flags.toModifiers(getFlags());
-    }
-
-    public final boolean isFinal() {
-        return Modifier.isFinal(getModifiers());
-    }
-
-    public final boolean isNonPublic() {
-        return !Modifier.isPublic(getModifiers());
-    }
-
-    public final boolean isPrivate() {
-        return Modifier.isPrivate(getModifiers());
-    }
-
-    public final boolean isProtected() {
-        return Modifier.isProtected(getModifiers());
-    }
-
-    public final boolean isPublic() {
-        return Modifier.isPublic(getModifiers());
-    }
-
-    public final boolean isStatic() {
-        return Modifier.isStatic(getModifiers());
-    }
-
-    public final boolean isSynthetic() {
-        return (getModifiers() & Flags.SYNTHETIC) == Flags.SYNTHETIC;
-    }
-
-    public final boolean isDeprecated() {
-        return (getModifiers() & Flags.DEPRECATED) == Flags.DEPRECATED;
-    }
-
-    public final boolean isPackagePrivate() {
-        return (getModifiers() & (Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE)) == 0;
-    }
-
-    // </editor-fold>
-
     // <editor-fold defaultstate="collapsed" desc="Name and Signature Formatting">
 
     public abstract String getName();
@@ -121,50 +75,13 @@ public abstract class MemberReference implements IAnnotationsProvider {
         return appendErasedSignature(new StringBuilder()).toString();
     }
 
-    /**
-     * Human-readable brief description of a type or member, which does not
-     * include information super types, thrown exceptions, or modifiers other
-     * than 'static'.
-     */
-    public String getBriefDescription() {
-        return appendBriefDescription(new StringBuilder()).toString();
-    }
-
-    /**
-     * Human-readable full description of a type or member, which includes
-     * specification of super types (in brief format), thrown exceptions,
-     * and modifiers.
-     */
-    public String getDescription() {
-        return appendDescription(new StringBuilder()).toString();
-    }
-
-    /**
-     * Human-readable erased description of a type or member.
-     */
-    public String getErasedDescription() {
-        return appendErasedDescription(new StringBuilder()).toString();
-    }
-
-    /**
-     * Human-readable simple description of a type or member, which does not
-     * include information super type or fully-qualified type names.
-     */
-    public String getSimpleDescription() {
-        return appendSimpleDescription(new StringBuilder()).toString();
-    }
-
     protected abstract StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName);
-    protected abstract StringBuilder appendDescription(StringBuilder sb);
-    protected abstract StringBuilder appendBriefDescription(StringBuilder sb);
-    protected abstract StringBuilder appendErasedDescription(StringBuilder sb);
     protected abstract StringBuilder appendSignature(StringBuilder sb);
     protected abstract StringBuilder appendErasedSignature(StringBuilder sb);
-    protected abstract StringBuilder appendSimpleDescription(final StringBuilder sb);
 
     @Override
     public String toString() {
-        return getSimpleDescription();
+        return getSignature();
     }
 
     // </editor-fold>

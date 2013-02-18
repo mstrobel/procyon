@@ -1,5 +1,6 @@
 package com.strobel.assembler.metadata;
 
+import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.Frame;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionVisitor;
@@ -16,64 +17,69 @@ import java.util.List;
 /**
  * @author Mike Strobel
  */
-public class MethodDefinitionBuilder implements MethodVisitor<MutableTypeDefinition> {
-    private final MutableMethodDefinition _method = new MutableMethodDefinition();
+public class MethodDefinitionBuilder implements MethodVisitor {
+    private final MethodDefinition _method = new MethodDefinition();
 
     public MethodDefinitionBuilder(
-        final MutableTypeDefinition declaringType,
+        final TypeDefinition declaringType,
         final int flags,
         final String name,
         final IMethodSignature signature,
         final TypeReference... thrownTypes) {
 
         VerifyArgument.notNull(signature, "signature");
+        VerifyArgument.notNull(declaringType, "declaringType");
 
         _method.setDeclaringType(declaringType);
         _method.setFlags(flags);
         _method.setName(VerifyArgument.notNull(name, "name"));
         _method.setReturnType(signature.getReturnType());
 
+        final GenericParameterCollection genericParameters = _method.getGenericParametersInternal();
+        final ParameterDefinitionCollection parameters = _method.getParametersInternal();
+
         for (final GenericParameter genericParameter : signature.getGenericParameters()) {
-            _method.genericParameters.add(genericParameter);
+            genericParameters.add(genericParameter);
         }
 
         for (final ParameterDefinition parameter : signature.getParameters()) {
-            _method.parameters.add(parameter);
+            parameters.add(parameter);
         }
 
         if (thrownTypes != null) {
+            final Collection<TypeReference> thrownTypesInternal = _method.getThrownTypesInternal();
+
             for (final TypeReference thrownType : thrownTypes) {
-                _method.thrownTypes.add(thrownType);
+                thrownTypesInternal.add(thrownType);
             }
         }
     }
 
     @Override
-    public boolean canVisitBody(final MutableTypeDefinition declaringType) {
+    public boolean canVisitBody() {
         return false;
     }
 
     @Override
-    public InstructionVisitor<MutableTypeDefinition> visitBody(final MutableTypeDefinition declaringType, final int maxStack, final int maxLocals) {
+    public InstructionVisitor visitBody(final int maxStack, final int maxLocals) {
         throw ContractUtils.unsupported();
     }
 
     @Override
-    public void visitEnd(final MutableTypeDefinition declaringType) {
-        _method.setDeclaringType(declaringType);
-        declaringType.declaredMethods.add(_method);
+    public void visitEnd() {
+        _method.getDeclaringType().getDeclaredMethodsInternal().add(_method);
     }
 
     @Override
-    public void visitFrame(final MutableTypeDefinition declaringType, final Frame frame) {
+    public void visitFrame(final Frame frame) {
     }
 
     @Override
-    public void visitLineNumber(final MutableTypeDefinition declaringType, final Instruction instruction, final int lineNumber) {
+    public void visitLineNumber(final Instruction instruction, final int lineNumber) {
     }
 
     @Override
-    public void visitAttribute(final MutableTypeDefinition declaringType, final SourceAttribute attribute) {
+    public void visitAttribute(final SourceAttribute attribute) {
         switch (attribute.getName()) {
             case AttributeNames.Synthetic: {
                 _method.setFlags(_method.getFlags() | Flags.SYNTHETIC);
@@ -110,9 +116,9 @@ public class MethodDefinitionBuilder implements MethodVisitor<MutableTypeDefinit
     }
 
     @Override
-    public void visitAnnotation(final MutableTypeDefinition declaringType, final CustomAnnotation annotation, final boolean visible) {
+    public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
         if (visible) {
-            _method.getAnnotations().add(annotation);
+            _method.getAnnotationsInternal().add(annotation);
         }
     }
 }

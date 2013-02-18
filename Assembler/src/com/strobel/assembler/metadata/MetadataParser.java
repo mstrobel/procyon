@@ -4,6 +4,7 @@ import com.strobel.core.ArrayUtilities;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import org.omg.CosNaming._NamingContextExtStub;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -119,6 +120,10 @@ public final class MetadataParser {
             name,
             parseTypeSignature(signature)
         );
+
+        if (_suppressResolveDepth.get() > 0) {
+            return reference;
+        }
 
         final FieldReference resolved = _resolver.resolve(reference);
 
@@ -312,7 +317,14 @@ public final class MetadataParser {
                         genericParameters.add(typeVariable);
 
                         final TypeReference extendsBound = parseCompoundType(signature, position);
-                        final TypeReference resolvedExtendsBound = _resolver.resolve(extendsBound);
+                        final TypeReference resolvedExtendsBound;
+
+                        if (_suppressResolveDepth.get() > 0) {
+                            resolvedExtendsBound = extendsBound;
+                        }
+                        else {
+                            resolvedExtendsBound = _resolver.resolve(extendsBound);
+                        }
 
                         i = position.getValue();
 
@@ -352,7 +364,14 @@ public final class MetadataParser {
         }
         else {
             final TypeReference t = parseTopLevelSignature(signature, position);
-            final TypeReference r = _resolver.resolve(t);
+            final TypeReference r;
+
+            if (_suppressResolveDepth.get() > 0) {
+                r = t;
+            }
+            else {
+                r = _resolver.resolve(t);
+            }
 
             baseType = r != null ? r : t;
             interfaceTypes = null;
@@ -660,6 +679,7 @@ public final class MetadataParser {
 
     // <editor-fold defaultstate="collapsed" desc="Primitive Lookup">
 
+    @SuppressWarnings("MismatchedReadAndWriteOfArray")
     private final static TypeReference[] PRIMITIVE_TYPES = new TypeReference[16];
 
     static {
@@ -755,7 +775,7 @@ public final class MetadataParser {
 
     // <editor-fold defaultstate="collapsed" desc="UnresolvedGenericType Class">
 
-    private final class UnresolvedGenericType extends TypeSpecification implements IGenericInstance {
+    private final class UnresolvedGenericType extends TypeReference implements IGenericInstance {
         private final TypeReference _genericDefinition;
         private final List<TypeReference> _typeParameters;
 
@@ -785,8 +805,18 @@ public final class MetadataParser {
         }
 
         @Override
-        public long getFlags() {
-            return _genericDefinition.getFlags();
+        public String getSimpleName() {
+            return getName();
+        }
+
+        @Override
+        public String getFullName() {
+            return getName();
+        }
+
+        @Override
+        public String getInternalName() {
+            return getName();
         }
 
         @Override
@@ -850,6 +880,9 @@ public final class MetadataParser {
         private final TypeReference _declaringType;
         private final GenericParameterCollection _genericParameters;
 
+        private String _fullName;
+        private String _internalName;
+
         UnresolvedType(final TypeReference declaringType, final String name) {
             _name = VerifyArgument.notNull(name, "name");
             _packageName = StringUtilities.EMPTY;
@@ -898,14 +931,32 @@ public final class MetadataParser {
             return _packageName;
         }
 
+        public String getFullName() {
+            if (_fullName == null) {
+                final StringBuilder name = new StringBuilder();
+                appendName(name, true, true);
+                _fullName = name.toString();
+            }
+            return _fullName;
+        }
+
+        public String getInternalName() {
+            if (_internalName == null) {
+                final StringBuilder name = new StringBuilder();
+                appendName(name, true, false);
+                _internalName = name.toString();
+            }
+            return _internalName;
+        }
+
         @Override
         public TypeReference getDeclaringType() {
             return _declaringType;
         }
 
         @Override
-        public long getFlags() {
-            return 0;
+        public String getSimpleName() {
+            return _name;
         }
 
         @Override
@@ -919,7 +970,7 @@ public final class MetadataParser {
         }
 
         @Override
-        public TypeSpecification makeGenericType(final List<TypeReference> typeArguments) {
+        public TypeReference makeGenericType(final List<TypeReference> typeArguments) {
             VerifyArgument.notEmpty(typeArguments, "typeArguments");
             VerifyArgument.noNullElements(typeArguments, "typeArguments");
 
@@ -932,7 +983,7 @@ public final class MetadataParser {
         }
 
         @Override
-        public TypeSpecification makeGenericType(final TypeReference... typeArguments) {
+        public TypeReference makeGenericType(final TypeReference... typeArguments) {
             VerifyArgument.notEmpty(typeArguments, "typeArguments");
             VerifyArgument.noNullElements(typeArguments, "typeArguments");
 
@@ -1017,11 +1068,6 @@ public final class MetadataParser {
         }
 
         @Override
-        public long getFlags() {
-            return 0;
-        }
-
-        @Override
         public List<GenericParameter> getGenericParameters() {
             return _genericParameters;
         }
@@ -1055,11 +1101,6 @@ public final class MetadataParser {
         @Override
         public TypeReference getDeclaringType() {
             return _declaringType;
-        }
-
-        @Override
-        public long getFlags() {
-            return 0;
         }
 
         @Override

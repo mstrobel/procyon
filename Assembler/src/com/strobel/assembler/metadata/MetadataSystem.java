@@ -4,6 +4,7 @@ import com.strobel.assembler.ir.ClassFileReader;
 import com.strobel.core.Fences;
 import com.strobel.core.VerifyArgument;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -99,25 +100,32 @@ public class MetadataSystem extends MetadataResolver {
             return null;
         }
 
-//        final ClassTypeDefinition definition = ClassTypeDefinition.load(this, buffer);
         final ClassFileReader reader = ClassFileReader.readClass(this, buffer);
-        final TypeDefinitionBuilder builder = new TypeDefinitionBuilder(this);
-        final MutableTypeDefinition definition = new MutableTypeDefinition(this);
+        final TypeDefinitionBuilder builder = new TypeDefinitionBuilder();
 
-        reader.accept(definition, builder);
-        cachedDefinition = _types.putIfAbsent(descriptor, definition);
+        reader.accept(builder);
+
+        final TypeDefinition typeDefinition = builder.getTypeDefinition();
+
+        cachedDefinition = _types.putIfAbsent(descriptor, typeDefinition);
+
+        if (!RESOLVED_TYPES.add(descriptor)) {
+            System.err.printf("!!! ERROR: Duplicate class loaded (%s) !!!\n", descriptor);
+        }
 
         if (cachedDefinition != null) {
             return cachedDefinition;
         }
 
-        return definition;
+        return typeDefinition;
     }
+
+    private final static HashSet<String> RESOLVED_TYPES = new HashSet<>();
 
     // <editor-fold defaultstate="collapsed" desc="Primitive Lookup">
 
-    private final static TypeDefinition[] PRIMITIVE_TYPES_BY_NAME = new TypeDefinition[16];
-    private final static TypeDefinition[] PRIMITIVE_TYPES_BY_DESCRIPTOR = new TypeDefinition['Z' - 'B' + 1];
+    private final static TypeDefinition[] PRIMITIVE_TYPES_BY_NAME = new TypeDefinition['Z' - 'B' + 1];
+    private final static TypeDefinition[] PRIMITIVE_TYPES_BY_DESCRIPTOR = new TypeDefinition[16];
 
     static {
         final TypeDefinition[] allPrimitives = {
@@ -134,7 +142,7 @@ public class MetadataSystem extends MetadataResolver {
 
         for (final TypeDefinition t : allPrimitives) {
             PRIMITIVE_TYPES_BY_DESCRIPTOR[hashPrimitiveName(t.getName())] = t;
-            PRIMITIVE_TYPES_BY_DESCRIPTOR[t.getInternalName().charAt(0) - 'B'] = t;
+            PRIMITIVE_TYPES_BY_NAME[t.getInternalName().charAt(0) - 'B'] = t;
         }
     }
 

@@ -19,17 +19,22 @@ public final class Disassembler {
             return;
         }
 
-        final MutableTypeDefinition type = new MutableTypeDefinition(MetadataSystem.instance());
+        final MetadataSystem metadataSystem = MetadataSystem.instance();
+
+        //
+        // Resolve type and all its dependencies.
+        //
+        metadataSystem.lookupType(internalName);
 
         final ClassFileReader reader = ClassFileReader.readClass(
             ClassFileReader.OPTION_PROCESS_CODE | ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
-            MetadataSystem.instance(),
+            metadataSystem,
             b
         );
 
-        final ClassPrinter classPrinter = new ClassPrinter(printer);
+        final TypePrinter typePrinter = new TypePrinter(printer);
 
-        reader.accept(type, classPrinter);
+        reader.accept(typePrinter);
     }
 
     public static void main(final String[] args) {

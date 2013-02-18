@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
-public class FieldPrinter implements FieldVisitor<MutableTypeDefinition> {
+public class FieldPrinter implements FieldVisitor {
     private final CodePrinter _printer;
     private final int _flags;
     private final String _name;
@@ -48,7 +48,7 @@ public class FieldPrinter implements FieldVisitor<MutableTypeDefinition> {
     }
 
     @Override
-    public void visitAttribute(final MutableTypeDefinition _, final SourceAttribute attribute) {
+    public void visitAttribute(final SourceAttribute attribute) {
         switch (attribute.getName()) {
             case AttributeNames.Signature: {
                 _printer.printf("  Signature: %s", ((SignatureAttribute)attribute).getSignature());
@@ -58,10 +58,10 @@ public class FieldPrinter implements FieldVisitor<MutableTypeDefinition> {
     }
 
     @Override
-    public void visitAnnotation(final MutableTypeDefinition _, final CustomAnnotation annotation, final boolean visible) {
+    public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
     }
 
     @Override
-    public void visitEnd(final MutableTypeDefinition _) {
+    public void visitEnd() {
     }
 }

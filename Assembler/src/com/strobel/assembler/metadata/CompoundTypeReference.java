@@ -20,8 +20,11 @@ public final class CompoundTypeReference extends TypeReference {
     }
 
     @Override
-    public long getFlags() {
-        return Flags.PUBLIC;
+    public String getSimpleName() {
+        if (_baseType != null) {
+            return _baseType.getSimpleName();
+        }
+        return _interfaces.get(0).getSimpleName();
     }
 
     @Override
@@ -30,6 +33,22 @@ public final class CompoundTypeReference extends TypeReference {
             return _baseType.getName();
         }
         return _interfaces.get(0).getName();
+    }
+
+    @Override
+    public String getFullName() {
+        if (_baseType != null) {
+            return _baseType.getFullName();
+        }
+        return _interfaces.get(0).getFullName();
+    }
+
+    @Override
+    public String getInternalName() {
+        if (_baseType != null) {
+            return _baseType.getInternalName();
+        }
+        return _interfaces.get(0).getInternalName();
     }
 
     @Override

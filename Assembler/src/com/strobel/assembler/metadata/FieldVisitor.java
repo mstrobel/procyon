@@ -6,8 +6,8 @@ import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 /**
  * @author Mike Strobel
  */
-public interface FieldVisitor<P> {
-    void visitAttribute(final P parameter, final SourceAttribute attribute);
-    void visitAnnotation(final P parameter, final CustomAnnotation annotation, final boolean visible);
-    void visitEnd(final P parameter);
+public interface FieldVisitor {
+    void visitAttribute(final SourceAttribute attribute);
+    void visitAnnotation(final CustomAnnotation annotation, final boolean visible);
+    void visitEnd();
 }

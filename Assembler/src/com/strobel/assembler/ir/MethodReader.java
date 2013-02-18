@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * @author Mike Strobel
  */
-public class MethodReader<P> implements CodeReader<P> {
+public class MethodReader implements CodeReader {
     private final static String[] LOCAL_VARIABLE_TABLES = {AttributeNames.LocalVariableTypeTable, AttributeNames.LocalVariableTable};
 
     private final CodeAttribute _code;
@@ -23,12 +23,12 @@ public class MethodReader<P> implements CodeReader<P> {
     }
 
     @Override
-    public void accept(final P parameter, final InstructionVisitor<P> visitor) {
-        accept(parameter, null, visitor);
+    public void accept(final InstructionVisitor visitor) {
+        accept(null, visitor);
     }
 
     @SuppressWarnings("ConstantConditions")
-    public void accept(final P parameter, final MethodVisitor<P> methodVisitor, final InstructionVisitor<P> visitor) {
+    public void accept(final MethodVisitor methodVisitor, final InstructionVisitor visitor) {
         final Buffer b = _code.getCode();
         final InstructionCollection body = new InstructionCollection();
         final VariableDefinitionCollection variables = new VariableDefinitionCollection();
@@ -425,14 +425,14 @@ public class MethodReader<P> implements CodeReader<P> {
                 final int lineNumber = lineNumbers != null ? lineNumbers[i] : -1;
 
                 if (lineNumber >= 0) {
-                    methodVisitor.visitLineNumber(parameter, inst, lineNumber);
+                    methodVisitor.visitLineNumber(inst, lineNumber);
                 }
             }
         }
 
         if (visitor != null) {
             for (int i = 0; i < body.size(); i++) {
-                visitor.visit(parameter, body.get(i));
+                visitor.visit(body.get(i));
             }
         }
     }

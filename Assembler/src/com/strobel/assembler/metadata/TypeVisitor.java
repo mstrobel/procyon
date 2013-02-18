@@ -6,9 +6,10 @@ import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 /**
  * @author Mike Strobel
  */
-public interface ClassVisitor<P> {
+public interface TypeVisitor {
+    void visitParser(final MetadataParser parser);
+
     void visit(
-        final P parameter,
         final int majorVersion,
         final int minorVersion,
         final int flags,
@@ -17,21 +18,22 @@ public interface ClassVisitor<P> {
         final String baseTypeName,
         final String[] interfaceNames);
 
-    void visitAttribute(final P parameter, final SourceAttribute attribute);
-    void visitAnnotation(final P parameter, final CustomAnnotation annotation, final boolean visible);
+    void visitOuterType(final TypeReference type);
+    void visitInnerType(final TypeDefinition type);
 
-    FieldVisitor<P> visitField(
-        final P parameter,
+    void visitAttribute(final SourceAttribute attribute);
+    void visitAnnotation(final CustomAnnotation annotation, final boolean visible);
+
+    FieldVisitor visitField(
         final int flags,
         final String name,
         final TypeReference fieldType);
 
-    MethodVisitor<P> visitMethod(
-        final P parameter,
+    MethodVisitor visitMethod(
         final int flags,
         final String name,
         final IMethodSignature signature,
         final TypeReference... thrownTypes);
 
-    void visitEnd(final P parameter);
+    void visitEnd();
 }

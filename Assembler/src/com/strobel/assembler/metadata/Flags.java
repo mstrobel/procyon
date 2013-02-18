@@ -313,6 +313,11 @@ public class Flags {
     public static final long CLASH = 1L << 42;
 
     /**
+     * Flag that marks anonymous inner classes.
+     */
+    public static final long ANONYMOUS = 1L << 43;
+
+    /**
      * Modifier masks.
      */
     public static final int
@@ -437,7 +442,7 @@ public class Flags {
     private static final Map<Long, Set<Modifier>> modifierSets =
         new java.util.concurrent.ConcurrentHashMap<>(64);
 
-    public static boolean isEnum(final MethodReference symbol) {
+    public static boolean isEnum(final TypeDefinition symbol) {
         return (symbol.getModifiers() & ENUM) != 0;
     }
 
