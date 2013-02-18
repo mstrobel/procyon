@@ -4,7 +4,6 @@ import com.strobel.assembler.ir.ClassFileReader;
 import com.strobel.core.Fences;
 import com.strobel.core.VerifyArgument;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -109,18 +108,12 @@ public class MetadataSystem extends MetadataResolver {
 
         cachedDefinition = _types.putIfAbsent(descriptor, typeDefinition);
 
-        if (!RESOLVED_TYPES.add(descriptor)) {
-            System.err.printf("!!! ERROR: Duplicate class loaded (%s) !!!\n", descriptor);
-        }
-
         if (cachedDefinition != null) {
             return cachedDefinition;
         }
 
         return typeDefinition;
     }
-
-    private final static HashSet<String> RESOLVED_TYPES = new HashSet<>();
 
     // <editor-fold defaultstate="collapsed" desc="Primitive Lookup">
 

@@ -21,11 +21,6 @@ public final class Disassembler {
 
         final MetadataSystem metadataSystem = MetadataSystem.instance();
 
-        //
-        // Resolve type and all its dependencies.
-        //
-        metadataSystem.lookupType(internalName);
-
         final ClassFileReader reader = ClassFileReader.readClass(
             ClassFileReader.OPTION_PROCESS_CODE | ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
             metadataSystem,
