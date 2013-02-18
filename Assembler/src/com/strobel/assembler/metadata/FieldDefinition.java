@@ -196,7 +196,7 @@ public class FieldDefinition extends FieldReference implements IMemberDefinition
             final TypeDefinition declaringType = getDeclaringType();
 
             if (declaringType != null) {
-                return declaringType.appendName(sb, true, false).append(getName());
+                return declaringType.appendName(sb, true, false).append('.').append(getName());
             }
         }
 

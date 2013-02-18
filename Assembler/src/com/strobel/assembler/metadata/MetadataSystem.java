@@ -52,17 +52,6 @@ public class MetadataSystem extends MetadataResolver {
     }
 
     @Override
-    protected TypeDefinition getNestedType(final List<TypeDefinition> candidates, final TypeReference reference) {
-        final TypeDefinition baseResult = super.getNestedType(candidates, reference);
-
-        if (baseResult != null) {
-            return baseResult;
-        }
-
-        return resolveType(reference.getDeclaringType().getInternalName() + "$" + reference.getName());
-    }
-
-    @Override
     protected TypeReference lookupTypeCore(final String descriptor) {
         return resolveType(descriptor);
     }

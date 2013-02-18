@@ -146,7 +146,7 @@ public abstract class MetadataResolver implements IMetadataResolver {
         return null;
     }
 
-    protected TypeDefinition getNestedType(final List<TypeDefinition> candidates, final TypeReference reference) {
+    static TypeDefinition getNestedType(final List<TypeDefinition> candidates, final TypeReference reference) {
         for (int i = 0, n = candidates.size(); i < n; i++) {
             final TypeDefinition candidate = candidates.get(i);
 
