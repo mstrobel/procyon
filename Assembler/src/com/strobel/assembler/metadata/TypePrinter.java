@@ -14,6 +14,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.CodePrinter;
+import com.strobel.assembler.DisassemblerOptions;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
@@ -27,9 +28,11 @@ import java.util.List;
  */
 public class TypePrinter implements TypeVisitor {
     private final CodePrinter _printer;
+    private final DisassemblerOptions _options;
 
-    public TypePrinter(final CodePrinter printer) {
+    public TypePrinter(final CodePrinter printer, final DisassemblerOptions options) {
         _printer = printer;
+        _options = options;
     }
 
     @Override
@@ -97,7 +100,7 @@ public class TypePrinter implements TypeVisitor {
     @Override
     public MethodPrinter visitMethod(final long flags, final String name, final IMethodSignature signature, final TypeReference... thrownTypes) {
         _printer.println();
-        return new MethodPrinter(_printer, flags, name, signature, thrownTypes);
+        return new MethodPrinter(_printer, _options, flags, name, signature, thrownTypes);
     }
 
     @Override

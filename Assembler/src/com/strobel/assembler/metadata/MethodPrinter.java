@@ -14,6 +14,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.CodePrinter;
+import com.strobel.assembler.DisassemblerOptions;
 import com.strobel.assembler.ir.*;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.SignatureAttribute;
@@ -23,6 +24,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -32,15 +34,20 @@ public class MethodPrinter implements MethodVisitor {
     private final String _name;
     private final IMethodSignature _signature;
     private final TypeReference[] _thrownTypes;
+    private final DisassemblerOptions _options;
+
+    private int[] _lineNumbers;
 
     public MethodPrinter(
         final CodePrinter printer,
+        final DisassemblerOptions options,
         final long flags,
         final String name,
         final IMethodSignature signature,
         final TypeReference... thrownTypes) {
 
         _printer = VerifyArgument.notNull(printer, "printer");
+        _options = options;
         _flags = flags;
         _name = VerifyArgument.notNull(name, "name");
         _signature = signature;
@@ -164,9 +171,15 @@ public class MethodPrinter implements MethodVisitor {
     }
 
     @Override
-    public InstructionVisitor visitBody(final int maxStack, final int maxLocals) {
+    public InstructionVisitor visitBody(final int codeSize, final int maxStack, final int maxLocals) {
         _printer.println("  Code:");
         _printer.printf("    stack=%d, locals=%d, arguments=%d\n", maxStack, maxLocals, _signature.getParameters().size());
+
+        if (codeSize > 0) {
+            _lineNumbers = new int[codeSize];
+            Arrays.fill(_lineNumbers, -1);
+        }
+
         return new InstructionPrinter();
     }
 
@@ -180,6 +193,13 @@ public class MethodPrinter implements MethodVisitor {
 
     @Override
     public void visitLineNumber(final Instruction instruction, final int lineNumber) {
+        if (_options != null &&
+            _options.getPrintLineNumbers() &&
+            _lineNumbers != null &&
+            lineNumber >= 0) {
+
+            _lineNumbers[instruction.getOffset()] = lineNumber;
+        }
     }
 
     @Override
@@ -200,9 +220,10 @@ public class MethodPrinter implements MethodVisitor {
 
     private static final int MAX_OPCODE_LENGTH;
     private static final String[] OPCODE_NAMES;
+    private static final String LINE_NUMBER_CODE = "linenumber";
 
     static {
-        int maxLength = 0;
+        int maxLength = LINE_NUMBER_CODE.length();
 
         final OpCode[] values = OpCode.values();
         final String[] names = new String[values.length];
@@ -224,12 +245,34 @@ public class MethodPrinter implements MethodVisitor {
 
     private final class InstructionPrinter implements InstructionVisitor {
         private void printOpCode(final OpCode opCode) {
-            _printer.printf("%1$-" + MAX_OPCODE_LENGTH + "s", OPCODE_NAMES[opCode.ordinal()]);
+            switch (opCode) {
+                case TABLESWITCH:
+                case LOOKUPSWITCH:
+                    _printer.print(OPCODE_NAMES[opCode.ordinal()]);
+                    break;
+
+                default:
+                    _printer.printf("%1$-" + MAX_OPCODE_LENGTH + "s", OPCODE_NAMES[opCode.ordinal()]);
+                    break;
+            }
         }
 
         @Override
         public void visit(final Instruction instruction) {
             VerifyArgument.notNull(instruction, "instruction");
+
+            if (_lineNumbers != null) {
+                final int lineNumber = _lineNumbers[instruction.getOffset()];
+
+                if (lineNumber >= 0) {
+                    _printer.printf(
+                        "       %1$-" + MAX_OPCODE_LENGTH + "s %2$d",
+                        LINE_NUMBER_CODE,
+                        lineNumber
+                    );
+                    endLine();
+                }
+            }
 
             try {
                 _printer.printf("%1$5d: ", instruction.getOffset());
@@ -413,6 +456,67 @@ public class MethodPrinter implements MethodVisitor {
         @Override
         public void visitSwitch(final OpCode op, final SwitchInfo switchInfo) {
             printOpCode(op);
+            _printer.print(" {");
+            endLine();
+
+            final int valueWidth = 6 + MAX_OPCODE_LENGTH;
+
+            switch (op) {
+                case TABLESWITCH: {
+                    final Instruction[] targets = switchInfo.getTargets();
+
+                    int caseValue = switchInfo.getLowValue();
+
+                    for (final Instruction target : targets) {
+                        _printer.printf(
+                            "%1$" + valueWidth + "d: %2$d",
+                            caseValue++,
+                            target.getOffset()
+                        );
+                        endLine();
+                    }
+
+                    _printer.printf(
+                        "%1$" + valueWidth + "s: %2$d",
+                        "default",
+                        switchInfo.getDefaultTarget().getOffset()
+                    );
+
+                    endLine();
+
+                    break;
+                }
+
+                case LOOKUPSWITCH: {
+                    final int[] keys = switchInfo.getKeys();
+                    final Instruction[] targets = switchInfo.getTargets();
+
+                    for (int i = 0; i < keys.length; i++) {
+                        final int key = keys[i];
+                        final Instruction target = targets[i];
+
+                        _printer.printf(
+                            "%1$" + valueWidth + "d: %2$d",
+                            key,
+                            target.getOffset()
+                        );
+
+                        endLine();
+                    }
+
+                    _printer.printf(
+                        "%1$" + valueWidth + "s: %2$d",
+                        "default",
+                        switchInfo.getDefaultTarget().getOffset()
+                    );
+
+                    endLine();
+
+                    break;
+                }
+            }
+
+            _printer.print("       }");
             endLine();
         }
     }

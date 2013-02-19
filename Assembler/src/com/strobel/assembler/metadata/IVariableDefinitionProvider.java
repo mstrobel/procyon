@@ -1,5 +1,5 @@
 /*
- * CodeReader.java
+ * IVariableDefinitionProvider.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -11,11 +11,13 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.assembler.ir;
+package com.strobel.assembler.metadata;
 
-/**
- * @author Mike Strobel
- */
-public interface CodeReader {
-    MethodBody accept(final InstructionVisitor visitor);
+import com.strobel.assembler.metadata.VariableDefinition;
+
+import java.util.List;
+
+public interface IVariableDefinitionProvider {
+    boolean hasVariables();
+    List<VariableDefinition> getVariables();
 }

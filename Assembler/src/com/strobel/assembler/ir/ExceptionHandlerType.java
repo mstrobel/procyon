@@ -1,5 +1,5 @@
 /*
- * CodeReader.java
+ * ExceptionHandlerType.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -13,9 +13,7 @@
 
 package com.strobel.assembler.ir;
 
-/**
- * @author Mike Strobel
- */
-public interface CodeReader {
-    MethodBody accept(final InstructionVisitor visitor);
+public enum ExceptionHandlerType {
+    Catch,
+    Finally
 }

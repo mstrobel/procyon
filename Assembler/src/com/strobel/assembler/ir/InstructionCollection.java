@@ -21,7 +21,7 @@ import java.util.Comparator;
 /**
  * @author Mike Strobel
  */
-final class InstructionCollection extends Collection<Instruction> {
+public final class InstructionCollection extends Collection<Instruction> {
     public Instruction atOffset(final int offset) {
         final int index = Collections.binarySearch(
             this,

@@ -27,7 +27,7 @@ import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 public interface MethodVisitor {
     boolean canVisitBody();
 
-    InstructionVisitor visitBody(final int maxStack, final int maxLocals);
+    InstructionVisitor visitBody(final int codeSize, final int maxStack, final int maxLocals);
 
     void visitEnd();
     void visitFrame(final Frame frame);

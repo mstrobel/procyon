@@ -13,16 +13,21 @@
 
 package com.strobel.assembler;
 
+import com.sampullara.cli.Args;
 import com.strobel.assembler.ir.ClassFileReader;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.VerifyArgument;
 
-/**
- * @author Mike Strobel
- */
+import java.util.List;
+
 public final class Disassembler {
     public static void disassemble(final String internalName, final CodePrinter printer) {
+        disassemble(internalName, printer, new DisassemblerOptions());
+    }
+
+    public static void disassemble(final String internalName, final CodePrinter printer, final DisassemblerOptions options) {
         VerifyArgument.notNull(internalName, "internalName");
+        VerifyArgument.notNull(options, "options");
 
         final ClasspathTypeLoader loader = new ClasspathTypeLoader();
         final Buffer b = new Buffer();
@@ -35,24 +40,30 @@ public final class Disassembler {
         final MetadataSystem metadataSystem = MetadataSystem.instance();
 
         final ClassFileReader reader = ClassFileReader.readClass(
-            ClassFileReader.OPTION_PROCESS_CODE | ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
+            ClassFileReader.OPTION_PROCESS_CODE |
+            ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
             metadataSystem,
             b
         );
 
-        final TypePrinter typePrinter = new TypePrinter(printer);
+        final TypePrinter typePrinter = new TypePrinter(printer, options);
 
         reader.accept(typePrinter);
     }
 
     public static void main(final String[] args) {
         final CodePrinter printer = new CodePrinter(System.out);
+        final DisassemblerOptions options = new DisassemblerOptions();
+        final List<String> typeNames = Args.parse(options, args);
 
-        if (args.length == 0) {
-            disassemble("com/strobel/assembler/Disassembler", printer);
+        if (typeNames.isEmpty()) {
+            disassemble("com/strobel/assembler/Disassembler", printer, options);
         }
         else {
-            disassemble(args[0], printer);
+            for (final String typeName : typeNames) {
+                disassemble(typeName, printer, options);
+            }
         }
     }
 }
+

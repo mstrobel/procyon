@@ -74,7 +74,7 @@ public class MethodDefinitionBuilder implements MethodVisitor {
     }
 
     @Override
-    public InstructionVisitor visitBody(final int maxStack, final int maxLocals) {
+    public InstructionVisitor visitBody(final int codeSize, final int maxStack, final int maxLocals) {
         throw ContractUtils.unsupported();
     }
 

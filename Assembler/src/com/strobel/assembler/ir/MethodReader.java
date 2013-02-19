@@ -29,22 +29,27 @@ public class MethodReader implements CodeReader {
 
     private final CodeAttribute _code;
     private final IMetadataScope _scope;
+    private final MethodBody _methodBody;
 
     public MethodReader(final CodeAttribute code, final IMetadataScope scope) {
         _code = VerifyArgument.notNull(code, "code");
         _scope = VerifyArgument.notNull(scope, "scope");
+        _methodBody = new MethodBody();
+        _methodBody.setCodeSize(_code.getCode().size());
+        _methodBody.setMaxStackSize(_code.getMaxStack());
+        _methodBody.setMaxLocals(_code.getMaxLocals());
     }
 
     @Override
-    public void accept(final InstructionVisitor visitor) {
-        accept(null, visitor);
+    public MethodBody accept(final InstructionVisitor visitor) {
+        return accept(null, visitor);
     }
 
     @SuppressWarnings("ConstantConditions")
-    public void accept(final MethodVisitor methodVisitor, final InstructionVisitor visitor) {
+    public MethodBody accept(final MethodVisitor methodVisitor, final InstructionVisitor visitor) {
         final Buffer b = _code.getCode();
-        final InstructionCollection body = new InstructionCollection();
-        final VariableDefinitionCollection variables = new VariableDefinitionCollection();
+        final InstructionCollection body = _methodBody.getInstructions();
+        final VariableDefinitionCollection variables = _methodBody.getVariables();
         final VariableDefinition[] locals = new VariableDefinition[_code.getMaxLocals()];
 
         for (final String tableName : LOCAL_VARIABLE_TABLES) {
@@ -206,7 +211,7 @@ public class MethodReader implements CodeReader {
                     }
 
                     final SwitchInfo switchInfo = new SwitchInfo();
-                    final int defaultOffset = b.readInt();
+                    final int defaultOffset = offset + b.readInt();
 
                     inst = Instruction.create(op, switchInfo);
 
@@ -236,9 +241,12 @@ public class MethodReader implements CodeReader {
                         final int high = b.readInt();
                         final Instruction[] targets = new Instruction[high - low + 1];
 
+                        switchInfo.setLowValue(low);
+                        switchInfo.setHighValue(high);
+
                         for (int i = 0; i < targets.length; i++) {
                             final int targetIndex = i;
-                            final int targetOffset = b.readInt();
+                            final int targetOffset = offset + b.readInt();
 
                             if (targetOffset < offset) {
                                 targets[targetIndex] = body.atOffset(targetOffset);
@@ -261,6 +269,8 @@ public class MethodReader implements CodeReader {
                                                                         : newFixup;
                             }
                         }
+
+                        switchInfo.setTargets(targets);
                     }
                     else {
                         final int pairCount = b.readInt();
@@ -272,7 +282,7 @@ public class MethodReader implements CodeReader {
 
                             keys[targetIndex] = b.readInt();
 
-                            final int targetOffset = b.readInt();
+                            final int targetOffset = offset + b.readInt();
 
                             if (targetOffset < offset) {
                                 targets[targetIndex] = body.atOffset(targetOffset);
@@ -448,6 +458,8 @@ public class MethodReader implements CodeReader {
                 visitor.visit(body.get(i));
             }
         }
+
+        return _methodBody;
     }
 
     // <editor-fold defaultstate="collapsed" desc="Fixup Class">

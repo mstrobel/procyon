@@ -188,6 +188,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 else {
                     return new CodeAttribute(
                         length,
+                        codeLength,
                         maxStack,
                         maxLocals,
                         attributes
@@ -725,6 +726,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 reader.accept(
                     visitor,
                     visitor.visitBody(
+                        codeAttribute.getCodeSize(),
                         codeAttribute.getMaxStack(),
                         codeAttribute.getMaxLocals()
                     )

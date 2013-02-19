@@ -26,6 +26,7 @@ import java.util.List;
 public final class CodeAttribute extends SourceAttribute {
     private final int _maxStack;
     private final int _maxLocals;
+    private final int _codeSize;
     private final Buffer _code;
     private final List<ExceptionTableEntry> _exceptionTableEntriesView;
     private final List<SourceAttribute> _attributesView;
@@ -35,7 +36,7 @@ public final class CodeAttribute extends SourceAttribute {
         final int maxStack,
         final int maxLocals,
         final int codeOffset,
-        final int codeLength,
+        final int codeSize,
         final Buffer buffer,
         final ExceptionTableEntry[] exceptionTableEntries,
         final SourceAttribute[] attributes) {
@@ -48,15 +49,16 @@ public final class CodeAttribute extends SourceAttribute {
 
         _maxStack = maxStack;
         _maxLocals = maxLocals;
+        _codeSize = codeSize;
 
-        final Buffer code = new Buffer(codeLength);
+        final Buffer code = new Buffer(codeSize);
 
         System.arraycopy(
             buffer.array(),
             codeOffset,
             code.array(),
             0,
-            codeLength
+            codeSize
         );
 
         _code = code;
@@ -66,6 +68,7 @@ public final class CodeAttribute extends SourceAttribute {
 
     public CodeAttribute(
         final int size,
+        final int codeSize,
         final int maxStack,
         final int maxLocals,
         final SourceAttribute[] attributes) {
@@ -76,6 +79,7 @@ public final class CodeAttribute extends SourceAttribute {
 
         _maxStack = maxStack;
         _maxLocals = maxLocals;
+        _codeSize = codeSize;
         _code = null;
         _attributesView = ArrayUtilities.asUnmodifiableList(attributes.clone());
         _exceptionTableEntriesView = Collections.emptyList();
@@ -87,6 +91,10 @@ public final class CodeAttribute extends SourceAttribute {
 
     public int getMaxLocals() {
         return _maxLocals;
+    }
+
+    public int getCodeSize() {
+        return _codeSize;
     }
 
     public boolean hasCode() {

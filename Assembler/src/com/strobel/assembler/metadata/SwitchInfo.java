@@ -14,6 +14,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.ir.Instruction;
+import com.strobel.core.VerifyArgument;
 
 /**
  * User: Mike Strobel
@@ -21,6 +22,8 @@ import com.strobel.assembler.ir.Instruction;
  * Time: 3:21 PM
  */
 public final class SwitchInfo {
+    private int _lowValue;
+    private int _highValue;
     private int[] _keys;
     private Instruction _defaultTarget;
     private Instruction[] _targets;
@@ -40,6 +43,22 @@ public final class SwitchInfo {
         _targets = targets;
     }
 
+    public int getLowValue() {
+        return _lowValue;
+    }
+
+    public void setLowValue(final int lowValue) {
+        _lowValue = lowValue;
+    }
+
+    public int getHighValue() {
+        return _highValue;
+    }
+
+    public void setHighValue(final int highValue) {
+        _highValue = highValue;
+    }
+
     public boolean hasKeys() {
         return _keys != null;
     }
@@ -56,7 +75,7 @@ public final class SwitchInfo {
         return _targets;
     }
 
-    public void setKeys(final int[] keys) {
+    public void setKeys(final int... keys) {
         _keys = keys;
     }
 
@@ -64,7 +83,7 @@ public final class SwitchInfo {
         _defaultTarget = defaultTarget;
     }
 
-    public void setTargets(final Instruction[] targets) {
-        _targets = targets;
+    public void setTargets(final Instruction... targets) {
+        _targets = VerifyArgument.noNullElements(targets, "targets");
     }
 }
