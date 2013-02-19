@@ -75,12 +75,14 @@ public final class DecompilerHelpers {
 
         if (operand instanceof VariableReference) {
             final VariableReference variable = (VariableReference) operand;
+
             if (variable.hasName()) {
                 writer.writeReference(escapeIdentifier(variable.getName()), variable);
             }
             else {
                 writer.writeReference(String.valueOf(variable.getIndex()), variable);
             }
+
             return;
         }
 
@@ -94,6 +96,7 @@ public final class DecompilerHelpers {
             else {
                 writer.writeReference(escapeIdentifier(parameterName), parameter);
             }
+
             return;
         }
 

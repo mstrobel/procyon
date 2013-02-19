@@ -111,14 +111,14 @@ public class Expression extends Node {
         if (operand instanceof Variable &&
             ((Variable) operand).isGenerated()) {
 
-            if (isStoreLocal(code)) {
+            if (isLocalStore(code)) {
                 output.write(((Variable) operand).getName());
                 output.write(" = ");
                 getArguments().get(0).writeTo(output);
                 return;
             }
 
-            if (isLoadLocal(code)) {
+            if (isLocalLoad(code)) {
                 output.write(((Variable) operand).getName());
 
                 if (inferredType != null) {

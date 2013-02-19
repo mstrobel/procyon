@@ -1,5 +1,5 @@
 /*
- * OpCodeHelper.java
+ * OpCodeHelpers.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -16,7 +16,7 @@ package com.strobel.decompiler.ast;
 import com.strobel.assembler.ir.OpCode;
 
 final class OpCodeHelpers {
-    public static boolean isStoreLocal(final OpCode code) {
+    public static boolean isLocalStore(final OpCode code) {
         if (code == null) {
             return false;
         }
@@ -61,7 +61,7 @@ final class OpCodeHelpers {
         }
     }
 
-    public static boolean isLoadLocal(final OpCode code) {
+    public static boolean isLocalLoad(final OpCode code) {
         if (code == null) {
             return false;
         }
