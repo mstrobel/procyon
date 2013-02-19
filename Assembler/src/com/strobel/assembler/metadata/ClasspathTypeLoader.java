@@ -23,6 +23,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.*;
+import java.util.regex.Pattern;
 
 /**
  * @author Mike Strobel
@@ -35,7 +36,9 @@ public final class ClasspathTypeLoader implements ITypeLoader {
     }
 
     public ClasspathTypeLoader(final String classPath) {
-        final String[] parts = VerifyArgument.notNull(classPath, "classPath").split(System.getProperty("path.separator"));
+        final String[] parts = VerifyArgument.notNull(classPath, "classPath")
+                                             .split(Pattern.quote(System.getProperty("path.separator")));
+
         final URL[] urls = new URL[parts.length];
 
         for (int i = 0; i < parts.length; i++) {
