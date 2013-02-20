@@ -23,4 +23,22 @@ public interface FieldVisitor {
     void visitAttribute(final SourceAttribute attribute);
     void visitAnnotation(final CustomAnnotation annotation, final boolean visible);
     void visitEnd();
+
+    // <editor-fold defaultstate="collapsed" desc="Empty Visitor (No-Op)">
+
+    public static final FieldVisitor EMPTY = new FieldVisitor() {
+        @Override
+        public void visitAttribute(final SourceAttribute attribute) {
+        }
+
+        @Override
+        public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
+        }
+
+        @Override
+        public void visitEnd() {
+        }
+    };
+
+    // </editor-fold>
 }

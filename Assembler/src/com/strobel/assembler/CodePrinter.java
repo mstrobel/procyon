@@ -20,7 +20,7 @@ import java.io.*;
  */
 public class CodePrinter extends PrintWriter {
     public CodePrinter(final Writer out) {
-        super(out);
+        super(out, true);
     }
 
     public CodePrinter(final Writer out, final boolean autoFlush) {

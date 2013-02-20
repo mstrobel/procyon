@@ -15,6 +15,7 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.CodePrinter;
 import com.strobel.assembler.DisassemblerOptions;
+import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
@@ -92,15 +93,25 @@ public class TypePrinter implements TypeVisitor {
     }
 
     @Override
-    public FieldPrinter visitField(final long flags, final String name, final TypeReference fieldType) {
-        _printer.println();
-        return new FieldPrinter(_printer, flags, name, fieldType);
+    public FieldVisitor visitField(final long flags, final String name, final TypeReference fieldType) {
+        if (_options.getPrintFields()) {
+            _printer.println();
+            return new FieldPrinter(_printer, flags, name, fieldType);
+        }
+        else {
+            return FieldVisitor.EMPTY;
+        }
     }
 
     @Override
-    public MethodPrinter visitMethod(final long flags, final String name, final IMethodSignature signature, final TypeReference... thrownTypes) {
+    public MethodVisitor visitMethod(final long flags, final String name, final IMethodSignature signature, final TypeReference... thrownTypes) {
         _printer.println();
         return new MethodPrinter(_printer, _options, flags, name, signature, thrownTypes);
+    }
+
+    @Override
+    public ConstantPool.Visitor visitConstantPool() {
+        return new ConstantPoolPrinter(_printer);
     }
 
     @Override

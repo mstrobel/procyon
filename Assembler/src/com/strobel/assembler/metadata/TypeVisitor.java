@@ -13,6 +13,7 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 
@@ -47,6 +48,8 @@ public interface TypeVisitor {
         final String name,
         final IMethodSignature signature,
         final TypeReference... thrownTypes);
+
+    ConstantPool.Visitor visitConstantPool();
 
     void visitEnd();
 }

@@ -15,6 +15,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
+import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
@@ -233,6 +234,11 @@ public class TypeDefinitionBuilder implements TypeVisitor {
             signature,
             thrownTypes
         );
+    }
+
+    @Override
+    public ConstantPool.Visitor visitConstantPool() {
+        return ConstantPool.Visitor.EMPTY;
     }
 
     @Override

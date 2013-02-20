@@ -56,6 +56,11 @@ public final class Disassembler {
         final DisassemblerOptions options = new DisassemblerOptions();
         final List<String> typeNames = Args.parse(options, args);
 
+        if (options.getPrintUsage()) {
+            Args.usage(options);
+            return;
+        }
+
         if (typeNames.isEmpty()) {
             disassemble("com/strobel/assembler/Disassembler", printer, options);
         }

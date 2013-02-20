@@ -412,12 +412,23 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         visitor.visitParser(getParser());
         populateDeclaringType(visitor);
         visitHeader(visitor);
+        visitConstantPool(visitor);
         populateNamedInnerTypes(visitor);
         visitFields(visitor);
         visitMethods(visitor);
         visitAttributes(visitor);
         populateAnonymousInnerTypes(visitor);
         visitor.visitEnd();
+    }
+
+    private void visitConstantPool(final TypeVisitor visitor) {
+        final ConstantPool.Visitor constantPoolVisitor = visitor.visitConstantPool();
+
+        for (final ConstantPool.Entry entry : constantPool) {
+            constantPoolVisitor.visit(entry);
+        }
+
+        constantPoolVisitor.visitEnd();
     }
 
     private void populateDeclaringType(final TypeVisitor visitor) {

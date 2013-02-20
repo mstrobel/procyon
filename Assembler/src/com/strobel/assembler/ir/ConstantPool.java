@@ -26,14 +26,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 
-/**
- * @author strobelm
- */
 @SuppressWarnings({"PublicField", "ProtectedField"})
-public final class ConstantPool {
-    private final static Writer WRITER = new Writer();
-
+public final class ConstantPool implements Iterable<ConstantPool.Entry> {
     private final ArrayList<Entry> _pool = new ArrayList<>();
     private final HashMap<Key, Entry> _entryMap = new HashMap<>();
     private final Key _lookupKey = new Key();
@@ -41,12 +37,19 @@ public final class ConstantPool {
 
     private int _size;
 
+    @Override
+    public Iterator<Entry> iterator() {
+        return _pool.iterator();
+    }
+
     public void write(final Buffer stream) {
         stream.writeShort(_size + 1);
 
+        final Writer writer = new Writer(stream);
+
         for (final Entry entry : _pool) {
             if (entry != null) {
-                entry.accept(WRITER, stream);
+                entry.accept(writer);
             }
         }
     }
@@ -363,7 +366,8 @@ public final class ConstantPool {
     // <editor-fold defaultstate="collapsed" desc="Entry Base Class">
 
     public static abstract class Entry {
-        protected final int index;
+        public final int index;
+
         protected final ConstantPool owner;
 
         Entry(final ConstantPool owner) {
@@ -390,7 +394,7 @@ public final class ConstantPool {
 
         public abstract int byteLength();
 
-        public abstract <R, D> R accept(Visitor<R, D> visitor, D data);
+        public abstract void accept(final Visitor visitor);
     }
 
     public static abstract class ConstantEntry extends Entry {
@@ -488,8 +492,8 @@ public final class ConstantPool {
 
             lookup = new Tag[Tag.InvokeDynamicInfo.value + 1];
 
-            for (int i = 0; i < values.length; i++) {
-                lookup[values[i].value] = values[i];
+            for (final Tag tag : values) {
+                lookup[tag.value] = tag;
             }
         }
     }
@@ -498,131 +502,203 @@ public final class ConstantPool {
 
     // <editor-fold defaultstate="collapsed" desc="Visitor Interface">
 
-    public interface Visitor<R, P> {
-        R visitTypeInfo(TypeInfoEntry info, P p);
-        R visitDoubleConstant(DoubleConstantEntry info, P p);
-        R visitFieldReference(FieldReferenceEntry info, P p);
-        R visitFloatConstant(FloatConstantEntry info, P p);
-        R visitIntegerConstant(IntegerConstantEntry info, P p);
-        R visitInterfaceMethodReference(InterfaceMethodReferenceEntry info, P p);
-        R visitInvokeDynamicInfo(InvokeDynamicInfoEntry info, P p);
-        R visitLongConstant(LongConstantEntry info, P p);
-        R visitNameAndTypeDescriptor(NameAndTypeDescriptorEntry info, P p);
-        R visitMethodReference(MethodReferenceEntry info, P p);
-        R visitMethodHandle(MethodHandleEntry info, P p);
-        R visitMethodType(MethodTypeEntry info, P p);
-        R visitStringConstant(StringConstantEntry info, P p);
-        R visitUtf8StringConstant(Utf8StringConstantEntry info, P p);
+    public interface Visitor {
+        void visit(Entry entry);
+        void visitTypeInfo(TypeInfoEntry info);
+        void visitDoubleConstant(DoubleConstantEntry info);
+        void visitFieldReference(FieldReferenceEntry info);
+        void visitFloatConstant(FloatConstantEntry info);
+        void visitIntegerConstant(IntegerConstantEntry info);
+        void visitInterfaceMethodReference(InterfaceMethodReferenceEntry info);
+        void visitInvokeDynamicInfo(InvokeDynamicInfoEntry info);
+        void visitLongConstant(LongConstantEntry info);
+        void visitNameAndTypeDescriptor(NameAndTypeDescriptorEntry info);
+        void visitMethodReference(MethodReferenceEntry info);
+        void visitMethodHandle(MethodHandleEntry info);
+        void visitMethodType(MethodTypeEntry info);
+        void visitStringConstant(StringConstantEntry info);
+        void visitUtf8StringConstant(Utf8StringConstantEntry info);
+        void visitEnd();
+
+        // <editor-fold defaultstate="collapsed" desc="Empty Visitor (No-Op)">
+
+        public static final Visitor EMPTY = new Visitor() {
+            @Override
+            public void visit(final Entry entry) {
+            }
+
+            @Override
+            public void visitTypeInfo(final TypeInfoEntry info) {
+            }
+
+            @Override
+            public void visitDoubleConstant(final DoubleConstantEntry info) {
+            }
+
+            @Override
+            public void visitFieldReference(final FieldReferenceEntry info) {
+            }
+
+            @Override
+            public void visitFloatConstant(final FloatConstantEntry info) {
+            }
+
+            @Override
+            public void visitIntegerConstant(final IntegerConstantEntry info) {
+            }
+
+            @Override
+            public void visitInterfaceMethodReference(final InterfaceMethodReferenceEntry info) {
+            }
+
+            @Override
+            public void visitInvokeDynamicInfo(final InvokeDynamicInfoEntry info) {
+            }
+
+            @Override
+            public void visitLongConstant(final LongConstantEntry info) {
+            }
+
+            @Override
+            public void visitNameAndTypeDescriptor(final NameAndTypeDescriptorEntry info) {
+            }
+
+            @Override
+            public void visitMethodReference(final MethodReferenceEntry info) {
+            }
+
+            @Override
+            public void visitMethodHandle(final MethodHandleEntry info) {
+            }
+
+            @Override
+            public void visitMethodType(final MethodTypeEntry info) {
+            }
+
+            @Override
+            public void visitStringConstant(final StringConstantEntry info) {
+            }
+
+            @Override
+            public void visitUtf8StringConstant(final Utf8StringConstantEntry info) {
+            }
+
+            @Override
+            public void visitEnd() {
+            }
+        };
+
+        // </editor-fold>
     }
 
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Writer Class">
 
-    private final static class Writer implements Visitor<Void, Buffer> {
+    private final static class Writer implements Visitor {
+        private final Buffer codeStream;
+
+        private Writer(final Buffer codeStream) {
+            this.codeStream = VerifyArgument.notNull(codeStream, "codeStream");
+        }
 
         @Override
-        public Void visitTypeInfo(final TypeInfoEntry info, final Buffer codeStream) {
+        public void visit(final Entry entry) {
+            entry.accept(this);
+        }
+
+        @Override
+        public void visitTypeInfo(final TypeInfoEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeShort(info.nameIndex);
-            return null;
         }
 
         @Override
-        public Void visitDoubleConstant(final DoubleConstantEntry info, final Buffer codeStream) {
+        public void visitDoubleConstant(final DoubleConstantEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeDouble(info.value);
-            return null;
         }
 
         @Override
-        public Void visitFieldReference(final FieldReferenceEntry info, final Buffer codeStream) {
+        public void visitFieldReference(final FieldReferenceEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeShort(info.typeInfoIndex);
             codeStream.writeShort(info.nameAndTypeDescriptorIndex);
-            return null;
         }
 
         @Override
-        public Void visitFloatConstant(final FloatConstantEntry info, final Buffer codeStream) {
+        public void visitFloatConstant(final FloatConstantEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeFloat(info.value);
-            return null;
         }
 
         @Override
-        public Void visitIntegerConstant(final IntegerConstantEntry info, final Buffer codeStream) {
+        public void visitIntegerConstant(final IntegerConstantEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeInt(info.value);
-            return null;
         }
 
         @Override
-        public Void visitInterfaceMethodReference(final InterfaceMethodReferenceEntry info, final Buffer codeStream) {
+        public void visitInterfaceMethodReference(final InterfaceMethodReferenceEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeShort(info.typeInfoIndex);
             codeStream.writeShort(info.nameAndTypeDescriptorIndex);
-            return null;
         }
 
         @Override
-        public Void visitInvokeDynamicInfo(final InvokeDynamicInfoEntry info, final Buffer codeStream) {
+        public void visitInvokeDynamicInfo(final InvokeDynamicInfoEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeShort(info.bootstrapMethodAttributeIndex);
             codeStream.writeShort(info.nameAndTypeDescriptorIndex);
-            return null;
         }
 
         @Override
-        public Void visitLongConstant(final LongConstantEntry info, final Buffer codeStream) {
+        public void visitLongConstant(final LongConstantEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeLong(info.value);
-            return null;
         }
 
         @Override
-        public Void visitNameAndTypeDescriptor(final NameAndTypeDescriptorEntry info, final Buffer codeStream) {
+        public void visitNameAndTypeDescriptor(final NameAndTypeDescriptorEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeShort(info.nameIndex);
             codeStream.writeShort(info.typeDescriptorIndex);
-            return null;
         }
 
         @Override
-        public Void visitMethodReference(final MethodReferenceEntry info, final Buffer codeStream) {
+        public void visitMethodReference(final MethodReferenceEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeShort(info.typeInfoIndex);
             codeStream.writeShort(info.nameAndTypeDescriptorIndex);
-            return null;
         }
 
         @Override
-        public Void visitMethodHandle(final MethodHandleEntry info, final Buffer codeStream) {
+        public void visitMethodHandle(final MethodHandleEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeShort(info.referenceKind.ordinal());
             codeStream.writeShort(info.referenceIndex);
-            return null;
         }
 
         @Override
-        public Void visitMethodType(final MethodTypeEntry info, final Buffer codeStream) {
+        public void visitMethodType(final MethodTypeEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeShort(info.descriptorIndex);
-            return null;
         }
 
         @Override
-        public Void visitStringConstant(final StringConstantEntry info, final Buffer codeStream) {
+        public void visitStringConstant(final StringConstantEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeShort(info.stringIndex);
-            return null;
         }
 
         @Override
-        public Void visitUtf8StringConstant(final Utf8StringConstantEntry info, final Buffer codeStream) {
+        public void visitUtf8StringConstant(final Utf8StringConstantEntry info) {
             codeStream.writeByte(info.getTag().value);
             codeStream.writeUtf8(info.value);
-            return null;
+        }
+
+        @Override
+        public void visitEnd() {
         }
     }
 
@@ -661,8 +737,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitTypeInfo(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitTypeInfo(this);
         }
 
         @Override
@@ -702,8 +778,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitMethodType(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitMethodType(this);
         }
 
         @Override
@@ -770,8 +846,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitFieldReference(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitFieldReference(this);
         }
     }
 
@@ -786,8 +862,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitMethodReference(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitMethodReference(this);
         }
     }
 
@@ -802,8 +878,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitInterfaceMethodReference(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitInterfaceMethodReference(this);
         }
     }
 
@@ -851,8 +927,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitMethodHandle(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitMethodHandle(this);
         }
     }
 
@@ -890,8 +966,8 @@ public final class ConstantPool {
             return ((Utf8StringConstantEntry) owner.get(typeDescriptorIndex, Tag.Utf8StringConstant)).value;
         }
 
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitNameAndTypeDescriptor(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitNameAndTypeDescriptor(this);
         }
 
         @Override
@@ -935,8 +1011,8 @@ public final class ConstantPool {
             return (NameAndTypeDescriptorEntry) owner.get(nameAndTypeDescriptorIndex, Tag.NameAndTypeDescriptor);
         }
 
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitInvokeDynamicInfo(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitInvokeDynamicInfo(this);
         }
 
         @Override
@@ -981,8 +1057,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitDoubleConstant(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitDoubleConstant(this);
         }
 
         @Override
@@ -1023,8 +1099,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitFloatConstant(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitFloatConstant(this);
         }
 
         @Override
@@ -1065,8 +1141,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitIntegerConstant(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitIntegerConstant(this);
         }
 
         @Override
@@ -1112,8 +1188,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitLongConstant(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitLongConstant(this);
         }
 
         @Override
@@ -1158,8 +1234,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitStringConstant(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitStringConstant(this);
         }
 
         @Override
@@ -1218,8 +1294,8 @@ public final class ConstantPool {
         }
 
         @Override
-        public <R, D> R accept(final Visitor<R, D> visitor, final D data) {
-            return visitor.visitUtf8StringConstant(this, data);
+        public void accept(final Visitor visitor) {
+            visitor.visitUtf8StringConstant(this);
         }
 
         @Override
