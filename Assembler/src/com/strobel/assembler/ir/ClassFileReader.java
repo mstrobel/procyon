@@ -412,11 +412,11 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         visitor.visitParser(getParser());
         populateDeclaringType(visitor);
         visitHeader(visitor);
-        visitConstantPool(visitor);
         populateNamedInnerTypes(visitor);
+        visitAttributes(visitor);
+        visitConstantPool(visitor);
         visitFields(visitor);
         visitMethods(visitor);
-        visitAttributes(visitor);
         populateAnonymousInnerTypes(visitor);
         visitor.visitEnd();
     }
@@ -481,7 +481,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         visitor.visit(
             majorVersion,
             minorVersion,
-            accessFlags,
+            Flags.fromStandardFlags(accessFlags),
             thisClassEntry.getName(),
             signature != null ? signature.getSignature() : null,
             baseClassEntry != null ? baseClassEntry.getName() : null,
@@ -589,7 +589,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             }
 
             final FieldVisitor fieldVisitor = visitor.visitField(
-                field.accessFlags,
+                Flags.fromStandardFlags(field.accessFlags),
                 field.name,
                 fieldType
             );
@@ -666,11 +666,15 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     }
 
                     final MethodVisitor methodVisitor = visitor.visitMethod(
-                        method.accessFlags,
+                        Flags.fromStandardFlags(method.accessFlags),
                         method.name,
                         methodSignature,
                         thrownTypes
                     );
+
+                    if (Flags.testAny(options, OPTION_PROCESS_CODE)) {
+                        visitMethodBody(method, methodVisitor);
+                    }
 
                     for (final SourceAttribute attribute : method.attributes) {
                         methodVisitor.visitAttribute(attribute);
@@ -704,10 +708,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                                 methodVisitor.visitAnnotation(annotation, false);
                             }
                         }
-                    }
-
-                    if (Flags.testAll(options, OPTION_PROCESS_CODE)) {
-                        visitMethodBody(method, methodVisitor);
                     }
 
                     methodVisitor.visitEnd();

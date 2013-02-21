@@ -15,6 +15,7 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.CodePrinter;
 import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.ConstantValueAttribute;
 import com.strobel.assembler.ir.attributes.SignatureAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
@@ -58,14 +59,30 @@ public class FieldPrinter implements FieldVisitor {
         _printer.printf(_name);
         _printer.print(';');
         _printer.println();
+
+        flagStrings.clear();
+
+        for (final Flags.Flag flag : Flags.asFlagSet(_flags & (Flags.VarFlags | ~Flags.StandardFlags))) {
+            flagStrings.add(flag.name());
+        }
+
+        if (!flagStrings.isEmpty()) {
+            _printer.printf("  Flags: %s\n", StringUtilities.join(", ", flagStrings));
+        }
     }
 
     @Override
     public void visitAttribute(final SourceAttribute attribute) {
         switch (attribute.getName()) {
+            case AttributeNames.ConstantValue: {
+                _printer.printf("  ConstantValue: %s", ((ConstantValueAttribute)attribute).getValue());
+                _printer.println();
+                break;
+            }
             case AttributeNames.Signature: {
                 _printer.printf("  Signature: %s", ((SignatureAttribute)attribute).getSignature());
                 _printer.println();
+                break;
             }
         }
     }

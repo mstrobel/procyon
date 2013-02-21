@@ -82,6 +82,9 @@ public class Flags {
         if ((mask & STRICTFP) != 0) {
             flags.add(Flag.STRICTFP);
         }
+        if ((mask & SUPER) != 0) {
+            flags.add(Flag.SUPER);
+        }
         if ((mask & BRIDGE) != 0) {
             flags.add(Flag.BRIDGE);
         }
@@ -331,6 +334,11 @@ public class Flags {
     public static final long ANONYMOUS = 1L << 43;
 
     /**
+     * Mirror of ACC_SUPER.
+     */
+    public static final long SUPER = 1L << 44;
+
+    /**
      * Modifier masks.
      */
     public static final int
@@ -459,6 +467,28 @@ public class Flags {
         return (symbol.getModifiers() & ENUM) != 0;
     }
 
+    public static long fromStandardFlags(final long accessFlags) {
+        long flags = accessFlags;
+
+        if (testAny(accessFlags, ACC_SUPER)) {
+            flags |= SUPER;
+        }
+
+        if (testAny(accessFlags, ACC_BRIDGE)) {
+            flags |= BRIDGE;
+        }
+
+        if (testAny(accessFlags, ACC_SYNTHETIC)) {
+            flags |= SYNTHETIC;
+        }
+
+        if (testAny(accessFlags, ACC_VARARGS)) {
+            flags |= VARARGS;
+        }
+
+        return flags;
+    }
+
     public enum Flag {
         PUBLIC("public"),
         PRIVATE("private"),
@@ -472,6 +502,7 @@ public class Flags {
         INTERFACE("interface"),
         ABSTRACT("abstract"),
         STRICTFP("strictfp"),
+        SUPER("super"),
         BRIDGE("bridge"),
         SYNTHETIC("synthetic"),
         DEPRECATED("deprecated"),

@@ -52,7 +52,7 @@ public final class Disassembler {
     }
 
     public static void main(final String[] args) {
-        final CodePrinter printer = new CodePrinter(System.out);
+        final CodePrinter printer = new CodePrinter(System.out, true);
         final DisassemblerOptions options = new DisassemblerOptions();
         final List<String> typeNames = Args.parse(options, args);
 

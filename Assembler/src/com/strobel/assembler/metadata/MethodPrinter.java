@@ -17,6 +17,9 @@ import com.strobel.assembler.CodePrinter;
 import com.strobel.assembler.DisassemblerOptions;
 import com.strobel.assembler.ir.*;
 import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.ExceptionsAttribute;
+import com.strobel.assembler.ir.attributes.LocalVariableTableAttribute;
+import com.strobel.assembler.ir.attributes.LocalVariableTableEntry;
 import com.strobel.assembler.ir.attributes.SignatureAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
@@ -137,25 +140,37 @@ public class MethodPrinter implements MethodVisitor {
 
         flagStrings.clear();
 
-        if (Flags.testAny(_flags, Flags.PUBLIC)) {
-            flagStrings.add("ACC_PUBLIC");
+        for (final Flags.Flag flag : Flags.asFlagSet(_flags & (Flags.MethodFlags | ~Flags.StandardFlags))) {
+            flagStrings.add(flag.name());
         }
 
-        if (Flags.testAny(_flags, Flags.ACC_SUPER)) {
-            flagStrings.add("ACC_SUPER");
-        }
-
-        if (Flags.testAny(_flags, Flags.ACC_BRIDGE)) {
-            flagStrings.add("ACC_BRIDGE");
-        }
-
-        if (Flags.testAny(_flags, Flags.ACC_VARARGS)) {
-            flagStrings.add("ACC_VARARGS");
-        }
-
-        if (Flags.testAny(_flags, Flags.ACC_SYNTHETIC)) {
-            flagStrings.add("ACC_SYNTHETIC");
-        }
+//        if (Flags.testAny(_flags, Flags.PUBLIC)) {
+//            flagStrings.add("ACC_PUBLIC");
+//        }
+//
+//        if (Flags.testAny(_flags, Flags.PROTECTED)) {
+//            flagStrings.add("ACC_PROTECTED");
+//        }
+//
+//        if (Flags.testAny(_flags, Flags.PRIVATE)) {
+//            flagStrings.add("ACC_PRIVATE");
+//        }
+//
+//        if (Flags.testAny(_flags, Flags.ACC_SUPER)) {
+//            flagStrings.add("ACC_SUPER");
+//        }
+//
+//        if (Flags.testAny(_flags, Flags.ACC_BRIDGE)) {
+//            flagStrings.add("ACC_BRIDGE");
+//        }
+//
+//        if (Flags.testAny(_flags, Flags.ACC_VARARGS)) {
+//            flagStrings.add("ACC_VARARGS");
+//        }
+//
+//        if (Flags.testAny(_flags, Flags.ACC_SYNTHETIC)) {
+//            flagStrings.add("ACC_SYNTHETIC");
+//        }
 
         if (flagStrings.isEmpty()) {
             return;
@@ -205,9 +220,95 @@ public class MethodPrinter implements MethodVisitor {
     @Override
     public void visitAttribute(final SourceAttribute attribute) {
         switch (attribute.getName()) {
-            case AttributeNames.Signature: {
-                _printer.printf("  Signature: %s", ((SignatureAttribute) attribute).getSignature());
+            case AttributeNames.Exceptions: {
+                final ExceptionsAttribute exceptionsAttribute = (ExceptionsAttribute) attribute;
+                final List<TypeReference> exceptionTypes = exceptionsAttribute.getExceptionTypes();
+
+                if (!exceptionTypes.isEmpty()) {
+                    _printer.println("  Exceptions:");
+                    for (final TypeReference exceptionType : exceptionTypes) {
+                        _printer.printf("    throws %s", exceptionType.getBriefDescription());
+                        _printer.println();
+                    }
+                }
+
+                break;
+            }
+
+            case AttributeNames.LocalVariableTable:
+            case AttributeNames.LocalVariableTypeTable: {
+                final LocalVariableTableAttribute localVariables = (LocalVariableTableAttribute) attribute;
+                final List<LocalVariableTableEntry> entries = localVariables.getEntries();
+
+                int longestName = "Name".length();
+                int longestSignature = "Signature".length();
+
+                for (final LocalVariableTableEntry entry : entries) {
+                    final String name = entry.getName();
+                    final String signature;
+                    final TypeReference type = entry.getType();
+
+                    if (type != null) {
+                        if (attribute.getName().equals(AttributeNames.LocalVariableTypeTable)) {
+                            signature = type.getSignature();
+                        }
+                        else {
+                            signature = type.getErasedSignature();
+                        }
+
+                        if (signature.length() > longestSignature) {
+                            longestSignature = signature.length();
+                        }
+                    }
+
+                    if (name != null && name.length() > longestName) {
+                        longestName = name.length();
+                    }
+                }
+
+                _printer.printf("  %s:", attribute.getName());
                 _printer.println();
+                _printer.printf("    Start  Length  Slot  %1$-" + longestName + "s  Signature", "Name");
+                _printer.println();
+
+                _printer.printf(
+                    "    -----  ------  ----  %1$-" + longestName + "s  %2$-" + longestSignature + "s",
+                    StringUtilities.repeat('-', longestName),
+                    StringUtilities.repeat('-', longestSignature)
+                );
+
+                _printer.println();
+
+                for (final LocalVariableTableEntry entry : entries) {
+                    final String signature;
+
+                    if (attribute.getName().equals(AttributeNames.LocalVariableTypeTable)) {
+                        signature = entry.getType().getSignature();
+                    }
+                    else {
+                        signature = entry.getType().getErasedSignature();
+                    }
+
+                    _printer.printf(
+                        "    %1$-5d  %2$-6d  %3$-4d  %4$-" + longestName + "s  %5$s",
+                        entry.getScopeOffset(),
+                        entry.getScopeLength(),
+                        entry.getIndex(),
+                        entry.getName(),
+                        signature
+                    );
+
+                    _printer.println();
+                }
+
+                break;
+            }
+
+            case AttributeNames.Signature: {
+                _printer.println("  Signature:");
+                _printer.printf("    %s", ((SignatureAttribute) attribute).getSignature());
+                _printer.println();
+                break;
             }
         }
     }
@@ -266,7 +367,7 @@ public class MethodPrinter implements MethodVisitor {
 
                 if (lineNumber >= 0) {
                     _printer.printf(
-                        "       %1$-" + MAX_OPCODE_LENGTH + "s %2$d",
+                        "          %1$-" + MAX_OPCODE_LENGTH + "s %2$d",
                         LINE_NUMBER_CODE,
                         lineNumber
                     );
@@ -275,7 +376,7 @@ public class MethodPrinter implements MethodVisitor {
             }
 
             try {
-                _printer.printf("%1$5d: ", instruction.getOffset());
+                _printer.printf("%1$8d: ", instruction.getOffset());
                 instruction.accept(this);
             }
             catch (Throwable t) {
@@ -459,8 +560,6 @@ public class MethodPrinter implements MethodVisitor {
             _printer.print(" {");
             endLine();
 
-            final int valueWidth = 6 + MAX_OPCODE_LENGTH;
-
             switch (op) {
                 case TABLESWITCH: {
                     final Instruction[] targets = switchInfo.getTargets();
@@ -469,7 +568,7 @@ public class MethodPrinter implements MethodVisitor {
 
                     for (final Instruction target : targets) {
                         _printer.printf(
-                            "%1$" + valueWidth + "d: %2$d",
+                            "%1$21d: %2$d",
                             caseValue++,
                             target.getOffset()
                         );
@@ -477,7 +576,7 @@ public class MethodPrinter implements MethodVisitor {
                     }
 
                     _printer.printf(
-                        "%1$" + valueWidth + "s: %2$d",
+                        "%1$21s: %2$d",
                         "default",
                         switchInfo.getDefaultTarget().getOffset()
                     );
@@ -496,7 +595,7 @@ public class MethodPrinter implements MethodVisitor {
                         final Instruction target = targets[i];
 
                         _printer.printf(
-                            "%1$" + valueWidth + "d: %2$d",
+                            "%1$21d: %2$d",
                             key,
                             target.getOffset()
                         );
@@ -505,7 +604,7 @@ public class MethodPrinter implements MethodVisitor {
                     }
 
                     _printer.printf(
-                        "%1$" + valueWidth + "s: %2$d",
+                        "%1$21s: %2$d",
                         "default",
                         switchInfo.getDefaultTarget().getOffset()
                     );
@@ -516,7 +615,7 @@ public class MethodPrinter implements MethodVisitor {
                 }
             }
 
-            _printer.print("       }");
+            _printer.print("          }");
             endLine();
         }
     }

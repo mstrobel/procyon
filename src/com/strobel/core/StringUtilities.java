@@ -15,6 +15,8 @@ package com.strobel.core;
 
 import com.strobel.util.ContractUtils;
 
+import java.util.Arrays;
+
 /**
  * @author Mike Strobel
  */
@@ -577,5 +579,12 @@ public final class StringUtilities {
         }
 
         return sb.toString();
+    }
+
+    public static String repeat(final char ch, final int length) {
+        VerifyArgument.isNonNegative(length, "length");
+        final char[] c = new char[length];
+        Arrays.fill(c, 0, length, ch);
+        return new String(c);
     }
 }

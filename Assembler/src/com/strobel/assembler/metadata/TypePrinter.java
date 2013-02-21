@@ -16,7 +16,12 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.CodePrinter;
 import com.strobel.assembler.DisassemblerOptions;
 import com.strobel.assembler.ir.ConstantPool;
+import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.ConstantValueAttribute;
+import com.strobel.assembler.ir.attributes.EnclosingMethodAttribute;
+import com.strobel.assembler.ir.attributes.SignatureAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
+import com.strobel.assembler.ir.attributes.SourceFileAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
 
@@ -51,21 +56,50 @@ public class TypePrinter implements TypeVisitor {
 
         try {
             if (genericSignature != null) {
-                _printer.printf("Signature: %s\n", genericSignature);
+                _printer.printf("  Signature: %s\n", genericSignature);
             }
 
-            final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(flags & Flags.ClassFlags);
+            _printer.printf("  Minor version: %d\n", minorVersion);
+            _printer.printf("  Major version: %d\n", majorVersion);
+
             final List<String> flagStrings = new ArrayList<>();
+            final EnumSet<Flags.Flag> flagsSet = Flags.asFlagSet(flags & (Flags.ClassFlags | ~Flags.StandardFlags));
 
-            if (Flags.testAll(flags, Flags.ACC_SUPER)) {
-                flagStrings.add("ACC_SUPER");
-            }
-
-            for (final Flags.Flag flag : flagSet) {
+            for (final Flags.Flag flag : flagsSet) {
                 flagStrings.add(flag.name());
             }
 
-            _printer.printf("Flags: %s\n", StringUtilities.join(", ", flagStrings));
+//            if (Flags.testAny(flags, Flags.PUBLIC)) {
+//                flagStrings.add("ACC_PUBLIC");
+//            }
+//
+//            if (Flags.testAny(flags, Flags.PROTECTED)) {
+//                flagStrings.add("ACC_PROTECTED");
+//            }
+//
+//            if (Flags.testAny(flags, Flags.PRIVATE)) {
+//                flagStrings.add("ACC_PRIVATE");
+//            }
+//
+//            if (Flags.testAny(flags, Flags.ACC_SUPER)) {
+//                flagStrings.add("ACC_SUPER");
+//            }
+//
+//            if (Flags.testAny(flags, Flags.ACC_BRIDGE)) {
+//                flagStrings.add("ACC_BRIDGE");
+//            }
+//
+//            if (Flags.testAny(flags, Flags.ACC_VARARGS)) {
+//                flagStrings.add("ACC_VARARGS");
+//            }
+//
+//            if (Flags.testAny(flags, Flags.ACC_SYNTHETIC)) {
+//                flagStrings.add("ACC_SYNTHETIC");
+//            }
+
+            if (!flagStrings.isEmpty()) {
+                _printer.printf("  Flags: %s\n", StringUtilities.join(", ", flagStrings));
+            }
         }
         finally {
             _printer.decreaseIndent();
@@ -86,6 +120,24 @@ public class TypePrinter implements TypeVisitor {
 
     @Override
     public void visitAttribute(final SourceAttribute attribute) {
+        switch (attribute.getName()) {
+            case AttributeNames.SourceFile: {
+                _printer.printf("  SourceFile: %s", ((SourceFileAttribute) attribute).getSourceFile());
+                _printer.println();
+                break;
+            }
+            case AttributeNames.Deprecated: {
+                _printer.print("  Deprecated");
+                _printer.println();
+                break;
+            }
+            case AttributeNames.EnclosingMethod: {
+                final MethodReference enclosingMethod = ((EnclosingMethodAttribute) attribute).getEnclosingMethod();
+                _printer.printf("  EnclosingMethod: %s:%s", enclosingMethod.getFullName(), enclosingMethod.getSignature());
+                _printer.println();
+                break;
+            }
+        }
     }
 
     @Override
