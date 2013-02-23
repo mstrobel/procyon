@@ -41,6 +41,25 @@ public final class InstructionCollection extends Collection<Instruction> {
         return get(index);
     }
 
+    public Instruction tryGetAtOffset(final int offset) {
+        final int index = Collections.binarySearch(
+            this,
+            new Instruction(offset, OpCode.NOP),
+            new Comparator<Instruction>() {
+                @Override
+                public int compare(final Instruction o1, final Instruction o2) {
+                    return Integer.compare(o1.getOffset(), o2.getOffset());
+                }
+            }
+        );
+
+        if (index < 0) {
+            return null;
+        }
+
+        return get(index);
+    }
+
     @Override
     protected void afterAdd(final int index, final Instruction item, final boolean appended) {
         final Instruction next = index < size() - 1 ? get(index + 1) : null;

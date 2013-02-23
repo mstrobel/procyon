@@ -21,7 +21,7 @@ public final class ExceptionBlock {
 
     public ExceptionBlock(final Instruction firstInstruction, final Instruction lastInstruction) {
         _firstInstruction = VerifyArgument.notNull(firstInstruction, "firstInstruction");
-        _lastInstruction = VerifyArgument.notNull(lastInstruction, "lastInstruction");
+        _lastInstruction = lastInstruction;
     }
 
     public final Instruction getFirstInstruction() {

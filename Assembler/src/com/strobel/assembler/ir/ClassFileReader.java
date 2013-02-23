@@ -26,6 +26,7 @@ import com.strobel.util.EmptyArrayCache;
 
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -734,14 +735,54 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             );
 
             if (visitor.canVisitBody()) {
-                reader.accept(
-                    visitor,
-                    visitor.visitBody(
-                        codeAttribute.getCodeSize(),
-                        codeAttribute.getMaxStack(),
-                        codeAttribute.getMaxLocals()
-                    )
+                final MethodBody body = reader.accept(visitor);
+                final InstructionVisitor instructionVisitor = visitor.visitBody(body);
+                final InstructionCollection instructions = body.getInstructions();
+
+                final LineNumberTableAttribute lineNumbersAttribute = SourceAttribute.find(
+                    AttributeNames.LineNumberTable,
+                    codeAttribute.getAttributes()
                 );
+
+                final int[] lineNumbers;
+
+                if (lineNumbersAttribute != null) {
+                    final List<LineNumberTableEntry> entries = lineNumbersAttribute.getEntries();
+
+                    lineNumbers = new int[instructions.size()];
+
+                    Arrays.fill(lineNumbers, -1);
+
+                    for (int i = 0, j = 0; i < instructions.size() && j < entries.size(); i++) {
+                        final Instruction instruction = instructions.get(i);
+                        final LineNumberTableEntry entry = entries.get(j);
+
+                        if (entry.getOffset() == instruction.getOffset()) {
+                            lineNumbers[i] = entry.getLineNumber();
+                            ++j;
+                        }
+                    }
+                }
+                else {
+                    lineNumbers = null;
+                }
+
+                for (int i = 0; i < instructions.size(); i++) {
+                    final Instruction inst = instructions.get(i);
+                    final int lineNumber = lineNumbers != null ? lineNumbers[i] : -1;
+
+                    if (lineNumber >= 0) {
+                        visitor.visitLineNumber(inst, lineNumber);
+                    }
+                }
+
+                if (instructionVisitor != null) {
+                    for (int i = 0; i < instructions.size(); i++) {
+                        instructionVisitor.visit(instructions.get(i));
+                    }
+
+                    visitor.visitEnd();
+                }
             }
         }
     }

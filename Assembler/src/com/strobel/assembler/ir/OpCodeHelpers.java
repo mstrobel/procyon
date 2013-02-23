@@ -11,11 +11,9 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.decompiler.ast;
+package com.strobel.assembler.ir;
 
-import com.strobel.assembler.ir.OpCode;
-
-final class OpCodeHelpers {
+public final class OpCodeHelpers {
     public static boolean isLocalStore(final OpCode code) {
         if (code == null) {
             return false;
@@ -104,5 +102,65 @@ final class OpCodeHelpers {
             default:
                 return false;
         }
+    }
+    
+    public static int getLoadStoreMacroArgumentIndex(final OpCode code) {
+        if (code == null) {
+            return -1;
+        }
+
+        switch (code) {
+            case ILOAD_0:
+            case LLOAD_0:
+            case FLOAD_0:
+            case DLOAD_0:
+            case ALOAD_0:
+            case ISTORE_0:
+            case LSTORE_0:
+            case FSTORE_0:
+            case DSTORE_0:
+            case ASTORE_0:
+                return 0;
+
+            case ILOAD_1:
+            case LLOAD_1:
+            case FLOAD_1:
+            case DLOAD_1:
+            case ALOAD_1:
+            case ISTORE_1:
+            case LSTORE_1:
+            case FSTORE_1:
+            case DSTORE_1:
+            case ASTORE_1:
+                return 1;
+
+            case ILOAD_2:
+            case LLOAD_2:
+            case FLOAD_2:
+            case DLOAD_2:
+            case ALOAD_2:
+            case ISTORE_2:
+            case LSTORE_2:
+            case FSTORE_2:
+            case DSTORE_2:
+            case ASTORE_2:
+                return 2;
+
+            case ILOAD_3:
+            case LLOAD_3:
+            case FLOAD_3:
+            case DLOAD_3:
+            case ALOAD_3:
+            case ISTORE_3:
+            case LSTORE_3:
+            case FSTORE_3:
+            case DSTORE_3:
+            case ASTORE_3:
+                return 3;
+
+            default:
+                return -1;
+        }
+
     }
 }

@@ -24,7 +24,7 @@ import java.util.List;
 /**
  * @author Mike Strobel
  */
-public class MethodReader implements CodeReader {
+public class MethodReader {
     private final static String[] LOCAL_VARIABLE_TABLES = {AttributeNames.LocalVariableTypeTable, AttributeNames.LocalVariableTable};
 
     private final CodeAttribute _code;
@@ -40,13 +40,8 @@ public class MethodReader implements CodeReader {
         _methodBody.setMaxLocals(_code.getMaxLocals());
     }
 
-    @Override
-    public MethodBody accept(final InstructionVisitor visitor) {
-        return accept(null, visitor);
-    }
-
     @SuppressWarnings("ConstantConditions")
-    public MethodBody accept(final MethodVisitor methodVisitor, final InstructionVisitor visitor) {
+    public MethodBody accept(final MethodVisitor methodVisitor) {
         final Buffer b = _code.getCode();
         final InstructionCollection body = _methodBody.getInstructions();
         final VariableDefinitionCollection variables = _methodBody.getVariables();
@@ -415,47 +410,54 @@ public class MethodReader implements CodeReader {
             }
         }
 
-        if (methodVisitor != null) {
-            final LineNumberTableAttribute lineNumbersAttribute = SourceAttribute.find(
-                AttributeNames.LineNumberTable,
-                _code.getAttributes()
-            );
+        final List<ExceptionTableEntry> exceptionTable = _code.getExceptionTableEntries();
 
-            final int[] lineNumbers;
+        if (!exceptionTable.isEmpty()) {
+            final List<ExceptionHandler> exceptionHandlers = _methodBody.getExceptionHandlers();
 
-            if (lineNumbersAttribute != null) {
-                final List<LineNumberTableEntry> entries = lineNumbersAttribute.getEntries();
+            final int lastInstructionOffset;
 
-                lineNumbers = new int[body.size()];
-
-                Arrays.fill(lineNumbers, -1);
-
-                for (int i = 0; i < entries.size(); i++) {
-                    final LineNumberTableEntry entry = entries.get(i);
-                    final int offset = entry.getOffset();
-
-                    if (offset >= 0 && offset < lineNumbers.length) {
-                        lineNumbers[i] = entry.getLineNumber();
-                    }
-                }
+            if (body.isEmpty()) {
+                lastInstructionOffset = -1;
             }
             else {
-                lineNumbers = null;
+                lastInstructionOffset = body.get(body.size() - 1).getOffset();
             }
 
-            for (int i = 0; i < body.size(); i++) {
-                final Instruction inst = body.get(i);
-                final int lineNumber = lineNumbers != null ? lineNumbers[i] : -1;
+            for (final ExceptionTableEntry entry : exceptionTable) {
+                final int startOffset = entry.getStartOffset();
+                final int endOffset = entry.getEndOffset() - 1;
+                final int handlerOffset = entry.getHandlerOffset();
+                final TypeReference catchType = entry.getCatchType();
 
-                if (lineNumber >= 0) {
-                    methodVisitor.visitLineNumber(inst, lineNumber);
+                final Instruction firstInstruction = body.tryGetAtOffset(startOffset);
+                final Instruction handlerStartInstruction = body.tryGetAtOffset(handlerOffset);
+                final Instruction lastInstruction;
+
+                if (endOffset <= lastInstructionOffset) {
+                    lastInstruction = body.tryGetAtOffset(lastInstructionOffset);
                 }
-            }
-        }
+                else {
+                    lastInstruction = new Instruction(OpCode.NOP, endOffset);
+                }
 
-        if (visitor != null) {
-            for (int i = 0; i < body.size(); i++) {
-                visitor.visit(body.get(i));
+                final ExceptionHandler handler;
+
+                if (catchType == null) {
+                    handler = ExceptionHandler.createFinally(
+                        new ExceptionBlock(firstInstruction, lastInstruction),
+                        new ExceptionBlock(handlerStartInstruction, null)
+                    );
+                }
+                else {
+                    handler = ExceptionHandler.createCatch(
+                        new ExceptionBlock(firstInstruction, lastInstruction),
+                        new ExceptionBlock(handlerStartInstruction, null),
+                        catchType
+                    );
+                }
+
+                exceptionHandlers.add(handler);
             }
         }
 

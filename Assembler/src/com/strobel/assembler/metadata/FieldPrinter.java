@@ -21,6 +21,7 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.java.JavaOutputVisitor;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -75,10 +76,18 @@ public class FieldPrinter implements FieldVisitor {
     public void visitAttribute(final SourceAttribute attribute) {
         switch (attribute.getName()) {
             case AttributeNames.ConstantValue: {
-                _printer.printf("  ConstantValue: %s", ((ConstantValueAttribute)attribute).getValue());
+                Object constantValue = ((ConstantValueAttribute) attribute).getValue();
+
+                if (constantValue instanceof String) {
+                    constantValue = JavaOutputVisitor.convertString((String) constantValue, true);
+                }
+
+                _printer.printf("  ConstantValue: %s", constantValue);
                 _printer.println();
+
                 break;
             }
+
             case AttributeNames.Signature: {
                 _printer.printf("  Signature: %s", ((SignatureAttribute)attribute).getSignature());
                 _printer.println();

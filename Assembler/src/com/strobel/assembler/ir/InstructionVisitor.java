@@ -41,4 +41,6 @@ public interface InstructionVisitor {
     void visitLabel(final Label label);
 
     void visitSwitch(final OpCode opCode, final SwitchInfo switchInfo);
+
+    void visitEnd();
 }

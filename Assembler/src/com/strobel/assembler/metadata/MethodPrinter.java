@@ -25,6 +25,7 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerHelpers;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,6 +40,7 @@ public class MethodPrinter implements MethodVisitor {
     private final TypeReference[] _thrownTypes;
     private final DisassemblerOptions _options;
 
+    private MethodBody _body;
     private int[] _lineNumbers;
 
     public MethodPrinter(
@@ -60,82 +62,87 @@ public class MethodPrinter implements MethodVisitor {
     }
 
     private void printDescription() {
-        final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(_flags & Flags.MethodFlags);
         final List<String> flagStrings = new ArrayList<>();
 
-        for (final Flags.Flag flag : flagSet) {
-            flagStrings.add(flag.toString());
+        if ("<clinit>".equals(_name)) {
+            _printer.print("static {}");
         }
+        else {
+            final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(_flags & Flags.MethodFlags);
 
-        if (flagSet.size() > 0) {
-            _printer.printf(StringUtilities.join(" ", flagStrings));
+            for (final Flags.Flag flag : flagSet) {
+                flagStrings.add(flag.toString());
+            }
+
+            if (flagSet.size() > 0) {
+                _printer.printf(StringUtilities.join(" ", flagStrings));
+                _printer.print(' ');
+            }
+
+            final List<GenericParameter> genericParameters = _signature.getGenericParameters();
+
+            if (!genericParameters.isEmpty()) {
+                _printer.print('<');
+
+                for (int i = 0; i < genericParameters.size(); i++) {
+                    if (i != 0) {
+                        _printer.print(", ");
+                    }
+
+                    _printer.print(genericParameters.get(i).getBriefDescription());
+                }
+
+                _printer.print('>');
+            }
+
+            _printer.printf(_signature.getReturnType().getBriefDescription());
             _printer.print(' ');
-        }
+            _printer.printf(_name);
+            _printer.print('(');
 
-        final List<GenericParameter> genericParameters = _signature.getGenericParameters();
+            final List<ParameterDefinition> parameters = _signature.getParameters();
 
-        if (!genericParameters.isEmpty()) {
-            _printer.print('<');
-
-            for (int i = 0; i < genericParameters.size(); i++) {
+            for (int i = 0; i < parameters.size(); i++) {
                 if (i != 0) {
                     _printer.print(", ");
                 }
 
-                _printer.print(genericParameters.get(i).getBriefDescription());
-            }
+                final ParameterDefinition parameter = parameters.get(i);
 
-            _printer.print('>');
-        }
-
-        _printer.printf(_signature.getReturnType().getBriefDescription());
-        _printer.print(' ');
-        _printer.printf(_name);
-        _printer.print('(');
-
-        final List<ParameterDefinition> parameters = _signature.getParameters();
-
-        for (int i = 0; i < parameters.size(); i++) {
-            if (i != 0) {
-                _printer.print(", ");
-            }
-
-            final ParameterDefinition parameter = parameters.get(i);
-
-            if (Flags.testAny(_flags, Flags.ACC_VARARGS) && i == parameters.size() - 1) {
-                _printer.print(parameter.getParameterType().getUnderlyingType().getBriefDescription());
-                _printer.print("...");
-            }
-            else {
-                _printer.print(parameter.getParameterType().getBriefDescription());
-            }
-
-            _printer.print(' ');
-
-            final String parameterName = parameter.getName();
-
-            if (StringUtilities.isNullOrEmpty(parameterName)) {
-                _printer.printf("p%d", i);
-            }
-            else {
-                _printer.print(parameterName);
-            }
-        }
-
-        _printer.print(')');
-
-        if (_thrownTypes != null && _thrownTypes.length > 0) {
-            _printer.print(" throws ");
-
-            for (int i = 0; i < _thrownTypes.length; i++) {
-                if (i != 0) {
-                    _printer.print(", ");
+                if (Flags.testAny(_flags, Flags.ACC_VARARGS) && i == parameters.size() - 1) {
+                    _printer.print(parameter.getParameterType().getUnderlyingType().getBriefDescription());
+                    _printer.print("...");
+                }
+                else {
+                    _printer.print(parameter.getParameterType().getBriefDescription());
                 }
 
-                _printer.print(_thrownTypes[i].getBriefDescription());
+                _printer.print(' ');
+
+                final String parameterName = parameter.getName();
+
+                if (StringUtilities.isNullOrEmpty(parameterName)) {
+                    _printer.printf("p%d", i);
+                }
+                else {
+                    _printer.print(parameterName);
+                }
+            }
+
+            _printer.print(')');
+
+            if (_thrownTypes != null && _thrownTypes.length > 0) {
+                _printer.print(" throws ");
+
+                for (int i = 0; i < _thrownTypes.length; i++) {
+                    if (i != 0) {
+                        _printer.print(", ");
+                    }
+
+                    _printer.print(_thrownTypes[i].getBriefDescription());
+                }
             }
         }
-
         _printer.println(";");
 
         flagStrings.clear();
@@ -186,12 +193,21 @@ public class MethodPrinter implements MethodVisitor {
     }
 
     @Override
-    public InstructionVisitor visitBody(final int codeSize, final int maxStack, final int maxLocals) {
+    public InstructionVisitor visitBody(final MethodBody body) {
+        _body = body;
         _printer.println("  Code:");
-        _printer.printf("    stack=%d, locals=%d, arguments=%d\n", maxStack, maxLocals, _signature.getParameters().size());
 
-        if (codeSize > 0) {
-            _lineNumbers = new int[codeSize];
+        _printer.printf(
+            "    stack=%d, locals=%d, arguments=%d\n",
+            body.getMaxStackSize(),
+            body.getMaxLocals(),
+            _signature.getParameters().size()
+        );
+
+        final InstructionCollection instructions = body.getInstructions();
+
+        if (!instructions.isEmpty()) {
+            _lineNumbers = new int[body.getCodeSize()];
             Arrays.fill(_lineNumbers, -1);
         }
 
@@ -405,6 +421,21 @@ public class MethodPrinter implements MethodVisitor {
         @Override
         public void visit(final OpCode op) {
             printOpCode(op);
+
+            final int argumentIndex = OpCodeHelpers.getLoadStoreMacroArgumentIndex(op);
+
+            if (argumentIndex >= 0) {
+                final VariableDefinitionCollection variables = _body.getVariables();
+
+                if (argumentIndex < variables.size()) {
+                    final VariableDefinition variable = variables.get(argumentIndex);
+
+                    if (variable.hasName()) {
+                        _printer.printf(" /* %s */", variable.getName());
+                    }
+                }
+            }
+
             endLine();
         }
 
@@ -506,7 +537,7 @@ public class MethodPrinter implements MethodVisitor {
                 _printer.print(variable.getName());
             }
 
-            _printer.print(' ');
+            _printer.print(", ");
             _printer.print(operand);
 
             endLine();
@@ -617,6 +648,10 @@ public class MethodPrinter implements MethodVisitor {
 
             _printer.print("          }");
             endLine();
+        }
+
+        @Override
+        public void visitEnd() {
         }
     }
 

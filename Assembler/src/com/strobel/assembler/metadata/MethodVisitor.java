@@ -16,6 +16,7 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.ir.Frame;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionVisitor;
+import com.strobel.assembler.ir.MethodBody;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 
@@ -27,7 +28,7 @@ import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 public interface MethodVisitor {
     boolean canVisitBody();
 
-    InstructionVisitor visitBody(final int codeSize, final int maxStack, final int maxLocals);
+    InstructionVisitor visitBody(final MethodBody body);
 
     void visitEnd();
     void visitFrame(final Frame frame);

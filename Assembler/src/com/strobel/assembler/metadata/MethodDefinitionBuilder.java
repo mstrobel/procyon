@@ -17,6 +17,7 @@ import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.Frame;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionVisitor;
+import com.strobel.assembler.ir.MethodBody;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.LocalVariableTableAttribute;
 import com.strobel.assembler.ir.attributes.LocalVariableTableEntry;
@@ -74,7 +75,7 @@ public class MethodDefinitionBuilder implements MethodVisitor {
     }
 
     @Override
-    public InstructionVisitor visitBody(final int codeSize, final int maxStack, final int maxLocals) {
+    public InstructionVisitor visitBody(final MethodBody body) {
         throw ContractUtils.unsupported();
     }
 

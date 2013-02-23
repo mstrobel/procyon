@@ -29,7 +29,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static com.strobel.decompiler.DecompilerHelpers.writeType;
-import static com.strobel.decompiler.ast.OpCodeHelpers.*;
+import static com.strobel.assembler.ir.OpCodeHelpers.*;
 
 public class Expression extends Node {
     public static final Object ANY_OPERAND = new Object();
