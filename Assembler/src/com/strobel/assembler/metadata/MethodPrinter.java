@@ -25,7 +25,6 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
-import com.strobel.decompiler.DecompilerHelpers;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -150,34 +149,6 @@ public class MethodPrinter implements MethodVisitor {
         for (final Flags.Flag flag : Flags.asFlagSet(_flags & (Flags.MethodFlags | ~Flags.StandardFlags))) {
             flagStrings.add(flag.name());
         }
-
-//        if (Flags.testAny(_flags, Flags.PUBLIC)) {
-//            flagStrings.add("ACC_PUBLIC");
-//        }
-//
-//        if (Flags.testAny(_flags, Flags.PROTECTED)) {
-//            flagStrings.add("ACC_PROTECTED");
-//        }
-//
-//        if (Flags.testAny(_flags, Flags.PRIVATE)) {
-//            flagStrings.add("ACC_PRIVATE");
-//        }
-//
-//        if (Flags.testAny(_flags, Flags.ACC_SUPER)) {
-//            flagStrings.add("ACC_SUPER");
-//        }
-//
-//        if (Flags.testAny(_flags, Flags.ACC_BRIDGE)) {
-//            flagStrings.add("ACC_BRIDGE");
-//        }
-//
-//        if (Flags.testAny(_flags, Flags.ACC_VARARGS)) {
-//            flagStrings.add("ACC_VARARGS");
-//        }
-//
-//        if (Flags.testAny(_flags, Flags.ACC_SYNTHETIC)) {
-//            flagStrings.add("ACC_SYNTHETIC");
-//        }
 
         if (flagStrings.isEmpty()) {
             return;

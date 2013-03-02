@@ -211,4 +211,13 @@ final class Error {
             )
         );
     }
+
+    public static RuntimeException stackMapperCalledWithUnexpandedFrame(final FrameType frameType) {
+        throw new IllegalStateException(
+            format(
+                "StackMappingVisitor.visitFrame() was called with an unexpanded frame (%s).",
+                frameType.name()
+            )
+        );
+    }
 }

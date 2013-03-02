@@ -14,6 +14,7 @@
 package com.strobel.assembler;
 
 import java.io.*;
+import java.util.Locale;
 
 /**
  * @author Mike Strobel
@@ -49,6 +50,26 @@ public class CodePrinter extends PrintWriter {
 
     public CodePrinter(final File file, final String csn) throws FileNotFoundException, UnsupportedEncodingException {
         super(file, csn);
+    }
+
+    @Override
+    public CodePrinter printf(final String format, final Object... args) {
+        return (CodePrinter) super.printf(format, args);
+    }
+
+    @Override
+    public CodePrinter printf(final Locale l, final String format, final Object... args) {
+        return (CodePrinter) super.printf(l, format, args);
+    }
+
+    @Override
+    public CodePrinter format(final String format, final Object... args) {
+        return (CodePrinter) super.format(format, args);
+    }
+
+    @Override
+    public CodePrinter format(final Locale l, final String format, final Object... args) {
+        return (CodePrinter) super.format(l, format, args);
     }
 
     public void increaseIndent() {}

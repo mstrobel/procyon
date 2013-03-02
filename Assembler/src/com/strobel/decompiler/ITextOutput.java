@@ -25,6 +25,9 @@ public interface ITextOutput {
 
     void write(final char ch);
     void write(final String text);
+    void write(final String format, final Object... args);
+    void writeLine(final String text);
+    void writeLine(final String format, final Object... args);
     void writeLine();
 
     void writeDefinition(final String text, final Object definition);

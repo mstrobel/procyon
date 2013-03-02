@@ -13,8 +13,11 @@
 
 package com.strobel.assembler.ir;
 
+import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.EmptyArrayCache;
+
+import java.util.List;
 
 /**
  * User: Mike Strobel
@@ -24,29 +27,29 @@ import com.strobel.util.EmptyArrayCache;
 public final class Frame {
     public final static Frame SAME = new Frame(
         FrameType.Same,
-        EmptyArrayCache.fromElementType(StackValue.class),
-        EmptyArrayCache.fromElementType(StackValue.class)
+        EmptyArrayCache.fromElementType(FrameValue.class),
+        EmptyArrayCache.fromElementType(FrameValue.class)
     );
 
     private final FrameType _frameType;
-    private final StackValue[] _localValues;
-    private final StackValue[] _stackValues;
+    private final List<FrameValue> _localValues;
+    private final List<FrameValue> _stackValues;
 
-    public Frame(final FrameType frameType, final StackValue[] localValues, final StackValue[] stackValues) {
+    public Frame(final FrameType frameType, final FrameValue[] localValues, final FrameValue[] stackValues) {
         _frameType = VerifyArgument.notNull(frameType, "frameType");
-        _localValues = VerifyArgument.notNull(localValues, "localValues");
-        _stackValues = VerifyArgument.notNull(stackValues, "stackValues");
+        _localValues = ArrayUtilities.asUnmodifiableList(VerifyArgument.notNull(localValues, "localValues").clone());
+        _stackValues = ArrayUtilities.asUnmodifiableList(VerifyArgument.notNull(stackValues, "stackValues").clone());
     }
 
-    public FrameType getFrameType() {
+    public final FrameType getFrameType() {
         return _frameType;
     }
 
-    public StackValue[] getLocalValues() {
+    public final List<FrameValue> getLocalValues() {
         return _localValues;
     }
 
-    public StackValue[] getStackValues() {
+    public final List<FrameValue> getStackValues() {
         return _stackValues;
     }
 }

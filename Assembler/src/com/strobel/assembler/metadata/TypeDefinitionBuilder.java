@@ -42,6 +42,11 @@ public class TypeDefinitionBuilder implements TypeVisitor {
         _resolverFrame = new ResolverFrame();
     }
 
+    TypeDefinitionBuilder(final TypeDefinition typeDefinition) {
+        this();
+        _typeDefinition = VerifyArgument.notNull(typeDefinition, "typeDefinition");
+    }
+
     public TypeDefinition getTypeDefinition() {
         return _typeDefinition;
     }

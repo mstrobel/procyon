@@ -15,7 +15,10 @@ package com.strobel.assembler;
 
 import com.sampullara.cli.Args;
 import com.strobel.assembler.ir.ClassFileReader;
-import com.strobel.assembler.metadata.*;
+import com.strobel.assembler.metadata.Buffer;
+import com.strobel.assembler.metadata.ClasspathTypeLoader;
+import com.strobel.assembler.metadata.MetadataSystem;
+import com.strobel.assembler.metadata.TypePrinter;
 import com.strobel.core.VerifyArgument;
 
 import java.util.List;

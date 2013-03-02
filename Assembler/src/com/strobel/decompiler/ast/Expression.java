@@ -123,13 +123,13 @@ public class Expression extends Node {
 
                 if (inferredType != null) {
                     output.write(':');
-                    writeType(inferredType, output, NameSyntax.SHORT_TYPE_NAME);
+                    writeType(output, inferredType, NameSyntax.SHORT_TYPE_NAME);
 
                     if (expectedType != null &&
                         !Comparer.equals(expectedType.getInternalName(), inferredType.getInternalName())) {
 
                         output.write("[expected:");
-                        writeType(expectedType, output, NameSyntax.SHORT_TYPE_NAME);
+                        writeType(output, expectedType, NameSyntax.SHORT_TYPE_NAME);
                         output.write(']');
                     }
                 }
@@ -142,19 +142,19 @@ public class Expression extends Node {
 
         if (inferredType != null) {
             output.write(':');
-            writeType(inferredType, output, NameSyntax.SHORT_TYPE_NAME);
+            writeType(output, inferredType, NameSyntax.SHORT_TYPE_NAME);
 
             if (expectedType != null &&
                 !Comparer.equals(expectedType.getInternalName(), inferredType.getInternalName())) {
 
                 output.write("[expected:");
-                writeType(expectedType, output, NameSyntax.SHORT_TYPE_NAME);
+                writeType(output, expectedType, NameSyntax.SHORT_TYPE_NAME);
                 output.write(']');
             }
         }
         else if (expectedType != null) {
             output.write("[expected:");
-            writeType(expectedType, output, NameSyntax.SHORT_TYPE_NAME);
+            writeType(output, expectedType, NameSyntax.SHORT_TYPE_NAME);
             output.write(']');
         }
 
@@ -183,7 +183,7 @@ public class Expression extends Node {
                 final TypeReference declaringType = method.getDeclaringType();
 
                 if (declaringType != null) {
-                    writeType(declaringType, output, NameSyntax.SHORT_TYPE_NAME);
+                    writeType(output, declaringType, NameSyntax.SHORT_TYPE_NAME);
                     output.write("::");
                 }
 

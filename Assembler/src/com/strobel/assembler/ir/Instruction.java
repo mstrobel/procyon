@@ -58,12 +58,20 @@ public final class Instruction {
         return _offset >= 0;
     }
 
+    public boolean hasOperand() {
+        return _operand != null;
+    }
+
     public int getOffset() {
         return _offset;
     }
 
     public void setOffset(final int offset) {
         _offset = offset;
+    }
+
+    public int getEndOffset() {
+        return  _offset + getSize();
     }
 
     public OpCode getOpCode() {

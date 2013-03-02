@@ -43,4 +43,78 @@ public interface InstructionVisitor {
     void visitSwitch(final OpCode opCode, final SwitchInfo switchInfo);
 
     void visitEnd();
+
+    // <editor-fold defaultstate="collapsed" desc="Empty Visitor">
+
+    public final static InstructionVisitor EMPTY = new InstructionVisitor() {
+        @Override
+        public void visit(final Instruction instruction) {
+        }
+
+        @Override
+        public void visit(final OpCode opCode) {
+        }
+
+        @Override
+        public void visitConstant(final OpCode opCode, final TypeReference value) {
+        }
+
+        @Override
+        public void visitConstant(final OpCode opCode, final int value) {
+        }
+
+        @Override
+        public void visitConstant(final OpCode opCode, final long value) {
+        }
+
+        @Override
+        public void visitConstant(final OpCode opCode, final float value) {
+        }
+
+        @Override
+        public void visitConstant(final OpCode opCode, final double value) {
+        }
+
+        @Override
+        public void visitConstant(final OpCode opCode, final String value) {
+        }
+
+        @Override
+        public void visitBranch(final OpCode opCode, final Instruction target) {
+        }
+
+        @Override
+        public void visitVariable(final OpCode opCode, final VariableReference variable) {
+        }
+
+        @Override
+        public void visitVariable(final OpCode opCode, final VariableReference variable, final int operand) {
+        }
+
+        @Override
+        public void visitType(final OpCode opCode, final TypeReference type) {
+        }
+
+        @Override
+        public void visitMethod(final OpCode opCode, final MethodReference method) {
+        }
+
+        @Override
+        public void visitField(final OpCode opCode, final FieldReference field) {
+        }
+
+        @Override
+        public void visitLabel(final Label label) {
+        }
+
+        @Override
+        public void visitSwitch(final OpCode opCode, final SwitchInfo switchInfo) {
+        }
+
+        @Override
+        public void visitEnd() {
+        }
+    };
+
+    // </editor-fold>
 }

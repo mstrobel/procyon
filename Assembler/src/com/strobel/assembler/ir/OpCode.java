@@ -63,19 +63,19 @@ public enum OpCode {
     ALOAD_1(0x2B, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.Pop0, StackBehavior.PushA),
     ALOAD_2(0x2C, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.Pop0, StackBehavior.PushA),
     ALOAD_3(0x2D, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.Pop0, StackBehavior.PushA),
-    IALOAD(0x2E, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI4),
-    LALOAD(0x2F, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI8),
-    FALOAD(0x30, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushR4),
-    DALOAD(0x31, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushR8),
-    AALOAD(0x32, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushA),
-    BALOAD(0x33, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI4),
-    CALOAD(0x34, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI4),
-    SALOAD(0x35, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI4),
-    ISTORE(0x36, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopI4, StackBehavior.Push0),
-    LSTORE(0x37, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopI8, StackBehavior.Push0),
-    FSTORE(0x38, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopR4, StackBehavior.Push0),
-    DSTORE(0x39, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopR8, StackBehavior.Push0),
-    ASTORE(0x3A, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopA, StackBehavior.Push0),
+    IALOAD(0x2E, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI4),
+    LALOAD(0x2F, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI8),
+    FALOAD(0x30, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushR4),
+    DALOAD(0x31, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushR8),
+    AALOAD(0x32, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushA),
+    BALOAD(0x33, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI4),
+    CALOAD(0x34, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI4),
+    SALOAD(0x35, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI4),
+    ISTORE(0x36, FlowControl.Next, OpCodeType.ObjectModel, OperandType.Local, StackBehavior.PopI4, StackBehavior.Push0),
+    LSTORE(0x37, FlowControl.Next, OpCodeType.ObjectModel, OperandType.Local, StackBehavior.PopI8, StackBehavior.Push0),
+    FSTORE(0x38, FlowControl.Next, OpCodeType.ObjectModel, OperandType.Local, StackBehavior.PopR4, StackBehavior.Push0),
+    DSTORE(0x39, FlowControl.Next, OpCodeType.ObjectModel, OperandType.Local, StackBehavior.PopR8, StackBehavior.Push0),
+    ASTORE(0x3A, FlowControl.Next, OpCodeType.ObjectModel, OperandType.Local, StackBehavior.PopA, StackBehavior.Push0),
     ISTORE_0(0x3B, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.PopI4, StackBehavior.Push0),
     ISTORE_1(0x3C, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.PopI4, StackBehavior.Push0),
     ISTORE_2(0x3D, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.PopI4, StackBehavior.Push0),
@@ -96,14 +96,14 @@ public enum OpCode {
     ASTORE_1(0x4C, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.PopA, StackBehavior.Push0),
     ASTORE_2(0x4D, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.PopA, StackBehavior.Push0),
     ASTORE_3(0x4E, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.PopA, StackBehavior.Push0),
-    IASTORE(0x4F, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopI4_PopA, StackBehavior.Push0),
-    LASTORE(0x50, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI8_PopI4_PopA, StackBehavior.Push0),
-    FASTORE(0x51, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopR4_PopI4_PopA, StackBehavior.Push0),
-    DASTORE(0x52, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopR8_PopI4_PopA, StackBehavior.Push0),
-    AASTORE(0x53, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopA_PopI4_PopA, StackBehavior.Push0),
-    BASTORE(0x54, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopI4_PopA, StackBehavior.Push0),
-    CASTORE(0x55, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopI4_PopA, StackBehavior.Push0),
-    SASTORE(0x56, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.PopI4_PopI4_PopA, StackBehavior.Push0),
+    IASTORE(0x4F, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopI4_PopA, StackBehavior.Push0),
+    LASTORE(0x50, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI8_PopI4_PopA, StackBehavior.Push0),
+    FASTORE(0x51, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopR4_PopI4_PopA, StackBehavior.Push0),
+    DASTORE(0x52, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopR8_PopI4_PopA, StackBehavior.Push0),
+    AASTORE(0x53, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopA_PopI4_PopA, StackBehavior.Push0),
+    BASTORE(0x54, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopI4_PopA, StackBehavior.Push0),
+    CASTORE(0x55, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopI4_PopA, StackBehavior.Push0),
+    SASTORE(0x56, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopI4_PopA, StackBehavior.Push0),
     POP(0x57, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop1, StackBehavior.Push0),
     POP2(0x58, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop2, StackBehavior.Push0),
     DUP(0x59, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop1, StackBehavior.Push1_Push1),
@@ -199,11 +199,11 @@ public enum OpCode {
     PUTSTATIC(0xB3, FlowControl.Next, OpCodeType.ObjectModel, OperandType.FieldReference, StackBehavior.Pop1, StackBehavior.Push0),
     GETFIELD(0xB4, FlowControl.Next, OpCodeType.ObjectModel, OperandType.FieldReference, StackBehavior.PopA, StackBehavior.Push1),
     PUTFIELD(0xB5, FlowControl.Next, OpCodeType.ObjectModel, OperandType.FieldReference, StackBehavior.Pop1_PopA, StackBehavior.Push0),
-    INVOKEVIRTUAL(0xB6, FlowControl.Call, OpCodeType.Primitive, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
-    INVOKESPECIAL(0xB7, FlowControl.Call, OpCodeType.Primitive, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
+    INVOKEVIRTUAL(0xB6, FlowControl.Call, OpCodeType.ObjectModel, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
+    INVOKESPECIAL(0xB7, FlowControl.Call, OpCodeType.ObjectModel, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
     INVOKESTATIC(0xB8, FlowControl.Call, OpCodeType.Primitive, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
-    INVOKEINTERFACE(0xB9, FlowControl.Call, OpCodeType.Primitive, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
-    INVOKEDYNAMIC(0xBA, FlowControl.Call, OpCodeType.Primitive, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
+    INVOKEINTERFACE(0xB9, FlowControl.Call, OpCodeType.ObjectModel, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
+    INVOKEDYNAMIC(0xBA, FlowControl.Call, OpCodeType.ObjectModel, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
     NEW(0xBB, FlowControl.Next, OpCodeType.ObjectModel, OperandType.TypeReference, StackBehavior.Pop0, StackBehavior.PushA),
     NEWARRAY(0xBC, FlowControl.Next, OpCodeType.ObjectModel, OperandType.PrimitiveTypeCode, StackBehavior.PopI4, StackBehavior.PushA),
     ANEWARRAY(0xBD, FlowControl.Next, OpCodeType.ObjectModel, OperandType.TypeReference, StackBehavior.PopI4, StackBehavior.PushA),
@@ -230,7 +230,7 @@ public enum OpCode {
     DSTORE_W(0xC439, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopR8, StackBehavior.Push0),
     ASTORE_W(0xC43A, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopA, StackBehavior.Push0),
     IINC_W(0xC484, FlowControl.Next, OpCodeType.Primitive, OperandType.LocalI2, StackBehavior.Pop0, StackBehavior.Push0),
-    RET_W(0xC4A9, FlowControl.Return, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.Push0);
+    RET_W(0xC4A9, FlowControl.Branch, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.Push0);
 
     private OpCode(
         final int code,
@@ -281,6 +281,117 @@ public enum OpCode {
                _stackBehaviorPush == StackBehavior.VarPush;
     }
 
+    public boolean isBranch() {
+        switch (_flowControl) {
+            case Branch:
+            case ConditionalBranch:
+            case Return:
+            case Throw:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public boolean isUnconditionalBranch() {
+        switch (_flowControl) {
+            case Branch:
+            case Return:
+            case Throw:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public boolean isMoveInstruction() {
+        return isLoad() || isStore();
+    }
+    
+    public boolean isLoad() {
+        switch (this) {
+            case ILOAD:
+            case LLOAD:
+            case FLOAD:
+            case DLOAD:
+            case ALOAD:
+            case ILOAD_0:
+            case ILOAD_1:
+            case ILOAD_2:
+            case ILOAD_3:
+            case LLOAD_0:
+            case LLOAD_1:
+            case LLOAD_2:
+            case LLOAD_3:
+            case FLOAD_0:
+            case FLOAD_1:
+            case FLOAD_2:
+            case FLOAD_3:
+            case DLOAD_0:
+            case DLOAD_1:
+            case DLOAD_2:
+            case DLOAD_3:
+            case ALOAD_0:
+            case ALOAD_1:
+            case ALOAD_2:
+            case ALOAD_3:
+                return true;
+
+            case ILOAD_W:
+            case LLOAD_W:
+            case FLOAD_W:
+            case DLOAD_W:
+            case ALOAD_W:
+                return true;
+
+
+            default:
+                return false;
+        }
+    }
+
+    public boolean isStore() {
+        switch (this) {
+            case ISTORE:
+            case LSTORE:
+            case FSTORE:
+            case DSTORE:
+            case ASTORE:
+            case ISTORE_0:
+            case ISTORE_1:
+            case ISTORE_2:
+            case ISTORE_3:
+            case LSTORE_0:
+            case LSTORE_1:
+            case LSTORE_2:
+            case LSTORE_3:
+            case FSTORE_0:
+            case FSTORE_1:
+            case FSTORE_2:
+            case FSTORE_3:
+            case DSTORE_0:
+            case DSTORE_1:
+            case DSTORE_2:
+            case DSTORE_3:
+            case ASTORE_0:
+            case ASTORE_1:
+            case ASTORE_2:
+            case ASTORE_3:
+                return true;
+
+            case ISTORE_W:
+            case LSTORE_W:
+            case FSTORE_W:
+            case DSTORE_W:
+            case ASTORE_W:
+                return true;
+
+
+            default:
+                return false;
+        }
+    }
+
     public int getSize() {
         return ((_code >> 8) == 0xC4) ? 2 : 1;
     }
@@ -316,6 +427,25 @@ public enum OpCode {
         }
 
         return false;
+    }
+
+    public boolean canThrow() {
+        if (_opCodeType == OpCodeType.ObjectModel) {
+            return this != INSTANCEOF;
+        }
+
+        switch (this) {
+            case IDIV:
+            case LDIV:
+                return true;
+
+            case IREM:
+            case LREM:
+                return true;
+
+            default:
+                return false;
+        }
     }
 
     public OpCode negate() {

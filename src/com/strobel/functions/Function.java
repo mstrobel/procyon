@@ -1,5 +1,5 @@
 /*
- * StackValueType.java
+ * Function.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -11,20 +11,8 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.assembler.ir;
+package com.strobel.functions;
 
-/**
- * User: Mike Strobel
- * Date: 1/6/13
- * Time: 4:11 PM
- */
-public enum StackValueType {
-    Top,
-    Integer,
-    Float,
-    Long,
-    Double,
-    Null,
-    UninitializedThis,
-    Reference;
+public interface Function<T, R> {
+    public R apply(final T input);
 }

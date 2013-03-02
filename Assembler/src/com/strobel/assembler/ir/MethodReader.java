@@ -434,7 +434,7 @@ public class MethodReader {
                 final Instruction handlerStartInstruction = body.tryGetAtOffset(handlerOffset);
                 final Instruction lastInstruction;
 
-                if (endOffset <= lastInstructionOffset) {
+                    if (endOffset <= lastInstructionOffset) {
                     lastInstruction = body.tryGetAtOffset(lastInstructionOffset);
                 }
                 else {

@@ -13,6 +13,8 @@
 
 package com.strobel.decompiler;
 
+import com.strobel.assembler.ir.ExceptionBlock;
+import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MethodReference;
@@ -27,19 +29,35 @@ import com.strobel.util.ContractUtils;
 import static java.lang.String.format;
 
 public final class DecompilerHelpers {
-    public static void writeType(final TypeReference type, final ITextOutput writer) {
-        writeType(type, writer, NameSyntax.SIGNATURE);
+    public static void writeType(final ITextOutput writer, final TypeReference type) {
+        writeType(writer, type, NameSyntax.SIGNATURE);
     }
 
-    public static void writeType(final TypeReference type, final ITextOutput writer, final NameSyntax syntax) {
+    public static void writeType(final ITextOutput writer, final TypeReference type, final NameSyntax syntax) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(writer, "writer");
         VerifyArgument.notNull(syntax, "syntax");
 
-        throw ContractUtils.unreachable();
+        switch (syntax) {
+            case SIGNATURE:
+                writer.write(type.getSignature());
+                break;
+
+            case SIGNATURE_NO_NAMED_TYPE_VARIABLES:
+                writer.write(type.getSignature());
+                break;
+
+            case TYPE_NAME:
+                writer.write(type.getBriefDescription());
+                break;
+
+            case SHORT_TYPE_NAME:
+                writer.write(type.getSimpleDescription());
+                break;
+        }
     }
 
-    public static void writeMethod(final MethodReference method, final ITextOutput writer) {
+    public static void writeMethod(final ITextOutput writer, final MethodReference method) {
         VerifyArgument.notNull(method, "method");
         VerifyArgument.notNull(writer, "writer");
 
@@ -48,7 +66,7 @@ public final class DecompilerHelpers {
         writer.write(method.getSignature());
     }
 
-    public static void writeField(final FieldReference field, final ITextOutput writer) {
+    public static void writeField(final ITextOutput writer, final FieldReference field) {
         VerifyArgument.notNull(field, "field");
         VerifyArgument.notNull(writer, "writer");
 
@@ -101,17 +119,17 @@ public final class DecompilerHelpers {
         }
 
         if (operand instanceof MethodReference) {
-            writeMethod((MethodReference) operand, writer);
+            writeMethod(writer, (MethodReference) operand);
             return;
         }
 
         if (operand instanceof TypeReference) {
-            writeType((TypeReference) operand, writer, NameSyntax.TYPE_NAME);
+            writeType(writer, (TypeReference) operand, NameSyntax.TYPE_NAME);
             return;
         }
 
         if (operand instanceof FieldReference) {
-            writeField((FieldReference) operand, writer);
+            writeField(writer, (FieldReference) operand);
             return;
         }
 
@@ -137,10 +155,59 @@ public final class DecompilerHelpers {
         return format("#%1$04x", offset);
     }
 
+    public static void writeExceptionHandler(final ITextOutput output, final ExceptionHandler handler) {
+        VerifyArgument.notNull(output, "output");
+        VerifyArgument.notNull(handler, "handler");
+
+        output.write("Try ");
+        writeOffsetReference(output, handler.getTryBlock().getFirstInstruction());
+        output.write(" - ");
+        writeEndOffsetReference(output, handler.getTryBlock().getLastInstruction());
+        output.write(' ');
+        output.write(String.valueOf(handler.getHandlerType()));
+
+        final TypeReference catchType = handler.getCatchType();
+
+        if (catchType != null) {
+            output.write(' ');
+            writeType(output, catchType);
+        }
+
+        final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+
+        output.write(' ');
+        writeOffsetReference(output, handlerBlock.getFirstInstruction());
+
+        if (handlerBlock.getLastInstruction() != null) {
+            output.write(" - ");
+            writeEndOffsetReference(output, handlerBlock.getLastInstruction());
+        }
+    }
+
+    public static void writeInstruction(final ITextOutput writer, final Instruction instruction) {
+        VerifyArgument.notNull(writer, "writer");
+        VerifyArgument.notNull(instruction, "instruction");
+
+        writer.writeDefinition(offsetToString(instruction.getOffset()), instruction);
+        writer.write(": ");
+        writer.writeReference(instruction.getOpCode().name(), instruction.getOpCode());
+
+        if (instruction.hasOperand()) {
+            writer.write(' ');
+            writeOperandList(writer, instruction);
+        }
+    }
+
     public static void writeOffsetReference(final ITextOutput writer, final Instruction instruction) {
         VerifyArgument.notNull(writer, "writer");
 
         writer.writeReference(offsetToString(instruction.getOffset()), instruction);
+    }
+
+    public static void writeEndOffsetReference(final ITextOutput writer, final Instruction instruction) {
+        VerifyArgument.notNull(writer, "writer");
+
+        writer.writeReference(offsetToString(instruction.getEndOffset()), instruction);
     }
 
     public static String escapeIdentifier(final String name) {
@@ -189,5 +256,14 @@ public final class DecompilerHelpers {
         }
 
         writer.write(')');
+    }
+
+    private static void writeOperandList(final ITextOutput writer, final Instruction instruction) {
+        for (int i = 0, n = instruction.getOperandCount(); i < n; i++) {
+            if (i != 0) {
+                writer.write(", ");
+            }
+            writeOperand(writer, instruction.getOperand(i));
+        }
     }
 }

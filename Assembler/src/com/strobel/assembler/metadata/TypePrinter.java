@@ -69,34 +69,6 @@ public class TypePrinter implements TypeVisitor {
                 flagStrings.add(flag.name());
             }
 
-//            if (Flags.testAny(flags, Flags.PUBLIC)) {
-//                flagStrings.add("ACC_PUBLIC");
-//            }
-//
-//            if (Flags.testAny(flags, Flags.PROTECTED)) {
-//                flagStrings.add("ACC_PROTECTED");
-//            }
-//
-//            if (Flags.testAny(flags, Flags.PRIVATE)) {
-//                flagStrings.add("ACC_PRIVATE");
-//            }
-//
-//            if (Flags.testAny(flags, Flags.ACC_SUPER)) {
-//                flagStrings.add("ACC_SUPER");
-//            }
-//
-//            if (Flags.testAny(flags, Flags.ACC_BRIDGE)) {
-//                flagStrings.add("ACC_BRIDGE");
-//            }
-//
-//            if (Flags.testAny(flags, Flags.ACC_VARARGS)) {
-//                flagStrings.add("ACC_VARARGS");
-//            }
-//
-//            if (Flags.testAny(flags, Flags.ACC_SYNTHETIC)) {
-//                flagStrings.add("ACC_SYNTHETIC");
-//            }
-
             if (!flagStrings.isEmpty()) {
                 _printer.printf("  Flags: %s\n", StringUtilities.join(", ", flagStrings));
             }

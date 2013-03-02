@@ -1,5 +1,5 @@
 /*
- * StackValue.java
+ * FrameValue.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -17,41 +17,44 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
 
-/**
- * User: Mike Strobel
- * Date: 1/6/13
- * Time: 4:14 PM
- */
-public final class StackValue {
-    public final static StackValue TOP = new StackValue(StackValueType.Top);
-    public final static StackValue INTEGER = new StackValue(StackValueType.Integer);
-    public final static StackValue FLOAT = new StackValue(StackValueType.Float);
-    public final static StackValue LONG = new StackValue(StackValueType.Long);
-    public final static StackValue DOUBLE = new StackValue(StackValueType.Double);
-    public final static StackValue NULL = new StackValue(StackValueType.Null);
-    public final static StackValue UNINITIALIZED_THIS = new StackValue(StackValueType.UninitializedThis);
+public final class FrameValue {
+    public final static FrameValue TOP = new FrameValue(FrameValueType.Top);
+    public final static FrameValue INTEGER = new FrameValue(FrameValueType.Integer);
+    public final static FrameValue FLOAT = new FrameValue(FrameValueType.Float);
+    public final static FrameValue LONG = new FrameValue(FrameValueType.Long);
+    public final static FrameValue DOUBLE = new FrameValue(FrameValueType.Double);
+    public final static FrameValue NULL = new FrameValue(FrameValueType.Null);
+    public final static FrameValue UNINITIALIZED_THIS = new FrameValue(FrameValueType.UninitializedThis);
 
-    private final StackValueType _type;
+    private final FrameValueType _type;
     private final Object _parameter;
 
-    private StackValue(final StackValueType type) {
+    private FrameValue(final FrameValueType type) {
         _type = type;
         _parameter = null;
     }
 
-    private StackValue(final StackValueType type, final Object parameter) {
+    private FrameValue(final FrameValueType type, final Object parameter) {
         _type = type;
         _parameter = parameter;
     }
 
+    public final FrameValueType getType() {
+        return _type;
+    }
+
+    public final Object getParameter() {
+        return _parameter;
+    }
+
     @Override
-    public boolean equals(final Object o) {
+    public final boolean equals(final Object o) {
         if (this == o) {
             return true;
         }
 
-        if (o instanceof StackValue) {
-            final StackValue that = (StackValue) o;
+        if (o instanceof FrameValue) {
+            final FrameValue that = (FrameValue) o;
             return that._type == _type &&
                    Comparer.equals(that._parameter, _parameter);
         }
@@ -60,7 +63,7 @@ public final class StackValue {
     }
 
     @Override
-    public int hashCode() {
+    public final int hashCode() {
         int result = _type.hashCode();
         result = 31 * result + (_parameter != null ? _parameter.hashCode() : 0);
         return result;
@@ -68,18 +71,18 @@ public final class StackValue {
 
     // <editor-fold defaultstate="collapsed" desc="Factory Methods">
 
-    public static StackValue makeReference(final TypeReference type) {
-        return new StackValue(StackValueType.Reference, VerifyArgument.notNull(type, "type"));
+    public static FrameValue makeReference(final TypeReference type) {
+        return new FrameValue(FrameValueType.Reference, VerifyArgument.notNull(type, "type"));
     }
 
-    public static StackValue makeUninitializedReference(final Instruction newInstruction) {
+    public static FrameValue makeUninitializedReference(final Instruction newInstruction) {
         VerifyArgument.notNull(newInstruction, "newInstruction");
 
         if (newInstruction.getOpCode() != OpCode.NEW) {
             throw new IllegalArgumentException("Parameter must be a NEW instruction.");
         }
 
-        return new StackValue(StackValueType.Reference, newInstruction);
+        return new FrameValue(FrameValueType.Reference, newInstruction);
     }
 
     // </editor-fold>
