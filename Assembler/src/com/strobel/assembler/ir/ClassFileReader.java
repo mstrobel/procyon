@@ -24,6 +24,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.EmptyArrayCache;
 
+import java.lang.reflect.Modifier;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -736,6 +737,14 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
             if (visitor.canVisitBody()) {
                 final MethodBody body = reader.accept(visitor);
+
+                if (!Modifier.isStatic(methodInfo.accessFlags)) {
+                    final TypeReference thisType = _scope._parser.lookupType(this.packageName, this.name);
+                    body.setThisParameter(new ParameterDefinition("this", thisType));
+                }
+
+                body.freeze();
+
                 final InstructionVisitor instructionVisitor = visitor.visitBody(body);
                 final InstructionCollection instructions = body.getInstructions();
 

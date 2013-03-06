@@ -25,6 +25,7 @@ public final class FrameValue {
     public final static FrameValue DOUBLE = new FrameValue(FrameValueType.Double);
     public final static FrameValue NULL = new FrameValue(FrameValueType.Null);
     public final static FrameValue UNINITIALIZED_THIS = new FrameValue(FrameValueType.UninitializedThis);
+    public final static FrameValue UNINITIALIZED = new FrameValue(FrameValueType.Uninitialized);
 
     private final FrameValueType _type;
     private final Object _parameter;
@@ -69,6 +70,14 @@ public final class FrameValue {
         return result;
     }
 
+    @Override
+    public final String toString() {
+        if (_type == FrameValueType.Reference) {
+            return String.format("%s(%s)", _type, ((TypeReference)_parameter).getSignature());
+        }
+        return _type.name();
+    }
+
     // <editor-fold defaultstate="collapsed" desc="Factory Methods">
 
     public static FrameValue makeReference(final TypeReference type) {
@@ -82,7 +91,7 @@ public final class FrameValue {
             throw new IllegalArgumentException("Parameter must be a NEW instruction.");
         }
 
-        return new FrameValue(FrameValueType.Reference, newInstruction);
+        return new FrameValue(FrameValueType.Uninitialized, newInstruction);
     }
 
     // </editor-fold>

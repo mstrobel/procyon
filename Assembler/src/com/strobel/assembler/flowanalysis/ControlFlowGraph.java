@@ -168,7 +168,7 @@ public final class ControlFlowGraph {
         ControlFlowNode node1 = a;
         ControlFlowNode node2 = b;
 
-        while (node1 != null && path1.add(a)) {
+        while (node1 != null && path1.add(node1)) {
             node1 = node1.getImmediateDominator();
         }
 

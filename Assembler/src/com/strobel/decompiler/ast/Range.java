@@ -20,10 +20,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * @author mstrobel
- */
-public final class Range {
+public final class Range implements Comparable<Range> {
     private int _start;
     private int _end;
 
@@ -51,6 +48,19 @@ public final class Range {
         _end = end;
     }
 
+    @Override
+    public final int compareTo(final Range o) {
+        if (o == null) {
+            return 1;
+        }
+        return Integer.compare(_start, o._start);
+    }
+
+    @Override
+    public final String toString() {
+        return String.format("Range(%d, %d)", _start, _end);
+    }
+
     public static List<Range> orderAndJoint(final Iterable<Range> input) {
         VerifyArgument.notNull(input, "input");
 
@@ -62,15 +72,7 @@ public final class Range {
             }
         }
 
-        Collections.sort(
-            ranges,
-            new Comparator<Range>() {
-                @Override
-                public int compare(final Range o1, final Range o2) {
-                    return Integer.compare(o1._start, o2._start);
-                }
-            }
-        );
+        Collections.sort(ranges);
 
         for (int i = 0; i < ranges.size() - 1; ) {
             final Range current = ranges.get(i);

@@ -16,6 +16,8 @@ package com.strobel.assembler.ir;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerHelpers;
+import com.strobel.decompiler.PlainTextOutput;
 import com.strobel.util.ContractUtils;
 
 import java.lang.reflect.Array;
@@ -150,6 +152,13 @@ public final class Instruction {
         copy._label = _label;
 
         return copy;
+    }
+
+    @Override
+    public String toString() {
+        final PlainTextOutput output = new PlainTextOutput();
+        DecompilerHelpers.writeInstruction(output, this);
+        return output.toString();
     }
 
     // <editor-fold defaultstate="collapsed" desc="Size Calculation">

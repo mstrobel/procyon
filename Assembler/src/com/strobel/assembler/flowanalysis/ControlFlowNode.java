@@ -76,9 +76,11 @@ public final class ControlFlowNode {
 
         final ExceptionBlock handlerBlock = exceptionHandler.getHandlerBlock();
 
-        _start = handlerBlock.getFirstInstruction();
-        _end = handlerBlock.getLastInstruction();
-        _offset = _start.getOffset();
+//        _start = handlerBlock.getFirstInstruction();
+//        _end = handlerBlock.getLastInstruction();
+        _start = null;
+        _end = null;
+        _offset = handlerBlock.getFirstInstruction().getOffset(); //_start.getOffset();
     }
 
     public final int getBlockIndex() {
@@ -274,6 +276,8 @@ public final class ControlFlowNode {
             }
         }
 
+        output.indent();
+
         if (!_dominanceFrontier.isEmpty()) {
             output.writeLine();
             output.write("DominanceFrontier: ");
@@ -319,19 +323,21 @@ public final class ControlFlowNode {
                     }
                 )
             );
-
-            for (final Instruction instruction : getInstructions()) {
-                output.writeLine();
-                DecompilerHelpers.writeInstruction(output, instruction);
-            }
-
-            final Object userData = _userData;
-
-            if (userData != null) {
-                output.writeLine();
-                output.write(String.valueOf(userData));
-            }
         }
+
+        for (final Instruction instruction : getInstructions()) {
+            output.writeLine();
+            DecompilerHelpers.writeInstruction(output, instruction);
+        }
+
+        final Object userData = _userData;
+
+        if (userData != null) {
+            output.writeLine();
+            output.write(String.valueOf(userData));
+        }
+
+        output.unindent();
 
         return output.toString();
     }
@@ -344,7 +350,7 @@ public final class ControlFlowNode {
         @Override
         public final boolean hasNext() {
             if (_innerIterator == null) {
-                _innerIterator = _incoming.iterator();
+                _innerIterator = _incoming.listIterator();
             }
 
             return _innerIterator.hasNext();
@@ -353,7 +359,7 @@ public final class ControlFlowNode {
         @Override
         public final ControlFlowNode next() {
             if (_innerIterator == null) {
-                _innerIterator = _incoming.iterator();
+                _innerIterator = _incoming.listIterator();
             }
 
             return _innerIterator.next().getSource();
@@ -371,7 +377,7 @@ public final class ControlFlowNode {
         @Override
         public final boolean hasNext() {
             if (_innerIterator == null) {
-                _innerIterator = _outgoing.iterator();
+                _innerIterator = _outgoing.listIterator();
             }
 
             return _innerIterator.hasNext();
@@ -380,7 +386,7 @@ public final class ControlFlowNode {
         @Override
         public final ControlFlowNode next() {
             if (_innerIterator == null) {
-                _innerIterator = _outgoing.iterator();
+                _innerIterator = _outgoing.listIterator();
             }
 
             return _innerIterator.next().getTarget();
@@ -397,14 +403,17 @@ public final class ControlFlowNode {
 
         @Override
         public final boolean hasNext() {
-            return _next != null;
+            return _next != null &&
+                   _next.getOffset() <= _end.getOffset();
         }
 
         @Override
         public final Instruction next() {
             final Instruction next = _next;
 
-            if (next == null) {
+            if (next == null ||
+                next.getOffset() > _end.getOffset()) {
+
                 throw new NoSuchElementException();
             }
 

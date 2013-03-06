@@ -27,8 +27,8 @@ public class StackMappingVisitor implements MethodVisitor {
 
     private int _maxLocals;
     private int _maxStack;
-    private List<FrameValue> _stack;
-    private List<FrameValue> _locals;
+    private List<FrameValue> _stack = new ArrayList<>();
+    private List<FrameValue> _locals = new ArrayList<>();
 
     public StackMappingVisitor() {
         _innerVisitor = null;
@@ -36,6 +36,14 @@ public class StackMappingVisitor implements MethodVisitor {
 
     public StackMappingVisitor(final MethodVisitor innerVisitor) {
         _innerVisitor = innerVisitor;
+    }
+
+    public final Frame buildFrame() {
+        return new Frame(
+            FrameType.New,
+            _locals.toArray(new FrameValue[_locals.size()]),
+            _stack.toArray(new FrameValue[_stack.size()])
+        );
     }
 
     @Override
@@ -138,11 +146,60 @@ public class StackMappingVisitor implements MethodVisitor {
 
         int i = local;
 
-        while (i < _locals.size()) {
+        while (i >= _locals.size()) {
             _locals.add(FrameValue.TOP);
         }
 
         _locals.set(local, value);
+    }
+
+    protected final void set(final int local, final TypeReference type) {
+        _maxLocals = Math.max(_maxLocals, local);
+
+        if (_locals == null) {
+            _locals = new ArrayList<>();
+            _stack = new ArrayList<>();
+        }
+
+        int i = local;
+
+        while (i >= _locals.size()) {
+            _locals.add(FrameValue.TOP);
+        }
+
+        switch (type.getSimpleType()) {
+            case Boolean:
+            case Byte:
+            case Character:
+            case Short:
+            case Integer:
+                _locals.set(local, FrameValue.INTEGER);
+                break;
+
+            case Long:
+                _locals.set(local, FrameValue.LONG);
+                _locals.set(local, FrameValue.TOP);
+                break;
+
+            case Float:
+                _locals.set(local, FrameValue.FLOAT);
+                break;
+
+            case Double:
+                _locals.set(local, FrameValue.DOUBLE);
+                _locals.set(local, FrameValue.TOP);
+                break;
+
+            case Object:
+            case Array:
+            case TypeVariable:
+            case Wildcard:
+                _locals.set(local, FrameValue.makeReference(type));
+                break;
+
+            case Void:
+                throw new IllegalArgumentException("Cannot set local to type void.");
+        }
     }
 
     protected final FrameValue pop() {
@@ -210,6 +267,8 @@ public class StackMappingVisitor implements MethodVisitor {
     private final class InstructionAnalyzer implements InstructionVisitor {
         private final InstructionVisitor _innerVisitor;
 
+        private boolean _afterExecute;
+
         private InstructionAnalyzer() {
             _innerVisitor = null;
         }
@@ -224,11 +283,29 @@ public class StackMappingVisitor implements MethodVisitor {
                 _innerVisitor.visit(instruction);
             }
 
+            instruction.accept(this);
             execute(instruction);
+
+            _afterExecute = true;
+
+            try {
+                instruction.accept(this);
+            }
+            finally {
+                _afterExecute = false;
+            }
         }
 
         @Override
         public void visit(final OpCode code) {
+            if (_afterExecute) {
+                if (code.isStore()) {
+                    set(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code), _temp.isEmpty() ? pop() : _temp.pop());
+                }
+            }
+            else if (code.isLoad()) {
+                push(get(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code)));
+            }
         }
 
         @Override
@@ -261,6 +338,14 @@ public class StackMappingVisitor implements MethodVisitor {
 
         @Override
         public void visitVariable(final OpCode code, final VariableReference variable) {
+            if (_afterExecute) {
+                if (code.isStore()) {
+                    set(variable.getIndex(), _temp.isEmpty() ? pop() : _temp.pop());
+                }
+            }
+            else if (code.isLoad()) {
+                push(get(variable.getIndex()));
+            }
         }
 
         @Override
@@ -455,6 +540,10 @@ public class StackMappingVisitor implements MethodVisitor {
                                 }
                             }
 
+                            if (code != OpCode.INVOKESTATIC) {
+                                _temp.push(pop());
+                            }
+
                             break;
                         }
 
@@ -573,7 +662,7 @@ public class StackMappingVisitor implements MethodVisitor {
                     break;
 
                 case PushA:
-                    push((TypeReference) pop().getParameter());
+                    push(pop());
                     break;
 
                 case VarPush: {

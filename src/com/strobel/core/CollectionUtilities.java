@@ -15,6 +15,7 @@ package com.strobel.core;
 
 import com.strobel.core.delegates.Func1;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -22,6 +23,16 @@ import java.util.List;
  * @author Mike Strobel
  */
 public final class CollectionUtilities {
+    public static <T> List<T> toList(final Iterable<T> collection) {
+        final ArrayList<T> list = new ArrayList<>();
+
+        for (final T item : collection) {
+            list.add(item);
+        }
+
+        return list;
+    }
+
     public static <T> T first(final Iterable<T> collection) {
         final Iterator<T> it = VerifyArgument.notNull(collection, "collection").iterator();
         if (it.hasNext()) {

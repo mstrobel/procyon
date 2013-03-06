@@ -71,11 +71,11 @@ public enum OpCode {
     BALOAD(0x33, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI4),
     CALOAD(0x34, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI4),
     SALOAD(0x35, FlowControl.Next, OpCodeType.ObjectModel, OperandType.None, StackBehavior.PopI4_PopA, StackBehavior.PushI4),
-    ISTORE(0x36, FlowControl.Next, OpCodeType.ObjectModel, OperandType.Local, StackBehavior.PopI4, StackBehavior.Push0),
-    LSTORE(0x37, FlowControl.Next, OpCodeType.ObjectModel, OperandType.Local, StackBehavior.PopI8, StackBehavior.Push0),
-    FSTORE(0x38, FlowControl.Next, OpCodeType.ObjectModel, OperandType.Local, StackBehavior.PopR4, StackBehavior.Push0),
-    DSTORE(0x39, FlowControl.Next, OpCodeType.ObjectModel, OperandType.Local, StackBehavior.PopR8, StackBehavior.Push0),
-    ASTORE(0x3A, FlowControl.Next, OpCodeType.ObjectModel, OperandType.Local, StackBehavior.PopA, StackBehavior.Push0),
+    ISTORE(0x36, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopI4, StackBehavior.Push0),
+    LSTORE(0x37, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopI8, StackBehavior.Push0),
+    FSTORE(0x38, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopR4, StackBehavior.Push0),
+    DSTORE(0x39, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopR8, StackBehavior.Push0),
+    ASTORE(0x3A, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopA, StackBehavior.Push0),
     ISTORE_0(0x3B, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.PopI4, StackBehavior.Push0),
     ISTORE_1(0x3C, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.PopI4, StackBehavior.Push0),
     ISTORE_2(0x3D, FlowControl.Next, OpCodeType.Macro, OperandType.None, StackBehavior.PopI4, StackBehavior.Push0),
@@ -431,7 +431,9 @@ public enum OpCode {
 
     public boolean canThrow() {
         if (_opCodeType == OpCodeType.ObjectModel) {
-            return this != INSTANCEOF;
+            return this != INSTANCEOF &&
+                   this != GETSTATIC &&
+                   this != PUTSTATIC;
         }
 
         switch (this) {

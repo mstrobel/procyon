@@ -21,5 +21,6 @@ public enum FrameValueType {
     Double,
     Null,
     UninitializedThis,
-    Reference;
+    Reference,
+    Uninitialized;
 }

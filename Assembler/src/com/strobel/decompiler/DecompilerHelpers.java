@@ -15,6 +15,10 @@ package com.strobel.decompiler;
 
 import com.strobel.assembler.ir.ExceptionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
+import com.strobel.assembler.ir.Frame;
+import com.strobel.assembler.ir.FrameType;
+import com.strobel.assembler.ir.FrameValue;
+import com.strobel.assembler.ir.FrameValueType;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MethodReference;
@@ -25,6 +29,9 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.java.JavaOutputVisitor;
 import com.strobel.util.ContractUtils;
+
+import java.util.Iterator;
+import java.util.List;
 
 import static java.lang.String.format;
 
@@ -152,7 +159,7 @@ public final class DecompilerHelpers {
     }
 
     public static String offsetToString(final int offset) {
-        return format("#%1$04x", offset);
+        return format("#%1$04d", offset);
     }
 
     public static void writeExceptionHandler(final ITextOutput output, final ExceptionHandler handler) {
@@ -243,6 +250,64 @@ public final class DecompilerHelpers {
         }
 
         return name;
+    }
+
+    public static void writeFrame(final ITextOutput writer, final Frame frame) {
+        VerifyArgument.notNull(writer, "writer");
+        VerifyArgument.notNull(frame, "frame");
+
+        final FrameType frameType = frame.getFrameType();
+
+        writer.write(String.valueOf(frameType));
+
+        final List<FrameValue> localValues = frame.getLocalValues();
+        final List<FrameValue> stackValues = frame.getStackValues();
+
+        if (!localValues.isEmpty()) {
+            writer.writeLine();
+            writer.indent();
+            writer.write("Locals: [");
+
+            for (int i = 0; i < localValues.size(); i++) {
+                final FrameValue value = localValues.get(i);
+
+                if (i != 0)
+                    writer.write(", ");
+
+                if (value.getType() == FrameValueType.Reference) {
+                    writeType(writer, (TypeReference) value.getParameter(), NameSyntax.SIGNATURE);
+                }
+                else {
+                    writer.write(String.valueOf(value.getType()));
+                }
+            }
+
+            writer.write("]");
+            writer.unindent();
+        }
+
+        if (!stackValues.isEmpty()) {
+            writer.writeLine();
+            writer.indent();
+            writer.write("Stack: [");
+
+            for (int i = 0; i < stackValues.size(); i++) {
+                final FrameValue value = stackValues.get(i);
+
+                if (i != 0)
+                    writer.write(", ");
+
+                if (value.getType() == FrameValueType.Reference) {
+                    writeType(writer, (TypeReference) value.getParameter(), NameSyntax.SIGNATURE);
+                }
+                else {
+                    writer.write(String.valueOf(value.getType()));
+                }
+            }
+
+            writer.write("]");
+            writer.unindent();
+        }
     }
 
     private static void writeLabelList(final ITextOutput writer, final Instruction[] instructions) {

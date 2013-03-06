@@ -15,6 +15,8 @@ package com.strobel.assembler.ir;
 
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerHelpers;
+import com.strobel.decompiler.PlainTextOutput;
 
 public final class ExceptionHandler {
     private final ExceptionBlock _tryBlock;
@@ -61,7 +63,7 @@ public final class ExceptionHandler {
         return new ExceptionHandler(
             tryBlock,
             handlerBlock,
-            ExceptionHandlerType.Catch,
+            ExceptionHandlerType.Finally,
             null
         );
     }
@@ -88,6 +90,13 @@ public final class ExceptionHandler {
 
     public final TypeReference getCatchType() {
         return _catchType;
+    }
+
+    @Override
+    public final String toString() {
+        final PlainTextOutput output = new PlainTextOutput();
+        DecompilerHelpers.writeExceptionHandler(output, this);
+        return output.toString();
     }
 }
 

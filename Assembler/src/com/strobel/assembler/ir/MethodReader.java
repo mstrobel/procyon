@@ -13,12 +13,15 @@
 
 package com.strobel.assembler.ir;
 
+import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.ast.Range;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -413,56 +416,202 @@ public class MethodReader {
         final List<ExceptionTableEntry> exceptionTable = _code.getExceptionTableEntries();
 
         if (!exceptionTable.isEmpty()) {
-            final List<ExceptionHandler> exceptionHandlers = _methodBody.getExceptionHandlers();
+            populateExceptionHandlerInfo(body, exceptionTable);
 
-            final int lastInstructionOffset;
-
-            if (body.isEmpty()) {
-                lastInstructionOffset = -1;
-            }
-            else {
-                lastInstructionOffset = body.get(body.size() - 1).getOffset();
-            }
-
-            for (final ExceptionTableEntry entry : exceptionTable) {
-                final int startOffset = entry.getStartOffset();
-                final int endOffset = entry.getEndOffset() - 1;
-                final int handlerOffset = entry.getHandlerOffset();
-                final TypeReference catchType = entry.getCatchType();
-
-                final Instruction firstInstruction = body.tryGetAtOffset(startOffset);
-                final Instruction handlerStartInstruction = body.tryGetAtOffset(handlerOffset);
-                final Instruction lastInstruction;
-
-                    if (endOffset <= lastInstructionOffset) {
-                    lastInstruction = body.tryGetAtOffset(lastInstructionOffset);
-                }
-                else {
-                    lastInstruction = new Instruction(OpCode.NOP, endOffset);
-                }
-
-                final ExceptionHandler handler;
-
-                if (catchType == null) {
-                    handler = ExceptionHandler.createFinally(
-                        new ExceptionBlock(firstInstruction, lastInstruction),
-                        new ExceptionBlock(handlerStartInstruction, null)
-                    );
-                }
-                else {
-                    handler = ExceptionHandler.createCatch(
-                        new ExceptionBlock(firstInstruction, lastInstruction),
-                        new ExceptionBlock(handlerStartInstruction, null),
-                        catchType
-                    );
-                }
-
-                exceptionHandlers.add(handler);
-            }
+//            final List<ExceptionHandler> exceptionHandlers = _methodBody.getExceptionHandlers();
+//
+//            final int lastInstructionOffset;
+//
+//            if (body.isEmpty()) {
+//                lastInstructionOffset = -1;
+//            }
+//            else {
+//                lastInstructionOffset = body.get(body.size() - 1).getOffset();
+//            }
+//
+//            populateExceptionHandlerInfo(body, exceptionTable);
+//
+//            for (final ExceptionTableEntry entry : exceptionTable) {
+//                final int startOffset = entry.getStartOffset();
+//                final int endOffset = entry.getEndOffset() - 1;
+//                final int handlerOffset = entry.getHandlerOffset();
+//                final TypeReference catchType = entry.getCatchType();
+//
+//                final Instruction firstInstruction = body.tryGetAtOffset(startOffset);
+//                final Instruction handlerStartInstruction = body.tryGetAtOffset(handlerOffset);
+//                final Instruction lastInstruction;
+//
+//                if (endOffset <= lastInstructionOffset) {
+//                    lastInstruction = body.tryGetAtOffset(lastInstructionOffset);
+//                }
+//                else {
+//                    lastInstruction = new Instruction(OpCode.NOP, endOffset);
+//                }
+//
+//                final ExceptionHandler handler;
+//
+//                if (catchType == null) {
+//                    handler = ExceptionHandler.createFinally(
+//                        new ExceptionBlock(firstInstruction, lastInstruction),
+//                        new ExceptionBlock(handlerStartInstruction, null)
+//                    );
+//                }
+//                else {
+//                    handler = ExceptionHandler.createCatch(
+//                        new ExceptionBlock(firstInstruction, lastInstruction),
+//                        new ExceptionBlock(handlerStartInstruction, null),
+//                        catchType
+//                    );
+//                }
+//
+//                exceptionHandlers.add(handler);
+//            }
         }
 
         return _methodBody;
     }
+
+    // <editor-fold defaultstate="collapsed" desc="Exception Handler Info">
+
+    private void populateExceptionHandlerInfo(final InstructionCollection body, final List<ExceptionTableEntry> exceptionTable) {
+        if (body.isEmpty()) {
+            return;
+        }
+
+        final Instruction bodyEndInstruction = body.get(body.size() - 1);
+
+        final class HandlerWithRange implements Comparable<HandlerWithRange> {
+            final ExceptionTableEntry entry;
+            final Range range;
+
+            HandlerWithRange(final ExceptionTableEntry entry, final Range range) {
+                this.entry = entry;
+                this.range = range;
+            }
+
+            @Override
+            public final int compareTo(final HandlerWithRange o) {
+                return range.compareTo(o.range);
+            }
+        }
+
+        final List<HandlerWithRange> entries = new ArrayList<>(exceptionTable.size());
+
+        for (final ExceptionTableEntry entry : exceptionTable) {
+            entries.add(
+                new HandlerWithRange(
+                    entry,
+                    new Range(entry.getHandlerOffset(), Integer.MAX_VALUE)
+                )
+            );
+        }
+
+        Collections.sort(entries);
+
+        for (int i = 0; i < entries.size(); i++) {
+            final HandlerWithRange h = entries.get(i);
+
+            if (h.entry.getCatchType() != null) {
+                HandlerWithRange matchingFinally = null;
+
+                for (int j = i; j < entries.size(); j++) {
+                    final HandlerWithRange h2 = entries.get(j);
+
+                    if (h2.entry.getCatchType() == null &&
+                        h2.entry.getStartOffset() == h.entry.getHandlerOffset()) {
+
+                        matchingFinally = h2;
+                        break;
+                    }
+                }
+
+                if (matchingFinally != null) {
+                    h.range.setEnd(matchingFinally.entry.getHandlerOffset());
+                    continue;
+                }
+
+                for (int j = i; j < entries.size(); j++) {
+                    final HandlerWithRange h2 = entries.get(j);
+
+                    if (h2.entry.getCatchType() == null &&
+                        h2.entry.getStartOffset() == h.entry.getStartOffset() &&
+                        h2.entry.getEndOffset() == h.entry.getEndOffset()) {
+
+                        matchingFinally = h2;
+                        break;
+                    }
+                }
+
+                if (matchingFinally != null) {
+                    h.range.setEnd(matchingFinally.entry.getHandlerOffset());
+                    continue;
+                }
+            }
+
+
+            final Instruction firstHandlerInstruction = body.tryGetAtOffset(h.entry.getHandlerOffset());
+            final Instruction previous = firstHandlerInstruction.getPrevious();
+
+            if (previous.getOpCode() == OpCode.GOTO ||
+                previous.getOpCode() == OpCode.GOTO_W) {
+                final Instruction jumpTarget = previous.getOperand(0);
+
+                h.range.setEnd(jumpTarget.getOffset());
+            }
+            else {
+                h.range.setEnd(bodyEndInstruction.getEndOffset());
+            }
+        }
+
+        final List<ExceptionHandler> exceptionHandlers = _methodBody.getExceptionHandlers();
+
+        for (final HandlerWithRange entry : entries) {
+            final int startOffset = entry.entry.getStartOffset();
+            final int endOffset = entry.entry.getEndOffset();
+            final int handlerStart = entry.range.getStart();
+            final int handlerEnd = entry.range.getEnd();
+            final TypeReference catchType = entry.entry.getCatchType();
+
+            final Instruction firstInstruction = body.tryGetAtOffset(startOffset);
+            final Instruction lastInstruction;
+            final Instruction handlerFirstInstruction = body.tryGetAtOffset(handlerStart);
+            final Instruction handlerLastInstruction;
+
+            if (endOffset <= bodyEndInstruction.getOffset()) {
+                lastInstruction = body.tryGetAtOffset(endOffset).getPrevious();
+            }
+            else {
+                lastInstruction = new Instruction(endOffset, OpCode.NOP);
+            }
+
+            if (handlerEnd <= bodyEndInstruction.getOffset()) {
+                handlerLastInstruction = body.tryGetAtOffset(handlerEnd).getPrevious();
+            }
+            else {
+                handlerLastInstruction = new Instruction(handlerEnd, OpCode.NOP);
+            }
+
+            final ExceptionHandler handler;
+
+            if (catchType == null) {
+                handler = ExceptionHandler.createFinally(
+                    new ExceptionBlock(firstInstruction, lastInstruction),
+                    new ExceptionBlock(handlerFirstInstruction, handlerLastInstruction)
+                );
+            }
+            else {
+                handler = ExceptionHandler.createCatch(
+                    new ExceptionBlock(firstInstruction, lastInstruction),
+                    new ExceptionBlock(handlerFirstInstruction, handlerLastInstruction),
+                    catchType
+                );
+            }
+
+            exceptionHandlers.add(handler);
+        }
+    }
+
+    // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Fixup Class">
 

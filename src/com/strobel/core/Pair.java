@@ -98,7 +98,7 @@ public final class Pair<TFirst, TSecond> implements Comparable<Pair<TFirst, TSec
 
     @Override
     public final String toString() {
-        return String.format("Pair[%s, %s]", _first, _second);
+        return String.format("(%s; %s)", _first, _second);
     }
 
     public static <TFirst, TSecond> Pair<TFirst, TSecond> create(final TFirst first, final TSecond second) {
