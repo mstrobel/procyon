@@ -431,9 +431,7 @@ public enum OpCode {
 
     public boolean canThrow() {
         if (_opCodeType == OpCodeType.ObjectModel) {
-            return this != INSTANCEOF &&
-                   this != GETSTATIC &&
-                   this != PUTSTATIC;
+            return this != INSTANCEOF;
         }
 
         switch (this) {
