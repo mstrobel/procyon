@@ -687,7 +687,7 @@ public enum OpCode {
         /* INVOKESPECIAL */ -1,         // but needs to account for
         /* INVOKESTATIC */ 0,           // parameters and return type
         /* INVOKEINTERFACE */ -1,       //
-        /* XXXUNUSEDXXX */ 0,
+        /* INVOKEDYNAMIC */ -1,
         /* NEW */ 1,
         /* NEWARRAY */ 0,
         /* ANEWARRAY */ 0,
