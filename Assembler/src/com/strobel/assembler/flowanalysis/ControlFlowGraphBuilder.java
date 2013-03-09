@@ -146,7 +146,7 @@ public final class ControlFlowGraphBuilder {
                 final Instruction instruction = instructions.get(i);
                 final OpCode opCode = instruction.getOpCode();
 
-                if (opCode.isBranch() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
+                if (opCode.isUnconditionalBranch() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
                     break;
                 }
 
@@ -161,10 +161,16 @@ public final class ControlFlowGraphBuilder {
                     if (innermostExceptionHandler != blockStartExceptionHandler) {
                         final boolean isLeaveTry = blockStartExceptionHandler != null &&
                                                    next == blockStartExceptionHandler.getTryBlock().getLastInstruction().getNext() &&
-                                                   next.getOpCode().isBranch();
+                                                   next.getOpCode().isUnconditionalBranch();
 
                         if (!isLeaveTry) {
-//                            break;
+                            final boolean isInlineFinally = blockStartExceptionHandler != null &&
+                                                            blockStartExceptionHandler.isFinally() &&
+                                                            blockStartExceptionHandler.getHandlerBlock().getLastInstruction() != null &&
+                                                            next.getOffset() <= blockStartExceptionHandler.getHandlerBlock().getLastInstruction().getOffset();
+                            if (!isInlineFinally) {
+                                break;
+                            }
                         }
                     }
                 }
@@ -193,6 +199,7 @@ public final class ControlFlowGraphBuilder {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private void createRegularControlFlow() {
         //
         // Step 3: Create edges for the normal control flow (assuming no exceptions thrown).
@@ -221,23 +228,30 @@ public final class ControlFlowGraphBuilder {
             //
             // Create edges for branch instructions.
             //
-            if (endOpCode.getOperandType() == OperandType.BranchTarget) {
-                final ControlFlowNode handlerBlock = findInnermostHandlerBlock(node.getEnd().getEndOffset());
+            for (Instruction instruction = node.getStart();
+                 instruction != null && instruction.getOffset() <= end.getOffset();
+                 instruction = instruction.getNext()) {
 
-                if (handlerBlock.getNodeType() == ControlFlowNodeType.FinallyHandler) {
-                    createEdge(node, end.<Instruction>getOperand(0), JumpType.LeaveTry);
+                final OpCode opCode = instruction.getOpCode();
+
+                if (opCode.getOperandType() == OperandType.BranchTarget) {
+                    final ControlFlowNode handlerBlock = findInnermostHandlerBlock(node.getEnd().getEndOffset());
+
+                    if (handlerBlock.getNodeType() == ControlFlowNodeType.FinallyHandler) {
+                        createEdge(node, instruction.<Instruction>getOperand(0), JumpType.LeaveTry);
+                    }
+                    else {
+                        createEdge(node, instruction.<Instruction>getOperand(0), JumpType.Normal);
+                    }
                 }
-                else {
-                    createEdge(node, end.<Instruction>getOperand(0), JumpType.Normal);
-                }
-            }
-            else if (endOpCode.getOperandType() == OperandType.Switch) {
-                final SwitchInfo switchInfo = end.getOperand(0);
+                else if (opCode.getOperandType() == OperandType.Switch) {
+                    final SwitchInfo switchInfo = instruction.getOperand(0);
 
-                createEdge(node, switchInfo.getDefaultTarget(), JumpType.Normal);
+                    createEdge(node, switchInfo.getDefaultTarget(), JumpType.Normal);
 
-                for (final Instruction target : switchInfo.getTargets()) {
-                    createEdge(node, target, JumpType.Normal);
+                    for (final Instruction target : switchInfo.getTargets()) {
+                        createEdge(node, target, JumpType.Normal);
+                    }
                 }
             }
 

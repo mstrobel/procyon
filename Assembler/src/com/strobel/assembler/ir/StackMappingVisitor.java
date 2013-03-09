@@ -629,41 +629,131 @@ public class StackMappingVisitor implements MethodVisitor {
                     break;
                 }
 
-                case Push1_Push1:
-                    break;
-                case Push1_Push1_Push1:
-                    break;
-                case Push1_Push2_Push1:
-                    break;
-                case Push2:
-                    break;
-                case Push2_Push2:
-                    break;
-                case Push2_Push1_Push2:
-                    break;
-                case Push2_Push2_Push2:
-                    break;
+                case Push1_Push1: {
+                    switch (code) {
+                        case DUP: {
+                            final FrameValue value = _temp.pop();
+                            push(value);
+                            push(value);
+                            break;
+                        }
 
-                case PushI4:
+                        case SWAP: {
+                            final FrameValue t1 = _temp.pop();
+                            final FrameValue t2 = _temp.pop();
+                            push(t2);
+                            push(t1);
+                            break;
+                        }
+                    }
+                    break;
+                }
+
+                case Push1_Push1_Push1: {
+                    final FrameValue t1 = _temp.pop();
+                    final FrameValue t2 = _temp.pop();
+                    push(t2);
+                    push(t1);
+                    push(t2);
+                    break;
+                }
+
+                case Push1_Push2_Push1: {
+                    final FrameValue t1 = pop();
+                    final FrameValue t2 = pop();
+                    final FrameValue t3 = pop();
+                    push(t3);
+                    push(t1);
+                    push(t2);
+                    push(t3);
+                    break;
+                }
+
+                case Push2: {
+                    final Number constant = instruction.getOperand(0);
+                    if (constant instanceof Double) {
+                        push(FrameValue.DOUBLE);
+                        push(FrameValue.TOP);
+                    }
+                    else {
+                        push(FrameValue.LONG);
+                        push(FrameValue.TOP);
+                    }
+                    break;
+                }
+
+                case Push2_Push2:{
+                    final FrameValue t1 = pop();
+                    final FrameValue t2 = pop();
+                    push(t1);
+                    push(t2);
+                    push(t1);
+                    push(t2);
+                    break;
+                }
+
+                case Push2_Push1_Push2: {
+                    final FrameValue t1 = pop();
+                    final FrameValue t2 = pop();
+                    final FrameValue t3 = pop();
+                    push(t2);
+                    push(t3);
+                    push(t1);
+                    push(t2);
+                    push(t3);
+                    break;
+                }
+
+                case Push2_Push2_Push2: {
+                    final FrameValue t1 = pop();
+                    final FrameValue t2 = pop();
+                    final FrameValue t3 = pop();
+                    final FrameValue t4 = pop();
+                    push(t3);
+                    push(t4);
+                    push(t1);
+                    push(t2);
+                    push(t3);
+                    push(t4);
+                    break;
+                }
+
+                case PushI4: {
                     push(FrameValue.INTEGER);
                     break;
+                }
 
-                case PushI8:
+                case PushI8: {
                     push(FrameValue.LONG);
                     break;
+                }
 
-                case PushR4:
+                case PushR4: {
                     push(FrameValue.FLOAT);
                     break;
+                }
 
-                case PushR8:
+                case PushR8: {
                     push(FrameValue.DOUBLE);
                     push(FrameValue.TOP);
                     break;
+                }
 
-                case PushA:
-                    push(pop());
+                case PushA: {
+                    switch (code) {
+                        case NEW:
+                        case NEWARRAY:
+                        case ANEWARRAY:
+                        case MULTIANEWARRAY:
+                            push(instruction.<TypeReference>getOperand(0));
+                            break;
+
+                        default:
+                            push(pop());
+                            break;
+                    }
                     break;
+                }
 
                 case VarPush: {
                     final IMethodSignature signature;
@@ -683,28 +773,28 @@ public class StackMappingVisitor implements MethodVisitor {
                         case Character:
                         case Short:
                         case Integer:
-                            _temp.push(FrameValue.INTEGER);
+                            push(FrameValue.INTEGER);
                             break;
 
                         case Long:
-                            _temp.push(FrameValue.LONG);
-                            _temp.push(FrameValue.TOP);
+                            push(FrameValue.LONG);
+                            push(FrameValue.TOP);
                             break;
 
                         case Float:
-                            _temp.push(FrameValue.FLOAT);
+                            push(FrameValue.FLOAT);
                             break;
 
                         case Double:
-                            _temp.push(FrameValue.DOUBLE);
-                            _temp.push(FrameValue.TOP);
+                            push(FrameValue.DOUBLE);
+                            push(FrameValue.TOP);
                             break;
 
                         case Object:
                         case Array:
                         case TypeVariable:
                         case Wildcard:
-                            _temp.push(FrameValue.makeReference(returnType));
+                            push(FrameValue.makeReference(returnType));
                             break;
 
                         case Void:
