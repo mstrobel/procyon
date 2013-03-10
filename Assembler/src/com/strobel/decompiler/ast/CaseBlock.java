@@ -1,5 +1,5 @@
 /*
- * BasicBlock.java
+ * CaseBlock.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -16,31 +16,32 @@ package com.strobel.decompiler.ast;
 import com.strobel.assembler.Collection;
 import com.strobel.decompiler.ITextOutput;
 
-import java.util.ArrayList;
 import java.util.List;
 
-public final class BasicBlock extends Node {
-    private final Collection<Node> _body;
+public final class CaseBlock extends Block {
+    private final List<Integer> _values = new Collection<>();
 
-    public BasicBlock() {
-        _body = new Collection<>();
+    public final List<Integer> getValues() {
+        return _values;
     }
 
-    public final List<Node> getBody() {
-        return _body;
-    }
-
-    @Override
-    public final List<Node> getChildren() {
-        final ArrayList<Node> childrenCopy = new ArrayList<>();
-        childrenCopy.addAll(_body);
-        return _body;
+    public final boolean isDefault() {
+        return _values.isEmpty();
     }
 
     @Override
     public final void writeTo(final ITextOutput output) {
-        for (final Node child : getChildren()) {
-            child.writeTo(output);
+        if (isDefault()) {
+            output.writeLine("default:");
         }
+        else {
+            for (final Integer value : _values) {
+                output.writeLine("case %d:", value);
+            }
+        }
+
+        output.indent();
+        super.writeTo(output);
+        output.unindent();
     }
 }

@@ -255,7 +255,7 @@ public final class VerifyArgument {
         return values;
     }
 
-    public static <T> void validElementRange(final int size, final int startInclusive, final int endExclusive) {
+    public static void validElementRange(final int size, final int startInclusive, final int endExclusive) {
         if (startInclusive >= 0 && endExclusive <= size && endExclusive > startInclusive) {
             return;
         }
@@ -393,5 +393,73 @@ public final class VerifyArgument {
                 maxInclusive
             )
         );
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // TYPE PRECONDITIONS                                                                                                 //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    @SuppressWarnings("unchecked")
+    public static <T> T verifyInstanceOf(final Class<T> type, final Object value, final String parameterName) {
+        final Class<?> actualType = getBoxedType(VerifyArgument.notNull(type, "type"));
+
+        if (actualType.isInstance(value)) {
+            return (T) value;
+        }
+
+        throw new IllegalArgumentException(
+            format(
+                "Argument '%s' must be an instance of type %s.",
+                parameterName,
+                type.getCanonicalName()
+            )
+        );
+    }
+    @SuppressWarnings("unchecked")
+    public static <T> T verifyNotInstanceOf(final Class<T> type, final Object value, final String parameterName) {
+        final Class<?> actualType = getBoxedType(VerifyArgument.notNull(type, "type"));
+
+        if (!actualType.isInstance(value)) {
+            return (T) value;
+        }
+
+        throw new IllegalArgumentException(
+            format(
+                "Argument '%s' must not be an instance of type %s.",
+                parameterName,
+                type.getCanonicalName()
+            )
+        );
+    }
+
+    private static Class<?> getBoxedType(final Class<?> type) {
+        if (!type.isPrimitive()) {
+            return type;
+        }
+        if (type == boolean.class) {
+            return Boolean.class;
+        }
+        if (type == char.class) {
+            return Character.class;
+        }
+        if (type == byte.class) {
+            return Byte.class;
+        }
+        if (type == short.class) {
+            return Short.class;
+        }
+        if (type == int.class) {
+            return Integer.class;
+        }
+        if (type == long.class) {
+            return Long.class;
+        }
+        if (type == float.class) {
+            return Float.class;
+        }
+        if (type == double.class) {
+            return Double.class;
+        }
+        return type;
     }
 }

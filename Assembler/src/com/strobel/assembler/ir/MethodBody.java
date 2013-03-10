@@ -20,9 +20,6 @@ import com.strobel.core.Freezable;
 
 import java.util.List;
 
-/**
- * @author mstrobel
- */
 public final class MethodBody extends Freezable {
     private final InstructionCollection _instructions;
     private final VariableDefinitionCollection _variables;

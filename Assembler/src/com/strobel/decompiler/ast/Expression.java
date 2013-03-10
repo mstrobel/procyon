@@ -21,6 +21,7 @@ import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Comparer;
+import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.NameSyntax;
 
@@ -31,15 +32,34 @@ import java.util.List;
 import static com.strobel.decompiler.DecompilerHelpers.writeType;
 import static com.strobel.assembler.ir.OpCodeHelpers.*;
 
-public class Expression extends Node {
+public final class Expression extends Node {
     public static final Object ANY_OPERAND = new Object();
 
     private final Collection<Expression> _arguments = new Collection<>();
+    private final Collection<Range> _ranges = new Collection<>();
 
     private OpCode _code;
     private Object _operand;
     private TypeReference _expectedType;
     private TypeReference _inferredType;
+
+    public Expression(final OpCode code, final Object operand, final List<Expression> arguments) {
+        _code = VerifyArgument.notNull(code, "code");
+        _operand = VerifyArgument.verifyNotInstanceOf(Expression.class, operand, "operand");
+
+        if (arguments != null) {
+            _arguments.addAll(arguments);
+        }
+    }
+
+    public Expression(final OpCode code, final Object operand, final Expression... arguments) {
+        _code = VerifyArgument.notNull(code, "code");
+        _operand = VerifyArgument.verifyNotInstanceOf(Expression.class, operand, "operand");
+
+        if (arguments != null) {
+            Collections.addAll(_arguments, arguments);
+        }
+    }
 
     public final List<Expression> getArguments() {
         return _arguments;
@@ -94,15 +114,19 @@ public class Expression extends Node {
         return Collections.emptyList();
     }
 
+    public final Collection<Range> getRanges() {
+        return _ranges;
+    }
+
     @Override
-    public List<Node> getChildren() {
+    public final List<Node> getChildren() {
         final ArrayList<Node> childrenCopy = new ArrayList<>();
         childrenCopy.addAll(_arguments);
         return childrenCopy;
     }
 
     @Override
-    public void writeTo(final ITextOutput output) {
+    public final void writeTo(final ITextOutput output) {
         final OpCode code = _code;
         final Object operand = _operand;
         final TypeReference inferredType = _inferredType;
@@ -170,8 +194,9 @@ public class Expression extends Node {
                 final Label[] labels = (Label[]) operand;
 
                 for (int i = 0; i < (labels).length; i++) {
-                    if (i != 0)
+                    if (i != 0) {
                         output.write(", ");
+                    }
 
                     output.writeReference(labels[i].getName(), labels[i]);
                 }

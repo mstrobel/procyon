@@ -28,27 +28,20 @@ public class Block extends Node {
         _body = new Collection<>();
     }
 
-    public Expression getEntryGoto() {
+    public final Expression getEntryGoto() {
         return _entryGoto;
     }
 
-    public void setEntryGoto(final Expression entryGoto) {
+    public final void setEntryGoto(final Expression entryGoto) {
         _entryGoto = entryGoto;
     }
 
-    public List<Node> getBody() {
+    public final List<Node> getBody() {
         return _body;
     }
 
     @Override
-    public void writeTo(final ITextOutput output) {
-        for (final Node child : getChildren()) {
-            child.writeTo(output);
-        }
-    }
-
-    @Override
-    public List<Node> getChildren() {
+    public final List<Node> getChildren() {
         final ArrayList<Node> childrenCopy = new ArrayList<>();
 
         if (_entryGoto != null) {
@@ -58,5 +51,12 @@ public class Block extends Node {
         childrenCopy.addAll(_body);
 
         return _body;
+    }
+
+    @Override
+    public void writeTo(final ITextOutput output) {
+        for (final Node child : getChildren()) {
+            child.writeTo(output);
+        }
     }
 }
