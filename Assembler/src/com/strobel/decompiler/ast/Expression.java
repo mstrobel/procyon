@@ -14,7 +14,6 @@
 package com.strobel.decompiler.ast;
 
 import com.strobel.assembler.Collection;
-import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodReference;
@@ -30,7 +29,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static com.strobel.decompiler.DecompilerHelpers.writeType;
-import static com.strobel.assembler.ir.OpCodeHelpers.*;
 
 public final class Expression extends Node {
     public static final Object ANY_OPERAND = new Object();
@@ -38,12 +36,12 @@ public final class Expression extends Node {
     private final Collection<Expression> _arguments = new Collection<>();
     private final Collection<Range> _ranges = new Collection<>();
 
-    private OpCode _code;
+    private AstCode _code;
     private Object _operand;
     private TypeReference _expectedType;
     private TypeReference _inferredType;
 
-    public Expression(final OpCode code, final Object operand, final List<Expression> arguments) {
+    public Expression(final AstCode code, final Object operand, final List<Expression> arguments) {
         _code = VerifyArgument.notNull(code, "code");
         _operand = VerifyArgument.verifyNotInstanceOf(Expression.class, operand, "operand");
 
@@ -52,7 +50,7 @@ public final class Expression extends Node {
         }
     }
 
-    public Expression(final OpCode code, final Object operand, final Expression... arguments) {
+    public Expression(final AstCode code, final Object operand, final Expression... arguments) {
         _code = VerifyArgument.notNull(code, "code");
         _operand = VerifyArgument.verifyNotInstanceOf(Expression.class, operand, "operand");
 
@@ -65,11 +63,11 @@ public final class Expression extends Node {
         return _arguments;
     }
 
-    public final OpCode getCode() {
+    public final AstCode getCode() {
         return _code;
     }
 
-    public final void setCode(final OpCode code) {
+    public final void setCode(final AstCode code) {
         _code = code;
     }
 
@@ -127,7 +125,7 @@ public final class Expression extends Node {
 
     @Override
     public final void writeTo(final ITextOutput output) {
-        final OpCode code = _code;
+        final AstCode code = _code;
         final Object operand = _operand;
         final TypeReference inferredType = _inferredType;
         final TypeReference expectedType = _expectedType;
@@ -135,14 +133,14 @@ public final class Expression extends Node {
         if (operand instanceof Variable &&
             ((Variable) operand).isGenerated()) {
 
-            if (isLocalStore(code)) {
+            if (AstCodeHelpers.isLocalStore(code)) {
                 output.write(((Variable) operand).getName());
                 output.write(" = ");
                 getArguments().get(0).writeTo(output);
                 return;
             }
 
-            if (isLocalLoad(code)) {
+            if (AstCodeHelpers.isLocalLoad(code)) {
                 output.write(((Variable) operand).getName());
 
                 if (inferredType != null) {

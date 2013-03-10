@@ -735,18 +735,33 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 _scope
             );
 
+
             if (visitor.canVisitBody()) {
+                final MethodReference methodReference;
                 final MethodBody body = reader.accept(visitor);
+                final TypeReference thisType = _scope._parser.lookupType(this.packageName, this.name);
+
+                final SignatureAttribute signatureAttribute = SourceAttribute.find(AttributeNames.Signature, methodInfo.attributes);
+
+                if (signatureAttribute != null) {
+                    methodReference = _scope._parser.parseMethod(thisType, methodInfo.name, signatureAttribute.getSignature());
+                }
+                else {
+                    methodReference = _scope._parser.parseMethod(thisType, methodInfo.name, methodInfo.descriptor);
+                }
+
+                if (methodReference != null) {
+                    body.setMethod(methodReference);
+                }
 
                 if (!Modifier.isStatic(methodInfo.accessFlags)) {
-                    final TypeReference thisType = _scope._parser.lookupType(this.packageName, this.name);
                     body.setThisParameter(new ParameterDefinition("this", thisType));
                 }
 
-                body.freeze();
-
                 final InstructionVisitor instructionVisitor = visitor.visitBody(body);
                 final InstructionCollection instructions = body.getInstructions();
+
+                body.freeze();
 
                 final LineNumberTableAttribute lineNumbersAttribute = SourceAttribute.find(
                     AttributeNames.LineNumberTable,
@@ -789,8 +804,15 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     for (int i = 0; i < instructions.size(); i++) {
                         instructionVisitor.visit(instructions.get(i));
                     }
+                    instructionVisitor.visitEnd();
+                }
 
-                    visitor.visitEnd();
+                visitor.visitEnd();
+
+                final MethodDefinition method = methodReference != null ? methodReference.resolve() : null;
+
+                if (method != null) {
+                    body.setMethod(method);
                 }
             }
         }

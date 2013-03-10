@@ -69,6 +69,10 @@ public class MethodDefinitionBuilder implements MethodVisitor {
         }
     }
 
+    public final MethodDefinition getMethod() {
+        return _method;
+    }
+
     @Override
     public boolean canVisitBody() {
         return false;
@@ -81,7 +85,7 @@ public class MethodDefinitionBuilder implements MethodVisitor {
 
     @Override
     public void visitEnd() {
-        _method.getDeclaringType().getDeclaredMethodsInternal().add(_method);
+//        _method.getDeclaringType().getDeclaredMethodsInternal().add(_method);
     }
 
     @Override

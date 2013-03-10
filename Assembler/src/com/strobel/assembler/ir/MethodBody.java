@@ -14,6 +14,8 @@
 package com.strobel.assembler.ir;
 
 import com.strobel.assembler.Collection;
+import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.VariableDefinitionCollection;
 import com.strobel.core.Freezable;
@@ -25,6 +27,7 @@ public final class MethodBody extends Freezable {
     private final VariableDefinitionCollection _variables;
     private final Collection<ExceptionHandler> _exceptionHandlers;
 
+    private MethodReference _method;
     private ParameterDefinition _thisParameter;
     private int _maxStackSize;
     private int _maxLocals;
@@ -48,6 +51,17 @@ public final class MethodBody extends Freezable {
         return _exceptionHandlers;
     }
 
+    public final MethodReference getMethod() {
+        if (_method != null && !_method.isDefinition()) {
+            final MethodDefinition definition = _method.resolve();
+
+            if (definition != null) {
+                _method = definition;
+            }
+        }
+        return _method;
+    }
+
     public final ParameterDefinition getThisParameter() {
         return _thisParameter;
     }
@@ -62,6 +76,10 @@ public final class MethodBody extends Freezable {
 
     public final int getMaxLocals() {
         return _maxLocals;
+    }
+
+    final void setMethod(final MethodReference method) {
+        _method = method;
     }
 
     final void setThisParameter(final ParameterDefinition thisParameter) {
@@ -87,5 +105,30 @@ public final class MethodBody extends Freezable {
         _exceptionHandlers.freezeIfUnfrozen();
 
         super.freezeCore();
+    }
+
+    public final ParameterDefinition getParameter(final int index) {
+        final MethodReference method = getMethod();
+
+        int i = index;
+
+        if (_thisParameter != null) {
+            if (index == 0) {
+                return _thisParameter;
+            }
+            --i;
+        }
+
+        if (method == null) {
+            return null;
+        }
+
+        final List<ParameterDefinition> parameters = method.getParameters();
+
+        if (i < 0 || i >= parameters.size()) {
+            return null;
+        }
+
+        return parameters.get(i);
     }
 }

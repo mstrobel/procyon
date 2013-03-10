@@ -32,6 +32,10 @@ public final class Variable {
         _name = name;
     }
 
+    public final boolean isParameter() {
+        return _originalParameter != null;
+    }
+
     public final boolean isGenerated() {
         return _isGenerated;
     }

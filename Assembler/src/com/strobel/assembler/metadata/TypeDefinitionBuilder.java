@@ -232,13 +232,17 @@ public class TypeDefinitionBuilder implements TypeVisitor {
         final IMethodSignature signature,
         final TypeReference... thrownTypes) {
 
-        return new MethodDefinitionBuilder(
+        final MethodDefinitionBuilder builder = new MethodDefinitionBuilder(
             _typeDefinition,
             flags,
             name,
             signature,
             thrownTypes
         );
+
+        _typeDefinition.getDeclaredMethodsInternal().add(builder.getMethod());
+
+        return builder;
     }
 
     @Override
