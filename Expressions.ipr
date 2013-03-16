@@ -329,6 +329,8 @@
           <option name="ALIGN_MULTILINE_EXTENDS_LIST" value="true" />
           <option name="ALIGN_MULTILINE_PARENTHESIZED_EXPRESSION" value="true" />
           <option name="ALIGN_MULTILINE_ARRAY_INITIALIZER_EXPRESSION" value="true" />
+          <option name="SPACE_WITHIN_ARRAY_INITIALIZER_BRACES" value="true" />
+          <option name="SPACE_BEFORE_ARRAY_INITIALIZER_LBRACE" value="true" />
           <option name="CALL_PARAMETERS_WRAP" value="5" />
           <option name="CALL_PARAMETERS_LPAREN_ON_NEXT_LINE" value="true" />
           <option name="CALL_PARAMETERS_RPAREN_ON_NEXT_LINE" value="true" />
@@ -574,13 +576,48 @@
     <option name="USE_PER_PROJECT_SETTINGS" value="true" />
   </component>
   <component name="ProjectDictionaryState">
-    <dictionary name="mstrobel">
+    <dictionary name="Mike Strobel">
       <words>
-        <w>dominator</w>
-        <w>iterable</w>
-        <w>predicate's</w>
-        <w>printf</w>
-        <w>unindent</w>
+        <w>arraycopy</w>
+        <w>booleans</w>
+        <w>bytecode</w>
+        <w>comparand</w>
+        <w>comparer</w>
+        <w>concat</w>
+        <w>contravariance</w>
+        <w>ctor</w>
+        <w>ctors</w>
+        <w>defaultstate</w>
+        <w>dword</w>
+        <w>enqueuing</w>
+        <w>fixup</w>
+        <w>fixups</w>
+        <w>functor</w>
+        <w>goto</w>
+        <w>initializers</w>
+        <w>intrinisified</w>
+        <w>javac</w>
+        <w>nullable</w>
+        <w>nulled</w>
+        <w>nulling</w>
+        <w>opcode</w>
+        <w>opcodes</w>
+        <w>overridable</w>
+        <w>parameterized</w>
+        <w>preallocation</w>
+        <w>println</w>
+        <w>reachability</w>
+        <w>recurse</w>
+        <w>resized</w>
+        <w>simplifiable</w>
+        <w>strobel</w>
+        <w>subword</w>
+        <w>trie</w>
+        <w>unary</w>
+        <w>unbox</w>
+        <w>unboxed</w>
+        <w>unintuitively</w>
+        <w>writeable</w>
       </words>
     </dictionary>
     <dictionary name="strobelm">
@@ -717,48 +754,13 @@
         <w>variable's</w>
       </words>
     </dictionary>
-    <dictionary name="Mike Strobel">
+    <dictionary name="mstrobel">
       <words>
-        <w>arraycopy</w>
-        <w>booleans</w>
-        <w>bytecode</w>
-        <w>comparand</w>
-        <w>comparer</w>
-        <w>concat</w>
-        <w>contravariance</w>
-        <w>ctor</w>
-        <w>ctors</w>
-        <w>defaultstate</w>
-        <w>dword</w>
-        <w>enqueuing</w>
-        <w>fixup</w>
-        <w>fixups</w>
-        <w>functor</w>
-        <w>goto</w>
-        <w>initializers</w>
-        <w>intrinisified</w>
-        <w>javac</w>
-        <w>nullable</w>
-        <w>nulled</w>
-        <w>nulling</w>
-        <w>opcode</w>
-        <w>opcodes</w>
-        <w>overridable</w>
-        <w>parameterized</w>
-        <w>preallocation</w>
-        <w>println</w>
-        <w>reachability</w>
-        <w>recurse</w>
-        <w>resized</w>
-        <w>simplifiable</w>
-        <w>strobel</w>
-        <w>subword</w>
-        <w>trie</w>
-        <w>unary</w>
-        <w>unbox</w>
-        <w>unboxed</w>
-        <w>unintuitively</w>
-        <w>writeable</w>
+        <w>dominator</w>
+        <w>iterable</w>
+        <w>predicate's</w>
+        <w>printf</w>
+        <w>unindent</w>
       </words>
     </dictionary>
   </component>

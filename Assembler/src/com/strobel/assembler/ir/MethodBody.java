@@ -62,6 +62,10 @@ public final class MethodBody extends Freezable {
         return _method;
     }
 
+    public final boolean hasThis() {
+        return _thisParameter != null;
+    }
+
     public final ParameterDefinition getThisParameter() {
         return _thisParameter;
     }

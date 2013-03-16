@@ -13,24 +13,37 @@
 
 package com.strobel.decompiler.ast;
 
+import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.Instruction;
+import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.MethodBody;
+import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.VariableDefinitionCollection;
+import com.strobel.assembler.metadata.VariableReference;
+import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
-import com.strobel.util.ContractUtils;
-import sun.jvm.hotspot.debugger.posix.elf.ELFHashTable;
+import com.strobel.decompiler.InstructionHelper;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Stack;
 
 import static java.lang.String.format;
 
 public final class AstBuilder {
-    private final Map<ELFHashTable, ByteCode> _loadExceptions = new LinkedHashMap<>();
+    private final static AstCode[] CODES = AstCode.values();
+    private final static StackSlot[] EMPTY_STACK = new StackSlot[0];
+    private final static VariableSlot[] EMPTY_VARIABLES = new VariableSlot[0];
 
+    private final Map<ExceptionHandler, ByteCode> _loadExceptions = new LinkedHashMap<>();
     private MethodBody _body;
     private MethodDefinition _methodDefinition;
     private boolean _optimize;
@@ -48,7 +61,119 @@ public final class AstBuilder {
             return Collections.emptyList();
         }
 
-        throw ContractUtils.unreachable();
+        final List<ByteCode> byteCode = builder.performStackAnalysis();
+        final List<Node> ast = builder.convertToAst();
+
+        return ast;
+    }
+
+    private List<ByteCode> performStackAnalysis() {
+        final Map<Instruction, ByteCode> byteCodeMap = new IdentityHashMap<>();
+        final InstructionCollection instructions = _body.getInstructions();
+        final List<ByteCode> body = new ArrayList<>(instructions.size());
+
+        final StrongBox<AstCode> codeBox = new StrongBox<>();
+        final StrongBox<Object> operandBox = new StrongBox<>();
+
+        for (final Instruction instruction : instructions) {
+            final OpCode opCode = instruction.getOpCode();
+
+            AstCode code = CODES[opCode.ordinal()];
+            Object operand = instruction.hasOperand() ? instruction.getOperand(0) : null;
+
+            codeBox.set(code);
+            operandBox.set(operand);
+
+            if (AstCode.expandMacro(codeBox, operandBox, _body)) {
+                code = codeBox.get();
+                operand = operandBox.get();
+            }
+
+            ByteCode byteCode = new ByteCode();
+
+            byteCode.offset = instruction.getOffset();
+            byteCode.endOffset = instruction.getEndOffset();
+            byteCode.code = code;
+            byteCode.operand = operand;
+            byteCode.popCount = InstructionHelper.getPopDelta(instruction, _body);
+            byteCode.pushCount = InstructionHelper.getPushDelta(instruction, _body);
+
+            byteCodeMap.put(instruction, byteCode);
+            body.add(byteCode);
+        }
+        final Stack<ByteCode> agenda = new Stack<>();
+        final VariableDefinitionCollection variables = _body.getVariables();
+        final List<ExceptionHandler> exceptionHandlers = _body.getExceptionHandlers();
+
+        final int variableCount = variables.size();
+        final Set<ByteCode> exceptionHandlerStarts = new HashSet<>(exceptionHandlers.size());
+        final VariableSlot[] unknownVariables = VariableSlot.makeUnknownState(variableCount);
+
+        for (final ExceptionHandler handler : exceptionHandlers) {
+            final ByteCode handlerStart = byteCodeMap.get(handler.getHandlerBlock().getFirstInstruction());
+
+            handlerStart.stackBefore = EMPTY_STACK;
+            handlerStart.variablesBefore = unknownVariables;
+
+            if (handler.isCatch()) {
+                final ByteCode loadException = new ByteCode();
+
+                loadException.code = AstCode.LoadException;
+                loadException.operand = handler.getCatchType();
+                loadException.popCount = 0;
+                loadException.pushCount = 1;
+
+                _loadExceptions.put(handler, loadException);
+
+                handlerStart.stackBefore = new StackSlot[] { new StackSlot(new ByteCode[] { loadException }) };
+            }
+
+            agenda.push(handlerStart);
+        }
+
+        body.get(0).stackBefore = EMPTY_STACK;
+        body.get(0).variablesBefore = unknownVariables;
+
+        agenda.push(body.get(0));
+
+        //
+        // Process agenda.
+        //
+        while (!agenda.isEmpty()) {
+            final ByteCode byteCode = agenda.pop();
+
+            //
+            // Calculate new stack.
+            //
+            final StackSlot[] newStack = StackSlot.matchStack(
+                byteCode.stackBefore,
+                byteCode.popCount < 0 ? byteCode.stackBefore.length : byteCode.popCount,
+                byteCode.pushCount,
+                byteCode
+            );
+
+            //
+            // Calculate new variable state.
+            //
+            final VariableSlot[] newVariableState = VariableSlot.cloneVariableState(byteCode.variablesBefore);
+
+            if (byteCode.isVariableDefinition()) {
+                newVariableState[((VariableReference) byteCode.operand).getIndex()] = new VariableSlot(
+                    new ByteCode[] { byteCode },
+                    false
+                );
+            }
+
+            //
+            // Find all successors.
+            //
+        }
+
+        return body;
+    }
+
+    private List<Node> convertToAst() {
+        return Collections.emptyList();
     }
 
     // <editor-fold defaultstate="collapsed" desc="StackSlot Class">
@@ -82,7 +207,7 @@ public final class AstBuilder {
             System.arraycopy(stack, 0, newStack, 0, stack.length - popCount);
 
             for (int i = stack.length - popCount; i < newStack.length; i++) {
-                newStack[i] = new StackSlot(new ByteCode[]{pushDefinition});
+                newStack[i] = new StackSlot(new ByteCode[] { pushDefinition });
             }
 
             return newStack;
