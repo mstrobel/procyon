@@ -386,14 +386,60 @@ public final class ArrayUtilities {
             matchCount
         );
 
-        for (int i = 0; i < matchCount; i++) {
+        for (int i = 0, j = 0; i < count; i++) {
             final int matchIndex = matchIndices[i];
 
             if (matchIndex == Integer.MAX_VALUE) {
-                break;
+                continue;
             }
 
-            newArray[i] = array[matchIndex];
+            newArray[j++] = array[matchIndex];
+        }
+
+        return newArray;
+    }
+
+    @SafeVarargs
+    public static <T> T[] union(final T[] array, final T... values) {
+        VerifyArgument.notNull(array, "array");
+
+        if (isNullOrEmpty(values)) {
+            return array;
+        }
+
+        final int count = values.length;
+
+        int matchCount = 0;
+
+        final int[] matchIndices = new int[count];
+
+        for (int i = 0; i < count; i++) {
+            final T value = values[i];
+            final int index = indexOf(array, value);
+
+            if (index == -1) {
+                matchIndices[i] = Integer.MAX_VALUE;
+                continue;
+            }
+
+            matchIndices[i] = index;
+            ++matchCount;
+        }
+
+        if (matchCount == 0) {
+            return append(array, values);
+        }
+
+        Arrays.sort(matchIndices);
+
+        final T[] newArray = Arrays.copyOf(array, array.length + values.length - matchCount);
+
+        for (int i = 0, j = array.length; i < count; i++) {
+            final int matchIndex = matchIndices[i];
+
+            if (matchIndex == Integer.MAX_VALUE) {
+                newArray[j++] = values[i];
+            }
         }
 
         return newArray;

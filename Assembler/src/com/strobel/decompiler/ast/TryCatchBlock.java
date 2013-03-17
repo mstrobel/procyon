@@ -68,7 +68,7 @@ public final class TryCatchBlock extends Node {
 
     @Override
     public final void writeTo(final ITextOutput output) {
-        output.writeLine("try {");
+        output.writeLine(".try {");
         output.indent();
 
         if (_tryBlock != null) {
@@ -76,14 +76,16 @@ public final class TryCatchBlock extends Node {
         }
 
         output.unindent();
-        output.writeLine("}");
+        output.write("}");
 
         for (final CatchBlock catchBlock : _catchBlocks) {
+            output.writeLine();
             catchBlock.writeTo(output);
         }
 
         if (_finallyBlock != null) {
-            output.writeLine("finally {");
+            output.writeLine();
+            output.writeLine(".finally {");
             output.indent();
 
             _finallyBlock.writeTo(output);

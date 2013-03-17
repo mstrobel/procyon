@@ -67,4 +67,9 @@ public final class Variable {
     public final void setOriginalParameter(final ParameterDefinition originalParameter) {
         _originalParameter = originalParameter;
     }
+
+    @Override
+    public final String toString() {
+        return _name;
+    }
 }

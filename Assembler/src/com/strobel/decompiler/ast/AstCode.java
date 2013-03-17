@@ -372,87 +372,99 @@ public enum AstCode {
             case __DConst1:
                 return Pair.<AstCode, Object>create(LdC, 1d);
 
+            case __ILoad:
+            case __LLoad:
+            case __FLoad:
+            case __DLoad:
+            case __ALoad:
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
             case __ILoad0:
-                return Pair.<AstCode, Object>create(__ILoad, body.getVariables().get(0));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
             case __ILoad1:
-                return Pair.<AstCode, Object>create(__ILoad, body.getVariables().get(1));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(1));
             case __ILoad2:
-                return Pair.<AstCode, Object>create(__ILoad, body.getVariables().get(2));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(2));
             case __ILoad3:
-                return Pair.<AstCode, Object>create(__ILoad, body.getVariables().get(3));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(3));
             case __LLoad0:
-                return Pair.<AstCode, Object>create(__LLoad, body.getVariables().get(0));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
             case __LLoad1:
-                return Pair.<AstCode, Object>create(__LLoad, body.getVariables().get(1));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(1));
             case __LLoad2:
-                return Pair.<AstCode, Object>create(__LLoad, body.getVariables().get(2));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(2));
             case __LLoad3:
-                return Pair.<AstCode, Object>create(__LLoad, body.getVariables().get(3));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(3));
             case __FLoad0:
-                return Pair.<AstCode, Object>create(__FLoad, body.getVariables().get(0));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
             case __FLoad1:
-                return Pair.<AstCode, Object>create(__FLoad, body.getVariables().get(1));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(1));
             case __FLoad2:
-                return Pair.<AstCode, Object>create(__FLoad, body.getVariables().get(2));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(2));
             case __FLoad3:
-                return Pair.<AstCode, Object>create(__FLoad, body.getVariables().get(3));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(3));
             case __DLoad0:
-                return Pair.<AstCode, Object>create(__DLoad, body.getVariables().get(0));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
             case __DLoad1:
-                return Pair.<AstCode, Object>create(__DLoad, body.getVariables().get(1));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(1));
             case __DLoad2:
-                return Pair.<AstCode, Object>create(__DLoad, body.getVariables().get(2));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(2));
             case __DLoad3:
-                return Pair.<AstCode, Object>create(__DLoad, body.getVariables().get(3));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(3));
             case __ALoad0:
-                return Pair.<AstCode, Object>create(__ALoad, body.getVariables().get(0));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
             case __ALoad1:
-                return Pair.<AstCode, Object>create(__ALoad, body.getVariables().get(1));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(1));
             case __ALoad2:
-                return Pair.<AstCode, Object>create(__ALoad, body.getVariables().get(2));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(2));
             case __ALoad3:
-                return Pair.<AstCode, Object>create(__ALoad, body.getVariables().get(3));
+                return Pair.<AstCode, Object>create(Load, body.getVariables().get(3));
 
+            case __IStore:
+            case __LStore:
+            case __FStore:
+            case __DStore:
+            case __AStore:
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
             case __IStore0:
-                return Pair.<AstCode, Object>create(__IStore, body.getVariables().get(0));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
             case __IStore1:
-                return Pair.<AstCode, Object>create(__IStore, body.getVariables().get(1));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(1));
             case __IStore2:
-                return Pair.<AstCode, Object>create(__IStore, body.getVariables().get(2));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
             case __IStore3:
-                return Pair.<AstCode, Object>create(__IStore, body.getVariables().get(3));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
             case __LStore0:
-                return Pair.<AstCode, Object>create(__LStore, body.getVariables().get(0));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
             case __LStore1:
-                return Pair.<AstCode, Object>create(__LStore, body.getVariables().get(1));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(1));
             case __LStore2:
-                return Pair.<AstCode, Object>create(__LStore, body.getVariables().get(2));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
             case __LStore3:
-                return Pair.<AstCode, Object>create(__LStore, body.getVariables().get(3));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
             case __FStore0:
-                return Pair.<AstCode, Object>create(__FStore, body.getVariables().get(0));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
             case __FStore1:
-                return Pair.<AstCode, Object>create(__FStore, body.getVariables().get(1));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(1));
             case __FStore2:
-                return Pair.<AstCode, Object>create(__FStore, body.getVariables().get(2));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
             case __FStore3:
-                return Pair.<AstCode, Object>create(__FStore, body.getVariables().get(3));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
             case __DStore0:
-                return Pair.<AstCode, Object>create(__DStore, body.getVariables().get(0));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
             case __DStore1:
-                return Pair.<AstCode, Object>create(__DStore, body.getVariables().get(1));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(1));
             case __DStore2:
-                return Pair.<AstCode, Object>create(__DStore, body.getVariables().get(2));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
             case __DStore3:
-                return Pair.<AstCode, Object>create(__DStore, body.getVariables().get(3));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
             case __AStore0:
-                return Pair.<AstCode, Object>create(__AStore, body.getVariables().get(0));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
             case __AStore1:
-                return Pair.<AstCode, Object>create(__AStore, body.getVariables().get(1));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(1));
             case __AStore2:
-                return Pair.<AstCode, Object>create(__AStore, body.getVariables().get(2));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
             case __AStore3:
-                return Pair.<AstCode, Object>create(__AStore, body.getVariables().get(3));
+                return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
 
             case __IfICmpEq:
                 return Pair.create(__IfEq, operand);
@@ -535,165 +547,179 @@ public enum AstCode {
                 operand.set(1d);
                 return true;
 
+            case __ILoad:
+            case __LLoad:
+            case __FLoad:
+            case __DLoad:
+            case __ALoad:
+                code.set(Load);
+                return true;
             case __ILoad0:
-                code.set(__ILoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(0));
                 return true;
             case __ILoad1:
-                code.set(__ILoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(1));
                 return true;
             case __ILoad2:
-                code.set(__ILoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(2));
                 return true;
             case __ILoad3:
-                code.set(__ILoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(3));
                 return true;
             case __LLoad0:
-                code.set(__LLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(0));
                 return true;
             case __LLoad1:
-                code.set(__LLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(1));
                 return true;
             case __LLoad2:
-                code.set(__LLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(2));
                 return true;
             case __LLoad3:
-                code.set(__LLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(3));
                 return true;
             case __FLoad0:
-                code.set(__FLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(0));
                 return true;
             case __FLoad1:
-                code.set(__FLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(1));
                 return true;
             case __FLoad2:
-                code.set(__FLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(2));
                 return true;
             case __FLoad3:
-                code.set(__FLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(3));
                 return true;
             case __DLoad0:
-                code.set(__DLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(0));
                 return true;
             case __DLoad1:
-                code.set(__DLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(1));
                 return true;
             case __DLoad2:
-                code.set(__DLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(2));
                 return true;
             case __DLoad3:
-                code.set(__DLoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(3));
                 return true;
             case __ALoad0:
-                code.set(__ALoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(0));
                 return true;
             case __ALoad1:
-                code.set(__ALoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(1));
                 return true;
             case __ALoad2:
-                code.set(__ALoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(2));
                 return true;
             case __ALoad3:
-                code.set(__ALoad);
+                code.set(Load);
                 operand.set(body.getVariables().get(3));
                 return true;
 
+            case __IStore:
+            case __LStore:
+            case __FStore:
+            case __DStore:
+            case __AStore:
+                code.set(Store);
+                return true;
             case __IStore0:
-                code.set(__IStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(0));
                 return true;
             case __IStore1:
-                code.set(__IStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(1));
                 return true;
             case __IStore2:
-                code.set(__IStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(2));
                 return true;
             case __IStore3:
-                code.set(__IStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(3));
                 return true;
             case __LStore0:
-                code.set(__LStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(0));
                 return true;
             case __LStore1:
-                code.set(__LStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(1));
                 return true;
             case __LStore2:
-                code.set(__LStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(2));
                 return true;
             case __LStore3:
-                code.set(__LStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(3));
                 return true;
             case __FStore0:
-                code.set(__FStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(0));
                 return true;
             case __FStore1:
-                code.set(__FStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(1));
                 return true;
             case __FStore2:
-                code.set(__FStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(2));
                 return true;
             case __FStore3:
-                code.set(__FStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(3));
                 return true;
             case __DStore0:
-                code.set(__DStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(0));
                 return true;
             case __DStore1:
-                code.set(__DStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(1));
                 return true;
             case __DStore2:
-                code.set(__DStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(2));
                 return true;
             case __DStore3:
-                code.set(__DStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(3));
                 return true;
             case __AStore0:
-                code.set(__AStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(0));
                 return true;
             case __AStore1:
-                code.set(__AStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(1));
                 return true;
             case __AStore2:
-                code.set(__AStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(2));
                 return true;
             case __AStore3:
-                code.set(__AStore);
+                code.set(Store);
                 operand.set(body.getVariables().get(3));
                 return true;
 

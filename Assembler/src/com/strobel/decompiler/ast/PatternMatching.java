@@ -158,7 +158,7 @@ public final class PatternMatching {
         if (body.size() == 3 &&
             body.get(0) instanceof Label &&
             matchGetArgument(body.get(1), code, operand, argument) &&
-            PatternMatching.<Label>matchGetArgument(body.get(2), AstCode.Goto, label)) {
+            PatternMatching.matchGetOperand(body.get(2), AstCode.Goto, label)) {
 
             return true;
         }
@@ -180,7 +180,7 @@ public final class PatternMatching {
 
         if (body.size() >= 2 &&
             matchGetArgument(body.get(body.size() - 2), code, operand, argument) &&
-            PatternMatching.<Label>matchGetArgument(body.get(body.size() - 1), AstCode.Goto, label)) {
+            PatternMatching.matchGetOperand(body.get(body.size() - 1), AstCode.Goto, label)) {
 
             return true;
         }

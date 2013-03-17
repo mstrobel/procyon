@@ -758,10 +758,10 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     body.setThisParameter(new ParameterDefinition("this", thisType));
                 }
 
+                body.freeze();
+
                 final InstructionVisitor instructionVisitor = visitor.visitBody(body);
                 final InstructionCollection instructions = body.getInstructions();
-
-                body.freeze();
 
                 final LineNumberTableAttribute lineNumbersAttribute = SourceAttribute.find(
                     AttributeNames.LineNumberTable,
@@ -807,14 +807,14 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     instructionVisitor.visitEnd();
                 }
 
-                visitor.visitEnd();
-
                 final MethodDefinition method = methodReference != null ? methodReference.resolve() : null;
 
                 if (method != null) {
                     body.setMethod(method);
                 }
             }
+
+            visitor.visitEnd();
         }
     }
 

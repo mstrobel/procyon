@@ -14,4 +14,13 @@
 package com.strobel.decompiler;
 
 public class DecompilerSettings {
+    private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
+
+    public final boolean getAlwaysGenerateExceptionVariableForCatchBlocks() {
+        return _alwaysGenerateExceptionVariableForCatchBlocks;
+    }
+
+    public final void setAlwaysGenerateExceptionVariableForCatchBlocks(final boolean value) {
+        _alwaysGenerateExceptionVariableForCatchBlocks = value;
+    }
 }

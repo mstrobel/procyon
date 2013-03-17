@@ -21,6 +21,7 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.NameSyntax;
 
@@ -213,7 +214,7 @@ public final class Expression extends Node {
                 output.writeReference(method.getName(), method);
             }
             else {
-
+                DecompilerHelpers.writeOperand(output, operand);
             }
 
             first = false;

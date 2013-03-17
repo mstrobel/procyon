@@ -38,7 +38,7 @@ public final class CatchBlock extends Block {
 
     @Override
     public final void writeTo(final ITextOutput output) {
-        output.write("catch");
+        output.write(".catch");
 
         if (_exceptionType != null) {
             output.write(" (");
@@ -57,6 +57,6 @@ public final class CatchBlock extends Block {
         super.writeTo(output);
 
         output.unindent();
-        output.writeLine("}");
+        output.write("}");
     }
 }

@@ -756,11 +756,15 @@
     </dictionary>
     <dictionary name="mstrobel">
       <words>
+        <w>bytecodes</w>
         <w>dominator</w>
         <w>iterable</w>
+        <w>obfuscator</w>
+        <w>obfuscators</w>
         <w>predicate's</w>
         <w>printf</w>
         <w>unindent</w>
+        <w>unreachability</w>
       </words>
     </dictionary>
   </component>

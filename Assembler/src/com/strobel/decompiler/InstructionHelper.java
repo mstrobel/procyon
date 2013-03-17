@@ -140,11 +140,13 @@ public final class InstructionHelper {
 
         final OpCode code = instruction.getOpCode();
 
-        switch (code.getStackBehaviorPop()) {
+        switch (code.getStackBehaviorPush()) {
             case Push0:
                 return 0;
 
             case Push1:
+                return 1;
+
             case Push1_Push1:
                 return 2;
 

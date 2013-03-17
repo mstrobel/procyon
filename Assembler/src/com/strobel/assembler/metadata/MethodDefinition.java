@@ -14,6 +14,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
+import com.strobel.assembler.ir.MethodBody;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 
 import java.util.Collections;
@@ -29,6 +30,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     private final List<TypeReference> _thrownTypesView;
     private final List<CustomAnnotation> _customAnnotationsView;
 
+    private MethodBody _body;
     private String _name;
     private TypeReference _returnType;
     private TypeDefinition _declaringType;
@@ -43,6 +45,14 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
         _parametersView = Collections.unmodifiableList(_parameters);
         _thrownTypesView = Collections.unmodifiableList(_thrownTypes);
         _customAnnotationsView = Collections.unmodifiableList(_customAnnotations);
+    }
+
+    public final MethodBody getBody() {
+        return _body;
+    }
+
+    protected final void setBody(final MethodBody body) {
+        _body = body;
     }
 
     @Override
