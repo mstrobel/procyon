@@ -249,16 +249,16 @@ public final class Frame {
             case Append: {
                 return new Frame(
                     type,
-                    EmptyArrayCache.fromElementType(FrameValue.class),
-                    Arrays.copyOfRange(nextLocals, inputLocalCount, newLocalCount)
+                    Arrays.copyOfRange(nextLocals, inputLocalCount, newLocalCount),
+                    EmptyArrayCache.fromElementType(FrameValue.class)
                 );
             }
 
             case Chop: {
                 return new Frame(
                     type,
-                    EmptyArrayCache.fromElementType(FrameValue.class),
-                    Arrays.copyOfRange(nextLocals, newLocalCount, inputLocalCount)
+                    Arrays.copyOfRange(nextLocals, newLocalCount, inputLocalCount),
+                    EmptyArrayCache.fromElementType(FrameValue.class)
                 );
             }
 

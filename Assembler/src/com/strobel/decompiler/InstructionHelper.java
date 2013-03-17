@@ -17,6 +17,7 @@ import com.strobel.assembler.ir.FlowControl;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.MethodBody;
 import com.strobel.assembler.ir.OpCode;
+import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.IMethodSignature;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -37,8 +38,15 @@ public final class InstructionHelper {
             case Pop0:
                 return 0;
 
-            case Pop1:
+            case Pop1: {
+                if (code == OpCode.PUTSTATIC) {
+                    final FieldReference field = instruction.getOperand(0);
+                    if (field.getFieldType().getSimpleType().isDoubleWord()) {
+                        return 2;
+                    }
+                }
                 return 1;
+            }
 
             case Pop2:
             case Pop1_Pop1:
@@ -47,8 +55,15 @@ public final class InstructionHelper {
             case Pop1_Pop2:
                 return 3;
 
-            case Pop1_PopA:
+            case Pop1_PopA: {
+                if (code == OpCode.PUTFIELD) {
+                    final FieldReference field = instruction.getOperand(0);
+                    if (field.getFieldType().getSimpleType().isDoubleWord()) {
+                        return 2;
+                    }
+                }
                 return 2;
+            }
 
             case Pop2_Pop1:
                 return 3;
@@ -108,6 +123,10 @@ public final class InstructionHelper {
                 return 2;
 
             case VarPop: {
+                if (code == OpCode.ATHROW) {
+                    return -1;
+                }
+
                 if (code.getFlowControl() != FlowControl.Call) {
                     break;
                 }
@@ -117,7 +136,7 @@ public final class InstructionHelper {
 
                 int count = parameters.size();
 
-                if (body.hasThis()) {
+                if (instruction.getOpCode() != OpCode.INVOKESTATIC) {
                     ++count;
                 }
 
@@ -144,8 +163,15 @@ public final class InstructionHelper {
             case Push0:
                 return 0;
 
-            case Push1:
+            case Push1: {
+                if (code == OpCode.GETFIELD || code == OpCode.GETSTATIC) {
+                    final FieldReference field = instruction.getOperand(0);
+                    if (field.getFieldType().getSimpleType().isDoubleWord()) {
+                        return 2;
+                    }
+                }
                 return 1;
+            }
 
             case Push1_Push1:
                 return 2;

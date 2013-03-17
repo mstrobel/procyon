@@ -266,8 +266,10 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
         }
 
         if (a.isGenericParameter()) {
-            return b.isGenericParameter() &&
-                   areEquivalent((GenericParameter) a, (GenericParameter) b);
+            if (b.isGenericParameter())
+                return areEquivalent((GenericParameter) a, (GenericParameter) b);
+
+            return areEquivalent(a.getExtendsBound(), b);
         }
 
         if (a.isWildcardType()) {

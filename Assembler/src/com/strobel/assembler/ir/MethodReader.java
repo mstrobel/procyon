@@ -122,6 +122,12 @@ public class MethodReader {
 
                 case MethodReference: {
                     inst = Instruction.create(op, _scope.lookupMethod(b.readUnsignedShort()));
+
+                    if (op == OpCode.INVOKEINTERFACE) {
+                        b.readUnsignedByte();
+                        b.readUnsignedByte();
+                    }
+
                     break;
                 }
 

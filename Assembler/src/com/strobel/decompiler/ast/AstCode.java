@@ -260,6 +260,7 @@ public enum AstCode {
     CmpGe,
     CmpGt,
     CmpLe,
+    IfTrue,
     Return,
     NewArray,
     LoadException,
@@ -372,6 +373,9 @@ public enum AstCode {
             case __DConst1:
                 return Pair.<AstCode, Object>create(LdC, 1d);
 
+            case __GotoW:
+                return Pair.create(Goto, operand);
+
             case __ILoad:
             case __LLoad:
             case __FLoad:
@@ -465,23 +469,6 @@ public enum AstCode {
                 return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
             case __AStore3:
                 return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
-
-            case __IfICmpEq:
-                return Pair.create(__IfEq, operand);
-            case __IfICmpNe:
-                return Pair.create(__IfNe, operand);
-            case __IfICmpLt:
-                return Pair.create(__IfEq, operand);
-            case __IfICmpGe:
-                return Pair.create(__IfGe, operand);
-            case __IfICmpGt:
-                return Pair.create(__IfGt, operand);
-            case __IfICmpLe:
-                return Pair.create(__IfLe, operand);
-            case __IfACmpEq:
-                return Pair.create(__IfEq, operand);
-            case __IfACmpNe:
-                return Pair.create(__IfNe, operand);
 
             default:
                 return null;
@@ -635,6 +622,10 @@ public enum AstCode {
                 operand.set(body.getVariables().get(3));
                 return true;
 
+            case __GotoW:
+                code.set(Goto);
+                return true;
+
             case __IStore:
             case __LStore:
             case __FStore:
@@ -721,39 +712,6 @@ public enum AstCode {
             case __AStore3:
                 code.set(Store);
                 operand.set(body.getVariables().get(3));
-                return true;
-
-            case __IfICmpEq:
-                code.set(__IfEq);
-                operand.set(operand);
-                return true;
-            case __IfICmpNe:
-                code.set(__IfNe);
-                operand.set(operand);
-                return true;
-            case __IfICmpLt:
-                code.set(__IfEq);
-                operand.set(operand);
-                return true;
-            case __IfICmpGe:
-                code.set(__IfGe);
-                operand.set(operand);
-                return true;
-            case __IfICmpGt:
-                code.set(__IfGt);
-                operand.set(operand);
-                return true;
-            case __IfICmpLe:
-                code.set(__IfLe);
-                operand.set(operand);
-                return true;
-            case __IfACmpEq:
-                code.set(__IfEq);
-                operand.set(operand);
-                return true;
-            case __IfACmpNe:
-                code.set(__IfNe);
-                operand.set(operand);
                 return true;
 
             default:

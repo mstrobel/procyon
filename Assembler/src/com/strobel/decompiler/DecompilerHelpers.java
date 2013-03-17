@@ -275,7 +275,9 @@ public final class DecompilerHelpers {
                     writer.write(", ");
 
                 if (value.getType() == FrameValueType.Reference) {
+                    writer.write("Ref(");
                     writeType(writer, (TypeReference) value.getParameter(), NameSyntax.SIGNATURE);
+                    writer.write(')');
                 }
                 else {
                     writer.write(String.valueOf(value.getType()));

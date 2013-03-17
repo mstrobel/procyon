@@ -570,6 +570,14 @@ public class StackMappingVisitor implements MethodVisitor {
                             break;
                         }
 
+                        case ATHROW: {
+                            _temp.push(pop());
+                            while (!_stack.isEmpty()) {
+                                pop();
+                            }
+                            break;
+                        }
+
                         case MULTIANEWARRAY: {
                             final int dimensions = ((Number) instruction.getOperand(1)).intValue();
 
@@ -744,6 +752,7 @@ public class StackMappingVisitor implements MethodVisitor {
                         case NEW:
                         case NEWARRAY:
                         case ANEWARRAY:
+                        case CHECKCAST:
                         case MULTIANEWARRAY:
                             push(instruction.<TypeReference>getOperand(0));
                             break;
