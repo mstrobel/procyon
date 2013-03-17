@@ -101,6 +101,11 @@ public class FieldDefinition extends FieldReference implements IMemberDefinition
         _name = name;
     }
 
+    @Override
+    public final boolean isDefinition() {
+        return true;
+    }
+
     public final TypeDefinition getDeclaringType() {
         return _declaringType;
     }

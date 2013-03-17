@@ -302,6 +302,10 @@ final class Helper {
             return false;
         }
 
+        if (p == Types.Object) {
+            return true;
+        }
+
         if (p.isCompoundType()) {
             final Type baseType = p.getBaseType();
 

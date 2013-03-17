@@ -37,7 +37,7 @@ public abstract class MethodReference extends MemberReference implements IMethod
     }
 
     public abstract List<ParameterDefinition> getParameters();
-    
+
     public List<TypeReference> getThrownTypes() {
         return Collections.emptyList();
     }
@@ -50,6 +50,29 @@ public abstract class MethodReference extends MemberReference implements IMethod
     public boolean isSpecialName() {
         return CONSTRUCTOR_NAME.equals(getName()) ||
                STATIC_INITIALIZER_NAME.equals(getName());
+    }
+
+    @Override
+    public boolean containsGenericParameters() {
+        if (super.containsGenericParameters()) {
+            return true;
+        }
+
+        if (getReturnType().containsGenericParameters()) {
+            return true;
+        }
+
+        if (hasParameters()) {
+            final List<ParameterDefinition> parameters = getParameters();
+
+            for (int i = 0, n = parameters.size(); i < n; i++) {
+                if (parameters.get(i).getParameterType().containsGenericParameters()) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public boolean isConstructor() {

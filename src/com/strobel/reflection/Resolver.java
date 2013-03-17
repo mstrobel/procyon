@@ -280,8 +280,8 @@ final class Resolver {
                     return null;
                 }
 
-                Type<?> upperBound = Type.Bottom;
-                Type<?> lowerBound = Types.Object;
+                Type<?> upperBound = Types.Object;
+                Type<?> lowerBound = Type.Bottom;
 
                 if (resolvedUpperBounds != null) {
                     if (resolvedUpperBounds.size() == 1) {
@@ -301,7 +301,7 @@ final class Resolver {
                     }
                 }
 
-                return new WildcardType(lowerBound, upperBound);
+                return new WildcardType(upperBound, lowerBound);
             }
 
             // Now redundant to findType()...
@@ -442,19 +442,52 @@ final class Resolver {
     }
 
     private Type<?> visitClass(final Class<?> c, final Frame frame) {
-        if (c.isLocalClass() || c.isAnonymousClass()) {
-            return null;
+        final Method declaringMethod;
+        final Constructor<?> declaringConstructor;
+        final Class<?> enclosingClass = c.getEnclosingClass();
+
+        if (enclosingClass != null) {
+            if (c.isLocalClass()) {
+                declaringMethod = c.getEnclosingMethod();
+                declaringConstructor = c.getEnclosingConstructor();
+            }
+            else {
+                if (c.isAnonymousClass()) {
+                    return null;
+                }
+                declaringMethod = null;
+                declaringConstructor = null;
+            }
+        }
+        else {
+            declaringMethod = null;
+            declaringConstructor = null;
         }
 
         final Frame currentFrame = new Frame(c, frame);
         final ReflectedType<?> currentType = currentFrame.getCurrentClass();
 
-        final Class<?> enclosingClass = c.getEnclosingClass();
-
         if (enclosingClass != null) {
             final Type declaringType = currentFrame.resolveType(enclosingClass);
 
             currentType.setDeclaringType(declaringType);
+
+            if (declaringMethod != null) {
+                for (final MethodInfo method : declaringType.getMethods(BindingFlags.AllDeclared)) {
+                    if (declaringMethod.equals(method.getRawMethod())) {
+                        currentType.setDeclaringMethod(method);
+                        break;
+                    }
+                }
+            }
+            else if (declaringConstructor != null) {
+                for (final ConstructorInfo constructor : declaringType.getConstructors(BindingFlags.AllDeclared)) {
+                    if (declaringConstructor.equals(constructor.getRawConstructor())) {
+                        currentType.setDeclaringMethod(constructor);
+                        break;
+                    }
+                }
+            }
 
             // Redundant: Frame constructor adds nested type to its declaring type.
             if (declaringType instanceof ReflectedType<?>) {
@@ -630,8 +663,8 @@ final class Resolver {
             return null;
         }
 
-        Type<?> upperBound = Type.Bottom;
-        Type<?> lowerBound = Types.Object;
+        Type<?> upperBound = Types.Object;
+        Type<?> lowerBound = Type.Bottom;
 
         if (resolvedUpperBounds != null) {
             if (resolvedUpperBounds.size() == 1) {
@@ -651,7 +684,7 @@ final class Resolver {
             }
         }
 
-        return new WildcardType(lowerBound, upperBound);
+        return new WildcardType(upperBound, lowerBound);
     }
 
     private Type<?> visitParameterizedType(final ParameterizedType type, final Frame frame) {
@@ -943,6 +976,7 @@ class ReflectedType<T> extends Type<T> {
     private volatile int             _flags;
     private          boolean         _completed;
     private          Type<?>         _declaringType;
+    private          MethodBase      _declaringMethod;
 
     private List<GenericParameter<?>>  _genericParameters = null;
     private List<ReflectedType<?>>     _nestedTypes       = null;
@@ -954,7 +988,7 @@ class ReflectedType<T> extends Type<T> {
 
     ReflectedType(final Class<T> rawClass) {
         _rawClass = VerifyArgument.notNull(rawClass, "rawClass");
-        _name = rawClass.getCanonicalName();
+        _name = rawClass.isLocalClass() ? rawClass.getName() : rawClass.getCanonicalName();
         _simpleName = rawClass.getSimpleName();
     }
 
@@ -966,7 +1000,7 @@ class ReflectedType<T> extends Type<T> {
     private boolean checkFlags(final int flags) {
         return (_flags & flags) == flags;
     }
-    
+
     private void setFlags(final int flags) {
         while (true) {
             final int oldFlags = _flags;
@@ -975,7 +1009,7 @@ class ReflectedType<T> extends Type<T> {
             }
         }
     }
-    
+
     private void clearFlags(final int flags) {
         while (true) {
             final int oldFlags = _flags;
@@ -984,7 +1018,7 @@ class ReflectedType<T> extends Type<T> {
             }
         }
     }
-    
+
     void setBaseType(final Type<?> baseType) {
         _baseType = (Type<? super T>) baseType;
     }
@@ -1011,7 +1045,7 @@ class ReflectedType<T> extends Type<T> {
         }
         return null;
     }
-    
+
     ReflectedMethod findMethod(final Method rawMethod) {
         if (_methods == null) {
             return null;
@@ -1023,7 +1057,7 @@ class ReflectedType<T> extends Type<T> {
         }
         return null;
     }
-    
+
     ReflectedConstructor findConstructor(final Constructor rawConstructor) {
         if (_constructors == null) {
             return null;
@@ -1035,7 +1069,7 @@ class ReflectedType<T> extends Type<T> {
         }
         return null;
     }
-    
+
     ReflectedType<?> findNestedType(final Class<?> rawClass) {
         if (_nestedTypes == null) {
             return null;
@@ -1054,6 +1088,10 @@ class ReflectedType<T> extends Type<T> {
 
     void setDeclaringType(final Type<?> declaringType) {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+    }
+
+    void setDeclaringMethod(final MethodBase declaringMethod) {
+        _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
     }
 
     void addGenericParameter(final GenericParameter genericParameter) {
@@ -1095,11 +1133,11 @@ class ReflectedType<T> extends Type<T> {
 
     void addConstructor(final ReflectedConstructor constructor) {
         VerifyArgument.notNull(constructor, "constructor");
-        
+
         if (_constructors == null) {
             _constructors = new ArrayList<>();
         }
-        
+
         _constructors.add(constructor);
 
         if (!checkFlags(FLAG_RESOLVING_MEMBERS)) {
@@ -1109,11 +1147,11 @@ class ReflectedType<T> extends Type<T> {
 
     void addField(final ReflectedField field) {
         VerifyArgument.notNull(field, "field");
-        
+
         if (_fields == null) {
             _fields = new ArrayList<>();
         }
-        
+
         _fields.add(field);
 
         if (!checkFlags(FLAG_RESOLVING_MEMBERS)) {

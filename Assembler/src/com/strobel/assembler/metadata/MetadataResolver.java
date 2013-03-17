@@ -22,7 +22,7 @@ import java.util.Stack;
 /**
  * @author Mike Strobel
  */
-public abstract class MetadataResolver implements IMetadataResolver {
+public abstract class MetadataResolver implements IMetadataResolver, IGenericContext {
     private final Stack<IResolverFrame> _frames;
 
     protected MetadataResolver() {
@@ -40,6 +40,19 @@ public abstract class MetadataResolver implements IMetadataResolver {
         }
 
         return lookupTypeCore(descriptor);
+    }
+
+    @Override
+    public final TypeReference findTypeVariable(final String name) {
+        for (int i = _frames.size() - 1; i >= 0; i--) {
+            final TypeReference type = _frames.get(i).findTypeVariable(name);
+
+            if (type != null) {
+                return type;
+            }
+        }
+
+        return null;
     }
 
     protected abstract TypeReference lookupTypeCore(final String descriptor);
@@ -106,9 +119,11 @@ public abstract class MetadataResolver implements IMetadataResolver {
 
         MethodReference reference = method;
 
+/*
         if (reference.isGenericMethod() && !reference.isGenericDefinition()) {
             reference = (MethodReference) ((IGenericInstance) reference).getGenericDefinition();
         }
+*/
 
         return getMethod(declaringType, reference);
     }
@@ -197,14 +212,12 @@ public abstract class MetadataResolver implements IMetadataResolver {
                 continue;
             }
 
-            if (candidate.hasGenericParameters() != reference.hasGenericParameters()) {
-                continue;
-            }
+            if (reference.hasGenericParameters()) {
+                if (!candidate.hasGenericParameters() ||
+                    candidate.getGenericParameters().size() != reference.getGenericParameters().size()) {
 
-            if (candidate.hasGenericParameters() &&
-                candidate.getGenericParameters().size() != reference.getGenericParameters().size()) {
-
-                continue;
+                    continue;
+                }
             }
 
             if (!areEquivalent(candidate.getReturnType(), reference.getReturnType())) {
@@ -242,6 +255,12 @@ public abstract class MetadataResolver implements IMetadataResolver {
             return false;
         }
 
+/*
+        if (!a.isDefinition() && b.isDefinition()) {
+            return areEquivalent(a.resolve(), b);
+        }
+*/
+
         if (a.getSimpleType() != b.getSimpleType()) {
             return false;
         }
@@ -257,13 +276,22 @@ public abstract class MetadataResolver implements IMetadataResolver {
                    areEquivalent(a.getSuperBound(), b.getSuperBound());
         }
 
-        if (a.isGenericType()) {
-            if (!b.isGenericType() || a.isGenericDefinition() != b.isGenericDefinition()) {
+        if (b.isGenericType()) {
+            if (!a.isGenericType()) {
                 return false;
             }
 
-            if (a instanceof IGenericInstance) {
-                return b instanceof IGenericInstance &&
+            if (a.isGenericDefinition() != b.isGenericDefinition()) {
+                if (a.isGenericDefinition()) {
+                    return areEquivalent(a.makeGenericType(((IGenericInstance)b).getTypeArguments()), b);
+                }
+                else {
+                    return areEquivalent(a, b.makeGenericType(((IGenericInstance)a).getTypeArguments()));
+                }
+            }
+
+            if (b instanceof IGenericInstance) {
+                return a instanceof IGenericInstance &&
                        areEquivalent((IGenericInstance) a, (IGenericInstance) b);
             }
 
@@ -297,7 +325,20 @@ public abstract class MetadataResolver implements IMetadataResolver {
         }
 
         for (int i = 0; i < count; i++) {
-            if (!areEquivalent(a.get(i).getParameterType(), b.get(i).getParameterType())) {
+            final ParameterDefinition pb = b.get(i);
+            final ParameterDefinition pa = a.get(i);
+            final TypeReference tb = pb.getParameterType();
+
+            TypeReference ta = pa.getParameterType();
+
+            if (ta.isGenericParameter() &&
+                !tb.isGenericParameter() &&
+                ((GenericParameter)ta).getOwner() == pa.getMethod()) {
+
+                ta = ta.getExtendsBound();
+            }
+
+            if (!areEquivalent(ta, tb)) {
                 return false;
             }
         }

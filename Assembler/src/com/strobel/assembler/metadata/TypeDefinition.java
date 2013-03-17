@@ -47,6 +47,7 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
     private long _flags;
     private List<Enum> _enumConstants;
     private TypeReference _rawType;
+    private MethodReference _declaringMethod;
 
     public TypeDefinition() {
         _genericParameters = new GenericParameterCollection(this);
@@ -119,6 +120,14 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
             _internalName = name.toString();
         }
         return _internalName;
+    }
+
+    public final MethodReference getDeclaringMethod() {
+        return _declaringMethod;
+    }
+
+    protected final void setDeclaringMethod(final MethodReference declaringMethod) {
+        _declaringMethod = declaringMethod;
     }
 
     public final TypeReference getBaseType() {
@@ -289,7 +298,7 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
     }
 
     @Override
-    public boolean isDefinition() {
+    public final boolean isDefinition() {
         return true;
     }
 

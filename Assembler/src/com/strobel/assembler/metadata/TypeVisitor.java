@@ -32,6 +32,7 @@ public interface TypeVisitor {
         final String baseTypeName,
         final String[] interfaceNames);
 
+    void visitDeclaringMethod(final MethodReference method);
     void visitOuterType(final TypeReference type);
     void visitInnerType(final TypeDefinition type);
 

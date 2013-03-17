@@ -411,16 +411,107 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             }
         }
 
-        visitor.visitParser(getParser());
-        populateDeclaringType(visitor);
-        visitHeader(visitor);
-        populateNamedInnerTypes(visitor);
-        visitAttributes(visitor);
-        visitConstantPool(visitor);
-        visitFields(visitor);
-        visitMethods(visitor);
-        populateAnonymousInnerTypes(visitor);
-        visitor.visitEnd();
+        SourceAttribute enclosingMethod = SourceAttribute.find(AttributeNames.EnclosingMethod, this.attributes);
+
+        final MethodReference declaringMethod;
+
+        try (final AutoCloseable ignored = _scope._parser.suppressTypeResolution()) {
+            if (enclosingMethod instanceof BlobAttribute) {
+                enclosingMethod = inflateAttribute(enclosingMethod);
+            }
+
+            if (enclosingMethod instanceof EnclosingMethodAttribute) {
+                MethodReference method = ((EnclosingMethodAttribute) enclosingMethod).getEnclosingMethod();
+
+                if (method != null) {
+                    final MethodDefinition resolvedMethod = method.resolve();
+
+                    if (resolvedMethod != null) {
+                        method = resolvedMethod;
+                    }
+                }
+
+                declaringMethod = method;
+            }
+            else {
+                declaringMethod = null;
+            }
+        }
+        catch (Exception e) {
+            throw new UndeclaredThrowableException(e);
+        }
+
+        final IResolverFrame temporaryFrame;
+
+        if (declaringMethod != null &&
+            (declaringMethod.containsGenericParameters() || declaringMethod.getDeclaringType().containsGenericParameters())) {
+
+            temporaryFrame = new IResolverFrame() {
+                @Override
+                public TypeReference findType(final String descriptor) {
+                    return null;
+                }
+
+                @Override
+                public TypeReference findTypeVariable(final String name) {
+                    for (final GenericParameter parameter : declaringMethod.getGenericParameters()) {
+                        if (parameter.getName().equals(name)) {
+                            return parameter;
+                        }
+                    }
+
+                    TypeReference type = declaringMethod.getDeclaringType();
+
+                    while (type != null) {
+                        if (type.hasGenericParameters()) {
+                            for (final GenericParameter parameter : type.getGenericParameters()) {
+                                if (parameter.getName().equals(name)) {
+                                    return parameter;
+                                }
+                            }
+                        }
+
+                        final TypeDefinition resolvedType = type.resolve();
+
+                        if (resolvedType == null) {
+                            break;
+                        }
+
+                        type = resolvedType.getBaseType();
+                    }
+
+                    return null;
+                }
+            };
+
+            _scope._parser.getResolver().pushFrame(temporaryFrame);
+        }
+        else {
+            temporaryFrame = null;
+        }
+
+        try {
+            visitor.visitParser(getParser());
+            populateDeclaringType(visitor);
+            visitHeader(visitor);
+
+            if (declaringMethod != null) {
+                visitor.visitDeclaringMethod(declaringMethod);
+            }
+
+            populateNamedInnerTypes(visitor);
+            visitAttributes(visitor);
+            visitConstantPool(visitor);
+            visitFields(visitor);
+            visitMethods(visitor);
+            populateAnonymousInnerTypes(visitor);
+            visitor.visitEnd();
+        }
+        finally {
+            if (temporaryFrame != null) {
+                _scope._parser.getResolver().popFrame();
+            }
+        }
     }
 
     private void visitConstantPool(final TypeVisitor visitor) {
@@ -539,7 +630,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             final String outerClassName = entry.getOuterClassName();
             final String innerClassName = entry.getInnerClassName();
 
-            if (Comparer.equals(innerClassName, this.internalName)) {
+            if (outerClassName == null || Comparer.equals(innerClassName, this.internalName)) {
                 continue;
             }
 
@@ -551,6 +642,12 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
                 visitor.visitInnerType((TypeDefinition) resolvedInnerType);
             }
+        }
+
+        final TypeReference self = _scope._parser.getResolver().lookupType(internalName);
+
+        if (self != null && self.isNested()) {
+            return;
         }
 
         for (final InnerClassEntry entry : innerClasses.getEntries()) {

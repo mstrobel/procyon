@@ -56,6 +56,11 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     }
 
     @Override
+    public final boolean isDefinition() {
+        return true;
+    }
+
+    @Override
     public final List<GenericParameter> getGenericParameters() {
         return _genericParametersView;
     }

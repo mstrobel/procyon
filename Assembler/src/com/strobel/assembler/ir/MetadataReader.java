@@ -190,7 +190,7 @@ public abstract class MetadataReader {
 
             case AttributeNames.RuntimeVisibleParameterAnnotations:
             case AttributeNames.RuntimeInvisibleParameterAnnotations: {
-                final CustomAnnotation[][] annotations = new CustomAnnotation[buffer.readUnsignedShort()][];
+                final CustomAnnotation[][] annotations = new CustomAnnotation[buffer.readUnsignedByte()][];
 
                 for (int i = 0; i < annotations.length; i++) {
                     final CustomAnnotation[] parameterAnnotations = new CustomAnnotation[buffer.readUnsignedShort()];
@@ -240,25 +240,36 @@ public abstract class MetadataReader {
                 if (buffer == null) {
                     buffer = new Buffer(attribute.getLength());
                 }
-                else {
-                    buffer.reset(attribute.getLength());
-                }
 
-                System.arraycopy(
-                    ((BlobAttribute) attribute).getData(),
-                    0,
-                    buffer.array(),
-                    0,
-                    attribute.getLength()
-                );
-
-                attributes[i] = readAttributeCore(
-                    attribute.getName(),
-                    buffer,
-                    attribute.getLength()
-                );
+                attributes[i] = inflateAttribute(buffer, attribute);
             }
         }
+    }
+
+    protected final SourceAttribute inflateAttribute(final SourceAttribute attribute) {
+        return inflateAttribute(new Buffer(0), attribute);
+    }
+
+    protected final SourceAttribute inflateAttribute(final Buffer buffer, final SourceAttribute attribute) {
+        if (attribute instanceof BlobAttribute) {
+            buffer.reset(attribute.getLength());
+
+            System.arraycopy(
+                ((BlobAttribute) attribute).getData(),
+                0,
+                buffer.array(),
+                0,
+                attribute.getLength()
+            );
+
+            return readAttributeCore(
+                attribute.getName(),
+                buffer,
+                attribute.getLength()
+            );
+        }
+
+        return attribute;
     }
 
     protected void inflateAttributes(final List<SourceAttribute> attributes) {

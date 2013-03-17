@@ -15,10 +15,16 @@
         <element id="dir-copy" path="$PROJECT_DIR$/src" />
       </root>
     </artifact>
+    <artifact type="jar" build-on-make="true" name="com.strobel.assembler">
+      <output-path>$PROJECT_DIR$/out/artifacts/com_strobel_assembler</output-path>
+      <root id="archive" name="com.strobel.assembler.jar">
+        <element id="module-output" name="Assembler" />
+        <element id="dir-copy" path="$PROJECT_DIR$/Assembler/src" />
+      </root>
+    </artifact>
   </component>
   <component name="CompilerConfiguration">
     <option name="DEFAULT_COMPILER" value="Javac" />
-    <addNotNullAssertions enabled="false" />
     <resourceExtensions />
     <wildcardResourcePatterns>
       <entry name="?*.properties" />
@@ -32,11 +38,7 @@
       <entry name="?*.tld" />
       <entry name="?*.ftl" />
     </wildcardResourcePatterns>
-    <annotationProcessing>
-      <profile default="true" name="Default" enabled="false">
-        <processorPath useClasspath="true" />
-      </profile>
-    </annotationProcessing>
+    <annotationProcessing enabled="false" useClasspath="true" />
   </component>
   <component name="CopyrightManager" default="">
     <copyright>
@@ -311,6 +313,10 @@
           <option name="XML_SPACE_INSIDE_EMPTY_TAG" value="true" />
           <option name="XML_LEGACY_SETTINGS_IMPORTED" value="true" />
         </XML>
+        <codeStyleSettings language="Groovy">
+          <option name="WRAP_COMMENTS" value="true" />
+          <option name="PARENT_SETTINGS_INSTALLED" value="true" />
+        </codeStyleSettings>
         <codeStyleSettings language="JAVA">
           <option name="KEEP_BLANK_LINES_IN_DECLARATIONS" value="1" />
           <option name="KEEP_BLANK_LINES_IN_CODE" value="1" />
@@ -358,211 +364,10 @@
           <option name="WHILE_BRACE_FORCE" value="3" />
           <option name="FOR_BRACE_FORCE" value="3" />
           <option name="VARIABLE_ANNOTATION_WRAP" value="2" />
-          <option name="ENUM_CONSTANTS_WRAP" value="2" />
           <indentOptions>
             <option name="CONTINUATION_INDENT_SIZE" value="4" />
             <option name="LABEL_INDENT_SIZE" value="-4" />
           </indentOptions>
-          <arrangement>
-            <groups>
-              <group>
-                <type>GETTERS_AND_SETTERS</type>
-                <order>KEEP</order>
-              </group>
-            </groups>
-            <rules>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PUBLIC</MODIFIER>
-                    <MODIFIER>STATIC</MODIFIER>
-                    <MODIFIER>FINAL</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PROTECTED</MODIFIER>
-                    <MODIFIER>STATIC</MODIFIER>
-                    <MODIFIER>FINAL</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PACKAGE_PRIVATE</MODIFIER>
-                    <MODIFIER>STATIC</MODIFIER>
-                    <MODIFIER>FINAL</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PRIVATE</MODIFIER>
-                    <MODIFIER>STATIC</MODIFIER>
-                    <MODIFIER>FINAL</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PUBLIC</MODIFIER>
-                    <MODIFIER>STATIC</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PROTECTED</MODIFIER>
-                    <MODIFIER>STATIC</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PACKAGE_PRIVATE</MODIFIER>
-                    <MODIFIER>STATIC</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PRIVATE</MODIFIER>
-                    <MODIFIER>STATIC</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PUBLIC</MODIFIER>
-                    <MODIFIER>FINAL</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PROTECTED</MODIFIER>
-                    <MODIFIER>FINAL</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PACKAGE_PRIVATE</MODIFIER>
-                    <MODIFIER>FINAL</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PRIVATE</MODIFIER>
-                    <MODIFIER>FINAL</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PUBLIC</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PROTECTED</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PACKAGE_PRIVATE</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>FIELD</TYPE>
-                    <MODIFIER>PRIVATE</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <TYPE>FIELD</TYPE>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <TYPE>CONSTRUCTOR</TYPE>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>METHOD</TYPE>
-                    <MODIFIER>STATIC</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <TYPE>METHOD</TYPE>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <TYPE>ENUM</TYPE>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <TYPE>INTERFACE</TYPE>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <TYPE>CLASS</TYPE>
-                    <MODIFIER>STATIC</MODIFIER>
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <TYPE>CLASS</TYPE>
-                </match>
-              </rule>
-            </rules>
-          </arrangement>
         </codeStyleSettings>
         <codeStyleSettings language="XML">
           <indentOptions>
@@ -576,48 +381,13 @@
     <option name="USE_PER_PROJECT_SETTINGS" value="true" />
   </component>
   <component name="ProjectDictionaryState">
-    <dictionary name="Mike Strobel">
+    <dictionary name="mstrobel">
       <words>
-        <w>arraycopy</w>
-        <w>booleans</w>
-        <w>bytecode</w>
-        <w>comparand</w>
-        <w>comparer</w>
-        <w>concat</w>
-        <w>contravariance</w>
-        <w>ctor</w>
-        <w>ctors</w>
-        <w>defaultstate</w>
-        <w>dword</w>
-        <w>enqueuing</w>
-        <w>fixup</w>
-        <w>fixups</w>
-        <w>functor</w>
-        <w>goto</w>
-        <w>initializers</w>
-        <w>intrinisified</w>
-        <w>javac</w>
-        <w>nullable</w>
-        <w>nulled</w>
-        <w>nulling</w>
-        <w>opcode</w>
-        <w>opcodes</w>
-        <w>overridable</w>
-        <w>parameterized</w>
-        <w>preallocation</w>
-        <w>println</w>
-        <w>reachability</w>
-        <w>recurse</w>
-        <w>resized</w>
-        <w>simplifiable</w>
-        <w>strobel</w>
-        <w>subword</w>
-        <w>trie</w>
-        <w>unary</w>
-        <w>unbox</w>
-        <w>unboxed</w>
-        <w>unintuitively</w>
-        <w>writeable</w>
+        <w>dominator</w>
+        <w>iterable</w>
+        <w>predicate's</w>
+        <w>printf</w>
+        <w>unindent</w>
       </words>
     </dictionary>
     <dictionary name="strobelm">
@@ -754,17 +524,48 @@
         <w>variable's</w>
       </words>
     </dictionary>
-    <dictionary name="mstrobel">
+    <dictionary name="Mike Strobel">
       <words>
-        <w>bytecodes</w>
-        <w>dominator</w>
-        <w>iterable</w>
-        <w>obfuscator</w>
-        <w>obfuscators</w>
-        <w>predicate's</w>
-        <w>printf</w>
-        <w>unindent</w>
-        <w>unreachability</w>
+        <w>arraycopy</w>
+        <w>booleans</w>
+        <w>bytecode</w>
+        <w>comparand</w>
+        <w>comparer</w>
+        <w>concat</w>
+        <w>contravariance</w>
+        <w>ctor</w>
+        <w>ctors</w>
+        <w>defaultstate</w>
+        <w>dword</w>
+        <w>enqueuing</w>
+        <w>fixup</w>
+        <w>fixups</w>
+        <w>functor</w>
+        <w>goto</w>
+        <w>initializers</w>
+        <w>intrinisified</w>
+        <w>javac</w>
+        <w>nullable</w>
+        <w>nulled</w>
+        <w>nulling</w>
+        <w>opcode</w>
+        <w>opcodes</w>
+        <w>overridable</w>
+        <w>parameterized</w>
+        <w>preallocation</w>
+        <w>println</w>
+        <w>reachability</w>
+        <w>recurse</w>
+        <w>resized</w>
+        <w>simplifiable</w>
+        <w>strobel</w>
+        <w>subword</w>
+        <w>trie</w>
+        <w>unary</w>
+        <w>unbox</w>
+        <w>unboxed</w>
+        <w>unintuitively</w>
+        <w>writeable</w>
       </words>
     </dictionary>
   </component>

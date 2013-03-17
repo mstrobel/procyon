@@ -13,11 +13,11 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.compilerservices.RuntimeHelpers;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
-import org.omg.CosNaming._NamingContextExtStub;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -193,6 +193,10 @@ public final class MetadataParser {
             if (typeVariable != null) {
                 return typeVariable;
             }
+        }
+
+        if (_resolver instanceof IGenericContext) {
+            return ((IGenericContext) _resolver).findTypeVariable(name);
         }
 
         return null;
@@ -696,6 +700,8 @@ public final class MetadataParser {
     private final static TypeReference[] PRIMITIVE_TYPES = new TypeReference[16];
 
     static {
+        RuntimeHelpers.ensureClassInitialized(MetadataSystem.class);
+
         final TypeReference[] allPrimitives = {
             BuiltinTypes.Boolean,
             BuiltinTypes.Byte,

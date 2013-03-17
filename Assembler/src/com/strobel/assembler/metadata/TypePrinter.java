@@ -17,9 +17,7 @@ import com.strobel.assembler.CodePrinter;
 import com.strobel.assembler.DisassemblerOptions;
 import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.ir.attributes.AttributeNames;
-import com.strobel.assembler.ir.attributes.ConstantValueAttribute;
 import com.strobel.assembler.ir.attributes.EnclosingMethodAttribute;
-import com.strobel.assembler.ir.attributes.SignatureAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.ir.attributes.SourceFileAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
@@ -76,6 +74,10 @@ public class TypePrinter implements TypeVisitor {
         finally {
             _printer.decreaseIndent();
         }
+    }
+
+    @Override
+    public void visitDeclaringMethod(final MethodReference method) {
     }
 
     @Override

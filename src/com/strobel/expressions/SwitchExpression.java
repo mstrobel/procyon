@@ -232,6 +232,7 @@ public final class SwitchExpression extends Expression {
         }
 
         return makeSwitch(
+            _type,
             call(_switchValue, "ordinal"),
             _options,
             _defaultBody,

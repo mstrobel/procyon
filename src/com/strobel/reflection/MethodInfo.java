@@ -361,9 +361,25 @@ public abstract class MethodInfo extends MethodBase {
 
     @Override
     public StringBuilder appendSignature(final StringBuilder sb) {
+        StringBuilder s = sb;
+
+        if (isGenericMethod()) {
+            final TypeList typeArguments = getTypeBindings().getBoundTypes();
+            final int count = typeArguments.size();
+
+            if (count > 0) {
+                s.append('<');
+                //noinspection ForLoopReplaceableByForEach
+                for (int i = 0; i < count; ++i) {
+                    final Type type = typeArguments.get(i);
+                    s = type.appendGenericSignature(s);
+                }
+                s.append('>');
+            }
+        }
+
         final ParameterList parameters = getParameters();
 
-        StringBuilder s = sb;
         s.append('(');
 
         for (int i = 0, n = parameters.size(); i < n; ++i) {

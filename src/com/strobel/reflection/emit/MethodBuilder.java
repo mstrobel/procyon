@@ -337,6 +337,22 @@ public final class MethodBuilder extends MethodInfo {
     @Override
     public StringBuilder appendSignature(final StringBuilder sb) {
         StringBuilder s = sb;
+
+        if (isGenericMethod()) {
+            final GenericParameterBuilderList genericParameters = _genericParameterBuilders;
+            final int count = genericParameters.size();
+
+            if (count > 0) {
+                s.append('<');
+                //noinspection ForLoopReplaceableByForEach
+                for (int i = 0; i < count; ++i) {
+                    final Type type = genericParameters.get(i);
+                    s = type.appendGenericSignature(s);
+                }
+                s.append('>');
+            }
+        }
+
         s.append('(');
 
         final TypeList parameterTypes = getParameterTypes();

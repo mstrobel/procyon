@@ -14,10 +14,10 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.ir.ClassFileReader;
+import com.strobel.compilerservices.RuntimeHelpers;
 import com.strobel.core.Fences;
 import com.strobel.core.VerifyArgument;
 
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -123,6 +123,8 @@ public class MetadataSystem extends MetadataResolver {
     private final static TypeDefinition[] PRIMITIVE_TYPES_BY_DESCRIPTOR = new TypeDefinition[16];
 
     static {
+        RuntimeHelpers.ensureClassInitialized(BuiltinTypes.class);
+
         final TypeDefinition[] allPrimitives = {
             BuiltinTypes.Boolean,
             BuiltinTypes.Byte,

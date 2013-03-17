@@ -122,6 +122,19 @@ public class TypeDefinitionBuilder implements TypeVisitor {
         _typeDefinition.setBaseType(baseType);
     }
 
+    @Override
+    public void visitDeclaringMethod(final MethodReference method) {
+        if (method == null)
+            return;
+
+        _typeDefinition.setDeclaringMethod(method);
+
+        if (method.hasGenericParameters()) {
+            _parser.pushGenericContext(method);
+            ++_genericContextCount;
+        }
+    }
+
     private int pushGenericContexts() {
         int genericContextCount = 0;
         TypeReference currentType = _typeDefinition;
