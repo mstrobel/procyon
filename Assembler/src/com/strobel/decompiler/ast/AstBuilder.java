@@ -328,7 +328,7 @@ public final class AstBuilder {
             for (int i = byteCode.stackBefore.length - popCount; i < byteCode.stackBefore.length; i++) {
                 final Variable tempVariable = new Variable();
 
-                tempVariable.setName(format("arg_%1$02X_%2$d", byteCode.offset, argumentIndex));
+                tempVariable.setName(format("stack_%1$02X_%2$d", byteCode.offset, argumentIndex));
                 tempVariable.setGenerated(true);
 
                 byteCode.stackBefore[i] = new StackSlot(byteCode.stackBefore[i].definitions, tempVariable);

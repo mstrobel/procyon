@@ -57,6 +57,20 @@ public final class AstOptimizer {
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             reduceBranchInstructionSet(block);
         }
+
+        if (abortBeforeStep == AstOptimizationStep.InlineVariables) {
+            return;
+        }
+
+        final Inlining inliningPhase1 = new Inlining(method);
+
+        inliningPhase1.inlineAllVariables();
+
+        if (abortBeforeStep == AstOptimizationStep.CopyPropagation) {
+            return;
+        }
+
+        inliningPhase1.copyPropagation();
     }
 
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">

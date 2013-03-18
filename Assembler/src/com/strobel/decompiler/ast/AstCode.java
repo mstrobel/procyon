@@ -66,14 +66,14 @@ public enum AstCode {
     __ALoad1,
     __ALoad2,
     __ALoad3,
-    IALoad,
-    LALoad,
-    FALoad,
-    DALoad,
-    AALoad,
-    BALoad,
-    CALoad,
-    SALoad,
+    __IALoad,
+    __LALoad,
+    __FALoad,
+    __DALoad,
+    __AALoad,
+    __BALoad,
+    __CALoad,
+    __SALoad,
     __IStore,
     __LStore,
     __FStore,
@@ -99,14 +99,14 @@ public enum AstCode {
     __AStore1,
     __AStore2,
     __AStore3,
-    IAStore,
-    LAStore,
-    FAStore,
-    DAStore,
-    AAStore,
-    BAStore,
-    CAStore,
-    SAStore,
+    __IAStore,
+    __LAStore,
+    __FAStore,
+    __DAStore,
+    __AAStore,
+    __BAStore,
+    __CAStore,
+    __SAStore,
     Pop,
     Pop2,
     Dup,
@@ -423,6 +423,16 @@ public enum AstCode {
             case __ALoad3:
                 return Pair.<AstCode, Object>create(Load, body.getVariables().get(3));
 
+            case __IALoad:
+            case __LALoad:
+            case __FALoad:
+            case __DALoad:
+            case __AALoad:
+            case __BALoad:
+            case __CALoad:
+            case __SALoad:
+                return Pair.create(LoadElement, operand);
+            
             case __IStore:
             case __LStore:
             case __FStore:
@@ -469,6 +479,16 @@ public enum AstCode {
                 return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
             case __AStore3:
                 return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
+
+            case __IAStore:
+            case __LAStore:
+            case __FAStore:
+            case __DAStore:
+            case __AAStore:
+            case __BAStore:
+            case __CAStore:
+            case __SAStore:
+                return Pair.create(StoreElement, operand);
 
             default:
                 return null;
@@ -622,6 +642,17 @@ public enum AstCode {
                 operand.set(body.getVariables().get(3));
                 return true;
 
+            case __IALoad:
+            case __LALoad:
+            case __FALoad:
+            case __DALoad:
+            case __AALoad:
+            case __BALoad:
+            case __CALoad:
+            case __SALoad:
+                code.set(LoadElement);
+                return true;
+            
             case __GotoW:
                 code.set(Goto);
                 return true;
@@ -714,6 +745,17 @@ public enum AstCode {
                 operand.set(body.getVariables().get(3));
                 return true;
 
+            case __IAStore:
+            case __LAStore:
+            case __FAStore:
+            case __DAStore:
+            case __AAStore:
+            case __BAStore:
+            case __CAStore:
+            case __SAStore:
+                code.set(StoreElement);
+                return true;
+            
             default:
                 return false;
         }
