@@ -41,6 +41,7 @@ public final class BasicBlock extends Node {
     public final void writeTo(final ITextOutput output) {
         for (final Node child : getChildren()) {
             child.writeTo(output);
+            output.writeLine();
         }
     }
 }

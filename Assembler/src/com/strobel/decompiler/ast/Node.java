@@ -31,6 +31,16 @@ public abstract class Node {
         return output.toString();
     }
 
+    public final boolean isConditionalControlFlow() {
+        return this instanceof Expression &&
+               ((Expression)this).getCode().isConditionalControlFlow();
+    }
+
+    public final boolean isUnconditionalControlFlow() {
+        return this instanceof Expression &&
+               ((Expression)this).getCode().isUnconditionalControlFlow();
+    }
+
     // <editor-fold defaultstate="collapsed" desc="Enumeration Methods">
 
     public List<Node> getChildren() {

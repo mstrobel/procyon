@@ -14,6 +14,7 @@
 package com.strobel.decompiler.ast;
 
 import com.strobel.assembler.metadata.MetadataSystem;
+import com.strobel.core.CollectionUtilities;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.Predicate;
 import com.strobel.core.StrongBox;
@@ -71,6 +72,20 @@ public final class AstOptimizer {
         }
 
         inliningPhase1.copyPropagation();
+
+        if (abortBeforeStep == AstOptimizationStep.SplitToMovableBlocks) {
+            return;
+        }
+
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            optimizer.splitToMovableBlocks(block);
+        }
+
+        if (abortBeforeStep == AstOptimizationStep.TypeInference) {
+            return;
+        }
+
+        TypeAnalysis.run(context, method);
     }
 
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">
@@ -200,8 +215,9 @@ public final class AstOptimizer {
         for (int i = 0; i < body.size(); i++) {
             final Node node = body.get(i);
 
-            if (!(node instanceof Expression))
+            if (!(node instanceof Expression)) {
                 continue;
+            }
 
             final Expression e = (Expression) node;
             final AstCode code;
@@ -226,38 +242,89 @@ public final class AstOptimizer {
                     final Expression next = (Expression) body.get(i + 1);
 
                     switch (next.getCode()) {
-                        case __IfEq: code = AstCode.CmpEq; break;
-                        case __IfNe: code = AstCode.CmpNe; break;
-                        case __IfLt: code = AstCode.CmpLt; break;
-                        case __IfGe: code = AstCode.CmpGe; break;
-                        case __IfGt: code = AstCode.CmpGt; break;
-                        case __IfLe: code = AstCode.CmpLe; break;
-                        default: continue;
+                        case __IfEq:
+                            code = AstCode.CmpEq;
+                            break;
+                        case __IfNe:
+                            code = AstCode.CmpNe;
+                            break;
+                        case __IfLt:
+                            code = AstCode.CmpLt;
+                            break;
+                        case __IfGe:
+                            code = AstCode.CmpGe;
+                            break;
+                        case __IfGt:
+                            code = AstCode.CmpGt;
+                            break;
+                        case __IfLe:
+                            code = AstCode.CmpLe;
+                            break;
+                        default:
+                            continue;
                     }
 
                     body.remove(i);
                     break;
                 }
 
-                case __IfEq: code = AstCode.LogicalNot; break;
-                case __IfNe: e.setCode(AstCode.IfTrue); continue;
+                case __IfEq:
+                    code = AstCode.LogicalNot;
+                    break;
+                case __IfNe:
+                    e.setCode(AstCode.IfTrue);
+                    continue;
 
-                case __IfLt: e.getArguments().add(new Expression(AstCode.LdC, 0)); code = AstCode.CmpLt; break;
-                case __IfGe: e.getArguments().add(new Expression(AstCode.LdC, 0)); code = AstCode.CmpGe; break;
-                case __IfGt: e.getArguments().add(new Expression(AstCode.LdC, 0)); code = AstCode.CmpGt; break;
-                case __IfLe: e.getArguments().add(new Expression(AstCode.LdC, 0)); code = AstCode.CmpLe; break;
+                case __IfLt:
+                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    code = AstCode.CmpLt;
+                    break;
+                case __IfGe:
+                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    code = AstCode.CmpGe;
+                    break;
+                case __IfGt:
+                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    code = AstCode.CmpGt;
+                    break;
+                case __IfLe:
+                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    code = AstCode.CmpLe;
+                    break;
 
-                case __IfICmpEq: code = AstCode.CmpEq; break;
-                case __IfICmpNe: code = AstCode.CmpNe; break;
-                case __IfICmpLt: code = AstCode.CmpLt; break;
-                case __IfICmpGe: code = AstCode.CmpGe; break;
-                case __IfICmpGt: code = AstCode.CmpGt; break;
-                case __IfICmpLe: code = AstCode.CmpLe; break;
-                case __IfACmpEq: code = AstCode.CmpEq; break;
-                case __IfACmpNe: code = AstCode.CmpNe; break;
+                case __IfICmpEq:
+                    code = AstCode.CmpEq;
+                    break;
+                case __IfICmpNe:
+                    code = AstCode.CmpNe;
+                    break;
+                case __IfICmpLt:
+                    code = AstCode.CmpLt;
+                    break;
+                case __IfICmpGe:
+                    code = AstCode.CmpGe;
+                    break;
+                case __IfICmpGt:
+                    code = AstCode.CmpGt;
+                    break;
+                case __IfICmpLe:
+                    code = AstCode.CmpLe;
+                    break;
+                case __IfACmpEq:
+                    code = AstCode.CmpEq;
+                    break;
+                case __IfACmpNe:
+                    code = AstCode.CmpNe;
+                    break;
 
-                case __IfNull: e.getArguments().add(new Expression(AstCode.AConstNull, null)); code = AstCode.CmpEq; break;
-                case __IfNonNull: e.getArguments().add(new Expression(AstCode.AConstNull, null)); code = AstCode.CmpNe; break;
+                case __IfNull:
+                    e.getArguments().add(new Expression(AstCode.AConstNull, null));
+                    code = AstCode.CmpEq;
+                    break;
+                case __IfNonNull:
+                    e.getArguments().add(new Expression(AstCode.AConstNull, null));
+                    code = AstCode.CmpNe;
+                    break;
 
                 default:
                     continue;
@@ -268,6 +335,89 @@ public final class AstOptimizer {
             body.set(i, new Expression(AstCode.IfTrue, e.getOperand(), newExpression));
             newExpression.getRanges().addAll(e.getRanges());
         }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="SplitToMovableBlocks Step">
+
+    private void splitToMovableBlocks(final Block block) {
+        final List<Node> basicBlocks = new ArrayList<>();
+
+        final List<Node> body = block.getBody();
+        final Object firstNode = CollectionUtilities.firstOrDefault(body);
+
+        final Label entryLabel;
+
+        if (firstNode instanceof Label) {
+            entryLabel = (Label) firstNode;
+        }
+        else {
+            entryLabel = new Label();
+            entryLabel.setName("Block_" + (_nextLabelIndex++));
+        }
+
+        BasicBlock basicBlock = new BasicBlock();
+        List<Node> basicBlockBody = basicBlock.getBody();
+
+        basicBlocks.add(basicBlock);
+        basicBlockBody.add(entryLabel);
+
+        block.setEntryGoto(new Expression(AstCode.Goto, entryLabel));
+
+        if (!body.isEmpty()) {
+            if (body.get(0) != entryLabel) {
+                basicBlockBody.add(body.get(0));
+            }
+
+            for (int i = 1; i < body.size(); i++) {
+                final Node lastNode = body.get(i - 1);
+                final Node currentNode = body.get(i);
+
+                //
+                // Start a new basic block if necessary.
+                //
+                if (currentNode instanceof Label ||
+                    currentNode instanceof TryCatchBlock ||
+                    lastNode.isConditionalControlFlow() ||
+                    lastNode.isUnconditionalControlFlow()) {
+
+                    //
+                    // Try to reuse the label.
+                    //
+                    final Label label = currentNode instanceof Label ? (Label) currentNode
+                                                                     : new Label("Block_" + (_nextLabelIndex++));
+
+                    //
+                    // Terminate the last block.
+                    //
+                    if (!lastNode.isUnconditionalControlFlow()) {
+                        basicBlockBody.add(new Expression(AstCode.Goto, label));
+                    }
+
+                    //
+                    // Start the new block.
+                    //
+                    basicBlock = new BasicBlock();
+                    basicBlocks.add(basicBlock);
+                    basicBlockBody = basicBlock.getBody();
+                    basicBlockBody.add(label);
+
+                    //
+                    // Add the node to the basic block.
+                    //
+                    if (currentNode != label) {
+                        basicBlockBody.add(currentNode);
+                    }
+                }
+                else  {
+                   basicBlockBody.add(currentNode);
+                }
+            }
+        }
+
+        body.clear();
+        body.addAll(basicBlocks);
     }
 
     // </editor-fold>

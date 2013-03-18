@@ -385,7 +385,6 @@ final class Inlining {
                 // Remove the store instruction.
                 //
                 body.remove(position);
-                System.out.printf("Removed variable (1): %s\n", variable.get());
                 return true;
             }
 
@@ -398,7 +397,6 @@ final class Inlining {
                     // Remove the expression completely.
                     //
                     body.remove(position);
-                    System.out.printf("Removed variable (2): %s\n", variable.get());
                     return true;
                 }
 
@@ -413,7 +411,6 @@ final class Inlining {
                     // Remove the store, but keep the inner expression;
                     //
                     body.set(position, inlinedExpression.get());
-                    System.out.printf("Removed variable (3): %s\n", variable.get());
                     return true;
                 }
             }

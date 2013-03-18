@@ -18,6 +18,13 @@ import com.strobel.decompiler.ITextOutput;
 public class Label extends Node {
     private String _name;
 
+    public Label() {
+    }
+
+    public Label(final String name) {
+        _name = name;
+    }
+
     public String getName() {
         return _name;
     }

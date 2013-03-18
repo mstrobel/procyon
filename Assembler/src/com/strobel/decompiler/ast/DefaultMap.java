@@ -1,0 +1,42 @@
+/*
+ * DefaultMap.java
+ *
+ * Copyright (c) 2013 Mike Strobel
+ *
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0.
+ * A copy of the license can be found in the License.html file at the root of this distribution.
+ * By using this source code in any fashion, you are agreeing to be bound by the terms of the
+ * Apache License, Version 2.0.
+ *
+ * You must not remove this notice, or any other, from this software.
+ */
+
+package com.strobel.decompiler.ast;
+
+import com.strobel.core.VerifyArgument;
+import com.strobel.core.delegates.Func;
+
+import java.util.IdentityHashMap;
+
+/**
+ * @author mstrobel
+ */
+final class DefaultMap<K, V> extends IdentityHashMap<K, V> {
+    private final Func<V> _defaultValueFactory;
+
+    DefaultMap(final Func<V> defaultValueFactory) {
+        _defaultValueFactory = VerifyArgument.notNull(defaultValueFactory, "defaultValueFactory");
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public V get(final Object key) {
+        V value = super.get(key);
+
+        if (value == null) {
+            put((K) key, value = _defaultValueFactory.invoke());
+        }
+
+        return value;
+    }
+}
