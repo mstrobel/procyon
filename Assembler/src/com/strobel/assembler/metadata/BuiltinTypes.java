@@ -58,7 +58,7 @@ public final class BuiltinTypes {
         Object = object;
 
         final ClassFileReader reader = ClassFileReader.readClass(metadataSystem, buffer);
-        final TypeDefinitionBuilder builder = new TypeDefinitionBuilder();
+        final TypeDefinitionBuilder builder = new TypeDefinitionBuilder(object);
 
         reader.accept(builder);
     }

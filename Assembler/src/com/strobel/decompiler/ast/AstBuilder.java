@@ -19,6 +19,7 @@ import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.MethodBody;
 import com.strobel.assembler.ir.OpCode;
+import com.strobel.assembler.metadata.SwitchInfo;
 import com.strobel.assembler.metadata.VariableDefinition;
 import com.strobel.assembler.metadata.VariableDefinitionCollection;
 import com.strobel.assembler.metadata.VariableReference;
@@ -75,6 +76,7 @@ public final class AstBuilder {
 
             AstCode code = CODES[opCode.ordinal()];
             Object operand = instruction.hasOperand() ? instruction.getOperand(0) : null;
+            Object secondOperand = instruction.getOperandCount() > 1 ? instruction.getOperand(1) : null;
 
             codeBox.set(code);
             operandBox.set(operand);
@@ -90,6 +92,7 @@ public final class AstBuilder {
             byteCode.endOffset = instruction.getEndOffset();
             byteCode.code = code;
             byteCode.operand = operand;
+            byteCode.secondOperand = secondOperand;
             byteCode.popCount = InstructionHelper.getPopDelta(instruction, _body);
             byteCode.pushCount = InstructionHelper.getPushDelta(instruction, _body);
 
@@ -195,7 +198,7 @@ public final class AstBuilder {
                 for (final Instruction instruction : (Instruction[]) byteCode.operand) {
                     final ByteCode target = byteCodeMap.get(instruction);
 
-                    branchTargets.add(byteCode);
+                    branchTargets.add(target);
 
                     //
                     // Branch target must have a label.
@@ -218,6 +221,34 @@ public final class AstBuilder {
                 if (target.label == null) {
                     target.label = new Label();
                     target.label.setName(target.name());
+                }
+            }
+            else if (byteCode.operand instanceof SwitchInfo) {
+                final SwitchInfo switchInfo = (SwitchInfo) byteCode.operand;
+                final ByteCode defaultTarget = byteCodeMap.get(switchInfo.getDefaultTarget());
+
+                branchTargets.add(defaultTarget);
+
+                //
+                // Branch target must have a label.
+                //
+                if (defaultTarget.label == null) {
+                    defaultTarget.label = new Label();
+                    defaultTarget.label.setName(defaultTarget.name());
+                }
+
+                for (final Instruction instruction : switchInfo.getTargets()) {
+                    final ByteCode target = byteCodeMap.get(instruction);
+
+                    branchTargets.add(target);
+
+                    //
+                    // Branch target must have a label.
+                    //
+                    if (target.label == null) {
+                        target.label = new Label();
+                        target.label.setName(target.name());
+                    }
                 }
             }
 
@@ -440,7 +471,18 @@ public final class AstBuilder {
                 byteCode.operand = newOperand;
             }
             else if (byteCode.operand instanceof Instruction) {
-                byteCode.operand = byteCodeMap.get((Instruction) byteCode.operand).label;
+                byteCode.operand = byteCodeMap.get(byteCode.operand).label;
+            }
+            else if (byteCode.operand instanceof SwitchInfo) {
+                final SwitchInfo switchInfo = (SwitchInfo) byteCode.operand;
+                final Instruction[] branchTargets = ArrayUtilities.prepend(switchInfo.getTargets(), switchInfo.getDefaultTarget());
+                final Label[] newOperand = new Label[branchTargets.length];
+
+                for (int i = 0; i < branchTargets.length; i++) {
+                    newOperand[i] = byteCodeMap.get(branchTargets[i]).label;
+                }
+
+                byteCode.operand = newOperand;
             }
         }
 
@@ -755,8 +797,9 @@ public final class AstBuilder {
 
                 int tryEndIndex = 0;
 
-                while (tryEndIndex < body.size() && body.get(tryEndIndex).offset < tryEnd)
+                while (tryEndIndex < body.size() && body.get(tryEndIndex).offset < tryEnd) {
                     tryEndIndex++;
+                }
 
                 final Block tryBlock = new Block();
                 final ArrayList<ByteCode> tryBody = new ArrayList<>(body.subList(0, tryEndIndex));
@@ -860,7 +903,7 @@ public final class AstBuilder {
                                 }
                             }
                             else {
-                                    catchBlock.setExceptionVariable(loadException.storeTo.get(0));
+                                catchBlock.setExceptionVariable(loadException.storeTo.get(0));
                             }
                         }
                     }
@@ -916,6 +959,10 @@ public final class AstBuilder {
             }
 
             final Expression expression = new Expression(byteCode.code, byteCode.operand);
+
+            if (byteCode.secondOperand != null) {
+                expression.getArguments().add(new Expression(AstCode.LdC, byteCode.secondOperand));
+            }
 
             expression.getRanges().add(codeRange);
 
@@ -1052,6 +1099,7 @@ public final class AstBuilder {
         int endOffset;
         AstCode code;
         Object operand;
+        Object secondOperand;
         int popCount = -1;
         int pushCount;
         ByteCode next;

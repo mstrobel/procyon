@@ -301,7 +301,7 @@ public enum AstCode {
     private final static OpCode[] STANDARD_CODES = OpCode.values();
 
     public final String getName() {
-        return StringUtilities.trimAndRemoveLeft(name().toLowerCase(), "_");
+        return StringUtilities.trimAndRemoveLeft(name().toLowerCase(), "__");
     }
 
     public final boolean isConditionalControlFlow() {
@@ -341,159 +341,6 @@ public enum AstCode {
 
             default:
                 return false;
-        }
-    }
-
-    public static Pair<AstCode, Object> expandMacro(final AstCode code, final Object operand, final MethodBody body) {
-        switch (code) {
-            case __IConstM1:
-                return Pair.<AstCode, Object>create(LdC, -1);
-            case __IConst0:
-                return Pair.<AstCode, Object>create(LdC, 0);
-            case __IConst1:
-                return Pair.<AstCode, Object>create(LdC, 1);
-            case __IConst2:
-                return Pair.<AstCode, Object>create(LdC, 2);
-            case __IConst3:
-                return Pair.<AstCode, Object>create(LdC, 3);
-            case __IConst4:
-                return Pair.<AstCode, Object>create(LdC, 4);
-            case __IConst5:
-                return Pair.<AstCode, Object>create(LdC, 5);
-            case __LConst0:
-                return Pair.<AstCode, Object>create(LdC, 0L);
-            case __LConst1:
-                return Pair.<AstCode, Object>create(LdC, 1L);
-            case __FConst0:
-                return Pair.<AstCode, Object>create(LdC, 0f);
-            case __FConst1:
-                return Pair.<AstCode, Object>create(LdC, 1f);
-            case __FConst2:
-                return Pair.<AstCode, Object>create(LdC, 2f);
-            case __DConst0:
-                return Pair.<AstCode, Object>create(LdC, 0d);
-            case __DConst1:
-                return Pair.<AstCode, Object>create(LdC, 1d);
-
-            case __GotoW:
-                return Pair.create(Goto, operand);
-
-            case __ILoad:
-            case __LLoad:
-            case __FLoad:
-            case __DLoad:
-            case __ALoad:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
-            case __ILoad0:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
-            case __ILoad1:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(1));
-            case __ILoad2:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(2));
-            case __ILoad3:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(3));
-            case __LLoad0:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
-            case __LLoad1:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(1));
-            case __LLoad2:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(2));
-            case __LLoad3:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(3));
-            case __FLoad0:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
-            case __FLoad1:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(1));
-            case __FLoad2:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(2));
-            case __FLoad3:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(3));
-            case __DLoad0:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
-            case __DLoad1:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(1));
-            case __DLoad2:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(2));
-            case __DLoad3:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(3));
-            case __ALoad0:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(0));
-            case __ALoad1:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(1));
-            case __ALoad2:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(2));
-            case __ALoad3:
-                return Pair.<AstCode, Object>create(Load, body.getVariables().get(3));
-
-            case __IALoad:
-            case __LALoad:
-            case __FALoad:
-            case __DALoad:
-            case __AALoad:
-            case __BALoad:
-            case __CALoad:
-            case __SALoad:
-                return Pair.create(LoadElement, operand);
-            
-            case __IStore:
-            case __LStore:
-            case __FStore:
-            case __DStore:
-            case __AStore:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
-            case __IStore0:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
-            case __IStore1:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(1));
-            case __IStore2:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
-            case __IStore3:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
-            case __LStore0:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
-            case __LStore1:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(1));
-            case __LStore2:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
-            case __LStore3:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
-            case __FStore0:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
-            case __FStore1:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(1));
-            case __FStore2:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
-            case __FStore3:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
-            case __DStore0:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
-            case __DStore1:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(1));
-            case __DStore2:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
-            case __DStore3:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
-            case __AStore0:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(0));
-            case __AStore1:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(1));
-            case __AStore2:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(2));
-            case __AStore3:
-                return Pair.<AstCode, Object>create(Store, body.getVariables().get(3));
-
-            case __IAStore:
-            case __LAStore:
-            case __FAStore:
-            case __DAStore:
-            case __AAStore:
-            case __BAStore:
-            case __CAStore:
-            case __SAStore:
-                return Pair.create(StoreElement, operand);
-
-            default:
-                return null;
         }
     }
 
@@ -554,6 +401,11 @@ public enum AstCode {
             case __DConst1:
                 code.set(LdC);
                 operand.set(1d);
+                return true;
+
+            case __LdCW:
+            case __LdC2W:
+                code.set(LdC);
                 return true;
 
             case __ILoad:
@@ -757,7 +609,79 @@ public enum AstCode {
             case __SAStore:
                 code.set(StoreElement);
                 return true;
-            
+
+            case __IAdd:
+            case __LAdd:
+            case __FAdd:
+            case __DAdd:
+                code.set(Add);
+                return true;
+
+            case __ISub:
+            case __LSub:
+            case __FSub:
+            case __DSub:
+                code.set(Sub);
+                return true;
+
+            case __IMul:
+            case __LMul:
+            case __FMul:
+            case __DMul:
+                code.set(Mul);
+                return true;
+
+            case __IDiv:
+            case __LDiv:
+            case __FDiv:
+            case __DDiv:
+                code.set(Div);
+                return true;
+
+            case __IRem:
+            case __LRem:
+            case __FRem:
+            case __DRem:
+                code.set(Rem);
+                return true;
+
+            case __INeg:
+            case __LNeg:
+            case __FNeg:
+            case __DNeg:
+                code.set(Neg);
+                return true;
+
+            case __IShl:
+            case __LShl:
+                code.set(Shl);
+                return true;
+
+            case __IShr:
+            case __LShr:
+                code.set(Shr);
+                return true;
+
+            case __IUShr:
+            case __LUShr:
+                code.set(UShr);
+                return true;
+
+            case __IAnd:
+            case __LAnd:
+                code.set(And);
+                return true;
+
+            case __IOr:
+            case __LOr:
+                code.set(Or);
+                return true;
+
+            case __IXor:
+            case __LXor:
+                code.set(Xor);
+                return true;
+
             default:
                 return false;
         }

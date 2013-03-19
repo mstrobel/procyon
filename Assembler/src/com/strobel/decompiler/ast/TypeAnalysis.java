@@ -201,7 +201,7 @@ final class TypeAnalysis {
                         e.dependencies, new Predicate<Variable>() {
                         @Override
                         public boolean test(final Variable v) {
-                            return v.getType() == null || _singleLoadVariables.contains(v);
+                            return v.getType() != null || _singleLoadVariables.contains(v);
                         }
                     }
                     ) &&
@@ -403,25 +403,26 @@ final class TypeAnalysis {
             case InvokeStatic:
             case InvokeInterface:
             case InvokeDynamic: {
-                final MethodDefinition method = ((MethodReference) operand).resolve();
-                final List<ParameterDefinition> parameters = method.getParameters();
+                final MethodReference methodReference = (MethodReference) operand;
+                final MethodDefinition methodDefinition = methodReference.resolve();
+                final List<ParameterDefinition> parameters = methodDefinition.getParameters();
 
-                final boolean hasThis = !method.isStatic();
+                final boolean hasThis = !methodDefinition.isStatic();
 
                 if (forceInferChildren) {
                     for (int i = 0; i < parameters.size(); i++) {
                         inferTypeForExpression(
                             arguments.get(i),
-                            substituteTypeArguments(parameters.get(i).getParameterType(), method)
+                            substituteTypeArguments(parameters.get(i).getParameterType(), methodReference)
                         );
                     }
                 }
 
-                if (method.isConstructor() && hasThis) {
-                    return method.getDeclaringType();
+                if (methodDefinition.isConstructor() && hasThis) {
+                    return methodDefinition.getDeclaringType();
                 }
 
-                return substituteTypeArguments(method.getReturnType(), method);
+                return substituteTypeArguments(methodDefinition.getReturnType(), methodReference);
             }
 
             case GetField: {
@@ -467,7 +468,7 @@ final class TypeAnalysis {
             }
 
             case New: {
-                return null;
+                return (TypeReference) operand;
             }
 
             case PostIncrement: {
@@ -477,8 +478,7 @@ final class TypeAnalysis {
 
             case Not:
             case Neg: {
-                inferTypeForExpression(arguments.get(0), expectedType);
-                return null;
+                return inferTypeForExpression(arguments.get(0), expectedType);
             }
 
             case Add:
@@ -489,8 +489,7 @@ final class TypeAnalysis {
             case Xor:
             case Div:
             case Rem: {
-                inferBinaryArguments(arguments.get(0), arguments.get(1), expectedType, false, null, null);
-                return null;
+                return inferBinaryArguments(arguments.get(0), arguments.get(1), expectedType, false, null, null);
             }
 
             case Shl: {
@@ -651,7 +650,23 @@ final class TypeAnalysis {
             }
 
             case BIPush:
-            case SIPush:
+            case SIPush: {
+                final TypeReference conversionResult;
+
+                switch (expression.getCode()) {
+                    case BIPush:
+                        conversionResult = BuiltinTypes.Byte;
+                        break;
+                    case SIPush:
+                        conversionResult = BuiltinTypes.Short;
+                        break;
+                    default:
+                        throw ContractUtils.unsupported();
+                }
+
+                return conversionResult;
+            }
+
             case I2L:
             case I2F:
             case I2D:
@@ -670,12 +685,6 @@ final class TypeAnalysis {
                 final TypeReference conversionResult;
 
                 switch (expression.getCode()) {
-                    case BIPush:
-                        conversionResult = BuiltinTypes.Byte;
-                        break;
-                    case SIPush:
-                        conversionResult = BuiltinTypes.Short;
-                        break;
                     case I2L:
                         conversionResult = BuiltinTypes.Long;
                         break;
@@ -745,13 +754,24 @@ final class TypeAnalysis {
             }
 
             case CmpEq:
-            case CmpNe: {
+            case CmpNe:
+            case CmpLt:
+            case CmpGe:
+            case CmpGt:
+            case CmpLe: {
                 if (forceInferChildren) {
-                    final Expression argument = arguments.get(0);
+                    final List<Expression> binaryArguments;
+
+                    if (arguments.size() == 1) {
+                        binaryArguments = arguments.get(0).getArguments();
+                    }
+                    else {
+                        binaryArguments = arguments;
+                    }
 
                     inferBinaryArguments(
-                        argument.getArguments().get(0),
-                        argument.getArguments().get(1),
+                        binaryArguments.get(0),
+                        binaryArguments.get(1),
                         expectedType,
                         false,
                         null,
@@ -762,16 +782,24 @@ final class TypeAnalysis {
                 return BuiltinTypes.Boolean;
             }
 
-            case CmpLt:
-            case CmpGe:
-            case CmpGt:
-            case CmpLe: {
+            case __DCmpG:
+            case __DCmpL:
+            case __FCmpG:
+            case __FCmpL:
+            case __LCmp: {
                 if (forceInferChildren) {
-                    final Expression argument = arguments.get(0);
+                    final List<Expression> binaryArguments;
+
+                    if (arguments.size() == 1) {
+                        binaryArguments = arguments.get(0).getArguments();
+                    }
+                    else {
+                        binaryArguments = arguments;
+                    }
 
                     inferBinaryArguments(
-                        argument.getArguments().get(0),
-                        argument.getArguments().get(1),
+                        binaryArguments.get(0),
+                        binaryArguments.get(1),
                         expectedType,
                         false,
                         null,
@@ -779,7 +807,7 @@ final class TypeAnalysis {
                     );
                 }
 
-                return BuiltinTypes.Boolean;
+                return BuiltinTypes.Integer;
             }
 
             case IfTrue: {
@@ -825,6 +853,15 @@ final class TypeAnalysis {
                 argument.setExpectedType(result);
 
                 return result;
+            }
+
+            case InstanceOf: {
+                return BuiltinTypes.Boolean;
+            }
+
+            case __IInc:
+            case __IIncW: {
+                return null;
             }
 
             default: {
@@ -983,12 +1020,16 @@ final class TypeAnalysis {
         }
 
         if (type instanceof GenericParameter) {
-            final IGenericParameterProvider owner = ((GenericParameter) type).getOwner();
+            final GenericParameter genericParameter = (GenericParameter) type;
+            final IGenericParameterProvider owner = genericParameter.getOwner();
 
             if (owner == member && member instanceof IGenericInstance) {
                 final List<TypeReference> typeArguments = ((IGenericInstance) member).getTypeArguments();
-                return typeArguments.get(((GenericParameter) type).getPosition());
+                return typeArguments.get(genericParameter.getPosition());
             }
+//            else {
+//                return genericParameter.getExtendsBound();
+//            }
         }
 
         return type;

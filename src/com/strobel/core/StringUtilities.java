@@ -571,6 +571,7 @@ public final class StringUtilities {
                     else {
                         sb.append(ch);
                     }
+                    break;
             }
         }
 

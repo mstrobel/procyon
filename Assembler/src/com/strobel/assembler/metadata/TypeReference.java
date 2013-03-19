@@ -498,39 +498,30 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     }
 
     public FieldDefinition resolve(final FieldReference field) {
-        final TypeReference resolvedType = this.resolve();
+        final TypeDefinition resolvedType = this.resolve();
 
-        if (resolvedType instanceof TypeDefinition) {
-            return MetadataResolver.getField(
-                ((TypeDefinition) resolvedType).getDeclaredFields(),
-                field
-            );
+        if (resolvedType != null) {
+            return resolvedType.getResolver().resolve(field);
         }
 
         return null;
     }
 
     public MethodDefinition resolve(final MethodReference method) {
-        final TypeReference resolvedType = this.resolve();
+        final TypeDefinition resolvedType = this.resolve();
 
-        if (resolvedType instanceof TypeDefinition) {
-            return MetadataResolver.getMethod(
-                ((TypeDefinition) resolvedType).getDeclaredMethods(),
-                method
-            );
+        if (resolvedType != null) {
+            return resolvedType.getResolver().resolve(method);
         }
 
         return null;
     }
 
     public TypeDefinition resolve(final TypeReference type) {
-        final TypeReference resolvedType = this.resolve();
+        final TypeDefinition resolvedType = this.resolve();
 
-        if (resolvedType instanceof TypeDefinition) {
-            return MetadataResolver.getNestedType(
-                ((TypeDefinition) resolvedType).getDeclaredTypes(),
-                type
-            );
+        if (resolvedType != null) {
+            return resolvedType.getResolver().resolve(type);
         }
 
         return null;

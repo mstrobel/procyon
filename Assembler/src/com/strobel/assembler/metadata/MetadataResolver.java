@@ -15,6 +15,7 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.core.StringComparator;
 import com.strobel.core.VerifyArgument;
+import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
 
 import java.util.List;
 import java.util.Stack;
@@ -155,11 +156,40 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
     final MethodDefinition getMethod(final TypeDefinition declaringType, final MethodReference reference) {
         TypeDefinition type = declaringType;
 
-        while (type != null) {
-            final MethodDefinition method = getMethod(declaringType.getDeclaredMethods(), reference);
+        while (type != null) {            
+            final MethodDefinition method = getMethod(type.getDeclaredMethods(), reference);
 
             if (method != null) {
                 return method;
+            }
+
+            final TypeReference baseType = type.getBaseType();
+
+            if (baseType == null) {
+                break;
+            }
+
+            type = resolve(baseType);
+        }
+
+        type = declaringType;
+
+        while (type != null) {
+            final List<TypeReference> explicitInterfaces = type.getExplicitInterfaces();
+
+            for (int i = 0; i < explicitInterfaces.size(); i++) {
+                final TypeReference interfaceType = explicitInterfaces.get(i);
+                final TypeDefinition resolvedInterfaceType = interfaceType.resolve();
+
+                if (resolvedInterfaceType == null) {
+                    continue;
+                }
+
+                final MethodDefinition interfaceMethod = getMethod(resolvedInterfaceType.getDeclaredMethods(), reference);
+
+                if (interfaceMethod != null) {
+                    return interfaceMethod;
+                }
             }
 
             final TypeReference baseType = type.getBaseType();
@@ -266,8 +296,9 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
         }
 
         if (a.isGenericParameter()) {
-            if (b.isGenericParameter())
+            if (b.isGenericParameter()) {
                 return areEquivalent((GenericParameter) a, (GenericParameter) b);
+            }
 
             return areEquivalent(a.getExtendsBound(), b);
         }
@@ -285,10 +316,10 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
 
             if (a.isGenericDefinition() != b.isGenericDefinition()) {
                 if (a.isGenericDefinition()) {
-                    return areEquivalent(a.makeGenericType(((IGenericInstance)b).getTypeArguments()), b);
+                    return areEquivalent(a.makeGenericType(((IGenericInstance) b).getTypeArguments()), b);
                 }
                 else {
-                    return areEquivalent(a, b.makeGenericType(((IGenericInstance)a).getTypeArguments()));
+                    return areEquivalent(a, b.makeGenericType(((IGenericInstance) a).getTypeArguments()));
                 }
             }
 
@@ -335,7 +366,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
 
             if (ta.isGenericParameter() &&
                 !tb.isGenericParameter() &&
-                ((GenericParameter)ta).getOwner() == pa.getMethod()) {
+                ((GenericParameter) ta).getOwner() == pa.getMethod()) {
 
                 ta = ta.getExtendsBound();
             }
@@ -388,7 +419,8 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
     }
 
     private static boolean areEquivalent(final GenericParameter a, final GenericParameter b) {
-        return a.getPosition() == b.getPosition();
+        return a.getPosition() == b.getPosition() &&
+               areEquivalent(a.getExtendsBound(), b.getExtendsBound());
     }
 
     // </editor-fold>

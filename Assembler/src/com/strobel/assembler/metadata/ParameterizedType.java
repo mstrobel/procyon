@@ -86,4 +86,24 @@ final class ParameterizedType extends TypeReference implements IGenericInstance 
     public TypeReference getUnderlyingType() {
         return _genericDefinition;
     }
+
+    @Override
+    public TypeDefinition resolve() {
+        return _genericDefinition.resolve();
+    }
+
+    @Override
+    public FieldDefinition resolve(final FieldReference field) {
+        return _genericDefinition.resolve(field);
+    }
+
+    @Override
+    public MethodDefinition resolve(final MethodReference method) {
+        return _genericDefinition.resolve(method);
+    }
+
+    @Override
+    public TypeDefinition resolve(final TypeReference type) {
+        return _genericDefinition.resolve(type);
+    }
 }

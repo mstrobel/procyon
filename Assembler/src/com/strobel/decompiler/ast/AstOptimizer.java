@@ -13,11 +13,14 @@
 
 package com.strobel.decompiler.ast;
 
+import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.core.CollectionUtilities;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.Predicate;
 import com.strobel.core.StrongBox;
+import com.strobel.core.VerifyArgument;
+import com.strobel.core.delegates.Func;
 import com.strobel.decompiler.DecompilerContext;
 
 import java.util.ArrayList;
@@ -86,6 +89,29 @@ public final class AstOptimizer {
         }
 
         TypeAnalysis.run(context, method);
+
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            boolean modified;
+
+            do {
+                modified = false;
+
+                if (abortBeforeStep == AstOptimizationStep.SimplifyShortCircuit) {
+                    continue;
+                }
+
+                modified |= runOptimization(block, new SimplifyShortCircuitOptimization(context, method));
+
+                if (abortBeforeStep == AstOptimizationStep.InlineVariables2) {
+                    continue;
+                }
+
+                modified |= new Inlining(method).inlineAllInBlock(block);
+
+                new Inlining(method).copyPropagation();
+
+            } while (modified);
+        }
     }
 
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">
@@ -268,12 +294,23 @@ public final class AstOptimizer {
                     break;
                 }
 
+/*
                 case __IfEq:
                     code = AstCode.LogicalNot;
                     break;
                 case __IfNe:
                     e.setCode(AstCode.IfTrue);
                     continue;
+*/
+                case __IfEq:
+                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    code = AstCode.CmpEq;
+                    break;
+
+                case __IfNe:
+                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    code = AstCode.CmpNe;
+                    break;
 
                 case __IfLt:
                     e.getArguments().add(new Expression(AstCode.LdC, 0));
@@ -410,14 +447,227 @@ public final class AstOptimizer {
                         basicBlockBody.add(currentNode);
                     }
                 }
-                else  {
-                   basicBlockBody.add(currentNode);
+                else {
+                    basicBlockBody.add(currentNode);
                 }
             }
         }
 
         body.clear();
         body.addAll(basicBlocks);
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="SimplifyShortCircuit Optimization">
+
+    private static final class SimplifyShortCircuitOptimization extends AbstractBasicBlockOptimization {
+        public SimplifyShortCircuitOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public final boolean run(final List<Node> body, final BasicBlock head, final int position) {
+            assert body.contains(head);
+
+            final StrongBox<Expression> condition = new StrongBox<>();
+            final StrongBox<Label> trueLabel = new StrongBox<>();
+            final StrongBox<Label> falseLabel = new StrongBox<>();
+
+            if (matchLastAndBreak(head, AstCode.IfTrue, trueLabel, condition, falseLabel)) {
+                for (int pass = 0; pass < 2; pass++) {
+                    //
+                    // On second pass, swap labels and negate expression of the first branch.
+                    // It is slightly ugly, but much better than copy-pasting the whole block.
+                    //
+
+                    final Label nextLabel = pass == 0 ? trueLabel.get() : falseLabel.get();
+                    final Label otherLabel = pass == 0 ? falseLabel.get() : trueLabel.get();
+                    final boolean negate = pass == 1;
+
+                    final BasicBlock nextBasicBlock = labelToBasicBlock.get(nextLabel);
+
+                    final StrongBox<Expression> nextCondition = new StrongBox<>();
+                    final StrongBox<Label> nextTrueLabel = new StrongBox<>();
+                    final StrongBox<Label> nextFalseLabel = new StrongBox<>();
+
+                    if (body.contains(nextBasicBlock) &&
+                        nextBasicBlock != head &&
+                        labelGlobalRefCount.get(nextBasicBlock.getBody().get(0)).getValue() == 1 &&
+                        matchSingleAndBreak(nextBasicBlock, AstCode.IfTrue, nextTrueLabel, nextCondition, nextFalseLabel) &&
+                        (otherLabel == nextFalseLabel.get() || otherLabel == nextTrueLabel.get())) {
+
+                        //
+                        // Create short circuit branch.
+                        //
+                        final Expression logicExpression;
+
+                        if (otherLabel == nextFalseLabel.get()) {
+                            logicExpression = matchLeftAssociativeShortCircuit(
+                                AstCode.LogicalAnd,
+                                negate ? new Expression(AstCode.LogicalNot, null, condition.get()) : condition.get(),
+                                nextCondition.get()
+                            );
+                        }
+                        else {
+                            logicExpression = matchLeftAssociativeShortCircuit(
+                                AstCode.LogicalOr,
+                                negate ? condition.get() : new Expression(AstCode.LogicalNot, null, condition.get()),
+                                nextCondition.get()
+                            );
+                        }
+
+                        final List<Node> headBody = head.getBody();
+
+                        removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
+
+                        headBody.add(new Expression(AstCode.IfTrue, nextTrueLabel.get(), logicExpression));
+                        headBody.add(new Expression(AstCode.Goto, nextFalseLabel.get()));
+
+                        //
+                        // Remove the inlined branch from scope.
+                        //
+                        removeOrThrow(body, nextBasicBlock);
+
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private Expression matchLeftAssociativeShortCircuit(final AstCode code, final Expression left, final Expression right) {
+            //
+            // Assuming that the inputs are already left-associative.
+            //
+            if (match(right, code)) {
+                //
+                // Find the leftmost logical expression.
+                //
+                Expression current = right;
+
+                while (match(current.getArguments().get(0), code)) {
+                    current = current.getArguments().get(0);
+                }
+
+                final Expression newArgument = new Expression(code, null, left, current.getArguments().get(0));
+
+                newArgument.setInferredType(BuiltinTypes.Boolean);
+                current.getArguments().set(0, newArgument);
+
+                return right;
+            }
+            else {
+                final Expression newExpression = new Expression(code, null, left, right);
+                newExpression.setInferredType(BuiltinTypes.Boolean);
+                return newExpression;
+            }
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Optimization Helpers">
+
+    private interface BasicBlockOptimization {
+        boolean run(final List<Node> body, final BasicBlock head, final int position);
+    }
+
+    private interface ExpressionOptimization {
+        boolean run(final List<Node> body, final Expression head, final int position);
+    }
+
+    @SuppressWarnings("ProtectedField")
+    private static abstract class AbstractBasicBlockOptimization implements BasicBlockOptimization {
+        protected final Map<Label, MutableInteger> labelGlobalRefCount = new DefaultMap<>(
+            new Func<MutableInteger>() {
+                @Override
+                public MutableInteger invoke() {
+                    return new MutableInteger(0);
+                }
+            }
+        );
+
+        protected final Map<Label, BasicBlock> labelToBasicBlock = new IdentityHashMap<>();
+
+        protected final DecompilerContext context;
+        protected final MetadataSystem metadataSystem;
+
+        protected AbstractBasicBlockOptimization(final DecompilerContext context, final Block method) {
+            this.context = VerifyArgument.notNull(context, "context");
+            this.metadataSystem = MetadataSystem.instance();
+
+            for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
+                if (e.isBranch()) {
+                    for (final Label target : e.getBranchTargets()) {
+                        labelGlobalRefCount.get(target).increment();
+                    }
+                }
+            }
+
+            for (final BasicBlock basicBlock : method.getSelfAndChildrenRecursive(BasicBlock.class)) {
+                for (final Node child : basicBlock.getChildren()) {
+                    if (child instanceof Label) {
+                        labelToBasicBlock.put((Label) child, basicBlock);
+                    }
+                }
+            }
+        }
+    }
+
+    private static boolean runOptimization(final Block block, final BasicBlockOptimization optimization) {
+        boolean modified = false;
+
+        final List<Node> body = block.getBody();
+
+        for (int i = body.size() - 1; i >= 0; i--) {
+            if (i < body.size() && optimization.run(body, (BasicBlock) body.get(i), i)) {
+                modified = true;
+            }
+        }
+
+        return modified;
+    }
+
+    private static boolean runOptimization(final Block block, final ExpressionOptimization optimization) {
+        boolean modified = false;
+
+        for (final Node node : block.getBody()) {
+            final BasicBlock basicBlock = (BasicBlock) node;
+            final List<Node> body = basicBlock.getBody();
+
+            for (int i = body.size() - 1; i >= 0; i--) {
+                final Node n = body.get(i);
+                if (n instanceof Expression && optimization.run(body, (Expression) n, i)) {
+                    modified = true;
+                }
+            }
+        }
+
+        return modified;
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Utility Methods">
+
+    private static <T> void removeOrThrow(final List<T> collection, final T item) {
+        if (!collection.remove(item)) {
+            throw new IllegalStateException("The item was not found in the collection.");
+        }
+    }
+
+    private static void removeTail(final List<Node> body, final AstCode... codes) {
+        for (int i = 0; i < codes.length; i++) {
+            if (((Expression) body.get(body.size() - codes.length + i)).getCode() != codes[i]) {
+                throw new IllegalStateException("Tailing code does not match expected.");
+            }
+        }
+
+        for (int i = 0; i < codes.length; i++) {
+            body.remove(body.size() - 1);
+        }
     }
 
     // </editor-fold>

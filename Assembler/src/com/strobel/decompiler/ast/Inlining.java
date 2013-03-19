@@ -58,6 +58,10 @@ final class Inlining {
                 else if (code == AstCode.Store) {
                     increment(storeCounts, localVariable);
                 }
+                else if (code == AstCode.__IInc || code == AstCode.__IIncW) {
+                    increment(loadCounts, localVariable);
+                    increment(storeCounts, localVariable);
+                }
                 else {
                     throw new IllegalStateException("Unexpected AST op code: " + code.getName());
                 }

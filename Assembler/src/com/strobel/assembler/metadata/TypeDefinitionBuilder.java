@@ -167,7 +167,9 @@ public class TypeDefinitionBuilder implements TypeVisitor {
 
     @Override
     public void visitParser(final MetadataParser parser) {
-        _typeDefinition = new TypeDefinition(parser.getResolver());
+        if (_typeDefinition == null) {
+            _typeDefinition = new TypeDefinition(parser.getResolver());
+        }
         _parser = VerifyArgument.notNull(parser, "parser");
         _parser.getResolver().pushFrame(_resolverFrame);
     }
