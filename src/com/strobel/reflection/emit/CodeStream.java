@@ -202,6 +202,8 @@ public final class CodeStream {
 
         ensureCapacity(2 + charLength);
 
+        final int originalLength = _length;
+
         // optimistic algorithm: instead of computing the byte length and then
         // serializing the string (which requires two loops), we assume the byte
         // length is equal to char length (which is the most frequent case), and
@@ -231,8 +233,8 @@ public final class CodeStream {
                     }
                 }
 
-                _data[_length] = (byte)(byteLength >>> 8);
-                _data[_length + 1] = (byte)byteLength;
+                _data[originalLength] = (byte)(byteLength >>> 8);
+                _data[originalLength + 1] = (byte)byteLength;
 
                 ensureCapacity(2 + byteLength);
 
