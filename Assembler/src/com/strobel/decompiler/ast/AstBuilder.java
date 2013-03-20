@@ -17,7 +17,7 @@ import com.strobel.assembler.ir.ExceptionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionCollection;
-import com.strobel.assembler.ir.MethodBody;
+import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.metadata.SwitchInfo;
 import com.strobel.assembler.metadata.VariableDefinition;

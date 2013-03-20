@@ -11,13 +11,11 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.assembler.ir;
+package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.VariableDefinitionCollection;
+import com.strobel.assembler.ir.ExceptionHandler;
+import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.core.Freezable;
 
 import java.util.List;

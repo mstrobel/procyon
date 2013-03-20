@@ -271,12 +271,9 @@ final class Inlining {
         switch (next.getCode()) {
             case Return:
             case IfTrue:
-                return parent == next;
-
             case TableSwitch:
             case LookupSwitch:
-                return parent == next ||
-                       parent.getCode() == AstCode.Sub && parent == next.getArguments().get(0);
+                return parent == next;
 
             default:
                 return false;

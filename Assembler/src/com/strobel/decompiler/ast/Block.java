@@ -57,7 +57,9 @@ public class Block extends Node {
     public void writeTo(final ITextOutput output) {
         for (final Node child : getChildren()) {
             child.writeTo(output);
-            output.writeLine();
+            if (child instanceof Expression || child instanceof Label) {
+                output.writeLine();
+            }
         }
     }
 }

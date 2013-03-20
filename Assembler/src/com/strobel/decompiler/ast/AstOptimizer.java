@@ -18,12 +18,14 @@ import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.core.CollectionUtilities;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.Predicate;
+import com.strobel.core.Predicates;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.core.delegates.Func;
 import com.strobel.decompiler.DecompilerContext;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,8 +112,16 @@ public final class AstOptimizer {
 
                 new Inlining(method).copyPropagation();
 
+                if (abortBeforeStep == AstOptimizationStep.JoinBasicBlocks) {
+                    continue;
+                }
+
+                modified |= runOptimization(block, new JoinBasicBlocksOptimization(context, method));
+
             } while (modified);
         }
+
+        new LoopsAndConditions(context).findConditions(method);
     }
 
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">
@@ -568,6 +578,43 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="JoinBasicBlocks Optimization">
+
+    private final static class JoinBasicBlocksOptimization extends AbstractBasicBlockOptimization {
+        protected JoinBasicBlocksOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public final boolean run(final List<Node> body, final BasicBlock head, final int position) {
+            final StrongBox<Label> nextLabel = new StrongBox<>();
+            final List<Node> headBody = head.getBody();
+            final BasicBlock nextBlock;
+
+            final Node secondToLast = CollectionUtilities.getOrDefault(headBody, headBody.size() - 2);
+
+            if (secondToLast != null &&
+                !secondToLast.isConditionalControlFlow() &&
+                matchGetOperand(headBody.get(headBody.size() - 1), AstCode.Goto, nextLabel) &&
+                labelGlobalRefCount.get(nextLabel.get()).getValue() == 1 &
+                (nextBlock = labelToBasicBlock.get(nextLabel.get())) != null &&
+                body.contains(nextBlock) &&
+                nextBlock.getBody().get(0) == nextLabel.get() &&
+                !CollectionUtilities.any(nextBlock.getBody(), Predicates.instanceOf(BasicBlock.class))) {
+
+                removeTail(headBody, AstCode.Goto);
+                nextBlock.getBody().remove(0);
+                headBody.addAll(nextBlock.getBody());
+                removeOrThrow(body, nextBlock);
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    // </editor-fold>
+
     // <editor-fold defaultstate="collapsed" desc="Optimization Helpers">
 
     private interface BasicBlockOptimization {
@@ -652,13 +699,13 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="Utility Methods">
 
-    private static <T> void removeOrThrow(final List<T> collection, final T item) {
+    static <T> void removeOrThrow(final Collection<T> collection, final T item) {
         if (!collection.remove(item)) {
             throw new IllegalStateException("The item was not found in the collection.");
         }
     }
 
-    private static void removeTail(final List<Node> body, final AstCode... codes) {
+    static void removeTail(final List<Node> body, final AstCode... codes) {
         for (int i = 0; i < codes.length; i++) {
             if (((Expression) body.get(body.size() - codes.length + i)).getCode() != codes[i]) {
                 throw new IllegalStateException("Tailing code does not match expected.");

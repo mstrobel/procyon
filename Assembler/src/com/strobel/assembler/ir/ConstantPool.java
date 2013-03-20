@@ -295,7 +295,7 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         return (InvokeDynamicInfoEntry) entry;
     }
 
-   static ConstantPool read(final Buffer b) {
+   public static ConstantPool read(final Buffer b) {
         boolean skipOne = false;
 
         final ConstantPool pool = new ConstantPool();

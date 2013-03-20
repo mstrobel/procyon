@@ -19,7 +19,7 @@ package com.strobel.assembler.ir;
 public final class ErrorOperand {
     private final String _message;
 
-    ErrorOperand(final String message) {
+    public ErrorOperand(final String message) {
         _message = message;
     }
 

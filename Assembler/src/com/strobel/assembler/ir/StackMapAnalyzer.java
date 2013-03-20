@@ -6,6 +6,7 @@ import com.strobel.assembler.flowanalysis.ControlFlowNode;
 import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
 import com.strobel.assembler.metadata.IMethodSignature;
 import com.strobel.assembler.metadata.MetadataSystem;
+import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ArrayUtilities;

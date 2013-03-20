@@ -14,7 +14,6 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
-import com.strobel.assembler.ir.MethodBody;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 
 import java.util.Collections;

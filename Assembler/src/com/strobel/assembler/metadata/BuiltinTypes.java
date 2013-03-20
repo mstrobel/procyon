@@ -13,7 +13,6 @@
 
 package com.strobel.assembler.metadata;
 
-import com.strobel.assembler.ir.ClassFileReader;
 import com.strobel.reflection.SimpleType;
 import com.strobel.util.ContractUtils;
 

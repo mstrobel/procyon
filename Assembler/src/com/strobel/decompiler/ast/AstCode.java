@@ -13,9 +13,8 @@
 
 package com.strobel.decompiler.ast;
 
-import com.strobel.assembler.ir.MethodBody;
+import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.ir.OpCode;
-import com.strobel.core.Pair;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 
@@ -312,18 +311,7 @@ public enum AstCode {
             return standardCode.isBranch() && !standardCode.isUnconditionalBranch();
         }
 
-        switch (this) {
-            case CmpEq:
-            case CmpNe:
-            case CmpLt:
-            case CmpGe:
-            case CmpGt:
-            case CmpLe:
-                return true;
-
-            default:
-                return false;
-        }
+        return this == IfTrue;
     }
 
     public final boolean isUnconditionalControlFlow() {

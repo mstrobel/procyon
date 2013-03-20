@@ -41,17 +41,37 @@ public final class CollectionUtilities {
         throw Error.sequenceHasNoElements();
     }
 
+    public static <T> T getOrDefault(final List<T> collection, final int index) {
+        if (index >= VerifyArgument.notNull(collection, "collection").size() || index < 0) {
+            return null;
+        }
+        return collection.get(index);
+    }
+
     public static <T> T firstOrDefault(final Iterable<T> collection) {
         final Iterator<T> it = VerifyArgument.notNull(collection, "collection").iterator();
         return it.hasNext() ? it.next() : null;
     }
 
-    public static <T> boolean all(final Iterable<T> collection, final Func1<? super T, Boolean> predicate) {
+    public static <T> boolean any(final Iterable<T> collection, final Predicate<? super T> predicate) {
         VerifyArgument.notNull(collection, "collection");
         VerifyArgument.notNull(predicate, "predicate");
 
         for (final T t : collection) {
-            if (!predicate.apply(t)) {
+            if (predicate.test(t)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static <T> boolean all(final Iterable<T> collection, final Predicate<? super T> predicate) {
+        VerifyArgument.notNull(collection, "collection");
+        VerifyArgument.notNull(predicate, "predicate");
+
+        for (final T t : collection) {
+            if (!predicate.test(t)) {
                 return false;
             }
         }

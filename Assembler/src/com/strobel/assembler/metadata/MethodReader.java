@@ -11,11 +11,20 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.assembler.ir;
+package com.strobel.assembler.metadata;
 
-import com.strobel.assembler.Collection;
-import com.strobel.assembler.ir.attributes.*;
-import com.strobel.assembler.metadata.*;
+import com.strobel.assembler.ir.ErrorOperand;
+import com.strobel.assembler.ir.ExceptionBlock;
+import com.strobel.assembler.ir.ExceptionHandler;
+import com.strobel.assembler.ir.Instruction;
+import com.strobel.assembler.ir.InstructionCollection;
+import com.strobel.assembler.ir.OpCode;
+import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.CodeAttribute;
+import com.strobel.assembler.ir.attributes.ExceptionTableEntry;
+import com.strobel.assembler.ir.attributes.LocalVariableTableAttribute;
+import com.strobel.assembler.ir.attributes.LocalVariableTableEntry;
+import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Range;
@@ -24,9 +33,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * @author Mike Strobel
- */
 public class MethodReader {
     private final static String[] LOCAL_VARIABLE_TABLES = {AttributeNames.LocalVariableTypeTable, AttributeNames.LocalVariableTable};
 
@@ -479,6 +485,7 @@ public class MethodReader {
 
     // <editor-fold defaultstate="collapsed" desc="Exception Handler Info">
 
+    @SuppressWarnings("ConstantConditions")
     private void populateExceptionHandlerInfo(final InstructionCollection body, final List<ExceptionTableEntry> exceptionTable) {
         if (body.isEmpty()) {
             return;

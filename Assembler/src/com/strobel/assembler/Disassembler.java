@@ -14,7 +14,7 @@
 package com.strobel.assembler;
 
 import com.sampullara.cli.Args;
-import com.strobel.assembler.ir.ClassFileReader;
+import com.strobel.assembler.metadata.ClassFileReader;
 import com.strobel.assembler.metadata.Buffer;
 import com.strobel.assembler.metadata.ClasspathTypeLoader;
 import com.strobel.assembler.metadata.MetadataSystem;

@@ -169,6 +169,25 @@ public final class PatternMatching {
         return false;
     }
 
+    public static <T> boolean matchLast(
+        final BasicBlock block,
+        final AstCode code,
+        final StrongBox<T> operand,
+        final StrongBox<Expression> argument) {
+
+        final List<Node> body = block.getBody();
+
+        if (body.size() >= 2 &&
+            matchGetArgument(body.get(body.size() - 1), code, operand, argument)) {
+
+            return true;
+        }
+
+        operand.set(null);
+        argument.set(null);
+        return false;
+    }
+
     public static <T> boolean matchLastAndBreak(
         final BasicBlock block,
         final AstCode code,

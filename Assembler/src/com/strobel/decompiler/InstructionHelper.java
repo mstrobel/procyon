@@ -15,7 +15,7 @@ package com.strobel.decompiler;
 
 import com.strobel.assembler.ir.FlowControl;
 import com.strobel.assembler.ir.Instruction;
-import com.strobel.assembler.ir.MethodBody;
+import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.IMethodSignature;

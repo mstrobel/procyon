@@ -50,7 +50,7 @@ public final class ControlFlowNode {
     private ExceptionHandler _exceptionHandler;
     private Object _userData;
 
-    ControlFlowNode(final int blockIndex, final int offset, final ControlFlowNodeType nodeType) {
+    public ControlFlowNode(final int blockIndex, final int offset, final ControlFlowNodeType nodeType) {
         _blockIndex = blockIndex;
         _offset = offset;
         _nodeType = VerifyArgument.notNull(nodeType, "nodeType");
@@ -59,7 +59,7 @@ public final class ControlFlowNode {
         _end = null;
     }
 
-    ControlFlowNode(final int blockIndex, final Instruction start, final Instruction end) {
+    public ControlFlowNode(final int blockIndex, final Instruction start, final Instruction end) {
         _blockIndex = blockIndex;
         _start = VerifyArgument.notNull(start, "start");
         _end = VerifyArgument.notNull(end, "end");
@@ -68,7 +68,7 @@ public final class ControlFlowNode {
         _endFinallyNode = null;
     }
 
-    ControlFlowNode(final int blockIndex, final ExceptionHandler exceptionHandler, final ControlFlowNode endFinallyNode) {
+    public ControlFlowNode(final int blockIndex, final ExceptionHandler exceptionHandler, final ControlFlowNode endFinallyNode) {
         _blockIndex = blockIndex;
         _nodeType = endFinallyNode != null ? ControlFlowNodeType.FinallyHandler : ControlFlowNodeType.CatchHandler;
         _exceptionHandler = VerifyArgument.notNull(exceptionHandler, "exceptionHandler");

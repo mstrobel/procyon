@@ -11,10 +11,14 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.assembler.ir;
+package com.strobel.assembler.metadata;
 
+import com.strobel.assembler.ir.ConstantPool;
+import com.strobel.assembler.ir.Instruction;
+import com.strobel.assembler.ir.InstructionCollection;
+import com.strobel.assembler.ir.InstructionVisitor;
+import com.strobel.assembler.ir.MetadataReader;
 import com.strobel.assembler.ir.attributes.*;
-import com.strobel.assembler.metadata.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.assembler.metadata.annotations.InnerClassEntry;
 import com.strobel.assembler.metadata.annotations.InnerClassesAttribute;
@@ -855,6 +859,12 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     body.setThisParameter(new ParameterDefinition("this", thisType));
                 }
 
+                MethodDefinition method = methodReference != null ? methodReference.resolve() : null;
+
+                if (method != null) {
+                    method.setBody(body);
+                }
+
                 body.freeze();
 
                 final InstructionVisitor instructionVisitor = visitor.visitBody(body);
@@ -904,10 +914,12 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     instructionVisitor.visitEnd();
                 }
 
-                final MethodDefinition method = methodReference != null ? methodReference.resolve() : null;
+                if (method == null && methodReference != null) {
+                    method = methodReference.resolve();
 
-                if (method != null) {
-                    body.setMethod(method);
+                    if (method != null) {
+                        body.setMethod(method);
+                    }
                 }
             }
 

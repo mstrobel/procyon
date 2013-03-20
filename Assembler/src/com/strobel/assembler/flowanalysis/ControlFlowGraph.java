@@ -42,7 +42,7 @@ public final class ControlFlowGraph {
         return _nodes;
     }
 
-    ControlFlowGraph(final ControlFlowNode... nodes) {
+    public ControlFlowGraph(final ControlFlowNode... nodes) {
         _nodes = ArrayUtilities.asUnmodifiableList(VerifyArgument.noNullElements(nodes, "nodes"));
 
         assert nodes.length >= 3;

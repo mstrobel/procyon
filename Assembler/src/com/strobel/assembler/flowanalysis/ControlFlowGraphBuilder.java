@@ -19,7 +19,7 @@ import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.ExceptionHandlerType;
 import com.strobel.assembler.ir.FlowControl;
 import com.strobel.assembler.ir.Instruction;
-import com.strobel.assembler.ir.MethodBody;
+import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OperandType;
 import com.strobel.assembler.metadata.MetadataHelper;
