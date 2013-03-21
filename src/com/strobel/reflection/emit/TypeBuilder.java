@@ -15,32 +15,13 @@ package com.strobel.reflection.emit;
 
 import com.strobel.compilerservices.CallerResolver;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.Pair;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.io.PathHelper;
-import com.strobel.reflection.BindingFlags;
-import com.strobel.reflection.CallingConvention;
-import com.strobel.reflection.ConstructorInfo;
-import com.strobel.reflection.ConstructorList;
-import com.strobel.reflection.FieldInfo;
-import com.strobel.reflection.FieldList;
-import com.strobel.reflection.Flags;
-import com.strobel.reflection.MemberFilter;
-import com.strobel.reflection.MemberInfo;
-import com.strobel.reflection.MemberList;
-import com.strobel.reflection.MemberType;
-import com.strobel.reflection.MethodBase;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.MethodList;
-import com.strobel.reflection.ParameterInfo;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.TypeBindings;
-import com.strobel.reflection.TypeList;
-import com.strobel.reflection.TypeVisitor;
-import com.strobel.reflection.Types;
+import com.strobel.reflection.*;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 import sun.misc.Unsafe;
@@ -49,6 +30,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -61,7 +43,7 @@ import java.util.Set;
 /**
  * @author strobelm
  */
-@SuppressWarnings( { "unchecked", "PackageVisibleField" })
+@SuppressWarnings({ "unchecked", "PackageVisibleField" })
 public final class TypeBuilder<T> extends Type<T> {
     private final static String DumpGeneratedClassesProperty     = "com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses";
     private final static String GeneratedClassOutputPathProperty = "com.strobel.reflection.emit.TypeBuilder.GeneratedClassOutputPath";
@@ -96,6 +78,7 @@ public final class TypeBuilder<T> extends Type<T> {
     private       TypeBindings                                          _typeBindings;
     private       ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
     private final ProtectionDomain                                      _protectionDomain;
+
 
     // <editor-fold defaultstate="collapsed" desc="Constructors and Initializers">
 
@@ -227,7 +210,7 @@ public final class TypeBuilder<T> extends Type<T> {
         }
 
         if (Modifier.isInterface(modifiers)) {
-            _modifiers = modifiers & (Modifier.interfaceModifiers() | Modifier.INTERFACE);
+            _modifiers = modifiers & (Modifier.interfaceModifiers() | Modifier.INTERFACE) | Modifier.ABSTRACT;
         }
         else {
             _modifiers = modifiers & Modifier.classModifiers();
@@ -602,7 +585,30 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     public synchronized Type<T> createType() {
-        return createTypeNoLock();
+        try {
+            return createTypeNoLock(null);
+        }
+        catch (IOException e) {
+            throw ExceptionUtilities.asRuntimeException(e);
+        }
+    }
+
+    public synchronized Type<T> createType(final File outputFile) {
+        try (final FileOutputStream outputStream = new FileOutputStream(outputFile)) {
+            return createTypeNoLock(outputStream);
+        }
+        catch (IOException e) {
+            throw ExceptionUtilities.asRuntimeException(e);
+        }
+    }
+
+    public synchronized Type<T> createType(final OutputStream outputStream) {
+        try {
+            return createTypeNoLock(outputStream);
+        }
+        catch (IOException e) {
+            throw ExceptionUtilities.asRuntimeException(e);
+        }
     }
 
     public ConstructorBuilder defineConstructor(
@@ -733,7 +739,8 @@ public final class TypeBuilder<T> extends Type<T> {
                 MemberType.methodsOnly(),
                 BindingFlags.AllDeclared,
                 RawMethodMatcher,
-                baseMethod.getRawMethod());
+                baseMethod.getRawMethod()
+            );
 
         assert m != null && m.size() == 1;
 
@@ -778,7 +785,8 @@ public final class TypeBuilder<T> extends Type<T> {
             modifiers & Modifier.methodModifiers(),
             returnType,
             parameterTypes,
-            thrownTypes);
+            thrownTypes
+        );
     }
 
     private MethodBuilder defineMethodCore(
@@ -812,7 +820,8 @@ public final class TypeBuilder<T> extends Type<T> {
         return defineMethod(
             "<clinit>",
             Modifier.STATIC,
-            PrimitiveTypes.Void);
+            PrimitiveTypes.Void
+        );
     }
 
     public FieldBuilder defineConstant(
@@ -1001,7 +1010,7 @@ public final class TypeBuilder<T> extends Type<T> {
     // <editor-fold defaultstate="collapsed" desc="Type Generation Methods">
 
     @SuppressWarnings("ConstantConditions")
-    private Type<T> createTypeNoLock() {
+    private Type<T> createTypeNoLock(final OutputStream writeTo) throws IOException {
         if (isCreated()) {
             return _generatedType;
         }
@@ -1064,7 +1073,16 @@ public final class TypeBuilder<T> extends Type<T> {
             final String fullName = getClassFullName();
             final byte[] classBytes = outputStream.toByteArray();
 
-            dump(classBytes);
+            if (writeTo != null) {
+                writeTo.write(classBytes);
+            }
+            else {
+                try (final OutputStream tempStream = getDefaultOutputStream()) {
+                    if (tempStream != null) {
+                        tempStream.write(classBytes);
+                    }
+                }
+            }
 
             _hasBeenCreated = true;
 
@@ -1187,9 +1205,9 @@ public final class TypeBuilder<T> extends Type<T> {
         return false;
     }
 
-    private void dump(final byte[] classBytes) {
+    private OutputStream getDefaultOutputStream() {
         if (!StringUtilities.isTrue(System.getProperty(DumpGeneratedClassesProperty, "false"))) {
-            return;
+            return null;
         }
 
         final String outputPathSetting = System.getProperty(GeneratedClassOutputPathProperty);
@@ -1207,14 +1225,14 @@ public final class TypeBuilder<T> extends Type<T> {
         final File parentDirectory = temp.getParentFile();
 
         if (!parentDirectory.exists() && !parentDirectory.mkdirs()) {
-            return;
+            return null;
         }
 
-        try (final FileOutputStream out = new FileOutputStream(temp)) {
-            out.write(classBytes);
+        try {
+            return new FileOutputStream(temp);
         }
         catch (IOException e) {
-            e.printStackTrace();
+            return null;
         }
     }
 
@@ -1303,7 +1321,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
     private final static class MethodOverride {
         final MethodBuilder override;
-        final MethodInfo    baseMethod;
+        final MethodInfo baseMethod;
 
         private MethodOverride(final MethodBuilder override, final MethodInfo baseMethod) {
             this.baseMethod = baseMethod;
