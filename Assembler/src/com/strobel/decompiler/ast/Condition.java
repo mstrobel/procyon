@@ -93,7 +93,7 @@ public final class Condition extends Node {
         output.unindent();
         output.writeLine("}");
 
-        if (_falseBlock != null) {
+        if (_falseBlock != null && !_falseBlock.getBody().isEmpty()) {
             output.writeLine("else {");
             output.indent();
 

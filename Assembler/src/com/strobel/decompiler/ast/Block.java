@@ -14,9 +14,11 @@
 package com.strobel.decompiler.ast;
 
 import com.strobel.assembler.Collection;
+import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class Block extends Node {
@@ -26,6 +28,19 @@ public class Block extends Node {
 
     public Block() {
         _body = new Collection<>();
+    }
+
+    public Block(final Iterable<Node> body) {
+        this();
+
+        for (final Node node : VerifyArgument.notNull(body, "body")) {
+            _body.add(node);
+        }
+    }
+
+    public Block(final Node... body) {
+        this();
+        Collections.addAll(_body, VerifyArgument.notNull(body, "body"));
     }
 
     public final Expression getEntryGoto() {
@@ -50,14 +65,24 @@ public class Block extends Node {
 
         childrenCopy.addAll(_body);
 
-        return _body;
+        return childrenCopy;
     }
 
     @Override
     public void writeTo(final ITextOutput output) {
-        for (final Node child : getChildren()) {
+        final List<Node> children = getChildren();
+
+        for (int i = 0, childrenSize = children.size(); i < childrenSize; i++) {
+            final Node child = children.get(i);
+            final boolean isSimpleNode = child instanceof Expression || child instanceof Label;
+
+            if (i != 0 && !isSimpleNode && !(children.get(i - 1) instanceof Label)) {
+                output.writeLine();
+            }
+
             child.writeTo(output);
-            if (child instanceof Expression || child instanceof Label) {
+
+            if (isSimpleNode) {
                 output.writeLine();
             }
         }

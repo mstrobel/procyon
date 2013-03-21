@@ -34,14 +34,26 @@ public final class BasicBlock extends Node {
     public final List<Node> getChildren() {
         final ArrayList<Node> childrenCopy = new ArrayList<>();
         childrenCopy.addAll(_body);
-        return _body;
+        return childrenCopy;
     }
 
     @Override
     public final void writeTo(final ITextOutput output) {
-        for (final Node child : getChildren()) {
+        final List<Node> children = getChildren();
+
+        for (int i = 0, childrenSize = children.size(); i < childrenSize; i++) {
+            final Node child = children.get(i);
+            final boolean isSimpleNode = child instanceof Expression || child instanceof Label;
+
+            if (i != 0 && !isSimpleNode && !(children.get(i - 1) instanceof Label)) {
+                output.writeLine();
+            }
+
             child.writeTo(output);
-            output.writeLine();
+
+            if (isSimpleNode) {
+                output.writeLine();
+            }
         }
     }
 }

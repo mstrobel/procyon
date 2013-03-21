@@ -67,7 +67,13 @@ public final class Switch extends Node {
         output.writeLine(") {");
         output.indent();
 
-        for (final CaseBlock caseBlock : _caseBlocks) {
+        for (int i = 0, n = _caseBlocks.size(); i < n; i++) {
+            final CaseBlock caseBlock = _caseBlocks.get(i);
+
+            if (i != 0) {
+                output.writeLine();
+            }
+
             caseBlock.writeTo(output);
         }
 

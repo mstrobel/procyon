@@ -21,6 +21,7 @@ import com.strobel.functions.Function;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 
 public final class ControlFlowGraph {
@@ -142,18 +143,20 @@ public final class ControlFlowGraph {
             new Block<ControlFlowNode>() {
                 @Override
                 public void accept(final ControlFlowNode n) {
-                    n.getDominanceFrontier().clear();
+                    final Set<ControlFlowNode> dominanceFrontier = n.getDominanceFrontier();
+
+                    dominanceFrontier.clear();
 
                     for (final ControlFlowNode s : n.getSuccessors()) {
                         if (s.getImmediateDominator() != n) {
-                            n.getDominanceFrontier().add(s);
+                            dominanceFrontier.add(s);
                         }
                     }
 
                     for (final ControlFlowNode child : n.getDominatorTreeChildren()) {
                         for (final ControlFlowNode p : child.getDominanceFrontier()) {
                             if (p.getImmediateDominator() != n) {
-                                p.getDominanceFrontier().add(p);
+                                dominanceFrontier.add(p);
                             }
                         }
                     }

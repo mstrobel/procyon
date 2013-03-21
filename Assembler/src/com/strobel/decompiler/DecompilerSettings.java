@@ -13,13 +13,37 @@
 
 package com.strobel.decompiler;
 
+import com.sampullara.cli.Argument;
+import com.strobel.decompiler.ast.AstOptimizationStep;
+
 public class DecompilerSettings {
+    private boolean _printUsage;
     private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
+    private AstOptimizationStep _abortBeforeStep;
+
+    public final boolean getPrintUsage() {
+        return _printUsage;
+    }
+
+    @Argument(value = "?", description = "Display this usage information and exit.")
+    public final void setPrintUsage(final boolean printUsage) {
+        _printUsage = printUsage;
+    }
+
+    public final AstOptimizationStep getAbortBeforeStep() {
+        return _abortBeforeStep;
+    }
+
+    @Argument(value = "a", description = "Abort before this step.")
+    public final void setAbortBeforeStep(final AstOptimizationStep abortBeforeStep) {
+        _abortBeforeStep = abortBeforeStep;
+    }
 
     public final boolean getAlwaysGenerateExceptionVariableForCatchBlocks() {
         return _alwaysGenerateExceptionVariableForCatchBlocks;
     }
 
+    @Argument(value = "ev", description = "Always generate exception variables for catch blocks.")
     public final void setAlwaysGenerateExceptionVariableForCatchBlocks(final boolean value) {
         _alwaysGenerateExceptionVariableForCatchBlocks = value;
     }

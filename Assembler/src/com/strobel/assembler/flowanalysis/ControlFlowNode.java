@@ -26,8 +26,8 @@ import com.strobel.functions.Function;
 import com.strobel.util.ContractUtils;
 
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -38,7 +38,7 @@ public final class ControlFlowNode {
     private final ControlFlowNodeType _nodeType;
     private final ControlFlowNode _endFinallyNode;
     private final List<ControlFlowNode> _dominatorTreeChildren = new Collection<>();
-    private final Set<ControlFlowNode> _dominanceFrontier = new HashSet<>();
+    private final Set<ControlFlowNode> _dominanceFrontier = new LinkedHashSet<>();
     private final List<ControlFlowEdge> _incoming = new Collection<>();
     private final List<ControlFlowEdge> _outgoing = new Collection<>();
 
@@ -229,7 +229,7 @@ public final class ControlFlowNode {
         _visited = true;
 
         for (final ControlFlowNode child : children.apply(this)) {
-            child.traversePreOrder(children, visitAction);
+            child.traversePostOrder(children, visitAction);
         }
 
         visitAction.accept(this);

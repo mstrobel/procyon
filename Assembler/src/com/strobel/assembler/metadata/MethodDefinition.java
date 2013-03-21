@@ -323,6 +323,8 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
             else {
                 s = parameterType.appendSimpleDescription(s);
             }
+
+            s.append(" ").append(p.getName());
         }
 
         s.append(')');
