@@ -325,6 +325,7 @@ public enum AstCode {
         switch (this) {
             case LoopContinue:
             case LoopOrSwitchBreak:
+            case Return:
                 return true;
 
             default:
@@ -394,6 +395,15 @@ public enum AstCode {
             case __LdCW:
             case __LdC2W:
                 code.set(LdC);
+                return true;
+
+            case __IReturn:
+            case __LReturn:
+            case __FReturn:
+            case __DReturn:
+            case __AReturn:
+            case __Return:
+                code.set(Return);
                 return true;
 
             case __ILoad:

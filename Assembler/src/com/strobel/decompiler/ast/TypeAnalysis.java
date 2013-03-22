@@ -1064,13 +1064,17 @@ final class TypeAnalysis {
         return true;
     }
 
-    private static <T> boolean trueForAll(final Iterable<T> sequence, final Predicate<T> condition) {
+    static <T> boolean trueForAll(final Iterable<T> sequence, final Predicate<T> condition) {
         for (final T item : sequence) {
             if (!condition.test(item)) {
                 return false;
             }
         }
         return true;
+    }
+
+    static boolean isBoolean(final TypeReference type) {
+        return type != null && type.getSimpleType() == SimpleType.Boolean;
     }
 
     // <editor-fold defaultstate="collapsed" desc="ExpressionToInfer Class">

@@ -100,6 +100,7 @@ final class DecompilerVisitor implements TypeVisitor {
 
                 context.setCurrentType(body.getMethod().getDeclaringType().resolve());
                 context.setCurrentMethod(methodDefinition);
+                context.setSettings(_options);
 
                 final List<Node> ast = AstBuilder.build(body, true, context);
                 final Block methodBlock = new Block(ast);

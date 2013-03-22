@@ -15,6 +15,8 @@ package com.strobel.decompiler.ast;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.MetadataSystem;
+import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.BooleanBox;
 import com.strobel.core.CollectionUtilities;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.Predicate;
@@ -109,6 +111,18 @@ public final class AstOptimizer {
                 }
 
                 modified |= runOptimization(block, new JoinBasicBlocksOptimization(context, method));
+
+                if (abortBeforeStep == AstOptimizationStep.SimplifyTernaryOperator) {
+                    continue;
+                }
+
+                modified |= runOptimization(block, new SimplifyTernaryOperatorOptimization(context, method));
+
+                if (abortBeforeStep == AstOptimizationStep.SimplifyLogicalNot) {
+                    continue;
+                }
+
+                modified |= runOptimization(block, new SimplifyLogicalNotOptimization(context));
 
                 if (abortBeforeStep == AstOptimizationStep.InlineVariables2) {
                     continue;
@@ -513,6 +527,7 @@ public final class AstOptimizer {
                     final StrongBox<Label> nextTrueLabel = new StrongBox<>();
                     final StrongBox<Label> nextFalseLabel = new StrongBox<>();
 
+                    //noinspection SuspiciousMethodCalls
                     if (body.contains(nextBasicBlock) &&
                         nextBasicBlock != head &&
                         labelGlobalRefCount.get(nextBasicBlock.getBody().get(0)).getValue() == 1 &&
@@ -525,14 +540,14 @@ public final class AstOptimizer {
                         final Expression logicExpression;
 
                         if (otherLabel == nextFalseLabel.get()) {
-                            logicExpression = matchLeftAssociativeShortCircuit(
+                            logicExpression = makeLeftAssociativeShortCircuit(
                                 AstCode.LogicalAnd,
                                 negate ? new Expression(AstCode.LogicalNot, null, condition.get()) : condition.get(),
                                 nextCondition.get()
                             );
                         }
                         else {
-                            logicExpression = matchLeftAssociativeShortCircuit(
+                            logicExpression = makeLeftAssociativeShortCircuit(
                                 AstCode.LogicalOr,
                                 negate ? condition.get() : new Expression(AstCode.LogicalNot, null, condition.get()),
                                 nextCondition.get()
@@ -557,34 +572,6 @@ public final class AstOptimizer {
             }
 
             return false;
-        }
-
-        private Expression matchLeftAssociativeShortCircuit(final AstCode code, final Expression left, final Expression right) {
-            //
-            // Assuming that the inputs are already left-associative.
-            //
-            if (match(right, code)) {
-                //
-                // Find the leftmost logical expression.
-                //
-                Expression current = right;
-
-                while (match(current.getArguments().get(0), code)) {
-                    current = current.getArguments().get(0);
-                }
-
-                final Expression newArgument = new Expression(code, null, left, current.getArguments().get(0));
-
-                newArgument.setInferredType(BuiltinTypes.Boolean);
-                current.getArguments().set(0, newArgument);
-
-                return right;
-            }
-            else {
-                final Expression newExpression = new Expression(code, null, left, right);
-                newExpression.setInferredType(BuiltinTypes.Boolean);
-                return newExpression;
-            }
         }
     }
 
@@ -622,6 +609,188 @@ public final class AstOptimizer {
             }
 
             return false;
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="SimplifyTernaryOperator Optimization">
+
+    private final static class SimplifyTernaryOperatorOptimization extends AbstractBasicBlockOptimization {
+        protected SimplifyTernaryOperatorOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public final boolean run(final List<Node> body, final BasicBlock head, final int position) {
+            final StrongBox<Expression> condition = new StrongBox<>();
+            final StrongBox<Label> trueLabel = new StrongBox<>();
+            final StrongBox<Label> falseLabel = new StrongBox<>();
+            final StrongBox<Variable> trueVariable = new StrongBox<>();
+            final StrongBox<Expression> trueExpression = new StrongBox<>();
+            final StrongBox<Label> trueFall = new StrongBox<>();
+            final StrongBox<Variable> falseVariable = new StrongBox<>();
+            final StrongBox<Expression> falseExpression = new StrongBox<>();
+            final StrongBox<Label> falseFall = new StrongBox<>();
+            final StrongBox<Object> unused = new StrongBox<>();
+
+            if (matchLastAndBreak(head, AstCode.IfTrue, trueLabel, condition, falseLabel) &&
+                labelGlobalRefCount.get(trueLabel.get()).getValue() == 1 &&
+                labelGlobalRefCount.get(falseLabel.get()).getValue() == 1 &&
+                ((matchSingleAndBreak(labelToBasicBlock.get(trueLabel.get()), AstCode.Store, trueVariable, trueExpression, trueFall) &&
+                  matchSingleAndBreak(labelToBasicBlock.get(falseLabel.get()), AstCode.Store, falseVariable, falseExpression, falseFall) &&
+                  trueVariable.get() == falseVariable.get() &&
+                  trueFall.get() == falseFall.get()) ||
+                 (matchSingle(labelToBasicBlock.get(trueLabel.get()), AstCode.Return, unused, trueExpression) &&
+                  matchSingle(labelToBasicBlock.get(falseLabel.get()), AstCode.Return, unused, falseExpression))) &&
+                body.contains(labelToBasicBlock.get(trueLabel.get())) &&
+                body.contains(labelToBasicBlock.get(falseLabel.get()))) {
+
+                final boolean isStore = trueVariable.get() != null;
+                final AstCode opCode = isStore ? AstCode.Store : AstCode.Return;
+                final TypeReference returnType = isStore ? trueVariable.get().getType() : context.getCurrentMethod().getReturnType();
+                final boolean returnTypeIsBoolean = TypeAnalysis.isBoolean(returnType);
+
+                final StrongBox<Integer> leftBooleanValue = new StrongBox<>();
+                final StrongBox<Integer> rightBooleanValue = new StrongBox<>();
+
+                final Expression newExpression;
+
+                // a ? true:false  is equivalent to  a
+                // a ? false:true  is equivalent to  !a
+                // a ? true : b    is equivalent to  a || b
+                // a ? b : true    is equivalent to  !a || b
+                // a ? b : false   is equivalent to  a && b
+                // a ? false : b   is equivalent to  !a && b
+
+                if (returnTypeIsBoolean &&
+                    matchGetOperand(trueExpression.get(), AstCode.LdC, Integer.class, leftBooleanValue) &&
+                    matchGetOperand(falseExpression.get(), AstCode.LdC, Integer.class, rightBooleanValue) &&
+                    (leftBooleanValue.get() != 0 && rightBooleanValue.get() == 0 ||
+                     leftBooleanValue.get() == 0 && rightBooleanValue.get() != 0)) {
+                    
+                    //
+                    // It can be expressed as a trivial expression.
+                    //
+                    if (leftBooleanValue.get() != 0) {
+                        newExpression = condition.get();
+                    }
+                    else {
+                        newExpression = new Expression(AstCode.LogicalNot, null, condition.get());
+                        newExpression.setInferredType(BuiltinTypes.Boolean);
+                    }
+                }
+                else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(falseExpression.get().getInferredType())) &&
+                         matchGetOperand(trueExpression.get(), AstCode.LdC, Integer.class, leftBooleanValue) &&
+                         (leftBooleanValue.get() == 0 || leftBooleanValue.get() == 1)) {
+
+                    //
+                    // It can be expressed as a logical expression.
+                    //
+                    if (leftBooleanValue.get() != 0) {
+                        newExpression = makeLeftAssociativeShortCircuit(
+                            AstCode.LogicalOr,
+                            condition.get(),
+                            falseExpression.get()
+                        );
+                    }
+                    else {
+                        newExpression = makeLeftAssociativeShortCircuit(
+                            AstCode.LogicalAnd,
+                            new Expression(AstCode.LogicalNot, null, condition.get()),
+                            falseExpression.get()
+                        );
+                    }
+                }
+                else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(trueExpression.get().getInferredType())) &&
+                         matchGetOperand(falseExpression.get(), AstCode.LdC, Integer.class, rightBooleanValue) &&
+                         (rightBooleanValue.get() == 0 || rightBooleanValue.get() == 1)) {
+
+                    //
+                    // It can be expressed as a logical expression.
+                    //
+                    if (rightBooleanValue.get() != 0) {
+                        newExpression = makeLeftAssociativeShortCircuit(
+                            AstCode.LogicalOr,
+                            new Expression(AstCode.LogicalNot, null, condition.get()),
+                            trueExpression.get()
+                        );
+                    }
+                    else {
+                        newExpression = makeLeftAssociativeShortCircuit(
+                            AstCode.LogicalAnd,
+                            condition.get(),
+                            trueExpression.get()
+                        );
+                    }
+                }
+                else {
+                    //
+                    // Ternary operator tends to create long, complicated return statements.
+                    //
+                    if (opCode == AstCode.Return) {
+                        return false;
+                    }
+
+                    //
+                    // Only simplify generated variables.
+                    //
+                    if (opCode == AstCode.Store && !trueVariable.get().isGenerated()) {
+                        return false;
+                    }
+
+                    //
+                    // Create ternary expression.
+                    //
+                    newExpression = new Expression(
+                        AstCode.TernaryOp,
+                        null,
+                        condition.get(),
+                        trueExpression.get(),
+                        falseExpression.get()
+                    );
+                }
+
+                final List<Node> headBody = head.getBody();
+
+                removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
+                headBody.add(new Expression(opCode, trueVariable.get(), newExpression));
+
+                if (isStore) {
+                    headBody.add(new Expression(AstCode.Goto, trueFall.get()));
+                }
+
+                //
+                // Remove the old basic blocks.
+                //
+
+                removeOrThrow(body, labelToBasicBlock.get(trueLabel.get()));
+                removeOrThrow(body, labelToBasicBlock.get(falseLabel.get()));
+
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="SimplifyLogicalNot Optimization">
+
+    private final static class SimplifyLogicalNotOptimization extends AbstractExpressionOptimization {
+        protected SimplifyLogicalNotOptimization(final DecompilerContext context) {
+            super(context);
+        }
+
+        @Override
+        public final boolean run(final List<Node> body, final Expression head, final int position) {
+            final BooleanBox modified = new BooleanBox();
+            final Expression simplified = simplifyLogicalNot(head, modified);
+
+            assert simplified == null;
+
+            return modified.get();
         }
     }
 
@@ -674,6 +843,16 @@ public final class AstOptimizer {
             }
         }
     }
+    @SuppressWarnings("ProtectedField")
+    private static abstract class AbstractExpressionOptimization implements ExpressionOptimization {
+        protected final DecompilerContext context;
+        protected final MetadataSystem metadataSystem;
+
+        protected AbstractExpressionOptimization(final DecompilerContext context) {
+            this.context = VerifyArgument.notNull(context, "context");
+            this.metadataSystem = MetadataSystem.instance();
+        }
+    }
 
     private static boolean runOptimization(final Block block, final BasicBlockOptimization optimization) {
         boolean modified = false;
@@ -724,9 +903,117 @@ public final class AstOptimizer {
             }
         }
 
-        for (int i = 0; i < codes.length; i++) {
+        //noinspection UnusedDeclaration
+        for (final AstCode code : codes) {
             body.remove(body.size() - 1);
         }
+    }
+
+    static Expression makeLeftAssociativeShortCircuit(final AstCode code, final Expression left, final Expression right) {
+        //
+        // Assuming that the inputs are already left-associative.
+        //
+        if (match(right, code)) {
+            //
+            // Find the leftmost logical expression.
+            //
+            Expression current = right;
+
+            while (match(current.getArguments().get(0), code)) {
+                current = current.getArguments().get(0);
+            }
+
+            final Expression newArgument = new Expression(code, null, left, current.getArguments().get(0));
+
+            newArgument.setInferredType(BuiltinTypes.Boolean);
+            current.getArguments().set(0, newArgument);
+
+            return right;
+        }
+        else {
+            final Expression newExpression = new Expression(code, null, left, right);
+            newExpression.setInferredType(BuiltinTypes.Boolean);
+            return newExpression;
+        }
+    }
+
+    static Expression simplifyLogicalNot(final Expression expression, final BooleanBox modified) {
+        Expression a;
+        Expression e = expression;
+
+        //
+        // CmpEq(a, ldc, 0) becomes LogicalNot(a) if the inferred type for expression 'a' is boolean.
+        //
+
+        List<Expression> arguments = e.getArguments();
+
+        if (e.getCode() == AstCode.CmpEq &&
+            TypeAnalysis.isBoolean(arguments.get(0).getInferredType()) &&
+            (a = arguments.get(1)).getCode() == AstCode.LdC &&
+            ((Number)a.getOperand()).intValue() == 0) {
+
+            e.setCode(AstCode.LogicalNot);
+            e.getRanges().addAll(a.getRanges());
+
+            arguments.remove(1);
+            modified.set(true);
+        }
+
+        Expression result = null;
+
+        while (e.getCode() == AstCode.LogicalNot) {
+            a = arguments.get(0);
+
+            //
+            // Remove double negation.
+            //
+            if (a.getCode() == AstCode.LogicalNot) {
+                result = a.getArguments().get(0);
+                result.getRanges().addAll(e.getRanges());
+                result.getRanges().addAll(a.getRanges());
+                e = result;
+                arguments= e.getArguments();
+            }
+            else {
+                if (simplifyLogicalNotArgument(e)) {
+                    result = e = a;
+                    arguments= e.getArguments();
+                }
+                break;
+            }
+        }
+
+        for (int i = 0; i < arguments.size(); i++) {
+            a = simplifyLogicalNot(arguments.get(i), modified);
+
+            if (a != null) {
+                arguments.set(i, a);
+                modified.set(true);
+            }
+        }
+
+        return result;
+    }
+
+    private static boolean simplifyLogicalNotArgument(final Expression e) {
+        final Expression a = e.getArguments().get(0);
+        final AstCode c;
+
+        switch (a.getCode()) {
+            case CmpEq: c = AstCode.CmpNe; break;
+            case CmpNe: c = AstCode.CmpEq; break;
+            case CmpLt: c = AstCode.CmpGe; break;
+            case CmpGe: c = AstCode.CmpLt; break;
+            case CmpGt: c = AstCode.CmpLe; break;
+            case CmpLe: c = AstCode.CmpGt; break;
+
+            default: return false;
+        }
+
+        a.setCode(c);
+        a.getRanges().addAll(e.getRanges());
+
+        return true;
     }
 
     // </editor-fold>

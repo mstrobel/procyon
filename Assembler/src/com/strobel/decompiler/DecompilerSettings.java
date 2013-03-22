@@ -19,7 +19,7 @@ import com.strobel.decompiler.ast.AstOptimizationStep;
 public class DecompilerSettings {
     private boolean _printUsage;
     private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
-    private AstOptimizationStep _abortBeforeStep;
+    private AstOptimizationStep _abortBeforeStep = AstOptimizationStep.None;
 
     public final boolean getPrintUsage() {
         return _printUsage;
@@ -36,7 +36,7 @@ public class DecompilerSettings {
 
     @Argument(value = "a", description = "Abort before this step.")
     public final void setAbortBeforeStep(final AstOptimizationStep abortBeforeStep) {
-        _abortBeforeStep = abortBeforeStep;
+        _abortBeforeStep = abortBeforeStep != null ? abortBeforeStep : AstOptimizationStep.None;
     }
 
     public final boolean getAlwaysGenerateExceptionVariableForCatchBlocks() {

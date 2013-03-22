@@ -475,6 +475,7 @@ final class LoopsAndConditions {
                 final StrongBox<Label> falseLabel = new StrongBox<>();
 
                 if (matchLastAndBreak(block, AstCode.IfTrue, trueLabel, condition, falseLabel)) {
+/*
                     //
                     // Flip bodies since that seems to be the Java compiler tradition.
                     //
@@ -484,6 +485,7 @@ final class LoopsAndConditions {
                     trueLabel.set(falseLabel.get());
                     falseLabel.set(temp);
                     condition.set(new Expression(AstCode.LogicalNot, null, condition.get()));
+*/
 
                     //
                     // Convert IfTrue expression to Condition.

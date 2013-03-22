@@ -46,6 +46,23 @@ public final class PatternMatching {
         return false;
     }
 
+    public static <T> boolean matchGetOperand(final Node node, final AstCode code, final Class<T> operandType, final StrongBox<T> operand) {
+        if (node instanceof Expression) {
+            final Expression expression = (Expression) node;
+
+            if (expression.getCode() == code &&
+                expression.getArguments().isEmpty() &&
+                operandType.isInstance(expression.getOperand())) {
+
+                operand.set(expression.getOperand());
+                return true;
+            }
+        }
+
+        operand.set(null);
+        return false;
+    }
+
     public static boolean matchGetArguments(final Node node, final AstCode code, final List<Expression> arguments) {
         if (node instanceof Expression) {
             final Expression expression = (Expression) node;
