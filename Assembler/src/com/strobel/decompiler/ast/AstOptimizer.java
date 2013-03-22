@@ -40,7 +40,7 @@ public final class AstOptimizer {
     Block _method;
 
     public static void optimize(final DecompilerContext context, final Block method) {
-        optimize(context, method, AstOptimizationStep.None);
+        optimize(context, method, context.getSettings().getAbortBeforeStep());
     }
 
     public static void optimize(final DecompilerContext context, final Block method, final AstOptimizationStep abortBeforeStep) {
@@ -104,24 +104,36 @@ public final class AstOptimizer {
 
                 modified |= runOptimization(block, new SimplifyShortCircuitOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.InlineVariables2) {
-                    continue;
-                }
-
-                modified |= new Inlining(method).inlineAllInBlock(block);
-
-                new Inlining(method).copyPropagation();
-
                 if (abortBeforeStep == AstOptimizationStep.JoinBasicBlocks) {
                     continue;
                 }
 
                 modified |= runOptimization(block, new JoinBasicBlocksOptimization(context, method));
 
+                if (abortBeforeStep == AstOptimizationStep.InlineVariables2) {
+                    continue;
+                }
+
+                modified |= new Inlining(method).inlineAllInBlock(block);
+                new Inlining(method).copyPropagation();
             } while (modified);
         }
 
-        new LoopsAndConditions(context).findConditions(method);
+        if (abortBeforeStep == AstOptimizationStep.FindLoops) {
+            return;
+        }
+
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            new LoopsAndConditions(context).findLoops(block);
+        }
+
+        if (abortBeforeStep == AstOptimizationStep.FindConditions) {
+            return;
+        }
+
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            new LoopsAndConditions(context).findConditions(block);
+        }
     }
 
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">

@@ -158,7 +158,7 @@ public final class PatternMatching {
         if (body.size() == 3 &&
             body.get(0) instanceof Label &&
             matchGetArgument(body.get(1), code, operand, argument) &&
-            PatternMatching.matchGetOperand(body.get(2), AstCode.Goto, label)) {
+            matchGetOperand(body.get(2), AstCode.Goto, label)) {
 
             return true;
         }

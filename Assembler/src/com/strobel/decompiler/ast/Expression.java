@@ -203,15 +203,15 @@ public final class Expression extends Node {
             else if (operand instanceof MethodReference ||
                      operand instanceof FieldReference) {
 
-                final MemberReference method = (MemberReference) operand;
-                final TypeReference declaringType = method.getDeclaringType();
+                final MemberReference member = (MemberReference) operand;
+                final TypeReference declaringType = member.getDeclaringType();
 
                 if (declaringType != null) {
                     writeType(output, declaringType, NameSyntax.SHORT_TYPE_NAME);
                     output.write("::");
                 }
 
-                output.writeReference(method.getName(), method);
+                output.writeReference(member.getName(), member);
             }
             else {
                 DecompilerHelpers.writeOperand(output, operand);

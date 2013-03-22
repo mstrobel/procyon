@@ -19,7 +19,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.functions.Block;
 import com.strobel.functions.Function;
 
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -166,7 +166,7 @@ public final class ControlFlowGraph {
     }
 
     static ControlFlowNode findCommonDominator(final ControlFlowNode a, final ControlFlowNode b) {
-        final HashSet<ControlFlowNode> path1 = new HashSet<>();
+        final Set<ControlFlowNode> path1 = new LinkedHashSet<>();
 
         ControlFlowNode node1 = a;
         ControlFlowNode node2 = b;
