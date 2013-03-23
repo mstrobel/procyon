@@ -248,4 +248,53 @@ public final class PatternMatching {
         return matchGetArgument(node, AstCode.Load, operand, argument) &&
                Comparer.equals(operand.get(), expectedVariable);
     }
+
+    public static boolean matchSimplifiableComparison(final Node node)  {
+        if (node instanceof Expression) {
+            final Expression e = (Expression) node;
+
+            switch (e.getCode()) {
+                case CmpEq:
+                case CmpNe:
+                case CmpLt:
+                case CmpGe:
+                case CmpGt:
+                case CmpLe: {
+                    final Expression comparisonArgument = e.getArguments().get(0);
+
+                    switch (comparisonArgument.getCode()) {
+                        case __LCmp:
+                        case __FCmpL:
+                        case __FCmpG:
+                        case __DCmpL:
+                        case __DCmpG:
+                            final Expression constantArgument = e.getArguments().get(1);
+                            final StrongBox<Integer> comparand = new StrongBox<>();
+
+                            return matchGetOperand(constantArgument, AstCode.LdC, Integer.class, comparand) &&
+                                   comparand.get() == 0;
+
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean matchReversibleComparison(final Node node)  {
+        if (match(node, AstCode.LogicalNot)) {
+            switch (((Expression) node).getArguments().get(0).getCode()) {
+                case CmpEq:
+                case CmpNe:
+                case CmpLt:
+                case CmpGe:
+                case CmpGt:
+                case CmpLe:
+                    return true;
+            }
+        }
+
+        return false;
+    }
 }

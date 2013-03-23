@@ -427,11 +427,26 @@ final class TypeAnalysis {
                 final boolean hasThis = !methodDefinition.isStatic();
 
                 if (forceInferChildren) {
-                    for (int i = 0; i < parameters.size(); i++) {
+                    if (methodDefinition.isConstructor()) {
                         inferTypeForExpression(
-                            arguments.get(i),
-                            substituteTypeArguments(parameters.get(i).getParameterType(), methodReference)
+                            arguments.get(0),
+                            methodDefinition.getDeclaringType()
                         );
+
+                        for (int i = 0; i < parameters.size(); i++) {
+                            inferTypeForExpression(
+                                arguments.get(i + 1),
+                                substituteTypeArguments(parameters.get(i).getParameterType(), methodReference)
+                            );
+                        }
+                    }
+                    else {
+                        for (int i = 0; i < parameters.size(); i++) {
+                            inferTypeForExpression(
+                                arguments.get(i),
+                                substituteTypeArguments(parameters.get(i).getParameterType(), methodReference)
+                            );
+                        }
                     }
                 }
 

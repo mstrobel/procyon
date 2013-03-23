@@ -26,6 +26,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.core.delegates.Func;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.functions.Function;
+import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -187,6 +188,14 @@ public final class AstOptimizer {
         }
 
         reduceIfNesting(method);
+
+        if (abortBeforeStep == AstOptimizationStep.ReduceComparisonInstructionSet) {
+            return;
+        }
+
+        for (final Expression e : method.getChildrenAndSelfRecursive(Expression.class)) {
+            reduceComparisonInstructionSet(e);
+        }
 
         if (abortBeforeStep == AstOptimizationStep.RecombineVariables) {
             return;
@@ -361,6 +370,44 @@ public final class AstOptimizer {
             newExpression.getRanges().addAll(e.getRanges());
         }
     }
+
+    // <editor-fold defaultstate="collapsed" desc="ReduceComparisonInstructionSet Step">
+
+    private static void reduceComparisonInstructionSet(final Expression expression) {
+        final List<Expression> arguments = expression.getArguments();
+        final Expression firstArgument = arguments.isEmpty() ? null : arguments.get(0);
+
+        if (matchSimplifiableComparison(expression)) {
+            final Expression comparisonExpression = firstArgument;
+
+            arguments.clear();
+            arguments.addAll(comparisonExpression.getArguments());
+            expression.getRanges().addAll(comparisonExpression.getRanges());
+        }
+
+        if (matchReversibleComparison(expression)) {
+            final AstCode reversedCode;
+
+            switch (firstArgument.getCode()) {
+                case CmpEq: reversedCode = AstCode.CmpNe; break;
+                case CmpNe: reversedCode = AstCode.CmpEq; break;
+                case CmpLt: reversedCode = AstCode.CmpGe; break;
+                case CmpGe: reversedCode = AstCode.CmpLt; break;
+                case CmpGt: reversedCode = AstCode.CmpLe; break;
+                case CmpLe: reversedCode = AstCode.CmpGt; break;
+
+                default: throw ContractUtils.unreachable();
+            }
+
+            expression.setCode(reversedCode);
+            expression.getRanges().addAll(firstArgument.getRanges());
+
+            arguments.clear();
+            arguments.addAll(firstArgument.getArguments());
+        }
+    }
+
+    // </editor-fold>
 
     // </editor-fold>
 
