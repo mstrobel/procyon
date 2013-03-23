@@ -108,7 +108,7 @@ final class DecompilerVisitor implements TypeVisitor {
                 AstOptimizer.optimize(context, methodBlock);
 
                 _output.writeLine();
-                _output.writeLine("%s {", methodDefinition.getDescription());
+                _output.writeLine("%s {", methodDefinition.isTypeInitializer() ? "static" : methodDefinition.getDescription());
                 _output.indent();
 
                 methodBlock.writeTo(_output);

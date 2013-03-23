@@ -249,8 +249,9 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
         return sb.append(_name);
     }
 
+    @SuppressWarnings("ConstantConditions")
     public StringBuilder appendDescription(final StringBuilder sb) {
-        StringBuilder s = new StringBuilder();
+        StringBuilder s = sb;
 
         for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers() & ~Flags.ACC_VARARGS)) {
             s.append(modifier.toString());
@@ -347,7 +348,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     }
 
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        StringBuilder s = new StringBuilder();
+        StringBuilder s = sb;
 
         for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers() & ~Flags.ACC_VARARGS)) {
             s.append(modifier.toString());
@@ -438,7 +439,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     }
 
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        StringBuilder s = new StringBuilder();
+        StringBuilder s = sb;
 
         TypeReference returnType = getReturnType();
 

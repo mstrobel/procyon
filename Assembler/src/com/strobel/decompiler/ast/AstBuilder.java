@@ -960,7 +960,10 @@ public final class AstBuilder {
 
             final Expression expression = new Expression(byteCode.code, byteCode.operand);
 
-            if (byteCode.secondOperand != null) {
+            if (byteCode.code == AstCode.Inc) {
+                assert byteCode.secondOperand instanceof Integer;
+
+                expression.setCode(AstCode.Inc);
                 expression.getArguments().add(new Expression(AstCode.LdC, byteCode.secondOperand));
             }
 

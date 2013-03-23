@@ -58,7 +58,7 @@ final class Inlining {
                 else if (code == AstCode.Store) {
                     increment(storeCounts, localVariable);
                 }
-                else if (code == AstCode.__IInc || code == AstCode.__IIncW) {
+                else if (code == AstCode.Inc) {
                     increment(loadCounts, localVariable);
                     increment(storeCounts, localVariable);
                 }

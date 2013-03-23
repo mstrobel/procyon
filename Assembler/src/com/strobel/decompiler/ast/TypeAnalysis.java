@@ -847,6 +847,10 @@ final class TypeAnalysis {
 
             case Dup:
             case Dup2: {
+                //
+                // TODO: Handle the more obscure DUP instructions.
+                //
+
                 final Expression argument = arguments.get(0);
                 final TypeReference result = inferTypeForExpression(argument, expectedType);
 
@@ -860,7 +864,8 @@ final class TypeAnalysis {
             }
 
             case __IInc:
-            case __IIncW: {
+            case __IIncW:
+            case Inc: {
                 return null;
             }
 

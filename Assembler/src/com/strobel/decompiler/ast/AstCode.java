@@ -397,6 +397,12 @@ public enum AstCode {
                 code.set(LdC);
                 return true;
 
+            case __IInc:
+            case __IIncW: {
+                code.set(Inc);
+                return true;
+            }
+
             case __IReturn:
             case __LReturn:
             case __FReturn:
