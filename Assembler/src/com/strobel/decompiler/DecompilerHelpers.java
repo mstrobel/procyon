@@ -130,30 +130,13 @@ public final class DecompilerHelpers {
             final Variable variable = (Variable) operand;
 
             if (variable.isParameter()) {
-                final ParameterReference original = variable.getOriginalParameter();
-                final String name = original.getName();
-
-                if (StringUtilities.isNullOrEmpty(name)) {
-                    writer.writeReference(String.valueOf(original.getPosition()), original);
-                }
-                else {
-                    writer.writeReference(escapeIdentifier(name), original);
-                }
-
-                return;
+                writer.writeReference(variable.getName(), variable.getOriginalParameter());
             }
             else {
-                final VariableReference original = variable.getOriginalVariable();
-
-                if (original.hasName()) {
-                    writer.writeReference(escapeIdentifier(original.getName()), original);
-                }
-                else {
-                    writer.writeReference(String.valueOf(original.getIndex()), original);
-                }
-
-                return;
+                writer.writeReference(variable.getName(), variable.getOriginalVariable());
             }
+
+            return;
         }
 
         if (operand instanceof MethodReference) {

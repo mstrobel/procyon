@@ -1005,7 +1005,7 @@ public final class AstBuilder {
 
                 ast.add(new Expression(AstCode.Store, tempVariable, expression));
 
-                for (int i = byteCode.storeTo.size(); i >= 0; i--) {
+                for (int i = byteCode.storeTo.size() - 1; i >= 0; i--) {
                     ast.add(
                         new Expression(
                             AstCode.Store,
