@@ -55,7 +55,8 @@ public final class Switch extends Node {
 
     @Override
     public final void writeTo(final ITextOutput output) {
-        output.write("switch (");
+        output.writeKeyword("switch");
+        output.write(" (");
 
         if (_condition != null) {
             _condition.writeTo(output);

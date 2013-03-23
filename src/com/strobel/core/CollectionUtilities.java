@@ -58,7 +58,7 @@ public final class CollectionUtilities {
 
         if (collection instanceof List<?>) {
             final List<T> list = (List<T>) collection;
-            return list.get(list.size() - 1);
+            return list.isEmpty() ? null : list.get(list.size() - 1);
         }
 
         T last = null;

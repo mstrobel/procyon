@@ -13,14 +13,10 @@
 
 package com.strobel.decompiler.ast;
 
-import com.strobel.core.MutableInteger;
-import com.strobel.core.Predicate;
-import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.util.ContractUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
@@ -31,8 +27,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 
 import static com.strobel.core.CollectionUtilities.*;
-import static com.strobel.decompiler.ast.PatternMatching.match;
-import static com.strobel.decompiler.ast.PatternMatching.matchGetArgument;
+import static com.strobel.decompiler.ast.PatternMatching.*;
 
 final class GotoRemoval {
     private final static Node NULL_NODE = new Node() {
@@ -86,6 +81,8 @@ final class GotoRemoval {
             }
         }
         while (modified);
+
+        removeRedundantCode(method);
     }
 
     private boolean trySimplifyGoto(final Expression gotoExpression) {
@@ -386,117 +383,120 @@ final class GotoRemoval {
 
     @SuppressWarnings("ConstantConditions")
     public static void removeRedundantCode(final Block method) {
-        final Map<Label, MutableInteger> labelReferenceCount = new IdentityHashMap<>();
+        //
+        // Remove dead labels and NOPs.
+        //
 
-        final List<Expression> branchExpressions = method.getSelfAndChildrenRecursive(
-            Expression.class,
-            new Predicate<Expression>() {
-                @Override
-                public boolean test(final Expression e) {
-                    return e.isBranch();
-                }
-            }
-        );
+        final Set<Label> liveLabels = new LinkedHashSet<>();
 
-        for (final Expression e : branchExpressions) {
-            for (final Label branchTarget : e.getBranchTargets()) {
-                final MutableInteger referenceCount = labelReferenceCount.get(branchTarget);
-
-                if (referenceCount == null) {
-                    labelReferenceCount.put(branchTarget, new MutableInteger(1));
-                }
-                else {
-                    referenceCount.increment();
-                }
+        for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
+            if (e.isBranch()) {
+                liveLabels.addAll(e.getBranchTargets());
             }
         }
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             final List<Node> body = block.getBody();
-            final List<Node> newBody = new ArrayList<>(body.size());
 
-            for (int i = 0, n = body.size(); i < n; i++) {
-                final Node node = body.get(i);
-                final StrongBox<Label> target = new StrongBox<>();
-                final StrongBox<Expression> popExpression = new StrongBox<>();
+            for (int i = 0; i < body.size(); i++) {
+                final Node n = body.get(i);
 
-                if (PatternMatching.matchGetOperand(node, AstCode.Goto, target) &&
-                    i + 1 < body.size() &&
-                    body.get(i + 1) == target.get()) {
-
-                    //
-                    // Ignore the branch.
-                    //
-                    if (labelReferenceCount.get(target.get()).getValue() == 1) {
-                        //
-                        // Ignore the label as well.
-                        //
-                        i++;
-                    }
-                }
-                else if (match(node, AstCode.Nop)) {
-                    //
-                    // Ignore NOP.
-                    //
-                }
-                else if (PatternMatching.matchGetArgument(node, AstCode.Pop, popExpression)) {
-                    final StrongBox<Variable> variable = new StrongBox<>();
-
-                    if (!PatternMatching.matchGetOperand(popExpression.get(), AstCode.Load, variable)) {
-                        throw new IllegalStateException("Pop should just have Load at this stage.");
-                    }
-
-                    //
-                    // Best effort to move bytecode range to previous statement.
-                    //
-
-                    final StrongBox<Variable> previousVariable = new StrongBox<>();
-                    final StrongBox<Expression> previousExpression = new StrongBox<>();
-
-                    if (i - 1 >= 0 &&
-                        matchGetArgument(body.get(i - 1), AstCode.Store, previousVariable, previousExpression) &&
-                        previousVariable.get() == variable.get()) {
-
-                        previousExpression.get().getRanges().addAll(((Expression) node).getRanges());
-
-                        //
-                        // Ignore POP.
-                        //
-                    }
-                }
-                else if (node instanceof Label) {
-                    final Label label = (Label) node;
-                    final MutableInteger referenceCount = labelReferenceCount.get(label);
-
-                    if (referenceCount != null && referenceCount.getValue() > 0) {
-                        newBody.add(label);
-                    }
-                }
-                else {
-                    newBody.add(node);
+                if (match(n, AstCode.Nop) || n instanceof Label && !liveLabels.contains(n)) {
+                    body.remove(i--);
                 }
             }
-
-            body.clear();
-            body.addAll(newBody);
         }
 
         //
-        // DUP removal.
+        // Remove redundant continue statements.
         //
-        final StrongBox<Expression> child = new StrongBox<>();
 
-        for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
-            final List<Expression> arguments = e.getArguments();
+        for (final Loop loop : method.getSelfAndChildrenRecursive(Loop.class)) {
+            final Block body = loop.getBody();
 
-            for (int i = 0, n = arguments.size(); i < n; i++) {
-                final Expression argument = arguments.get(i);
+            if (matchLast(body, AstCode.LoopContinue)) {
+                body.getBody().remove(body.getBody().size() - 1);
+            }
+        }
 
-                if (PatternMatching.matchGetArgument(e, AstCode.Dup, child)) {
-                    child.get().getRanges().addAll(argument.getRanges());
-                    arguments.set(i, child.get());
+        //
+        // Remove redundant break at end of case.  Remove empty case blocks.
+        //
+
+        for (final Switch switchNode : method.getSelfAndChildrenRecursive(Switch.class)) {
+            CaseBlock defaultCase = null;
+
+            final List<CaseBlock> caseBlocks = switchNode.getCaseBlocks();
+
+            for (final CaseBlock caseBlock : caseBlocks) {
+                assert caseBlock.getEntryGoto() == null;
+
+                if (caseBlock.getValues().isEmpty()) {
+                    defaultCase = caseBlock;
+                }
+
+                final List<Node> caseBody = caseBlock.getBody();
+                final int size = caseBody.size();
+
+                if (size >= 2) {
+                    if (caseBody.get(size - 2).isUnconditionalControlFlow() &&
+                        match(caseBody.get(size - 1), AstCode.LoopOrSwitchBreak)) {
+
+                        caseBody.remove(size - 1);
+                    }
                 }
             }
+
+            if (defaultCase == null ||
+                defaultCase.getBody().size() == 1 && match(firstOrDefault(defaultCase.getBody()), AstCode.LoopOrSwitchBreak)) {
+
+                for (int i = 0; i < caseBlocks.size(); i++) {
+                    final List<Node> body = caseBlocks.get(i).getBody();
+
+                    if (body.size() == 1 && match(firstOrDefault(body), AstCode.LoopOrSwitchBreak)) {
+                        caseBlocks.remove(i--);
+                    }
+                }
+            }
+        }
+
+        //
+        // Remove redundant return at end of method.
+        //
+
+        final List<Node> methodBody = method.getBody();
+        final Node lastStatement = lastOrDefault(methodBody);
+
+        if (match(lastStatement, AstCode.Return) &&
+            ((Expression)lastStatement).getArguments().isEmpty()) {
+
+            methodBody.remove(methodBody.size() - 1);
+        }
+
+        //
+        // Remove unreachable return statements.
+        //
+
+        boolean modified = false;
+
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            final List<Node> blockBody = block.getBody();
+
+            for (int i = 0; i < blockBody.size() - 1; i++) {
+                if (blockBody.get(i).isUnconditionalControlFlow() &&
+                    match(blockBody.get(i + 1), AstCode.Return)) {
+
+                    modified = true;
+                    blockBody.remove(i-- + 1);
+                }
+            }
+        }
+
+        if (modified) {
+            //
+            // More removals might be possible.
+            //
+            new GotoRemoval().removeGotos(method);
         }
     }
 }

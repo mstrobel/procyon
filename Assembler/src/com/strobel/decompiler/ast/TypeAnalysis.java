@@ -319,7 +319,7 @@ final class TypeAnalysis {
             }
         }
 
-        if (expression.getExpectedType() == null || anyArgumentIsMissingExpectedType) {
+        if (expression.getInferredType() == null || anyArgumentIsMissingExpectedType) {
             inferTypeForExpression(expression, expression.getExpectedType(), anyArgumentIsMissingExpectedType);
         }
 
@@ -358,10 +358,11 @@ final class TypeAnalysis {
     }
 
     private TypeReference doInferTypeForExpression(final Expression expression, final TypeReference expectedType, final boolean forceInferChildren) {
+        final AstCode code = expression.getCode();
         final Object operand = expression.getOperand();
         final List<Expression> arguments = expression.getArguments();
 
-        switch (expression.getCode()) {
+        switch (code) {
             case LogicalNot: {
                 if (forceInferChildren) {
                     inferTypeForExpression(arguments.get(0), BuiltinTypes.Boolean);
@@ -427,7 +428,7 @@ final class TypeAnalysis {
                 final boolean hasThis = !methodDefinition.isStatic();
 
                 if (forceInferChildren) {
-                    if (methodDefinition.isConstructor()) {
+                    if (hasThis) {
                         inferTypeForExpression(
                             arguments.get(0),
                             methodDefinition.getDeclaringType()
@@ -683,20 +684,33 @@ final class TypeAnalysis {
 
             case BIPush:
             case SIPush: {
-                final TypeReference conversionResult;
+                final Number number = (Number) operand;
 
-                switch (expression.getCode()) {
-                    case BIPush:
-                        conversionResult = BuiltinTypes.Byte;
-                        break;
-                    case SIPush:
-                        conversionResult = BuiltinTypes.Short;
-                        break;
-                    default:
-                        throw ContractUtils.unsupported();
+                if (expectedType.getSimpleType() == SimpleType.Boolean &&
+                    (number.intValue() == 0 || number.intValue() == 1)) {
+
+                    return BuiltinTypes.Boolean;
                 }
 
-                return conversionResult;
+                if (expectedType.getSimpleType() == SimpleType.Byte &&
+                    number.intValue() >= Byte.MIN_VALUE &&
+                    number.intValue() <= Byte.MAX_VALUE) {
+
+                    return BuiltinTypes.Byte;
+                }
+
+                if (expectedType.getSimpleType() == SimpleType.Character &&
+                    number.intValue() >= Character.MIN_VALUE &&
+                    number.intValue() <= Character.MAX_VALUE) {
+
+                    return BuiltinTypes.Character;
+                }
+
+                if (expectedType.getSimpleType().isIntegral()) {
+                    return expectedType;
+                }
+
+                return BuiltinTypes.Short;
             }
 
             case I2L:
@@ -716,7 +730,7 @@ final class TypeAnalysis {
             case I2S: {
                 final TypeReference conversionResult;
 
-                switch (expression.getCode()) {
+                switch (code) {
                     case I2L:
                         conversionResult = BuiltinTypes.Long;
                         break;
@@ -906,7 +920,7 @@ final class TypeAnalysis {
             }
 
             default: {
-                System.err.printf("Type inference can't handle opcode '%s'.\n", expression.getCode().getName());
+                System.err.printf("Type inference can't handle opcode '%s'.\n", code.getName());
                 return null;
             }
         }

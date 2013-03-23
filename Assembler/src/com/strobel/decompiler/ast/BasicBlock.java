@@ -32,7 +32,7 @@ public final class BasicBlock extends Node {
 
     @Override
     public final List<Node> getChildren() {
-        final ArrayList<Node> childrenCopy = new ArrayList<>();
+        final ArrayList<Node> childrenCopy = new ArrayList<>(_body.size());
         childrenCopy.addAll(_body);
         return childrenCopy;
     }
@@ -41,11 +41,13 @@ public final class BasicBlock extends Node {
     public final void writeTo(final ITextOutput output) {
         final List<Node> children = getChildren();
 
+        boolean previousWasSimpleNode = true;
+
         for (int i = 0, childrenSize = children.size(); i < childrenSize; i++) {
             final Node child = children.get(i);
             final boolean isSimpleNode = child instanceof Expression || child instanceof Label;
 
-            if (i != 0 && !isSimpleNode && !(children.get(i - 1) instanceof Label)) {
+            if (i != 0 && !isSimpleNode || !previousWasSimpleNode) {
                 output.writeLine();
             }
 
@@ -54,6 +56,8 @@ public final class BasicBlock extends Node {
             if (isSimpleNode) {
                 output.writeLine();
             }
+
+            previousWasSimpleNode = isSimpleNode;
         }
     }
 }

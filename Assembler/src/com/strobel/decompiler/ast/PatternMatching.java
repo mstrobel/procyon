@@ -186,6 +186,20 @@ public final class PatternMatching {
         return false;
     }
 
+    public static boolean matchLast(final BasicBlock block, final AstCode code) {
+        final List<Node> body = block.getBody();
+
+        return body.size() >= 1 &&
+               match(body.get(body.size() - 1), code);
+    }
+
+    public static boolean matchLast(final Block block, final AstCode code) {
+        final List<Node> body = block.getBody();
+
+        return body.size() >= 1 &&
+               match(body.get(body.size() - 1), code);
+    }
+
     public static <T> boolean matchLast(
         final BasicBlock block,
         final AstCode code,
@@ -194,7 +208,7 @@ public final class PatternMatching {
 
         final List<Node> body = block.getBody();
 
-        if (body.size() >= 2 &&
+        if (body.size() >= 1 &&
             matchGetArgument(body.get(body.size() - 1), code, operand, argument)) {
 
             return true;

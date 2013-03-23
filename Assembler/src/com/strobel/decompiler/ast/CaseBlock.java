@@ -32,11 +32,13 @@ public final class CaseBlock extends Block {
     @Override
     public final void writeTo(final ITextOutput output) {
         if (isDefault()) {
-            output.writeLine("default:");
+            output.writeKeyword("default");
+            output.writeLine(":");
         }
         else {
             for (final Integer value : _values) {
-                output.writeLine("case %d:", value);
+                output.writeKeyword("case");
+                output.writeLine(" %d:", value);
             }
         }
 
