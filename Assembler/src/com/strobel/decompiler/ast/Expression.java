@@ -35,7 +35,16 @@ public final class Expression extends Node {
     public static final Object ANY_OPERAND = new Object();
 
     private final Collection<Expression> _arguments = new Collection<>();
-    private final Collection<Range> _ranges = new Collection<>();
+
+    private final Collection<Range> _ranges = new Collection<Range>() {
+        @Override
+        public void add(final int index, final Range element) {
+            if (contains(element)) {
+                return;
+            }
+            super.add(index, element);
+        }
+    };
 
     private AstCode _code;
     private Object _operand;

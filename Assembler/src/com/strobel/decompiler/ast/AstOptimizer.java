@@ -16,15 +16,16 @@ package com.strobel.decompiler.ast;
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.VariableDefinition;
 import com.strobel.core.BooleanBox;
 import com.strobel.core.CollectionUtilities;
 import com.strobel.core.MutableInteger;
-import com.strobel.core.Predicate;
 import com.strobel.core.Predicates;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.core.delegates.Func;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.functions.Function;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,6 +33,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
 @SuppressWarnings("ConstantConditions")
@@ -56,7 +58,7 @@ public final class AstOptimizer {
         optimizer._metadataSystem = MetadataSystem.instance();
         optimizer._method = method;
 
-        removeRedundantCode(method);
+        GotoRemoval.removeRedundantCode(method);
 
         if (abortBeforeStep == AstOptimizationStep.ReduceBranchInstructionSet) {
             return;
@@ -130,7 +132,8 @@ public final class AstOptimizer {
 
                 modified |= new Inlining(method).inlineAllInBlock(block);
                 new Inlining(method).copyPropagation();
-            } while (modified);
+            }
+            while (modified);
         }
 
         if (abortBeforeStep == AstOptimizationStep.FindLoops) {
@@ -148,126 +151,75 @@ public final class AstOptimizer {
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             new LoopsAndConditions(context).findConditions(block);
         }
-    }
 
-    // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">
-
-    private static void removeRedundantCode(final Block method) {
-        final Map<Label, MutableInteger> labelReferenceCount = new IdentityHashMap<>();
-
-        final List<Expression> branchExpressions = method.getSelfAndChildrenRecursive(
-            Expression.class,
-            new Predicate<Expression>() {
-                @Override
-                public boolean test(final Expression e) {
-                    return e.isBranch();
-                }
-            }
-        );
-
-        for (final Expression e : branchExpressions) {
-            for (final Label branchTarget : e.getBranchTargets()) {
-                final MutableInteger referenceCount = labelReferenceCount.get(branchTarget);
-
-                if (referenceCount == null) {
-                    labelReferenceCount.put(branchTarget, new MutableInteger(1));
-                }
-                else {
-                    referenceCount.increment();
-                }
-            }
+        if (abortBeforeStep == AstOptimizationStep.FlattenNestedMovableBlocks) {
+            return;
         }
 
-        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
-            final List<Node> body = block.getBody();
-            final List<Node> newBody = new ArrayList<>(body.size());
+        flattenBasicBlocks(method);
 
-            for (int i = 0, n = body.size(); i < n; i++) {
-                final Node node = body.get(i);
-                final StrongBox<Label> target = new StrongBox<>();
-                final StrongBox<Expression> popExpression = new StrongBox<>();
+        if (abortBeforeStep == AstOptimizationStep.RemoveRedundantCode2) {
+            return;
+        }
 
-                if (PatternMatching.matchGetOperand(node, AstCode.Goto, target) &&
-                    i + 1 < body.size() &&
-                    body.get(i + 1) == target.get()) {
+        GotoRemoval.removeRedundantCode(method);
 
-                    //
-                    // Ignore the branch.
-                    //
-                    if (labelReferenceCount.get(target.get()).getValue() == 1) {
-                        //
-                        // Ignore the label as well.
-                        //
-                        i++;
-                    }
-                }
-                else if (match(node, AstCode.Nop)) {
-                    //
-                    // Ignore NOP.
-                    //
-                }
-                else if (PatternMatching.matchGetArgument(node, AstCode.Pop, popExpression)) {
-                    final StrongBox<Variable> variable = new StrongBox<>();
+        if (abortBeforeStep == AstOptimizationStep.GotoRemoval) {
+            return;
+        }
 
-                    if (!PatternMatching.matchGetOperand(popExpression.get(), AstCode.Load, variable)) {
-                        throw new IllegalStateException("Pop should just have Load at this stage.");
-                    }
+        new GotoRemoval().removeGotos(method);
 
-                    //
-                    // Best effort to move bytecode range to previous statement.
-                    //
+        if (abortBeforeStep == AstOptimizationStep.DuplicateReturns) {
+            return;
+        }
 
-                    final StrongBox<Variable> previousVariable = new StrongBox<>();
-                    final StrongBox<Expression> previousExpression = new StrongBox<>();
+        duplicateReturnStatements(method);
 
-                    if (i - 1 >= 0 &&
-                        matchGetArgument(body.get(i - 1), AstCode.Store, previousVariable, previousExpression) &&
-                        previousVariable.get() == variable.get()) {
+        if (abortBeforeStep == AstOptimizationStep.GotoRemoval2) {
+            return;
+        }
 
-                        previousExpression.get().getRanges().addAll(((Expression) node).getRanges());
+        new GotoRemoval().removeGotos(method);
 
-                        //
-                        // Ignore POP.
-                        //
-                    }
-                }
-                else if (node instanceof Label) {
-                    final Label label = (Label) node;
-                    final MutableInteger referenceCount = labelReferenceCount.get(label);
+        if (abortBeforeStep == AstOptimizationStep.ReduceIfNesting) {
+            return;
+        }
 
-                    if (referenceCount != null && referenceCount.getValue() > 0) {
-                        newBody.add(label);
-                    }
-                }
-                else {
-                    newBody.add(node);
-                }
-            }
+        reduceIfNesting(method);
 
-            body.clear();
-            body.addAll(newBody);
+        if (abortBeforeStep == AstOptimizationStep.RecombineVariables) {
+            return;
+        }
+
+        recombineVariables(method);
+
+        if (abortBeforeStep == AstOptimizationStep.InlineVariables3) {
+            return;
         }
 
         //
-        // DUP removal.
+        // The second inlining pass is necessary because the DuplicateReturns step and the
+        // introduction of ternary operators may open up additional inlining possibilities.
         //
-        final StrongBox<Expression> child = new StrongBox<>();
 
-        for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
-            final List<Expression> arguments = e.getArguments();
+        final Inlining inliningPhase3 = new Inlining(method);
 
-            for (int i = 0, n = arguments.size(); i < n; i++) {
-                final Expression argument = arguments.get(i);
+        inliningPhase3.inlineAllVariables();
 
-                if (PatternMatching.matchGetArgument(e, AstCode.Dup, child)) {
-                    child.get().getRanges().addAll(argument.getRanges());
-                    arguments.set(i, child.get());
-                }
-            }
+        if (abortBeforeStep == AstOptimizationStep.TypeInference2) {
+            return;
         }
-    }
 
-    // </editor-fold>
+        TypeAnalysis.reset(method);
+        TypeAnalysis.run(context, method);
+
+        if (abortBeforeStep == AstOptimizationStep.RemoveRedundantCode3) {
+            return;
+        }
+
+        GotoRemoval.removeRedundantCode(method);
+    }
 
     // <editor-fold defaultstate="collapsed" desc="ReduceBranchInstructionSet Step">
 
@@ -418,7 +370,7 @@ public final class AstOptimizer {
         final List<Node> basicBlocks = new ArrayList<>();
 
         final List<Node> body = block.getBody();
-        final Object firstNode = CollectionUtilities.firstOrDefault(body);
+        final Object firstNode = firstOrDefault(body);
 
         final Label entryLabel;
 
@@ -668,7 +620,7 @@ public final class AstOptimizer {
                     matchGetOperand(falseExpression.get(), AstCode.LdC, Integer.class, rightBooleanValue) &&
                     (leftBooleanValue.get() != 0 && rightBooleanValue.get() == 0 ||
                      leftBooleanValue.get() == 0 && rightBooleanValue.get() != 0)) {
-                    
+
                     //
                     // It can be expressed as a trivial expression.
                     //
@@ -796,6 +748,222 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="FlattenBasicBlocks Step">
+
+    private static void flattenBasicBlocks(final Node node) {
+        if (node instanceof Block) {
+            final Block block = (Block) node;
+            final List<Node> flatBody = new ArrayList<>();
+
+            for (final Node child : block.getChildren()) {
+                flattenBasicBlocks(child);
+
+                if (child instanceof BasicBlock) {
+                    final BasicBlock childBasicBlock = (BasicBlock) child;
+                    final Node firstChild = firstOrDefault(childBasicBlock.getBody());
+                    final Node lastChild = lastOrDefault(childBasicBlock.getBody());
+
+                    if (!(firstChild instanceof Label)) {
+                        throw new IllegalStateException("Basic block must start with a label.");
+                    }
+
+                    if (lastChild instanceof Expression && !lastChild.isUnconditionalControlFlow()) {
+                        throw new IllegalStateException("Basic block must end with an unconditional branch.");
+                    }
+
+                    flatBody.addAll(childBasicBlock.getBody());
+                }
+                else {
+                    flatBody.add(child);
+                }
+
+                block.setEntryGoto(null);
+                block.getBody().clear();
+                block.getBody().addAll(flatBody);
+            }
+        }
+        else if (node instanceof Expression) {
+            //
+            // Optimization: no need to check expressions.
+            //
+        }
+        else {
+            for (final Node child : node.getChildren()) {
+                flattenBasicBlocks(child);
+            }
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="DuplicateReturns Step">
+
+    private static void duplicateReturnStatements(final Block method) {
+        final List<Node> methodBody = method.getBody();
+        final Map<Node, Node> nextSibling = new IdentityHashMap<>();
+        final StrongBox<Object> constant = new StrongBox<>();
+        final StrongBox<Variable> localVariable = new StrongBox<>();
+        final StrongBox<Label> targetLabel = new StrongBox<>();
+        final List<Expression> returnArguments = new ArrayList<>();
+
+        //
+        // Build navigation data.
+        //
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            final List<Node> body = block.getBody();
+
+            for (int i = body.size() - 1; i >= 0; i--) {
+                final Node current = body.get(i);
+
+                if (current instanceof Label) {
+                    nextSibling.put(current, body.get(i + 1));
+                }
+            }
+        }
+
+        //
+        // Duplicate returns.
+        //
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            final List<Node> body = block.getBody();
+
+            for (int i = 0; i < body.size(); i++) {
+                final Node node = body.get(i);
+
+                if (matchGetOperand(node, AstCode.Goto, targetLabel)) {
+                    //
+                    // Skip extra labels.
+                    //
+                    while (nextSibling.get(targetLabel.get()) instanceof Label) {
+                        targetLabel.accept((Label) nextSibling.get(targetLabel.get()));
+                    }
+
+                    //
+                    // Inline return statement.
+                    //
+                    final Node target = nextSibling.get(targetLabel.get());
+
+                    if (target != null &&
+                        matchGetArguments(target, AstCode.Return, returnArguments)) {
+
+                        if (returnArguments.isEmpty()) {
+                            body.set(
+                                i,
+                                new Expression(AstCode.Return, null)
+                            );
+                        }
+                        else if (matchGetOperand(returnArguments.get(0), AstCode.Load, localVariable)) {
+                            body.set(
+                                i,
+                                new Expression(AstCode.Return, null, new Expression(AstCode.Load, localVariable.get()))
+                            );
+                        }
+                        else if (matchGetOperand(returnArguments.get(0), AstCode.LdC, constant)) {
+                            body.set(
+                                i,
+                                new Expression(AstCode.Return, null, new Expression(AstCode.LdC, constant.get()))
+                            );
+                        }
+                    }
+                    else if (!methodBody.isEmpty() && methodBody.get(methodBody.size() - 1) == targetLabel.get()) {
+                        //
+                        // It exits the main method, so it is effectively a return.
+                        //
+                        body.set(i, new Expression(AstCode.Return, null));
+                    }
+                }
+            }
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="ReduceIfNesting Step">
+
+    private static void reduceIfNesting(final Node node) {
+        if (node instanceof Block) {
+            final Block block = (Block) node;
+            final List<Node> blockBody = block.getBody();
+
+            for (int i = 0; i < blockBody.size(); i++) {
+                final Node n = blockBody.get(i);
+
+                if (!(n instanceof Condition)) {
+                    continue;
+                }
+
+                final Condition condition = (Condition) n;
+
+                final boolean trueExits = lastOrDefault(condition.getTrueBlock().getBody()).isUnconditionalControlFlow();
+                final boolean falseExits = lastOrDefault(condition.getFalseBlock().getBody()).isUnconditionalControlFlow();
+
+                if (trueExits) {
+                    //
+                    // Move the false block after the condition.
+                    //
+                    blockBody.addAll(i + 1, condition.getFalseBlock().getChildren());
+                    condition.setFalseBlock(new Block());
+                }
+                else if (falseExits) {
+                    //
+                    // Move the true block after the condition.
+                    //
+                    blockBody.addAll(i + 1, condition.getTrueBlock().getChildren());
+                    condition.setTrueBlock(new Block());
+                }
+
+                //
+                // Eliminate empty true block.
+                //
+                if (condition.getTrueBlock().getChildren().isEmpty() && !condition.getFalseBlock().getChildren().isEmpty()) {
+                    final Block temp = condition.getTrueBlock();
+                    condition.setTrueBlock(condition.getFalseBlock());
+                    condition.setFalseBlock(temp);
+                    condition.setCondition(new Expression(AstCode.LogicalNot, null, condition.getCondition()));
+                }
+            }
+        }
+
+        for (final Node child : node.getChildren()) {
+            if (child != null && !(child instanceof Expression)) {
+                reduceIfNesting(child);
+            }
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="RecombineVariables Step">
+
+    private static void recombineVariables(final Block method) {
+        final Map<VariableDefinition, Variable> map = new IdentityHashMap<>();
+
+        replaceVariables(
+            method,
+            new Function<Variable, Variable>() {
+                @Override
+                public final Variable apply(final Variable v) {
+                    final VariableDefinition originalVariable = v.getOriginalVariable();
+
+                    if (originalVariable == null) {
+                        return v;
+                    }
+
+                    Variable combinedVariable = map.get(originalVariable);
+
+                    if (combinedVariable == null) {
+                        map.put(originalVariable, v);
+                        combinedVariable = v;
+                    }
+
+                    return combinedVariable;
+                }
+            }
+        );
+    }
+
+    // </editor-fold>
+
     // <editor-fold defaultstate="collapsed" desc="Optimization Helpers">
 
     private interface BasicBlockOptimization {
@@ -843,6 +1011,7 @@ public final class AstOptimizer {
             }
         }
     }
+
     @SuppressWarnings("ProtectedField")
     private static abstract class AbstractExpressionOptimization implements ExpressionOptimization {
         protected final DecompilerContext context;
@@ -889,6 +1058,35 @@ public final class AstOptimizer {
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Utility Methods">
+
+    public static void replaceVariables(final Node node, final Function<Variable, Variable> mapping) {
+        if (node instanceof Expression) {
+            final Expression expression = (Expression) node;
+            final Object operand = expression.getOperand();
+
+            if (operand instanceof Variable) {
+                expression.setOperand(mapping.apply((Variable) operand));
+            }
+
+            for (final Expression argument : expression.getArguments()) {
+                replaceVariables(argument, mapping);
+            }
+        }
+        else {
+            if (node instanceof CatchBlock) {
+                final CatchBlock catchBlock = (CatchBlock) node;
+                final Variable exceptionVariable = catchBlock.getExceptionVariable();
+
+                if (exceptionVariable != null) {
+                    catchBlock.setExceptionVariable(mapping.apply(exceptionVariable));
+                }
+            }
+
+            for (final Node child : node.getChildren()) {
+                replaceVariables(child, mapping);
+            }
+        }
+    }
 
     static <T> void removeOrThrow(final Collection<T> collection, final T item) {
         if (!collection.remove(item)) {
@@ -950,7 +1148,7 @@ public final class AstOptimizer {
         if (e.getCode() == AstCode.CmpEq &&
             TypeAnalysis.isBoolean(arguments.get(0).getInferredType()) &&
             (a = arguments.get(1)).getCode() == AstCode.LdC &&
-            ((Number)a.getOperand()).intValue() == 0) {
+            ((Number) a.getOperand()).intValue() == 0) {
 
             e.setCode(AstCode.LogicalNot);
             e.getRanges().addAll(a.getRanges());
@@ -972,12 +1170,12 @@ public final class AstOptimizer {
                 result.getRanges().addAll(e.getRanges());
                 result.getRanges().addAll(a.getRanges());
                 e = result;
-                arguments= e.getArguments();
+                arguments = e.getArguments();
             }
             else {
                 if (simplifyLogicalNotArgument(e)) {
                     result = e = a;
-                    arguments= e.getArguments();
+                    arguments = e.getArguments();
                 }
                 break;
             }
@@ -1000,14 +1198,27 @@ public final class AstOptimizer {
         final AstCode c;
 
         switch (a.getCode()) {
-            case CmpEq: c = AstCode.CmpNe; break;
-            case CmpNe: c = AstCode.CmpEq; break;
-            case CmpLt: c = AstCode.CmpGe; break;
-            case CmpGe: c = AstCode.CmpLt; break;
-            case CmpGt: c = AstCode.CmpLe; break;
-            case CmpLe: c = AstCode.CmpGt; break;
+            case CmpEq:
+                c = AstCode.CmpNe;
+                break;
+            case CmpNe:
+                c = AstCode.CmpEq;
+                break;
+            case CmpLt:
+                c = AstCode.CmpGe;
+                break;
+            case CmpGe:
+                c = AstCode.CmpLt;
+                break;
+            case CmpGt:
+                c = AstCode.CmpLe;
+                break;
+            case CmpLe:
+                c = AstCode.CmpGt;
+                break;
 
-            default: return false;
+            default:
+                return false;
         }
 
         a.setCode(c);

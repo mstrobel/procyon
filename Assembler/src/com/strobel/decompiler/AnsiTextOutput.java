@@ -43,6 +43,11 @@ public class AnsiTextOutput extends PlainTextOutput {
     }
 
     @Override
+    public void writeKeyword(final String text) {
+        write(KEYWORD.colorize(text));
+    }
+
+    @Override
     public void writeDefinition(final String text, final Object definition, final boolean isLocal) {
         final String colorizedText;
 

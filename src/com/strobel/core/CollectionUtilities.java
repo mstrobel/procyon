@@ -53,6 +53,23 @@ public final class CollectionUtilities {
         return it.hasNext() ? it.next() : null;
     }
 
+    public static <T> T lastOrDefault(final Iterable<T> collection) {
+        VerifyArgument.notNull(collection, "collection");
+
+        if (collection instanceof List<?>) {
+            final List<T> list = (List<T>) collection;
+            return list.get(list.size() - 1);
+        }
+
+        T last = null;
+
+        for (final T item : collection) {
+            last = item;
+        }
+
+        return last;
+    }
+
     public static <T> boolean any(final Iterable<T> collection, final Predicate<? super T> predicate) {
         VerifyArgument.notNull(collection, "collection");
         VerifyArgument.notNull(predicate, "predicate");

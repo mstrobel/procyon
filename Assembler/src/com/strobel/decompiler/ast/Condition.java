@@ -74,7 +74,8 @@ public final class Condition extends Node {
 
     @Override
     public final void writeTo(final ITextOutput output) {
-        output.write("if (");
+        output.writeKeyword("if");
+        output.write(" (");
 
         if (_condition != null) {
             _condition.writeTo(output);
@@ -94,7 +95,8 @@ public final class Condition extends Node {
         output.writeLine("}");
 
         if (_falseBlock != null && !_falseBlock.getBody().isEmpty()) {
-            output.writeLine("else {");
+            output.writeKeyword("else");
+            output.writeLine(" {");
             output.indent();
 
             _falseBlock.writeTo(output);

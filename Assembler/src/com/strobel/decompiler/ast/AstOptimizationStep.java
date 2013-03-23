@@ -39,7 +39,7 @@ public enum AstOptimizationStep {
     DuplicateReturns,
     GotoRemoval2,
     ReduceIfNesting,
-    InlineVariable3,
+    InlineVariables3,
     RecombineVariables,
     TypeInference2,
     RemoveRedundantCode3,

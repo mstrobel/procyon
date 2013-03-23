@@ -124,6 +124,11 @@ public class PlainTextOutput implements ITextOutput {
     }
 
     @Override
+    public void writeKeyword(final String text) {
+        write(text);
+    }
+
+    @Override
     public void writeDefinition(final String text, final Object definition) {
         writeDefinition(text, definition, true);
     }

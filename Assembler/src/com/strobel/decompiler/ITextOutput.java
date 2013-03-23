@@ -30,6 +30,8 @@ public interface ITextOutput {
     void writeLine(final String format, final Object... args);
     void writeLine();
 
+    void writeKeyword(final String text);
+
     void writeDefinition(final String text, final Object definition);
     void writeDefinition(final String text, final Object definition, final boolean isLocal);
 

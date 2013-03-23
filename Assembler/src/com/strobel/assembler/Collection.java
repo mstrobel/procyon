@@ -56,7 +56,7 @@ public class Collection<E> extends AbstractList<E> implements IFreezable {
     }
 
     @Override
-    public final void add(final int index, final E element) {
+    public void add(final int index, final E element) {
         verifyNotFrozen();
         VerifyArgument.notNull(element, "element");
         final boolean append = index == size();

@@ -57,6 +57,23 @@ final class TypeAnalysis {
         ta.runInference();
     }
 
+    public static void reset(final Block method) {
+        for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
+            e.setInferredType(null);
+            e.setExpectedType(null);
+
+            final Object operand = e.getOperand();
+
+            if (operand instanceof Variable) {
+                final Variable variable = (Variable) operand;
+
+                if (variable.isGenerated()) {
+                    variable.setType(null);
+                }
+            }
+        }
+    }
+
     private void createDependencyGraph(final Node node) {
         if (node instanceof Condition) {
             ((Condition) node).getCondition().setExpectedType(BuiltinTypes.Boolean);
@@ -866,6 +883,10 @@ final class TypeAnalysis {
             case __IInc:
             case __IIncW:
             case Inc: {
+                return null;
+            }
+
+            case Nop: {
                 return null;
             }
 

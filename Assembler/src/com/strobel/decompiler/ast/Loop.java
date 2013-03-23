@@ -57,7 +57,7 @@ public final class Loop extends Node {
 
     @Override
     public final void writeTo(final ITextOutput output) {
-        output.write("loop");
+        output.writeKeyword("loop");
 
         if (_condition != null) {
             output.write(" (");
