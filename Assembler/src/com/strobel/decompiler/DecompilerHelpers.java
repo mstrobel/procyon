@@ -27,6 +27,7 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableReference;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.java.JavaOutputVisitor;
 import com.strobel.util.ContractUtils;
 
@@ -47,19 +48,19 @@ public final class DecompilerHelpers {
 
         switch (syntax) {
             case SIGNATURE:
-                writer.write(type.getSignature());
+                writer.writeReference(type.getSignature(), type);
                 break;
 
             case SIGNATURE_NO_NAMED_TYPE_VARIABLES:
-                writer.write(type.getSignature());
+                writer.writeReference(type.getSignature(), type);
                 break;
 
             case TYPE_NAME:
-                writer.write(type.getBriefDescription());
+                writer.writeReference(type.getBriefDescription(), type);
                 break;
 
             case SHORT_TYPE_NAME:
-                writer.write(type.getSimpleDescription());
+                writer.writeReference(type.getSimpleDescription(), type);
                 break;
         }
     }
@@ -68,7 +69,7 @@ public final class DecompilerHelpers {
         VerifyArgument.notNull(method, "method");
         VerifyArgument.notNull(writer, "writer");
 
-        writer.write(method.getFullName());
+        writer.writeReference(method.getFullName(), method);
         writer.write(':');
         writer.write(method.getSignature());
     }
@@ -123,6 +124,36 @@ public final class DecompilerHelpers {
             }
 
             return;
+        }
+
+        if (operand instanceof Variable) {
+            final Variable variable = (Variable) operand;
+
+            if (variable.isParameter()) {
+                final ParameterReference original = variable.getOriginalParameter();
+                final String name = original.getName();
+
+                if (StringUtilities.isNullOrEmpty(name)) {
+                    writer.writeReference(String.valueOf(original.getPosition()), original);
+                }
+                else {
+                    writer.writeReference(escapeIdentifier(name), original);
+                }
+
+                return;
+            }
+            else {
+                final VariableReference original = variable.getOriginalVariable();
+
+                if (original.hasName()) {
+                    writer.writeReference(escapeIdentifier(original.getName()), original);
+                }
+                else {
+                    writer.writeReference(String.valueOf(original.getIndex()), original);
+                }
+
+                return;
+            }
         }
 
         if (operand instanceof MethodReference) {
@@ -271,8 +302,9 @@ public final class DecompilerHelpers {
             for (int i = 0; i < localValues.size(); i++) {
                 final FrameValue value = localValues.get(i);
 
-                if (i != 0)
+                if (i != 0) {
                     writer.write(", ");
+                }
 
                 if (value.getType() == FrameValueType.Reference) {
                     writer.write("Ref(");
@@ -296,8 +328,9 @@ public final class DecompilerHelpers {
             for (int i = 0; i < stackValues.size(); i++) {
                 final FrameValue value = stackValues.get(i);
 
-                if (i != 0)
+                if (i != 0) {
                     writer.write(", ");
+                }
 
                 if (value.getType() == FrameValueType.Reference) {
                     writeType(writer, (TypeReference) value.getParameter(), NameSyntax.SIGNATURE);

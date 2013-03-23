@@ -125,7 +125,7 @@ public class PlainTextOutput implements ITextOutput {
 
     @Override
     public void writeDefinition(final String text, final Object definition) {
-        write(text);
+        writeDefinition(text, definition, true);
     }
 
     @Override
@@ -135,7 +135,7 @@ public class PlainTextOutput implements ITextOutput {
 
     @Override
     public void writeReference(final String text, final Object reference) {
-        write(text);
+        writeReference(text, reference, false);
     }
 
     @Override

@@ -283,7 +283,7 @@ final class LoopsAndConditions {
                 // Fallback method: while (true) { ... }
                 //
                 if (scope.contains(node)) {
-                    final Block block = new Block();
+                    final BasicBlock block = new BasicBlock();
                     final List<Node> blockBody = block.getBody();
                     final Loop loop = new Loop();
                     final Block bodyBlock = new Block();

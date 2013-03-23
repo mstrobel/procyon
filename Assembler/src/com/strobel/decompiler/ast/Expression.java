@@ -161,7 +161,7 @@ public final class Expression extends Node {
             }
         }
 
-        output.write(code.name().toLowerCase());
+        output.writeReference(code.name().toLowerCase(), code);
 
         if (inferredType != null) {
             output.write(':');
