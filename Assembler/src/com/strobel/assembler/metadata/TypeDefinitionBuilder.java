@@ -90,6 +90,10 @@ public class TypeDefinitionBuilder implements TypeVisitor {
 
             if (genericSignature.startsWith("<")) {
                 _parser.parseGenericParameters(_typeDefinition.getGenericParametersInternal(), genericSignature, position);
+
+                for (final GenericParameter genericParameter : _typeDefinition.getGenericParametersInternal()) {
+                    genericParameter.setDeclaringType(_typeDefinition);
+                }
             }
 
             _genericContextCount = pushGenericContexts();

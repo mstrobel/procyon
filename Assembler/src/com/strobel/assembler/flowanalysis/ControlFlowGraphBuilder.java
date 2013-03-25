@@ -159,19 +159,7 @@ public final class ControlFlowGraphBuilder {
                     final ExceptionHandler innermostExceptionHandler = findInnermostExceptionHandler(next.getOffset());
 
                     if (innermostExceptionHandler != blockStartExceptionHandler) {
-                        final boolean isLeaveTry = blockStartExceptionHandler != null &&
-                                                   next == blockStartExceptionHandler.getTryBlock().getLastInstruction().getNext() &&
-                                                   next.getOpCode().isUnconditionalBranch();
-
-                        if (!isLeaveTry) {
-                            final boolean isInlineFinally = blockStartExceptionHandler != null &&
-                                                            blockStartExceptionHandler.isFinally() &&
-                                                            blockStartExceptionHandler.getHandlerBlock().getLastInstruction() != null &&
-                                                            next.getOffset() <= blockStartExceptionHandler.getHandlerBlock().getLastInstruction().getOffset();
-                            if (!isInlineFinally) {
-                                break;
-                            }
-                        }
+                        break;
                     }
                 }
             }
@@ -465,7 +453,7 @@ public final class ControlFlowGraphBuilder {
         ControlFlowNode target = null;
 
         for (final ControlFlowNode node : _nodes) {
-            if (node.getStart() == toInstruction) {
+            if (node.getStart() != null && node.getStart().getOffset() == toInstruction.getOffset()) {
                 if (target != null) {
                     throw new IllegalStateException("Multiple edge targets detected!");
                 }

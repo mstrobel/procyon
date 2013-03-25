@@ -922,8 +922,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     }
                 }
             }
-
-            visitor.visitEnd();
         }
     }
 

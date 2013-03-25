@@ -13,12 +13,21 @@
 
 package com.strobel.decompiler.ast;
 
+import com.strobel.assembler.Collection;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.ITextOutput;
 
+import java.util.List;
+
 public final class CatchBlock extends Block {
+    private final Collection<TypeReference> _caughtTypes = new Collection<>();
+
     private TypeReference _exceptionType;
     private Variable _exceptionVariable;
+
+    public final List<TypeReference> getCaughtTypes() {
+        return _caughtTypes;
+    }
 
     public final TypeReference getExceptionType() {
         return _exceptionType;
@@ -38,9 +47,28 @@ public final class CatchBlock extends Block {
 
     @Override
     public final void writeTo(final ITextOutput output) {
-        output.write(".catch");
+        output.writeKeyword("catch");
 
-        if (_exceptionType != null) {
+        if (!_caughtTypes.isEmpty()) {
+            output.write(" (");
+
+            for (int i = 0; i < _caughtTypes.size(); i++) {
+                final TypeReference caughtType = _caughtTypes.get(i);
+
+                if (i != 0) {
+                    output.write(" | ");
+                }
+
+                output.writeReference(caughtType.getFullName(), caughtType);
+            }
+
+            if (_exceptionVariable != null) {
+                output.write(" %s", _exceptionVariable.getName());
+            }
+
+            output.write(')');
+        }
+        else if (_exceptionType != null) {
             output.write(" (");
             output.writeReference(_exceptionType.getFullName(), _exceptionType);
 
@@ -57,6 +85,6 @@ public final class CatchBlock extends Block {
         super.writeTo(output);
 
         output.unindent();
-        output.write("}");
+        output.writeLine("}");
     }
 }

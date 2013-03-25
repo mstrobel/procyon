@@ -112,4 +112,20 @@ public final class InstructionCollection extends Collection<Instruction> {
             get(i).setPrevious(null);
         }
     }
+
+    public void recomputeOffsets() {
+        if (isEmpty()) {
+            return;
+        }
+
+        Instruction previous = get(0);
+
+        previous.setOffset(0);
+
+        for (int i = 1; i < size(); i++) {
+            final Instruction current = get(i);
+            current.setOffset(previous.getOffset() + previous.getSize());
+            previous = current;
+        }
+    }
 }

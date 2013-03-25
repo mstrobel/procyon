@@ -53,6 +53,7 @@ public class MethodDefinitionBuilder implements MethodVisitor {
 
         for (final GenericParameter genericParameter : signature.getGenericParameters()) {
             genericParameters.add(genericParameter);
+            genericParameter.setDeclaringMethod(_method);
         }
 
         for (final ParameterDefinition parameter : signature.getParameters()) {

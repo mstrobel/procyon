@@ -29,9 +29,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.java.JavaOutputVisitor;
-import com.strobel.util.ContractUtils;
 
-import java.util.Iterator;
 import java.util.List;
 
 import static java.lang.String.format;

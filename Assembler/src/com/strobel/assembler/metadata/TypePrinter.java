@@ -13,7 +13,6 @@
 
 package com.strobel.assembler.metadata;
 
-import com.strobel.assembler.CodePrinter;
 import com.strobel.assembler.DisassemblerOptions;
 import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.ir.attributes.AttributeNames;
@@ -22,6 +21,7 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.ir.attributes.SourceFileAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
+import com.strobel.decompiler.ITextOutput;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -31,11 +31,11 @@ import java.util.List;
  * @author Mike Strobel
  */
 public class TypePrinter implements TypeVisitor {
-    private final CodePrinter _printer;
+    private final ITextOutput _output;
     private final DisassemblerOptions _options;
 
-    public TypePrinter(final CodePrinter printer, final DisassemblerOptions options) {
-        _printer = printer;
+    public TypePrinter(final ITextOutput output, final DisassemblerOptions options) {
+        _output = output;
         _options = options;
     }
 
@@ -49,16 +49,16 @@ public class TypePrinter implements TypeVisitor {
         final String baseTypeName,
         final String[] interfaceNames) {
 
-        _printer.printf("Class %s\n", name);
-        _printer.increaseIndent();
+        _output.write("Class %s\n", name);
+        _output.indent();
 
         try {
             if (genericSignature != null) {
-                _printer.printf("  Signature: %s\n", genericSignature);
+                _output.write("  Signature: %s\n", genericSignature);
             }
 
-            _printer.printf("  Minor version: %d\n", minorVersion);
-            _printer.printf("  Major version: %d\n", majorVersion);
+            _output.write("  Minor version: %d\n", minorVersion);
+            _output.write("  Major version: %d\n", majorVersion);
 
             final List<String> flagStrings = new ArrayList<>();
             final EnumSet<Flags.Flag> flagsSet = Flags.asFlagSet(flags & (Flags.ClassFlags | ~Flags.StandardFlags));
@@ -68,11 +68,11 @@ public class TypePrinter implements TypeVisitor {
             }
 
             if (!flagStrings.isEmpty()) {
-                _printer.printf("  Flags: %s\n", StringUtilities.join(", ", flagStrings));
+                _output.write("  Flags: %s\n", StringUtilities.join(", ", flagStrings));
             }
         }
         finally {
-            _printer.decreaseIndent();
+            _output.unindent();
         }
     }
 
@@ -96,19 +96,19 @@ public class TypePrinter implements TypeVisitor {
     public void visitAttribute(final SourceAttribute attribute) {
         switch (attribute.getName()) {
             case AttributeNames.SourceFile: {
-                _printer.printf("  SourceFile: %s", ((SourceFileAttribute) attribute).getSourceFile());
-                _printer.println();
+                _output.write("  SourceFile: %s", ((SourceFileAttribute) attribute).getSourceFile());
+                _output.writeLine();
                 break;
             }
             case AttributeNames.Deprecated: {
-                _printer.print("  Deprecated");
-                _printer.println();
+                _output.write("  Deprecated");
+                _output.writeLine();
                 break;
             }
             case AttributeNames.EnclosingMethod: {
                 final MethodReference enclosingMethod = ((EnclosingMethodAttribute) attribute).getEnclosingMethod();
-                _printer.printf("  EnclosingMethod: %s:%s", enclosingMethod.getFullName(), enclosingMethod.getSignature());
-                _printer.println();
+                _output.write("  EnclosingMethod: %s:%s", enclosingMethod.getFullName(), enclosingMethod.getSignature());
+                _output.writeLine();
                 break;
             }
         }
@@ -121,8 +121,8 @@ public class TypePrinter implements TypeVisitor {
     @Override
     public FieldVisitor visitField(final long flags, final String name, final TypeReference fieldType) {
         if (_options.getPrintFields()) {
-            _printer.println();
-            return new FieldPrinter(_printer, flags, name, fieldType);
+            _output.writeLine();
+            return new FieldPrinter(_output, flags, name, fieldType);
         }
         else {
             return FieldVisitor.EMPTY;
@@ -131,13 +131,13 @@ public class TypePrinter implements TypeVisitor {
 
     @Override
     public MethodVisitor visitMethod(final long flags, final String name, final IMethodSignature signature, final TypeReference... thrownTypes) {
-        _printer.println();
-        return new MethodPrinter(_printer, _options, flags, name, signature, thrownTypes);
+        _output.writeLine();
+        return new MethodPrinter(_output, _options, flags, name, signature, thrownTypes);
     }
 
     @Override
     public ConstantPool.Visitor visitConstantPool() {
-        return new ConstantPoolPrinter(_printer);
+        return new ConstantPoolPrinter(_output);
     }
 
     @Override

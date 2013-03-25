@@ -295,7 +295,13 @@ public enum AstCode {
     /**
      * Simulates extraction of a primitive type from its corresponding boxed type.
      */
-    Unbox;
+    Unbox,
+
+    /**
+     * Special placeholder to mark the end of try, catch, and finally blocks with an unconditional branch.
+     * Will be removed during optimization.
+     */
+    Leave;
 
     private final static OpCode[] STANDARD_CODES = OpCode.values();
 
@@ -326,6 +332,7 @@ public enum AstCode {
             case LoopContinue:
             case LoopOrSwitchBreak:
             case Return:
+            case Leave:
                 return true;
 
             default:

@@ -40,25 +40,21 @@ import static com.strobel.decompiler.ast.PatternMatching.*;
 
 @SuppressWarnings("ConstantConditions")
 public final class AstOptimizer {
-    int _nextLabelIndex;
-    DecompilerContext _context;
-    MetadataSystem _metadataSystem;
-    Block _method;
+    private int _nextLabelIndex;
 
     public static void optimize(final DecompilerContext context, final Block method) {
         optimize(context, method, context.getSettings().getAbortBeforeStep());
     }
 
     public static void optimize(final DecompilerContext context, final Block method, final AstOptimizationStep abortBeforeStep) {
+        VerifyArgument.notNull(context, "context");
+        VerifyArgument.notNull(method, "method");
+
         if (abortBeforeStep == AstOptimizationStep.RemoveRedundantCode) {
             return;
         }
 
         final AstOptimizer optimizer = new AstOptimizer();
-
-        optimizer._context = context;
-        optimizer._metadataSystem = MetadataSystem.instance();
-        optimizer._method = method;
 
         removeRedundantCode(method);
 
@@ -499,11 +495,9 @@ public final class AstOptimizer {
         final Expression firstArgument = arguments.isEmpty() ? null : arguments.get(0);
 
         if (matchSimplifiableComparison(expression)) {
-            final Expression comparisonExpression = firstArgument;
-
             arguments.clear();
-            arguments.addAll(comparisonExpression.getArguments());
-            expression.getRanges().addAll(comparisonExpression.getRanges());
+            arguments.addAll(firstArgument.getArguments());
+            expression.getRanges().addAll(firstArgument.getRanges());
         }
 
         if (matchReversibleComparison(expression)) {
@@ -944,18 +938,18 @@ public final class AstOptimizer {
                 else {
                     flatBody.add(child);
                 }
-
-                block.setEntryGoto(null);
-                block.getBody().clear();
-                block.getBody().addAll(flatBody);
             }
+
+            block.setEntryGoto(null);
+            block.getBody().clear();
+            block.getBody().addAll(flatBody);
         }
         else if (node instanceof Expression) {
             //
             // Optimization: no need to check expressions.
             //
         }
-        else {
+        else if (node != null) {
             for (final Node child : node.getChildren()) {
                 flattenBasicBlocks(child);
             }

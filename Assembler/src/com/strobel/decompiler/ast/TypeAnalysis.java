@@ -915,6 +915,7 @@ final class TypeAnalysis {
                 return null;
             }
 
+            case Leave:
             case Nop: {
                 return null;
             }

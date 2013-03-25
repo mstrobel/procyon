@@ -34,12 +34,34 @@ public class AnsiTextOutput extends PlainTextOutput {
     private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.MAGENTA, Ansi.Color.BLACK);
     private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.YELLOW, Ansi.Color.BLACK);
     private final static Ansi LOCAL = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.RED, Ansi.Color.BLACK);
+    private final static Ansi LITERAL = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.GREEN, Ansi.Color.BLACK);
+    private final static Ansi COMMENT = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.RED, Ansi.Color.BLACK);
 
     public AnsiTextOutput() {
     }
 
     public AnsiTextOutput(final Writer writer) {
         super(writer);
+    }
+
+    @Override
+    public void writeLabel(final String value) {
+        write(LABEL.colorize(value));
+    }
+
+    @Override
+    public void writeLiteral(final Object value) {
+        write(LITERAL.colorize(String.valueOf(value)));
+    }
+
+    @Override
+    public void writeComment(final String value) {
+        write(COMMENT.colorize(value));
+    }
+
+    @Override
+    public void writeComment(final String format, final Object... args) {
+        write(COMMENT.colorize(String.format(format, args)));
     }
 
     @Override

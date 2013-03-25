@@ -175,6 +175,34 @@ public final class ControlFlowNode {
         _userData = userData;
     }
 
+    public final boolean succeeds(final ControlFlowNode other) {
+        if (other == null) {
+            return false;
+        }
+
+        for (int i = 0; i < _incoming.size(); i++) {
+            if (_incoming.get(i).getSource() == other) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public final boolean precedes(final ControlFlowNode other) {
+        if (other == null) {
+            return false;
+        }
+
+        for (int i = 0; i < _outgoing.size(); i++) {
+            if (_outgoing.get(i).getTarget() == other) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public final Iterable<ControlFlowNode> getPredecessors() {
         return new Iterable<ControlFlowNode>() {
             @Override
