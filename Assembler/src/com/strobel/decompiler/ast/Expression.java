@@ -133,6 +133,20 @@ public final class Expression extends Node {
         return childrenCopy;
     }
 
+    public final boolean containsReferenceTo(final Variable variable) {
+        if (_operand == variable) {
+            return true;
+        }
+
+        for (int i = 0; i < _arguments.size(); i++) {
+            if (_arguments.get(i).containsReferenceTo(variable)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     @Override
     public final void writeTo(final ITextOutput output) {
         final AstCode code = _code;

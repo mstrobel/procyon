@@ -543,7 +543,7 @@ final class Inlining {
             case InvokeStatic:
             case InvokeInterface:
             case InvokeDynamic:
-            case New:
+            case __New:
             case NewArray:
             case __NewArray:
             case __ANewArray:

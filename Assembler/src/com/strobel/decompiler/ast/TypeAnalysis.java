@@ -500,7 +500,7 @@ final class TypeAnalysis {
                 return getFieldType((FieldReference) operand);
             }
 
-            case New: {
+            case __New: {
                 return (TypeReference) operand;
             }
 
@@ -639,6 +639,20 @@ final class TypeAnalysis {
                     }
                 }
                 return (TypeReference) operand;
+            }
+
+            case InitObject: {
+                final MethodReference constructor = (MethodReference) operand;
+
+                if (forceInferChildren) {
+                    final List<ParameterDefinition> parameters = constructor.getParameters();
+
+                    for (int i = 0; i < arguments.size() && i < parameters.size(); i++) {
+                        inferTypeForExpression(arguments.get(i), parameters.get(i).getParameterType());
+                    }
+                }
+
+                return constructor.getDeclaringType();
             }
 
             case InitArray: {

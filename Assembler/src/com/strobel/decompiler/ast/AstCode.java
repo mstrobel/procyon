@@ -206,7 +206,7 @@ public enum AstCode {
     InvokeStatic,
     InvokeInterface,
     InvokeDynamic,
-    New,
+    __New,
     __NewArray,
     __ANewArray,
     ArrayLength,
@@ -268,6 +268,7 @@ public enum AstCode {
     LogicalNot,
     LogicalAnd,
     LogicalOr,
+    InitObject,
     InitArray,
 
     /**
@@ -301,7 +302,9 @@ public enum AstCode {
      * Special placeholder to mark the end of try, catch, and finally blocks with an unconditional branch.
      * Will be removed during optimization.
      */
-    Leave;
+    Leave,
+
+    DefaultValue;
 
     private final static OpCode[] STANDARD_CODES = OpCode.values();
 
@@ -417,6 +420,11 @@ public enum AstCode {
             case __AReturn:
             case __Return:
                 code.set(Return);
+                return true;
+
+            case __NewArray:
+            case __ANewArray:
+                code.set(NewArray);
                 return true;
 
             case __ILoad:
