@@ -522,6 +522,9 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         final ConstantPool.Visitor constantPoolVisitor = visitor.visitConstantPool();
 
         for (final ConstantPool.Entry entry : constantPool) {
+            if (entry == null) {
+                continue;
+            }
             constantPoolVisitor.visit(entry);
         }
 
@@ -836,7 +839,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 _scope
             );
 
-
             if (visitor.canVisitBody()) {
                 final MethodReference methodReference;
                 final MethodBody body = reader.accept(visitor);
@@ -859,7 +861,25 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     body.setThisParameter(new ParameterDefinition("this", thisType));
                 }
 
-                MethodDefinition method = methodReference != null ? methodReference.resolve() : null;
+                MethodDefinition method;
+
+                if (methodReference != null) {
+                    method = methodReference.resolve();
+
+                    final List<ParameterDefinition> parameters = methodReference.getParameters();
+                    final VariableDefinitionCollection variables = body.getVariables();
+
+                    for (int i = 0; i < parameters.size() && i < variables.size(); i++) {
+                        final VariableDefinition variable = variables.get(i);
+
+                        if (variable.getVariableType() == BuiltinTypes.Object) {
+                            variable.setVariableType(parameters.get(i).getParameterType());
+                        }
+                    }
+                }
+                else {
+                    method = null;
+                }
 
                 if (method != null) {
                     method.setBody(body);

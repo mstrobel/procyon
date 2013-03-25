@@ -137,7 +137,10 @@ public class TypePrinter implements TypeVisitor {
 
     @Override
     public ConstantPool.Visitor visitConstantPool() {
-        return new ConstantPoolPrinter(_output);
+        if (_options.getPrintConstantPool()) {
+            return new ConstantPoolPrinter(_output);
+        }
+        return ConstantPool.Visitor.EMPTY;
     }
 
     @Override

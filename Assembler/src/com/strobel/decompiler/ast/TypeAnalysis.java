@@ -665,7 +665,7 @@ final class TypeAnalysis {
                     inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
                 }
 
-                return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : null;
+                return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
             }
 
             case StoreElement: {
@@ -679,35 +679,40 @@ final class TypeAnalysis {
                     }
                 }
 
-                return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : null;
+                return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
             }
 
             case BIPush:
             case SIPush: {
                 final Number number = (Number) operand;
 
-                if (expectedType.getSimpleType() == SimpleType.Boolean &&
-                    (number.intValue() == 0 || number.intValue() == 1)) {
+                if (expectedType != null) {
+                    if (expectedType.getSimpleType() == SimpleType.Boolean &&
+                        (number.intValue() == 0 || number.intValue() == 1)) {
 
-                    return BuiltinTypes.Boolean;
+                        return BuiltinTypes.Boolean;
+                    }
+
+                    if (expectedType.getSimpleType() == SimpleType.Byte &&
+                        number.intValue() >= Byte.MIN_VALUE &&
+                        number.intValue() <= Byte.MAX_VALUE) {
+
+                        return BuiltinTypes.Byte;
+                    }
+
+                    if (expectedType.getSimpleType() == SimpleType.Character &&
+                        number.intValue() >= Character.MIN_VALUE &&
+                        number.intValue() <= Character.MAX_VALUE) {
+
+                        return BuiltinTypes.Character;
+                    }
+
+                    if (expectedType.getSimpleType().isIntegral()) {
+                        return expectedType;
+                    }
                 }
-
-                if (expectedType.getSimpleType() == SimpleType.Byte &&
-                    number.intValue() >= Byte.MIN_VALUE &&
-                    number.intValue() <= Byte.MAX_VALUE) {
-
+                else if (code == AstCode.BIPush) {
                     return BuiltinTypes.Byte;
-                }
-
-                if (expectedType.getSimpleType() == SimpleType.Character &&
-                    number.intValue() >= Character.MIN_VALUE &&
-                    number.intValue() <= Character.MAX_VALUE) {
-
-                    return BuiltinTypes.Character;
-                }
-
-                if (expectedType.getSimpleType().isIntegral()) {
-                    return expectedType;
                 }
 
                 return BuiltinTypes.Short;

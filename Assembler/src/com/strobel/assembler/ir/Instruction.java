@@ -215,7 +215,7 @@ public final class Instruction {
                 break;
 
             case Local:
-                return opCodeSize + (_opCode.isWide() ? 4 : 2);
+                return opCodeSize + (_opCode.isWide() ? 2 : 1);
 
             case LocalI1:
             case LocalI2:
