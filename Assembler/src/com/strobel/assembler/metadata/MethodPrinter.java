@@ -13,9 +13,15 @@
 
 package com.strobel.assembler.metadata;
 
-import com.strobel.assembler.CodePrinter;
 import com.strobel.assembler.DisassemblerOptions;
-import com.strobel.assembler.ir.*;
+import com.strobel.assembler.ir.ErrorOperand;
+import com.strobel.assembler.ir.ExceptionHandler;
+import com.strobel.assembler.ir.Frame;
+import com.strobel.assembler.ir.Instruction;
+import com.strobel.assembler.ir.InstructionCollection;
+import com.strobel.assembler.ir.InstructionVisitor;
+import com.strobel.assembler.ir.OpCode;
+import com.strobel.assembler.ir.OpCodeHelpers;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.ExceptionsAttribute;
 import com.strobel.assembler.ir.attributes.LocalVariableTableAttribute;
@@ -25,6 +31,7 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.ITextOutput;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,7 +39,7 @@ import java.util.EnumSet;
 import java.util.List;
 
 public class MethodPrinter implements MethodVisitor {
-    private final CodePrinter _printer;
+    private final ITextOutput _output;
     private final long _flags;
     private final String _name;
     private final IMethodSignature _signature;
@@ -43,14 +50,14 @@ public class MethodPrinter implements MethodVisitor {
     private int[] _lineNumbers;
 
     public MethodPrinter(
-        final CodePrinter printer,
+        final ITextOutput printer,
         final DisassemblerOptions options,
         final long flags,
         final String name,
         final IMethodSignature signature,
         final TypeReference... thrownTypes) {
 
-        _printer = VerifyArgument.notNull(printer, "printer");
+        _output = VerifyArgument.notNull(printer, "printer");
         _options = options;
         _flags = flags;
         _name = VerifyArgument.notNull(name, "name");
@@ -64,7 +71,7 @@ public class MethodPrinter implements MethodVisitor {
         final List<String> flagStrings = new ArrayList<>();
 
         if ("<clinit>".equals(_name)) {
-            _printer.print("static {}");
+            _output.write("static {}");
         }
         else {
             final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(_flags & Flags.MethodFlags);
@@ -74,75 +81,75 @@ public class MethodPrinter implements MethodVisitor {
             }
 
             if (flagSet.size() > 0) {
-                _printer.printf(StringUtilities.join(" ", flagStrings));
-                _printer.print(' ');
+                _output.write(StringUtilities.join(" ", flagStrings));
+                _output.write(' ');
             }
 
             final List<GenericParameter> genericParameters = _signature.getGenericParameters();
 
             if (!genericParameters.isEmpty()) {
-                _printer.print('<');
+                _output.write('<');
 
                 for (int i = 0; i < genericParameters.size(); i++) {
                     if (i != 0) {
-                        _printer.print(", ");
+                        _output.write(", ");
                     }
 
-                    _printer.print(genericParameters.get(i).getBriefDescription());
+                    _output.write(genericParameters.get(i).getBriefDescription());
                 }
 
-                _printer.print('>');
+                _output.write('>');
             }
 
-            _printer.printf(_signature.getReturnType().getBriefDescription());
-            _printer.print(' ');
-            _printer.printf(_name);
-            _printer.print('(');
+            _output.write(_signature.getReturnType().getBriefDescription());
+            _output.write(' ');
+            _output.write(_name);
+            _output.write('(');
 
             final List<ParameterDefinition> parameters = _signature.getParameters();
 
             for (int i = 0; i < parameters.size(); i++) {
                 if (i != 0) {
-                    _printer.print(", ");
+                    _output.write(", ");
                 }
 
                 final ParameterDefinition parameter = parameters.get(i);
 
                 if (Flags.testAny(_flags, Flags.ACC_VARARGS) && i == parameters.size() - 1) {
-                    _printer.print(parameter.getParameterType().getUnderlyingType().getBriefDescription());
-                    _printer.print("...");
+                    _output.write(parameter.getParameterType().getUnderlyingType().getBriefDescription());
+                    _output.write("...");
                 }
                 else {
-                    _printer.print(parameter.getParameterType().getBriefDescription());
+                    _output.write(parameter.getParameterType().getBriefDescription());
                 }
 
-                _printer.print(' ');
+                _output.write(' ');
 
                 final String parameterName = parameter.getName();
 
                 if (StringUtilities.isNullOrEmpty(parameterName)) {
-                    _printer.printf("p%d", i);
+                    _output.write("p%d", i);
                 }
                 else {
-                    _printer.print(parameterName);
+                    _output.write(parameterName);
                 }
             }
 
-            _printer.print(')');
+            _output.write(')');
 
             if (_thrownTypes != null && _thrownTypes.length > 0) {
-                _printer.print(" throws ");
+                _output.write(" throws ");
 
                 for (int i = 0; i < _thrownTypes.length; i++) {
                     if (i != 0) {
-                        _printer.print(", ");
+                        _output.write(", ");
                     }
 
-                    _printer.print(_thrownTypes[i].getBriefDescription());
+                    _output.write(_thrownTypes[i].getBriefDescription());
                 }
             }
         }
-        _printer.println(";");
+        _output.writeLine(";");
 
         flagStrings.clear();
 
@@ -154,8 +161,8 @@ public class MethodPrinter implements MethodVisitor {
             return;
         }
 
-        _printer.printf("  Flags: %s", StringUtilities.join(", ", flagStrings));
-        _printer.println();
+        _output.write("  Flags: %s", StringUtilities.join(", ", flagStrings));
+        _output.writeLine();
     }
 
     @Override
@@ -166,9 +173,9 @@ public class MethodPrinter implements MethodVisitor {
     @Override
     public InstructionVisitor visitBody(final MethodBody body) {
         _body = body;
-        _printer.println("  Code:");
+        _output.writeLine("  Code:");
 
-        _printer.printf(
+        _output.write(
             "    stack=%d, locals=%d, arguments=%d\n",
             body.getMaxStackSize(),
             body.getMaxLocals(),
@@ -187,6 +194,60 @@ public class MethodPrinter implements MethodVisitor {
 
     @Override
     public void visitEnd() {
+        final List<ExceptionHandler> handlers = _body.getExceptionHandlers();
+
+        if (!handlers.isEmpty()) {
+            int longestType = "Type".length();
+
+            for (final ExceptionHandler handler : handlers) {
+                final TypeReference catchType = handler.getCatchType();
+
+                if (catchType != null) {
+                    final String signature = catchType.getSignature();
+
+                    if (signature.length() > longestType) {
+                        longestType = signature.length();
+                    }
+                }
+            }
+
+            _output.write("  Exceptions:");
+            _output.writeLine();
+            _output.write("    Try           Handler");
+            _output.writeLine();
+            _output.write("    Start  End    Start  End    %1$-" + longestType + "s", "Type");
+            _output.writeLine();
+
+            _output.write(
+                "    -----  -----  -----  -----  %1$-" + longestType + "s",
+                StringUtilities.repeat('-', longestType)
+            );
+
+            _output.writeLine();
+
+            for (final ExceptionHandler handler : handlers) {
+                final String signature;
+                final TypeReference catchType = handler.getCatchType();
+
+                if (catchType != null) {
+                    signature = catchType.getSignature();
+                }
+                else {
+                    signature = "Any";
+                }
+
+                _output.write(
+                    "    %1$-5d  %2$-5d  %3$-5d  %4$-5d  %5$-" + longestType + "s",
+                    handler.getTryBlock().getFirstInstruction().getOffset(),
+                    handler.getTryBlock().getLastInstruction().getEndOffset(),
+                    handler.getHandlerBlock().getFirstInstruction().getOffset(),
+                    handler.getHandlerBlock().getLastInstruction().getEndOffset(),
+                    signature
+                );
+
+                _output.writeLine();
+            }
+        }
     }
 
     @Override
@@ -212,10 +273,10 @@ public class MethodPrinter implements MethodVisitor {
                 final List<TypeReference> exceptionTypes = exceptionsAttribute.getExceptionTypes();
 
                 if (!exceptionTypes.isEmpty()) {
-                    _printer.println("  Exceptions:");
+                    _output.writeLine("  Exceptions:");
                     for (final TypeReference exceptionType : exceptionTypes) {
-                        _printer.printf("    throws %s", exceptionType.getBriefDescription());
-                        _printer.println();
+                        _output.write("    throws %s", exceptionType.getBriefDescription());
+                        _output.writeLine();
                     }
                 }
 
@@ -253,18 +314,18 @@ public class MethodPrinter implements MethodVisitor {
                     }
                 }
 
-                _printer.printf("  %s:", attribute.getName());
-                _printer.println();
-                _printer.printf("    Start  Length  Slot  %1$-" + longestName + "s  Signature", "Name");
-                _printer.println();
+                _output.write("  %s:", attribute.getName());
+                _output.writeLine();
+                _output.write("    Start  Length  Slot  %1$-" + longestName + "s  Signature", "Name");
+                _output.writeLine();
 
-                _printer.printf(
+                _output.write(
                     "    -----  ------  ----  %1$-" + longestName + "s  %2$-" + longestSignature + "s",
                     StringUtilities.repeat('-', longestName),
                     StringUtilities.repeat('-', longestSignature)
                 );
 
-                _printer.println();
+                _output.writeLine();
 
                 for (final LocalVariableTableEntry entry : entries) {
                     final String signature;
@@ -276,7 +337,7 @@ public class MethodPrinter implements MethodVisitor {
                         signature = entry.getType().getErasedSignature();
                     }
 
-                    _printer.printf(
+                    _output.write(
                         "    %1$-5d  %2$-6d  %3$-4d  %4$-" + longestName + "s  %5$s",
                         entry.getScopeOffset(),
                         entry.getScopeLength(),
@@ -285,16 +346,16 @@ public class MethodPrinter implements MethodVisitor {
                         signature
                     );
 
-                    _printer.println();
+                    _output.writeLine();
                 }
 
                 break;
             }
 
             case AttributeNames.Signature: {
-                _printer.println("  Signature:");
-                _printer.printf("    %s", ((SignatureAttribute) attribute).getSignature());
-                _printer.println();
+                _output.writeLine("  Signature:");
+                _output.write("    %s", ((SignatureAttribute) attribute).getSignature());
+                _output.writeLine();
                 break;
             }
         }
@@ -336,11 +397,11 @@ public class MethodPrinter implements MethodVisitor {
             switch (opCode) {
                 case TABLESWITCH:
                 case LOOKUPSWITCH:
-                    _printer.print(OPCODE_NAMES[opCode.ordinal()]);
+                    _output.writeReference(OPCODE_NAMES[opCode.ordinal()], opCode);
                     break;
 
                 default:
-                    _printer.printf("%1$-" + MAX_OPCODE_LENGTH + "s", OPCODE_NAMES[opCode.ordinal()]);
+                    _output.writeReference(String.format("%1$-" + MAX_OPCODE_LENGTH + "s", OPCODE_NAMES[opCode.ordinal()]), opCode);
                     break;
             }
         }
@@ -353,7 +414,7 @@ public class MethodPrinter implements MethodVisitor {
                 final int lineNumber = _lineNumbers[instruction.getOffset()];
 
                 if (lineNumber >= 0) {
-                    _printer.printf(
+                    _output.write(
                         "          %1$-" + MAX_OPCODE_LENGTH + "s %2$d",
                         LINE_NUMBER_CODE,
                         lineNumber
@@ -363,7 +424,8 @@ public class MethodPrinter implements MethodVisitor {
             }
 
             try {
-                _printer.printf("%1$8d: ", instruction.getOffset());
+                _output.writeLabel(String.format("%1$8d", instruction.getOffset()));
+                _output.write(": ");
                 instruction.accept(this);
             }
             catch (Throwable t) {
@@ -375,14 +437,14 @@ public class MethodPrinter implements MethodVisitor {
                     final Object operand = instruction.getOperand(i);
 
                     if (operand instanceof ErrorOperand) {
-                        _printer.print(operand);
+                        _output.write(String.valueOf(operand));
                         foundError = true;
                         break;
                     }
                 }
 
                 if (!foundError) {
-                    _printer.print("!!! ERROR");
+                    _output.write("!!! ERROR");
                 }
 
                 endLine();
@@ -402,7 +464,7 @@ public class MethodPrinter implements MethodVisitor {
                     final VariableDefinition variable = variables.get(argumentIndex);
 
                     if (variable.hasName()) {
-                        _printer.printf(" /* %s */", variable.getName());
+                        _output.writeComment(" /* %s */", variable.getName());
                     }
                 }
             }
@@ -414,24 +476,23 @@ public class MethodPrinter implements MethodVisitor {
         public void visitConstant(final OpCode op, final TypeReference value) {
             printOpCode(op);
 
-            _printer.print(' ');
-            _printer.print(value.getErasedSignature());
-            _printer.print(".class");
+            _output.write(' ');
+            _output.writeReference(value.getErasedSignature(), value);
+            _output.write(".class");
 
             endLine();
         }
 
         private void endLine() {
-            _printer.println();
-            _printer.flush();
+            _output.writeLine();
         }
 
         @Override
         public void visitConstant(final OpCode op, final int value) {
             printOpCode(op);
 
-            _printer.print(' ');
-            _printer.print(value);
+            _output.write(' ');
+            _output.writeLiteral(value);
 
             endLine();
         }
@@ -440,8 +501,8 @@ public class MethodPrinter implements MethodVisitor {
         public void visitConstant(final OpCode op, final long value) {
             printOpCode(op);
 
-            _printer.print(' ');
-            _printer.print(value);
+            _output.write(' ');
+            _output.writeLiteral(value);
 
             endLine();
         }
@@ -450,8 +511,8 @@ public class MethodPrinter implements MethodVisitor {
         public void visitConstant(final OpCode op, final float value) {
             printOpCode(op);
 
-            _printer.print(' ');
-            _printer.print(value);
+            _output.write(' ');
+            _output.writeLiteral(value);
 
             endLine();
         }
@@ -460,8 +521,8 @@ public class MethodPrinter implements MethodVisitor {
         public void visitConstant(final OpCode op, final double value) {
             printOpCode(op);
 
-            _printer.print(' ');
-            _printer.print(value);
+            _output.write(' ');
+            _output.writeLiteral(value);
 
             endLine();
         }
@@ -470,8 +531,8 @@ public class MethodPrinter implements MethodVisitor {
         public void visitConstant(final OpCode op, final String value) {
             printOpCode(op);
 
-            _printer.print(' ');
-            _printer.print(StringUtilities.escape(value, true));
+            _output.write(' ');
+            _output.writeLiteral(StringUtilities.escape(value, true));
 
             endLine();
         }
@@ -480,8 +541,8 @@ public class MethodPrinter implements MethodVisitor {
         public void visitBranch(final OpCode op, final Instruction target) {
             printOpCode(op);
 
-            _printer.print(' ');
-            _printer.printf("%d", target.getOffset());
+            _output.write(' ');
+            _output.writeLabel(String.valueOf(target.getOffset()));
 
             endLine();
         }
@@ -490,8 +551,8 @@ public class MethodPrinter implements MethodVisitor {
         public void visitVariable(final OpCode op, final VariableReference variable) {
             printOpCode(op);
 
-            _printer.print(' ');
-            _printer.print(variable.getName());
+            _output.write(' ');
+            _output.writeReference(variable.getName(), variable);
 
             endLine();
         }
@@ -499,17 +560,17 @@ public class MethodPrinter implements MethodVisitor {
         @Override
         public void visitVariable(final OpCode op, final VariableReference variable, final int operand) {
             printOpCode(op);
-            _printer.print(' ');
+            _output.write(' ');
 
             if (StringUtilities.isNullOrEmpty(variable.getName())) {
-                _printer.print("$" + variable.getIndex());
+                _output.writeReference("$" + variable.getIndex(), variable);
             }
             else {
-                _printer.print(variable.getName());
+                _output.writeReference(variable.getName(), variable);
             }
 
-            _printer.print(", ");
-            _printer.print(operand);
+            _output.write(", ");
+            _output.writeLiteral(String.valueOf(operand));
 
             endLine();
         }
@@ -518,8 +579,8 @@ public class MethodPrinter implements MethodVisitor {
         public void visitType(final OpCode op, final TypeReference type) {
             printOpCode(op);
 
-            _printer.print(' ');
-            _printer.print(type.getSignature());
+            _output.write(' ');
+            _output.writeReference(type.getSignature(), type);
 
             endLine();
         }
@@ -528,12 +589,12 @@ public class MethodPrinter implements MethodVisitor {
         public void visitMethod(final OpCode op, final MethodReference method) {
             printOpCode(op);
 
-            _printer.print(' ');
-            _printer.print(method.getDeclaringType().getInternalName());
-            _printer.print('.');
-            _printer.print(method.getName());
-            _printer.print(':');
-            _printer.print(method.getErasedSignature());
+            _output.write(' ');
+            _output.writeReference(method.getDeclaringType().getInternalName(), method.getDeclaringType());
+            _output.write('.');
+            _output.writeReference(method.getName(), method);
+            _output.write(':');
+            _output.write(method.getErasedSignature());
 
             endLine();
         }
@@ -542,12 +603,12 @@ public class MethodPrinter implements MethodVisitor {
         public void visitField(final OpCode op, final FieldReference field) {
             printOpCode(op);
 
-            _printer.print(' ');
-            _printer.print(field.getDeclaringType().getInternalName());
-            _printer.print('.');
-            _printer.print(field.getName());
-            _printer.print(':');
-            _printer.print(field.getErasedSignature());
+            _output.write(' ');
+            _output.writeReference(field.getDeclaringType().getInternalName(), field.getDeclaringType());
+            _output.write('.');
+            _output.writeReference(field.getName(), field);
+            _output.write(':');
+            _output.write(field.getErasedSignature());
 
             endLine();
         }
@@ -559,7 +620,7 @@ public class MethodPrinter implements MethodVisitor {
         @Override
         public void visitSwitch(final OpCode op, final SwitchInfo switchInfo) {
             printOpCode(op);
-            _printer.print(" {");
+            _output.write(" {");
             endLine();
 
             switch (op) {
@@ -569,21 +630,16 @@ public class MethodPrinter implements MethodVisitor {
                     int caseValue = switchInfo.getLowValue();
 
                     for (final Instruction target : targets) {
-                        _printer.printf(
-                            "%1$21d: %2$d",
-                            caseValue++,
-                            target.getOffset()
-                        );
-                        endLine();
+                        _output.writeLiteral(switchInfo.getLowValue() + caseValue++);
+                        _output.write(": ");
+                        _output.writeLabel(String.valueOf(target.getOffset()));
+                        _output.writeLine();
                     }
 
-                    _printer.printf(
-                        "%1$21s: %2$d",
-                        "default",
-                        switchInfo.getDefaultTarget().getOffset()
-                    );
-
-                    endLine();
+                    _output.writeKeyword("default");
+                    _output.write(": ");
+                    _output.writeLabel(String.valueOf(switchInfo.getDefaultTarget().getOffset()));
+                    _output.writeLine();
 
                     break;
                 }
@@ -596,28 +652,22 @@ public class MethodPrinter implements MethodVisitor {
                         final int key = keys[i];
                         final Instruction target = targets[i];
 
-                        _printer.printf(
-                            "%1$21d: %2$d",
-                            key,
-                            target.getOffset()
-                        );
-
-                        endLine();
+                        _output.writeLiteral(key);
+                        _output.write(": ");
+                        _output.writeLabel(String.valueOf(target.getOffset()));
+                        _output.writeLine();
                     }
 
-                    _printer.printf(
-                        "%1$21s: %2$d",
-                        "default",
-                        switchInfo.getDefaultTarget().getOffset()
-                    );
-
-                    endLine();
+                    _output.writeKeyword("default");
+                    _output.write(": ");
+                    _output.writeLabel(String.valueOf(switchInfo.getDefaultTarget().getOffset()));
+                    _output.writeLine();
 
                     break;
                 }
             }
 
-            _printer.print("          }");
+            _output.write("          }");
             endLine();
         }
 

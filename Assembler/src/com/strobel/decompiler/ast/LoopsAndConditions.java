@@ -234,7 +234,13 @@ final class LoopsAndConditions {
 
                             trueLabel.set(falseLabel.get());
                             falseLabel.set(temp);
-                            condition.set(new Expression(AstCode.LogicalNot, null, condition.get()));
+
+                            if (match(condition.get(), AstCode.LogicalNot)) {
+                                condition.set(condition.get().getArguments().get(0));
+                            }
+                            else {
+                                condition.set(new Expression(AstCode.LogicalNot, null, condition.get()));
+                            }
                         }
 
                         final ControlFlowNode postLoopTarget = labelsToNodes.get(falseLabel.get());

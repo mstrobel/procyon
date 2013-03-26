@@ -20,15 +20,17 @@ import com.strobel.assembler.metadata.ClasspathTypeLoader;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.TypePrinter;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.AnsiTextOutput;
+import com.strobel.decompiler.ITextOutput;
 
 import java.util.List;
 
 public final class Disassembler {
-    public static void disassemble(final String internalName, final CodePrinter printer) {
-        disassemble(internalName, printer, new DisassemblerOptions());
+    public static void disassemble(final String internalName, final ITextOutput output) {
+        disassemble(internalName, output, new DisassemblerOptions());
     }
 
-    public static void disassemble(final String internalName, final CodePrinter printer, final DisassemblerOptions options) {
+    public static void disassemble(final String internalName, final ITextOutput output, final DisassemblerOptions options) {
         VerifyArgument.notNull(internalName, "internalName");
         VerifyArgument.notNull(options, "options");
 
@@ -36,7 +38,7 @@ public final class Disassembler {
         final Buffer b = new Buffer();
 
         if (!loader.tryLoadType(internalName, b)) {
-            printer.printf("!!! ERROR: Failed to load class %s.", internalName);
+            output.writeLine("!!! ERROR: Failed to load class %s.", internalName);
             return;
         }
 
@@ -49,13 +51,14 @@ public final class Disassembler {
             b
         );
 
-        final TypePrinter typePrinter = new TypePrinter(printer, options);
+        final TypePrinter typePrinter = new TypePrinter(output, options);
 
         reader.accept(typePrinter);
+        System.out.print(output.toString());
     }
 
     public static void main(final String[] args) {
-        final CodePrinter printer = new CodePrinter(System.out, true);
+        final ITextOutput output = new AnsiTextOutput();
         final DisassemblerOptions options = new DisassemblerOptions();
         final List<String> typeNames = Args.parse(options, args);
 
@@ -65,11 +68,11 @@ public final class Disassembler {
         }
 
         if (typeNames.isEmpty()) {
-            disassemble("com/strobel/assembler/Disassembler", printer, options);
+            disassemble("com/strobel/assembler/Disassembler", output, options);
         }
         else {
             for (final String typeName : typeNames) {
-                disassemble(typeName, printer, options);
+                disassemble(typeName, output, options);
             }
         }
     }

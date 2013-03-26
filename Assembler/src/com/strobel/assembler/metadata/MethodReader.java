@@ -13,6 +13,10 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.assembler.flowanalysis.ControlFlowGraph;
+import com.strobel.assembler.flowanalysis.ControlFlowGraphBuilder;
+import com.strobel.assembler.flowanalysis.ControlFlowNode;
+import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
 import com.strobel.assembler.ir.ErrorOperand;
 import com.strobel.assembler.ir.ExceptionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
@@ -31,10 +35,12 @@ import com.strobel.decompiler.ast.Range;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class MethodReader {
-    private final static String[] LOCAL_VARIABLE_TABLES = {AttributeNames.LocalVariableTypeTable, AttributeNames.LocalVariableTable};
+    private final static String[] LOCAL_VARIABLE_TABLES = { AttributeNames.LocalVariableTypeTable, AttributeNames.LocalVariableTable };
 
     private final CodeAttribute _code;
     private final IMetadataScope _scope;
@@ -429,55 +435,6 @@ public class MethodReader {
 
         if (!exceptionTable.isEmpty()) {
             populateExceptionHandlerInfo(body, exceptionTable);
-
-//            final List<ExceptionHandler> exceptionHandlers = _methodBody.getExceptionHandlers();
-//
-//            final int lastInstructionOffset;
-//
-//            if (body.isEmpty()) {
-//                lastInstructionOffset = -1;
-//            }
-//            else {
-//                lastInstructionOffset = body.get(body.size() - 1).getOffset();
-//            }
-//
-//            populateExceptionHandlerInfo(body, exceptionTable);
-//
-//            for (final ExceptionTableEntry entry : exceptionTable) {
-//                final int startOffset = entry.getStartOffset();
-//                final int endOffset = entry.getEndOffset() - 1;
-//                final int handlerOffset = entry.getHandlerOffset();
-//                final TypeReference catchType = entry.getCatchType();
-//
-//                final Instruction firstInstruction = body.tryGetAtOffset(startOffset);
-//                final Instruction handlerStartInstruction = body.tryGetAtOffset(handlerOffset);
-//                final Instruction lastInstruction;
-//
-//                if (endOffset <= lastInstructionOffset) {
-//                    lastInstruction = body.tryGetAtOffset(lastInstructionOffset);
-//                }
-//                else {
-//                    lastInstruction = new Instruction(OpCode.NOP, endOffset);
-//                }
-//
-//                final ExceptionHandler handler;
-//
-//                if (catchType == null) {
-//                    handler = ExceptionHandler.createFinally(
-//                        new ExceptionBlock(firstInstruction, lastInstruction),
-//                        new ExceptionBlock(handlerStartInstruction, null)
-//                    );
-//                }
-//                else {
-//                    handler = ExceptionHandler.createCatch(
-//                        new ExceptionBlock(firstInstruction, lastInstruction),
-//                        new ExceptionBlock(handlerStartInstruction, null),
-//                        catchType
-//                    );
-//                }
-//
-//                exceptionHandlers.add(handler);
-//            }
         }
 
         return _methodBody;
@@ -493,21 +450,6 @@ public class MethodReader {
 
         final Instruction bodyEndInstruction = body.get(body.size() - 1);
 
-        final class HandlerWithRange implements Comparable<HandlerWithRange> {
-            final ExceptionTableEntry entry;
-            final Range range;
-
-            HandlerWithRange(final ExceptionTableEntry entry, final Range range) {
-                this.entry = entry;
-                this.range = range;
-            }
-
-            @Override
-            public final int compareTo(final HandlerWithRange o) {
-                return range.compareTo(o.range);
-            }
-        }
-
         final List<HandlerWithRange> entries = new ArrayList<>(exceptionTable.size());
 
         for (final ExceptionTableEntry entry : exceptionTable) {
@@ -521,60 +463,43 @@ public class MethodReader {
 
         Collections.sort(entries);
 
+        final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(body, Collections.<ExceptionHandler>emptyList());
+
+        cfg.computeDominance();
+
         for (int i = 0; i < entries.size(); i++) {
-            final HandlerWithRange h = entries.get(i);
+            final HandlerWithRange entry = entries.get(i);
+            int minOffset = Integer.MAX_VALUE;
 
-            if (h.entry.getCatchType() != null) {
-                HandlerWithRange matchingFinally = null;
+            final List<ControlFlowNode> nodes = cfg.getNodes();
+            for (int j = 0; j < nodes.size(); j++) {
 
-                for (int j = i; j < entries.size(); j++) {
-                    final HandlerWithRange h2 = entries.get(j);
+                final ControlFlowNode node = nodes.get(j);
 
-                    if (h2.entry.getCatchType() == null &&
-                        h2.entry.getStartOffset() == h.entry.getHandlerOffset()) {
-
-                        matchingFinally = h2;
-                        break;
-                    }
-                }
-
-                if (matchingFinally != null) {
-                    h.range.setEnd(matchingFinally.entry.getHandlerOffset());
+                if (node.getNodeType() != ControlFlowNodeType.Normal) {
                     continue;
                 }
 
-                for (int j = i; j < entries.size(); j++) {
-                    final HandlerWithRange h2 = entries.get(j);
+                if (node.getStart().getOffset() == entry.range.getStart()) {
+                    final ControlFlowNode end = findHandlerEnd(node, new LinkedHashSet<ControlFlowNode>());
 
-                    if (h2.entry.getCatchType() == null &&
-                        h2.entry.getStartOffset() == h.entry.getStartOffset() &&
-                        h2.entry.getEndOffset() == h.entry.getEndOffset()) {
-
-                        matchingFinally = h2;
-                        break;
+                    if (end != null && end.getNodeType() == ControlFlowNodeType.Normal) {
+                        minOffset = end.getEnd().getEndOffset();
                     }
-                }
+                    else {
+                        minOffset = node.getEnd().getEndOffset();
+                    }
 
-                if (matchingFinally != null) {
-                    h.range.setEnd(matchingFinally.entry.getHandlerOffset());
-                    continue;
+                    break;
                 }
             }
 
-
-            final Instruction firstHandlerInstruction = body.tryGetAtOffset(h.entry.getHandlerOffset());
-            final Instruction previous = firstHandlerInstruction.getPrevious();
-
-            if (previous.getOpCode() == OpCode.GOTO ||
-                previous.getOpCode() == OpCode.GOTO_W) {
-                final Instruction jumpTarget = previous.getOperand(0);
-
-                h.range.setEnd(jumpTarget.getOffset());
-            }
-            else {
-                h.range.setEnd(bodyEndInstruction.getEndOffset());
+            if (minOffset != Integer.MAX_VALUE) {
+                entry.range.setEnd(minOffset);
             }
         }
+
+        Collections.sort(entries);
 
         final List<ExceptionHandler> exceptionHandlers = _methodBody.getExceptionHandlers();
 
@@ -593,12 +518,18 @@ public class MethodReader {
             if (endOffset <= bodyEndInstruction.getOffset()) {
                 lastInstruction = body.tryGetAtOffset(endOffset).getPrevious();
             }
+            else if (endOffset == bodyEndInstruction.getEndOffset()) {
+                lastInstruction = bodyEndInstruction;
+            }
             else {
                 lastInstruction = new Instruction(endOffset, OpCode.NOP);
             }
 
             if (handlerEnd <= bodyEndInstruction.getOffset()) {
                 handlerLastInstruction = body.tryGetAtOffset(handlerEnd).getPrevious();
+            }
+            else if (handlerEnd == bodyEndInstruction.getEndOffset()) {
+                handlerLastInstruction = bodyEndInstruction;
             }
             else {
                 handlerLastInstruction = new Instruction(handlerEnd, OpCode.NOP);
@@ -621,6 +552,52 @@ public class MethodReader {
             }
 
             exceptionHandlers.add(handler);
+        }
+    }
+
+    private static ControlFlowNode findHandlerEnd(final ControlFlowNode node, final Set<ControlFlowNode> visited) {
+        if (!visited.add(node)) {
+            return null;
+        }
+
+        for (final ControlFlowNode successor : node.getSuccessors()) {
+            if (successor.getDominatorTreeChildren().isEmpty()) {
+                final ControlFlowNode result = findHandlerEnd(successor, visited);
+
+                if (result != null) {
+                    return result;
+                }
+
+                return successor;
+            }
+        }
+
+        return null;
+    }
+
+    private final static class HandlerWithRange implements Comparable<HandlerWithRange> {
+        final ExceptionTableEntry entry;
+        final Range range;
+
+        HandlerWithRange(final ExceptionTableEntry entry, final Range range) {
+            this.entry = entry;
+            this.range = range;
+        }
+
+        @Override
+        public final int compareTo(final HandlerWithRange o) {
+            return range.compareTo(o.range);
+        }
+
+        @Override
+        public String toString() {
+            final TypeReference catchType = entry.getCatchType();
+
+            return "Entry{" +
+                   "Try=" + entry.getStartOffset() + ":" + entry.getEndOffset() +
+                   ", Handler=" + range.getStart() + ":" + range.getEnd() +
+                   ", Type=" + (catchType != null ? catchType.getName() : "any") +
+                   '}';
         }
     }
 
@@ -678,7 +655,7 @@ public class MethodReader {
                     );
                 }
                 else {
-                    fixups = new Fixup[]{first, second};
+                    fixups = new Fixup[] { first, second };
                 }
             }
 

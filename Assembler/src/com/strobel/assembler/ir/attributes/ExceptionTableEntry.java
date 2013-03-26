@@ -46,4 +46,14 @@ public final class ExceptionTableEntry {
     public TypeReference getCatchType() {
         return _catchType;
     }
+
+    @Override
+    public String toString() {
+        return "Handler{" +
+               "From=" + _startOffset +
+               ", To=" + _endOffset +
+               ", Target=" + _handlerOffset +
+               ", Type=" + _catchType +
+               '}';
+    }
 }

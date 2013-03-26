@@ -13,6 +13,7 @@
 
 package com.strobel.decompiler.ast;
 
+import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.util.ContractUtils;
@@ -118,6 +119,27 @@ final class GotoRemoval {
             gotoExpression.getRanges().clear();
             return true;
         }
+
+        visitedNodes.clear();
+        visitedNodes.add(gotoExpression);
+
+        for (final TryCatchBlock tryCatchBlock : getParents(gotoExpression, TryCatchBlock.class)) {
+            final Block finallyBlock = tryCatchBlock.getFinallyBlock();
+
+            if (finallyBlock == null) {
+                continue;
+            }
+
+            if (target == enter(finallyBlock, visitedNodes)) {
+                gotoExpression.setCode(AstCode.Nop);
+                gotoExpression.setOperand(null);
+                gotoExpression.getRanges().clear();
+                return true;
+            }
+        }
+
+        visitedNodes.clear();
+        visitedNodes.add(gotoExpression);
 
         Node breakBlock = null;
 
@@ -388,9 +410,29 @@ final class GotoRemoval {
         //
 
         final Set<Label> liveLabels = new LinkedHashSet<>();
+        final StrongBox<Label> target = new StrongBox<>();
 
+    outer:
         for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
             if (e.isBranch()) {
+                if (matchGetOperand(e, AstCode.Goto, target)) {
+                    //
+                    // See if the goto is an explicit jump to an outer finally.  If so, remove it.
+                    //
+                    for (final TryCatchBlock tryCatchBlock : method.getSelfAndChildrenRecursive(TryCatchBlock.class)) {
+                        final Block finallyBlock = tryCatchBlock.getFinallyBlock();
+
+                        if (finallyBlock == null) {
+                            continue;
+                        }
+
+                        final Node firstInBody = firstOrDefault(finallyBlock.getBody());
+
+                        if (firstInBody == target.get()) {
+                            continue outer;
+                        }
+                    }
+                }
                 liveLabels.addAll(e.getBranchTargets());
             }
         }
@@ -401,7 +443,10 @@ final class GotoRemoval {
             for (int i = 0; i < body.size(); i++) {
                 final Node n = body.get(i);
 
-                if (match(n, AstCode.Nop) || n instanceof Label && !liveLabels.contains(n)) {
+                if (match(n, AstCode.Nop) ||
+                    match(n, AstCode.Leave) ||
+                    n instanceof Label && !liveLabels.contains(n)) {
+
                     body.remove(i--);
                 }
             }
@@ -468,7 +513,7 @@ final class GotoRemoval {
         final Node lastStatement = lastOrDefault(methodBody);
 
         if (match(lastStatement, AstCode.Return) &&
-            ((Expression)lastStatement).getArguments().isEmpty()) {
+            ((Expression) lastStatement).getArguments().isEmpty()) {
 
             methodBody.remove(methodBody.size() - 1);
         }

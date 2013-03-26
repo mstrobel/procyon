@@ -500,7 +500,7 @@ final class TypeAnalysis {
                 return getFieldType((FieldReference) operand);
             }
 
-            case New: {
+            case __New: {
                 return (TypeReference) operand;
             }
 
@@ -641,6 +641,20 @@ final class TypeAnalysis {
                 return (TypeReference) operand;
             }
 
+            case InitObject: {
+                final MethodReference constructor = (MethodReference) operand;
+
+                if (forceInferChildren) {
+                    final List<ParameterDefinition> parameters = constructor.getParameters();
+
+                    for (int i = 0; i < arguments.size() && i < parameters.size(); i++) {
+                        inferTypeForExpression(arguments.get(i), parameters.get(i).getParameterType());
+                    }
+                }
+
+                return constructor.getDeclaringType();
+            }
+
             case InitArray: {
                 final TypeReference arrayType = (TypeReference) operand;
                 final TypeReference elementType = arrayType.getElementType();
@@ -665,7 +679,7 @@ final class TypeAnalysis {
                     inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
                 }
 
-                return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : null;
+                return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
             }
 
             case StoreElement: {
@@ -679,35 +693,40 @@ final class TypeAnalysis {
                     }
                 }
 
-                return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : null;
+                return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
             }
 
             case BIPush:
             case SIPush: {
                 final Number number = (Number) operand;
 
-                if (expectedType.getSimpleType() == SimpleType.Boolean &&
-                    (number.intValue() == 0 || number.intValue() == 1)) {
+                if (expectedType != null) {
+                    if (expectedType.getSimpleType() == SimpleType.Boolean &&
+                        (number.intValue() == 0 || number.intValue() == 1)) {
 
-                    return BuiltinTypes.Boolean;
+                        return BuiltinTypes.Boolean;
+                    }
+
+                    if (expectedType.getSimpleType() == SimpleType.Byte &&
+                        number.intValue() >= Byte.MIN_VALUE &&
+                        number.intValue() <= Byte.MAX_VALUE) {
+
+                        return BuiltinTypes.Byte;
+                    }
+
+                    if (expectedType.getSimpleType() == SimpleType.Character &&
+                        number.intValue() >= Character.MIN_VALUE &&
+                        number.intValue() <= Character.MAX_VALUE) {
+
+                        return BuiltinTypes.Character;
+                    }
+
+                    if (expectedType.getSimpleType().isIntegral()) {
+                        return expectedType;
+                    }
                 }
-
-                if (expectedType.getSimpleType() == SimpleType.Byte &&
-                    number.intValue() >= Byte.MIN_VALUE &&
-                    number.intValue() <= Byte.MAX_VALUE) {
-
+                else if (code == AstCode.BIPush) {
                     return BuiltinTypes.Byte;
-                }
-
-                if (expectedType.getSimpleType() == SimpleType.Character &&
-                    number.intValue() >= Character.MIN_VALUE &&
-                    number.intValue() <= Character.MAX_VALUE) {
-
-                    return BuiltinTypes.Character;
-                }
-
-                if (expectedType.getSimpleType().isIntegral()) {
-                    return expectedType;
                 }
 
                 return BuiltinTypes.Short;
@@ -915,6 +934,7 @@ final class TypeAnalysis {
                 return null;
             }
 
+            case Leave:
             case Nop: {
                 return null;
             }

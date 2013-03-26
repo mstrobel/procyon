@@ -93,6 +93,26 @@ public class PlainTextOutput implements ITextOutput {
     }
 
     @Override
+    public void writeLabel(final String value) {
+        write(value);
+    }
+
+    @Override
+    public void writeLiteral(final Object value) {
+        write(String.valueOf(value));
+    }
+
+    @Override
+    public void writeComment(final String value) {
+        write(value);
+    }
+
+    @Override
+    public void writeComment(final String format, final Object... args) {
+        write(format, args);
+    }
+
+    @Override
     public void write(final String format, final Object... args) {
         write(String.format(format, args));
     }

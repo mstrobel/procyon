@@ -1,8 +1,8 @@
 package com.strobel.assembler.metadata;
 
-import com.strobel.assembler.CodePrinter;
 import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.java.JavaOutputVisitor;
 
 import static java.lang.String.format;
@@ -24,15 +24,15 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         MAX_TAG_LENGTH = maxTagLength;
     }
 
-    private final CodePrinter _printer;
+    private final ITextOutput _printer;
     private boolean _isHeaderPrinted;
 
-    public ConstantPoolPrinter(final CodePrinter printer) {
+    public ConstantPoolPrinter(final ITextOutput printer) {
         _printer = VerifyArgument.notNull(printer, "printer");
     }
 
     protected void printTag(final ConstantPool.Tag tag) {
-        _printer.printf("%1$-" + MAX_TAG_LENGTH + "s  ", tag);
+        _printer.write("%1$-" + MAX_TAG_LENGTH + "s  ", tag);
     }
 
     @Override
@@ -40,32 +40,32 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         VerifyArgument.notNull(entry, "entry");
 
         if (!_isHeaderPrinted) {
-            _printer.print("Constant Pool:");
-            _printer.println();
+            _printer.write("Constant Pool:");
+            _printer.writeLine();
             _isHeaderPrinted = true;
         }
 
-        _printer.printf("  %1$5d: ", entry.index);
+        _printer.write("  %1$5d: ", entry.index);
         printTag(entry.getTag());
         entry.accept(this);
-        _printer.println();
+        _printer.writeLine();
     }
 
     @Override
     public void visitTypeInfo(final ConstantPool.TypeInfoEntry info) {
-        _printer.printf("#%1$-13d //  %2$s", info.nameIndex, info.getName());
+        _printer.write("#%1$-13d //  %2$s", info.nameIndex, info.getName());
     }
 
     @Override
     public void visitDoubleConstant(final ConstantPool.DoubleConstantEntry info) {
-        _printer.printf("%1$-13s", info.getConstantValue());
+        _printer.write("%1$-13s", info.getConstantValue());
     }
 
     @Override
     public void visitFieldReference(final ConstantPool.FieldReferenceEntry info) {
         final ConstantPool.NameAndTypeDescriptorEntry nameAndTypeInfo = info.getNameAndTypeInfo();
 
-        _printer.printf(
+        _printer.write(
             "%1$-14s //  %2$s.%3$s:%4$s",
             format(
                 "#%1$d.#%2$d",
@@ -80,19 +80,19 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
 
     @Override
     public void visitFloatConstant(final ConstantPool.FloatConstantEntry info) {
-        _printer.printf("%1$-13s", info.getConstantValue());
+        _printer.write("%1$-13s", info.getConstantValue());
     }
 
     @Override
     public void visitIntegerConstant(final ConstantPool.IntegerConstantEntry info) {
-        _printer.printf("%1$-13s", info.getConstantValue());
+        _printer.write("%1$-13s", info.getConstantValue());
     }
 
     @Override
     public void visitInterfaceMethodReference(final ConstantPool.InterfaceMethodReferenceEntry info) {
         final ConstantPool.NameAndTypeDescriptorEntry nameAndTypeInfo = info.getNameAndTypeInfo();
 
-        _printer.printf(
+        _printer.write(
             "%1$-14s //  %2$s.%3$s:%4$s",
             format(
                 "#%1$d.#%2$d",
@@ -107,18 +107,18 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
 
     @Override
     public void visitInvokeDynamicInfo(final ConstantPool.InvokeDynamicInfoEntry info) {
-        _printer.printf("%1$-13s", info.bootstrapMethodAttributeIndex);
+        _printer.write("%1$-13s", info.bootstrapMethodAttributeIndex);
         info.getNameAndTypeDescriptor().accept(this);
     }
 
     @Override
     public void visitLongConstant(final ConstantPool.LongConstantEntry info) {
-        _printer.printf("%1$-13s", info.getConstantValue());
+        _printer.write("%1$-13s", info.getConstantValue());
     }
 
     @Override
     public void visitNameAndTypeDescriptor(final ConstantPool.NameAndTypeDescriptorEntry info) {
-        _printer.printf(
+        _printer.write(
             "%1$-14s //  %2$s:%3$s",
             format(
                 "#%1$d.#%2$d",
@@ -134,7 +134,7 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
     public void visitMethodReference(final ConstantPool.MethodReferenceEntry info) {
         final ConstantPool.NameAndTypeDescriptorEntry nameAndTypeInfo = info.getNameAndTypeInfo();
 
-        _printer.printf(
+        _printer.write(
             "%1$-14s //  %2$s.%3$s:%4$s",
             format(
                 "#%1$d.#%2$d",
@@ -149,18 +149,18 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
 
     @Override
     public void visitMethodHandle(final ConstantPool.MethodHandleEntry info) {
-        _printer.printf("%1$s ", info.referenceKind);
+        _printer.write("%1$s ", info.referenceKind);
         info.getReference().accept(this);
     }
 
     @Override
     public void visitMethodType(final ConstantPool.MethodTypeEntry info) {
-        _printer.printf("%1$-13s", info.getType());
+        _printer.write("%1$-13s", info.getType());
     }
 
     @Override
     public void visitStringConstant(final ConstantPool.StringConstantEntry info) {
-        _printer.printf(
+        _printer.write(
             "#%1$-13s //  \"%2$s\"",
             info.stringIndex,
             JavaOutputVisitor.convertString(info.getValue())
@@ -169,7 +169,7 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
 
     @Override
     public void visitUtf8StringConstant(final ConstantPool.Utf8StringConstantEntry info) {
-        _printer.printf(
+        _printer.write(
             "\"%1$s\"",
             JavaOutputVisitor.convertString((String) info.getConstantValue())
         );

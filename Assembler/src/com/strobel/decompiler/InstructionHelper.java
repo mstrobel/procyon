@@ -55,7 +55,8 @@ public final class InstructionHelper {
                 return 2;
 
             case Pop1_Pop2:
-                return 3;
+//                return 3;
+                return 2;
 
             case Pop1_PopA: {
 //                if (code == OpCode.PUTFIELD) {
@@ -135,7 +136,7 @@ public final class InstructionHelper {
 
             case VarPop: {
                 if (code == OpCode.ATHROW) {
-                    return -1;
+                    return 0;
                 }
 
                 if (code.getFlowControl() != FlowControl.Call) {

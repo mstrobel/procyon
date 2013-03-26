@@ -331,6 +331,7 @@ public final class MetadataParser {
                         final String typeVariableName = signature.substring(typeVariableStart, i);
                         final GenericParameter typeVariable = new GenericParameter(typeVariableName);
 
+                        typeVariable.setPosition(genericParameters.size());
                         genericParameters.add(typeVariable);
 
                         final TypeReference extendsBound = parseCompoundType(signature, position);

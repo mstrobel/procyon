@@ -15,6 +15,7 @@ package com.strobel.decompiler.ast;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.MetadataSystem;
+import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableDefinition;
 import com.strobel.core.BooleanBox;
@@ -40,25 +41,21 @@ import static com.strobel.decompiler.ast.PatternMatching.*;
 
 @SuppressWarnings("ConstantConditions")
 public final class AstOptimizer {
-    int _nextLabelIndex;
-    DecompilerContext _context;
-    MetadataSystem _metadataSystem;
-    Block _method;
+    private int _nextLabelIndex;
 
     public static void optimize(final DecompilerContext context, final Block method) {
         optimize(context, method, context.getSettings().getAbortBeforeStep());
     }
 
     public static void optimize(final DecompilerContext context, final Block method, final AstOptimizationStep abortBeforeStep) {
+        VerifyArgument.notNull(context, "context");
+        VerifyArgument.notNull(method, "method");
+
         if (abortBeforeStep == AstOptimizationStep.RemoveRedundantCode) {
             return;
         }
 
         final AstOptimizer optimizer = new AstOptimizer();
-
-        optimizer._context = context;
-        optimizer._metadataSystem = MetadataSystem.instance();
-        optimizer._method = method;
 
         removeRedundantCode(method);
 
@@ -126,7 +123,19 @@ public final class AstOptimizer {
                     continue;
                 }
 
-                modified |= runOptimization(block, new SimplifyLogicalNotOptimization(context));
+                modified |= runOptimization(block, new SimplifyLogicalNotOptimization(context, method));
+
+                if (abortBeforeStep == AstOptimizationStep.TransformObjectInitializers) {
+                    continue;
+                }
+
+                modified |= runOptimization(block, new TransformObjectInitializersOptimization(context, method));
+
+                if (abortBeforeStep == AstOptimizationStep.TransformArrayInitializers) {
+                    continue;
+                }
+
+                modified |= runOptimization(block, new TransformArrayInitializersOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.InlineVariables2) {
                     continue;
@@ -341,7 +350,7 @@ public final class AstOptimizer {
             for (int i = 0, n = arguments.size(); i < n; i++) {
                 final Expression argument = arguments.get(i);
 
-                if (PatternMatching.matchGetArgument(e, AstCode.Dup, child)) {
+                if (matchGetArgument(argument, AstCode.Dup, child)) {
                     child.get().getRanges().addAll(argument.getRanges());
                     arguments.set(i, child.get());
                 }
@@ -499,11 +508,9 @@ public final class AstOptimizer {
         final Expression firstArgument = arguments.isEmpty() ? null : arguments.get(0);
 
         if (matchSimplifiableComparison(expression)) {
-            final Expression comparisonExpression = firstArgument;
-
             arguments.clear();
-            arguments.addAll(comparisonExpression.getArguments());
-            expression.getRanges().addAll(comparisonExpression.getRanges());
+            arguments.addAll(firstArgument.getArguments());
+            expression.getRanges().addAll(firstArgument.getRanges());
         }
 
         if (matchReversibleComparison(expression)) {
@@ -899,8 +906,8 @@ public final class AstOptimizer {
     // <editor-fold defaultstate="collapsed" desc="SimplifyLogicalNot Optimization">
 
     private final static class SimplifyLogicalNotOptimization extends AbstractExpressionOptimization {
-        protected SimplifyLogicalNotOptimization(final DecompilerContext context) {
-            super(context);
+        protected SimplifyLogicalNotOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
         }
 
         @Override
@@ -911,6 +918,127 @@ public final class AstOptimizer {
             assert simplified == null;
 
             return modified.get();
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="TransformArrayInitializers Step">
+
+    private final static class TransformObjectInitializersOptimization extends AbstractExpressionOptimization {
+        protected TransformObjectInitializersOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public boolean run(final List<Node> body, final Expression head, final int position) {
+            if (position >= body.size() - 1) {
+                return false;
+            }
+
+            final StrongBox<Variable> v = new StrongBox<>();
+            final StrongBox<Expression> newObject = new StrongBox<>();
+            final StrongBox<TypeReference> objectType = new StrongBox<>();
+
+            if (position < body.size() - 1 &&
+                matchGetArgument(head, AstCode.Store, v, newObject) &&
+                matchGetOperand(newObject.get(), AstCode.__New, objectType)) {
+
+                final Node next = body.get(position + 1);
+                final StrongBox<MethodReference> constructor = new StrongBox<>();
+                final List<Expression> arguments = new ArrayList<>();
+                final StrongBox<Variable> v2 = new StrongBox<>();
+
+                if (matchGetArguments(next, AstCode.InvokeSpecial, constructor, arguments) &&
+                    !arguments.isEmpty() &&
+                    matchGetOperand(arguments.get(0), AstCode.Load, v2) &&
+                    v2.get() == v.get()) {
+
+                    final Expression initExpression = new Expression(AstCode.InitObject, constructor.get());
+
+                    arguments.remove(0);
+                    initExpression.getArguments().addAll(arguments);
+                    initExpression.getRanges().addAll(((Expression)next).getRanges());
+                    head.getArguments().set(0, initExpression);
+                    body.remove(position + 1);
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    private final static class TransformArrayInitializersOptimization extends AbstractExpressionOptimization {
+        protected TransformArrayInitializersOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public boolean run(final List<Node> body, final Expression head, final int position) {
+            final StrongBox<Variable> v = new StrongBox<>();
+            final StrongBox<Variable> v3 = new StrongBox<>();
+            final StrongBox<Expression> newArray = new StrongBox<>();
+            final StrongBox<TypeReference> elementType = new StrongBox<>();
+            final StrongBox<Expression> lengthExpression = new StrongBox<>();
+            final StrongBox<Integer> arrayLength = new StrongBox<>();
+
+            if (matchGetArgument(head, AstCode.Store, v, newArray) &&
+                (matchGetArgument(newArray.get(), AstCode.NewArray, elementType, lengthExpression) ||
+                 (matchGetArgument(newArray.get(), AstCode.Dup, newArray) &&
+                  matchGetArgument(newArray.get(), AstCode.NewArray, elementType, lengthExpression))) &&
+                matchGetOperand(lengthExpression.get(), AstCode.LdC, Integer.class, arrayLength) &&
+                arrayLength.get() > 0) {
+
+                final StrongBox<Integer> arrayPosition = new StrongBox<>();
+                final List<Expression> initializers = new ArrayList<>();
+
+                int instructionsToRemove = 0;
+
+                for (int j = position + 1; j < body.size(); j++) {
+                    final Node node = body.get(j);
+
+                    if (!(node instanceof Expression)) {
+                        continue;
+                    }
+
+                    final Expression next = (Expression) node;
+
+                    if (next.getCode() == AstCode.StoreElement &&
+                        matchGetOperand(next.getArguments().get(0), AstCode.Load, v3) &&
+                        v3.get() == v.get() &&
+                        matchGetOperand(next.getArguments().get(1), AstCode.LdC, Integer.class, arrayPosition) &&
+                        arrayPosition.get() >= initializers.size() &&
+                        !next.getArguments().get(2).containsReferenceTo(v3.get())) {
+
+                        while (initializers.size() < arrayPosition.get()) {
+                            initializers.add(new Expression(AstCode.DefaultValue, elementType));
+                        }
+
+                        initializers.add(next.getArguments().get(2));
+                        instructionsToRemove++;
+                    }
+                    else {
+                        break;
+                    }
+                }
+
+                if (initializers.size() == arrayLength.get()) {
+                    final TypeReference arrayType = elementType.get().makeArrayType();
+
+                    head.getArguments().set(0, new Expression(AstCode.InitArray, arrayType, initializers));
+
+                    for (int i = 0; i < instructionsToRemove; i++) {
+                        body.remove(position + 1);
+                    }
+
+                    new Inlining(method).inlineIfPossible(body, new MutableInteger(position));
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 
@@ -944,18 +1072,18 @@ public final class AstOptimizer {
                 else {
                     flatBody.add(child);
                 }
-
-                block.setEntryGoto(null);
-                block.getBody().clear();
-                block.getBody().addAll(flatBody);
             }
+
+            block.setEntryGoto(null);
+            block.getBody().clear();
+            block.getBody().addAll(flatBody);
         }
         else if (node instanceof Expression) {
             //
             // Optimization: no need to check expressions.
             //
         }
-        else {
+        else if (node != null) {
             for (final Node child : node.getChildren()) {
                 flattenBasicBlocks(child);
             }
@@ -1168,10 +1296,12 @@ public final class AstOptimizer {
 
         protected final DecompilerContext context;
         protected final MetadataSystem metadataSystem;
+        protected final Block method;
 
         protected AbstractBasicBlockOptimization(final DecompilerContext context, final Block method) {
             this.context = VerifyArgument.notNull(context, "context");
             this.metadataSystem = MetadataSystem.instance();
+            this.method = VerifyArgument.notNull(method, "method");
 
             for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
                 if (e.isBranch()) {
@@ -1195,10 +1325,12 @@ public final class AstOptimizer {
     private static abstract class AbstractExpressionOptimization implements ExpressionOptimization {
         protected final DecompilerContext context;
         protected final MetadataSystem metadataSystem;
+        protected final Block method;
 
-        protected AbstractExpressionOptimization(final DecompilerContext context) {
+        protected AbstractExpressionOptimization(final DecompilerContext context, final Block method) {
             this.context = VerifyArgument.notNull(context, "context");
             this.metadataSystem = MetadataSystem.instance();
+            this.method = VerifyArgument.notNull(method, "method");
         }
     }
 

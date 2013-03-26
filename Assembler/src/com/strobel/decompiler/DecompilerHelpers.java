@@ -29,9 +29,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.java.JavaOutputVisitor;
-import com.strobel.util.ContractUtils;
 
-import java.util.Iterator;
 import java.util.List;
 
 import static java.lang.String.format;
@@ -155,17 +153,22 @@ public final class DecompilerHelpers {
         }
 
         if (operand instanceof String) {
-            writer.write(JavaOutputVisitor.convertString((String) operand, true));
+            writer.writeLiteral(JavaOutputVisitor.convertString((String) operand, true));
             return;
         }
 
         if (operand instanceof Character) {
-            writer.write(String.valueOf((int) ((Character) operand).charValue()));
+            writer.writeLiteral(String.valueOf((int) ((Character) operand).charValue()));
             return;
         }
 
         if (operand instanceof Boolean) {
-            writer.write(Boolean.TRUE.equals(operand) ? "true" : "false");
+            writer.writeKeyword(Boolean.TRUE.equals(operand) ? "true" : "false");
+            return;
+        }
+
+        if (operand instanceof Number) {
+            writer.writeLiteral(operand);
             return;
         }
 
