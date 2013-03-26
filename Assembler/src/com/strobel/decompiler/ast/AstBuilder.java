@@ -1619,6 +1619,11 @@ public final class AstBuilder {
 
             for (int i = byteCode.stackBefore.length - popCount; i < byteCode.stackBefore.length; i++) {
                 final StackSlot slot = byteCode.stackBefore[i];
+
+                if (slot.value.getType().isDoubleWord()) {
+                    i++;
+                }
+
                 expression.getArguments().add(new Expression(AstCode.Load, slot.loadFrom));
             }
 

@@ -716,9 +716,9 @@ public class StackMappingVisitor implements MethodVisitor {
                 case Push1_Push1_Push1: {
                     final FrameValue t1 = _temp.pop();
                     final FrameValue t2 = _temp.pop();
-                    push(t2);
                     push(t1);
                     push(t2);
+                    push(t1);
                     break;
                 }
 
@@ -749,10 +749,10 @@ public class StackMappingVisitor implements MethodVisitor {
                 case Push2_Push2:{
                     final FrameValue t1 = _temp.pop();
                     final FrameValue t2 = _temp.pop();
-                    push(t1);
                     push(t2);
                     push(t1);
                     push(t2);
+                    push(t1);
                     break;
                 }
 
@@ -761,10 +761,10 @@ public class StackMappingVisitor implements MethodVisitor {
                     final FrameValue t2 = _temp.pop();
                     final FrameValue t3 = _temp.pop();
                     push(t2);
-                    push(t3);
                     push(t1);
-                    push(t2);
                     push(t3);
+                    push(t2);
+                    push(t1);
                     break;
                 }
 
@@ -773,12 +773,12 @@ public class StackMappingVisitor implements MethodVisitor {
                     final FrameValue t2 = _temp.pop();
                     final FrameValue t3 = _temp.pop();
                     final FrameValue t4 = _temp.pop();
-                    push(t3);
-                    push(t4);
-                    push(t1);
                     push(t2);
-                    push(t3);
+                    push(t1);
                     push(t4);
+                    push(t3);
+                    push(t2);
+                    push(t1);
                     break;
                 }
 

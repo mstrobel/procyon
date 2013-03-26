@@ -194,6 +194,10 @@ public class MethodPrinter implements MethodVisitor {
 
     @Override
     public void visitEnd() {
+        if (_body == null) {
+            return;
+        }
+
         final List<ExceptionHandler> handlers = _body.getExceptionHandlers();
 
         if (!handlers.isEmpty()) {
