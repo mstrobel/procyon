@@ -745,17 +745,6 @@ public final class AstBuilder {
             int argumentIndex = 0;
 
             for (int i = byteCode.stackBefore.length - popCount; i < byteCode.stackBefore.length; i++) {
-/*
-                switch (byteCode.code) {
-                    case DupX1:
-                    case DupX2:
-                    case Dup2X1:
-                    case Dup2X2:
-                        argumentIndex++;
-                        continue;
-                }
-*/
-
                 final Variable tempVariable = new Variable();
 
                 tempVariable.setName(format("stack_%1$02X_%2$d", byteCode.offset, argumentIndex));
