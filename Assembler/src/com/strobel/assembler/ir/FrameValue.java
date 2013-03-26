@@ -18,6 +18,8 @@ import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
 
 public final class FrameValue {
+    public final static FrameValue[] EMPTY_VALUES = new FrameValue[0];
+
     public final static FrameValue TOP = new FrameValue(FrameValueType.Top);
     public final static FrameValue INTEGER = new FrameValue(FrameValueType.Integer);
     public final static FrameValue FLOAT = new FrameValue(FrameValueType.Float);

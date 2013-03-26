@@ -307,7 +307,7 @@ public enum OpCode {
     public boolean isMoveInstruction() {
         return isLoad() || isStore();
     }
-    
+
     public boolean isLoad() {
         switch (this) {
             case ILOAD:
@@ -386,6 +386,34 @@ public enum OpCode {
             case ASTORE_W:
                 return true;
 
+
+            default:
+                return false;
+        }
+    }
+
+    public boolean isArrayLoad() {
+        switch (this) {
+            case IALOAD:
+            case LALOAD:
+            case FALOAD:
+            case DALOAD:
+            case AALOAD:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public boolean isArrayStore() {
+        switch (this) {
+            case IASTORE:
+            case LASTORE:
+            case FASTORE:
+            case DASTORE:
+            case AASTORE:
+                return true;
 
             default:
                 return false;

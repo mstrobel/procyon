@@ -26,7 +26,7 @@ public class StackMappingVisitor implements MethodVisitor {
     private final MethodVisitor _innerVisitor;
 
     private int _maxLocals;
-    private int _maxStack;
+//    private int _maxStack;
     private List<FrameValue> _stack = new ArrayList<>();
     private List<FrameValue> _locals = new ArrayList<>();
 
@@ -46,6 +46,40 @@ public class StackMappingVisitor implements MethodVisitor {
         );
     }
 
+    public final int getStackSize() {
+        return _stack == null ? 0 : _stack.size();
+    }
+
+    public final int getLocalCount() {
+        return _locals == null ? 0 : _locals.size();
+    }
+
+    public final FrameValue getStackValue(final int offset) {
+        VerifyArgument.inRange(0, getStackSize(), offset, "offset");
+        return _stack.get(_stack.size() - offset - 1);
+    }
+
+    public final FrameValue getLocalValue(final int slot) {
+        VerifyArgument.inRange(0, getLocalCount(), slot, "slot");
+        return _locals.get(slot);
+    }
+
+    public final FrameValue[] getStackSnapshot() {
+        if (_stack == null || _stack.isEmpty()) {
+            return FrameValue.EMPTY_VALUES;
+        }
+
+        return _stack.toArray(new FrameValue[_stack.size()]);
+    }
+
+    public final FrameValue[] getLocalsSnapshot() {
+        if (_locals == null || _locals.isEmpty()) {
+            return FrameValue.EMPTY_VALUES;
+        }
+
+        return _locals.toArray(new FrameValue[_locals.size()]);
+    }
+
     @Override
     public boolean canVisitBody() {
         return true;
@@ -54,10 +88,10 @@ public class StackMappingVisitor implements MethodVisitor {
     @Override
     public InstructionVisitor visitBody(final MethodBody body) {
         if (_innerVisitor != null && _innerVisitor.canVisitBody()) {
-            return new InstructionAnalyzer(_innerVisitor.visitBody(body));
+            return new InstructionAnalyzer(body, _innerVisitor.visitBody(body));
         }
         else {
-            return new InstructionAnalyzer();
+            return new InstructionAnalyzer(body);
         }
     }
 
@@ -144,9 +178,7 @@ public class StackMappingVisitor implements MethodVisitor {
             _stack = new ArrayList<>();
         }
 
-        int i = local;
-
-        while (i >= _locals.size()) {
+        while (local >= _locals.size()) {
             _locals.add(FrameValue.TOP);
         }
 
@@ -161,9 +193,7 @@ public class StackMappingVisitor implements MethodVisitor {
             _stack = new ArrayList<>();
         }
 
-        int i = local;
-
-        while (i >= _locals.size()) {
+        while (local >= _locals.size()) {
             _locals.add(FrameValue.TOP);
         }
 
@@ -204,6 +234,10 @@ public class StackMappingVisitor implements MethodVisitor {
 
     protected final FrameValue pop() {
         return _stack.remove(_stack.size() - 1);
+    }
+
+    protected final FrameValue peek() {
+        return _stack.get(_stack.size() - 1);
     }
 
     protected final void pop(final int count) {
@@ -266,15 +300,21 @@ public class StackMappingVisitor implements MethodVisitor {
 
     private final class InstructionAnalyzer implements InstructionVisitor {
         private final InstructionVisitor _innerVisitor;
+        private final MethodBody _body;
 
         private boolean _afterExecute;
 
-        private InstructionAnalyzer() {
-            _innerVisitor = null;
+        private InstructionAnalyzer(final MethodBody body) {
+            this(body, null);
         }
 
-        private InstructionAnalyzer(final InstructionVisitor innerVisitor) {
+        private InstructionAnalyzer(final MethodBody body, final InstructionVisitor innerVisitor) {
+            _body = VerifyArgument.notNull(body, "body");
             _innerVisitor = innerVisitor;
+
+            if (body.getMethod().isConstructor()) {
+                set(0, FrameValue.UNINITIALIZED_THIS);
+            }
         }
 
         @Override
@@ -524,6 +564,17 @@ public class StackMappingVisitor implements MethodVisitor {
                             final MethodReference method = instruction.getOperand(0);
                             final List<ParameterDefinition> parameters = method.getParameters();
 
+                            if (code == OpCode.INVOKESPECIAL) {
+                                final FrameValue firstParameter = _stack.get(parameters.size());
+
+                                if (firstParameter.getType() == FrameValueType.UninitializedThis) {
+                                    set(0, FrameValue.makeReference(_body.getMethod().getDeclaringType()));
+                                }
+                                else if (firstParameter.getType() == FrameValueType.Uninitialized) {
+                                    set(0, FrameValue.makeReference(method.getDeclaringType()));
+                                }
+                            }
+
                             for (final ParameterDefinition parameter : parameters) {
                                 final TypeReference parameterType = parameter.getParameterType();
 
@@ -593,6 +644,11 @@ public class StackMappingVisitor implements MethodVisitor {
                 }
             }
 
+            if (code.isArrayLoad()) {
+                push(((TypeReference)_temp.pop().getParameter()).getElementType());
+                return;
+            }
+
             switch (code.getStackBehaviorPush()) {
                 case Push0:
                     break;
@@ -616,7 +672,7 @@ public class StackMappingVisitor implements MethodVisitor {
                                 else if (op instanceof Float) {
                                     push(FrameValue.INTEGER);
                                 }
-                                else if (op instanceof TypeDefinition) {
+                                else if (op instanceof Double) {
                                     push(FrameValue.DOUBLE);
                                     push(FrameValue.TOP);
                                 }
@@ -667,13 +723,13 @@ public class StackMappingVisitor implements MethodVisitor {
                 }
 
                 case Push1_Push2_Push1: {
-                    final FrameValue t1 = pop();
-                    final FrameValue t2 = pop();
-                    final FrameValue t3 = pop();
-                    push(t3);
+                    final FrameValue t1 = _temp.pop();
+                    final FrameValue t2 = _temp.pop();
+                    final FrameValue t3 = _temp.pop();
                     push(t1);
-                    push(t2);
                     push(t3);
+                    push(t2);
+                    push(t1);
                     break;
                 }
 
@@ -691,8 +747,8 @@ public class StackMappingVisitor implements MethodVisitor {
                 }
 
                 case Push2_Push2:{
-                    final FrameValue t1 = pop();
-                    final FrameValue t2 = pop();
+                    final FrameValue t1 = _temp.pop();
+                    final FrameValue t2 = _temp.pop();
                     push(t1);
                     push(t2);
                     push(t1);
@@ -701,9 +757,9 @@ public class StackMappingVisitor implements MethodVisitor {
                 }
 
                 case Push2_Push1_Push2: {
-                    final FrameValue t1 = pop();
-                    final FrameValue t2 = pop();
-                    final FrameValue t3 = pop();
+                    final FrameValue t1 = _temp.pop();
+                    final FrameValue t2 = _temp.pop();
+                    final FrameValue t3 = _temp.pop();
                     push(t2);
                     push(t3);
                     push(t1);
@@ -713,10 +769,10 @@ public class StackMappingVisitor implements MethodVisitor {
                 }
 
                 case Push2_Push2_Push2: {
-                    final FrameValue t1 = pop();
-                    final FrameValue t2 = pop();
-                    final FrameValue t3 = pop();
-                    final FrameValue t4 = pop();
+                    final FrameValue t1 = _temp.pop();
+                    final FrameValue t2 = _temp.pop();
+                    final FrameValue t3 = _temp.pop();
+                    final FrameValue t4 = _temp.pop();
                     push(t3);
                     push(t4);
                     push(t1);
@@ -750,8 +806,14 @@ public class StackMappingVisitor implements MethodVisitor {
                 case PushA: {
                     switch (code) {
                         case NEW:
+                            push(FrameValue.makeUninitializedReference(instruction));
+                            break;
+
                         case NEWARRAY:
                         case ANEWARRAY:
+                            push(instruction.<TypeReference>getOperand(0).makeArrayType());
+                            break;
+
                         case CHECKCAST:
                         case MULTIANEWARRAY:
                             push(instruction.<TypeReference>getOperand(0));

@@ -39,12 +39,12 @@ public final class InstructionHelper {
                 return 0;
 
             case Pop1: {
-//                if (code == OpCode.PUTSTATIC) {
-//                    final FieldReference field = instruction.getOperand(0);
-//                    if (field.getFieldType().getSimpleType().isDoubleWord()) {
-//                        return 2;
-//                    }
-//                }
+                if (code == OpCode.PUTSTATIC) {
+                    final FieldReference field = instruction.getOperand(0);
+                    if (field.getFieldType().getSimpleType().isDoubleWord()) {
+                        return 2;
+                    }
+                }
                 return 1;
             }
 
@@ -55,40 +55,40 @@ public final class InstructionHelper {
                 return 2;
 
             case Pop1_Pop2:
-//                return 3;
-                return 2;
+                return 3;
+//                return 2;
 
             case Pop1_PopA: {
-//                if (code == OpCode.PUTFIELD) {
-//                    final FieldReference field = instruction.getOperand(0);
-//                    if (field.getFieldType().getSimpleType().isDoubleWord()) {
-//                        return 2;
-//                    }
-//                }
+                if (code == OpCode.PUTFIELD) {
+                    final FieldReference field = instruction.getOperand(0);
+                    if (field.getFieldType().getSimpleType().isDoubleWord()) {
+                        return 3;
+                    }
+                }
                 return 2;
             }
 
             case Pop2_Pop1:
-//                return 3;
-                return 2;
+                return 3;
+//                return 2;
 
             case Pop2_Pop2:
-//                return 4;
-                return 2;
+                return 4;
+//                return 2;
 
             case PopI4:
                 return 1;
 
             case PopI8:
-//                return 2;
-                return 1;
+                return 2;
+//                return 1;
 
             case PopR4:
                 return 1;
 
             case PopR8:
-//                return 2;
-                return 1;
+                return 2;
+//                return 1;
 
             case PopA:
                 return 1;
@@ -97,19 +97,19 @@ public final class InstructionHelper {
                 return 2;
 
             case PopI4_PopI8:
-//                return 3;
-                return 2;
+                return 3;
+//                return 2;
 
             case PopI8_PopI8:
-//                return 4;
-                return 2;
+                return 4;
+//                return 2;
 
             case PopR4_PopR4:
                 return 2;
 
             case PopR8_PopR8:
-//                return 4;
-                return 2;
+                return 4;
+//                return 2;
 
             case PopI4_PopA:
                 return 2;
@@ -118,15 +118,15 @@ public final class InstructionHelper {
                 return 3;
 
             case PopI8_PopI4_PopA:
-//                return 4;
-                return 3;
+                return 4;
+//                return 3;
 
             case PopR4_PopI4_PopA:
                 return 3;
 
             case PopR8_PopI4_PopA:
-//                return 4;
-                return 3;
+                return 4;
+//                return 3;
 
             case PopA_PopI4_PopA:
                 return 3;
@@ -136,7 +136,7 @@ public final class InstructionHelper {
 
             case VarPop: {
                 if (code == OpCode.ATHROW) {
-                    return 0;
+                    return 1;
                 }
 
                 if (code.getFlowControl() != FlowControl.Call) {
@@ -152,11 +152,11 @@ public final class InstructionHelper {
                     ++count;
                 }
 
-//                for (int i = 0; i < parameters.size(); i++) {
-//                    if (parameters.get(i).getParameterType().getSimpleType().isDoubleWord()) {
-//                        ++count;
-//                    }
-//                }
+                for (int i = 0; i < parameters.size(); i++) {
+                    if (parameters.get(i).getParameterType().getSimpleType().isDoubleWord()) {
+                        ++count;
+                    }
+                }
 
                 return count;
             }
@@ -176,12 +176,12 @@ public final class InstructionHelper {
                 return 0;
 
             case Push1: {
-//                if (code == OpCode.GETFIELD || code == OpCode.GETSTATIC) {
-//                    final FieldReference field = instruction.getOperand(0);
-//                    if (field.getFieldType().getSimpleType().isDoubleWord()) {
-//                        return 2;
-//                    }
-//                }
+                if (code == OpCode.GETFIELD || code == OpCode.GETSTATIC) {
+                    final FieldReference field = instruction.getOperand(0);
+                    if (field.getFieldType().getSimpleType().isDoubleWord()) {
+                        return 2;
+                    }
+                }
                 return 1;
             }
 
@@ -192,38 +192,38 @@ public final class InstructionHelper {
                 return 3;
 
             case Push1_Push2_Push1:
-//                return 4;
-                return 3;
+                return 4;
+//                return 3;
 
             case Push2:
-//                return 2;
-                return 1;
+                return 2;
+//                return 1;
 
             case Push2_Push2:
-//                return 4;
-                return 2;
+                return 4;
+//                return 2;
 
             case Push2_Push1_Push2:
-//                return 5;
-                return 3;
+                return 5;
+//                return 3;
 
             case Push2_Push2_Push2:
-//                return 6;
-                return 3;
+                return 6;
+//                return 3;
 
             case PushI4:
                 return 1;
 
             case PushI8:
-//                return 2;
-                return 1;
+                return 2;
+//                return 1;
 
             case PushR4:
                 return 1;
 
             case PushR8:
-//                return 2;
-                return 1;
+                return 2;
+//                return 1;
 
             case PushA:
                 return 1;
@@ -241,7 +241,7 @@ public final class InstructionHelper {
                     return 0;
                 }
 
-                return /*simpleType.isDoubleWord() ? 2 :*/ 1;
+                return simpleType.isDoubleWord() ? 2 : 1;
             }
         }
 

@@ -23,4 +23,8 @@ public enum FrameValueType {
     UninitializedThis,
     Reference,
     Uninitialized;
+
+    public final boolean isDoubleWord() {
+        return this == Double || this == Long;
+    }
 }

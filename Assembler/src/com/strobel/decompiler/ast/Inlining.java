@@ -273,7 +273,11 @@ final class Inlining {
             case IfTrue:
             case TableSwitch:
             case LookupSwitch:
-                return parent == next;
+                final List<Expression> arguments = next.getArguments();
+                return arguments.size() == 1 && arguments.get(0) == parent;
+
+            case DefaultValue:
+                return true;
 
             default:
                 return false;

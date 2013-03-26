@@ -356,9 +356,17 @@ public final class AstOptimizer {
             for (int i = 0, n = arguments.size(); i < n; i++) {
                 final Expression argument = arguments.get(i);
 
-                if (matchGetArgument(argument, AstCode.Dup, child)) {
-                    child.get().getRanges().addAll(argument.getRanges());
-                    arguments.set(i, child.get());
+                switch (argument.getCode()) {
+                    case Dup:
+                    case Dup2:
+                    case DupX1:
+                    case DupX2:
+                    case Dup2X1:
+                    case Dup2X2:
+                        final Expression firstArgument = argument.getArguments().get(0);
+                        firstArgument.getRanges().addAll(argument.getRanges());
+                        arguments.set(i, firstArgument);
+                        break;
                 }
             }
         }
@@ -1064,7 +1072,7 @@ public final class AstOptimizer {
             final StrongBox<Variable> ev = new StrongBox<>();
             final StrongBox<Expression> initializer = new StrongBox<>();
 
-            if (!matchGetArgument(head, AstCode.Store, ev, initializer) || !ev.get().isGenerated()) {
+            if (!matchGetArgument(head, AstCode.Store, ev, initializer)/* || !ev.get().isGenerated()*/) {
                 return false;
             }
 
