@@ -28,7 +28,7 @@ public enum AstOptimizationStep {
     SimplifyLoadAndStore,
     TransformObjectInitializers,
     TransformArrayInitializers,
-    MakeAssignmentExpression,
+    MakeAssignmentExpressions,
     IntroducePostIncrement,
     InlineVariables2,
     FindLoops,

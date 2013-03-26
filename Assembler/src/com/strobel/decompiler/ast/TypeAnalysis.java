@@ -696,8 +696,8 @@ final class TypeAnalysis {
                 return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
             }
 
-            case BIPush:
-            case SIPush: {
+            case __BIPush:
+            case __SIPush: {
                 final Number number = (Number) operand;
 
                 if (expectedType != null) {
@@ -725,7 +725,7 @@ final class TypeAnalysis {
                         return expectedType;
                     }
                 }
-                else if (code == AstCode.BIPush) {
+                else if (code == AstCode.__BIPush) {
                     return BuiltinTypes.Byte;
                 }
 

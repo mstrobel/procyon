@@ -35,8 +35,8 @@ public enum AstCode {
     __FConst2,
     __DConst0,
     __DConst1,
-    BIPush,
-    SIPush,
+    __BIPush,
+    __SIPush,
     LdC,
     __LdCW,
     __LdC2W,
@@ -400,6 +400,12 @@ public enum AstCode {
             case __DConst1:
                 code.set(LdC);
                 operand.set(1d);
+                return true;
+
+            case __BIPush:
+            case __SIPush:
+                code.set(LdC);
+                operand.set(((Number)operand.get()).intValue());
                 return true;
 
             case __LdCW:

@@ -137,6 +137,12 @@ public final class AstOptimizer {
 
                 modified |= runOptimization(block, new TransformArrayInitializersOptimization(context, method));
 
+                if (abortBeforeStep == AstOptimizationStep.MakeAssignmentExpressions) {
+                    continue;
+                }
+
+                modified |= runOptimization(block, new MakeAssignmentExpressionsOptimization(context, method));
+
                 if (abortBeforeStep == AstOptimizationStep.InlineVariables2) {
                     continue;
                 }
@@ -982,16 +988,14 @@ public final class AstOptimizer {
             final StrongBox<Expression> newArray = new StrongBox<>();
             final StrongBox<TypeReference> elementType = new StrongBox<>();
             final StrongBox<Expression> lengthExpression = new StrongBox<>();
-            final StrongBox<Integer> arrayLength = new StrongBox<>();
+            final StrongBox<Number> arrayLength = new StrongBox<>();
 
             if (matchGetArgument(head, AstCode.Store, v, newArray) &&
-                (matchGetArgument(newArray.get(), AstCode.NewArray, elementType, lengthExpression) ||
-                 (matchGetArgument(newArray.get(), AstCode.Dup, newArray) &&
-                  matchGetArgument(newArray.get(), AstCode.NewArray, elementType, lengthExpression))) &&
-                matchGetOperand(lengthExpression.get(), AstCode.LdC, Integer.class, arrayLength) &&
-                arrayLength.get() > 0) {
+                matchGetArgument(newArray.get(), AstCode.NewArray, elementType, lengthExpression) &&
+                matchGetOperand(lengthExpression.get(), AstCode.LdC, Number.class, arrayLength) &&
+                arrayLength.get().intValue() > 0) {
 
-                final StrongBox<Integer> arrayPosition = new StrongBox<>();
+                final StrongBox<Number> arrayPosition = new StrongBox<>();
                 final List<Expression> initializers = new ArrayList<>();
 
                 int instructionsToRemove = 0;
@@ -1008,11 +1012,11 @@ public final class AstOptimizer {
                     if (next.getCode() == AstCode.StoreElement &&
                         matchGetOperand(next.getArguments().get(0), AstCode.Load, v3) &&
                         v3.get() == v.get() &&
-                        matchGetOperand(next.getArguments().get(1), AstCode.LdC, Integer.class, arrayPosition) &&
-                        arrayPosition.get() >= initializers.size() &&
+                        matchGetOperand(next.getArguments().get(1), AstCode.LdC, Number.class, arrayPosition) &&
+                        arrayPosition.get().intValue() >= initializers.size() &&
                         !next.getArguments().get(2).containsReferenceTo(v3.get())) {
 
-                        while (initializers.size() < arrayPosition.get()) {
+                        while (initializers.size() < arrayPosition.get().intValue()) {
                             initializers.add(new Expression(AstCode.DefaultValue, elementType));
                         }
 
@@ -1024,7 +1028,7 @@ public final class AstOptimizer {
                     }
                 }
 
-                if (initializers.size() == arrayLength.get()) {
+                if (initializers.size() == arrayLength.get().intValue()) {
                     final TypeReference arrayType = elementType.get().makeArrayType();
 
                     head.getArguments().set(0, new Expression(AstCode.InitArray, arrayType, initializers));
@@ -1035,6 +1039,111 @@ public final class AstOptimizer {
 
                     new Inlining(method).inlineIfPossible(body, new MutableInteger(position));
                     return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="MakeAssignmentExpressions Optimization">
+
+    private final static class MakeAssignmentExpressionsOptimization extends AbstractExpressionOptimization {
+        protected MakeAssignmentExpressionsOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public boolean run(final List<Node> body, final Expression head, final int position) {
+            //
+            // ev = ...; store(v, ev) => ev = store(v, ...)
+            //
+
+            final StrongBox<Variable> ev = new StrongBox<>();
+            final StrongBox<Expression> initializer = new StrongBox<>();
+
+            if (!matchGetArgument(head, AstCode.Store, ev, initializer) || !ev.get().isGenerated()) {
+                return false;
+            }
+
+            final Node next = getOrDefault(body, position + 1);
+            final StrongBox<Variable> v = new StrongBox<>();
+            final StrongBox<Expression> storeArgument = new StrongBox<>();
+
+            if (matchGetArgument(next, AstCode.Store, v, storeArgument) &&
+                matchLoad(storeArgument.get(), ev.get())) {
+
+                final Expression nextExpression = (Expression) next;
+                final Node store2 = getOrDefault(body, position + 2);
+
+                if (canConvertStoreToAssignment(store2, ev.get())) {
+                    //
+                    // e = ...; store(v1, e); anyStore(v2, e) => store(v1, anyStore(v2, ...)
+                    //
+
+                    final Inlining inlining = new Inlining(method);
+                    final MutableInteger loadCounts = inlining.loadCounts.get(ev.get());
+                    final MutableInteger storeCounts = inlining.storeCounts.get(ev.get());
+
+                    if (loadCounts != null &&
+                        loadCounts.getValue() == 2 &&
+                        storeCounts != null &&
+                        storeCounts.getValue() == 1) {
+
+                        final Expression storeExpression = (Expression) store2;
+
+                        body.remove(position + 2);  // remove store2
+                        body.remove(position);      // remove ev = ...
+
+                        nextExpression.getArguments().set(0, storeExpression);
+                        storeExpression.getArguments().set(storeExpression.getArguments().size() - 1, initializer.get());
+
+                        inlining.inlineIfPossible(body, new MutableInteger(position));
+
+                        return true;
+                    }
+                }
+
+                body.remove(position + 1);  // remove store
+
+                nextExpression.getArguments().set(0, initializer.get());
+                ((Expression)body.get(position)).getArguments().set(0, nextExpression);
+
+                return true;
+            }
+
+            if (match(next, AstCode.PutStatic)) {
+                final Expression nextExpression = (Expression) next;
+
+                //
+                // ev = ...; putstatic(f, ev) => ev = putstatic(f, ...)
+                //
+
+                if (matchLoad(nextExpression.getArguments().get(0), ev.get())) {
+                    body.remove(position + 1);  // remove putstatic
+
+                    nextExpression.getArguments().set(0, initializer.get());
+                    ((Expression)body.get(position)).getArguments().set(0, nextExpression);
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private boolean canConvertStoreToAssignment(final Node store, final Variable variable) {
+            if (store instanceof Expression) {
+                final Expression storeExpression = (Expression) store;
+
+                switch (storeExpression.getCode()) {
+                    case Store:
+                    case PutStatic:
+                    case PutField:
+                    case StoreElement:
+                        return matchLoad(lastOrDefault(storeExpression.getArguments()), variable);
                 }
             }
 
