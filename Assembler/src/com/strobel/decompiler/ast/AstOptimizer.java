@@ -1345,7 +1345,14 @@ public final class AstOptimizer {
                         condition.setCondition(conditionExpression.getArguments().get(0));
                     }
                     else {
-                        condition.setCondition(new Expression(AstCode.LogicalNot, null, conditionExpression));
+                        final Expression notExpression = new Expression(AstCode.LogicalNot, null, conditionExpression);
+
+                        if (simplifyLogicalNotArgument(notExpression)) {
+                            condition.setCondition(notExpression.getArguments().get(0));
+                        }
+                        else {
+                            condition.setCondition(notExpression);
+                        }
                     }
                 }
             }
@@ -1576,8 +1583,10 @@ public final class AstOptimizer {
 
         List<Expression> arguments = e.getArguments();
 
+        final Expression operand = arguments.isEmpty() ? null : arguments.get(0);
+
         if (e.getCode() == AstCode.CmpEq &&
-            TypeAnalysis.isBoolean(arguments.get(0).getInferredType()) &&
+            TypeAnalysis.isBoolean(operand.getInferredType()) &&
             (a = arguments.get(1)).getCode() == AstCode.LdC &&
             ((Number) a.getOperand()).intValue() == 0) {
 
@@ -1590,8 +1599,17 @@ public final class AstOptimizer {
 
         Expression result = null;
 
+        if (e.getCode() == AstCode.CmpNe &&
+            TypeAnalysis.isBoolean(operand.getInferredType()) &&
+            (a = arguments.get(1)).getCode() == AstCode.LdC &&
+            ((Number) a.getOperand()).intValue() == 0) {
+
+            modified.set(true);
+            return e.getArguments().get(0);
+        }
+
         while (e.getCode() == AstCode.LogicalNot) {
-            a = arguments.get(0);
+            a = operand;
 
             //
             // Remove double negation.
@@ -1626,27 +1644,34 @@ public final class AstOptimizer {
 
     private static boolean simplifyLogicalNotArgument(final Expression e) {
         final Expression a = e.getArguments().get(0);
+
         final AstCode c;
 
         switch (a.getCode()) {
             case CmpEq:
-                c = AstCode.CmpNe;
-                break;
             case CmpNe:
-                c = AstCode.CmpEq;
-                break;
             case CmpLt:
-                c = AstCode.CmpGe;
-                break;
             case CmpGe:
-                c = AstCode.CmpLt;
-                break;
             case CmpGt:
-                c = AstCode.CmpLe;
-                break;
             case CmpLe:
-                c = AstCode.CmpGt;
+                c = a.getCode().reverse();
                 break;
+
+            case LogicalAnd:
+            case LogicalOr:
+                final List<Expression> arguments = a.getArguments();
+
+                if (arguments.get(0).getCode().isComparison() &&
+                    arguments.get(1).getCode().isComparison()) {
+
+                    arguments.get(0).setCode(arguments.get(0).getCode().reverse());
+                    arguments.get(1).setCode(arguments.get(1).getCode().reverse());
+                    a.setCode(a.getCode().reverse());
+
+                    return true;
+                }
+
+                return false;
 
             default:
                 return false;

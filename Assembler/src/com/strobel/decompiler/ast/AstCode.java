@@ -312,6 +312,37 @@ public enum AstCode {
         return StringUtilities.trimAndRemoveLeft(name().toLowerCase(), "__");
     }
 
+    public final boolean isComparison() {
+        switch (this) {
+            case CmpEq:
+            case CmpNe:
+            case CmpLe:
+            case CmpGt:
+            case CmpGe:
+            case CmpLt:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public final AstCode reverse() {
+        switch (this) {
+            case CmpEq: return CmpNe;
+            case CmpNe: return CmpEq;
+            case CmpLe: return CmpGt;
+            case CmpGt: return CmpLe;
+            case CmpGe: return CmpLt;
+            case CmpLt: return CmpGe;
+
+            case LogicalAnd: return LogicalOr;
+            case LogicalOr: return LogicalAnd;
+
+            default: return this;
+        }
+    }
+
     public final boolean isConditionalControlFlow() {
         final int ordinal = ordinal();
 
