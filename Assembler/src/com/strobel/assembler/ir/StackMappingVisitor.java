@@ -208,7 +208,7 @@ public class StackMappingVisitor implements MethodVisitor {
 
             case Long:
                 _locals.set(local, FrameValue.LONG);
-                _locals.set(local, FrameValue.TOP);
+                _locals.set(local + 1, FrameValue.TOP);
                 break;
 
             case Float:
@@ -217,7 +217,7 @@ public class StackMappingVisitor implements MethodVisitor {
 
             case Double:
                 _locals.set(local, FrameValue.DOUBLE);
-                _locals.set(local, FrameValue.TOP);
+                _locals.set(local + 1, FrameValue.TOP);
                 break;
 
             case Object:
@@ -789,6 +789,7 @@ public class StackMappingVisitor implements MethodVisitor {
 
                 case PushI8: {
                     push(FrameValue.LONG);
+                    push(FrameValue.TOP);
                     break;
                 }
 
@@ -817,6 +818,10 @@ public class StackMappingVisitor implements MethodVisitor {
                         case CHECKCAST:
                         case MULTIANEWARRAY:
                             push(instruction.<TypeReference>getOperand(0));
+                            break;
+
+                        case ACONST_NULL:
+                            push(FrameValue.NULL);
                             break;
 
                         default:

@@ -1024,8 +1024,9 @@ public final class AstBuilder {
 
     @SuppressWarnings("ConstantConditions")
     private void convertLocalVariables(final List<ByteCode> body) {
-        final List<ParameterDefinition> parameters = _body.getMethod().getParameters();
-        final int parameterCount = parameters.size();
+        final MethodDefinition method = _context.getCurrentMethod();
+        final List<ParameterDefinition> parameters = method.getParameters();
+        final int parameterCount = _body.hasThis() ? parameters.size() + 1 : parameters.size();
 
         for (final VariableDefinition variableDefinition : _body.getVariables()) {
             //
@@ -1049,18 +1050,27 @@ public final class AstBuilder {
             final List<VariableInfo> newVariables;
             boolean fromUnknownDefinition = false;
 
+            final int variableIndex = variableDefinition.getIndex();
+
             if (_optimize) {
                 for (final ByteCode b : references) {
-                    if (b.variablesBefore[variableDefinition.getIndex()].isUninitialized()) {
+                    if (b.variablesBefore[variableIndex].isUninitialized()) {
                         fromUnknownDefinition = true;
                         break;
                     }
                 }
             }
 
-            if (variableDefinition.getIndex() < parameterCount) {
-                final ParameterDefinition parameter = parameters.get(variableDefinition.getIndex());
+            if (variableIndex < parameterCount) {
+                final ParameterDefinition parameter;
                 final Variable variable = new Variable();
+
+                if (_body.hasThis()) {
+                    parameter = variableIndex == 0 ? _body.getThisParameter() : parameters.get(variableIndex - 1);
+                }
+                else {
+                    parameter = parameters.get(variableIndex);
+                }
 
                 variable.setName(
                     StringUtilities.isNullOrEmpty(parameter.getName()) ? "p" + parameter.getPosition()
@@ -1078,7 +1088,7 @@ public final class AstBuilder {
                 final Variable variable = new Variable();
 
                 variable.setName(
-                    StringUtilities.isNullOrEmpty(variableDefinition.getName()) ? "var_" + variableDefinition.getIndex()
+                    StringUtilities.isNullOrEmpty(variableDefinition.getName()) ? "var_" + variableIndex
                                                                                 : variableDefinition.getName()
                 );
 
@@ -1098,7 +1108,7 @@ public final class AstBuilder {
                     variable.setName(
                         format(
                             "%1$s_%2$02X",
-                            StringUtilities.isNullOrEmpty(variableDefinition.getName()) ? "var_" + variableDefinition.getIndex()
+                            StringUtilities.isNullOrEmpty(variableDefinition.getName()) ? "var_" + variableIndex
                                                                                         : variableDefinition.getName(),
                             b.offset
                         )
@@ -1148,7 +1158,7 @@ public final class AstBuilder {
                 // Add loads to the data structure; merge variables if necessary.
                 //
                 for (final ByteCode ref : references) {
-                    final ByteCode[] refDefinitions = ref.variablesBefore[variableDefinition.getIndex()].definitions;
+                    final ByteCode[] refDefinitions = ref.variablesBefore[variableIndex].definitions;
 
                     if (refDefinitions.length == 1) {
                         VariableInfo newVariable = null;
