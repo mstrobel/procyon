@@ -28,6 +28,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.core.delegates.Func;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.functions.Function;
+import com.strobel.reflection.SimpleType;
 import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
@@ -790,7 +791,9 @@ public final class AstOptimizer {
                 final boolean isStore = trueVariable.get() != null;
                 final AstCode opCode = isStore ? AstCode.Store : AstCode.Return;
                 final TypeReference returnType = isStore ? trueVariable.get().getType() : context.getCurrentMethod().getReturnType();
-                final boolean returnTypeIsBoolean = TypeAnalysis.isBoolean(returnType);
+
+                final boolean returnTypeIsBoolean = TypeAnalysis.isBoolean(returnType) ||
+                                                    isStore && trueVariable.get().getType().getSimpleType() ==  SimpleType.Integer;
 
                 final StrongBox<Integer> leftBooleanValue = new StrongBox<>();
                 final StrongBox<Integer> rightBooleanValue = new StrongBox<>();
