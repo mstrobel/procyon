@@ -24,4 +24,7 @@ public interface IAstVisitor<T, R> {
     R visitMemberReferenceExpression(MemberReferenceExpression memberReferenceExpression, T data);
     R visitIdentifier(Identifier identifier, T data);
     R acceptNullReferenceExpression(NullReferenceExpression nullReferenceExpression, T data);
+    R acceptThisReferenceExpression(ThisReferenceExpression thisReferenceExpression, T data);
+    R acceptSuperReferenceExpression(SuperReferenceExpression superReferenceExpression, T data);
+    R acceptClassOfExpression(ClassOfExpression classOfExpression, T data);
 }
