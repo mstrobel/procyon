@@ -1,0 +1,121 @@
+/*
+ * AstType.java
+ *
+ * Copyright (c) 2013 Mike Strobel
+ *
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0.
+ * A copy of the license can be found in the License.html file at the root of this distribution.
+ * By using this source code in any fashion, you are agreeing to be bound by the terms of the
+ * Apache License, Version 2.0.
+ *
+ * You must not remove this notice, or any other, from this software.
+ */
+
+package com.strobel.decompiler.languages.java.ast;
+
+import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.patterns.BacktrackingInfo;
+import com.strobel.decompiler.patterns.INode;
+import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.Pattern;
+import com.strobel.decompiler.patterns.Role;
+import com.strobel.util.ContractUtils;
+
+public abstract class AstType extends AstNode {
+    @Override
+    public NodeType getNodeType() {
+        return NodeType.TypeReference;
+    }
+
+    public abstract TypeReference toTypeReference();
+
+    // <editor-fold defaultstate="collapsed" desc="Null AstType">
+
+    public final static AstType NULL = new NullAstType();
+
+    private static final class NullAstType extends AstType {
+        @Override
+        public boolean isNull() {
+            return true;
+        }
+
+        @Override
+        public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
+            return null;
+        }
+
+        @Override
+        public boolean matches(final INode other, final Match match) {
+            return other == null || other.isNull();
+        }
+
+        @Override
+        public TypeReference toTypeReference() {
+            throw ContractUtils.unreachable();
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="PatternPlaceholder">
+
+    public static AstType forPattern(final Pattern pattern) {
+        return new PatternPlaceholder(VerifyArgument.notNull(pattern, "pattern"));
+    }
+
+    private final static class PatternPlaceholder extends AstType {
+        private final Pattern _child;
+
+        PatternPlaceholder(final Pattern child) {
+            _child = child;
+        }
+
+        @Override
+        public NodeType getNodeType() {
+            return NodeType.Pattern;
+        }
+
+        @Override
+        public TypeReference toTypeReference() {
+            throw ContractUtils.unsupported();
+        }
+
+        @Override
+        public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
+            return visitor.visitPatternPlaceholder(this, _child, data);
+        }
+
+        @Override
+        public boolean matches(final INode other, final Match match) {
+            return _child.matches(other, match);
+        }
+
+        @Override
+        public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
+            return _child.matchesCollection(role, position, match, backtrackingInfo);
+        }
+    }
+
+    // </editor-fold>
+
+    public AstType makeArrayType() {
+        throw ContractUtils.unsupported();
+    }
+
+    public InvocationExpression invoke(final String methodName, final Expression... arguments) {
+        return new TypeReferenceExpression(this).invoke(methodName, arguments);
+    }
+
+    public InvocationExpression invoke(final String methodName, final Iterable<Expression> arguments) {
+        return new TypeReferenceExpression(this).invoke(methodName, arguments);
+    }
+
+    public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Expression... arguments) {
+        return new TypeReferenceExpression(this).invoke(methodName, typeArguments, arguments);
+    }
+
+    public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Iterable<Expression> arguments) {
+        return new TypeReferenceExpression(this).invoke(methodName, typeArguments, arguments);
+    }
+}

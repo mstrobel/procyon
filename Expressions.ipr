@@ -130,6 +130,16 @@
         </inspection_tool>
         <inspection_tool class="ManualArrayToCollectionCopy" enabled="false" level="WARNING" enabled_by_default="false" />
         <inspection_tool class="NonFinalFieldOfException" enabled="true" level="WARNING" enabled_by_default="true" />
+        <inspection_tool class="NullableProblems" enabled="false" level="WARNING" enabled_by_default="false">
+          <option name="REPORT_NULLABLE_METHOD_OVERRIDES_NOTNULL" value="true" />
+          <option name="REPORT_NOT_ANNOTATED_METHOD_OVERRIDES_NOTNULL" value="true" />
+          <option name="REPORT_NOTNULL_PARAMETER_OVERRIDES_NULLABLE" value="true" />
+          <option name="REPORT_NOT_ANNOTATED_PARAMETER_OVERRIDES_NOTNULL" value="true" />
+          <option name="REPORT_NOT_ANNOTATED_GETTER" value="true" />
+          <option name="REPORT_NOT_ANNOTATED_SETTER_PARAMETER" value="true" />
+          <option name="REPORT_ANNOTATION_NOT_PROPAGATED_TO_OVERRIDERS" value="true" />
+          <option name="REPORT_NULLS_PASSED_TO_NON_ANNOTATED_METHOD" value="true" />
+        </inspection_tool>
         <inspection_tool class="PointlessBitwiseExpression" enabled="false" level="WARNING" enabled_by_default="false">
           <option name="m_ignoreExpressionsContainingConstants" value="false" />
         </inspection_tool>
@@ -140,6 +150,7 @@
             <value />
           </option>
         </inspection_tool>
+        <inspection_tool class="SimplifiableIfStatement" enabled="true" level="INFO" enabled_by_default="true" />
         <inspection_tool class="ToArrayCallWithZeroLengthArrayArgument" enabled="false" level="WARNING" enabled_by_default="false" />
         <inspection_tool class="UNUSED_SYMBOL" enabled="true" level="WARNING" enabled_by_default="true">
           <option name="LOCAL_VARIABLE" value="true" />
@@ -565,6 +576,8 @@
     </dictionary>
     <dictionary name="mstrobel">
       <words>
+        <w>browsable</w>
+        <w>decompilation</w>
         <w>dominator</w>
         <w>gotos</w>
         <w>irix</w>

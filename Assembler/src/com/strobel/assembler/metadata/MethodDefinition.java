@@ -46,6 +46,10 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
         _customAnnotationsView = Collections.unmodifiableList(_customAnnotations);
     }
 
+    public final boolean hasBody() {
+        return _body != null;
+    }
+
     public final MethodBody getBody() {
         return _body;
     }

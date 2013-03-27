@@ -28,7 +28,7 @@ import com.strobel.assembler.metadata.VariableReference;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Variable;
-import com.strobel.decompiler.java.JavaOutputVisitor;
+import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import java.util.List;
 

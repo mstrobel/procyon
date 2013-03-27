@@ -21,7 +21,7 @@ import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
-import com.strobel.decompiler.java.JavaOutputVisitor;
+import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import java.util.ArrayList;
 import java.util.EnumSet;

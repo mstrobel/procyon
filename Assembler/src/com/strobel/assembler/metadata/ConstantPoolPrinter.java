@@ -3,7 +3,7 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
-import com.strobel.decompiler.java.JavaOutputVisitor;
+import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import static java.lang.String.format;
 

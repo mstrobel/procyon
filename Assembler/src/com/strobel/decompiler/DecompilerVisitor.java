@@ -21,21 +21,17 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.VerifyArgument;
-import com.strobel.decompiler.ast.AstBuilder;
-import com.strobel.decompiler.ast.AstOptimizer;
-import com.strobel.decompiler.ast.Block;
-import com.strobel.decompiler.ast.Node;
+import com.strobel.decompiler.languages.Language;
 
-import java.util.List;
-
-/**
- * @author strobelm
- */
 final class DecompilerVisitor implements TypeVisitor {
     private final ITextOutput _output;
-    private final DecompilerSettings _options;
+    private final Language _language;
+    private final DecompilationOptions _options;
 
-    DecompilerVisitor(final ITextOutput output, final DecompilerSettings options) {
+    private TypeDefinition _type;
+
+    DecompilerVisitor(final Language language, final ITextOutput output, final DecompilationOptions options) {
+        _language = VerifyArgument.notNull(language, "language");
         _output = VerifyArgument.notNull(output, "output");
         _options = VerifyArgument.notNull(options, "options");
     }
@@ -53,6 +49,12 @@ final class DecompilerVisitor implements TypeVisitor {
         final String genericSignature,
         final String baseTypeName,
         final String[] interfaceNames) {
+
+        final TypeReference type = MetadataSystem.instance().lookupType(name);
+
+        if (type != null) {
+            _type = type.resolve();
+        }
     }
 
     @Override
@@ -77,7 +79,29 @@ final class DecompilerVisitor implements TypeVisitor {
 
     @Override
     public FieldVisitor visitField(final long flags, final String name, final TypeReference fieldType) {
-        return FieldVisitor.EMPTY;
+        return new FieldVisitor() {
+            @Override
+            public void visitAttribute(final SourceAttribute attribute) {
+            }
+
+            @Override
+            public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
+            }
+
+            @Override
+            public void visitEnd() {
+                if (_type != null) {
+                    final MetadataParser parser = new MetadataParser(_type.getResolver());
+                    final FieldReference fieldReference = parser.parseField(_type, name, fieldType.getSignature());
+                    final FieldDefinition fieldDefinition = fieldReference != null ? fieldReference.resolve() : null;
+                    
+                    if (fieldDefinition != null) {
+                        _language.decompileField(fieldDefinition, _output, _options);
+                        _output.writeLine();
+                    }
+                }
+            }
+        };
     }
 
     @Override
@@ -95,23 +119,13 @@ final class DecompilerVisitor implements TypeVisitor {
 
             @Override
             public InstructionVisitor visitBody(final MethodBody body) {
-                final DecompilerContext context = new DecompilerContext();
                 final MethodDefinition methodDefinition = body.getMethod().resolve();
-
-                context.setCurrentType(body.getMethod().getDeclaringType().resolve());
-                context.setCurrentMethod(methodDefinition);
-                context.setSettings(_options);
-
-                final List<Node> ast = AstBuilder.build(body, true, context);
-                final Block methodBlock = new Block(ast);
-
-                AstOptimizer.optimize(context, methodBlock);
 
                 _output.writeLine();
                 _output.writeLine("%s {", methodDefinition.isTypeInitializer() ? "static" : methodDefinition.getDescription());
                 _output.indent();
 
-                methodBlock.writeTo(_output);
+                _language.decompileMethod(methodDefinition, _output, _options);
 
                 _output.unindent();
                 _output.writeLine("}");

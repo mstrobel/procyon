@@ -16,6 +16,7 @@ package com.strobel.core;
 import com.strobel.core.delegates.Func1;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -68,6 +69,19 @@ public final class CollectionUtilities {
         }
 
         return last;
+    }
+
+    public static <T> boolean contains(final Iterable<? super T> collection, final T node) {
+        if (collection instanceof Collection<?>) {
+            return ((Collection<?>) collection).contains(node);
+        }
+
+        for (final Object item : collection) {
+            if (Comparer.equals(item, node)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static <T> boolean any(final Iterable<T> collection, final Predicate<? super T> predicate) {
