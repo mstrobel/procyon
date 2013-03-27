@@ -46,7 +46,7 @@ public abstract class Expression extends AstNode {
 
     @Override
     public NodeType getNodeType() {
-        return NodeType.Expression;
+        return NodeType.EXPRESSION;
     }
 
     // <editor-fold defaultstate="collapsed" desc="Pattern Placeholder">
@@ -64,7 +64,7 @@ public abstract class Expression extends AstNode {
 
         @Override
         public NodeType getNodeType() {
-            return NodeType.Pattern;
+            return NodeType.PATTERN;
         }
 
         @Override
@@ -103,6 +103,10 @@ public abstract class Expression extends AstNode {
     public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Iterable<Expression> arguments) {
         final MemberReferenceExpression mre = new MemberReferenceExpression(this, methodName, typeArguments);
         return new InvocationExpression(mre, arguments);
+    }
+
+    public MemberReferenceExpression member(final String memberName) {
+        return new MemberReferenceExpression(this, memberName);
     }
 
     // </editor-fold>

@@ -65,6 +65,12 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return _declaringType;
     }
 
+    @Override
+    public boolean isEquivalentTo(final MemberReference member) {
+        return member instanceof TypeReference &&
+               MetadataResolver.areEquivalent(this, (TypeReference) member);
+    }
+
     protected void setName(final String name) {
         _name = name;
     }

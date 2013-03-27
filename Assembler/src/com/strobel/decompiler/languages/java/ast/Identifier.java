@@ -64,7 +64,7 @@ public class Identifier extends AstNode {
 
     @Override
     public NodeType getNodeType() {
-        return NodeType.Token;
+        return NodeType.TOKEN;
     }
 
     @Override

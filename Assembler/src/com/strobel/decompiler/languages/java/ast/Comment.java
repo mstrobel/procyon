@@ -38,7 +38,7 @@ public class Comment extends AstNode {
 
     @Override
     public NodeType getNodeType() {
-        return NodeType.Whitespace;
+        return NodeType.WHITESPACE;
     }
 
     public final CommentType getCommentType() {

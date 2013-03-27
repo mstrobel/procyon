@@ -23,24 +23,24 @@ public final class ClassOfExpression extends Expression {
     }
 
     public ClassOfExpression(final AstType type) {
-        addChild(type, Roles.Type);
+        addChild(type, Roles.TYPE);
     }
 
     public final AstType getType() {
-        return getChildByRole(Roles.Type);
+        return getChildByRole(Roles.TYPE);
     }
 
     public final void setType(final AstType type) {
-        setChildByRole(Roles.Type, type);
+        setChildByRole(Roles.TYPE, type);
     }
 
     public final JavaTokenNode getDotToken() {
-        return getChildByRole(Roles.Dot);
+        return getChildByRole(Roles.DOT);
     }
 
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
-        return visitor.acceptClassOfExpression(this, data);
+        return visitor.visitClassOfExpression(this, data);
     }
 
     @Override

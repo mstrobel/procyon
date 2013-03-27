@@ -14,13 +14,13 @@
 package com.strobel.decompiler.languages.java.ast;
 
 public enum NodeType {
-    Unknown,
-    TypeReference,
-    TypeDeclaration,
-    Member,
-    Statement,
-    Expression,
-    Token,
-    Whitespace,
-    Pattern
+    UNKNOWN,
+    TYPE_REFERENCE,
+    TYPE_DECLARATION,
+    MEMBER,
+    STATEMENT,
+    EXPRESSION,
+    TOKEN,
+    WHITESPACE,
+    PATTERN
 }

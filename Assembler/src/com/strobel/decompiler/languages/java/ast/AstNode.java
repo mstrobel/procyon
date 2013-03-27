@@ -13,11 +13,13 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.core.CollectionUtilities;
 import com.strobel.core.Freezable;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.PlainTextOutput;
+import com.strobel.decompiler.languages.Region;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
@@ -30,10 +32,9 @@ import com.strobel.decompiler.utilities.TreeTraversal;
 import com.strobel.functions.Function;
 import com.strobel.util.ContractUtils;
 
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
-
-import static com.strobel.core.CollectionUtilities.contains;
 
 public abstract class AstNode extends Freezable implements INode {
     final static Role<AstNode> ROOT_ROLE = new Role<>("Root", AstNode.class);
@@ -67,6 +68,32 @@ public abstract class AstNode extends Freezable implements INode {
     }
 
     public abstract <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data);
+
+    @Override
+    @SuppressWarnings("CloneDoesntDeclareCloneNotSupportedException")
+    public AstNode clone() {
+        try {
+            final AstNode clone = (AstNode) super.clone();
+
+            clone._parent = null;
+            clone._firstChild = null;
+            clone._lastChild = null;
+            clone._previousSibling = null;
+            clone._nextSibling = null;
+            clone.flags &= ~FROZEN_BIT;
+
+            for (AstNode current = _firstChild; current != null; current = current._nextSibling) {
+                clone.addChildUnsafe(current.clone(), current.getRole());
+            }
+
+//            clone.cloneAnnotations();
+
+            return clone;
+        }
+        catch (CloneNotSupportedException e) {
+            throw new UndeclaredThrowableException(e);
+        }
+    }
 
     // <editor-fold defaultstate="collapsed" desc="Tree Structure">
 
@@ -297,11 +324,14 @@ public abstract class AstNode extends Freezable implements INode {
 
     public final <T extends AstNode> void addChild(final T child, final Role<T> role) {
         VerifyArgument.notNull(role, "role");
-        VerifyArgument.notNull(child, "child");
+
+        if (child == null || child.isNull()) {
+            return;
+        }
 
         verifyNotFrozen();
 
-        if (((AstNode) child)._parent != null) {
+        if (((AstNode)child)._parent != null) {
             throw new IllegalArgumentException("Node belongs to another tree.");
         }
 
@@ -324,6 +354,77 @@ public abstract class AstNode extends Freezable implements INode {
             child._previousSibling = _lastChild;
             _lastChild = child;
         }
+    }
+
+    @SafeVarargs
+    public final <T extends AstNode> void insertChildrenBefore(final AstNode nextSibling, final Role<T> role, final T... children) {
+        VerifyArgument.notNull(children, "children");
+
+        for (final T child : children) {
+            insertChildBefore(nextSibling, child, role);
+        }
+    }
+
+    public final <T extends AstNode> void insertChildBefore(final AstNode nextSibling, final T child, final Role<T> role) {
+        VerifyArgument.notNull(role, "role");
+
+        if (nextSibling == null || nextSibling.isNull()) {
+            addChild(child, role);
+            return;
+        }
+
+        if (child == null || child.isNull()) {
+            return;
+        }
+
+        verifyNotFrozen();
+
+        if (((AstNode)child)._parent != null) {
+            throw new IllegalArgumentException("Node belongs to another tree.");
+        }
+
+        if (child.isFrozen()) {
+            throw new IllegalArgumentException("Cannot add a frozen node.");
+        }
+
+        if (nextSibling._parent != this) {
+            throw new IllegalArgumentException("Next sibling is not a child of this node.");
+        }
+    }
+
+    @SafeVarargs
+    public final <T extends AstNode> void insertChildrenAfter(final AstNode nextSibling, final Role<T> role, final T... children) {
+        VerifyArgument.notNull(children, "children");
+
+        for (final T child : children) {
+            insertChildAfter(nextSibling, child, role);
+        }
+    }
+
+    public final <T extends AstNode> void insertChildAfter(final AstNode previousSibling, final T child, final Role<T> role) {
+        insertChildBefore(
+            previousSibling == null || previousSibling.isNull() ? _firstChild : previousSibling._nextSibling,
+            child,
+            role
+        );
+    }
+
+    final void insertChildBeforeUnsafe(final AstNode nextSibling, final AstNode child, final Role<?> role) {
+        child._parent = this;
+        child.setRole(role);
+        child._nextSibling = nextSibling;
+        child._previousSibling = nextSibling._previousSibling;
+
+        if (nextSibling._previousSibling != null) {
+            assert nextSibling._previousSibling._nextSibling == nextSibling;
+            nextSibling._previousSibling._nextSibling = child;
+        }
+        else {
+            assert _firstChild == nextSibling;
+            _firstChild = child;
+        }
+
+        nextSibling._previousSibling = child;
     }
 
     public final void remove() {
@@ -388,7 +489,7 @@ public abstract class AstNode extends Freezable implements INode {
         }
 
         if (newNode._parent != null) {
-            if (contains(newNode.getAncestors(), this)) {
+            if (CollectionUtilities.contains(newNode.getAncestors(), this)) {
                 newNode.remove();
             }
             else {
@@ -462,7 +563,7 @@ public abstract class AstNode extends Freezable implements INode {
 
         @Override
         public NodeType getNodeType() {
-            return NodeType.Unknown;
+            return NodeType.UNKNOWN;
         }
     }
 
@@ -521,7 +622,7 @@ public abstract class AstNode extends Freezable implements INode {
 
         @Override
         public final NodeType getNodeType() {
-            return NodeType.Pattern;
+            return NodeType.PATTERN;
         }
 
         @Override
@@ -549,13 +650,54 @@ public abstract class AstNode extends Freezable implements INode {
         return child != null ? child.getEndLocation() : TextLocation.EMPTY;
     }
 
-    public final String getText() {
+    public Region getRegion() {
+        return new Region(getStartLocation(), getEndLocation());
+    }
+
+    public final boolean contains(final int line, final int column) {
+        return contains(new TextLocation(line, column));
+    }
+
+    public final boolean contains(final TextLocation location) {
+        if (location == null || location.isEmpty()) {
+            return false;
+        }
+
+        final TextLocation startLocation = getStartLocation();
+        final TextLocation endLocation = getEndLocation();
+
+        return startLocation != null &&
+               endLocation != null &&
+               location.compareTo(startLocation) >= 0 &&
+               location.compareTo(endLocation) < 0;
+    }
+
+    public final boolean isInside(final int line, final int column) {
+        return isInside(new TextLocation(line, column));
+    }
+
+    public final boolean isInside(final TextLocation location) {
+        if (location == null || location.isEmpty()) {
+            return false;
+        }
+
+        final TextLocation startLocation = getStartLocation();
+        final TextLocation endLocation = getEndLocation();
+
+        return startLocation != null &&
+               endLocation != null &&
+               location.compareTo(startLocation) >= 0 &&
+               location.compareTo(endLocation) <= 0;
+    }
+
+    public String getText() {
         return getText(null);
     }
 
     public String getText(final JavaFormattingOptions options) {
-        if (isNull())
+        if (isNull()) {
             return StringUtilities.EMPTY;
+        }
 
         final ITextOutput output = new PlainTextOutput();
         final JavaOutputVisitor visitor = new JavaOutputVisitor(output);
@@ -563,6 +705,21 @@ public abstract class AstNode extends Freezable implements INode {
         acceptVisitor(visitor, options);
 
         return output.toString();
+    }
+
+    String debugToString() {
+        if (isNull()) {
+            return "Null";
+        }
+
+        final String text = StringUtilities.trimRight(getText()).replace("\t", "").replace("\n", " ");
+
+        return text.length() > 100 ? text.substring(0, 97) + "..." : text;
+    }
+
+    @Override
+    public String toString() {
+        return debugToString();
     }
 
     // </editor-fold>

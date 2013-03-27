@@ -15,7 +15,11 @@ package com.strobel.decompiler.languages;
 
 import com.strobel.core.VerifyArgument;
 
-public final class TextLocation implements Comparable<TextLocation> {
+import java.io.Serializable;
+
+public final class TextLocation implements Comparable<TextLocation>, Serializable {
+    private static final long serialVersionUID = -165593440170614692L;
+
     public final static int MIN_LINE = 1;
     public final static int MIN_COLUMN = 1;
 

@@ -45,7 +45,7 @@ public final class NullReferenceExpression extends Expression {
 
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
-        return visitor.acceptNullReferenceExpression(this, data);
+        return visitor.visitNullReferenceExpression(this, data);
     }
 
     @Override

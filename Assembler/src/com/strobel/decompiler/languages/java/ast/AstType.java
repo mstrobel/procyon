@@ -23,9 +23,11 @@ import com.strobel.decompiler.patterns.Role;
 import com.strobel.util.ContractUtils;
 
 public abstract class AstType extends AstNode {
+    public final static AstType[] EMPTY_TYPES = new AstType[0];
+
     @Override
     public NodeType getNodeType() {
-        return NodeType.TypeReference;
+        return NodeType.TYPE_REFERENCE;
     }
 
     public abstract TypeReference toTypeReference();
@@ -73,7 +75,7 @@ public abstract class AstType extends AstNode {
 
         @Override
         public NodeType getNodeType() {
-            return NodeType.Pattern;
+            return NodeType.PATTERN;
         }
 
         @Override
@@ -99,8 +101,14 @@ public abstract class AstType extends AstNode {
 
     // </editor-fold>
 
+    public AstType clone() {
+        return (AstType) super.clone();
+    }
+
     public AstType makeArrayType() {
-        throw ContractUtils.unsupported();
+        final ComposedType composedType = new ComposedType();
+        composedType.setBaseType(this);
+        return composedType.makeArrayType();
     }
 
     public InvocationExpression invoke(final String methodName, final Expression... arguments) {
@@ -117,5 +125,9 @@ public abstract class AstType extends AstNode {
 
     public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Iterable<Expression> arguments) {
         return new TypeReferenceExpression(this).invoke(methodName, typeArguments, arguments);
+    }
+
+    public MemberReferenceExpression member(final String memberName) {
+        return new TypeReferenceExpression(this).member(memberName);
     }
 }

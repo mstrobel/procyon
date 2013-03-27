@@ -13,9 +13,15 @@
 
 package com.strobel.decompiler.languages.java;
 
+import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.core.Predicate;
-import com.strobel.decompiler.languages.java.ast.transforms.IAstTransform;
+import com.strobel.decompiler.DecompilationOptions;
+import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.DecompilerSettings;
+import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.languages.Language;
+import com.strobel.decompiler.languages.java.ast.AstBuilder;
+import com.strobel.decompiler.languages.java.ast.transforms.IAstTransform;
 
 public class JavaLanguage extends Language {
     private final String _name;
@@ -40,5 +46,42 @@ public class JavaLanguage extends Language {
     @Override
     public final String getFileExtension() {
         return ".java";
+    }
+
+    @Override
+    public void decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
+        final AstBuilder builder = createAstBuilder(options, type, false);
+        builder.addType(type);
+        runTransformsAndGenerateCode(builder, output, options, null);
+    }
+
+    @SuppressWarnings("UnusedParameters")
+    private AstBuilder createAstBuilder(
+        final DecompilationOptions options,
+        final TypeDefinition currentType,
+        final boolean isSingleMember) {
+
+        final DecompilerSettings settings = options.getSettings();
+        final DecompilerContext context = new DecompilerContext();
+
+        context.setCurrentType(currentType);
+        context.setSettings(settings);
+
+        return new AstBuilder(context);
+    }
+
+    private void runTransformsAndGenerateCode(
+        final AstBuilder astBuilder,
+        final ITextOutput output,
+        final DecompilationOptions options,
+        final IAstTransform additionalTransform)
+    {
+        astBuilder.runTransformations(_transformAbortCondition);
+
+        if (additionalTransform != null) {
+            additionalTransform.run(astBuilder.getCompilationUnit());
+        }
+
+        astBuilder.generateCode(output);
     }
 }

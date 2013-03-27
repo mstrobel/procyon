@@ -45,7 +45,7 @@ public final class ThisReferenceExpression extends Expression {
 
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
-        return visitor.acceptThisReferenceExpression(this, data);
+        return visitor.visitThisReferenceExpression(this, data);
     }
 
     @Override

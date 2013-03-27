@@ -982,6 +982,18 @@ public final class AstBuilder {
                     new StackSlot(stackMapper.getStackValue(0), new ByteCode[] { byteCode }/*, oldStack[oldStack.length - 1].loadFrom*/)
                 );
 
+            case Swap:
+                final StackSlot[] newStack = new StackSlot[oldStack.length];
+
+                ArrayUtilities.copy(oldStack, newStack);
+
+                final StackSlot temp = newStack[oldStack.length - 1];
+
+                newStack[oldStack.length - 1] = newStack[oldStack.length - 2];
+                newStack[oldStack.length - 2] = temp;
+
+                return newStack;
+
             default:
                 final FrameValue[] pushValues = new FrameValue[byteCode.pushCount];
 

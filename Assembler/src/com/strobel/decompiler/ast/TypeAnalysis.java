@@ -30,7 +30,7 @@ import java.util.Set;
 
 import static com.strobel.decompiler.ast.PatternMatching.matchGetOperand;
 
-final class TypeAnalysis {
+public final class TypeAnalysis {
     private final List<ExpressionToInfer> _allExpressions = new ArrayList<>();
     private final Set<Variable> _singleLoadVariables = new LinkedHashSet<>();
 
@@ -673,7 +673,7 @@ final class TypeAnalysis {
             }
 
             case LoadElement: {
-                final TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
+                TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
 
                 if (forceInferChildren) {
                     inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
@@ -1139,7 +1139,7 @@ final class TypeAnalysis {
         return true;
     }
 
-    static <T> boolean trueForAll(final Iterable<T> sequence, final Predicate<T> condition) {
+    public static <T> boolean trueForAll(final Iterable<T> sequence, final Predicate<T> condition) {
         for (final T item : sequence) {
             if (!condition.test(item)) {
                 return false;
@@ -1148,7 +1148,7 @@ final class TypeAnalysis {
         return true;
     }
 
-    static boolean isBoolean(final TypeReference type) {
+    public static boolean isBoolean(final TypeReference type) {
         return type != null && type.getSimpleType() == SimpleType.Boolean;
     }
 

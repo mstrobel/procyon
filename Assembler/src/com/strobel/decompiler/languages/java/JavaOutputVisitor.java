@@ -15,15 +15,7 @@ package com.strobel.decompiler.languages.java;
 
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
-import com.strobel.decompiler.languages.java.ast.AstNode;
-import com.strobel.decompiler.languages.java.ast.Comment;
-import com.strobel.decompiler.languages.java.ast.IAstVisitor;
-import com.strobel.decompiler.languages.java.ast.Identifier;
-import com.strobel.decompiler.languages.java.ast.InvocationExpression;
-import com.strobel.decompiler.languages.java.ast.JavaTokenNode;
-import com.strobel.decompiler.languages.java.ast.MemberReferenceExpression;
-import com.strobel.decompiler.languages.java.ast.NullReferenceExpression;
-import com.strobel.decompiler.languages.java.ast.TypeReferenceExpression;
+import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.Pattern;
 
 import static java.lang.String.format;
@@ -36,43 +28,338 @@ public final class JavaOutputVisitor implements IAstVisitor<JavaFormattingOption
     }
 
     @Override
-    public Void visitComment(final Comment comment, final JavaFormattingOptions data) {
+    public Void visitComment(final Comment node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
         return null;
     }
 
     @Override
-    public Void visitPatternPlaceholder(
-        final AstNode patternPlaceholder, final Pattern pattern, final JavaFormattingOptions data) {
+    public Void visitPatternPlaceholder(final AstNode node, final Pattern pattern, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
         return null;
     }
 
     @Override
-    public Void visitInvocationExpression(final InvocationExpression invocationExpression, final JavaFormattingOptions data) {
+    public Void visitInvocationExpression(final InvocationExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
         return null;
     }
 
     @Override
-    public Void visitTypeReference(final TypeReferenceExpression typeReferenceExpression, final JavaFormattingOptions data) {
+    public Void visitTypeReference(final TypeReferenceExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
         return null;
     }
 
     @Override
-    public Void visitJavaTokenNode(final JavaTokenNode javaTokenNode, final JavaFormattingOptions data) {
+    public Void visitJavaTokenNode(final JavaTokenNode node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
         return null;
     }
 
     @Override
-    public Void visitMemberReferenceExpression(final MemberReferenceExpression memberReferenceExpression, final JavaFormattingOptions data) {
+    public Void visitMemberReferenceExpression(final MemberReferenceExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
         return null;
     }
 
     @Override
-    public Void visitIdentifier(final Identifier identifier, final JavaFormattingOptions data) {
+    public Void visitIdentifier(final Identifier node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
         return null;
     }
 
     @Override
-    public Void acceptNullReferenceExpression(final NullReferenceExpression nullReferenceExpression, final JavaFormattingOptions data) {
+    public Void visitNullReferenceExpression(final NullReferenceExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitThisReferenceExpression(final ThisReferenceExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitClassOfExpression(final ClassOfExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitBlockStatement(final BlockStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitExpressionStatement(final ExpressionStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitBreakStatement(final BreakStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitContinueStatement(final ContinueStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitDoWhileStatement(final DoWhileStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitEmptyStatement(final EmptyStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitIfElseStatement(final IfElseStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitLabel(final LabelStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitReturnStatement(final ReturnStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitSwitchStatement(final SwitchStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitSwitchSection(final SwitchSection node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitCaseLabel(final CaseLabel node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitThrowStatement(final ThrowStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitCatchClause(final CatchClause node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitAnnotationSection(final AnnotationSection node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitAnnotation(final Annotation node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitNewLine(final NewLineNode node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitVariableDeclaration(final VariableDeclarationStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitVariableInitializer(final VariableInitializer node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitText(final TextNode node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitImportDeclaration(final ImportDeclaration node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitSimpleType(final SimpleType node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitMethodDeclaration(final MethodDeclaration node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitConstructorDeclaration(final ConstructorDeclaration node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitTypeParameterDeclaration(final TypeParameterDeclaration node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitParameterDeclaration(final ParameterDeclaration node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitFieldDeclaration(final FieldDeclaration node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitTypeDeclaration(final TypeDeclaration node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitConstructorInitializer(final ConstructorInitializer node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitCompilationUnit(final CompilationUnit node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitPackageDeclaration(final PackageDeclaration node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitArraySpecifier(final ArraySpecifier node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitComposedType(final ComposedType node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitWhileStatement(final WhileStatement node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitPrimitiveExpression(final PrimitiveExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitCastExpression(final CastExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitBinaryOperatorExpression(final BinaryOperatorExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitInstanceOfExpression(final InstanceOfExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitIndexerExpression(final IndexerExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitIdentifierExpression(final IdentifierExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitUnaryOperatorExpression(final UnaryOperatorExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitConditionalExpression(final ConditionalExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitArrayInitializerExpression(final ArrayInitializerExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitObjectCreationExpression(final ObjectCreationExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
+        return null;
+    }
+
+    @Override
+    public Void visitArrayCreationExpression(final ArrayCreationExpression node, final JavaFormattingOptions data) {
+        _output.writeLine(node.toString());
         return null;
     }
 

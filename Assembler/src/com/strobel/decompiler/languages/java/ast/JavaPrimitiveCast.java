@@ -1,0 +1,106 @@
+/*
+ * JavaPrimitiveCast.java
+ *
+ * Copyright (c) 2013 Mike Strobel
+ *
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0.
+ * A copy of the license can be found in the License.html file at the root of this distribution.
+ * By using this source code in any fashion, you are agreeing to be bound by the terms of the
+ * Apache License, Version 2.0.
+ *
+ * You must not remove this notice, or any other, from this software.
+ */
+
+package com.strobel.decompiler.languages.java.ast;
+
+import com.strobel.core.StringUtilities;
+
+/**
+ * @author strobelm
+ */
+public final class JavaPrimitiveCast {
+    public static Object cast(final com.strobel.reflection.SimpleType targetType, final Object input) {
+        switch (targetType) {
+            case Boolean:
+                if (input instanceof Boolean) {
+                    return input;
+                }
+                if (input instanceof Number) {
+                    if (input instanceof Float || input instanceof Double) {
+                        break;
+                    }
+                    return ((Number) input).longValue() != 0L;
+                }
+                if (input instanceof String) {
+                    return StringUtilities.isTrue((String) input);
+                }
+                break;
+
+            case Byte:
+                if (input instanceof Number) {
+                    return ((Number) input).byteValue();
+                }
+                if (input instanceof String) {
+                    return Byte.parseByte((String) input);
+                }
+                break;
+
+            case Character:
+                if (input instanceof Number) {
+                    return (char)((Number) input).intValue();
+                }
+                if (input instanceof String) {
+                    final String stringValue = (String) input;
+                    return stringValue.length() == 0 ? '\0' : stringValue.charAt(0);
+                }
+                break;
+
+            case Short:
+                if (input instanceof Number) {
+                    return ((Number) input).shortValue();
+                }
+                if (input instanceof String) {
+                    return Short.parseShort((String) input);
+                }
+                break;
+
+            case Integer:
+                if (input instanceof Number) {
+                    return ((Number) input).intValue();
+                }
+                if (input instanceof String) {
+                    return Integer.parseInt((String) input);
+                }
+                break;
+
+            case Long:
+                if (input instanceof Number) {
+                    return ((Number) input).longValue();
+                }
+                if (input instanceof String) {
+                    return Long.parseLong((String) input);
+                }
+                break;
+
+            case Float:
+                if (input instanceof Number) {
+                    return ((Number) input).floatValue();
+                }
+                if (input instanceof String) {
+                    return Float.parseFloat((String) input);
+                }
+                break;
+
+            case Double:
+                if (input instanceof Number) {
+                    return ((Number) input).doubleValue();
+                }
+                if (input instanceof String) {
+                    return Double.parseDouble((String) input);
+                }
+                break;
+        }
+
+        throw new ClassCastException();
+    }
+}

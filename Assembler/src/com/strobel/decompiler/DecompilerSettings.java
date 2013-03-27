@@ -15,11 +15,21 @@ package com.strobel.decompiler;
 
 import com.sampullara.cli.Argument;
 import com.strobel.decompiler.ast.AstOptimizationStep;
+import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 
 public class DecompilerSettings {
     private boolean _printUsage;
     private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
     private AstOptimizationStep _abortBeforeStep = AstOptimizationStep.None;
+    private JavaFormattingOptions _formattingOptions;
+
+    public JavaFormattingOptions getFormattingOptions() {
+        return _formattingOptions;
+    }
+
+    public void setFormattingOptions(final JavaFormattingOptions formattingOptions) {
+        _formattingOptions = formattingOptions;
+    }
 
     public final boolean getPrintUsage() {
         return _printUsage;

@@ -13,6 +13,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.core.CollectionUtilities;
 import com.strobel.core.Predicate;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.patterns.Match;
@@ -23,6 +24,7 @@ import com.strobel.util.ContractUtils;
 import java.util.AbstractCollection;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 public class AstNodeCollection<T extends AstNode> extends AbstractCollection<T> {
@@ -76,7 +78,7 @@ public class AstNodeCollection<T extends AstNode> extends AbstractCollection<T> 
                 for (AstNode current = position; current != null; current = nextNode) {
                     nextNode = current.getNextSibling();
 
-                    if (nextNode.getRole() == _role) {
+                    if (current.getRole() == _role) {
                         next = (T) current;
                         return next;
                     }
@@ -195,7 +197,7 @@ public class AstNodeCollection<T extends AstNode> extends AbstractCollection<T> 
         }
     }
 
-    final boolean matches(final AstNodeCollection<T> other, final Match match) {
+    public final boolean matches(final AstNodeCollection<T> other, final Match match) {
         return Pattern.matchesCollection(
             _role,
             _node.getFirstChild(),
@@ -219,5 +221,27 @@ public class AstNodeCollection<T extends AstNode> extends AbstractCollection<T> 
         }
 
         return false;
+    }
+
+    public final void replaceWith(final Iterable<T> nodes) {
+        final List<T> nodeList = nodes != null ? CollectionUtilities.toList(nodes) : null;
+
+        clear();
+
+        if (nodeList == null) {
+            return;
+        }
+
+        for (final T node : nodeList) {
+            add(node);
+        }
+    }
+
+    public final void insertAfter(final T existingItem, final T newItem) {
+        _node.insertChildAfter(existingItem, newItem, _role);
+    }
+
+    public final void insertBefore(final T existingItem, final T newItem) {
+        _node.insertChildBefore(existingItem, newItem, _role);
     }
 }

@@ -14,7 +14,7 @@
 package com.strobel.decompiler;
 
 public class DecompilationOptions {
-    private boolean _fullDecompilation;
+    private boolean _fullDecompilation = true;
     private DecompilerSettings _settings;
 
     public final boolean isFullDecompilation() {

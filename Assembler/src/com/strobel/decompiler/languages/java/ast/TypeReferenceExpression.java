@@ -22,15 +22,15 @@ public class TypeReferenceExpression extends Expression {
     }
 
     public TypeReferenceExpression(final AstType type) {
-        addChild(VerifyArgument.notNull(type, "type"), Roles.Type);
+        addChild(VerifyArgument.notNull(type, "type"), Roles.TYPE);
     }
 
     public final AstType getType() {
-        return getChildByRole(Roles.Type);
+        return getChildByRole(Roles.TYPE);
     }
 
     public final void setType(final AstType type) {
-        setChildByRole(Roles.Type, type);
+        setChildByRole(Roles.TYPE, type);
     }
 
     @Override
@@ -41,6 +41,7 @@ public class TypeReferenceExpression extends Expression {
     @Override
     public boolean matches(final INode other, final Match match) {
         return other instanceof TypeReferenceExpression &&
+               !other.isNull() &&
                getType().matches(((TypeReferenceExpression) other).getType(), match);
     }
 }

@@ -21,67 +21,67 @@ public class MemberReferenceExpression extends Expression {
     }
 
     public MemberReferenceExpression(final Expression target, final String memberName, final Iterable<AstType> typeArguments) {
-        addChild(target, Roles.TargetExpression);
+        addChild(target, Roles.TARGET_EXPRESSION);
 
         setMemberName(memberName);
 
         if (typeArguments != null) {
             for (final AstType argument : typeArguments) {
-                addChild(argument, Roles.TypeArgument);
+                addChild(argument, Roles.TYPE_ARGUMENT);
             }
         }
     }
 
     public MemberReferenceExpression(final Expression target, final String memberName, final AstType... typeArguments) {
-        addChild(target, Roles.TargetExpression);
+        addChild(target, Roles.TARGET_EXPRESSION);
 
         setMemberName(memberName);
 
         if (typeArguments != null) {
             for (final AstType argument : typeArguments) {
-                addChild(argument, Roles.TypeArgument);
+                addChild(argument, Roles.TYPE_ARGUMENT);
             }
         }
     }
 
     public final String getMemberName() {
-        return getChildByRole(Roles.Identifier).getName();
+        return getChildByRole(Roles.IDENTIFIER).getName();
     }
 
     public final void setMemberName(final String name) {
-        setChildByRole(Roles.Identifier, Identifier.create(name));
+        setChildByRole(Roles.IDENTIFIER, Identifier.create(name));
     }
 
     public final Identifier getMemberNameToken() {
-        return getChildByRole(Roles.Identifier);
+        return getChildByRole(Roles.IDENTIFIER);
     }
 
     public final void setMemberNameToken(final Identifier token) {
-        setChildByRole(Roles.Identifier, token);
+        setChildByRole(Roles.IDENTIFIER, token);
     }
 
     public final Expression getTarget() {
-        return getChildByRole(Roles.TargetExpression);
+        return getChildByRole(Roles.TARGET_EXPRESSION);
     }
 
     public final void setTarget(final Expression value) {
-        setChildByRole(Roles.TargetExpression, value);
+        setChildByRole(Roles.TARGET_EXPRESSION, value);
     }
 
     public final AstNodeCollection<AstType> getTypeArguments() {
-        return getChildrenByRole(Roles.TypeArgument);
+        return getChildrenByRole(Roles.TYPE_ARGUMENT);
     }
 
     public final JavaTokenNode getDotToken() {
-        return getChildByRole(Roles.Dot);
+        return getChildByRole(Roles.DOT);
     }
     
     public final JavaTokenNode getLeftChevronToken() {
-        return getChildByRole(Roles.LeftChevron);
+        return getChildByRole(Roles.LEFT_CHEVRON);
     }
 
     public final JavaTokenNode getRightChevronToken() {
-        return getChildByRole(Roles.RightChevron);
+        return getChildByRole(Roles.RIGHT_CHEVRON);
     }
 
     @Override
@@ -94,7 +94,8 @@ public class MemberReferenceExpression extends Expression {
         if (other instanceof MemberReferenceExpression) {
             final MemberReferenceExpression otherExpression = (MemberReferenceExpression) other;
 
-            return getTarget().matches(otherExpression.getTarget(), match) &&
+            return !otherExpression.isNull() &&
+                   getTarget().matches(otherExpression.getTarget(), match) &&
                    matchString(getMemberName(), otherExpression.getMemberName()) &&
                    getTypeArguments().matches(otherExpression.getTypeArguments(), match);
         }

@@ -21,43 +21,43 @@ public class InvocationExpression extends Expression {
     }
 
     public InvocationExpression(final Expression target, final Iterable<Expression> arguments) {
-        addChild(target, Roles.TargetExpression);
+        addChild(target, Roles.TARGET_EXPRESSION);
 
         if (arguments != null) {
             for (final Expression argument : arguments) {
-                addChild(argument, Roles.Argument);
+                addChild(argument, Roles.ARGUMENT);
             }
         }
     }
 
     public InvocationExpression(final Expression target, final Expression... arguments) {
-        addChild(target, Roles.TargetExpression);
+        addChild(target, Roles.TARGET_EXPRESSION);
 
         if (arguments != null) {
             for (final Expression argument : arguments) {
-                addChild(argument, Roles.Argument);
+                addChild(argument, Roles.ARGUMENT);
             }
         }
     }
 
     public final Expression getTarget() {
-        return getChildByRole(Roles.TargetExpression);
+        return getChildByRole(Roles.TARGET_EXPRESSION);
     }
 
     public final void setTarget(final Expression value) {
-        setChildByRole(Roles.TargetExpression, value);
+        setChildByRole(Roles.TARGET_EXPRESSION, value);
     }
 
     public final AstNodeCollection<Expression> getArguments() {
-        return getChildrenByRole(Roles.Argument);
+        return getChildrenByRole(Roles.ARGUMENT);
     }
 
     public final JavaTokenNode getLeftParenthesisToken() {
-        return getChildByRole(Roles.LeftParenthesis);
+        return getChildByRole(Roles.LEFT_PARENTHESIS);
     }
 
     public final JavaTokenNode getRightParenthesisToken() {
-        return getChildByRole(Roles.LeftParenthesis);
+        return getChildByRole(Roles.LEFT_PARENTHESIS);
     }
     
     @Override

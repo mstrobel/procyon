@@ -13,14 +13,22 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.core.ArrayUtilities;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 import javax.lang.model.element.Modifier;
+import java.util.List;
 
 public class JavaModifierToken extends JavaTokenNode {
+    private final static List<Modifier> ALL_MODIFIERS = ArrayUtilities.asUnmodifiableList(Modifier.values());
+
+    public static List<Modifier> allModifiers() {
+        return ALL_MODIFIERS;
+    }
+
     private Modifier _modifier;
 
     public JavaModifierToken(final TextLocation startLocation, final Modifier modifier) {
