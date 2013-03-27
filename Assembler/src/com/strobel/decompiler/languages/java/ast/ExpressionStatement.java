@@ -21,6 +21,7 @@ public class ExpressionStatement extends Statement {
     }
 
     public ExpressionStatement(final Expression expression) {
+        setExpression(expression);
     }
 
     public final Expression getExpression() {

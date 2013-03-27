@@ -36,7 +36,7 @@ public final class AstBuilder {
     private final DecompilerContext _context;
     private final CompilationUnit _compileUnit = new CompilationUnit();
 
-    private boolean _decompileMethodBodies;
+    private boolean _decompileMethodBodies = true;
     private boolean _haveTransformationsRun;
 
     public AstBuilder(final DecompilerContext context) {
@@ -170,6 +170,14 @@ public final class AstBuilder {
 
     private TypeDeclaration createTypeCore(final TypeDefinition type) {
         final TypeDeclaration astType = new TypeDeclaration();
+        final String packageName = type.getPackageName();
+
+        if (!StringUtilities.isNullOrEmpty(packageName)) {
+            astType.setPackage(new PackageDeclaration(packageName));
+        }
+
+        astType.setName(type.getSimpleName());
+        astType.putUserData(Keys.TYPE_DEFINITION, type);
 
         if (type.isEnum()) {
             astType.setClassType(ClassType.ENUM);
@@ -230,6 +238,7 @@ public final class AstBuilder {
 
         astField.addChild(initializer, Roles.VARIABLE);
         astField.setReturnType(convertType(field.getFieldType()));
+        astField.putUserData(Keys.FIELD_DEFINITION, field);
 
         EntityDeclaration.setModifiers(astField, convertModifiers(field));
 
@@ -249,6 +258,7 @@ public final class AstBuilder {
         astMethod.getParameters().addAll(createParameters(method.getParameters()));
         astMethod.getTypeParameters().addAll(createTypeParameters(method.getGenericParameters()));
         astMethod.setReturnType(convertType(method.getReturnType()));
+        astMethod.putUserData(Keys.METHOD_DEFINITION, method);
 
         if (!method.getDeclaringType().isInterface()) {
             astMethod.setBody(createMethodBody(method, astMethod.getParameters()));
@@ -265,6 +275,7 @@ public final class AstBuilder {
         astMethod.setName(method.getDeclaringType().getName());
         astMethod.getParameters().addAll(createParameters(method.getParameters()));
         astMethod.setBody(createMethodBody(method, astMethod.getParameters()));
+        astMethod.putUserData(Keys.METHOD_DEFINITION, method);
 
         return astMethod;
     }
@@ -373,7 +384,7 @@ public final class AstBuilder {
         if (!_haveTransformationsRun)
             runTransformations();
 
-        _compileUnit.acceptVisitor(new JavaOutputVisitor(output), _context.getSettings().getFormattingOptions());
+        _compileUnit.acceptVisitor(new JavaOutputVisitor(output, _context.getSettings().getFormattingOptions()), null);
     }
 }
 

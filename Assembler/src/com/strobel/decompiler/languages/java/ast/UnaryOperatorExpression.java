@@ -79,7 +79,7 @@ public class UnaryOperatorExpression extends Expression {
         return false;
     }
 
-    public static Role<JavaTokenNode> getOperatorRole(final UnaryOperatorType operator) {
+    public static TokenRole getOperatorRole(final UnaryOperatorType operator) {
         switch (operator) {
             case NOT:
                 return NOT_ROLE;

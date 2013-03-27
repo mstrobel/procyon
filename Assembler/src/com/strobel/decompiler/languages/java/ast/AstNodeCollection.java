@@ -73,13 +73,10 @@ public class AstNodeCollection<T extends AstNode> extends AbstractCollection<T> 
                     return next;
                 }
 
-                AstNode nextNode;
-
-                for (AstNode current = position; current != null; current = nextNode) {
-                    nextNode = current.getNextSibling();
-
-                    if (current.getRole() == _role) {
-                        next = (T) current;
+                for (; position != null; position = position.getNextSibling()) {
+                    if (position.getRole() == _role) {
+                        next = (T) position;
+                        position = position.getNextSibling();
                         return next;
                     }
                 }
@@ -101,7 +98,7 @@ public class AstNodeCollection<T extends AstNode> extends AbstractCollection<T> 
                 }
 
                 this.next = null;
-                return null;
+                return next;
             }
 
             @Override

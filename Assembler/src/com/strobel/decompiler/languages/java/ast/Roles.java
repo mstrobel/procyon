@@ -39,6 +39,7 @@ public final class Roles {
     public final static Role<VariableInitializer> VARIABLE = new Role<>("Variable", VariableInitializer.class, VariableInitializer.NULL);
     public final static Role<EntityDeclaration> TYPE_MEMBER = new Role<>("TypeMember", EntityDeclaration.class);
     public final static Role<PackageDeclaration> PACKAGE = new Role<>("Package", PackageDeclaration.class, PackageDeclaration.NULL);
+    public final static Role<NewLineNode> NEW_LINE = new Role<>("NewLine", NewLineNode.class);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // COMMON TOKENS                                                                                                      //

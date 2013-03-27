@@ -13,8 +13,6 @@
 
 package com.strobel.decompiler.languages;
 
-import com.strobel.core.VerifyArgument;
-
 import java.io.Serializable;
 
 public final class TextLocation implements Comparable<TextLocation>, Serializable {
@@ -34,8 +32,8 @@ public final class TextLocation implements Comparable<TextLocation>, Serializabl
     }
 
     public TextLocation(final int line, final int column) {
-        _line = VerifyArgument.inRange(MIN_LINE, Integer.MAX_VALUE, line, "line");
-        _column = VerifyArgument.inRange(MIN_COLUMN, Integer.MAX_VALUE, column, "column");
+        _line = line;//VerifyArgument.inRange(MIN_LINE, Integer.MAX_VALUE, line, "line");
+        _column = column;//VerifyArgument.inRange(MIN_COLUMN, Integer.MAX_VALUE, column, "column");
     }
 
     public final int line() {

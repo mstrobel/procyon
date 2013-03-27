@@ -13,6 +13,9 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.componentmodel.Key;
+import com.strobel.componentmodel.UserDataStore;
+import com.strobel.componentmodel.UserDataStoreBase;
 import com.strobel.core.CollectionUtilities;
 import com.strobel.core.Freezable;
 import com.strobel.core.StringUtilities;
@@ -36,7 +39,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public abstract class AstNode extends Freezable implements INode {
+public abstract class AstNode extends Freezable implements INode, UserDataStore {
     final static Role<AstNode> ROOT_ROLE = new Role<>("Root", AstNode.class);
 
     final static int ROLE_INDEX_MASK = (1 << Role.ROLE_INDEX_BITS) - 1;
@@ -700,9 +703,9 @@ public abstract class AstNode extends Freezable implements INode {
         }
 
         final ITextOutput output = new PlainTextOutput();
-        final JavaOutputVisitor visitor = new JavaOutputVisitor(output);
+        final JavaOutputVisitor visitor = new JavaOutputVisitor(output, JavaFormattingOptions.createDefault());
 
-        acceptVisitor(visitor, options);
+        acceptVisitor(visitor, null);
 
         return output.toString();
     }
@@ -720,6 +723,32 @@ public abstract class AstNode extends Freezable implements INode {
     @Override
     public String toString() {
         return debugToString();
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="UserDataStore Implementation">
+
+    private final UserDataStore _dataStore = new UserDataStoreBase();
+
+    @Override
+    public final <T> T getUserData(final Key<T> key) {
+        return _dataStore.getUserData(key);
+    }
+
+    @Override
+    public final <T> void putUserData(final Key<T> key, final T value) {
+        _dataStore.putUserData(key, value);
+    }
+
+    @Override
+    public final <T> T putUserDataIfAbsent(final Key<T> key, final T value) {
+        return _dataStore.putUserDataIfAbsent(key, value);
+    }
+
+    @Override
+    public final <T> boolean replace(final Key<T> key, final T oldValue, final T newValue) {
+        return _dataStore.replace(key, oldValue, newValue);
     }
 
     // </editor-fold>

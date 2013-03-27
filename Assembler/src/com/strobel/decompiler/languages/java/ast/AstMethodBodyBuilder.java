@@ -93,6 +93,7 @@ public class AstMethodBodyBuilder {
             final AstType type = AstBuilder.convertType(v.getType());
             final VariableDeclarationStatement declaration = new VariableDeclarationStatement(type, v.getName());
 
+            declaration.putUserData(Keys.VARIABLE, v);
             statements.insertBefore(insertionPoint, declaration);
         }
 
@@ -293,12 +294,19 @@ public class AstMethodBodyBuilder {
                 return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Short, arg1));
 
             case GetStatic:
-            case PutStatic:
-                return AstBuilder.convertType(fieldOperand.getDeclaringType()).member(fieldOperand.getName());
+            case PutStatic: {
+                final MemberReferenceExpression staticFieldReference = AstBuilder.convertType(fieldOperand.getDeclaringType())
+                                                                                 .member(fieldOperand.getName());
+                staticFieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
+                return staticFieldReference;
+            }
 
             case GetField:
-            case PutField:
-                return arg1.member(fieldOperand.getName());
+            case PutField: {
+                final MemberReferenceExpression fieldReference = arg1.member(fieldOperand.getName());
+                fieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
+                return fieldReference;
+            }
 
             case InvokeVirtual:
                 return transformCall(true, byteCode, arguments);
@@ -330,27 +338,34 @@ public class AstMethodBodyBuilder {
             case Breakpoint:
                 return null;
 
-            case Load:
+            case Load: {
                 if (!variableOperand.isParameter()) {
                     _localVariablesToDefine.add(variableOperand);
                 }
                 if (variableOperand.isParameter() && variableOperand.getOriginalParameter().getPosition() < 0) {
                     return new ThisReferenceExpression();
                 }
-                return new IdentifierExpression(variableOperand.getName());
+                final IdentifierExpression name = new IdentifierExpression(variableOperand.getName());
+                name.putUserData(Keys.VARIABLE, variableOperand);
+                return name;
+            }
 
-            case Store:
+            case Store: {
                 if (!variableOperand.isParameter()) {
                     _localVariablesToDefine.add(variableOperand);
                 }
-                return new IdentifierExpression(variableOperand.getName());
+                final IdentifierExpression name = new IdentifierExpression(variableOperand.getName());
+                name.putUserData(Keys.VARIABLE, variableOperand);
+                return new AssignmentExpression(name, arg1);
+            }
 
             case LoadElement:
-            case StoreElement:
+            case StoreElement: {
                 return new IndexerExpression(
                     arg1,
                     new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Integer, operand))
                 );
+            }
 
             case Add:
                 return new BinaryOperatorExpression(arg1, BinaryOperatorType.ADD, arg2);
@@ -396,14 +411,15 @@ public class AstMethodBodyBuilder {
             case Return:
                 return new ReturnStatement(arg1);
 
-            case NewArray:
+            case NewArray: {
                 final ArrayCreationExpression arrayCreation = new ArrayCreationExpression();
                 arrayCreation.setType(operandType);
                 arrayCreation.setDimension(arg1);
                 return arrayCreation;
+            }
 
             case LogicalNot:
-                break;
+                return new UnaryOperatorExpression(UnaryOperatorType.NOT, arg1);
 
             case LogicalAnd:
                 return new BinaryOperatorExpression(arg1, BinaryOperatorType.LOGICAL_AND, arg2);
@@ -413,11 +429,12 @@ public class AstMethodBodyBuilder {
             case InitObject:
                 return transformCall(false, byteCode, arguments);
 
-            case InitArray:
+            case InitArray: {
                 final ArrayCreationExpression arrayInitialization = new ArrayCreationExpression();
                 arrayInitialization.setType(operandType);
                 arrayInitialization.setInitializer(new ArrayInitializerExpression(arguments));
                 return arrayInitialization;
+            }
 
             case Wrap:
                 return null;
@@ -445,7 +462,7 @@ public class AstMethodBodyBuilder {
                 return null;
 
             case DefaultValue:
-                return AstBuilder.makeDefaultValue((TypeReference)operand);
+                return AstBuilder.makeDefaultValue((TypeReference) operand);
         }
 
         throw ContractUtils.unsupported();
@@ -456,11 +473,12 @@ public class AstMethodBodyBuilder {
         final com.strobel.decompiler.ast.Expression byteCode,
         final List<Expression> arguments) {
 
-        final MethodReference methodReference = (MethodReference)byteCode.getOperand();
+        final MethodReference methodReference = (MethodReference) byteCode.getOperand();
         final MethodDefinition methodDefinition = methodReference.resolve();
 
         final boolean hasThis = byteCode.getCode() == AstCode.InvokeVirtual ||
-                                byteCode.getCode() == AstCode.InvokeInterface;
+                                byteCode.getCode() == AstCode.InvokeInterface ||
+                                byteCode.getCode() == AstCode.InvokeSpecial;
 
         Expression target;
 
@@ -492,15 +510,20 @@ public class AstMethodBodyBuilder {
             );
 
             creation.getArguments().addAll(adjustArgumentsForMethodCall(methodReference, arguments));
+            creation.putUserData(Keys.MEMBER_REFERENCE, methodReference);
 
             return creation;
         }
-        
-        return target.invoke(
+
+        final InvocationExpression invocation = target.invoke(
             methodReference.getName(),
             convertTypeArguments(methodReference),
             adjustArgumentsForMethodCall(methodReference, arguments)
         );
+
+        invocation.putUserData(Keys.MEMBER_REFERENCE, methodReference);
+
+        return invocation;
     }
 
     @SuppressWarnings("UnusedParameters")

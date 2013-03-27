@@ -103,7 +103,7 @@ public class BinaryOperatorExpression extends Expression {
         return false;
     }
 
-    public static Role<JavaTokenNode> getOperatorRole(final BinaryOperatorType operator) {
+    public static TokenRole getOperatorRole(final BinaryOperatorType operator) {
         switch (operator) {
             case BITWISE_AND:
                 return BITWISE_AND_ROLE;

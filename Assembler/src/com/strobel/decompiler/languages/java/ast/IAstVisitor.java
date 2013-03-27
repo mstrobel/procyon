@@ -55,7 +55,6 @@ public interface IAstVisitor<T, R> {
     R visitParameterDeclaration(ParameterDeclaration parameterDeclaration, T data);
     R visitFieldDeclaration(FieldDeclaration fieldDeclaration, T data);
     R visitTypeDeclaration(TypeDeclaration typeDeclaration, T data);
-    R visitConstructorInitializer(ConstructorInitializer constructorInitializer, T data);
     R visitCompilationUnit(CompilationUnit compilationUnit, T data);
     R visitPackageDeclaration(PackageDeclaration packageDeclaration, T data);
     R visitArraySpecifier(ArraySpecifier arraySpecifier, T data);
@@ -72,4 +71,5 @@ public interface IAstVisitor<T, R> {
     R visitArrayInitializerExpression(ArrayInitializerExpression arrayInitializerExpression, T data);
     R visitObjectCreationExpression(ObjectCreationExpression objectCreationExpression, T data);
     R visitArrayCreationExpression(ArrayCreationExpression arrayCreationExpression, T data);
+    R visitAssignmentExpression(AssignmentExpression assignmentExpression, T data);
 }

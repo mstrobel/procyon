@@ -1,5 +1,5 @@
 /*
- * BraceForcement.java
+ * UserDataStore.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -11,12 +11,11 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.decompiler.languages.java;
+package com.strobel.componentmodel;
 
-public enum BraceEnforcement {
-    DoNotChange,
-    RemoveBraces,
-    AddBraces,
-//    AddBracesForMultiLine,
-//    AddBracesForMultiLineOrAdjacent
+public interface UserDataStore {
+    <T> T getUserData(final Key<T> key);
+    <T> void putUserData(final Key<T> key, final T value);
+    <T> T putUserDataIfAbsent(final Key<T> key, final T value);
+    <T> boolean replace(final Key<T> key, final T oldValue, final T newValue);
 }

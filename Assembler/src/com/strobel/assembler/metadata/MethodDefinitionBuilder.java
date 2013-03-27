@@ -23,7 +23,6 @@ import com.strobel.assembler.ir.attributes.LocalVariableTableEntry;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.VerifyArgument;
-import com.strobel.util.ContractUtils;
 
 import java.util.List;
 
@@ -75,12 +74,13 @@ public class MethodDefinitionBuilder implements MethodVisitor {
 
     @Override
     public boolean canVisitBody() {
-        return false;
+        return true;
     }
 
     @Override
     public InstructionVisitor visitBody(final MethodBody body) {
-        throw ContractUtils.unsupported();
+        _method.setBody(body);
+        return InstructionVisitor.EMPTY;
     }
 
     @Override

@@ -18,14 +18,12 @@ import com.strobel.assembler.metadata.Buffer;
 import com.strobel.assembler.metadata.ClassFileReader;
 import com.strobel.assembler.metadata.ClasspathTypeLoader;
 import com.strobel.assembler.metadata.MetadataSystem;
+import com.strobel.assembler.metadata.TypeDefinitionBuilder;
 import com.strobel.core.VerifyArgument;
-import com.strobel.decompiler.languages.BytecodeAstLanguage;
+import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 import com.strobel.decompiler.languages.java.JavaLanguage;
 
 import java.util.List;
-
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
-import static com.strobel.core.CollectionUtilities.getOrDefault;
 
 public final class Decompiler {
     public static void decompile(final String internalName, final ITextOutput output) {
@@ -53,6 +51,26 @@ public final class Decompiler {
             buffer
         );
 
+        // begin new
+
+        final TypeDefinitionBuilder typeBuilder = new TypeDefinitionBuilder();
+
+        reader.accept(typeBuilder);
+
+        final DecompilationOptions options = new DecompilationOptions();
+
+        options.setSettings(settings);
+        options.setFullDecompilation(true);
+
+        if (settings.getFormattingOptions() == null) {
+            settings.setFormattingOptions(JavaFormattingOptions.createDefault());
+        }
+
+        new JavaLanguage().decompileType(typeBuilder.getTypeDefinition(), output, options);
+
+        // end new
+
+/*
         final DecompilationOptions options = new DecompilationOptions();
 
         options.setSettings(settings);
@@ -65,6 +83,7 @@ public final class Decompiler {
         );
 
         reader.accept(typePrinter);
+*/
     }
 
     public static void main(final String[] args) {

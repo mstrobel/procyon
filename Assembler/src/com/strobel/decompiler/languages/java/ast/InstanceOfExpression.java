@@ -17,7 +17,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class InstanceOfExpression extends Expression {
-    public final static TokenRole INSTANCE_OF_ROLE = new TokenRole("instanceof");
+    public final static TokenRole INSTANCE_OF_KEYWORD_ROLE = new TokenRole("instanceof");
 
     public InstanceOfExpression() {
     }
@@ -36,7 +36,7 @@ public class InstanceOfExpression extends Expression {
     }
 
     public final JavaTokenNode getInstanceOfToken() {
-        return getChildByRole(INSTANCE_OF_ROLE);
+        return getChildByRole(INSTANCE_OF_KEYWORD_ROLE);
     }
 
     public final Expression getExpression() {

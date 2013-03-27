@@ -42,7 +42,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
     public final static int OPTION_PROCESS_ANNOTATIONS = 1 << 0;
     public final static int OPTION_PROCESS_CODE = 1 << 1;
 
-    public final static int OPTIONS_DEFAULT = OPTION_PROCESS_ANNOTATIONS | OPTION_PROCESS_CODE;
+    public final static int OPTIONS_DEFAULT = OPTION_PROCESS_ANNOTATIONS;
 
     final static long MAGIC = 0xCAFEBABEL;
 

@@ -556,6 +556,7 @@
         <w>preallocation</w>
         <w>putfield</w>
         <w>putstatic</w>
+        <w>reentrant</w>
         <w>resized</w>
         <w>rewriter</w>
         <w>saload</w>

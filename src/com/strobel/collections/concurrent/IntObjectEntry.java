@@ -1,5 +1,5 @@
 /*
- * BraceForcement.java
+ * IntObjectEntry.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -11,12 +11,12 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.decompiler.languages.java;
+package com.strobel.collections.concurrent;
 
-public enum BraceEnforcement {
-    DoNotChange,
-    RemoveBraces,
-    AddBraces,
-//    AddBracesForMultiLine,
-//    AddBracesForMultiLineOrAdjacent
+import com.strobel.annotations.NotNull;
+
+public interface IntObjectEntry<V> {
+    int key();
+    @NotNull
+    V value();
 }

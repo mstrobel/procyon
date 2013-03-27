@@ -1,5 +1,5 @@
 /*
- * BraceForcement.java
+ * AssignmentOperatorType.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -11,12 +11,20 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.decompiler.languages.java;
+package com.strobel.decompiler.languages.java.ast;
 
-public enum BraceEnforcement {
-    DoNotChange,
-    RemoveBraces,
-    AddBraces,
-//    AddBracesForMultiLine,
-//    AddBracesForMultiLineOrAdjacent
+public enum AssignmentOperatorType {
+    ASSIGN,
+    ADD,
+    SUBTRACT,
+    MULTIPLY,
+    DIVIDE,
+    MODULUS,
+    SHIFT_LEFT,
+    SHIFT_RIGHT,
+    UNSIGNED_SHIFT_RIGHT,
+    BITWISE_AND,
+    BITWISE_OR,
+    EXCLUSIVE_OR,
+    ANY
 }

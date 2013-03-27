@@ -13,8 +13,6 @@
 
 package com.strobel.core;
 
-import com.strobel.core.delegates.Func1;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -82,6 +80,13 @@ public final class CollectionUtilities {
             }
         }
         return false;
+    }
+
+    public static <T> boolean any(final Iterable<T> collection) {
+        if (collection instanceof Collection<?>) {
+            return !((Collection) collection).isEmpty();
+        }
+        return collection != null && collection.iterator().hasNext();
     }
 
     public static <T> boolean any(final Iterable<T> collection, final Predicate<? super T> predicate) {
@@ -190,6 +195,7 @@ public final class CollectionUtilities {
 
         return true;
     }
+
     public static <T> boolean sequenceEquals(final Iterable<? extends T> first, final Iterable<? extends T> second) {
         VerifyArgument.notNull(first, "first");
         VerifyArgument.notNull(second, "second");
