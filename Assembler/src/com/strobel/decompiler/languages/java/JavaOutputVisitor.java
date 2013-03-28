@@ -1243,10 +1243,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             if (Double.isInfinite(d) || Double.isNaN(d)) {
                 writeKeyword("Double");
                 writeToken(Roles.DOT);
-                if (d == Float.POSITIVE_INFINITY) {
+                if (d == Double.POSITIVE_INFINITY) {
                     writeIdentifier("POSITIVE_INFINITY");
                 }
-                else if (d == Float.NEGATIVE_INFINITY) {
+                else if (d == Double.NEGATIVE_INFINITY) {
                     writeIdentifier("NEGATIVE_INFINITY");
                 }
                 else {

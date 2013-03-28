@@ -229,14 +229,14 @@ public class Buffer {
 
     public long readLong() {
         verifyReadableBytes(8);
-        return (readUnsignedByte() << 56) +
-               (readUnsignedByte() << 48) +
-               (readUnsignedByte() << 40) +
-               (readUnsignedByte() << 32) +
-               (readUnsignedByte() << 24) +
-               (readUnsignedByte() << 16) +
-               (readUnsignedByte() << 8) +
-               (readUnsignedByte() << 0);
+        return ((long)readUnsignedByte() << 56) +
+               ((long)readUnsignedByte() << 48) +
+               ((long)readUnsignedByte() << 40) +
+               ((long)readUnsignedByte() << 32) +
+               ((long)readUnsignedByte() << 24) +
+               ((long)readUnsignedByte() << 16) +
+               ((long)readUnsignedByte() << 8) +
+               ((long)readUnsignedByte() << 0);
     }
 
     public float readFloat() {
