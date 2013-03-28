@@ -13,6 +13,9 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.decompiler.patterns.INode;
+import com.strobel.decompiler.patterns.Match;
+
 public class ParenthesizedExpression extends Expression {
     public ParenthesizedExpression() {
     }
@@ -39,5 +42,11 @@ public class ParenthesizedExpression extends Expression {
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
         return visitor.visitParenthesizedExpression(this, data);
+    }
+
+    @Override
+    public boolean matches(final INode other, final Match match) {
+        return other instanceof ParenthesizedExpression &&
+               getExpression().matches(((ParenthesizedExpression) other).getExpression(), match);
     }
 }

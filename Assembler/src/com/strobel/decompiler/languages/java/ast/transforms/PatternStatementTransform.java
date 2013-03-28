@@ -44,6 +44,12 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         AstNode result = transformFor(node);
 
         if (result != null) {
+            final AstNode forEachInArray = transformForEachInArray(result.getPreviousNode());
+
+            if (forEachInArray != null) {
+                return forEachInArray;
+            }
+
             return result;
         }
 
@@ -184,7 +190,198 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="For Each Loop Transform">
+    // <editor-fold defaultstate="collapsed" desc="For Each Loop Transform (Arrays)">
+
+    private final static ExpressionStatement GET_ARRAY_LENGTH_PATTERN;
+    private final static ForStatement FOR_ARRAY_PATTERN;
+
+    static {
+        GET_ARRAY_LENGTH_PATTERN = new ExpressionStatement(
+            new AssignmentExpression(
+                new NamedNode("left", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                new AnyNode("array").toExpression().member("length")
+            )
+        );
+
+        final ForStatement forArrayPattern = new ForStatement();
+
+        forArrayPattern.getInitializers().add(
+            new ExpressionStatement(
+                new AssignmentExpression(
+                    new NamedNode("index", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    new PrimitiveExpression(0)
+                )
+            )
+        );
+
+        forArrayPattern.setCondition(
+            new BinaryOperatorExpression(
+                new BackReference("index").toExpression(),
+                BinaryOperatorType.LESS_THAN,
+                new NamedNode("length", new IdentifierExpression(Pattern.ANY_STRING)).toExpression()
+            )
+        );
+
+        forArrayPattern.getIterators().add(
+            new ExpressionStatement(
+                new UnaryOperatorExpression(
+                    UnaryOperatorType.INCREMENT,
+                    new BackReference("index").toExpression()
+                )
+            )
+        );
+
+        final BlockStatement embeddedStatement = new BlockStatement();
+
+        embeddedStatement.add(
+            new ExpressionStatement(
+                new AssignmentExpression(
+                    new NamedNode("item", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    AssignmentOperatorType.ASSIGN,
+                    new IndexerExpression(
+                        new AnyNode("array").toExpression(),
+                        new BackReference("index").toExpression()
+                    )
+                )
+            )
+        );
+
+        embeddedStatement.add(
+            new Repeat(
+                new AnyNode("statement")
+            ).toStatement()
+        );
+
+        forArrayPattern.setEmbeddedStatement(embeddedStatement);
+
+        FOR_ARRAY_PATTERN = forArrayPattern;
+    }
+
+    public final ForEachStatement transformForEachInArray(final AstNode node) {
+        final Match m1 = GET_ARRAY_LENGTH_PATTERN.match(node);
+
+        if (!m1.success()) {
+            return null;
+        }
+
+        final AstNode next = node.getNextSibling();
+        final Match m2 = FOR_ARRAY_PATTERN.match(next);
+
+        if (!m2.success()) {
+            return null;
+        }
+
+        final IdentifierExpression array = m2.<IdentifierExpression>get("array").iterator().next();
+        final IdentifierExpression length = m2.<IdentifierExpression>get("length").iterator().next();
+        final IdentifierExpression item = m2.<IdentifierExpression>get("item").iterator().next();
+
+        final ForStatement loop = (ForStatement) next;
+
+        //
+        // Ensure that the GET_ARRAY_LENGTH_PATTERN and FOR_ARRAY_PATTERN reference the same length variable.
+        //
+
+        if (!length.matches(m1.get("left").iterator().next()) ||
+            !array.matches(m1.get("array").iterator().next())) {
+
+            return null;
+        }
+
+        final VariableDeclarationStatement iteratorDeclaration = findVariableDeclaration(loop, length.getIdentifier());
+
+        if (iteratorDeclaration == null || !(iteratorDeclaration.getParent() instanceof BlockStatement)) {
+            return null;
+        }
+
+        //
+        // Find the declaration of the item variable.  Because we look only outside the loop,
+        // we won't make the mistake of moving a captured variable across the loop boundary.
+        //
+
+        final VariableDeclarationStatement itemDeclaration = findVariableDeclaration(loop, item.getIdentifier());
+
+        if (itemDeclaration == null || !(itemDeclaration.getParent() instanceof BlockStatement)) {
+            return null;
+        }
+
+        //
+        // Now verify that we can move the variable declaration in front of the loop.
+        //
+
+        // TODO: Fix this hack.  For now, just assuming we're okay if length name contains '$'.
+        Statement declarationPoint = loop; //canMoveVariableDeclarationIntoStatement(itemDeclaration, loop);
+
+        //
+        // We ignore the return value because we don't care whether we can move the variable into the loop
+        // (that is possible only with non-captured variables).  We just care that we can move it in front
+        // of the loop.
+        //
+
+        if (declarationPoint != loop) {
+            return null;
+        }
+
+        final ForEachStatement forEach = new ForEachStatement();
+
+        forEach.setVariableType(itemDeclaration.getType().clone());
+        forEach.setVariableName(item.getIdentifier());
+
+        forEach.putUserData(
+            Keys.VARIABLE,
+            itemDeclaration.getVariables().firstOrNullObject().getUserData(Keys.VARIABLE)
+        );
+
+        final BlockStatement body = new BlockStatement();
+
+        forEach.setEmbeddedStatement(body);
+        ((BlockStatement) node.getParent()).getStatements().insertBefore((Statement) node, forEach);
+
+        node.remove();
+        body.add((Statement) node);
+        loop.remove();
+        body.add(loop);
+
+        //
+        // Now that we moved the whole while statement into the foreach loop, verify that we can
+        // move the length into the foreach loop.
+        //
+
+        declarationPoint = canMoveVariableDeclarationIntoStatement(iteratorDeclaration, forEach);
+
+        if (declarationPoint != forEach) {
+            //
+            // We can't move the length variable after all; undo our changes.
+            //
+            node.remove();
+            ((BlockStatement) forEach.getParent()).getStatements().insertBefore(forEach, (Statement) node);
+            forEach.replaceWith(loop);
+            return null;
+        }
+
+        //
+        // Now create the correct body for the foreach statement.
+        //
+
+        final Expression collection = m1.<Expression>get("array").iterator().next();
+
+        collection.remove();
+        forEach.setInExpression(collection);
+
+        final AstNodeCollection<Statement> bodyStatements = body.getStatements();
+
+        bodyStatements.clear();
+
+        for (final Statement statement : m2.<Statement>get("statement")) {
+            statement.remove();
+            bodyStatements.add(statement);
+        }
+
+        return forEach;
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="For Each Loop Transform (Iterables)">
 
     private final static ExpressionStatement GET_ITERATOR_PATTERN;
     private final static WhileStatement FOR_EACH_PATTERN;

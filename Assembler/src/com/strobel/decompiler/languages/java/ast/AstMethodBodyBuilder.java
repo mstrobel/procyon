@@ -494,9 +494,9 @@ public class AstMethodBodyBuilder {
 
                 switch (delta) {
                     case -1:
-                        return new UnaryOperatorExpression(UnaryOperatorType.POST_DECREMENT, name);
+                        return new UnaryOperatorExpression(UnaryOperatorType.DECREMENT, name);
                     case 1:
-                        return new UnaryOperatorExpression(UnaryOperatorType.POST_INCREMENT, name);
+                        return new UnaryOperatorExpression(UnaryOperatorType.INCREMENT, name);
                     default:
                         return new BinaryOperatorExpression(name, BinaryOperatorType.ADD, arg1);
                 }

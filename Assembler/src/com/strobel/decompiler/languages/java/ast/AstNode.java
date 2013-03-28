@@ -610,6 +610,11 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
 
         @Override
+        public boolean matches(final INode other, final Match match) {
+            return other == null || other.isNull();
+        }
+
+        @Override
         public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
             return null;
         }
@@ -648,13 +653,17 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     }
 
     @Override
-    public boolean matches(final INode other, final Match match) {
-        return false;
-    }
+    public abstract boolean matches(final INode other, final Match match);
 
     @Override
-    public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
-        return false;
+    public boolean matchesCollection(
+        final Role role,
+        final INode position,
+        final Match match,
+        final BacktrackingInfo backtrackingInfo) {
+
+        return position == null ||
+               position instanceof AstNode && matches(position, match);
     }
 
     @Override
