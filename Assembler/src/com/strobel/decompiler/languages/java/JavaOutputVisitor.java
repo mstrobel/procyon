@@ -309,6 +309,16 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         rightParenthesis();
     }
 
+    private void writeCommaSeparatedListInBrackets(final Iterable<? extends AstNode> list, final boolean spaceWithin) {
+        writeToken(Roles.LEFT_BRACKET);
+        if (any(list)) {
+            space(spaceWithin);
+            writeCommaSeparatedList(list);
+            space(spaceWithin);
+        }
+        writeToken(Roles.RIGHT_BRACKET);
+    }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Write Constructs">
@@ -1343,7 +1353,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         startNode(node);
         node.getTarget().acceptVisitor(this, _);
         space(policy.SpaceBeforeMethodCallParentheses);
+        writeToken(Roles.LEFT_BRACKET);
         node.getArgument().acceptVisitor(this, _);
+        writeToken(Roles.RIGHT_BRACKET);
         endNode(node);
         return null;
     }
@@ -1455,7 +1467,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         node.getType().acceptVisitor(this, _);
 
         if (!node.getDimension().isNull()) {
+            writeToken(Roles.LEFT_BRACKET);
             node.getDimension().acceptVisitor(this, _);
+            writeToken(Roles.RIGHT_BRACKET);
         }
 
         for (final ArraySpecifier specifier : node.getAdditionalArraySpecifiers()) {
