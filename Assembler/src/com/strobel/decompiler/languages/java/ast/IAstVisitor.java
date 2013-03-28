@@ -74,4 +74,7 @@ public interface IAstVisitor<T, R> {
     R visitAssignmentExpression(AssignmentExpression assignmentExpression, T data);
     R visitForStatement(ForStatement forStatement, T data);
     R visitForEachStatement(ForEachStatement forEachStatement, T data);
+    R visitTryCatchStatement(TryCatchStatement tryCatchStatement, T data);
+    R visitGotoStatement(GotoStatement gotoStatement, T data);
+    R visitParenthesizedExpression(ParenthesizedExpression parenthesizedExpression, T data);
 }

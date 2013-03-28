@@ -48,6 +48,29 @@ public final class Range implements Comparable<Range> {
     }
 
     @Override
+    public final boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+
+        if (o instanceof Range) {
+            final Range range = (Range) o;
+
+            return range._end == _end &&
+                   range._start == _start;
+        }
+
+        return false;
+    }
+
+    @Override
+    public final int hashCode() {
+        int result = _start;
+        result = 31 * result + _end;
+        return result;
+    }
+
+    @Override
     public final int compareTo(final Range o) {
         if (o == null) {
             return 1;

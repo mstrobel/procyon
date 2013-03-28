@@ -119,6 +119,61 @@ public final class AstBuilder {
         final InstructionCollection instructions = _instructions = copyInstructions(_body.getInstructions());
         final List<ExceptionHandler> exceptionHandlers = _exceptionHandlers = remapHandlers(_body.getExceptionHandlers(), instructions);
 
+        //
+        // Java does this retarded thing where a try block gets split along exit branches,
+        // but with the split parts sharing the same handler.  We can't represent this in
+        // out AST, so just merge the parts back together.
+        //
+
+        for (int i = 0; i < exceptionHandlers.size() - 1; i++) {
+            final ExceptionHandler current = exceptionHandlers.get(i);
+            final ExceptionHandler next = exceptionHandlers.get(i + 1);
+
+            if (current.getHandlerBlock().getFirstInstruction() == next.getHandlerBlock().getFirstInstruction() &&
+                current.getHandlerBlock().getLastInstruction() == next.getHandlerBlock().getLastInstruction()) {
+
+                final Instruction lastInCurrent = current.getTryBlock().getLastInstruction();
+                final Instruction firstInNext = next.getTryBlock().getFirstInstruction();
+                final Instruction branchInBetween = lastInCurrent.getNext();
+
+                if (branchInBetween != null &&
+                    branchInBetween.getOpCode().isBranch() &&
+                    branchInBetween == firstInNext.getPrevious()) {
+
+                    final ExceptionHandler newHandler;
+
+                    if (current.isFinally()) {
+                        newHandler = ExceptionHandler.createFinally(
+                            new ExceptionBlock(
+                                current.getTryBlock().getFirstInstruction(),
+                                next.getTryBlock().getLastInstruction()
+                            ),
+                            new ExceptionBlock(
+                                current.getHandlerBlock().getFirstInstruction(),
+                                current.getHandlerBlock().getLastInstruction()
+                            )
+                        );
+                    }
+                    else {
+                        newHandler = ExceptionHandler.createCatch(
+                            new ExceptionBlock(
+                                current.getTryBlock().getFirstInstruction(),
+                                next.getTryBlock().getLastInstruction()
+                            ),
+                            new ExceptionBlock(
+                                current.getHandlerBlock().getFirstInstruction(),
+                                current.getHandlerBlock().getLastInstruction()
+                            ),
+                            current.getCatchType()
+                        );
+                    }
+
+                    exceptionHandlers.set(i, newHandler);
+                    exceptionHandlers.remove(i + 1);
+                }
+            }
+        }
+
         final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, exceptionHandlers);
 
         cfg.computeDominance();
@@ -269,6 +324,10 @@ public final class AstBuilder {
                     }
                 }
             }
+        }
+
+        if (toRemove.isEmpty()) {
+            return;
         }
 
         for (final Instruction instruction : toRemove) {

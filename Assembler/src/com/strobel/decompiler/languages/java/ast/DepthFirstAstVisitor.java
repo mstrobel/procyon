@@ -322,4 +322,19 @@ public abstract class DepthFirstAstVisitor<T, S> implements IAstVisitor<T, S> {
     public S visitForEachStatement(final ForEachStatement node, final T data) {
         return visitChildren(node, data);
     }
+
+    @Override
+    public S visitGotoStatement(final GotoStatement node, final T data) {
+        return visitChildren(node, data);
+    }
+
+    @Override
+    public S visitParenthesizedExpression(final ParenthesizedExpression node, final T data) {
+        return visitChildren(node, data);
+    }
+
+    @Override
+    public S visitTryCatchStatement(final TryCatchStatement node, final T data) {
+        return visitChildren(node, data);
+    }
 }

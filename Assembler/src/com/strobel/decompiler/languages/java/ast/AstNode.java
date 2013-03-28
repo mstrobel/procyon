@@ -536,6 +536,54 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
     }
 
+    public final AstNode replaceWith(final Function<AstNode, AstNode> replaceFunction) {
+        VerifyArgument.notNull(replaceFunction, "replaceFunction");
+
+        if (_parent == null) {
+            throw new IllegalStateException(
+                isNull() ? "Cannot replace null nodes."
+                         : "Cannot replace the root node."
+            );
+        }
+
+        final AstNode oldParent = _parent;
+        final AstNode oldSuccessor = _nextSibling;
+        final Role oldRole = this.getRole();
+
+        remove();
+
+        final AstNode replacement = replaceFunction.apply(this);
+
+        if (oldSuccessor != null && oldSuccessor._parent != oldParent) {
+            throw new IllegalStateException("Replace function changed next sibling of node being replaced.");
+        }
+
+        if (replacement != null && !replacement.isNull()) {
+            if (replacement._parent != null) {
+                throw new IllegalStateException("replace function must return the root of a tree");
+            }
+
+            if (!oldRole.isValid(replacement)) {
+                throw new IllegalStateException(
+                    String.format(
+                        "The new node '%s' is not valid in the role %s.",
+                        replacement.getClass().getSimpleName(),
+                        oldRole
+                    )
+                );
+            }
+
+            if (oldSuccessor != null) {
+                oldParent.insertChildBeforeUnsafe(oldSuccessor, replacement, oldRole);
+            }
+            else {
+                oldParent.addChildUnsafe(replacement, oldRole);
+            }
+        }
+
+        return replacement;
+    }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Freezable Implementation">

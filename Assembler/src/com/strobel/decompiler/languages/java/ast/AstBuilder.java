@@ -395,6 +395,7 @@ public final class AstBuilder {
             runTransformations();
         }
 
+        _compileUnit.acceptVisitor(new InsertParenthesesVisitor(), null);
         _compileUnit.acceptVisitor(new JavaOutputVisitor(output, _context.getSettings().getFormattingOptions()), null);
     }
 

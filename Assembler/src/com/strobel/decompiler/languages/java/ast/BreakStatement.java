@@ -13,6 +13,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
@@ -27,6 +28,19 @@ public class BreakStatement extends Statement {
         return getChildByRole(Roles.SEMICOLON);
     }
 
+    public final String getLabel() {
+        return getChildByRole(Roles.IDENTIFIER).getName();
+    }
+
+    public final void setLabel(final String value) {
+        if (StringUtilities.isNullOrEmpty(value)) {
+            setChildByRole(Roles.IDENTIFIER, Identifier.create(null));
+        }
+        else {
+            setChildByRole(Roles.IDENTIFIER, Identifier.create(value));
+        }
+    }
+
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
         return visitor.visitBreakStatement(this, data);
@@ -34,6 +48,7 @@ public class BreakStatement extends Statement {
 
     @Override
     public boolean matches(final INode other, final Match match) {
-        return other instanceof BreakStatement;
+        return other instanceof BreakStatement &&
+               matchString(getLabel(), ((BreakStatement) other).getLabel());
     }
 }

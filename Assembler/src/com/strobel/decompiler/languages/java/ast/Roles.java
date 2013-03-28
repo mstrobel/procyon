@@ -59,6 +59,7 @@ public final class Roles {
     public final static TokenRole COLON = new TokenRole(":");
     public final static TokenRole DOUBLE_COLON = new TokenRole("::");
     public final static TokenRole ASSIGN = new TokenRole("=");
+    public final static TokenRole PIPE = new TokenRole("|");
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // KEYWORD TOKENS                                                                                                     //

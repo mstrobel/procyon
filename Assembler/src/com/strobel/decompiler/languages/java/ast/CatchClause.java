@@ -23,6 +23,13 @@ import com.strobel.decompiler.patterns.Role;
 public class CatchClause extends AstNode {
     public final static TokenRole CATCH_KEYWORD_ROLE = new TokenRole("catch");
 
+    public CatchClause() {
+    }
+
+    public CatchClause(final BlockStatement body) {
+        setBody(body);
+    }
+
     public final JavaTokenNode getCatchToken() {
         return getChildByRole(CATCH_KEYWORD_ROLE);
     }
@@ -35,12 +42,8 @@ public class CatchClause extends AstNode {
         return getChildByRole(Roles.RIGHT_PARENTHESIS);
     }
 
-    public final AstType getExceptionType() {
-        return getChildByRole(Roles.TYPE);
-    }
-
-    public final void setExceptionType(final AstType type) {
-        setChildByRole(Roles.TYPE, type);
+    public final AstNodeCollection<AstType> getExceptionTypes() {
+        return getChildrenByRole(Roles.TYPE);
     }
 
     public final String getVariableName() {
@@ -83,7 +86,7 @@ public class CatchClause extends AstNode {
             final CatchClause otherClause = (CatchClause) other;
 
             return !otherClause.isNull() &&
-                   getExceptionType().matches(otherClause.getExceptionType(), match) &&
+                   getExceptionTypes().matches(otherClause.getExceptionTypes(), match) &&
                    matchString(getVariableName(), otherClause.getVariableName()) &&
                    getBody().matches(otherClause.getBody(), match);
         }

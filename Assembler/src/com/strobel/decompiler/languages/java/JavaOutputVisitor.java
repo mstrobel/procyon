@@ -296,6 +296,19 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
     }
 
+    private void writePipeSeparatedList(final Iterable<? extends AstNode> list) {
+        boolean isFirst = true;
+        for (final AstNode node : list) {
+            if (isFirst) {
+                isFirst = false;
+            }
+            else {
+                writeToken(Roles.PIPE);
+            }
+            node.acceptVisitor(this, null);
+        }
+    }
+
     private void writeCommaSeparatedListInParenthesis(final Iterable<? extends AstNode> list, final boolean spaceWithin) {
         leftParenthesis();
         if (any(list)) {
@@ -729,6 +742,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public Void visitBreakStatement(final BreakStatement node, final Void _) {
         startNode(node);
         writeKeyword("break");
+
+        final String label = node.getLabel();
+
+        if (!StringUtilities.isNullOrEmpty(label)) {
+            writeIdentifier(label);
+        }
+
         semicolon();
         endNode(node);
         return null;
@@ -738,6 +758,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public Void visitContinueStatement(final ContinueStatement node, final Void _) {
         startNode(node);
         writeKeyword("continue");
+
+        final String label = node.getLabel();
+
+        if (!StringUtilities.isNullOrEmpty(label)) {
+            writeIdentifier(label);
+        }
+
         semicolon();
         endNode(node);
         return null;
@@ -934,11 +961,11 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         startNode(node);
         writeKeyword(CatchClause.CATCH_KEYWORD_ROLE);
 
-        if (!node.getExceptionType().isNull()) {
+        if (!node.getExceptionTypes().isEmpty()) {
             space(policy.SpaceBeforeCatchParentheses);
             leftParenthesis();
             space(policy.SpacesWithinCatchParentheses);
-            node.getExceptionType().acceptVisitor(this, _);
+            writePipeSeparatedList(node.getExceptionTypes());
 
             if (!StringUtilities.isNullOrEmpty(node.getVariableName())) {
                 space();
@@ -1612,6 +1639,47 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         space(policy.SpacesWithinForeachParentheses);
         rightParenthesis();
         writeEmbeddedStatement(node.getEmbeddedStatement());
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitTryCatchStatement(final TryCatchStatement node, final Void _) {
+        startNode(node);
+        writeKeyword(TryCatchStatement.TRY_KEYWORD_ROLE);
+        node.getTryBlock().acceptVisitor(this, _);
+
+        for (final CatchClause catchClause : node.getCatchClauses()) {
+            catchClause.acceptVisitor(this, _);
+        }
+
+        if (!node.getFinallyBlock().isNull()) {
+            writeKeyword(TryCatchStatement.FINALLY_KEYWORD_ROLE);
+            node.getFinallyBlock().acceptVisitor(this, _);
+        }
+
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitGotoStatement(final GotoStatement node, final Void _) {
+        startNode(node);
+        writeKeyword(GotoStatement.GOTO_KEYWORD_ROLE);
+        writeIdentifier(node.getLabel());
+        semicolon();
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitParenthesizedExpression(final ParenthesizedExpression node, final Void _) {
+        startNode(node);
+        leftParenthesis();
+        space(policy.SpacesWithinParentheses);
+        node.getExpression().acceptVisitor(this, _);
+        space(policy.SpacesWithinParentheses);
+        rightParenthesis();
         endNode(node);
         return null;
     }

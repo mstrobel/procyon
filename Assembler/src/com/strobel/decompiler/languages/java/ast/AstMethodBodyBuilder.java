@@ -242,7 +242,35 @@ public class AstMethodBodyBuilder {
         }
 
         if (node instanceof TryCatchBlock) {
-            return transformBlock(((TryCatchBlock) node).getTryBlock());
+            final TryCatchBlock tryCatchNode = ((TryCatchBlock) node);
+            final TryCatchStatement tryCatch = new TryCatchStatement();
+
+            tryCatch.setTryBlock(transformBlock(tryCatchNode.getTryBlock()));
+
+            for (final CatchBlock catchBlock : tryCatchNode.getCatchBlocks()) {
+                final CatchClause catchClause = new CatchClause(transformBlock(catchBlock));
+
+                for (final TypeReference caughtType : catchBlock.getCaughtTypes()) {
+                    catchClause.getExceptionTypes().add(AstBuilder.convertType(caughtType));
+                }
+
+                final Variable exceptionVariable = catchBlock.getExceptionVariable();
+
+                if (exceptionVariable != null) {
+                    catchClause.setVariableName(exceptionVariable.getName());
+                    catchClause.putUserData(Keys.VARIABLE, exceptionVariable);
+                }
+
+                tryCatch.getCatchClauses().add(catchClause);
+            }
+
+            final Block finallyBlock = tryCatchNode.getFinallyBlock();
+
+            if (finallyBlock != null && !finallyBlock.getBody().isEmpty()) {
+                tryCatch.setFinallyBlock(transformBlock(finallyBlock));
+            }
+
+            return tryCatch;
         }
 
         throw new IllegalArgumentException("Unknown node type: " + node);
@@ -334,6 +362,9 @@ public class AstMethodBodyBuilder {
                 return new CastExpression(AstBuilder.convertType(BuiltinTypes.Character), arg1);
             case I2S:
                 return new CastExpression(AstBuilder.convertType(BuiltinTypes.Short), arg1);
+
+            case Goto:
+                return new GotoStatement(((Label) operand).getName());
 
             case GetStatic: {
                 final MemberReferenceExpression staticFieldReference = AstBuilder.convertType(fieldOperand.getDeclaringType())

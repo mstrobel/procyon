@@ -1,5 +1,5 @@
 /*
- * ContinueStatement.java
+ * GotoStatement.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -17,11 +17,18 @@ import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
-public class ContinueStatement extends Statement {
-    public final static TokenRole CONTINUE_KEYWORD_ROLE = new TokenRole("continue");
+public class GotoStatement extends Statement {
+    public final static TokenRole GOTO_KEYWORD_ROLE = new TokenRole("goto");
 
-    public final JavaTokenNode getContinueToken() {
-        return getChildByRole(CONTINUE_KEYWORD_ROLE);
+    public GotoStatement() {
+    }
+
+    public GotoStatement(final String label) {
+        setLabel(label);
+    }
+
+    public final JavaTokenNode getGotoToken() {
+        return getChildByRole(GOTO_KEYWORD_ROLE);
     }
 
     public final JavaTokenNode getSemicolonToken() {
@@ -43,12 +50,12 @@ public class ContinueStatement extends Statement {
 
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
-        return visitor.visitContinueStatement(this, data);
+        return visitor.visitGotoStatement(this, data);
     }
 
     @Override
     public boolean matches(final INode other, final Match match) {
-        return other instanceof ContinueStatement &&
-               matchString(getLabel(), ((ContinueStatement) other).getLabel());
+        return other instanceof GotoStatement &&
+               matchString(getLabel(), ((GotoStatement) other).getLabel());
     }
 }
