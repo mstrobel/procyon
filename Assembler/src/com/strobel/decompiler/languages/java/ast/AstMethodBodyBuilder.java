@@ -36,9 +36,6 @@ import java.util.Set;
 
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
-/**
- * @author strobelm
- */
 public class AstMethodBodyBuilder {
     private final MethodDefinition _method;
     private final DecompilerContext _context;

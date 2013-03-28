@@ -20,7 +20,9 @@ import com.strobel.decompiler.languages.java.ast.AstNode;
 public final class TransformationPipeline {
     @SuppressWarnings("UnusedParameters")
     public static IAstTransform[] createPipeline(final DecompilerContext context) {
-        return new IAstTransform[0];
+        return new IAstTransform[] {
+            new PatternStatementTransform(context)
+        };
     }
 
     public static void runTransformationsUntil(

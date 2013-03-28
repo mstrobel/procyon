@@ -18,9 +18,6 @@ import com.strobel.decompiler.patterns.Match;
 
 import java.util.Collections;
 
-/**
- * @author strobelm
- */
 public class ArrayInitializerExpression extends Expression {
     public ArrayInitializerExpression() {
     }

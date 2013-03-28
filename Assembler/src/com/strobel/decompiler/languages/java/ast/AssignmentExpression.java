@@ -17,9 +17,6 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
-/**
- * @author strobelm
- */
 public class AssignmentExpression extends Expression {
     public final static Role<Expression> LEFT_ROLE = BinaryOperatorExpression.LEFT_ROLE;
     public final static Role<Expression> RIGHT_ROLE = BinaryOperatorExpression.RIGHT_ROLE;
@@ -36,6 +33,7 @@ public class AssignmentExpression extends Expression {
     public final static TokenRole BITWISE_AND_ROLE = new TokenRole("&=");
     public final static TokenRole BITWISE_OR_ROLE = new TokenRole("|=");
     public final static TokenRole EXCLUSIVE_OR_ROLE = new TokenRole("^=");
+    public final static TokenRole ANY_ROLE = new TokenRole("(assign)");
 
     private AssignmentOperatorType _operator;
 
@@ -128,37 +126,41 @@ public class AssignmentExpression extends Expression {
                 return BITWISE_OR_ROLE;
             case EXCLUSIVE_OR:
                 return EXCLUSIVE_OR_ROLE;
+            case ANY:
+                return ANY_ROLE;
         }
 
         throw new IllegalArgumentException("Invalid value for AssignmentOperatorType");
     }
 
-    public static AssignmentOperatorType getCorrespondingAssignmentOperator(final AssignmentOperatorType operator) {
+    public static BinaryOperatorType getCorrespondingAssignmentOperator(final AssignmentOperatorType operator) {
         switch (operator) {
             case ASSIGN:
                 return null;
             case ADD:
-                return AssignmentOperatorType.ADD;
+                return BinaryOperatorType.ADD;
             case SUBTRACT:
-                return AssignmentOperatorType.SUBTRACT;
+                return BinaryOperatorType.SUBTRACT;
             case MULTIPLY:
-                return AssignmentOperatorType.MULTIPLY;
+                return BinaryOperatorType.MULTIPLY;
             case DIVIDE:
-                return AssignmentOperatorType.DIVIDE;
+                return BinaryOperatorType.DIVIDE;
             case MODULUS:
-                return AssignmentOperatorType.MODULUS;
+                return BinaryOperatorType.MODULUS;
             case SHIFT_LEFT:
-                return AssignmentOperatorType.SHIFT_LEFT;
+                return BinaryOperatorType.SHIFT_LEFT;
             case SHIFT_RIGHT:
-                return AssignmentOperatorType.SHIFT_RIGHT;
+                return BinaryOperatorType.SHIFT_RIGHT;
             case UNSIGNED_SHIFT_RIGHT:
-                return AssignmentOperatorType.UNSIGNED_SHIFT_RIGHT;
+                return BinaryOperatorType.UNSIGNED_SHIFT_RIGHT;
             case BITWISE_AND:
-                return AssignmentOperatorType.BITWISE_AND;
+                return BinaryOperatorType.BITWISE_AND;
             case BITWISE_OR:
-                return AssignmentOperatorType.BITWISE_OR;
+                return BinaryOperatorType.BITWISE_OR;
             case EXCLUSIVE_OR:
-                return AssignmentOperatorType.EXCLUSIVE_OR;
+                return BinaryOperatorType.EXCLUSIVE_OR;
+            case ANY:
+                return BinaryOperatorType.ANY;
         }
 
         throw new IllegalArgumentException("Invalid value for AssignmentOperatorType");

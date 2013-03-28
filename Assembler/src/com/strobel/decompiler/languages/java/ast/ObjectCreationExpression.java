@@ -16,9 +16,6 @@ package com.strobel.decompiler.languages.java.ast;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
-/**
- * @author strobelm
- */
 public class ObjectCreationExpression extends Expression {
     public final static TokenRole NEW_KEYWORD_ROLE = new TokenRole("new");
 

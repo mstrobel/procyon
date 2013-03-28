@@ -39,7 +39,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-public abstract class AstNode extends Freezable implements INode, UserDataStore {
+public abstract class AstNode extends Freezable implements INode, UserDataStore, Cloneable {
     final static Role<AstNode> ROOT_ROLE = new Role<>("Root", AstNode.class);
 
     final static int ROLE_INDEX_MASK = (1 << Role.ROLE_INDEX_BITS) - 1;
@@ -609,6 +609,17 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore 
         return false;
     }
 
+    @Override
+    public final Match match(final INode other) {
+        final Match match = Match.createNew();
+        return matches(other, match) ? match : Match.failure();
+    }
+
+    @Override
+    public final boolean matches(final INode other) {
+        return matches(other, Match.createNew());
+    }
+
     public static AstNode forPattern(final Pattern pattern) {
         return new PatternPlaceholder(VerifyArgument.notNull(pattern, "pattern"));
     }
@@ -717,9 +728,9 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore 
             return "Null";
         }
 
-        final String text = StringUtilities.trimRight(getText()).replace("\t", "").replace("\n", " ");
+        final String text = StringUtilities.trimRight(getText())/*.replace("\t", "").replace("\n", " ")*/;
 
-        return text.length() > 100 ? text.substring(0, 97) + "..." : text;
+        return text.length() > 1000 ? text.substring(0, 97) + "..." : text;
     }
 
     @Override

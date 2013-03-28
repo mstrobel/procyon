@@ -17,9 +17,6 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
-/**
- * @author strobelm
- */
 public class BinaryOperatorExpression extends Expression {
     public final static TokenRole BITWISE_AND_ROLE = new TokenRole("&");
     public final static TokenRole BITWISE_OR_ROLE = new TokenRole("|");
@@ -40,6 +37,7 @@ public class BinaryOperatorExpression extends Expression {
     public final static TokenRole SHIFT_LEFT_ROLE = new TokenRole("<<");
     public final static TokenRole SHIFT_RIGHT_ROLE = new TokenRole(">>");
     public final static TokenRole UNSIGNED_SHIFT_RIGHT_ROLE = new TokenRole(">>>");
+    public final static TokenRole ANY_ROLE = new TokenRole("(op)");
 
     public final static Role<Expression> LEFT_ROLE = new Role<>("Left", Expression.class, Expression.NULL);
     public final static Role<Expression> RIGHT_ROLE = new Role<>("Right", Expression.class, Expression.NULL);
@@ -161,6 +159,9 @@ public class BinaryOperatorExpression extends Expression {
 
             case UNSIGNED_SHIFT_RIGHT:
                 return UNSIGNED_SHIFT_RIGHT_ROLE;
+
+            case ANY:
+                return ANY_ROLE;
         }
 
         throw new IllegalArgumentException("Invalid value for BinaryOperatorType.");

@@ -72,4 +72,6 @@ public interface IAstVisitor<T, R> {
     R visitObjectCreationExpression(ObjectCreationExpression objectCreationExpression, T data);
     R visitArrayCreationExpression(ArrayCreationExpression arrayCreationExpression, T data);
     R visitAssignmentExpression(AssignmentExpression assignmentExpression, T data);
+    R visitForStatement(ForStatement forStatement, T data);
+    R visitForEachStatement(ForEachStatement forEachStatement, T data);
 }

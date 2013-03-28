@@ -22,9 +22,6 @@ import com.strobel.assembler.metadata.VariableDefinition;
 import com.strobel.componentmodel.Key;
 import com.strobel.decompiler.ast.Variable;
 
-/**
- * @author strobelm
- */
 public final class Keys {
     public final static Key<Variable> VARIABLE = Key.create("Variable");
     public final static Key<VariableDefinition> VARIABLE_DEFINITION = Key.create("VariableDefinition");

@@ -13,9 +13,6 @@
 
 package com.strobel.assembler.ir;
 
-/**
- * @author strobelm
- */
 public enum StackBehavior {
     Pop0,
     Pop1,

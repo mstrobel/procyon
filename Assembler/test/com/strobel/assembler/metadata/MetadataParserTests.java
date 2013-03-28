@@ -22,9 +22,6 @@ import java.util.Collections;
 
 import static org.junit.Assert.*;
 
-/**
- * @author strobelm
- */
 public class MetadataParserTests {
     @Test
     public void testGenericMethodResolution() throws Throwable {

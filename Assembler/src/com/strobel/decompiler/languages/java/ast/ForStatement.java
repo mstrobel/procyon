@@ -1,5 +1,5 @@
 /*
- * WhileStatement.java
+ * ForStatement.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -15,9 +15,16 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.Role;
 
-public class WhileStatement extends Statement {
-    public final static TokenRole WHILE_KEYWORD_ROLE = new TokenRole("while");
+public class ForStatement extends Statement {
+    public final static TokenRole FOR_KEYWORD_ROLE = new TokenRole("for");
+    public final static Role<Statement> INITIALIZER_ROLE = new Role<>("Initializer", Statement.class, Statement.NULL);
+    public final static Role<Statement> ITERATOR_ROLE = new Role<>("Iterator", Statement.class, Statement.NULL);
+
+    public final JavaTokenNode getForToken() {
+        return getChildByRole(FOR_KEYWORD_ROLE);
+    }
 
     public final Statement getEmbeddedStatement() {
         return getChildByRole(Roles.EMBEDDED_STATEMENT);
@@ -35,10 +42,6 @@ public class WhileStatement extends Statement {
         setChildByRole(Roles.CONDITION, value);
     }
 
-    public final JavaTokenNode getWhileToken() {
-        return getChildByRole(WHILE_KEYWORD_ROLE);
-    }
-
     public final JavaTokenNode getLeftParenthesisToken() {
         return getChildByRole(Roles.LEFT_PARENTHESIS);
     }
@@ -47,18 +50,28 @@ public class WhileStatement extends Statement {
         return getChildByRole(Roles.RIGHT_PARENTHESIS);
     }
 
+    public final AstNodeCollection<Statement> getInitializers() {
+        return getChildrenByRole(INITIALIZER_ROLE);
+    }
+
+    public final AstNodeCollection<Statement> getIterators() {
+        return getChildrenByRole(ITERATOR_ROLE);
+    }
+
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
-        return visitor.visitWhileStatement(this, data);
+        return visitor.visitForStatement(this, data);
     }
 
     @Override
     public boolean matches(final INode other, final Match match) {
-        if (other instanceof WhileStatement) {
-            final WhileStatement otherStatement = (WhileStatement) other;
+        if (other instanceof ForStatement) {
+            final ForStatement otherStatement = (ForStatement) other;
 
             return !other.isNull() &&
+                   getInitializers().matches(otherStatement.getInitializers(), match) &&
                    getCondition().matches(otherStatement.getCondition(), match) &&
+                   getIterators().matches(otherStatement.getIterators(), match) &&
                    getEmbeddedStatement().matches(otherStatement.getEmbeddedStatement(), match);
         }
 

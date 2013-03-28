@@ -75,12 +75,13 @@ public final class Match {
 
                     @SuppressWarnings("unchecked")
                     private void selectNext() {
-                        for (int index = 0; index < _results.size(); index++) {
+                        for (; index < _results.size(); index++) {
                             final Pair<String, INode> pair = _results.get(index);
 
                             if (StringUtilities.equals(groupName, pair.getFirst())) {
                                 next = (T) pair.getSecond();
                                 ready = true;
+                                index++;
                                 return;
                             }
                         }
@@ -112,17 +113,17 @@ public final class Match {
         };
     }
 
-    final int getCheckpoint() {
+    final int getCheckPoint() {
         return _results.size();
     }
 
-    final void restoreCheckpoint(final int checkpoint) {
+    final void restoreCheckPoint(final int checkpoint) {
         for (int i = _results.size() - 1; i > checkpoint; i--) {
             _results.remove(i);
         }
     }
 
-    static Match createNew() {
+    public static Match createNew() {
         return new Match(new ArrayList<Pair<String, INode>>());
     }
 

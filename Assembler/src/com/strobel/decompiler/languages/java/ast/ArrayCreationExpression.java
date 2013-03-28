@@ -17,9 +17,6 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
-/**
- * @author strobelm
- */
 public class ArrayCreationExpression extends Expression {
     public final static TokenRole NEW_KEYWORD_ROLE = new TokenRole("new");
 

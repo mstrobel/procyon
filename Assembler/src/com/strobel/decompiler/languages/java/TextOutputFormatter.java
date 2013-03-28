@@ -25,9 +25,6 @@ import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.Stack;
 
-/**
- * @author strobelm
- */
 public class TextOutputFormatter implements IOutputFormatter {
     private final ITextOutput output;
     private final Stack<AstNode> nodeStack = new Stack<>();
@@ -287,10 +284,16 @@ public class TextOutputFormatter implements IOutputFormatter {
             return node.getUserData(Keys.MEMBER_REFERENCE);
         }
 
-        final FieldDefinition field = node.getParent().getUserData(Keys.FIELD_DEFINITION);
+        final AstNode parent = node.getParent();
+
+        if (parent == null) {
+            return null;
+        }
+
+        final FieldDefinition field = parent.getUserData(Keys.FIELD_DEFINITION);
 
         if (field != null) {
-            return node.getParent().getUserData(Keys.MEMBER_REFERENCE);
+            return parent.getUserData(Keys.MEMBER_REFERENCE);
         }
 
         return null;

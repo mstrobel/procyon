@@ -15,11 +15,7 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
-import com.strobel.decompiler.patterns.Role;
 
-/**
- * @author strobelm
- */
 public class UnaryOperatorExpression extends Expression {
     public final static TokenRole NOT_ROLE = new TokenRole("!");
     public final static TokenRole BITWISE_NOT_ROLE = new TokenRole("~");
@@ -72,7 +68,7 @@ public class UnaryOperatorExpression extends Expression {
             final UnaryOperatorExpression otherOperator = (UnaryOperatorExpression) other;
 
             return !otherOperator.isNull() &&
-                   _operator == otherOperator._operator &&
+                   (_operator == UnaryOperatorType.ANY || _operator == otherOperator._operator) &&
                    getExpression().matches(otherOperator.getExpression(), match);
         }
 

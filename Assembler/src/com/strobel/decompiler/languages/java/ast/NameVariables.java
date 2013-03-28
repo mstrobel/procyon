@@ -24,9 +24,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @author strobelm
- */
 public class NameVariables {
     private final static char MAX_LOOP_VARIABLE_NAME = 'n';
 

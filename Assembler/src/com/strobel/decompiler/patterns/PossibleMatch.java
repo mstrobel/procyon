@@ -15,10 +15,10 @@ package com.strobel.decompiler.patterns;
 
 final class PossibleMatch {
     final INode nextOther;
-    final int checkpoint;
+    final int checkPoint;
 
-    PossibleMatch(final INode nextOther, final int checkpoint) {
+    PossibleMatch(final INode nextOther, final int checkPoint) {
         this.nextOther = nextOther;
-        this.checkpoint = checkpoint;
+        this.checkPoint = checkPoint;
     }
 }

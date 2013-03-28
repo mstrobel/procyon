@@ -17,9 +17,6 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
-/**
- * @author strobelm
- */
 public class ConditionalExpression extends Expression {
     public final static Role<Expression> CONDITION_ROLE = Roles.CONDITION;
     public final static TokenRole QUESTION_MARK_ROLE = new TokenRole("?");

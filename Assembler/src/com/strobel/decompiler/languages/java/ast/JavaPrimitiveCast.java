@@ -15,9 +15,6 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.core.StringUtilities;
 
-/**
- * @author strobelm
- */
 public final class JavaPrimitiveCast {
     public static Object cast(final com.strobel.reflection.SimpleType targetType, final Object input) {
         switch (targetType) {

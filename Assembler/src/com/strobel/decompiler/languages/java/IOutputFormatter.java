@@ -16,9 +16,6 @@ package com.strobel.decompiler.languages.java;
 import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.decompiler.languages.java.ast.CommentType;
 
-/**
- * @author strobelm
- */
 public interface IOutputFormatter {
     void startNode(AstNode node);
     void endNode(AstNode node);

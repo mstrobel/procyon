@@ -19,9 +19,6 @@ import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
-/**
- * @author strobelm
- */
 public class PrimitiveExpression extends Expression {
     public final static Object ANY_VALUE = new Object();
 

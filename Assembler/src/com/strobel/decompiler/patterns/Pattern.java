@@ -15,7 +15,9 @@ package com.strobel.decompiler.patterns;
 
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.languages.java.ast.AstNode;
+import com.strobel.decompiler.languages.java.ast.AstType;
 import com.strobel.decompiler.languages.java.ast.Expression;
+import com.strobel.decompiler.languages.java.ast.Statement;
 
 import java.util.Stack;
 
@@ -32,6 +34,14 @@ public abstract class Pattern implements INode {
 
     public final Expression toExpression() {
         return Expression.forPattern(this);
+    }
+
+    public final Statement toStatement() {
+        return Statement.forPattern(this);
+    }
+
+    public final AstType toType() {
+        return AstType.forPattern(this);
     }
 
     @Override
@@ -62,6 +72,17 @@ public abstract class Pattern implements INode {
         return matches(position, match);
     }
 
+    @Override
+    public final Match match(final INode other) {
+        final Match match = Match.createNew();
+        return matches(other, match) ? match : Match.failure();
+    }
+
+    @Override
+    public final boolean matches(final INode other) {
+        return matches(other, Match.createNew());
+    }
+
     public static boolean matchesCollection(
         final Role<?> role,
         final INode firstPatternChild,
@@ -70,16 +91,68 @@ public abstract class Pattern implements INode {
 
         final BacktrackingInfo backtrackingInfo = new BacktrackingInfo();
         final Stack<INode> patternStack = new Stack<>();
-        final Stack<PossibleMatch> stack = new Stack<>();
+        final Stack<PossibleMatch> stack = backtrackingInfo.stack;
 
         patternStack.push(firstPatternChild);
-        stack.push(new PossibleMatch(firstOtherChild, match.getCheckpoint()));
+        stack.push(new PossibleMatch(firstOtherChild, match.getCheckPoint()));
 
         while (!stack.isEmpty()) {
             INode current1 = patternStack.pop();
             INode current2 = stack.peek().nextOther;
 
-            match.restoreCheckpoint(stack.pop().checkpoint);
+            match.restoreCheckPoint(stack.pop().checkPoint);
+
+            boolean success = true;
+
+            while (current1 != null && success) {
+                while (current1 != null && current1.getRole() != role) {
+                    current1 = current1.getNextSibling();
+                }
+                while (current2 != null && current2.getRole() != role) {
+                    current2 = current2.getNextSibling();
+                }
+                if (current1 == null) {
+                    break;
+                }
+
+                assert stack.size() == patternStack.size();
+                success = current1.matchesCollection(role, current2, match, backtrackingInfo);
+                assert stack.size() >= patternStack.size();
+
+                while (stack.size() > patternStack.size()) {
+                    patternStack.push(current1.getNextSibling());
+                }
+
+                current1 = current1.getNextSibling();
+
+                if (current2 != null) {
+                    current2 = current2.getNextSibling();
+                }
+            }
+
+            while (current2 != null && current2.getRole() != role) {
+                current2 = current2.getNextSibling();
+            }
+
+            if (success && current2 == null) {
+                return true;
+            }
+        }
+
+        return false;
+/*
+        final BacktrackingInfo backtrackingInfo = new BacktrackingInfo();
+        final Stack<INode> patternStack = new Stack<>();
+        final Stack<PossibleMatch> stack = new Stack<>();
+
+        patternStack.push(firstPatternChild);
+        stack.push(new PossibleMatch(firstOtherChild, match.getCheckPoint()));
+
+        while (!stack.isEmpty()) {
+            INode current1 = patternStack.pop();
+            INode current2 = stack.peek().nextOther;
+
+            match.restoreCheckPoint(stack.pop().checkPoint);
 
             boolean success = true;
 
@@ -121,5 +194,6 @@ public abstract class Pattern implements INode {
         }
 
         return false;
+*/
     }
 }

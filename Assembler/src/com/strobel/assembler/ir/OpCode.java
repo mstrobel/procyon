@@ -13,9 +13,6 @@
 
 package com.strobel.assembler.ir;
 
-/**
- * @author strobelm
- */
 public enum OpCode {
     NOP(0x00, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0),
     ACONST_NULL(0x01, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.PushA),

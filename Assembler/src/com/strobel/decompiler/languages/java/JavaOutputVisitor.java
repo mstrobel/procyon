@@ -18,15 +18,12 @@ import com.strobel.core.ArrayUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.languages.java.ast.*;
-import com.strobel.decompiler.patterns.INode;
-import com.strobel.decompiler.patterns.Pattern;
-import com.strobel.decompiler.patterns.Role;
+import com.strobel.decompiler.patterns.*;
 import com.strobel.util.ContractUtils;
 
 import java.util.Stack;
 
-import static com.strobel.core.CollectionUtilities.any;
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 import static java.lang.String.format;
 
 public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
@@ -268,11 +265,11 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     void semicolon() {
-//        final Role role = containerStack.peek().getRole();
-//        if (!(role == ForStatement.InitializerRole || role == ForStatement.IteratorRole || role == UsingStatement.ResourceAcquisitionRole)) {
-        writeToken(Roles.SEMICOLON);
-        newLine();
-//        }
+        final Role role = containerStack.peek().getRole();
+        if (!(role == ForStatement.INITIALIZER_ROLE || role == ForStatement.ITERATOR_ROLE)) {
+            writeToken(Roles.SEMICOLON);
+            newLine();
+        }
     }
 
     private void optionalSemicolon() {
@@ -309,6 +306,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         rightParenthesis();
     }
 
+/*
     private void writeCommaSeparatedListInBrackets(final Iterable<? extends AstNode> list, final boolean spaceWithin) {
         writeToken(Roles.LEFT_BRACKET);
         if (any(list)) {
@@ -318,6 +316,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
         writeToken(Roles.RIGHT_BRACKET);
     }
+*/
 
     // </editor-fold>
 
@@ -434,13 +433,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="Patterns">
+
     void visitNodeInPattern(final INode childNode) {
         if (childNode instanceof AstNode) {
             ((AstNode) childNode).acceptVisitor(this, null);
         }
-/*
-        else if (childNode instanceof IdentifierExpressionBackreference) {
-            visitIdentifierExpressionBackreference((IdentifierExpressionBackreference) childNode);
+        else if (childNode instanceof IdentifierExpressionBackReference) {
+            visitIdentifierExpressionBackReference((IdentifierExpressionBackReference) childNode);
         }
         else if (childNode instanceof Choice) {
             visitChoice((Choice) childNode);
@@ -448,8 +448,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         else if (childNode instanceof AnyNode) {
             visitAnyNode((AnyNode) childNode);
         }
-        else if (childNode instanceof Backreference) {
-            visitBackreference((Backreference) childNode);
+        else if (childNode instanceof BackReference) {
+            visitBackReference((BackReference) childNode);
         }
         else if (childNode instanceof NamedNode) {
             visitNamedNode((NamedNode) childNode);
@@ -463,8 +463,82 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         else {
             writePrimitiveValue(childNode);
         }
-*/
     }
+
+    private void visitIdentifierExpressionBackReference(final IdentifierExpressionBackReference node) {
+        writeKeyword("identifierBackReference");
+        leftParenthesis();
+        writeIdentifier(node.getReferencedGroupName());
+        rightParenthesis();
+    }
+
+    private void visitChoice(final Choice choice) {
+        writeKeyword("choice");
+        space();
+        leftParenthesis();
+        newLine();
+        formatter.indent();
+
+        final INode last = lastOrDefault(choice);
+
+        for (final INode alternative : choice) {
+            visitNodeInPattern(alternative);
+            if (alternative != last) {
+                writeToken(Roles.COMMA);
+            }
+            newLine();
+        }
+
+        formatter.unindent();
+        rightParenthesis();
+    }
+
+    private void visitAnyNode(final AnyNode anyNode) {
+        if (!StringUtilities.isNullOrEmpty(anyNode.getGroupName())) {
+            writeIdentifier(anyNode.getGroupName());
+            writeToken(Roles.COLON);
+            writeIdentifier("*");
+        }
+    }
+
+    private void visitBackReference(final BackReference backReference) {
+        writeKeyword("backReference");
+        leftParenthesis();
+        writeIdentifier(backReference.getReferencedGroupName());
+        rightParenthesis();
+    }
+
+    private void visitNamedNode(final NamedNode namedNode) {
+        if (!StringUtilities.isNullOrEmpty(namedNode.getGroupName())) {
+            writeIdentifier(namedNode.getGroupName());
+            writeToken(Roles.COLON);
+        }
+        visitNodeInPattern(namedNode.getNode());
+    }
+
+    private void visitOptionalNode(final OptionalNode optionalNode) {
+        writeKeyword("optional");
+        leftParenthesis();
+        visitNodeInPattern(optionalNode.getNode());
+        rightParenthesis();
+    }
+
+    private void visitRepeat(final Repeat repeat) {
+        writeKeyword("repeat");
+        leftParenthesis();
+
+        if (repeat.getMinCount() != 0 || repeat.getMaxCount() != Integer.MAX_VALUE) {
+            writeIdentifier(String.valueOf(repeat.getMinCount()));
+            writeToken(Roles.COMMA);
+            writeIdentifier(String.valueOf(repeat.getMaxCount()));
+            writeToken(Roles.COMMA);
+        }
+
+        visitNodeInPattern(repeat.getNode());
+        rightParenthesis();
+    }
+
+    // </editor-fold>
 
     @Override
     public Void visitComment(final Comment comment, final Void _) {
@@ -1326,7 +1400,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 spacePolicy = policy.SpaceAroundShiftOperator;
                 break;
             default:
-                throw new IllegalArgumentException("Invalid value for BinaryOperatorType.");
+                spacePolicy = true;
         }
 
         space(spacePolicy);
@@ -1489,6 +1563,55 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeToken(AssignmentExpression.getOperatorRole(node.getOperator()));
         space(policy.SpaceAroundAssignment);
         node.getRight().acceptVisitor(this, _);
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitForStatement(final ForStatement node, final Void _) {
+        startNode(node);
+        writeKeyword(ForStatement.FOR_KEYWORD_ROLE);
+        space(policy.SpaceBeforeForParentheses);
+        leftParenthesis();
+        space(policy.SpacesWithinForParentheses);
+
+        writeCommaSeparatedList(node.getInitializers());
+        space(policy.SpaceBeforeForSemicolon);
+        writeToken(Roles.SEMICOLON);
+        space(policy.SpaceAfterForSemicolon);
+
+        node.getCondition().acceptVisitor(this, _);
+        space(policy.SpaceBeforeForSemicolon);
+        writeToken(Roles.SEMICOLON);
+
+        if (any(node.getIterators())) {
+            space(policy.SpaceAfterForSemicolon);
+            writeCommaSeparatedList(node.getIterators());
+        }
+
+        space(policy.SpacesWithinForParentheses);
+        rightParenthesis();
+        writeEmbeddedStatement(node.getEmbeddedStatement());
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitForEachStatement(final ForEachStatement node, final Void _) {
+        startNode(node);
+        writeKeyword(ForEachStatement.FOR_KEYWORD_ROLE);
+        space(policy.SpaceBeforeForeachParentheses);
+        leftParenthesis();
+        space(policy.SpacesWithinForeachParentheses);
+        node.getVariableType().acceptVisitor(this, _);
+        space();
+        node.getVariableNameToken().acceptVisitor(this, _);
+        writeKeyword(ForEachStatement.COLON_ROLE);
+        space();
+        node.getInExpression().acceptVisitor(this, _);
+        space(policy.SpacesWithinForeachParentheses);
+        rightParenthesis();
+        writeEmbeddedStatement(node.getEmbeddedStatement());
         endNode(node);
         return null;
     }

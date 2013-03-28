@@ -21,4 +21,6 @@ public interface INode {
 
     boolean matches(final INode other, final Match match);
     boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo);
+    Match match(INode other);
+    boolean matches(INode other);
 }
