@@ -1011,7 +1011,6 @@ public final class AstBuilder {
     }
 
     private final static class VariableInfo {
-
         final Variable variable;
         final List<ByteCode> definitions;
         final List<ByteCode> references;
@@ -1093,7 +1092,48 @@ public final class AstBuilder {
                                                                                 : variableDefinition.getName()
                 );
 
-                variable.setType(variableDefinition.getVariableType());
+                if (variableDefinition.isTypeKnown()) {
+                    variable.setType(variableDefinition.getVariableType());
+                }
+                else {
+                    for (final ByteCode b : definitions) {
+                        final FrameValue stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
+
+                        if (stackValue != FrameValue.UNINITIALIZED &&
+                            stackValue != FrameValue.UNINITIALIZED_THIS) {
+
+                            final TypeReference variableType;
+
+                            switch (stackValue.getType()) {
+                                case Integer:
+                                    variableType = BuiltinTypes.Integer;
+                                    break;
+                                case Float:
+                                    variableType = BuiltinTypes.Float;
+                                    break;
+                                case Long:
+                                    variableType = BuiltinTypes.Long;
+                                    break;
+                                case Double:
+                                    variableType = BuiltinTypes.Double;
+                                    break;
+                                case UninitializedThis:
+                                    variableType = _context.getCurrentType();
+                                    break;
+                                case Reference:
+                                    variableType = (TypeReference) stackValue.getParameter();
+                                    break;
+                                default:
+                                    variableType = variableDefinition.getVariableType();
+                                    break;
+                            }
+
+                            variable.setType(variableType);
+                            break;
+                        }
+                    }
+                }
+
                 variable.setOriginalVariable(variableDefinition);
 
                 final VariableInfo variableInfo = new VariableInfo(variable, definitions, references);
@@ -1115,21 +1155,21 @@ public final class AstBuilder {
                         )
                     );
 
-                    final FrameValue stackValue = b.stackBefore[b.stackBefore.length - 1].value;
                     final TypeReference variableType;
+                    final FrameValue stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
 
                     switch (stackValue.getType()) {
                         case Integer:
                             variableType = BuiltinTypes.Integer;
                             break;
                         case Float:
-                            variableType = BuiltinTypes.Integer;
+                            variableType = BuiltinTypes.Float;
                             break;
                         case Long:
-                            variableType = BuiltinTypes.Integer;
+                            variableType = BuiltinTypes.Long;
                             break;
                         case Double:
-                            variableType = BuiltinTypes.Integer;
+                            variableType = BuiltinTypes.Double;
                             break;
                         case UninitializedThis:
                             variableType = _context.getCurrentType();
@@ -1707,7 +1747,7 @@ public final class AstBuilder {
 
     private final static class VariableSlot {
         final static VariableSlot UNKNOWN_INSTANCE = new VariableSlot(FrameValue.UNINITIALIZED, EMPTY_DEFINITIONS);
-        
+
         final ByteCode[] definitions;
         final FrameValue value;
 

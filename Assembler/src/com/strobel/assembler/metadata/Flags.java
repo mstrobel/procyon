@@ -339,6 +339,11 @@ public class Flags {
     public static final long SUPER = 1L << 44;
 
     /**
+     * Indicates whether a local variable type is known from metadata.
+     */
+    public static final long IS_TYPE_KNOWN = 1L << 45;
+
+    /**
      * Modifier masks.
      */
     public static final int

@@ -279,11 +279,20 @@ public class AstMethodBodyBuilder {
             case AConstNull:
                 return new NullReferenceExpression();
 
-            case LdC:
+            case LdC: {
                 if (operand instanceof TypeReference) {
                     return new ClassOfExpression(operandType);
                 }
+
+                final TypeReference type = byteCode.getInferredType() != null ? byteCode.getInferredType()
+                                                                              : byteCode.getExpectedType();
+
+                if (type != null) {
+                    return new PrimitiveExpression(JavaPrimitiveCast.cast(type.getSimpleType(), operand));
+                }
+
                 return new PrimitiveExpression(operand);
+            }
 
             case Pop:
             case Pop2:
@@ -340,7 +349,7 @@ public class AstMethodBodyBuilder {
                 final MemberReferenceExpression staticFieldReference = AstBuilder.convertType(fieldOperand.getDeclaringType())
                                                                                  .member(fieldOperand.getName());
                 staticFieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
-                return new AssignmentExpression(staticFieldReference, arg2);
+                return new AssignmentExpression(staticFieldReference, arg1);
             }
 
             case GetField: {

@@ -19,12 +19,22 @@ package com.strobel.assembler.metadata;
  * Time: 2:11 PM
  */
 public final class VariableDefinition extends VariableReference {
+    private boolean _isTypeKnown;
+
     public VariableDefinition(final TypeReference variableType) {
         super(variableType);
     }
 
     public VariableDefinition(final String name, final TypeReference variableType) {
         super(name, variableType);
+    }
+
+    public final boolean isTypeKnown() {
+        return _isTypeKnown;
+    }
+
+    public final void setTypeKnown(final boolean typeKnown) {
+        _isTypeKnown = typeKnown;
     }
 
     @Override

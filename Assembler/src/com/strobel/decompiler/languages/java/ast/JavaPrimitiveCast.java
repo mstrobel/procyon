@@ -68,6 +68,9 @@ public final class JavaPrimitiveCast {
                 if (input instanceof Number) {
                     return ((Number) input).intValue();
                 }
+                if (input instanceof Boolean) {
+                    return ((Boolean)input) ? 1 : 0;
+                }
                 if (input instanceof String) {
                     return Integer.parseInt((String) input);
                 }
@@ -99,6 +102,9 @@ public final class JavaPrimitiveCast {
                     return Double.parseDouble((String) input);
                 }
                 break;
+
+            default:
+                return input;
         }
 
         throw new ClassCastException();

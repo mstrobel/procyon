@@ -91,7 +91,7 @@ public final class AstBuilder {
     }
 
     public static AstType convertType(final TypeReference type) {
-        return convertType(type, null);
+        return convertType(type, new ConvertTypeOptions());
     }
 
     public static AstType convertType(final TypeReference type, final ConvertTypeOptions options) {
@@ -122,7 +122,7 @@ public final class AstBuilder {
         }
 
         if (type.isPrimitive()) {
-            final SimpleType simpleType = new SimpleType(type.getName());
+            final SimpleType simpleType = new SimpleType(type.getSimpleName());
             simpleType.putUserData(Keys.TYPE_DEFINITION, type.resolve());
             return simpleType;
         }

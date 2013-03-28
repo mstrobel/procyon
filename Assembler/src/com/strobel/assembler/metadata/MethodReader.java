@@ -83,6 +83,8 @@ public class MethodReader {
                             locals[localIndex].getVariableType()
                         );
                     }
+
+                    locals[localIndex].setTypeKnown(true);
                 }
             }
         }
