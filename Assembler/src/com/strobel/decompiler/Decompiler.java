@@ -87,11 +87,6 @@ public final class Decompiler {
     }
 
     public static void main(final String[] args) {
-        for (final String arg : args) {
-            System.out.print(arg);
-            System.out.println();
-        }
-
         final PlainTextOutput printer = new AnsiTextOutput();
         final DecompilerSettings options = new DecompilerSettings();
         final List<String> typeNames = Args.parse(options, args);
