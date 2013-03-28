@@ -41,7 +41,7 @@ public final class PrimitiveType extends TypeDefinition {
 
     @Override
     public String getFullName() {
-        return _simpleType.getDescriptorPrefix();
+        return _simpleType.getPrimitiveName();
     }
 
     @Override

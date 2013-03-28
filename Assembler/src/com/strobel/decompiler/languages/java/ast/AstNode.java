@@ -393,6 +393,8 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore 
         if (nextSibling._parent != this) {
             throw new IllegalArgumentException("Next sibling is not a child of this node.");
         }
+
+        insertChildBeforeUnsafe(nextSibling, child, role);
     }
 
     @SafeVarargs
@@ -589,7 +591,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore 
     public final void setRole(final Role<?> role) {
         VerifyArgument.notNull(role, "role");
 
-        if (role.isValid(this)) {
+        if (!role.isValid(this)) {
             throw new IllegalArgumentException("This node is not valid for the specified role.");
         }
 

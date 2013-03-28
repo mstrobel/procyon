@@ -121,6 +121,12 @@ public final class AstBuilder {
             return new SimpleType(type.getName());
         }
 
+        if (type.isPrimitive()) {
+            final SimpleType simpleType = new SimpleType(type.getName());
+            simpleType.putUserData(Keys.TYPE_DEFINITION, type.resolve());
+            return simpleType;
+        }
+
         final boolean includeTypeParameterDefinitions = options == null ||
                                                         options.getIncludeTypeParameterDefinitions();
 
@@ -243,7 +249,7 @@ public final class AstBuilder {
         EntityDeclaration.setModifiers(astField, convertModifiers(field));
 
         if (field.hasConstantValue()) {
-            // TODO: Set constant value initializer.
+            initializer.setInitializer(new PrimitiveExpression(field.getConstantValue()));
         }
 
         return astField;
@@ -254,7 +260,7 @@ public final class AstBuilder {
 
         EntityDeclaration.setModifiers(astMethod, convertModifiers(method));
 
-        astMethod.setName(method.getDeclaringType().getName());
+        astMethod.setName(method.getName());
         astMethod.getParameters().addAll(createParameters(method.getParameters()));
         astMethod.getTypeParameters().addAll(createTypeParameters(method.getGenericParameters()));
         astMethod.setReturnType(convertType(method.getReturnType()));
@@ -381,8 +387,9 @@ public final class AstBuilder {
     }
 
     public void generateCode(final ITextOutput output) {
-        if (!_haveTransformationsRun)
+        if (!_haveTransformationsRun) {
             runTransformations();
+        }
 
         _compileUnit.acceptVisitor(new JavaOutputVisitor(output, _context.getSettings().getFormattingOptions()), null);
     }

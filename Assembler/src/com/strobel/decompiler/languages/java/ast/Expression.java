@@ -87,6 +87,14 @@ public abstract class Expression extends AstNode {
 
     // <editor-fold defaultstate="collapsed" desc="Fluent Interface">
 
+    public InvocationExpression invoke(final Expression... arguments) {
+        return new InvocationExpression(this, arguments);
+    }
+
+    public InvocationExpression invoke(final Iterable<Expression> arguments) {
+        return new InvocationExpression(this, arguments);
+    }
+
     public InvocationExpression invoke(final String methodName, final Expression... arguments) {
         return invoke(methodName, null, arguments);
     }

@@ -18,11 +18,14 @@ import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.VariableDefinition;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.ast.*;
-import com.strobel.reflection.SimpleType;
+import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
@@ -85,13 +88,43 @@ public class AstMethodBodyBuilder {
 
         AstOptimizer.optimize(_context, method);
 
+        final Set<Variable> methodParameters = new LinkedHashSet<>();
+        final Set<Variable> localVariables = new LinkedHashSet<>();
+
+        final List<com.strobel.decompiler.ast.Expression> expressions = method.getSelfAndChildrenRecursive(
+            com.strobel.decompiler.ast.Expression.class
+        );
+
+        for (final com.strobel.decompiler.ast.Expression e : expressions) {
+            final Object operand = e.getOperand();
+
+            if (operand instanceof Variable) {
+                final Variable variable = (Variable) operand;
+
+                if (variable.isParameter()) {
+                    methodParameters.add(variable);
+                }
+                else {
+                    localVariables.add(variable);
+                }
+            }
+        }
+
+        NameVariables.assignNamesToVariables(_context, methodParameters, localVariables, method);
+
         final BlockStatement astBlock = transformBlock(method);
         final AstNodeCollection<Statement> statements = astBlock.getStatements();
         final Statement insertionPoint = firstOrDefault(statements);
 
         for (final Variable v : _localVariablesToDefine) {
             final AstType type = AstBuilder.convertType(v.getType());
-            final VariableDeclarationStatement declaration = new VariableDeclarationStatement(type, v.getName());
+            final VariableDefinition originalVariable = v.getOriginalVariable();
+
+            final VariableDeclarationStatement declaration = new VariableDeclarationStatement(
+                type,
+                !v.isGenerated() && originalVariable.hasName() ? originalVariable.getName()
+                                                               : v.getName()
+            );
 
             declaration.putUserData(Keys.VARIABLE, v);
             statements.insertBefore(insertionPoint, declaration);
@@ -247,7 +280,10 @@ public class AstMethodBodyBuilder {
                 return new NullReferenceExpression();
 
             case LdC:
-                return new PrimitiveExpression(arg1);
+                if (operand instanceof TypeReference) {
+                    return new ClassOfExpression(operandType);
+                }
+                return new PrimitiveExpression(operand);
 
             case Pop:
             case Pop2:
@@ -263,49 +299,60 @@ public class AstMethodBodyBuilder {
                 return arg1;
 
             case I2L:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Long, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Long), arg1);
             case I2F:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Float, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Float), arg1);
             case I2D:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Double, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Double), arg1);
             case L2I:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Integer, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Integer), arg1);
             case L2F:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Float, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Float), arg1);
             case L2D:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Double, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Double), arg1);
             case F2I:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Integer, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Integer), arg1);
             case F2L:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Long, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Long), arg1);
             case F2D:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Double, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Double), arg1);
             case D2I:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Integer, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Integer), arg1);
             case D2L:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Long, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Long), arg1);
             case D2F:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Float, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Float), arg1);
             case I2B:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Byte, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Byte), arg1);
             case I2C:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Character, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Character), arg1);
             case I2S:
-                return new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Short, arg1));
+                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Short), arg1);
 
-            case GetStatic:
-            case PutStatic: {
+            case GetStatic: {
                 final MemberReferenceExpression staticFieldReference = AstBuilder.convertType(fieldOperand.getDeclaringType())
                                                                                  .member(fieldOperand.getName());
                 staticFieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
                 return staticFieldReference;
             }
 
-            case GetField:
-            case PutField: {
+            case PutStatic: {
+                final MemberReferenceExpression staticFieldReference = AstBuilder.convertType(fieldOperand.getDeclaringType())
+                                                                                 .member(fieldOperand.getName());
+                staticFieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
+                return new AssignmentExpression(staticFieldReference, arg2);
+            }
+
+            case GetField: {
                 final MemberReferenceExpression fieldReference = arg1.member(fieldOperand.getName());
                 fieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
                 return fieldReference;
+            }
+
+            case PutField: {
+                final MemberReferenceExpression fieldReference = arg1.member(fieldOperand.getName());
+                fieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
+                return new AssignmentExpression(fieldReference, arg2);
             }
 
             case InvokeVirtual:
@@ -333,7 +380,7 @@ public class AstMethodBodyBuilder {
             case MonitorEnter:
             case MonitorExit:
             case MultiANewArray:
-                throw ContractUtils.unreachable();
+                break;
 
             case Breakpoint:
                 return null;
@@ -359,11 +406,13 @@ public class AstMethodBodyBuilder {
                 return new AssignmentExpression(name, arg1);
             }
 
-            case LoadElement:
+            case LoadElement: {
+                return new IndexerExpression(arg1, arg2);
+            }
             case StoreElement: {
-                return new IndexerExpression(
-                    arg1,
-                    new PrimitiveExpression(JavaPrimitiveCast.cast(SimpleType.Integer, operand))
+                return new AssignmentExpression(
+                    new IndexerExpression(arg1, arg2),
+                    arg3
                 );
             }
 
@@ -393,8 +442,29 @@ public class AstMethodBodyBuilder {
                 return new UnaryOperatorExpression(UnaryOperatorType.NOT, arg1);
             case Xor:
                 return new BinaryOperatorExpression(arg1, BinaryOperatorType.EXCLUSIVE_OR, arg2);
-            case Inc:
-                return new UnaryOperatorExpression(UnaryOperatorType.POST_INCREMENT, arg1);
+
+            case Inc: {
+                if (!variableOperand.isParameter()) {
+                    _localVariablesToDefine.add(variableOperand);
+                }
+
+                final IdentifierExpression name = new IdentifierExpression(variableOperand.getName());
+
+                name.putUserData(Keys.VARIABLE, variableOperand);
+
+                final PrimitiveExpression deltaExpression = (PrimitiveExpression) arg1;
+                final int delta = (Integer) deltaExpression.getValue();
+
+                switch (delta) {
+                    case -1:
+                        return new UnaryOperatorExpression(UnaryOperatorType.POST_DECREMENT, name);
+                    case 1:
+                        return new UnaryOperatorExpression(UnaryOperatorType.POST_INCREMENT, name);
+                    default:
+                        return new BinaryOperatorExpression(name, BinaryOperatorType.ADD, arg1);
+                }
+            }
+
             case CmpEq:
                 return new BinaryOperatorExpression(arg1, BinaryOperatorType.EQUALITY, arg2);
             case CmpNe:
@@ -465,7 +535,7 @@ public class AstMethodBodyBuilder {
                 return AstBuilder.makeDefaultValue((TypeReference) operand);
         }
 
-        throw ContractUtils.unsupported();
+        return inlineAssembly(byteCode, arguments);
     }
 
     private AstNode transformCall(
@@ -494,17 +564,21 @@ public class AstMethodBodyBuilder {
                 }
             }
         }
+        else if (byteCode.getCode() == AstCode.InvokeStatic &&
+                 declaringType.isEquivalentTo(_context.getCurrentType())) {
+
+            target = Expression.NULL;
+        }
         else {
             target = new TypeReferenceExpression(AstBuilder.convertType(declaringType));
         }
 
-        if (target instanceof ThisReferenceExpression && !isVirtual) {
-            if (!declaringType.isEquivalentTo(_method.getDeclaringType())) {
+        if (target instanceof ThisReferenceExpression) {
+            if (!isVirtual && !declaringType.isEquivalentTo(_method.getDeclaringType())) {
                 target = new SuperReferenceExpression();
             }
         }
-
-        if (methodReference.isConstructor()) {
+        else if (methodReference.isConstructor()) {
             final ObjectCreationExpression creation = new ObjectCreationExpression(
                 AstBuilder.convertType(declaringType)
             );
@@ -540,5 +614,39 @@ public class AstMethodBodyBuilder {
         // TODO: Convert arguments.
         //
         return arguments;
+    }
+
+    private static Expression inlineAssembly(final com.strobel.decompiler.ast.Expression byteCode, final List<Expression> arguments) {
+        if (byteCode.getOperand() != null) {
+            arguments.add(0, new IdentifierExpression(formatByteCodeOperand(byteCode.getOperand())));
+        }
+        return new IdentifierExpression(byteCode.getCode().getName()).invoke(arguments);
+    }
+
+    private static String formatByteCodeOperand(final Object operand) {
+        if (operand == null) {
+            return StringUtilities.EMPTY;
+        }
+        else if (operand instanceof MethodReference) {
+            return ((MethodReference) operand).getName() + "()";
+        }
+        else if (operand instanceof TypeReference) {
+            return ((TypeReference) operand).getFullName();
+        }
+        else if (operand instanceof VariableDefinition) {
+            return ((VariableDefinition) operand).getName();
+        }
+        else if (operand instanceof ParameterDefinition) {
+            return ((ParameterDefinition) operand).getName();
+        }
+        else if (operand instanceof FieldReference) {
+            return ((FieldReference) operand).getName();
+        }
+        else if (operand instanceof String) {
+            return JavaOutputVisitor.convertString((String) operand, true);
+        }
+        else {
+            return String.valueOf(operand);
+        }
     }
 }

@@ -13,6 +13,7 @@
 
 package com.strobel.decompiler.languages.java;
 
+import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.ITextOutput;
@@ -185,7 +186,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 space();
             }
             // this space instanceof not strictly required, so we call Space()
-            formatter.writeToken("$");
+//            formatter.writeToken("$");
         }
         else if (lastWritten == LastWritten.KeywordOrIdentifier) {
             formatter.space();
@@ -512,8 +513,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitMemberReferenceExpression(final MemberReferenceExpression node, final Void _) {
         startNode(node);
-        node.getTarget().acceptVisitor(this, null);
-        writeToken(Roles.DOT);
+
+        final Expression target = node.getTarget();
+
+        if (!target.isNull()) {
+            target.acceptVisitor(this, null);
+            writeToken(Roles.DOT);
+        }
+
         writeIdentifier(node.getMemberName());
         writeTypeArguments(node.getTypeArguments());
         endNode(node);
@@ -555,6 +562,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitClassOfExpression(final ClassOfExpression node, final Void _) {
         startNode(node);
+        node.getType().acceptVisitor(this, _);
         writeToken(Roles.DOT);
         writeKeyword("class", node.getRole());
         endNode(node);
@@ -926,7 +934,16 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitSimpleType(final SimpleType node, final Void _) {
         startNode(node);
-        writeIdentifier(node.getIdentifier());
+
+        final TypeDefinition typeDefinition = node.getUserData(Keys.TYPE_DEFINITION);
+
+        if (typeDefinition != null && typeDefinition.isPrimitive()) {
+            writeKeyword(typeDefinition.getSimpleName());
+        }
+        else {
+            writeIdentifier(node.getIdentifier());
+        }
+
         writeTypeArguments(node.getTypeArguments());
         endNode(node);
         return null;
@@ -1070,8 +1087,17 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             newLine();
         }
         else {
-            node.getMembers().toArray();
+            boolean first = true;
+
             for (final EntityDeclaration member : node.getMembers()) {
+                if (first) {
+                    first = false;
+                }
+                else {
+                    for (int i = 0; i < policy.BlankLinesBetweenMembers; i++) {
+                        formatter.newLine();
+                    }
+                }
                 member.acceptVisitor(this, _);
             }
         }

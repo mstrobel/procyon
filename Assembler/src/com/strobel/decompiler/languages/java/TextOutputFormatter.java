@@ -116,7 +116,7 @@ public class TextOutputFormatter implements IOutputFormatter {
 
     @Override
     public void writeKeyword(final String keyword) {
-        output.write(keyword);
+        output.writeKeyword(keyword);
     }
 
     @Override
