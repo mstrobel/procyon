@@ -25,22 +25,36 @@ import java.util.List;
  * Time: 5:42 PM
  */
 public final class ParameterDefinition extends ParameterReference implements IAnnotationsProvider {
+    private final int _slot;
+    private final int _size;
     private IMethodSignature _method;
     private List<CustomAnnotation> _annotations;
 
-    public ParameterDefinition(final TypeReference parameterType) {
+    public ParameterDefinition(final int slot, final TypeReference parameterType) {
         super(StringUtilities.EMPTY, parameterType);
+        _slot = slot;
+        _size = parameterType.getSimpleType().isDoubleWord() ? 2 : 1;
     }
 
-    public ParameterDefinition(final String name, final TypeReference parameterType) {
+    public ParameterDefinition(final int slot, final String name, final TypeReference parameterType) {
         super(name, parameterType);
+        _slot = slot;
+        _size = parameterType.getSimpleType().isDoubleWord() ? 2 : 1;
     }
 
-    public IMethodSignature getMethod() {
+    public final int getSize() {
+        return _size;
+    }
+
+    public final int getSlot() {
+        return _slot;
+    }
+
+    public final IMethodSignature getMethod() {
         return _method;
     }
 
-    void setMethod(final IMethodSignature method) {
+    final void setMethod(final IMethodSignature method) {
         _method = method;
     }
 

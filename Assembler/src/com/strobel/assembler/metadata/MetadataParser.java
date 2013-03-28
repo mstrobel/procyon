@@ -751,8 +751,14 @@ public final class MetadataParser {
 
             final ParameterDefinition[] parameters = new ParameterDefinition[parameterTypes.size()];
 
-            for (int i = 0, n = parameters.length; i < n; i++) {
-                parameters[i] = new ParameterDefinition(parameterTypes.get(i));
+            for (int i = 0, slot = 0, n = parameters.length; i < n; i++, slot++) {
+                final TypeReference parameterType = parameterTypes.get(i);
+
+                parameters[i] = new ParameterDefinition(slot, parameterType);
+
+                if (parameterType.getSimpleType().isDoubleWord()) {
+                    slot++;
+                }
             }
 
             _parameters = ArrayUtilities.asUnmodifiableList(parameters);

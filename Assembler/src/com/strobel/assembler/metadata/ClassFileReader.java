@@ -858,7 +858,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 }
 
                 if (!Modifier.isStatic(methodInfo.accessFlags)) {
-                    body.setThisParameter(new ParameterDefinition("this", thisType));
+                    body.setThisParameter(new ParameterDefinition(0, "this", thisType));
                 }
 
                 MethodDefinition method;

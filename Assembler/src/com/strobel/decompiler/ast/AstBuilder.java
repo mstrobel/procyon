@@ -464,6 +464,7 @@ public final class AstBuilder {
         for (int i = 0; i < parameters.size(); i++) {
             final ParameterDefinition parameter = parameters.get(i);
             final TypeReference parameterType = parameter.getParameterType();
+            final int slot = parameter.getSlot();
 
             switch (parameterType.getSimpleType()) {
                 case Boolean:
@@ -471,19 +472,19 @@ public final class AstBuilder {
                 case Character:
                 case Short:
                 case Integer:
-                    unknownVariables[isConstructor ? i + 1 : i] = new VariableSlot(FrameValue.INTEGER, EMPTY_DEFINITIONS);
+                    unknownVariables[isConstructor ? slot + 1 : slot] = new VariableSlot(FrameValue.INTEGER, EMPTY_DEFINITIONS);
                     break;
                 case Long:
-                    unknownVariables[isConstructor ? i + 1 : i] = new VariableSlot(FrameValue.LONG, EMPTY_DEFINITIONS);
+                    unknownVariables[isConstructor ? slot + 1 : slot] = new VariableSlot(FrameValue.LONG, EMPTY_DEFINITIONS);
                     break;
                 case Float:
-                    unknownVariables[isConstructor ? i + 1 : i] = new VariableSlot(FrameValue.FLOAT, EMPTY_DEFINITIONS);
+                    unknownVariables[isConstructor ? slot + 1 : slot] = new VariableSlot(FrameValue.FLOAT, EMPTY_DEFINITIONS);
                     break;
                 case Double:
-                    unknownVariables[isConstructor ? i + 1 : i] = new VariableSlot(FrameValue.DOUBLE, EMPTY_DEFINITIONS);
+                    unknownVariables[isConstructor ? slot + 1 : slot] = new VariableSlot(FrameValue.DOUBLE, EMPTY_DEFINITIONS);
                     break;
                 default:
-                    unknownVariables[isConstructor ? i + 1 : i] = new VariableSlot(FrameValue.makeReference(parameterType), EMPTY_DEFINITIONS);
+                    unknownVariables[isConstructor ? slot + 1 : slot] = new VariableSlot(FrameValue.makeReference(parameterType), EMPTY_DEFINITIONS);
                     break;
             }
         }
@@ -1026,9 +1027,19 @@ public final class AstBuilder {
     private void convertLocalVariables(final List<ByteCode> body) {
         final MethodDefinition method = _context.getCurrentMethod();
         final List<ParameterDefinition> parameters = method.getParameters();
-        final int parameterCount = _body.hasThis() ? parameters.size() + 1 : parameters.size();
+        final VariableDefinitionCollection variables = _body.getVariables();
+        final ParameterDefinition[] parameterMap = new ParameterDefinition[variables.size()];
+        final boolean hasThis = _body.hasThis();
 
-        for (final VariableDefinition variableDefinition : _body.getVariables()) {
+        if (hasThis) {
+            parameterMap[0] = _body.getThisParameter();
+        }
+
+        for (final ParameterDefinition parameter : parameters) {
+            parameterMap[parameter.getSlot() + (hasThis ? 1 : 0)] = parameter;
+        }
+
+        for (final VariableDefinition variableDefinition : variables) {
             //
             // Find all definitions of and references to this variable.
             //
@@ -1061,16 +1072,10 @@ public final class AstBuilder {
                 }
             }
 
-            if (variableIndex < parameterCount) {
-                final ParameterDefinition parameter;
-                final Variable variable = new Variable();
+            final ParameterDefinition parameter = parameterMap[variableIndex];
 
-                if (_body.hasThis()) {
-                    parameter = variableIndex == 0 ? _body.getThisParameter() : parameters.get(variableIndex - 1);
-                }
-                else {
-                    parameter = parameters.get(variableIndex);
-                }
+            if (parameter != null) {
+                final Variable variable = new Variable();
 
                 variable.setName(
                     StringUtilities.isNullOrEmpty(parameter.getName()) ? "p" + parameter.getPosition()

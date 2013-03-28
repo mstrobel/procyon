@@ -19,15 +19,24 @@ import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 
 public class DecompilerSettings {
     private boolean _printUsage;
+    private boolean _showSyntheticMembers;
     private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
     private AstOptimizationStep _abortBeforeStep = AstOptimizationStep.None;
     private JavaFormattingOptions _formattingOptions;
 
-    public JavaFormattingOptions getFormattingOptions() {
+    public final boolean getShowSyntheticMembers() {
+        return _showSyntheticMembers;
+    }
+
+    public final void setShowSyntheticMembers(final boolean showSyntheticMembers) {
+        _showSyntheticMembers = showSyntheticMembers;
+    }
+
+    public final JavaFormattingOptions getFormattingOptions() {
         return _formattingOptions;
     }
 
-    public void setFormattingOptions(final JavaFormattingOptions formattingOptions) {
+    public final void setFormattingOptions(final JavaFormattingOptions formattingOptions) {
         _formattingOptions = formattingOptions;
     }
 

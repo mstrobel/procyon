@@ -532,14 +532,27 @@ public final class AstOptimizer {
             final AstCode reversedCode;
 
             switch (firstArgument.getCode()) {
-                case CmpEq: reversedCode = AstCode.CmpNe; break;
-                case CmpNe: reversedCode = AstCode.CmpEq; break;
-                case CmpLt: reversedCode = AstCode.CmpGe; break;
-                case CmpGe: reversedCode = AstCode.CmpLt; break;
-                case CmpGt: reversedCode = AstCode.CmpLe; break;
-                case CmpLe: reversedCode = AstCode.CmpGt; break;
+                case CmpEq:
+                    reversedCode = AstCode.CmpNe;
+                    break;
+                case CmpNe:
+                    reversedCode = AstCode.CmpEq;
+                    break;
+                case CmpLt:
+                    reversedCode = AstCode.CmpGe;
+                    break;
+                case CmpGe:
+                    reversedCode = AstCode.CmpLt;
+                    break;
+                case CmpGt:
+                    reversedCode = AstCode.CmpLe;
+                    break;
+                case CmpLe:
+                    reversedCode = AstCode.CmpGt;
+                    break;
 
-                default: throw ContractUtils.unreachable();
+                default:
+                    throw ContractUtils.unreachable();
             }
 
             expression.setCode(reversedCode);
@@ -793,7 +806,7 @@ public final class AstOptimizer {
                 final TypeReference returnType = isStore ? trueVariable.get().getType() : context.getCurrentMethod().getReturnType();
 
                 final boolean returnTypeIsBoolean = TypeAnalysis.isBoolean(returnType) ||
-                                                    isStore && trueVariable.get().getType().getSimpleType() ==  SimpleType.Integer;
+                                                    isStore && trueVariable.get().getType().getSimpleType() == SimpleType.Integer;
 
                 final StrongBox<Integer> leftBooleanValue = new StrongBox<>();
                 final StrongBox<Integer> rightBooleanValue = new StrongBox<>();
@@ -975,7 +988,7 @@ public final class AstOptimizer {
 
                     arguments.remove(0);
                     initExpression.getArguments().addAll(arguments);
-                    initExpression.getRanges().addAll(((Expression)next).getRanges());
+                    initExpression.getRanges().addAll(((Expression) next).getRanges());
                     head.getArguments().set(0, initExpression);
                     body.remove(position + 1);
 
@@ -1120,7 +1133,7 @@ public final class AstOptimizer {
                 body.remove(position + 1);  // remove store
 
                 nextExpression.getArguments().set(0, initializer.get());
-                ((Expression)body.get(position)).getArguments().set(0, nextExpression);
+                ((Expression) body.get(position)).getArguments().set(0, nextExpression);
 
                 return true;
             }
@@ -1136,7 +1149,7 @@ public final class AstOptimizer {
                     body.remove(position + 1);  // remove putstatic
 
                     nextExpression.getArguments().set(0, initializer.get());
-                    ((Expression)body.get(position)).getArguments().set(0, nextExpression);
+                    ((Expression) body.get(position)).getArguments().set(0, nextExpression);
 
                     return true;
                 }
@@ -1483,7 +1496,12 @@ public final class AstOptimizer {
             final List<Node> body = basicBlock.getBody();
 
             for (int i = body.size() - 1; i >= 0; i--) {
+                if (i >= body.size()) {
+                    continue;
+                }
+
                 final Node n = body.get(i);
+
                 if (n instanceof Expression && optimization.run(body, (Expression) n, i)) {
                     modified = true;
                 }

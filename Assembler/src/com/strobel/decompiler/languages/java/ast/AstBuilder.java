@@ -20,6 +20,7 @@ import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.ast.TypeAnalysis;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
@@ -229,11 +230,13 @@ public final class AstBuilder {
         }
 
         for (final MethodDefinition method : type.getDeclaredMethods()) {
-            if (method.isConstructor()) {
-                astType.addChild(createConstructor(method), Roles.TYPE_MEMBER);
-            }
-            else {
-                astType.addChild(createMethod(method), Roles.TYPE_MEMBER);
+            if (!isMemberHidden(method, _context.getSettings())) {
+                if (method.isConstructor()) {
+                    astType.addChild(createConstructor(method), Roles.TYPE_MEMBER);
+                }
+                else {
+                    astType.addChild(createMethod(method), Roles.TYPE_MEMBER);
+                }
             }
         }
     }
@@ -326,8 +329,9 @@ public final class AstBuilder {
         }
     }
 
-    private BlockStatement createMethodBody(final MethodDefinition method,
-                                            final Iterable<ParameterDeclaration> parameters) {
+    private BlockStatement createMethodBody(
+        final MethodDefinition method,
+        final Iterable<ParameterDeclaration> parameters) {
 
         if (_decompileMethodBodies) {
             return AstMethodBodyBuilder.createMethodBody(method, _context, parameters);
@@ -361,13 +365,13 @@ public final class AstBuilder {
                 return new PrimitiveExpression(Boolean.FALSE);
 
             case Byte:
-                return new PrimitiveExpression((byte)0);
+                return new PrimitiveExpression((byte) 0);
 
             case Character:
                 return new PrimitiveExpression('\0');
 
             case Short:
-                return new PrimitiveExpression((short)0);
+                return new PrimitiveExpression((short) 0);
 
             case Integer:
                 return new PrimitiveExpression(0);
@@ -392,6 +396,22 @@ public final class AstBuilder {
         }
 
         _compileUnit.acceptVisitor(new JavaOutputVisitor(output, _context.getSettings().getFormattingOptions()), null);
+    }
+
+    public static boolean isMemberHidden(final MemberReference member, final DecompilerSettings settings) {
+        if (member instanceof MethodDefinition) {
+            if (settings.getShowSyntheticMembers()) {
+                return false;
+            }
+
+            final MethodDefinition method = (MethodDefinition) member;
+
+            if (Flags.testAny(method.getFlags(), Flags.ACC_BRIDGE | Flags.ACC_SYNTHETIC)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
