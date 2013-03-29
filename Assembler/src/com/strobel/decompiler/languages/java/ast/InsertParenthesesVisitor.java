@@ -73,6 +73,7 @@ public final class InsertParenthesesVisitor extends DepthFirstAstVisitor<Void, V
 
                 case SHIFT_LEFT:
                 case SHIFT_RIGHT:
+                case UNSIGNED_SHIFT_RIGHT:
                     return 11;
 
                 case GREATER_THAN:

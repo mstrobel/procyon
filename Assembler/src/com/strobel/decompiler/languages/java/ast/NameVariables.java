@@ -135,12 +135,12 @@ public class NameVariables {
             return false;
         }
 
-        if (!Character.isLetter(name.charAt(0)) && name.charAt(0) != '_') {
+        if (!Character.isJavaIdentifierPart(name.charAt(0))) {
             return false;
         }
 
         for (int i = 1; i < name.length(); i++) {
-            if (!(Character.isLetterOrDigit(name.charAt(i)) || name.charAt(i) == '_')) {
+            if (!Character.isJavaIdentifierPart(name.charAt(i))) {
                 return false;
             }
         }

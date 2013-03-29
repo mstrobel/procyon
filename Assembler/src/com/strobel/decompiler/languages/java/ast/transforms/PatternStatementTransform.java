@@ -272,6 +272,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         }
 
         final IdentifierExpression array = m2.<IdentifierExpression>get("array").iterator().next();
+        final IdentifierExpression index = m2.<IdentifierExpression>get("index").iterator().next();
         final IdentifierExpression length = m2.<IdentifierExpression>get("length").iterator().next();
         final IdentifierExpression item = m2.<IdentifierExpression>get("item").iterator().next();
 
@@ -287,9 +288,12 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             return null;
         }
 
-        final VariableDeclarationStatement iteratorDeclaration = findVariableDeclaration(loop, length.getIdentifier());
+        final VariableDeclarationStatement indexDeclaration = findVariableDeclaration(loop, index.getIdentifier());
+        final VariableDeclarationStatement lengthDeclaration = findVariableDeclaration(loop, length.getIdentifier());
 
-        if (iteratorDeclaration == null || !(iteratorDeclaration.getParent() instanceof BlockStatement)) {
+        if (lengthDeclaration == null || !(lengthDeclaration.getParent() instanceof BlockStatement) ||
+            indexDeclaration == null || !(indexDeclaration.getParent() instanceof BlockStatement)) {
+
             return null;
         }
 
@@ -346,7 +350,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         // move the length into the foreach loop.
         //
 
-        declarationPoint = canMoveVariableDeclarationIntoStatement(iteratorDeclaration, forEach);
+        declarationPoint = canMoveVariableDeclarationIntoStatement(lengthDeclaration, forEach);
 
         if (declarationPoint != forEach) {
             //
@@ -375,6 +379,10 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             statement.remove();
             bodyStatements.add(statement);
         }
+
+        itemDeclaration.remove();
+        indexDeclaration.remove();
+        lengthDeclaration.remove();
 
         return forEach;
     }
@@ -569,6 +577,8 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             statement.remove();
             bodyStatements.add(statement);
         }
+
+        iteratorDeclaration.remove();
 
         return forEach;
     }
