@@ -104,7 +104,7 @@ public final class DecompilerHelpers {
                 writer.writeReference(escapeIdentifier(variable.getName()), variable);
             }
             else {
-                writer.writeReference(String.valueOf(variable.getIndex()), variable);
+                writer.writeReference("$" + String.valueOf(variable.getSlot()), variable);
             }
 
             return;

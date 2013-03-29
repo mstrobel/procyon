@@ -498,7 +498,7 @@ public class AstMethodBodyBuilder {
                     case 1:
                         return new UnaryOperatorExpression(UnaryOperatorType.INCREMENT, name);
                     default:
-                        return new BinaryOperatorExpression(name, BinaryOperatorType.ADD, arg1);
+                        return new AssignmentExpression(name, AssignmentOperatorType.ADD, arg1);
                 }
             }
 

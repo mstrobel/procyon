@@ -374,8 +374,10 @@ public enum AstCode {
         }
     }
 
-    public static boolean expandMacro(final StrongBox<AstCode> code, final StrongBox<Object> operand, final MethodBody body) {
-        switch (code.get()) {
+    public static boolean expandMacro(final StrongBox<AstCode> code, final StrongBox<Object> operand, final MethodBody body, final int offset) {
+        final AstCode op = code.get();
+
+        switch (op) {
             case __IConstM1:
                 code.set(LdC);
                 operand.set(-1);
@@ -473,83 +475,83 @@ public enum AstCode {
                 return true;
             case __ILoad0:
                 code.set(Load);
-                operand.set(body.getVariables().get(0));
+                operand.set(body.getVariables().ensure(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __ILoad1:
                 code.set(Load);
-                operand.set(body.getVariables().get(1));
+                operand.set(body.getVariables().ensure(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __ILoad2:
                 code.set(Load);
-                operand.set(body.getVariables().get(2));
+                operand.set(body.getVariables().ensure(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __ILoad3:
                 code.set(Load);
-                operand.set(body.getVariables().get(3));
+                operand.set(body.getVariables().ensure(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LLoad0:
                 code.set(Load);
-                operand.set(body.getVariables().get(0));
+                operand.set(body.getVariables().ensure(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LLoad1:
                 code.set(Load);
-                operand.set(body.getVariables().get(1));
+                operand.set(body.getVariables().ensure(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LLoad2:
                 code.set(Load);
-                operand.set(body.getVariables().get(2));
+                operand.set(body.getVariables().ensure(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LLoad3:
                 code.set(Load);
-                operand.set(body.getVariables().get(3));
+                operand.set(body.getVariables().ensure(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FLoad0:
                 code.set(Load);
-                operand.set(body.getVariables().get(0));
+                operand.set(body.getVariables().ensure(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FLoad1:
                 code.set(Load);
-                operand.set(body.getVariables().get(1));
+                operand.set(body.getVariables().ensure(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FLoad2:
                 code.set(Load);
-                operand.set(body.getVariables().get(2));
+                operand.set(body.getVariables().ensure(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FLoad3:
                 code.set(Load);
-                operand.set(body.getVariables().get(3));
+                operand.set(body.getVariables().ensure(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DLoad0:
                 code.set(Load);
-                operand.set(body.getVariables().get(0));
+                operand.set(body.getVariables().ensure(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DLoad1:
                 code.set(Load);
-                operand.set(body.getVariables().get(1));
+                operand.set(body.getVariables().ensure(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DLoad2:
                 code.set(Load);
-                operand.set(body.getVariables().get(2));
+                operand.set(body.getVariables().ensure(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DLoad3:
                 code.set(Load);
-                operand.set(body.getVariables().get(3));
+                operand.set(body.getVariables().ensure(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __ALoad0:
                 code.set(Load);
-                operand.set(body.getVariables().get(0));
+                operand.set(body.getVariables().ensure(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __ALoad1:
                 code.set(Load);
-                operand.set(body.getVariables().get(1));
+                operand.set(body.getVariables().ensure(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __ALoad2:
                 code.set(Load);
-                operand.set(body.getVariables().get(2));
+                operand.set(body.getVariables().ensure(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __ALoad3:
                 code.set(Load);
-                operand.set(body.getVariables().get(3));
+                operand.set(body.getVariables().ensure(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
 
             case __IALoad:
@@ -576,83 +578,83 @@ public enum AstCode {
                 return true;
             case __IStore0:
                 code.set(Store);
-                operand.set(body.getVariables().get(0));
+                operand.set(body.getVariables().ensure(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __IStore1:
                 code.set(Store);
-                operand.set(body.getVariables().get(1));
+                operand.set(body.getVariables().ensure(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __IStore2:
                 code.set(Store);
-                operand.set(body.getVariables().get(2));
+                operand.set(body.getVariables().ensure(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __IStore3:
                 code.set(Store);
-                operand.set(body.getVariables().get(3));
+                operand.set(body.getVariables().ensure(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LStore0:
                 code.set(Store);
-                operand.set(body.getVariables().get(0));
+                operand.set(body.getVariables().ensure(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LStore1:
                 code.set(Store);
-                operand.set(body.getVariables().get(1));
+                operand.set(body.getVariables().ensure(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LStore2:
                 code.set(Store);
-                operand.set(body.getVariables().get(2));
+                operand.set(body.getVariables().ensure(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LStore3:
                 code.set(Store);
-                operand.set(body.getVariables().get(3));
+                operand.set(body.getVariables().ensure(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FStore0:
                 code.set(Store);
-                operand.set(body.getVariables().get(0));
+                operand.set(body.getVariables().ensure(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FStore1:
                 code.set(Store);
-                operand.set(body.getVariables().get(1));
+                operand.set(body.getVariables().ensure(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FStore2:
                 code.set(Store);
-                operand.set(body.getVariables().get(2));
+                operand.set(body.getVariables().ensure(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FStore3:
                 code.set(Store);
-                operand.set(body.getVariables().get(3));
+                operand.set(body.getVariables().ensure(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DStore0:
                 code.set(Store);
-                operand.set(body.getVariables().get(0));
+                operand.set(body.getVariables().ensure(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DStore1:
                 code.set(Store);
-                operand.set(body.getVariables().get(1));
+                operand.set(body.getVariables().ensure(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DStore2:
                 code.set(Store);
-                operand.set(body.getVariables().get(2));
+                operand.set(body.getVariables().ensure(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DStore3:
                 code.set(Store);
-                operand.set(body.getVariables().get(3));
+                operand.set(body.getVariables().ensure(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __AStore0:
                 code.set(Store);
-                operand.set(body.getVariables().get(0));
+                operand.set(body.getVariables().ensure(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __AStore1:
                 code.set(Store);
-                operand.set(body.getVariables().get(1));
+                operand.set(body.getVariables().ensure(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __AStore2:
                 code.set(Store);
-                operand.set(body.getVariables().get(2));
+                operand.set(body.getVariables().ensure(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __AStore3:
                 code.set(Store);
-                operand.set(body.getVariables().get(3));
+                operand.set(body.getVariables().ensure(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
 
             case __IAStore:

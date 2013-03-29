@@ -567,7 +567,7 @@ public class MethodPrinter implements MethodVisitor {
             _output.write(' ');
 
             if (StringUtilities.isNullOrEmpty(variable.getName())) {
-                _output.writeReference("$" + variable.getIndex(), variable);
+                _output.writeReference("$" + variable.getSlot(), variable);
             }
             else {
                 _output.writeReference(variable.getName(), variable);

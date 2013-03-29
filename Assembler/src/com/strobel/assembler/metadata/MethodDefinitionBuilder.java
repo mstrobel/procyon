@@ -117,14 +117,25 @@ public class MethodDefinitionBuilder implements MethodVisitor {
 
                 for (int i = 0; i < entries.size(); i++) {
                     final LocalVariableTableEntry entry = entries.get(i);
-                    final int parameterIndex = _method.isStatic() ? entry.getIndex() : entry.getIndex() - 1;
 
-                    if (parameterIndex >= 0 && parameterIndex < parameters.size()) {
-                        final ParameterDefinition parameter = parameters.get(parameterIndex);
+                    if (entry.getScopeOffset() != 0) {
+                        continue;
+                    }
 
-                        if (!parameter.hasName()) {
-                            parameter.setName(entry.getName());
+                    final int slot = _method.isStatic() ? entry.getIndex() : entry.getIndex() - 1;
+
+                    ParameterDefinition parameter = null;
+
+                    for (int j = 0; j < parameters.size(); j++) {
+
+                        if (parameters.get(j).getSlot() == slot) {
+                            parameter = parameters.get(j);
+                            break;
                         }
+                    }
+
+                    if (parameter != null && !parameter.hasName()) {
+                        parameter.setName(entry.getName());
                     }
                 }
 

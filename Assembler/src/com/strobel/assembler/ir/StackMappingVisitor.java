@@ -380,11 +380,11 @@ public class StackMappingVisitor implements MethodVisitor {
         public void visitVariable(final OpCode code, final VariableReference variable) {
             if (_afterExecute) {
                 if (code.isStore()) {
-                    set(variable.getIndex(), _temp.isEmpty() ? pop() : _temp.pop());
+                    set(variable.getSlot(), _temp.isEmpty() ? pop() : _temp.pop());
                 }
             }
             else if (code.isLoad()) {
-                push(get(variable.getIndex()));
+                push(get(variable.getSlot()));
             }
         }
 

@@ -23,13 +23,13 @@ import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.OpCode;
+import com.strobel.assembler.ir.OpCodeHelpers;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.CodeAttribute;
 import com.strobel.assembler.ir.attributes.ExceptionTableEntry;
 import com.strobel.assembler.ir.attributes.LocalVariableTableAttribute;
 import com.strobel.assembler.ir.attributes.LocalVariableTableEntry;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
-import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Range;
 
@@ -40,8 +40,6 @@ import java.util.List;
 import java.util.Set;
 
 public class MethodReader {
-    private final static String[] LOCAL_VARIABLE_TABLES = { AttributeNames.LocalVariableTypeTable, AttributeNames.LocalVariableTable };
-
     private final CodeAttribute _code;
     private final IMetadataScope _scope;
     private final MethodBody _methodBody;
@@ -60,41 +58,78 @@ public class MethodReader {
         final Buffer b = _code.getCode();
         final InstructionCollection body = _methodBody.getInstructions();
         final VariableDefinitionCollection variables = _methodBody.getVariables();
-        final VariableDefinition[] locals = new VariableDefinition[_code.getMaxLocals()];
 
-        for (final String tableName : LOCAL_VARIABLE_TABLES) {
-            final LocalVariableTableAttribute variableTable = SourceAttribute.find(tableName, _code.getAttributes());
+        final LocalVariableTableAttribute localVariableTable = SourceAttribute.find(
+            AttributeNames.LocalVariableTable,
+            _code.getAttributes()
+        );
 
-            if (variableTable != null) {
-                final List<LocalVariableTableEntry> entries = variableTable.getEntries();
+        final LocalVariableTableAttribute localVariableTypeTable = SourceAttribute.find(
+            AttributeNames.LocalVariableTable,
+            _code.getAttributes()
+        );
 
-                for (int i = 0; i < entries.size(); i++) {
-                    final LocalVariableTableEntry entry = entries.get(i);
-                    final int localIndex = entry.getIndex();
+        if (localVariableTable != null) {
+            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
 
-                    if (locals[localIndex] == null) {
-                        locals[localIndex] = new VariableDefinition(entry.getName(), entry.getType());
-                    }
-                    else if (!locals[localIndex].hasName() &&
-                             !StringUtilities.isNullOrEmpty(entry.getName())) {
+            for (final LocalVariableTableEntry entry : entries) {
+                final int scopeStart = entry.getScopeOffset();
+                final int scopeEnd = scopeStart + entry.getScopeLength();
 
-                        locals[localIndex] = new VariableDefinition(
-                            entry.getName(),
-                            locals[localIndex].getVariableType()
-                        );
-                    }
+                final VariableDefinition variable = new VariableDefinition(
+                    entry.getIndex(),
+                    entry.getName(),
+                    entry.getType()
+                );
 
-                    locals[localIndex].setTypeKnown(true);
-                }
+                variable.setTypeKnown(true);
+                variable.setScopeStart(scopeStart);
+                variable.setScopeEnd(scopeEnd);
+
+                variables.add(variable);
             }
         }
 
-        for (int i = 0; i < locals.length; i++) {
-            if (locals[i] == null) {
-                locals[i] = new VariableDefinition(BuiltinTypes.Object);
-            }
+        if (localVariableTypeTable != null) {
+            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
 
-            variables.add(locals[i]);
+            for (final LocalVariableTableEntry entry : entries) {
+                final int slot = entry.getIndex();
+                final int scopeStart = entry.getScopeOffset();
+                final int scopeEnd = scopeStart + entry.getScopeLength();
+
+                boolean found = false;
+
+                for (final VariableDefinition variable : variables) {
+                    if (variable.getSlot() == slot &&
+                        variable.getScopeStart() == scopeStart &&
+                        variable.getScopeEnd() == scopeEnd) {
+
+                        if (!variable.hasName()) {
+                            variable.setName(entry.getName());
+                        }
+
+                        variable.setVariableType(entry.getType());
+
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    final VariableDefinition variable = new VariableDefinition(
+                        slot,
+                        entry.getName(),
+                        entry.getType()
+                    );
+
+                    variable.setTypeKnown(true);
+                    variable.setScopeStart(scopeStart);
+                    variable.setScopeEnd(scopeEnd);
+
+                    variables.add(variable);
+                }
+            }
         }
 
         @SuppressWarnings("unchecked")
@@ -114,6 +149,9 @@ public class MethodReader {
 
             switch (op.getOperandType()) {
                 case None: {
+                    if (op.isLoad() || op.isStore()) {
+                        variables.ensure(OpCodeHelpers.getLoadStoreMacroArgumentIndex(op), op, offset);
+                    }
                     inst = Instruction.create(op);
                     break;
                 }
@@ -332,74 +370,80 @@ public class MethodReader {
                 }
 
                 case Local: {
-                    final int variableIndex;
+                    final int variableSlot;
 
                     if (op.isWide()) {
-                        variableIndex = b.readUnsignedShort();
+                        variableSlot = b.readUnsignedShort();
                     }
                     else {
-                        variableIndex = b.readUnsignedByte();
+                        variableSlot = b.readUnsignedByte();
                     }
 
-                    if (variableIndex < 0 || variableIndex >= variables.size()) {
-                        inst = new Instruction(op, new ErrorOperand("!!! BAD LOCAL: " + variableIndex + " !!!"));
+                    final VariableDefinition variable = variables.ensure(variableSlot, op, offset);
+
+                    if (variableSlot < 0) {
+                        inst = new Instruction(op, new ErrorOperand("!!! BAD LOCAL: " + variableSlot + " !!!"));
                     }
                     else {
-                        inst = Instruction.create(op, variables.get(variableIndex));
+                        inst = Instruction.create(op, variable);
                     }
 
                     break;
                 }
 
                 case LocalI1: {
-                    final int variableIndex;
+                    final int variableSlot;
                     final int operand;
 
                     if (op.isWide()) {
-                        variableIndex = b.readUnsignedShort();
+                        variableSlot = b.readUnsignedShort();
                     }
                     else {
-                        variableIndex = b.readUnsignedByte();
+                        variableSlot = b.readUnsignedByte();
                     }
+
+                    final VariableDefinition variable = variables.ensure(variableSlot, op, offset);
 
                     operand = b.readByte();
 
-                    if (variableIndex < 0 || variableIndex >= variables.size()) {
+                    if (variableSlot < 0) {
                         inst = new Instruction(
                             op,
-                            new ErrorOperand("!!! BAD LOCAL: " + variableIndex + " !!!"),
+                            new ErrorOperand("!!! BAD LOCAL: " + variableSlot + " !!!"),
                             operand
                         );
                     }
                     else {
-                        inst = Instruction.create(op, variables.get(variableIndex), operand);
+                        inst = Instruction.create(op, variable, operand);
                     }
 
                     break;
                 }
 
                 case LocalI2: {
-                    final int variableIndex;
+                    final int variableSlot;
                     final int operand;
 
                     if (op.isWide()) {
-                        variableIndex = b.readUnsignedShort();
+                        variableSlot = b.readUnsignedShort();
                     }
                     else {
-                        variableIndex = b.readUnsignedByte();
+                        variableSlot = b.readUnsignedByte();
                     }
+
+                    final VariableDefinition variable = variables.ensure(variableSlot, op, offset);
 
                     operand = b.readShort();
 
-                    if (variableIndex < 0 || variableIndex >= variables.size()) {
+                    if (variableSlot < 0) {
                         inst = new Instruction(
                             op,
-                            new ErrorOperand("!!! BAD LOCAL: " + variableIndex + " !!!"),
+                            new ErrorOperand("!!! BAD LOCAL: " + variableSlot + " !!!"),
                             operand
                         );
                     }
                     else {
-                        inst = Instruction.create(op, variables.get(variableIndex), operand);
+                        inst = Instruction.create(op, variable, operand);
                     }
 
                     break;
@@ -422,6 +466,8 @@ public class MethodReader {
                 fixup.fix(inst);
             }
         }
+
+        variables.updateScopes(_code.getCodeSize());
 
         int labelCount = 0;
 

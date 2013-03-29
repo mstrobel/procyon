@@ -14,11 +14,9 @@
 package com.strobel.decompiler;
 
 import com.sampullara.cli.Args;
-import com.strobel.assembler.metadata.Buffer;
-import com.strobel.assembler.metadata.ClassFileReader;
-import com.strobel.assembler.metadata.ClasspathTypeLoader;
 import com.strobel.assembler.metadata.MetadataSystem;
-import com.strobel.assembler.metadata.TypeDefinitionBuilder;
+import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 import com.strobel.decompiler.languages.java.JavaLanguage;
@@ -34,28 +32,14 @@ public final class Decompiler {
         VerifyArgument.notNull(internalName, "internalName");
         VerifyArgument.notNull(settings, "settings");
 
-        final ClasspathTypeLoader loader = new ClasspathTypeLoader();
-        final Buffer buffer = new Buffer();
+        final MetadataSystem metadataSystem = MetadataSystem.instance();
+        final TypeReference type = metadataSystem.lookupType(internalName);
+        final TypeDefinition resolvedType;
 
-        if (!loader.tryLoadType(internalName, buffer)) {
+        if (type == null || (resolvedType = type.resolve()) == null) {
             output.writeLine("!!! ERROR: Failed to load class %s.", internalName);
             return;
         }
-
-        final MetadataSystem metadataSystem = MetadataSystem.instance();
-
-        final ClassFileReader reader = ClassFileReader.readClass(
-            ClassFileReader.OPTION_PROCESS_CODE |
-            ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
-            metadataSystem,
-            buffer
-        );
-
-        // begin new
-
-        final TypeDefinitionBuilder typeBuilder = new TypeDefinitionBuilder();
-
-        reader.accept(typeBuilder);
 
         final DecompilationOptions options = new DecompilationOptions();
 
@@ -66,24 +50,7 @@ public final class Decompiler {
             settings.setFormattingOptions(JavaFormattingOptions.createDefault());
         }
 
-        new JavaLanguage().decompileType(typeBuilder.getTypeDefinition(), output, options);
-
-        // end new
-
-/*
-        final DecompilationOptions options = new DecompilationOptions();
-
-        options.setSettings(settings);
-
-        final DecompilerVisitor typePrinter = new DecompilerVisitor(
-            new BytecodeAstLanguage(),
-//            new JavaLanguage(),
-            output,
-            options
-        );
-
-        reader.accept(typePrinter);
-*/
+        new JavaLanguage().decompileType(resolvedType, output, options);
     }
 
     public static void main(final String[] args) {

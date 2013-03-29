@@ -19,14 +19,39 @@ package com.strobel.assembler.metadata;
  * Time: 2:11 PM
  */
 public final class VariableDefinition extends VariableReference {
+    private final int _slot;
+
+    private int _scopeStart;
+    private int _scopeEnd;
     private boolean _isTypeKnown;
 
-    public VariableDefinition(final TypeReference variableType) {
-        super(variableType);
+    public VariableDefinition(final int slot, final String name, final TypeReference variableType) {
+        super(name, variableType);
+        _slot = slot;
     }
 
-    public VariableDefinition(final String name, final TypeReference variableType) {
-        super(name, variableType);
+    public final int getSlot() {
+        return _slot;
+    }
+
+    public final int getSize() {
+        return getVariableType().getSimpleType().stackSlots();
+    }
+
+    public final int getScopeStart() {
+        return _scopeStart;
+    }
+
+    public final void setScopeStart(final int scopeStart) {
+        _scopeStart = scopeStart;
+    }
+
+    public final int getScopeEnd() {
+        return _scopeEnd;
+    }
+
+    public final void setScopeEnd(final int scopeEnd) {
+        _scopeEnd = scopeEnd;
     }
 
     public final boolean isTypeKnown() {
@@ -40,5 +65,17 @@ public final class VariableDefinition extends VariableReference {
     @Override
     public VariableDefinition resolve() {
         return this;
+    }
+
+    @Override
+    public String toString() {
+        return "VariableDefinition{" +
+               "Slot=" + _slot +
+               ", ScopeStart=" + _scopeStart +
+               ", ScopeEnd=" + _scopeEnd +
+               ", Name=" + getName() +
+               ", IsTypeKnown=" + _isTypeKnown +
+               ", Type=" + getVariableType().getSignature() +
+               '}';
     }
 }

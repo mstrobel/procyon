@@ -13,7 +13,12 @@
 
 package com.strobel.decompiler.languages;
 
+import com.strobel.assembler.metadata.Buffer;
+import com.strobel.assembler.metadata.ClassFileReader;
+import com.strobel.assembler.metadata.ClasspathTypeLoader;
 import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeDefinitionBuilder;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
@@ -60,6 +65,43 @@ public class BytecodeAstLanguage extends Language {
     }
 
     @Override
+    public void decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
+        final ClasspathTypeLoader loader = new ClasspathTypeLoader();
+        final Buffer buffer = new Buffer(0);
+
+        if (!loader.tryLoadType(type.getInternalName(), buffer)) {
+            output.writeLine("!!! ERROR: Failed to load class %s.", type.getInternalName());
+            return;
+        }
+
+        final ClassFileReader reader = ClassFileReader.readClass(
+            ClassFileReader.OPTION_PROCESS_CODE |
+            ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
+            type.getResolver(),
+            buffer
+        );
+
+        final TypeDefinitionBuilder typeBuilder = new TypeDefinitionBuilder();
+
+        reader.accept(typeBuilder);
+
+        final TypeDefinition typeWithCode = typeBuilder.getTypeDefinition();
+
+        boolean first = true;
+
+        for (final MethodDefinition method : typeWithCode.getDeclaredMethods()) {
+            if (!first) {
+                output.writeLine();
+            }
+            else {
+                first = false;
+            }
+
+            decompileMethod(method, output, options);
+        }
+    }
+
+    @Override
     public void decompileMethod(final MethodDefinition method, final ITextOutput output, final DecompilationOptions options) {
         VerifyArgument.notNull(method, "method");
         VerifyArgument.notNull(output, "output");
@@ -70,27 +112,31 @@ public class BytecodeAstLanguage extends Language {
         }
 
         final DecompilerContext context = new DecompilerContext();
-        
+
         context.setCurrentMethod(method);
         context.setCurrentType(method.getDeclaringType());
-        
+
         final Block methodAst = new Block();
-    
+
         methodAst.getBody().addAll(AstBuilder.build(method.getBody(), _inlineVariables, context));
-        
+
         if (_abortBeforeStep != null) {
             AstOptimizer.optimize(context, methodAst, _abortBeforeStep);
         }
-        
+
         final Set<Variable> allVariables = new LinkedHashSet<>();
 
         for (final Expression e : methodAst.getSelfAndChildrenRecursive(Expression.class)) {
             final Object operand = e.getOperand();
-            
+
             if (operand instanceof Variable && !((Variable) operand).isParameter()) {
                 allVariables.add((Variable) operand);
             }
         }
+
+        output.writeLine("%s {", method.isTypeInitializer() ? "static" : method.getDescription());
+        output.indent();
+
 
         if (!allVariables.isEmpty()) {
             for (final Variable variable : allVariables) {
@@ -114,6 +160,9 @@ public class BytecodeAstLanguage extends Language {
         }
 
         methodAst.writeTo(output);
+
+        output.unindent();
+        output.writeLine("}");
     }
 
     @Override
@@ -126,16 +175,16 @@ public class BytecodeAstLanguage extends Language {
     public static List<BytecodeAstLanguage> getDebugLanguages() {
         final AstOptimizationStep[] steps = AstOptimizationStep.values();
         final BytecodeAstLanguage[] languages = new BytecodeAstLanguage[steps.length];
-        
+
         languages[0] = new BytecodeAstLanguage("BytecodeAst (Unoptimized)", false, steps[0]);
 
         String nextName = "BytecodeAst (Variable Splitting)";
-        
+
         for (int i = 1; i < languages.length; i++) {
             languages[i] = new BytecodeAstLanguage(nextName, true, steps[i - 1]);
             nextName = "BytecodeAst (After " + steps[i - 1].name() + ")";
         }
-        
+
         return ArrayUtilities.asUnmodifiableList(languages);
     }
 }

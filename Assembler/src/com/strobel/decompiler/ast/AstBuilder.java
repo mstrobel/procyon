@@ -37,6 +37,7 @@ public final class AstBuilder {
     private final static ByteCode[] EMPTY_DEFINITIONS = new ByteCode[0];
 
     private final Map<ExceptionHandler, ByteCode> _loadExceptions = new LinkedHashMap<>();
+    private Map<Instruction, Instruction> _originalInstructionMap;
     private InstructionCollection _instructions;
     private List<ExceptionHandler> _exceptionHandlers;
     private MethodBody _body;
@@ -114,10 +115,18 @@ public final class AstBuilder {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private InstructionCollection analyzeHandlers() {
         final Map<ExceptionHandler, HandlerInfo> handlers = new LinkedHashMap<>();
-        final InstructionCollection instructions = _instructions = copyInstructions(_body.getInstructions());
+        final InstructionCollection oldInstructions = _body.getInstructions();
+        final InstructionCollection instructions = _instructions = copyInstructions(oldInstructions);
         final List<ExceptionHandler> exceptionHandlers = _exceptionHandlers = remapHandlers(_body.getExceptionHandlers(), instructions);
+
+        final Map<Instruction, Instruction> originalInstructionMap = _originalInstructionMap = new IdentityHashMap<>();
+
+        for (int i = 0, n = instructions.size(); i < n; i++) {
+            originalInstructionMap.put(instructions.get(i), oldInstructions.get(i));
+        }
 
         //
         // Java does this retarded thing where a try block gets split along exit branches,
@@ -334,8 +343,6 @@ public final class AstBuilder {
             instructions.remove(instruction);
         }
 
-        instructions.recomputeOffsets();
-
         for (final Instruction instruction : instructions) {
             if (instruction.getOperandCount() == 0) {
                 continue;
@@ -478,7 +485,9 @@ public final class AstBuilder {
             codeBox.set(code);
             operandBox.set(operand);
 
-            if (AstCode.expandMacro(codeBox, operandBox, _body)) {
+            final int offset = _originalInstructionMap.get(instruction).getOffset();
+
+            if (AstCode.expandMacro(codeBox, operandBox, _body, offset)) {
                 code = codeBox.get();
                 operand = operandBox.get();
             }
@@ -509,7 +518,7 @@ public final class AstBuilder {
         final Stack<ByteCode> agenda = new Stack<>();
         final VariableDefinitionCollection variables = _body.getVariables();
 
-        final int variableCount = variables.size();
+        final int variableCount = variables.slotCount();
         final Set<ByteCode> exceptionHandlerStarts = new LinkedHashSet<>(exceptionHandlers.size());
         final VariableSlot[] unknownVariables = VariableSlot.makeUnknownState(variableCount);
         final MethodReference method = _body.getMethod();
@@ -608,7 +617,7 @@ public final class AstBuilder {
             VariableSlot[] newVariableState = VariableSlot.cloneVariableState(byteCode.variablesBefore);
 
             if (byteCode.isVariableDefinition()) {
-                final int slot = ((VariableReference) byteCode.operand).getIndex();
+                final int slot = ((VariableReference) byteCode.operand).getSlot();
 
                 newVariableState[slot] = new VariableSlot(
                     stackMapper.getLocalValue(slot),
@@ -1087,7 +1096,7 @@ public final class AstBuilder {
         final MethodDefinition method = _context.getCurrentMethod();
         final List<ParameterDefinition> parameters = method.getParameters();
         final VariableDefinitionCollection variables = _body.getVariables();
-        final ParameterDefinition[] parameterMap = new ParameterDefinition[variables.size()];
+        final ParameterDefinition[] parameterMap = new ParameterDefinition[variables.slotCount()];
         final boolean hasThis = _body.hasThis();
 
         if (hasThis) {
@@ -1120,7 +1129,7 @@ public final class AstBuilder {
             final List<VariableInfo> newVariables;
             boolean fromUnknownDefinition = false;
 
-            final int variableIndex = variableDefinition.getIndex();
+            final int variableIndex = variableDefinition.getSlot();
 
             if (_optimize) {
                 for (final ByteCode b : references) {

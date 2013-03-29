@@ -18,6 +18,7 @@ import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.InstructionVisitor;
 import com.strobel.assembler.ir.MetadataReader;
+import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.assembler.metadata.annotations.InnerClassEntry;
@@ -869,11 +870,13 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     final List<ParameterDefinition> parameters = methodReference.getParameters();
                     final VariableDefinitionCollection variables = body.getVariables();
 
-                    for (int i = 0; i < parameters.size() && i < variables.size(); i++) {
-                        final VariableDefinition variable = variables.get(i);
+                    for (int i = 0; i < parameters.size(); i++) {
+                        final ParameterDefinition parameter = parameters.get(i);
+                        final int variableSlot = methodReference.isConstructor() ? parameter.getSlot() + 1 : parameter.getSlot();
+                        final VariableDefinition variable = variables.ensure(variableSlot, OpCode.NOP, 0);
 
-                        if (variable.getVariableType() == BuiltinTypes.Object) {
-                            variable.setVariableType(parameters.get(i).getParameterType());
+                        if (!variable.isTypeKnown()) {
+                            variable.setVariableType(parameter.getParameterType());
                         }
                     }
                 }

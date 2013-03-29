@@ -59,5 +59,16 @@ public final class LocalVariableTableEntry {
     public int getScopeLength() {
         return _scopeLength;
     }
+
+    @Override
+    public String toString() {
+        return "LocalVariableTableEntry{" +
+               "Index=" + _index +
+               ", Name='" + _name + '\'' +
+               ", Type=" + _type +
+               ", ScopeOffset=" + _scopeOffset +
+               ", ScopeLength=" + _scopeLength +
+               '}';
+    }
 }
 

@@ -22,7 +22,6 @@ import com.strobel.core.StringUtilities;
  */
 public abstract class VariableReference {
     private String _name;
-    private int _index = -1;
     private TypeReference _variableType;
 
     protected VariableReference(final TypeReference variableType) {
@@ -35,15 +34,7 @@ public abstract class VariableReference {
     }
 
     public final String getName() {
-        if (hasName()) {
-            return _name;
-        }
-
-        if (_index >= 0) {
-            return "$" + _index;
-        }
-
-        return null;
+        return _name;
     }
 
     public final boolean hasName() {
@@ -54,14 +45,6 @@ public abstract class VariableReference {
         _name = name;
     }
 
-    public final int getIndex() {
-        return _index;
-    }
-
-    protected final void setIndex(final int index) {
-        _index = index;
-    }
-
     public final TypeReference getVariableType() {
         return _variableType;
     }
@@ -69,6 +52,8 @@ public abstract class VariableReference {
     protected final void setVariableType(final TypeReference variableType) {
         _variableType = variableType;
     }
+
+    public abstract int getSlot();
 
     public abstract VariableDefinition resolve();
 
