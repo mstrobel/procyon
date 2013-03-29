@@ -115,13 +115,7 @@ public class AstMethodBodyBuilder {
 
         for (final Variable v : _localVariablesToDefine) {
             final AstType type = AstBuilder.convertType(v.getType());
-            final VariableDefinition originalVariable = v.getOriginalVariable();
-
-            final VariableDeclarationStatement declaration = new VariableDeclarationStatement(
-                type,
-                !v.isGenerated() && originalVariable.hasName() ? originalVariable.getName()
-                                                               : v.getName()
-            );
+            final VariableDeclarationStatement declaration = new VariableDeclarationStatement(type, v.getName());
 
             declaration.putUserData(Keys.VARIABLE, v);
             statements.insertBefore(insertionPoint, declaration);

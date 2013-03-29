@@ -13,19 +13,49 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.FieldReference;
+import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.FieldDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.IntegerBox;
 import com.strobel.core.StringUtilities;
+import com.strobel.core.StrongBox;
 import com.strobel.decompiler.DecompilerContext;
-import com.strobel.decompiler.ast.Block;
-import com.strobel.decompiler.ast.Variable;
+import com.strobel.decompiler.ast.*;
+import com.strobel.decompiler.ast.Expression;
+import com.strobel.reflection.SimpleType;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+
+import static com.strobel.core.CollectionUtilities.getOrDefault;
 
 public class NameVariables {
     private final static char MAX_LOOP_VARIABLE_NAME = 'n';
+    private final static String[] METHOD_PREFIXES = { "get", "is", "are", "to", "as" };
+    private final static String[] METHOD_SUFFIXES = { "At", "For", "From" };
+    private final static Map<SimpleType, String> BUILT_IN_TYPE_NAMES;
+
+    static {
+        final Map<SimpleType, String> builtInTypeNames = new LinkedHashMap<>();
+
+        builtInTypeNames.put(SimpleType.Boolean, "b");
+        builtInTypeNames.put(SimpleType.Byte, "b");
+        builtInTypeNames.put(SimpleType.Short, "num");
+        builtInTypeNames.put(SimpleType.Integer, "num");
+        builtInTypeNames.put(SimpleType.Long, "num");
+        builtInTypeNames.put(SimpleType.Float, "num");
+        builtInTypeNames.put(SimpleType.Double, "num");
+        builtInTypeNames.put(SimpleType.Character, "c");
+
+        BUILT_IN_TYPE_NAMES = Collections.unmodifiableMap(builtInTypeNames);
+    }
 
     private final ArrayList<String> _fieldNamesInCurrentType;
     private final Map<String, Integer> _typeNames = new HashMap<>();
@@ -113,19 +143,12 @@ public class NameVariables {
         }
 
         for (final Variable varDef : variables) {
-            if (StringUtilities.isNullOrEmpty(varDef.getName())) {
+            final boolean generateName = StringUtilities.isNullOrEmpty(varDef.getName()) ||
+                                         varDef.isGenerated() ||
+                                         !varDef.isParameter() && !varDef.getOriginalVariable().isFromMetadata();
+
+            if (generateName) {
                 varDef.setName(nv.generateNameForVariable(varDef, methodBody));
-            }
-        }
-    }
-
-    @SuppressWarnings("UnusedParameters")
-    private String generateNameForVariable(final Variable variable, final Block methodBody) {
-        while (true) {
-            final String name = this.getAlternativeName(variable.isParameter() ? "p" : "v");
-
-            if (!_fieldNamesInCurrentType.contains(name)) {
-                return name;
             }
         }
     }
@@ -180,5 +203,281 @@ public class NameVariables {
         else {
             return nameWithoutDigits;
         }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private String generateNameForVariable(final Variable variable, final Block methodBody) {
+        String proposedName = null;
+
+        if (variable.getType().getSimpleType() == SimpleType.Integer) {
+            boolean isLoopCounter = false;
+
+        loopSearch:
+            for (final Loop loop : methodBody.getSelfAndChildrenRecursive(Loop.class)) {
+                Expression e = loop.getCondition();
+
+                while (e != null && e.getCode() == AstCode.LogicalNot) {
+                    e = e.getArguments().get(0);
+                }
+
+                if (e != null) {
+                    switch (e.getCode()) {
+                        case CmpEq:
+                        case CmpNe:
+                        case CmpLe:
+                        case CmpGt:
+                        case CmpGe:
+                        case CmpLt: {
+                            final StrongBox<Variable> loadVariable = new StrongBox<>();
+                            if (PatternMatching.matchGetOperand(e.getArguments().get(0), AstCode.Load, loadVariable) &&
+                                loadVariable.get() == variable) {
+
+                                isLoopCounter = true;
+                                break loopSearch;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (isLoopCounter) {
+                for (char c = 'i'; c < MAX_LOOP_VARIABLE_NAME; c++) {
+                    final String name = String.valueOf(c);
+
+                    if (!_typeNames.containsKey(name)) {
+                        proposedName = name;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (StringUtilities.isNullOrEmpty(proposedName)) {
+            String proposedNameForStore = null;
+
+            for (final Expression e : methodBody.getSelfAndChildrenRecursive(Expression.class)) {
+                if (e.getCode() == AstCode.Store && e.getOperand() == variable) {
+                    final String name = getNameFromExpression(e.getArguments().get(0));
+
+                    if (name != null/* && !_fieldNamesInCurrentType.contains(name)*/) {
+                        if (proposedNameForStore != null) {
+                            proposedNameForStore = null;
+                            break;
+                        }
+
+                        proposedNameForStore = name;
+                    }
+                }
+            }
+
+            if (proposedNameForStore != null) {
+                proposedName = proposedNameForStore;
+            }
+        }
+
+        if (StringUtilities.isNullOrEmpty(proposedName)) {
+            String proposedNameForLoad = null;
+
+            for (final Expression e : methodBody.getSelfAndChildrenRecursive(Expression.class)) {
+                final List<Expression> arguments = e.getArguments();
+
+                for (int i = 0; i < arguments.size(); i++) {
+                    final Expression a = arguments.get(i);
+                    if (a.getCode() == AstCode.Load && a.getOperand() == variable) {
+                        final String name = getNameForArgument(e, i);
+
+                        if (name != null/* && !_fieldNamesInCurrentType.contains(name)*/) {
+                            if (proposedNameForLoad != null) {
+                                proposedNameForLoad = null;
+                                break;
+                            }
+
+                            proposedNameForLoad = name;
+                        }
+                    }
+                }
+            }
+
+            if (proposedNameForLoad != null) {
+                proposedName = proposedNameForLoad;
+            }
+        }
+
+        if (StringUtilities.isNullOrEmpty(proposedName)) {
+            proposedName = getNameForType(variable.getType());
+        }
+
+        return this.getAlternativeName(proposedName);
+/*
+        while (true) {
+            proposedName = this.getAlternativeName(proposedName);
+
+            if (!_fieldNamesInCurrentType.contains(proposedName)) {
+                return proposedName;
+            }
+        }
+*/
+    }
+
+    private static String cleanUpVariableName(final String s) {
+        if (s == null) {
+            return null;
+        }
+
+        String name = s;
+
+        if (name.length() > 2 && name.startsWith("m_")) {
+            name = name.substring(2);
+        }
+        else if (name.length() > 1 && name.startsWith("_")) {
+            name = name.substring(1);
+        }
+
+        if (name.length() == 0) {
+            return "obj";
+        }
+
+        return Character.toLowerCase(name.charAt(0)) + name.substring(1);
+    }
+
+    private static String getNameFromExpression(final Expression e) {
+        switch (e.getCode()) {
+            case GetField:
+            case GetStatic: {
+                return cleanUpVariableName(((FieldReference) e.getOperand()).getName());
+            }
+
+            case InvokeVirtual:
+            case InvokeSpecial:
+            case InvokeStatic:
+            case InvokeInterface: {
+                final MethodReference method = (MethodReference) e.getOperand();
+
+                if (method != null) {
+                    final String methodName = method.getName();
+
+                    String name = methodName;
+
+                    for (final String prefix : METHOD_PREFIXES) {
+                        if (methodName.length() > prefix.length() &&
+                            methodName.startsWith(prefix) &&
+                            Character.isUpperCase(methodName.charAt(prefix.length()))) {
+
+                            name = methodName.substring(prefix.length());
+                            break;
+                        }
+                    }
+
+                    for (final String suffix : METHOD_SUFFIXES) {
+                        if (name.length() > suffix.length() &&
+                            name.endsWith(suffix) &&
+                            Character.isLowerCase(name.charAt(name.length() - suffix.length() - 1))) {
+
+                            name = name.substring(0, name.length() - suffix.length());
+                            break;
+                        }
+                    }
+
+                    return cleanUpVariableName(name);
+                }
+
+                break;
+            }
+        }
+
+        return null;
+    }
+
+    private static String getNameForArgument(final Expression parent, final int i) {
+        switch (parent.getCode()) {
+            case PutField:
+            case PutStatic: {
+                if (i == parent.getArguments().size() - 1) {
+                    return cleanUpVariableName(((FieldReference) parent.getOperand()).getName());
+                }
+                break;
+            }
+
+            case InvokeVirtual:
+            case InvokeSpecial:
+            case InvokeStatic:
+            case InvokeInterface:
+            case InitObject: {
+                final MethodReference method = (MethodReference) parent.getOperand();
+
+                if (method != null) {
+                    final String methodName = method.getName();
+                    final List<ParameterDefinition> parameters = method.getParameters();
+
+                    if (parameters.size() == 1 && i == parent.getArguments().size() - 1) {
+                        if (methodName.length() > 3 &&
+                            StringUtilities.startsWith(methodName, "set") &&
+                            Character.isUpperCase(methodName.charAt(3))) {
+
+                            return cleanUpVariableName(methodName.substring(3));
+                        }
+                    }
+
+                    final MethodDefinition definition = method.resolve();
+
+                    if (definition != null) {
+                        final ParameterDefinition p = getOrDefault(
+                            definition.getParameters(),
+                            parent.getCode() != AstCode.InitObject && !definition.isStatic() ? i - 1 : i
+                        );
+
+                        if (p != null && !StringUtilities.isNullOrEmpty(p.getName())) {
+                            return cleanUpVariableName(p.getName());
+                        }
+                    }
+                }
+
+                break;
+            }
+        }
+
+        return null;
+    }
+
+    private String getNameForType(final TypeReference type) {
+        String name;
+
+        if (type.isArray()) {
+            name = "array";
+        }
+        else if (type.getName().endsWith("Exception")) {
+            name = "ex";
+        }
+        else if (type.getName().endsWith("List")) {
+            name = "list";
+        }
+        else if (type.getName().endsWith("Set")) {
+            name = "set";
+        }
+        else if (type.getName().endsWith("Collection")) {
+            name = "collection";
+        }
+        else if (BUILT_IN_TYPE_NAMES.containsKey(type.getSimpleType())) {
+            name = BUILT_IN_TYPE_NAMES.get(type.getSimpleType());
+        }
+        else {
+            name = type.getName();
+
+            //
+            // Remove leading 'I' for interfaces.
+            //
+            if (name.length() > 2 &&
+                name.charAt(0) == 'I' &&
+                Character.isUpperCase(name.charAt(1)) &&
+                Character.isLowerCase(name.charAt(2))) {
+
+                name = name.substring(1);
+            }
+
+            name = cleanUpVariableName(name);
+        }
+
+        return name;
     }
 }

@@ -1190,6 +1190,16 @@ public final class AstBuilder {
                                 case Double:
                                     variableType = BuiltinTypes.Double;
                                     break;
+                                case Uninitialized:
+                                    if (stackValue.getParameter() instanceof Instruction &&
+                                        ((Instruction) stackValue.getParameter()).getOpCode() == OpCode.NEW) {
+
+                                        variableType = (TypeReference) ((Instruction) stackValue.getParameter()).getOperand(0);
+                                    }
+                                    else {
+                                        variableType = variableDefinition.getVariableType();
+                                    }
+                                    break;
                                 case UninitializedThis:
                                     variableType = _context.getCurrentType();
                                     break;

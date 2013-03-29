@@ -24,6 +24,7 @@ public final class VariableDefinition extends VariableReference {
     private int _scopeStart;
     private int _scopeEnd;
     private boolean _isTypeKnown;
+    private boolean _fromMetadata;
 
     public VariableDefinition(final int slot, final String name, final TypeReference variableType) {
         super(name, variableType);
@@ -60,6 +61,14 @@ public final class VariableDefinition extends VariableReference {
 
     public final void setTypeKnown(final boolean typeKnown) {
         _isTypeKnown = typeKnown;
+    }
+
+    public final boolean isFromMetadata() {
+        return _fromMetadata;
+    }
+
+    public final void setFromMetadata(final boolean fromMetadata) {
+        _fromMetadata = fromMetadata;
     }
 
     @Override

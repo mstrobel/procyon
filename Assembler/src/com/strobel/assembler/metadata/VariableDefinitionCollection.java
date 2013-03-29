@@ -167,6 +167,7 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
         variable.setScopeStart(instructionOffset);
         variable.setScopeEnd(-1);
+        variable.setFromMetadata(false);
 
         if (variableType != BuiltinTypes.Object) {
             variable.setTypeKnown(true);
