@@ -115,6 +115,82 @@ public class MethodReader {
             }
         }
 
+        if (localVariableTable != null) {
+            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
+
+            for (final LocalVariableTableEntry entry : entries) {
+                final int slot = entry.getIndex();
+                final int scopeStart = entry.getScopeOffset();
+                final int scopeEnd = scopeStart + entry.getScopeLength();
+
+                VariableDefinition variable = variables.tryFind(slot, scopeStart);
+
+                if (variable == null) {
+                    variable = new VariableDefinition(
+                        slot,
+                        entry.getName() ,
+                        entry.getType()
+                    );
+
+                    variables.add(variable);
+                }
+                else if (!StringUtilities.isNullOrEmpty(entry.getName())) {
+                    variable.setName(entry.getName());
+                    variable.setVariableType(entry.getType());
+                }
+
+                variable.setTypeKnown(true);
+                variable.setFromMetadata(true);
+
+                if (scopeStart < variable.getScopeStart()) {
+                    variable.setScopeStart(scopeStart);
+                }
+
+                if (scopeEnd > variable.getScopeEnd()) {
+                    variable.setScopeEnd(scopeEnd);
+                }
+            }
+        }
+
+        if (localVariableTypeTable != null) {
+            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
+
+            for (final LocalVariableTableEntry entry : entries) {
+                final int slot = entry.getIndex();
+                final int scopeStart = entry.getScopeOffset();
+                final int scopeEnd = scopeStart + entry.getScopeLength();
+
+                VariableDefinition variable = variables.tryFind(slot, scopeStart);
+
+                if (variable == null) {
+                    variable = new VariableDefinition(
+                        slot,
+                        entry.getName() ,
+                        entry.getType()
+                    );
+
+                    variables.add(variable);
+                }
+                else if (!StringUtilities.isNullOrEmpty(entry.getName())) {
+                    variable.setName(entry.getName());
+                    variable.setVariableType(entry.getType());
+                }
+
+                variable.setTypeKnown(true);
+                variable.setFromMetadata(true);
+
+                if (scopeStart < variable.getScopeStart()) {
+                    variable.setScopeStart(scopeStart);
+                }
+
+                if (scopeEnd > variable.getScopeEnd()) {
+                    variable.setScopeEnd(scopeEnd);
+                }
+            }
+        }
+
+        variables.mergeVariables();
+
         @SuppressWarnings("unchecked")
         final Fixup[] fixups = new Fixup[b.size()];
 
@@ -451,69 +527,6 @@ public class MethodReader {
         }
 
         variables.updateScopes(_code.getCodeSize());
-
-        if (localVariableTable != null) {
-            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
-
-            for (final LocalVariableTableEntry entry : entries) {
-                final int slot = entry.getIndex();
-                final int scopeStart = entry.getScopeOffset();
-                final int scopeEnd = scopeStart + entry.getScopeLength();
-                final VariableDefinition variable = variables.tryFind(slot, scopeStart);
-
-                if (variable == null) {
-                    continue;
-                }
-
-                if (!StringUtilities.isNullOrEmpty(entry.getName())) {
-                    variable.setName(entry.getName());
-                }
-
-                variable.setVariableType(entry.getType());
-                variable.setTypeKnown(true);
-                variable.setFromMetadata(true);
-
-                if (scopeStart < variable.getScopeStart()) {
-                    variable.setScopeStart(scopeStart);
-                }
-
-                if (scopeEnd > variable.getScopeEnd()) {
-                    variable.setScopeEnd(scopeEnd);
-                }
-            }
-        }
-
-        if (localVariableTypeTable != null) {
-            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
-
-            for (final LocalVariableTableEntry entry : entries) {
-                final int slot = entry.getIndex();
-                final int scopeStart = entry.getScopeOffset();
-                final int scopeEnd = scopeStart + entry.getScopeLength();
-
-                final VariableDefinition variable = variables.tryFind(slot, scopeStart);
-
-                if (variable == null) {
-                    continue;
-                }
-
-                if (!StringUtilities.isNullOrEmpty(entry.getName())) {
-                    variable.setName(entry.getName());
-                }
-
-                variable.setVariableType(entry.getType());
-                variable.setTypeKnown(true);
-                variable.setFromMetadata(true);
-
-                if (scopeStart < variable.getScopeStart()) {
-                    variable.setScopeStart(scopeStart);
-                }
-
-                if (scopeEnd > variable.getScopeEnd()) {
-                    variable.setScopeEnd(scopeEnd);
-                }
-            }
-        }
 
         int labelCount = 0;
 

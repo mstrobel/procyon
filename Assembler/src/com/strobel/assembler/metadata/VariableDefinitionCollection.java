@@ -15,7 +15,9 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.OpCode;
+import com.strobel.core.StringUtilities;
 
+import java.util.ArrayList;
 import java.util.NoSuchElementException;
 
 public final class VariableDefinitionCollection extends Collection<VariableDefinition> {
@@ -209,6 +211,55 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
             if (variable.getScopeEnd() < 0) {
                 variable.setScopeEnd(codeSize);
+            }
+        }
+    }
+
+    public final void mergeVariables() {
+        final ArrayList<VariableDefinition> slotSharers = new ArrayList<>();
+
+    outer:
+        for (int i = 0; i < size(); i++) {
+            final VariableDefinition variable = get(i);
+
+            for (int j = 0; j < size(); j++) {
+                final VariableDefinition other;
+
+                if (i != j && variable.getSlot() == (other = get(j)).getSlot()) {
+                    if (StringUtilities.equals(other.getName(), variable.getName())) {
+                        slotSharers.add(other);
+                    }
+                    else {
+                        continue outer;
+                    }
+                }
+            }
+
+            boolean merged = false;
+            int minScopeStart = variable.getScopeStart();
+            int maxScopeEnd = variable.getScopeEnd();
+
+            for (int j = 0; j < slotSharers.size(); j++) {
+                final VariableDefinition slotSharer = slotSharers.get(j);
+
+                if (slotSharer.getScopeStart() < minScopeStart) {
+                    merged = true;
+                    minScopeStart = slotSharer.getScopeStart();
+                }
+
+                if (slotSharer.getScopeEnd() > maxScopeEnd) {
+                    merged = true;
+                    maxScopeEnd = slotSharer.getScopeEnd();
+                }
+
+                if (merged) {
+                    remove(slotSharer);
+                }
+            }
+
+            if (merged) {
+                variable.setScopeStart(minScopeStart);
+                variable.setScopeEnd(maxScopeEnd);
             }
         }
     }
