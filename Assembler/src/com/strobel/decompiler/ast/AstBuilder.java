@@ -37,6 +37,7 @@ public final class AstBuilder {
     private final static ByteCode[] EMPTY_DEFINITIONS = new ByteCode[0];
 
     private final Map<ExceptionHandler, ByteCode> _loadExceptions = new LinkedHashMap<>();
+    private final Set<Instruction> _leaveFinallyInstructions = new LinkedHashSet<>();
     private Map<Instruction, Instruction> _originalInstructionMap;
     private InstructionCollection _instructions;
     private List<ExceptionHandler> _exceptionHandlers;
@@ -129,6 +130,33 @@ public final class AstBuilder {
         }
 
         //
+        // Remove finally handlers that handle themselves.
+        //
+
+        for (int i = 0; i < _exceptionHandlers.size(); i++) {
+            final ExceptionHandler handler = _exceptionHandlers.get(i);
+
+            if (handler.isFinally()) {
+                final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+
+                for (int j = i + 1; j < _exceptionHandlers.size(); j++) {
+                    final ExceptionHandler otherHandler = _exceptionHandlers.get(j);
+                    final ExceptionBlock otherTryBlock = otherHandler.getTryBlock();
+                    final ExceptionBlock otherHandlerBlock = otherHandler.getHandlerBlock();
+
+                    if (otherHandler.isFinally() &&
+                        otherHandlerBlock.getFirstInstruction() == handlerBlock.getFirstInstruction() &&
+                        otherHandlerBlock.getLastInstruction() == handlerBlock.getLastInstruction() &&
+                        otherTryBlock.getFirstInstruction().getOffset() >= handlerBlock.getFirstInstruction().getOffset() &&
+                        otherTryBlock.getLastInstruction().getOffset() < handlerBlock.getLastInstruction().getEndOffset()) {
+
+                        _exceptionHandlers.remove(j);
+                    }
+                }
+            }
+        }
+
+        //
         // Java does this retarded thing where a try block gets split along exit branches,
         // but with the split parts sharing the same handler.  We can't represent this in
         // out AST, so just merge the parts back together.
@@ -186,6 +214,7 @@ public final class AstBuilder {
         final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, exceptionHandlers);
 
         cfg.computeDominance();
+        cfg.computeDominanceFrontier();
 
         for (final ExceptionHandler handler : exceptionHandlers) {
             final HandlerInfo handlerInfo = new HandlerInfo(handler);
@@ -225,13 +254,10 @@ public final class AstBuilder {
                 continue;
             }
 
+            final Set<Instruction> rethrowingFinallyStarts = new LinkedHashSet<>();
             final ExceptionBlock handlerTry = handler.getTryBlock();
 
             for (final ExceptionHandler other : _exceptionHandlers) {
-//                if (other == handler) {
-//                    continue;
-//                }
-
                 final ExceptionBlock otherTry = other.getTryBlock();
                 final HandlerInfo finallyInfo = handlers.get(handler);
                 final ControlFlowNode firstInFinally = firstOrDefault(finallyInfo.handlerNodes);
@@ -241,21 +267,35 @@ public final class AstBuilder {
                 }
 
                 Instruction firstFinallyInstruction = firstInFinally.getStart();
-
-                switch (firstFinallyInstruction.getOpCode()) {
-                    case ASTORE:
-                    case ASTORE_1:
-                    case ASTORE_2:
-                    case ASTORE_3:
-                    case ASTORE_W:
-                        firstFinallyInstruction = firstFinallyInstruction.getNext();
-                        break;
-                }
-
                 Instruction lastFinallyInstruction = lastOrDefault(finallyInfo.handlerNodes).getEnd();
 
                 if (lastFinallyInstruction.getOpCode() == OpCode.ATHROW &&
                     lastFinallyInstruction.getPrevious() != null) {
+
+                    //
+                    // If a finally handler catches, stores, and rethrows an exception, NOP-out the
+                    // instructions responsible for those operations.  In the decompiled output, we
+                    // don't expect to see such behavior.
+                    //
+
+                    final Instruction rethrowException = lastFinallyInstruction;
+                    final Instruction loadException;
+                    final Instruction storeException;
+
+                    switch (firstFinallyInstruction.getOpCode()) {
+                        case ASTORE:
+                        case ASTORE_1:
+                        case ASTORE_2:
+                        case ASTORE_3:
+                        case ASTORE_W:
+                            storeException = firstFinallyInstruction;
+                            firstFinallyInstruction = firstFinallyInstruction.getNext();
+                            break;
+
+                        default:
+                            storeException = null;
+                            break;
+                    }
 
                     final Instruction previousFinallyInstruction = lastFinallyInstruction.getPrevious();
 
@@ -265,9 +305,31 @@ public final class AstBuilder {
                         case ALOAD_2:
                         case ALOAD_3:
                         case ALOAD_W:
+                            loadException = previousFinallyInstruction;
                             lastFinallyInstruction = previousFinallyInstruction.getPrevious();
                             break;
+
+                        default:
+                            loadException = null;
+                            break;
                     }
+
+                    if (storeException != null && loadException != null) {
+                        rethrowingFinallyStarts.add(storeException);
+                        storeException.setOpCode(OpCode.POP);
+                        storeException.setOperand(null);
+                        loadException.setOpCode(OpCode.NOP);
+                        loadException.setOperand(null);
+                        rethrowException.setOpCode(OpCode.NOP);
+
+                        if (rethrowException.getNext() == null) {
+                            _leaveFinallyInstructions.add(rethrowException);
+                        }
+                    }
+                }
+                else if (rethrowingFinallyStarts.contains(firstFinallyInstruction)) {
+                    firstFinallyInstruction = firstFinallyInstruction.getNext();
+                    lastFinallyInstruction = lastFinallyInstruction.getPrevious().getPrevious();
                 }
 
                 if (otherTry.getFirstInstruction().getOffset() == handlerTry.getFirstInstruction().getOffset() &&
@@ -304,24 +366,50 @@ public final class AstBuilder {
 
                     boolean first = true;
 
-                    for (Instruction pTry = firstAfterTry.getStart(), pFinally = firstFinallyInstruction;
-                         (pFinally != null &&
-                          pTry != null &&
-                          pFinally.getOffset() <= lastFinallyInstruction.getOffset() &&
-                          pTry.getOpCode() == pFinally.getOpCode());
-                         pTry = pTry.getNext(), pFinally = pFinally.getNext()) {
+                    Instruction pTry, pFinally;
+
+                    pTry = firstAfterTry.getStart();
+                    pFinally = firstFinallyInstruction;
+
+                    if ((pTry.getOpCode() == OpCode.GOTO ||
+                         pTry.getOpCode() == OpCode.GOTO_W) &&
+                        ((Instruction) pTry.getOperand(0)).getOffset() > lastFinallyInstruction.getOffset()) {
+
+                        final Instruction oldBranchTarget = (Instruction) pTry.getOperand(0);
+
+                        //
+                        // If the try block ends with an explicit break bypassing the finally handler, redirect it.
+                        //
+                        remappedJumps.put(oldBranchTarget, firstFinallyInstruction);
+                        pTry.setOperand(firstFinallyInstruction);
+                        pTry = pTry.getPrevious();
+
+                        //
+                        // If we were at an instruction that jumped past the finally, then our position must be
+                        // after the inlined handler code and not before.  Jump back the appropriate number of
+                        // instructions.
+                        //
+                        pTry = _instructions.tryGetAtOffset(
+                            pTry.getOffset() - (lastFinallyInstruction.getOffset() - firstFinallyInstruction.getOffset())
+                        );
+                    }
+                    else if (pTry.getOpCode().getFlowControl() == FlowControl.Return) {
+                        //
+                        // If we were at a return instruction, then our position must be after the inlined handler
+                        // code and not before.  Jump back the appropriate number of instructions.
+                        //
+                        pTry = pTry.getPrevious();
+                        pTry = _instructions.tryGetAtOffset(
+                            pTry.getOffset() - (lastFinallyInstruction.getOffset() - firstFinallyInstruction.getOffset())
+                        );
+                    }
+
+                    while (pFinally != null &&
+                           pTry != null &&
+                           pFinally.getOffset() <= lastFinallyInstruction.getOffset() &&
+                           pTry.getOpCode() == pFinally.getOpCode()) {
 
                         if (first) {
-                            if ((lastInstructionInTry.getOpCode() == OpCode.GOTO ||
-                                 lastInstructionInTry.getOpCode() == OpCode.GOTO_W) &&
-                                lastInstructionInTry.getOperand(0) == pTry) {
-
-                                //
-                                // If the try block ends with an explicit break to the finally handler, we can remove it.
-                                //
-                                toRemove.add(pTry);
-                            }
-
                             if (pTry.getLabel() != null) {
                                 remappedJumps.put(pTry, firstFinallyInstruction);
                             }
@@ -330,6 +418,8 @@ public final class AstBuilder {
                         }
 
                         toRemove.add(pTry);
+                        pTry = pTry.getNext();
+                        pFinally = pFinally.getNext();
                     }
                 }
             }
@@ -342,6 +432,8 @@ public final class AstBuilder {
         for (final Instruction instruction : toRemove) {
             instructions.remove(instruction);
         }
+
+        instructions.recomputeOffsets();
 
         for (final Instruction instruction : instructions) {
             if (instruction.getOperandCount() == 0) {
@@ -477,7 +569,7 @@ public final class AstBuilder {
         for (final Instruction instruction : instructions) {
             final OpCode opCode = instruction.getOpCode();
 
-            AstCode code = CODES[opCode.ordinal()];
+            AstCode code = _leaveFinallyInstructions.contains(instruction) ? AstCode.Leave : CODES[opCode.ordinal()];
             Object operand = instruction.hasOperand() ? instruction.getOperand(0) : null;
 
             final Object secondOperand = instruction.getOperandCount() > 1 ? instruction.getOperand(1) : null;
@@ -890,7 +982,7 @@ public final class AstBuilder {
                 }
 
                 //
-                // We know that all the temp variables have a single load; now make sure they have a single store. 
+                // We know that all the temp variables have a single load; now make sure they have a single store.
                 //
                 boolean singleStore = true;
                 TypeReference type = null;
@@ -1142,7 +1234,7 @@ public final class AstBuilder {
 
             final ParameterDefinition parameter = parameterMap[variableIndex];
 
-            if (parameter != null) {
+            if (parameter != null && variableDefinition.getScopeStart() == 0) {
                 final Variable variable = new Variable();
 
                 variable.setName(
@@ -1172,7 +1264,8 @@ public final class AstBuilder {
                     for (final ByteCode b : definitions) {
                         final FrameValue stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
 
-                        if (stackValue != FrameValue.UNINITIALIZED &&
+                        if (stackValue != FrameValue.NULL &&
+                            stackValue != FrameValue.UNINITIALIZED &&
                             stackValue != FrameValue.UNINITIALIZED_THIS) {
 
                             final TypeReference variableType;
@@ -1214,6 +1307,10 @@ public final class AstBuilder {
                             variable.setType(variableType);
                             break;
                         }
+                    }
+
+                    if (variable.getType() == null) {
+                        variable.setType(BuiltinTypes.Object);
                     }
                 }
 
@@ -1354,44 +1451,6 @@ public final class AstBuilder {
         }
     }
 
-/*
-    final List<Variable> parameters = new ArrayList<>();
-
-    private void convertParameters(final List<ByteCode> body) {
-        Variable thisParameter = null;
-
-        if (_body.hasThis()) {
-            final TypeReference type = _methodDefinition.getDeclaringType();
-
-            thisParameter = new Variable();
-            thisParameter.setName("this");
-            thisParameter.setType(type);
-            thisParameter.setOriginalParameter(_body.getThisParameter());
-        }
-
-        for (final ParameterDefinition parameter : _methodDefinition.getParameters()) {
-            final Variable variable = new Variable();
-
-            variable.setName(parameter.getName());
-            variable.setType(parameter.getParameterType());
-            variable.setOriginalParameter(parameter);
-
-            this.parameters.add(variable);
-        }
-
-        for (final ByteCode byteCode : body) {
-            ParameterDefinition p;
-            
-            switch (byteCode.code) {
-                case __ILoad:
-                case __LLoad:
-                case __FLoad:
-                case __DLoad:
-            }
-        }
-    }
-*/
-
     @SuppressWarnings("ConstantConditions")
     private List<Node> convertToAst(final List<ByteCode> body, final Set<ExceptionHandler> exceptionHandlers) {
         final ArrayList<Node> ast = new ArrayList<>();
@@ -1405,6 +1464,7 @@ public final class AstBuilder {
 
             int tryStart = Integer.MAX_VALUE;
             int tryEnd = -1;
+            int firstHandlerStart = -1;
 
             for (final ExceptionHandler handler : exceptionHandlers) {
                 final int start = handler.getTryBlock().getFirstInstruction().getOffset();
@@ -1423,6 +1483,12 @@ public final class AstBuilder {
 
                     if (end > tryEnd) {
                         tryEnd = end;
+
+                        final int handlerStart = handler.getHandlerBlock().getFirstInstruction().getOffset();
+
+                        if (firstHandlerStart < 0 || handlerStart < firstHandlerStart) {
+                            firstHandlerStart = handlerStart;
+                        }
                     }
                 }
             }
@@ -1513,6 +1579,14 @@ public final class AstBuilder {
 
                 tryBlock.getBody().addAll(tryAst);
                 tryCatchBlock.setTryBlock(tryBlock);
+            }
+
+            //
+            // Cut from the end of the try to the beginning of the first handler.
+            //
+
+            while (!body.isEmpty() && body.get(0).offset < firstHandlerStart) {
+                body.remove(0);
             }
 
             //
@@ -1783,7 +1857,7 @@ public final class AstBuilder {
         return ast;
     }
 
-    // <editor-fold defaultstate="collapsed" desc="StackSlot Class">
+// <editor-fold defaultstate="collapsed" desc="StackSlot Class">
 
     private final static class StackSlot {
         final FrameValue value;
@@ -1824,9 +1898,9 @@ public final class AstBuilder {
         }
     }
 
-    // </editor-fold>
+// </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="VariableSlot Class">
+// <editor-fold defaultstate="collapsed" desc="VariableSlot Class">
 
     private final static class VariableSlot {
         final static VariableSlot UNKNOWN_INSTANCE = new VariableSlot(FrameValue.UNINITIALIZED, EMPTY_DEFINITIONS);
@@ -1858,9 +1932,9 @@ public final class AstBuilder {
         }
     }
 
-    // </editor-fold>
+// </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="ByteCode Class">
+// <editor-fold defaultstate="collapsed" desc="ByteCode Class">
 
     private final static class ByteCode {
         Label label;
@@ -2026,5 +2100,5 @@ public final class AstBuilder {
         }
     }
 
-    // </editor-fold>
+// </editor-fold>
 }

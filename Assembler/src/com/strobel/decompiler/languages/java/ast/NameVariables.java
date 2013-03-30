@@ -13,23 +13,30 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.BuiltinTypes;
+import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.IntegerBox;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.decompiler.DecompilerContext;
-import com.strobel.decompiler.ast.*;
+import com.strobel.decompiler.ast.AstCode;
+import com.strobel.decompiler.ast.Block;
 import com.strobel.decompiler.ast.Expression;
+import com.strobel.decompiler.ast.Loop;
+import com.strobel.decompiler.ast.PatternMatching;
+import com.strobel.decompiler.ast.Variable;
+import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 import com.strobel.reflection.SimpleType;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,19 +47,29 @@ public class NameVariables {
     private final static char MAX_LOOP_VARIABLE_NAME = 'n';
     private final static String[] METHOD_PREFIXES = { "get", "is", "are", "to", "as" };
     private final static String[] METHOD_SUFFIXES = { "At", "For", "From" };
-    private final static Map<SimpleType, String> BUILT_IN_TYPE_NAMES;
+    private final static Map<String, String> BUILT_IN_TYPE_NAMES;
 
     static {
-        final Map<SimpleType, String> builtInTypeNames = new LinkedHashMap<>();
+        final Map<String, String> builtInTypeNames = new LinkedHashMap<>();
 
-        builtInTypeNames.put(SimpleType.Boolean, "b");
-        builtInTypeNames.put(SimpleType.Byte, "b");
-        builtInTypeNames.put(SimpleType.Short, "num");
-        builtInTypeNames.put(SimpleType.Integer, "num");
-        builtInTypeNames.put(SimpleType.Long, "num");
-        builtInTypeNames.put(SimpleType.Float, "num");
-        builtInTypeNames.put(SimpleType.Double, "num");
-        builtInTypeNames.put(SimpleType.Character, "c");
+        builtInTypeNames.put(BuiltinTypes.Boolean.getInternalName(), "b");
+        builtInTypeNames.put("java/lang/Boolean", "b");
+        builtInTypeNames.put(BuiltinTypes.Byte.getInternalName(), "b");
+        builtInTypeNames.put("java/lang/Byte", "b");
+        builtInTypeNames.put(BuiltinTypes.Short.getInternalName(), "num");
+        builtInTypeNames.put("java/lang/Short", "num");
+        builtInTypeNames.put(BuiltinTypes.Integer.getInternalName(), "num");
+        builtInTypeNames.put("java/lang/Integer", "num");
+        builtInTypeNames.put(BuiltinTypes.Long.getInternalName(), "num");
+        builtInTypeNames.put("java/lang/Long", "num");
+        builtInTypeNames.put(BuiltinTypes.Float.getInternalName(), "num");
+        builtInTypeNames.put("java/lang/Float", "num");
+        builtInTypeNames.put(BuiltinTypes.Double.getInternalName(), "num");
+        builtInTypeNames.put("java/lang/Double", "num");
+        builtInTypeNames.put(BuiltinTypes.Character.getInternalName(), "c");
+        builtInTypeNames.put("java/lang/Character", "c");
+        builtInTypeNames.put("java/lang/Object", "obj");
+        builtInTypeNames.put("java/lang/String", "s");
 
         BUILT_IN_TYPE_NAMES = Collections.unmodifiableMap(builtInTypeNames);
     }
@@ -338,7 +355,13 @@ public class NameVariables {
             return "obj";
         }
 
-        return Character.toLowerCase(name.charAt(0)) + name.substring(1);
+        name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
+
+        if (JavaOutputVisitor.isKeyword(name)) {
+            return null;
+        }
+
+        return name;
     }
 
     private static String getNameFromExpression(final Expression e) {
@@ -427,7 +450,7 @@ public class NameVariables {
                             parent.getCode() != AstCode.InitObject && !definition.isStatic() ? i - 1 : i
                         );
 
-                        if (p != null && !StringUtilities.isNullOrEmpty(p.getName())) {
+                        if (p != null && p.hasName() && !StringUtilities.isNullOrEmpty(p.getName())) {
                             return cleanUpVariableName(p.getName());
                         }
                     }
@@ -458,10 +481,13 @@ public class NameVariables {
         else if (type.getName().endsWith("Collection")) {
             name = "collection";
         }
-        else if (BUILT_IN_TYPE_NAMES.containsKey(type.getSimpleType())) {
-            name = BUILT_IN_TYPE_NAMES.get(type.getSimpleType());
-        }
         else {
+            name = BUILT_IN_TYPE_NAMES.get(type.getInternalName());
+
+            if (name != null) {
+                return name;
+            }
+
             name = type.getName();
 
             //

@@ -324,6 +324,11 @@ public final class ControlFlowGraphBuilder {
 
                 final ControlFlowNode handler = findInnermostExceptionHandlerNode(end.getEndOffset());
 
+                if (handler.getNodeType() == ControlFlowNodeType.ExceptionalExit) {
+                    createEdge(node, handler, JumpType.Normal);
+                    continue;
+                }
+
                 assert handler.getNodeType() == ControlFlowNodeType.FinallyHandler;
 
                 createEdge(node, handler, JumpType.Normal);

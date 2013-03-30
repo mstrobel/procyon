@@ -18,7 +18,6 @@ import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.InstructionVisitor;
 import com.strobel.assembler.ir.MetadataReader;
-import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.assembler.metadata.annotations.InnerClassEntry;
@@ -29,7 +28,6 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.EmptyArrayCache;
 
-import java.lang.reflect.Modifier;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings("ConstantConditions")
 public final class ClassFileReader extends MetadataReader implements ClassReader {
     public final static int OPTION_PROCESS_ANNOTATIONS = 1 << 0;
     public final static int OPTION_PROCESS_CODE = 1 << 1;
@@ -780,7 +779,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     );
 
                     if (Flags.testAny(options, OPTION_PROCESS_CODE)) {
-                        visitMethodBody(method, methodVisitor);
+                        visitMethodBody(method, methodSignature, methodVisitor);
                     }
 
                     for (final SourceAttribute attribute : method.attributes) {
@@ -831,11 +830,15 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         }
     }
 
-    private void visitMethodBody(final MethodInfo methodInfo, final MethodVisitor visitor) {
+    private void visitMethodBody(final MethodInfo methodInfo, final IMethodSignature methodSignature, final MethodVisitor visitor) {
         if (methodInfo.codeAttribute instanceof CodeAttribute) {
             final CodeAttribute codeAttribute = (CodeAttribute) methodInfo.codeAttribute;
+            final TypeReference thisType = _scope._parser.lookupType(this.packageName, this.name);
 
             final MethodReader reader = new MethodReader(
+                thisType,
+                methodSignature,
+                methodInfo.accessFlags,
                 codeAttribute,
                 _scope
             );
@@ -843,7 +846,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             if (visitor.canVisitBody()) {
                 final MethodReference methodReference;
                 final MethodBody body = reader.accept(visitor);
-                final TypeReference thisType = _scope._parser.lookupType(this.packageName, this.name);
 
                 final SignatureAttribute signatureAttribute = SourceAttribute.find(AttributeNames.Signature, methodInfo.attributes);
 
@@ -858,27 +860,10 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     body.setMethod(methodReference);
                 }
 
-                if (!Modifier.isStatic(methodInfo.accessFlags)) {
-                    body.setThisParameter(new ParameterDefinition(0, "this", thisType));
-                }
-
                 MethodDefinition method;
 
                 if (methodReference != null) {
                     method = methodReference.resolve();
-
-                    final List<ParameterDefinition> parameters = methodReference.getParameters();
-                    final VariableDefinitionCollection variables = body.getVariables();
-
-                    for (int i = 0; i < parameters.size(); i++) {
-                        final ParameterDefinition parameter = parameters.get(i);
-                        final int variableSlot = methodReference.isConstructor() ? parameter.getSlot() + 1 : parameter.getSlot();
-                        final VariableDefinition variable = variables.ensure(variableSlot, OpCode.NOP, 0);
-
-                        if (!variable.isTypeKnown()) {
-                            variable.setVariableType(parameter.getParameterType());
-                        }
-                    }
                 }
                 else {
                     method = null;

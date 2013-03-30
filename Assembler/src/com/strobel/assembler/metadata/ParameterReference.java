@@ -41,7 +41,7 @@ public abstract class ParameterReference {
         return _name;
     }
 
-    protected boolean hasName() {
+    public final boolean hasName() {
         return !StringUtilities.isNullOrEmpty(_name);
     }
 

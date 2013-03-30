@@ -30,9 +30,11 @@ import com.strobel.assembler.ir.attributes.ExceptionTableEntry;
 import com.strobel.assembler.ir.attributes.LocalVariableTableAttribute;
 import com.strobel.assembler.ir.attributes.LocalVariableTableEntry;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Range;
 
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -43,8 +45,20 @@ public class MethodReader {
     private final CodeAttribute _code;
     private final IMetadataScope _scope;
     private final MethodBody _methodBody;
+    private final TypeReference _declaringType;
+    private final IMethodSignature _signature;
+    private final int _modifiers;
 
-    public MethodReader(final CodeAttribute code, final IMetadataScope scope) {
+    public MethodReader(
+        final TypeReference declaringType,
+        final IMethodSignature signature,
+        final int modifiers,
+        final CodeAttribute code,
+        final IMetadataScope scope) {
+
+        _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+        _signature = VerifyArgument.notNull(signature, "signature");
+        _modifiers = modifiers;
         _code = VerifyArgument.notNull(code, "code");
         _scope = VerifyArgument.notNull(scope, "scope");
         _methodBody = new MethodBody();
@@ -69,66 +83,35 @@ public class MethodReader {
             _code.getAttributes()
         );
 
-        if (localVariableTable != null) {
-            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
+        final boolean hasThis = !Modifier.isStatic(_modifiers);
+        final List<ParameterDefinition> parameters = _signature.getParameters();
 
-            for (final LocalVariableTableEntry entry : entries) {
-                final int scopeStart = entry.getScopeOffset();
-                final int scopeEnd = scopeStart + entry.getScopeLength();
+        if (hasThis) {
+            final VariableDefinition thisVariable = new VariableDefinition(
+                0,
+                "this",
+                _declaringType
+            );
 
-                final VariableDefinition variable = new VariableDefinition(
-                    entry.getIndex(),
-                    entry.getName(),
-                    entry.getType()
-                );
+            thisVariable.setScopeStart(0);
+            thisVariable.setScopeEnd(_code.getCodeSize());
+            thisVariable.setFromMetadata(true);
 
-                variable.setTypeKnown(true);
-                variable.setScopeStart(scopeStart);
-                variable.setScopeEnd(scopeEnd);
+            variables.add(thisVariable);
 
-                variables.add(variable);
-            }
+            _methodBody.setThisParameter(new ParameterDefinition(0, "this", _declaringType));
         }
 
-        if (localVariableTypeTable != null) {
-            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
+        for (int i = 0; i < parameters.size(); i++) {
+            final ParameterDefinition parameter = parameters.get(i);
+            final int variableSlot = hasThis ? parameter.getSlot() + 1 : parameter.getSlot();
+            final VariableDefinition variable = variables.ensure(variableSlot, OpCode.NOP, 0);
 
-            for (final LocalVariableTableEntry entry : entries) {
-                final int slot = entry.getIndex();
-                final int scopeStart = entry.getScopeOffset();
-                final int scopeEnd = scopeStart + entry.getScopeLength();
+            variable.setScopeStart(0);
+            variable.setScopeEnd(_code.getCodeSize());
 
-                boolean found = false;
-
-                for (final VariableDefinition variable : variables) {
-                    if (variable.getSlot() == slot &&
-                        variable.getScopeStart() == scopeStart &&
-                        variable.getScopeEnd() == scopeEnd) {
-
-                        if (!variable.hasName()) {
-                            variable.setName(entry.getName());
-                        }
-
-                        variable.setVariableType(entry.getType());
-
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found) {
-                    final VariableDefinition variable = new VariableDefinition(
-                        slot,
-                        entry.getName(),
-                        entry.getType()
-                    );
-
-                    variable.setTypeKnown(true);
-                    variable.setScopeStart(scopeStart);
-                    variable.setScopeEnd(scopeEnd);
-
-                    variables.add(variable);
-                }
+            if (!variable.isTypeKnown()) {
+                variable.setVariableType(parameter.getParameterType());
             }
         }
 
@@ -469,6 +452,69 @@ public class MethodReader {
 
         variables.updateScopes(_code.getCodeSize());
 
+        if (localVariableTable != null) {
+            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
+
+            for (final LocalVariableTableEntry entry : entries) {
+                final int slot = entry.getIndex();
+                final int scopeStart = entry.getScopeOffset();
+                final int scopeEnd = scopeStart + entry.getScopeLength();
+                final VariableDefinition variable = variables.tryFind(slot, scopeStart);
+
+                if (variable == null) {
+                    continue;
+                }
+
+                if (!StringUtilities.isNullOrEmpty(entry.getName())) {
+                    variable.setName(entry.getName());
+                }
+
+                variable.setVariableType(entry.getType());
+                variable.setTypeKnown(true);
+                variable.setFromMetadata(true);
+
+                if (scopeStart < variable.getScopeStart()) {
+                    variable.setScopeStart(scopeStart);
+                }
+
+                if (scopeEnd > variable.getScopeEnd()) {
+                    variable.setScopeEnd(scopeEnd);
+                }
+            }
+        }
+
+        if (localVariableTypeTable != null) {
+            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
+
+            for (final LocalVariableTableEntry entry : entries) {
+                final int slot = entry.getIndex();
+                final int scopeStart = entry.getScopeOffset();
+                final int scopeEnd = scopeStart + entry.getScopeLength();
+
+                final VariableDefinition variable = variables.tryFind(slot, scopeStart);
+
+                if (variable == null) {
+                    continue;
+                }
+
+                if (!StringUtilities.isNullOrEmpty(entry.getName())) {
+                    variable.setName(entry.getName());
+                }
+
+                variable.setVariableType(entry.getType());
+                variable.setTypeKnown(true);
+                variable.setFromMetadata(true);
+
+                if (scopeStart < variable.getScopeStart()) {
+                    variable.setScopeStart(scopeStart);
+                }
+
+                if (scopeEnd > variable.getScopeEnd()) {
+                    variable.setScopeEnd(scopeEnd);
+                }
+            }
+        }
+
         int labelCount = 0;
 
         for (int i = 0; i < body.size(); i++) {
@@ -609,6 +655,9 @@ public class MethodReader {
         }
 
         for (final ControlFlowNode successor : node.getSuccessors()) {
+            if (successor.getNodeType() != ControlFlowNodeType.Normal) {
+                continue;
+            }
             if (successor.getDominatorTreeChildren().isEmpty()) {
                 final ControlFlowNode result = findHandlerEnd(successor, visited);
 

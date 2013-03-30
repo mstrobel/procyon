@@ -54,6 +54,10 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
         return _body;
     }
 
+    public final boolean hasThis() {
+        return !isStatic();
+    }
+
     protected final void setBody(final MethodBody body) {
         _body = body;
     }
