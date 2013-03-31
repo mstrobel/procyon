@@ -268,6 +268,9 @@ public class AstMethodBodyBuilder {
                         caseLabels.add(caseLabel);
                     }
                 }
+
+                section.getStatements().add(transformBlock(caseBlock));
+                switchStatement.getSwitchSections().add(section);
             }
 
             return switchStatement;

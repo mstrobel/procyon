@@ -867,16 +867,16 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         rightParenthesis();
         openBrace(policy.StatementBraceStyle);
 
-        if (!policy.IndentSwitchBody) {
-            formatter.unindent();
+        if (policy.IndentSwitchBody) {
+            formatter.indent();
         }
 
         for (final SwitchSection section : node.getSwitchSections()) {
             section.acceptVisitor(this, _);
         }
 
-        if (!policy.IndentSwitchBody) {
-            formatter.indent();
+        if (policy.IndentSwitchBody) {
+            formatter.unindent();
         }
 
         closeBrace(policy.StatementBraceStyle);

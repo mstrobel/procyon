@@ -322,6 +322,19 @@ public final class TypeAnalysis {
         if (expression.getInferredType() == null || anyArgumentIsMissingExpectedType) {
             inferTypeForExpression(expression, expression.getExpectedType(), anyArgumentIsMissingExpectedType);
         }
+        else if (expression.getInferredType() == BuiltinTypes.Integer &&
+                 expression.getExpectedType() == BuiltinTypes.Boolean) {
+
+            if (expression.getCode() == AstCode.Load || expression.getCode() == AstCode.Store) {
+                final Variable variable = (Variable) expression.getOperand();
+
+                expression.setInferredType(BuiltinTypes.Boolean);
+
+                if (variable.getType().getSimpleType() == SimpleType.Integer && variable.isGenerated()) {
+                    variable.setType(BuiltinTypes.Boolean);
+                }
+            }
+        }
 
         for (final Expression argument : arguments) {
             if (argument.getCode() != AstCode.Store) {

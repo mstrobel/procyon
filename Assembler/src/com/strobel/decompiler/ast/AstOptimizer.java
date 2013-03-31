@@ -804,8 +804,7 @@ public final class AstOptimizer {
                 final AstCode opCode = isStore ? AstCode.Store : AstCode.Return;
                 final TypeReference returnType = isStore ? trueVariable.get().getType() : context.getCurrentMethod().getReturnType();
 
-                final boolean returnTypeIsBoolean = TypeAnalysis.isBoolean(returnType) ||
-                                                    isStore && trueVariable.get().getType().getSimpleType() == SimpleType.Integer;
+                final boolean returnTypeIsBoolean = TypeAnalysis.isBoolean(returnType);
 
                 final StrongBox<Integer> leftBooleanValue = new StrongBox<>();
                 final StrongBox<Integer> rightBooleanValue = new StrongBox<>();
@@ -822,8 +821,8 @@ public final class AstOptimizer {
                 if (returnTypeIsBoolean &&
                     matchGetOperand(trueExpression.get(), AstCode.LdC, Integer.class, leftBooleanValue) &&
                     matchGetOperand(falseExpression.get(), AstCode.LdC, Integer.class, rightBooleanValue) &&
-                    (leftBooleanValue.get() != 0 && rightBooleanValue.get() == 0 ||
-                     leftBooleanValue.get() == 0 && rightBooleanValue.get() != 0)) {
+                    (leftBooleanValue.get() == 1 && rightBooleanValue.get() == 0 ||
+                     leftBooleanValue.get() == 0 && rightBooleanValue.get() == 1)) {
 
                     //
                     // It can be expressed as a trivial expression.
@@ -898,6 +897,7 @@ public final class AstOptimizer {
                     //
                     // Create ternary expression.
                     //
+
                     newExpression = new Expression(
                         AstCode.TernaryOp,
                         null,
@@ -1625,6 +1625,18 @@ public final class AstOptimizer {
             return e.getArguments().get(0);
         }
 
+        if (e.getCode() == AstCode.TernaryOp) {
+            final Expression condition = arguments.get(0);
+
+            if (match(condition, AstCode.LogicalNot)) {
+                final Expression temp = arguments.get(1);
+
+                arguments.set(0, condition.getArguments().get(0));
+                arguments.set(1, arguments.get(2));
+                arguments.set(2, temp);
+            }
+        }
+
         while (e.getCode() == AstCode.LogicalNot) {
             a = operand;
 
@@ -1659,7 +1671,7 @@ public final class AstOptimizer {
         return result;
     }
 
-    private static boolean simplifyLogicalNotArgument(final Expression e) {
+    static boolean simplifyLogicalNotArgument(final Expression e) {
         final Expression a = e.getArguments().get(0);
 
         final AstCode c;

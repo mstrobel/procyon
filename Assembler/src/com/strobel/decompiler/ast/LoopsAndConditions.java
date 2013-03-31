@@ -239,7 +239,14 @@ final class LoopsAndConditions {
                                 condition.set(condition.get().getArguments().get(0));
                             }
                             else {
-                                condition.set(new Expression(AstCode.LogicalNot, null, condition.get()));
+                                final Expression notExpression = new Expression(AstCode.LogicalNot, null, condition.get());
+
+                                if (AstOptimizer.simplifyLogicalNotArgument(notExpression)) {
+                                    condition.set(notExpression.getArguments().get(0));
+                                }
+                                else {
+                                    condition.set(notExpression);
+                                }
                             }
                         }
 
