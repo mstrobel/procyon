@@ -73,6 +73,8 @@ public final class AstBuilder {
             astType.setPackage(new PackageDeclaration(type.getPackageName()));
         }
 
+        EntityDeclaration.setModifiers(astType, Flags.asModifierSet(type.getFlags() & Flags.ClassFlags));
+
         _compileUnit.addChild(astType, CompilationUnit.MEMBER_ROLE);
     }
 

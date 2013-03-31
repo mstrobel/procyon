@@ -666,11 +666,21 @@ public class AstMethodBodyBuilder {
             return creation;
         }
 
-        final InvocationExpression invocation = target.invoke(
-            methodReference.getName(),
-            convertTypeArguments(methodReference),
-            adjustArgumentsForMethodCall(methodReference, arguments)
-        );
+        final InvocationExpression invocation;
+
+        if (methodReference.isConstructor()) {
+            invocation = new InvocationExpression(
+                target,
+                adjustArgumentsForMethodCall(methodReference, arguments)
+            );
+        }
+        else {
+            invocation = target.invoke(
+                methodReference.getName(),
+                convertTypeArguments(methodReference),
+                adjustArgumentsForMethodCall(methodReference, arguments)
+            );
+        }
 
         invocation.putUserData(Keys.MEMBER_REFERENCE, methodReference);
 
