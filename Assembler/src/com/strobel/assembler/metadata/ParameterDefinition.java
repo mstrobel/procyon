@@ -25,8 +25,8 @@ import java.util.List;
  * Time: 5:42 PM
  */
 public final class ParameterDefinition extends ParameterReference implements IAnnotationsProvider {
-    private final int _slot;
     private final int _size;
+    private int _slot;
     private IMethodSignature _method;
     private List<CustomAnnotation> _annotations;
 
@@ -48,6 +48,10 @@ public final class ParameterDefinition extends ParameterReference implements IAn
 
     public final int getSlot() {
         return _slot;
+    }
+
+    final void setSlot(final int slot) {
+        _slot = slot;
     }
 
     public final IMethodSignature getMethod() {

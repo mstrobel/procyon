@@ -28,7 +28,6 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.core.delegates.Func;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.functions.Function;
-import com.strobel.reflection.SimpleType;
 import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;

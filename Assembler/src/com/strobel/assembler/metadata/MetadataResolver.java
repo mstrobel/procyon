@@ -15,7 +15,6 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.core.StringComparator;
 import com.strobel.core.VerifyArgument;
-import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
 
 import java.util.List;
 import java.util.Stack;
@@ -118,15 +117,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
             return null;
         }
 
-        MethodReference reference = method;
-
-/*
-        if (reference.isGenericMethod() && !reference.isGenericDefinition()) {
-            reference = (MethodReference) ((IGenericInstance) reference).getGenericDefinition();
-        }
-*/
-
-        return getMethod(declaringType, reference);
+        return getMethod(declaringType, method);
     }
 
     // <editor-fold defaultstate="collapsed" desc="Member Resolution Helpers">

@@ -743,11 +743,19 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
                 final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, method.attributes);
 
-                if (signature != null) {
-                    methodSignature = _scope._parser.parseMethodSignature(signature.getSignature());
+                if ((accessFlags & Flags.ENUM) != 0 && "<init>".equals(method.name)) {
+                    methodSignature = _scope._parser.parseMethodSignature(
+                        signature != null ? "(Ljava/lang/String;I" + signature.getSignature().substring(1)
+                                          : method.descriptor
+                    );
+
+                    methodSignature.getParameters().get(0).setName("name");
+                    methodSignature.getParameters().get(1).setName("ordinal");
                 }
                 else {
-                    methodSignature = _scope._parser.parseMethodSignature(method.descriptor);
+                    methodSignature = _scope._parser.parseMethodSignature(
+                        signature != null ? signature.getSignature() : method.descriptor
+                    );
                 }
 
                 final boolean hasGenericParameters = methodSignature.hasGenericParameters();
