@@ -153,6 +153,23 @@ public final class AstBuilder {
                         _exceptionHandlers.remove(j);
                     }
                 }
+
+                final ExceptionBlock tryBlock = handler.getTryBlock();
+
+                if (tryBlock.getLastInstruction().getOffset() >=
+                    handlerBlock.getFirstInstruction().getOffset()) {
+
+                    _exceptionHandlers.set(
+                        i,
+                        ExceptionHandler.createFinally(
+                            new ExceptionBlock(
+                                tryBlock.getFirstInstruction(),
+                                handlerBlock.getFirstInstruction().getPrevious()
+                            ),
+                            handlerBlock
+                        )
+                    );
+                }
             }
         }
 
@@ -171,11 +188,15 @@ public final class AstBuilder {
 
                 final Instruction lastInCurrent = current.getTryBlock().getLastInstruction();
                 final Instruction firstInNext = next.getTryBlock().getFirstInstruction();
-                final Instruction branchInBetween = lastInCurrent.getNext();
+                final Instruction branchInBetween = firstInNext.getPrevious();
+
+                final Instruction beforeBranch = instructions.tryGetAtOffset(
+                    branchInBetween.getOffset() - branchInBetween.getOpCode().getSize()+ branchInBetween.getOpCode().getStackChange()
+                );
 
                 if (branchInBetween != null &&
                     branchInBetween.getOpCode().isBranch() &&
-                    branchInBetween == firstInNext.getPrevious()) {
+                    lastInCurrent ==  beforeBranch) {
 
                     final ExceptionHandler newHandler;
 

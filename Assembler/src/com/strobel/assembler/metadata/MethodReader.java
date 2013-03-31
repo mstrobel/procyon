@@ -128,7 +128,7 @@ public class MethodReader {
                 if (variable == null) {
                     variable = new VariableDefinition(
                         slot,
-                        entry.getName() ,
+                        entry.getName(),
                         entry.getType()
                     );
 
@@ -165,7 +165,7 @@ public class MethodReader {
                 if (variable == null) {
                     variable = new VariableDefinition(
                         slot,
-                        entry.getName() ,
+                        entry.getName(),
                         entry.getType()
                     );
 
