@@ -662,8 +662,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         final Match match,
         final BacktrackingInfo backtrackingInfo) {
 
-        return position == null ||
-               position instanceof AstNode && matches(position, match);
+        return (position == null || position instanceof AstNode) && matches(position, match);
     }
 
     @Override

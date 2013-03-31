@@ -296,7 +296,7 @@ final class LoopsAndConditions {
 
                     loop.setBody(bodyBlock);
 
-                    bodyBlock.setEntryGoto(new Expression(AstCode.IfTrue, basicBlock.getBody().get(0)));
+                    bodyBlock.setEntryGoto(new Expression(AstCode.Goto, basicBlock.getBody().get(0)));
                     bodyBlock.getBody().addAll(findLoops(loopContents, node, true));
 
                     blockBody.add(new Label("Loop_" + _nextLabelIndex++));

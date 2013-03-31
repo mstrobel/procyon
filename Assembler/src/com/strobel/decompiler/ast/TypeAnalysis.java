@@ -396,6 +396,10 @@ public final class TypeAnalysis {
                 );
             }
 
+            case MonitorEnter:
+            case MonitorExit:
+                return null;
+
             case Store: {
                 final Variable v = (Variable) operand;
 

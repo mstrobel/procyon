@@ -30,6 +30,9 @@ import com.strobel.decompiler.patterns.Repeat;
 import java.util.ArrayList;
 import java.util.Collections;
 
+import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.lastOrDefault;
+
 public final class PatternStatementTransform extends ContextTrackingVisitor<AstNode> {
     private final static AstNode VARIABLE_ASSIGN_PATTERN = new ExpressionStatement(
         new AssignmentExpression(
@@ -65,6 +68,12 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         }
 
         return super.visitExpressionStatement(node, data);
+    }
+
+    @Override
+    public AstNode visitWhileStatement(final WhileStatement node, final Void data) {
+        final DoWhileStatement doWhile = transformDoWhile(node);
+        return doWhile != null ? doWhile : super.visitWhileStatement(node, data);
     }
 
     // </editor-fold>
@@ -584,6 +593,111 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         iteratorDeclaration.remove();
 
         return forEach;
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Do While Loop Transform">
+
+    private final static WhileStatement DO_WHILE_PATTERN;
+
+    static {
+        final WhileStatement doWhile = new WhileStatement();
+
+        doWhile.setCondition(new PrimitiveExpression(true));
+
+        doWhile.setEmbeddedStatement(
+            new BlockStatement(
+                new Repeat(new AnyNode("statement")).toStatement(),
+                new IfElseStatement(
+                    new AnyNode("condition").toExpression(),
+                    new BlockStatement(new BreakStatement())
+                )
+            )
+        );
+
+        DO_WHILE_PATTERN = doWhile;
+    }
+
+    public final DoWhileStatement transformDoWhile(final WhileStatement loop) {
+        final Match m = DO_WHILE_PATTERN.match(loop);
+
+        if (!m.success()) {
+            return null;
+        }
+
+        final DoWhileStatement doWhile = new DoWhileStatement();
+
+        Expression condition = m.<Expression>get("condition").iterator().next();
+
+        condition.remove();
+
+        if (condition instanceof UnaryOperatorExpression &&
+            ((UnaryOperatorExpression) condition).getOperator() == UnaryOperatorType.NOT) {
+
+            condition = ((UnaryOperatorExpression) condition).getExpression();
+        }
+        else {
+            condition = new UnaryOperatorExpression(UnaryOperatorType.NOT, condition);
+        }
+
+        doWhile.setCondition(condition);
+
+        final BlockStatement block = (BlockStatement) loop.getEmbeddedStatement();
+
+        lastOrDefault(block.getStatements()).remove();
+        block.remove();
+
+        doWhile.setEmbeddedStatement(block);
+
+        loop.replaceWith(doWhile);
+
+        //
+        // We may have to extract variable definitions out of the loop if they were used
+        // in the condition.
+        //
+
+        for (final Statement statement : block.getStatements()) {
+            if (statement instanceof VariableDeclarationStatement) {
+                final VariableDeclarationStatement declaration = (VariableDeclarationStatement) statement;
+                final VariableInitializer v = firstOrDefault(declaration.getVariables());
+
+                boolean referencedInCondition = false;
+
+                for (final AstNode node : condition.getDescendantsAndSelf()) {
+                    if (node instanceof IdentifierExpression &&
+                        StringUtilities.equals(v.getName(), ((IdentifierExpression) node).getIdentifier())) {
+
+                        final Expression initializer = v.getInitializer();
+
+                        initializer.remove();
+
+                        final AssignmentExpression assignment = new AssignmentExpression(
+                            new IdentifierExpression(v.getName()),
+                            initializer
+                        );
+
+                        assignment.putUserData(Keys.MEMBER_REFERENCE, initializer.getUserData(Keys.MEMBER_REFERENCE));
+                        assignment.putUserData(Keys.VARIABLE, initializer.getUserData(Keys.VARIABLE));
+
+                        v.putUserData(Keys.MEMBER_REFERENCE, null);
+                        v.putUserData(Keys.VARIABLE, null);
+
+                        assignment.putUserData(Keys.MEMBER_REFERENCE, declaration.getUserData(Keys.MEMBER_REFERENCE));
+                        assignment.putUserData(Keys.VARIABLE, declaration.getUserData(Keys.VARIABLE));
+
+                        declaration.replaceWith(new ExpressionStatement(assignment));
+
+                        declaration.putUserData(Keys.MEMBER_REFERENCE, null);
+                        declaration.putUserData(Keys.VARIABLE, null);
+
+                        doWhile.getParent().insertChildBefore(doWhile, declaration, BlockStatement.STATEMENT_ROLE);
+                    }
+                }
+            }
+        }
+
+        return doWhile;
     }
 
     // </editor-fold>

@@ -13,6 +13,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.core.CollectionUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.patterns.BacktrackingInfo;
 import com.strobel.decompiler.patterns.INode;
@@ -20,10 +21,26 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 
+import java.util.Collections;
 import java.util.Iterator;
 
 public class BlockStatement extends Statement implements Iterable<Statement> {
     public final static Role<Statement> STATEMENT_ROLE = new Role<>("Statement", Statement.class, Statement.NULL);
+
+    public BlockStatement() {
+    }
+
+    public BlockStatement(final Iterable<Statement> statements) {
+        if (statements != null) {
+            for (final Statement statement : statements) {
+                getStatements().add(statement);
+            }
+        }
+    }
+
+    public BlockStatement(final Statement... statements) {
+        Collections.addAll(getStatements(), statements);
+    }
 
     public final JavaTokenNode getLeftBraceToken() {
         return getChildByRole(Roles.LEFT_BRACE);
@@ -55,11 +72,6 @@ public class BlockStatement extends Statement implements Iterable<Statement> {
         return other instanceof BlockStatement &&
                !other.isNull() &&
                getStatements().matches(((BlockStatement) other).getStatements(), match);
-    }
-
-    @Override
-    public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
-        return super.matchesCollection(role, position, match, backtrackingInfo);    //To change body of overridden methods use File | Settings | File Templates.
     }
 
     @Override

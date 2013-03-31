@@ -128,15 +128,27 @@ public class AstMethodBodyBuilder {
         final BlockStatement astBlock = new BlockStatement();
 
         if (block != null) {
-            for (final Node node : block.getChildren()) {
-                astBlock.getStatements().add(transformNode(node));
+            final List<Node> children = block.getChildren();
+            for (int i = 0; i < children.size(); i++) {
+                final Node node = children.get(i);
+
+                final Statement statement = transformNode(
+                    node,
+                    i < children.size() - 1 ? children.get(i + 1) : null
+                );
+
+                astBlock.getStatements().add(statement);
+
+                if (statement instanceof SynchronizedStatement) {
+                    i++;
+                }
             }
         }
 
         return astBlock;
     }
 
-    private Statement transformNode(final Node node) {
+    private Statement transformNode(final Node node, final Node next) {
         if (node instanceof Label) {
             return new LabelStatement(((Label) node).getName());
         }
@@ -146,6 +158,29 @@ public class AstMethodBodyBuilder {
         }
 
         if (node instanceof com.strobel.decompiler.ast.Expression) {
+            final com.strobel.decompiler.ast.Expression expression = (com.strobel.decompiler.ast.Expression) node;
+
+            if (expression.getCode() == AstCode.MonitorEnter &&
+                next instanceof TryCatchBlock) {
+
+                final TryCatchBlock tryCatch = (TryCatchBlock) next;
+                final Block finallyBlock = tryCatch.getFinallyBlock();
+                final List<CatchBlock> catchBlocks = tryCatch.getCatchBlocks();
+
+                if (finallyBlock != null &&
+                    catchBlocks.isEmpty() &&
+                    finallyBlock.getBody().size() == 1) {
+
+                    final Node finallyNode = finallyBlock.getBody().get(0);
+
+                    if (finallyNode instanceof com.strobel.decompiler.ast.Expression &&
+                        ((com.strobel.decompiler.ast.Expression) finallyNode).getCode() == AstCode.MonitorExit) {
+
+                        return transformSynchronized(expression, tryCatch);
+                    }
+                }
+            }
+
             final List<Range> ranges = new ArrayList<>();
 
             final List<com.strobel.decompiler.ast.Expression> childExpressions = node.getSelfAndChildrenRecursive(
@@ -175,6 +210,9 @@ public class AstMethodBodyBuilder {
 
             if (loopCondition != null) {
                 whileStatement.setCondition((Expression) transformExpression(loopCondition));
+            }
+            else {
+                whileStatement.setCondition(new PrimitiveExpression(true));
             }
 
             whileStatement.setEmbeddedStatement(transformBlock(loop.getBody()));
@@ -237,11 +275,14 @@ public class AstMethodBodyBuilder {
 
         if (node instanceof TryCatchBlock) {
             final TryCatchBlock tryCatchNode = ((TryCatchBlock) node);
+            final Block finallyBlock = tryCatchNode.getFinallyBlock();
+            final List<CatchBlock> catchBlocks = tryCatchNode.getCatchBlocks();
+
             final TryCatchStatement tryCatch = new TryCatchStatement();
 
             tryCatch.setTryBlock(transformBlock(tryCatchNode.getTryBlock()));
 
-            for (final CatchBlock catchBlock : tryCatchNode.getCatchBlocks()) {
+            for (final CatchBlock catchBlock : catchBlocks) {
                 final CatchClause catchClause = new CatchClause(transformBlock(catchBlock));
 
                 for (final TypeReference caughtType : catchBlock.getCaughtTypes()) {
@@ -258,8 +299,6 @@ public class AstMethodBodyBuilder {
                 tryCatch.getCatchClauses().add(catchClause);
             }
 
-            final Block finallyBlock = tryCatchNode.getFinallyBlock();
-
             if (finallyBlock != null && !finallyBlock.getBody().isEmpty()) {
                 tryCatch.setFinallyBlock(transformBlock(finallyBlock));
             }
@@ -268,6 +307,13 @@ public class AstMethodBodyBuilder {
         }
 
         throw new IllegalArgumentException("Unknown node type: " + node);
+    }
+
+    private SynchronizedStatement transformSynchronized(final com.strobel.decompiler.ast.Expression expression, final TryCatchBlock tryCatch) {
+        final SynchronizedStatement s = new SynchronizedStatement();
+        s.setExpression((Expression) transformExpression(expression.getArguments().get(0)));
+        s.setEmbeddedStatement(transformBlock(tryCatch.getTryBlock()));
+        return s;
     }
 
     private AstNode transformExpression(final com.strobel.decompiler.ast.Expression e) {
