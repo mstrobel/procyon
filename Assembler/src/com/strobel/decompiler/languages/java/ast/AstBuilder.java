@@ -27,9 +27,7 @@ import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 import com.strobel.decompiler.languages.java.ast.transforms.IAstTransform;
 import com.strobel.decompiler.languages.java.ast.transforms.TransformationPipeline;
 
-import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -251,7 +249,7 @@ public final class AstBuilder {
         astField.setReturnType(convertType(field.getFieldType()));
         astField.putUserData(Keys.FIELD_DEFINITION, field);
 
-        EntityDeclaration.setModifiers(astField, convertModifiers(field));
+        EntityDeclaration.setModifiers(astField, Flags.asModifierSet(field.getFlags() & Flags.VarFlags));
 
         if (field.hasConstantValue()) {
             initializer.setInitializer(new PrimitiveExpression(field.getConstantValue()));
@@ -263,7 +261,7 @@ public final class AstBuilder {
     private MethodDeclaration createMethod(final MethodDefinition method) {
         final MethodDeclaration astMethod = new MethodDeclaration();
 
-        EntityDeclaration.setModifiers(astMethod, convertModifiers(method));
+        EntityDeclaration.setModifiers(astMethod, Flags.asModifierSet(method.getFlags() & Flags.ConstructorFlags));
 
         astMethod.setName(method.getName());
         astMethod.getParameters().addAll(createParameters(method.getParameters()));
@@ -281,7 +279,7 @@ public final class AstBuilder {
     private ConstructorDeclaration createConstructor(final MethodDefinition method) {
         final ConstructorDeclaration astMethod = new ConstructorDeclaration();
 
-        EntityDeclaration.setModifiers(astMethod, convertModifiers(method));
+        EntityDeclaration.setModifiers(astMethod, Flags.asModifierSet(method.getFlags() & Flags.MethodFlags));
 
         astMethod.setName(method.getDeclaringType().getName());
         astMethod.getParameters().addAll(createParameters(method.getParameters()));
@@ -289,10 +287,6 @@ public final class AstBuilder {
         astMethod.putUserData(Keys.METHOD_DEFINITION, method);
 
         return astMethod;
-    }
-
-    private Collection<Modifier> convertModifiers(final IMemberDefinition member) {
-        return Flags.asModifierSet(member.getFlags() & Flags.ModifierFlags);
     }
 
     static List<TypeParameterDeclaration> createTypeParameters(final List<GenericParameter> genericParameters) {

@@ -349,7 +349,6 @@ public final class AstOptimizer {
         //
         // DUP removal.
         //
-        final StrongBox<Expression> child = new StrongBox<>();
 
         for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
             final List<Expression> arguments = e.getArguments();

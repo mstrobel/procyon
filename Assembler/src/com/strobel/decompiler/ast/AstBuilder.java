@@ -1131,44 +1131,44 @@ public final class AstBuilder {
             case Dup:
                 return ArrayUtilities.append(
                     oldStack,
-                    new StackSlot(stackMapper.getStackValue(0), new ByteCode[] { byteCode }/*, oldStack[oldStack.length - 1].loadFrom*/)
+                    new StackSlot(stackMapper.getStackValue(0), oldStack[oldStack.length - 1].definitions)
                 );
 
             case DupX1:
                 return ArrayUtilities.insert(
                     oldStack,
                     oldStack.length - 2,
-                    new StackSlot(stackMapper.getStackValue(0), new ByteCode[] { byteCode }/*, oldStack[oldStack.length - 1].loadFrom*/)
+                    new StackSlot(stackMapper.getStackValue(0), oldStack[oldStack.length - 1].definitions)
                 );
 
             case DupX2:
                 return ArrayUtilities.insert(
                     oldStack,
                     oldStack.length - 3,
-                    new StackSlot(stackMapper.getStackValue(0), new ByteCode[] { byteCode }/*, oldStack[oldStack.length - 1].loadFrom*/)
+                    new StackSlot(stackMapper.getStackValue(0), oldStack[oldStack.length - 1].definitions)
                 );
 
             case Dup2:
                 return ArrayUtilities.append(
                     oldStack,
-                    new StackSlot(stackMapper.getStackValue(0), new ByteCode[] { byteCode }/*, oldStack[oldStack.length - 2].loadFrom*/),
-                    new StackSlot(stackMapper.getStackValue(0), new ByteCode[] { byteCode }/*, oldStack[oldStack.length - 1].loadFrom*/)
+                    new StackSlot(stackMapper.getStackValue(0), oldStack[oldStack.length - 2].definitions),
+                    new StackSlot(stackMapper.getStackValue(0), oldStack[oldStack.length - 1].definitions)
                 );
 
             case Dup2X1:
                 return ArrayUtilities.insert(
                     oldStack,
                     oldStack.length - 3,
-                    new StackSlot(stackMapper.getStackValue(1), new ByteCode[] { byteCode }/*, oldStack[oldStack.length - 2].loadFrom*/),
-                    new StackSlot(stackMapper.getStackValue(0), new ByteCode[] { byteCode }/*, oldStack[oldStack.length - 1].loadFrom*/)
+                    new StackSlot(stackMapper.getStackValue(1), oldStack[oldStack.length - 2].definitions),
+                    new StackSlot(stackMapper.getStackValue(0), oldStack[oldStack.length - 1].definitions)
                 );
 
             case Dup2X2:
                 return ArrayUtilities.insert(
                     oldStack,
                     oldStack.length - 4,
-                    new StackSlot(stackMapper.getStackValue(1), new ByteCode[] { byteCode }/*, oldStack[oldStack.length - 2].loadFrom*/),
-                    new StackSlot(stackMapper.getStackValue(0), new ByteCode[] { byteCode }/*, oldStack[oldStack.length - 1].loadFrom*/)
+                    new StackSlot(stackMapper.getStackValue(1), oldStack[oldStack.length - 2].definitions),
+                    new StackSlot(stackMapper.getStackValue(0), oldStack[oldStack.length - 1].definitions)
                 );
 
             case Swap:
@@ -1816,6 +1816,17 @@ public final class AstBuilder {
                 // Unreachable code.
                 //
                 continue;
+            }
+
+            switch (byteCode.code) {
+                case Dup:
+                case DupX1:
+                case DupX2:
+                case Dup2:
+                case Dup2X1:
+                case Dup2X2:
+                case Swap:
+                    continue;
             }
 
             final Expression expression = new Expression(byteCode.code, byteCode.operand);
