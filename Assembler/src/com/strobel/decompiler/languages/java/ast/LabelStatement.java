@@ -46,7 +46,7 @@ public class LabelStatement extends Statement {
 
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
-        return visitor.visitLabel(this, data);
+        return visitor.visitLabelStatement(this, data);
     }
 
     @Override

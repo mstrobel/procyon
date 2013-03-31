@@ -22,22 +22,42 @@ import java.util.List;
 /// Represents a node in the control flow graph of a C# method.
 /// </summary>
 public class ControlFlowNode {
-    public final Statement PreviousStatement;
-    public final Statement NextStatement;
+    private final Statement _previousStatement;
+    private final Statement _nextStatement;
 
-    public final ControlFlowNodeType Type;
+    private final ControlFlowNodeType _type;
 
-    public final List<ControlFlowEdge> Outgoing = new ArrayList<>();
-    public final List<ControlFlowEdge> Incoming = new ArrayList<>();
+    private final List<ControlFlowEdge> _outgoing = new ArrayList<>();
+    private final List<ControlFlowEdge> _incoming = new ArrayList<>();
 
     public ControlFlowNode(final Statement previousStatement, final Statement nextStatement, final ControlFlowNodeType type) {
         if (previousStatement == null && nextStatement == null) {
             throw new IllegalArgumentException("previousStatement and nextStatement must not be both null");
         }
 
-        this.PreviousStatement = previousStatement;
-        this.NextStatement = nextStatement;
-        this.Type = type;
+        _previousStatement = previousStatement;
+        _nextStatement = nextStatement;
+        _type = type;
+    }
+
+    public Statement getPreviousStatement() {
+        return _previousStatement;
+    }
+
+    public Statement getNextStatement() {
+        return _nextStatement;
+    }
+
+    public ControlFlowNodeType getType() {
+        return _type;
+    }
+
+    public List<ControlFlowEdge> getOutgoing() {
+        return _outgoing;
+    }
+
+    public List<ControlFlowEdge> getIncoming() {
+        return _incoming;
     }
 }
 

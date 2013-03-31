@@ -817,7 +817,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
-    public Void visitLabel(final LabelStatement node, final Void _) {
+    public Void visitLabelStatement(final LabelStatement node, final Void _) {
         startNode(node);
         writeIdentifier(node.getLabel());
         writeToken(Roles.COLON);
@@ -1680,6 +1680,21 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         node.getExpression().acceptVisitor(this, _);
         space(policy.SpacesWithinParentheses);
         rightParenthesis();
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitSynchronizedStatement(final SynchronizedStatement node, final Void _) {
+        startNode(node);
+        writeKeyword(SynchronizedStatement.SYNCHRONIZED_KEYWORD_ROLE);
+        space(policy.SpaceBeforeSynchronizedParentheses);
+        leftParenthesis();
+        space(policy.SpacesWithinSynchronizedParentheses);
+        node.getExpression().acceptVisitor(this, _);
+        space(policy.SpacesWithinSynchronizedParentheses);
+        rightParenthesis();
+        writeEmbeddedStatement(node.getEmbeddedStatement());
         endNode(node);
         return null;
     }

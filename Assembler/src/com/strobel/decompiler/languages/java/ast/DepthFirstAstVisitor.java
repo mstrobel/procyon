@@ -124,7 +124,7 @@ public abstract class DepthFirstAstVisitor<T, S> implements IAstVisitor<T, S> {
     }
 
     @Override
-    public S visitLabel(final LabelStatement node, final T data) {
+    public S visitLabelStatement(final LabelStatement node, final T data) {
         return visitChildren(node, data);
     }
 
@@ -330,6 +330,11 @@ public abstract class DepthFirstAstVisitor<T, S> implements IAstVisitor<T, S> {
 
     @Override
     public S visitParenthesizedExpression(final ParenthesizedExpression node, final T data) {
+        return visitChildren(node, data);
+    }
+
+    @Override
+    public S visitSynchronizedStatement(final SynchronizedStatement node, final T data) {
         return visitChildren(node, data);
     }
 

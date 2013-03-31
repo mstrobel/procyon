@@ -13,7 +13,9 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.core.CollectionUtilities;
 import com.strobel.core.StringUtilities;
+import com.strobel.core.StrongBox;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.ast.*;
@@ -24,6 +26,9 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.NamedNode;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Repeat;
+
+import java.util.ArrayList;
+import java.util.Collections;
 
 public final class PatternStatementTransform extends ContextTrackingVisitor<AstNode> {
     private final static AstNode VARIABLE_ASSIGN_PATTERN = new ExpressionStatement(
@@ -312,8 +317,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         // Now verify that we can move the variable declaration in front of the loop.
         //
 
-        // TODO: Fix this hack.  For now, just assuming we're okay if length name contains '$'.
-        Statement declarationPoint = loop; //canMoveVariableDeclarationIntoStatement(itemDeclaration, loop);
+        Statement declarationPoint = canMoveVariableDeclarationIntoStatement(itemDeclaration, loop);
 
         //
         // We ignore the return value because we don't care whether we can move the variable into the loop
@@ -502,8 +506,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         // Now verify that we can move the variable declaration in front of the loop.
         //
 
-        // TODO: Fix this hack.  For now, just assuming we're okay if iterator name contains '$'.
-        Statement declarationPoint = loop; //canMoveVariableDeclarationIntoStatement(itemDeclaration, loop);
+        Statement declarationPoint = canMoveVariableDeclarationIntoStatement(itemDeclaration, loop);
 
         //
         // We ignore the return value because we don't care whether we can move the variable into the loop
@@ -616,60 +619,46 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         final VariableDeclarationStatement declaration,
         final Statement targetStatement) {
 
-        //
-        // TODO: Implement dependencies so I can get rid of this awful, awful hack.
-        //
+        final BlockStatement parent = (BlockStatement) declaration.getParent();
 
-        final Variable variable = declaration.getUserData(Keys.VARIABLE);
-        return variable != null &&
-               !variable.isParameter() &&
-               variable.getOriginalVariable().getName().contains("$")
-                   ? targetStatement
-                   : null;
+        //noinspection AssertWithSideEffects
+        assert CollectionUtilities.contains(targetStatement.getAncestors(), parent);
 
-//        final BlockStatement parent = (BlockStatement) declaration.getParent();
-//
-//        //noinspection AssertWithSideEffects
-//        assert CollectionUtilities.contains(targetStatement.getAncestors(), parent);
-//
-//        //
-//        // Find all blocks between targetStatement and declaration's parent block.
-//        //
-//        final ArrayList<BlockStatement> blocks = new ArrayList<>();
-//
-//        for (final AstNode block : targetStatement.getAncestors()) {
-//            if (block == parent) {
-//                break;
-//            }
-//
-//            if (block instanceof BlockStatement) {
-//                blocks.add((BlockStatement) block);
-//            }
-//        }
-//
-//        //
-//        // Also handle the declaration's parent block itself.
-//        //
-//        blocks.add((BlockStatement) declaration.getParent());
-//
-//        //
-//        // Go from parent blocks to child blocks.
-//        //
-//        Collections.reverse(blocks);
-//
-//        Statement declarationPoint = null;
-//
-//        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(blocks.get(0));
-//
-//        for (final BlockStatement block : blocks) {
-//            declarationPoint = DeclareVariables.tryFindDeclarationPoint(analysis, declaration, block);
-//
-//            if (declarationPoint == null) {
-//                return null;
-//            }
-//        }
-//
-//        return declarationPoint;
+        //
+        // Find all blocks between targetStatement and declaration's parent block.
+        //
+        final ArrayList<BlockStatement> blocks = new ArrayList<>();
+
+        for (final AstNode block : targetStatement.getAncestors()) {
+            if (block == parent) {
+                break;
+            }
+
+            if (block instanceof BlockStatement) {
+                blocks.add((BlockStatement) block);
+            }
+        }
+
+        //
+        // Also handle the declaration's parent block itself.
+        //
+        blocks.add(parent);
+
+        //
+        // Go from parent blocks to child blocks.
+        //
+        Collections.reverse(blocks);
+
+        final StrongBox<Statement> declarationPoint = new StrongBox<>();
+        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(blocks.get(0));
+
+        for (final BlockStatement block : blocks) {
+            if (!DeclareVariablesTransform.findDeclarationPoint(analysis, declaration, block, declarationPoint)) {
+                return null;
+            }
+        }
+
+        return declarationPoint.get();
     }
 
     // </editor-fold>

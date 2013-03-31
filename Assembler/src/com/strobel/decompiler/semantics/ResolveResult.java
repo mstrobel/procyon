@@ -50,11 +50,11 @@ public class ResolveResult {
         return "[" + getClass().getSimpleName() + " " + _type + "]";
     }
 
-    public final Iterable<ResolveResult> GetChildResults() {
+    public final Iterable<ResolveResult> getChildResults() {
         return Collections.emptyList();
     }
 
-    public final Region GetDefinitionRegion() {
+    public final Region getDefinitionRegion() {
         return Region.EMPTY;
     }
 }

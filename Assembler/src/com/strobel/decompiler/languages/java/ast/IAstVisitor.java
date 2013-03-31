@@ -34,7 +34,7 @@ public interface IAstVisitor<T, R> {
     R visitDoWhileStatement(DoWhileStatement doWhileStatement, T data);
     R visitEmptyStatement(EmptyStatement emptyStatement, T data);
     R visitIfElseStatement(IfElseStatement ifElseStatement, T data);
-    R visitLabel(LabelStatement labelStatement, T data);
+    R visitLabelStatement(LabelStatement labelStatement, T data);
     R visitReturnStatement(ReturnStatement returnStatement, T data);
     R visitSwitchStatement(SwitchStatement switchStatement, T data);
     R visitSwitchSection(SwitchSection switchSection, T data);
@@ -77,4 +77,5 @@ public interface IAstVisitor<T, R> {
     R visitTryCatchStatement(TryCatchStatement tryCatchStatement, T data);
     R visitGotoStatement(GotoStatement gotoStatement, T data);
     R visitParenthesizedExpression(ParenthesizedExpression parenthesizedExpression, T data);
+    R visitSynchronizedStatement(SynchronizedStatement synchronizedStatement, T data);
 }
