@@ -30,8 +30,7 @@ import com.strobel.decompiler.patterns.Repeat;
 import java.util.ArrayList;
 import java.util.Collections;
 
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
-import static com.strobel.core.CollectionUtilities.lastOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 
 public final class PatternStatementTransform extends ContextTrackingVisitor<AstNode> {
     private final static AstNode VARIABLE_ASSIGN_PATTERN = new ExpressionStatement(
@@ -661,8 +660,6 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             if (statement instanceof VariableDeclarationStatement) {
                 final VariableDeclarationStatement declaration = (VariableDeclarationStatement) statement;
                 final VariableInitializer v = firstOrDefault(declaration.getVariables());
-
-                boolean referencedInCondition = false;
 
                 for (final AstNode node : condition.getDescendantsAndSelf()) {
                     if (node instanceof IdentifierExpression &&

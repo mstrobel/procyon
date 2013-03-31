@@ -190,13 +190,20 @@ public final class AstBuilder {
                 final Instruction firstInNext = next.getTryBlock().getFirstInstruction();
                 final Instruction branchInBetween = firstInNext.getPrevious();
 
-                final Instruction beforeBranch = instructions.tryGetAtOffset(
-                    branchInBetween.getOffset() - branchInBetween.getOpCode().getSize()+ branchInBetween.getOpCode().getStackChange()
-                );
+                final Instruction beforeBranch;
+
+                if (branchInBetween != null) {
+                    beforeBranch = instructions.tryGetAtOffset(
+                        branchInBetween.getOffset() - branchInBetween.getOpCode().getSize() + branchInBetween.getOpCode().getStackChange()
+                    );
+                }
+                else {
+                    beforeBranch = null;
+                }
 
                 if (branchInBetween != null &&
                     branchInBetween.getOpCode().isBranch() &&
-                    lastInCurrent ==  beforeBranch) {
+                    lastInCurrent == beforeBranch) {
 
                     final ExceptionHandler newHandler;
 
@@ -636,9 +643,9 @@ public final class AstBuilder {
         final VariableSlot[] unknownVariables = VariableSlot.makeUnknownState(variableCount);
         final MethodReference method = _body.getMethod();
         final List<ParameterDefinition> parameters = method.getParameters();
-        final boolean isConstructor = method.isConstructor();
+        final boolean hasThis = _body.hasThis();
 
-        if (isConstructor) {
+        if (hasThis) {
             unknownVariables[0] = new VariableSlot(FrameValue.UNINITIALIZED_THIS, EMPTY_DEFINITIONS);
         }
 
@@ -653,19 +660,19 @@ public final class AstBuilder {
                 case Character:
                 case Short:
                 case Integer:
-                    unknownVariables[isConstructor ? slot + 1 : slot] = new VariableSlot(FrameValue.INTEGER, EMPTY_DEFINITIONS);
+                    unknownVariables[hasThis ? slot + 1 : slot] = new VariableSlot(FrameValue.INTEGER, EMPTY_DEFINITIONS);
                     break;
                 case Long:
-                    unknownVariables[isConstructor ? slot + 1 : slot] = new VariableSlot(FrameValue.LONG, EMPTY_DEFINITIONS);
+                    unknownVariables[hasThis ? slot + 1 : slot] = new VariableSlot(FrameValue.LONG, EMPTY_DEFINITIONS);
                     break;
                 case Float:
-                    unknownVariables[isConstructor ? slot + 1 : slot] = new VariableSlot(FrameValue.FLOAT, EMPTY_DEFINITIONS);
+                    unknownVariables[hasThis ? slot + 1 : slot] = new VariableSlot(FrameValue.FLOAT, EMPTY_DEFINITIONS);
                     break;
                 case Double:
-                    unknownVariables[isConstructor ? slot + 1 : slot] = new VariableSlot(FrameValue.DOUBLE, EMPTY_DEFINITIONS);
+                    unknownVariables[hasThis ? slot + 1 : slot] = new VariableSlot(FrameValue.DOUBLE, EMPTY_DEFINITIONS);
                     break;
                 default:
-                    unknownVariables[isConstructor ? slot + 1 : slot] = new VariableSlot(FrameValue.makeReference(parameterType), EMPTY_DEFINITIONS);
+                    unknownVariables[hasThis ? slot + 1 : slot] = new VariableSlot(FrameValue.makeReference(parameterType), EMPTY_DEFINITIONS);
                     break;
             }
         }
