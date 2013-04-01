@@ -17,6 +17,7 @@ import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.ast.Variable;
@@ -82,10 +83,17 @@ public class TextOutputFormatter implements IOutputFormatter {
             return;
         }
 
-        Object member = getCurrentMemberReference();
+        Object reference = getCurrentTypeReference();
 
-        if (member != null) {
-            output.writeReference(identifier, member);
+        if (reference != null) {
+            output.writeReference(identifier, reference);
+            return;
+        }
+
+        reference = getCurrentMemberReference();
+
+        if (reference != null) {
+            output.writeReference(identifier, reference);
             return;
         }
 
@@ -96,10 +104,10 @@ public class TextOutputFormatter implements IOutputFormatter {
             return;
         }
 
-        member = getCurrentLocalReference();
+        reference = getCurrentLocalReference();
 
-        if (member != null) {
-            output.writeReference(identifier, member, true);
+        if (reference != null) {
+            output.writeReference(identifier, reference, true);
             return;
         }
 
@@ -297,6 +305,11 @@ public class TextOutputFormatter implements IOutputFormatter {
         }
 
         return null;
+    }
+
+    private MemberReference getCurrentTypeReference() {
+        final AstNode node = nodeStack.peek();
+        return node.getUserData(Keys.TYPE_REFERENCE);
     }
 
     private MemberReference getCurrentMemberReference() {

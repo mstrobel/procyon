@@ -358,7 +358,7 @@ public class NameVariables {
         name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
 
         if (JavaOutputVisitor.isKeyword(name)) {
-            return null;
+            return name;
         }
 
         return name;
@@ -488,7 +488,7 @@ public class NameVariables {
                 return name;
             }
 
-            name = type.getName();
+            name = type.getSimpleName();
 
             //
             // Remove leading 'I' for interfaces.

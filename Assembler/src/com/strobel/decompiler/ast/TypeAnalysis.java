@@ -440,7 +440,7 @@ public final class TypeAnalysis {
             case InvokeDynamic: {
                 final MethodReference methodReference = (MethodReference) operand;
                 final MethodDefinition methodDefinition = methodReference.resolve();
-                final List<ParameterDefinition> parameters = methodDefinition.getParameters();
+                final List<ParameterDefinition> parameters = methodReference.getParameters();
 
                 final boolean hasThis = !methodDefinition.isStatic();
 
@@ -448,7 +448,7 @@ public final class TypeAnalysis {
                     if (hasThis) {
                         inferTypeForExpression(
                             arguments.get(0),
-                            methodDefinition.getDeclaringType()
+                            methodReference.getDeclaringType()
                         );
 
                         for (int i = 0; i < parameters.size(); i++) {
@@ -468,11 +468,11 @@ public final class TypeAnalysis {
                     }
                 }
 
-                if (methodDefinition.isConstructor() && hasThis) {
-                    return methodDefinition.getDeclaringType();
+                if (methodReference.isConstructor() && hasThis) {
+                    return methodReference.getDeclaringType();
                 }
 
-                return substituteTypeArguments(methodDefinition.getReturnType(), methodReference);
+                return substituteTypeArguments(methodReference.getReturnType(), methodReference);
             }
 
             case GetField: {

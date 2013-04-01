@@ -79,12 +79,31 @@ public final class AstBuilder {
     public final TypeDeclaration createType(final TypeDefinition type) {
         VerifyArgument.notNull(type, "type");
 
+        final ClasspathTypeLoader loader = new ClasspathTypeLoader();
+        final Buffer buffer = new Buffer(0);
+
+        if (!loader.tryLoadType(type.getInternalName(), buffer)) {
+            throw new IllegalStateException(String.format("Failed to load class %s.", type.getInternalName()));
+        }
+
+        final ClassFileReader reader = ClassFileReader.readClass(
+            ClassFileReader.OPTION_PROCESS_CODE |
+            ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
+            type.getResolver(),
+            buffer
+        );
+
+        final TypeDefinitionBuilder typeBuilder = new TypeDefinitionBuilder();
+
+        reader.accept(typeBuilder);
+
+        final TypeDefinition typeWithCode = typeBuilder.getTypeDefinition();
         final TypeDefinition oldCurrentType = _context.getCurrentType();
 
-        _context.setCurrentType(type);
+        _context.setCurrentType(typeWithCode);
 
         try {
-            return createTypeCore(type);
+            return createTypeCore(typeWithCode);
         }
         finally {
             _context.setCurrentType(oldCurrentType);
@@ -119,7 +138,9 @@ public final class AstBuilder {
         }
 
         if (type.isGenericParameter()) {
-            return new SimpleType(type.getName());
+            final SimpleType simpleType = new SimpleType(type.getName());
+            simpleType.putUserData(Keys.TYPE_REFERENCE, type);
+            return simpleType;
         }
 
         if (type.isPrimitive()) {
@@ -168,6 +189,8 @@ public final class AstBuilder {
 
         final SimpleType astType = new SimpleType(name);
 
+        astType.putUserData(Keys.TYPE_REFERENCE, type);
+
         if (type.isGenericType() && includeTypeParameterDefinitions) {
             addTypeArguments(type, astType);
         }
@@ -185,6 +208,7 @@ public final class AstBuilder {
 
         astType.setName(type.getSimpleName());
         astType.putUserData(Keys.TYPE_DEFINITION, type);
+        astType.putUserData(Keys.TYPE_REFERENCE, type);
 
         if (type.isEnum()) {
             astType.setClassType(ClassType.ENUM);
@@ -221,10 +245,6 @@ public final class AstBuilder {
     }
 
     private void addTypeMembers(final TypeDeclaration astType, final TypeDefinition type) {
-        for (final TypeDefinition nestedType : type.getDeclaredTypes()) {
-            astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
-        }
-
         for (final FieldDefinition field : type.getDeclaredFields()) {
             astType.addChild(createField(field), Roles.TYPE_MEMBER);
         }
@@ -239,6 +259,10 @@ public final class AstBuilder {
                 }
             }
         }
+
+        for (final TypeDefinition nestedType : type.getDeclaredTypes()) {
+            astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
+        }
     }
 
     private FieldDeclaration createField(final FieldDefinition field) {
@@ -248,6 +272,7 @@ public final class AstBuilder {
         astField.addChild(initializer, Roles.VARIABLE);
         astField.setReturnType(convertType(field.getFieldType()));
         astField.putUserData(Keys.FIELD_DEFINITION, field);
+        astField.putUserData(Keys.MEMBER_REFERENCE, field);
 
         EntityDeclaration.setModifiers(astField, Flags.asModifierSet(field.getFlags() & Flags.VarFlags));
 
@@ -261,13 +286,14 @@ public final class AstBuilder {
     private MethodDeclaration createMethod(final MethodDefinition method) {
         final MethodDeclaration astMethod = new MethodDeclaration();
 
-        EntityDeclaration.setModifiers(astMethod, Flags.asModifierSet(method.getFlags() & Flags.ConstructorFlags));
+        EntityDeclaration.setModifiers(astMethod, Flags.asModifierSet(method.getFlags() & Flags.MethodFlags));
 
         astMethod.setName(method.getName());
         astMethod.getParameters().addAll(createParameters(method.getParameters()));
         astMethod.getTypeParameters().addAll(createTypeParameters(method.getGenericParameters()));
         astMethod.setReturnType(convertType(method.getReturnType()));
         astMethod.putUserData(Keys.METHOD_DEFINITION, method);
+        astMethod.putUserData(Keys.MEMBER_REFERENCE, method);
 
         if (!method.getDeclaringType().isInterface()) {
             astMethod.setBody(createMethodBody(method, astMethod.getParameters()));
@@ -279,12 +305,13 @@ public final class AstBuilder {
     private ConstructorDeclaration createConstructor(final MethodDefinition method) {
         final ConstructorDeclaration astMethod = new ConstructorDeclaration();
 
-        EntityDeclaration.setModifiers(astMethod, Flags.asModifierSet(method.getFlags() & Flags.MethodFlags));
+        EntityDeclaration.setModifiers(astMethod, Flags.asModifierSet(method.getFlags() & Flags.ConstructorFlags));
 
         astMethod.setName(method.getDeclaringType().getName());
         astMethod.getParameters().addAll(createParameters(method.getParameters()));
         astMethod.setBody(createMethodBody(method, astMethod.getParameters()));
         astMethod.putUserData(Keys.METHOD_DEFINITION, method);
+        astMethod.putUserData(Keys.MEMBER_REFERENCE, method);
 
         return astMethod;
     }
@@ -298,7 +325,10 @@ public final class AstBuilder {
         final TypeParameterDeclaration[] typeParameters = new TypeParameterDeclaration[genericParameters.size()];
 
         for (int i = 0; i < count; i++) {
-            typeParameters[i] = new TypeParameterDeclaration(genericParameters.get(i).getName());
+            final GenericParameter genericParameter = genericParameters.get(i);
+            final TypeParameterDeclaration typeParameter = new TypeParameterDeclaration(genericParameter.getName());
+            typeParameter.putUserData(Keys.TYPE_REFERENCE, genericParameter);
+            typeParameters[i] = typeParameter;
         }
 
         return ArrayUtilities.asUnmodifiableList(typeParameters);

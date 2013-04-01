@@ -13,6 +13,7 @@
 
 package com.strobel.decompiler.languages.java;
 
+import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.StringUtilities;
@@ -1065,16 +1066,23 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         startNode(node);
         writeAttributes(node.getAnnotations());
         writeModifiers(node.getModifiers());
-        node.getReturnType().acceptVisitor(this, _);
-        space();
-        writePrivateImplementationType(node.getPrivateImplementationType());
-        node.getNameToken().acceptVisitor(this, _);
-        writeTypeParameters(node.getTypeParameters());
-        space(policy.SpaceBeforeMethodDeclarationParentheses);
-        writeCommaSeparatedListInParenthesis(node.getParameters(), policy.SpaceWithinMethodDeclarationParentheses);
+
+        final MethodDefinition definition = node.getUserData(Keys.METHOD_DEFINITION);
+
+        if (definition == null || !definition.isTypeInitializer()) {
+            node.getReturnType().acceptVisitor(this, _);
+            space();
+            writePrivateImplementationType(node.getPrivateImplementationType());
+            node.getNameToken().acceptVisitor(this, _);
+            writeTypeParameters(node.getTypeParameters());
+            space(policy.SpaceBeforeMethodDeclarationParentheses);
+            writeCommaSeparatedListInParenthesis(node.getParameters(), policy.SpaceWithinMethodDeclarationParentheses);
+        }
+
 //        for (final Constraint constraint : node.getConstraints()) {
 //            constraint.acceptVisitor(this, _);
 //        }
+
         writeMethodBody(node.getBody());
         endNode(node);
         return null;
@@ -1182,22 +1190,22 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         openBrace(braceStyle);
 
-        if (node.getClassType() == ClassType.ENUM) {
-            boolean first = true;
-            for (final EntityDeclaration member : node.getMembers()) {
-                if (first) {
-                    first = false;
-                }
-                else {
-                    comma(member, true);
-                    newLine();
-                }
-                member.acceptVisitor(this, _);
-            }
-            optionalComma();
-            newLine();
-        }
-        else {
+//        if (node.getClassType() == ClassType.ENUM) {
+//            boolean first = true;
+//            for (final EntityDeclaration member : node.getMembers()) {
+//                if (first) {
+//                    first = false;
+//                }
+//                else {
+//                    comma(member, true);
+//                    newLine();
+//                }
+//                member.acceptVisitor(this, _);
+//            }
+//            optionalComma();
+//            newLine();
+//        }
+//        else {
             boolean first = true;
 
             for (final EntityDeclaration member : node.getMembers()) {
@@ -1211,7 +1219,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 }
                 member.acceptVisitor(this, _);
             }
-        }
+//        }
 
         closeBrace(braceStyle);
         optionalSemicolon();

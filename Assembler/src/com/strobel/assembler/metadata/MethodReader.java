@@ -109,10 +109,9 @@ public class MethodReader {
 
             variable.setScopeStart(0);
             variable.setScopeEnd(_code.getCodeSize());
-
-            if (!variable.isTypeKnown()) {
-                variable.setVariableType(parameter.getParameterType());
-            }
+            variable.setTypeKnown(true);
+            variable.setFromMetadata(true);
+            variable.setVariableType(parameter.getParameterType());
         }
 
         if (localVariableTable != null) {

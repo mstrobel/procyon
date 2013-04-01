@@ -200,7 +200,7 @@ public final class GenericParameter extends TypeDefinition {
 
         if (upperBound != null && !upperBound.equals(BuiltinTypes.Object)) {
             sb.append(" extends ");
-            if (upperBound.isGenericParameter() || upperBound.equals(getDeclaringType())) {
+            if (upperBound.isGenericParameter() || upperBound.equals(getOwner())) {
                 return sb.append(upperBound.getSimpleName());
             }
             return upperBound.appendSimpleDescription(sb);

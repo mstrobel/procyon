@@ -18,6 +18,7 @@ import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableDefinition;
 import com.strobel.componentmodel.Key;
 import com.strobel.decompiler.ast.Variable;
@@ -30,4 +31,5 @@ public final class Keys {
     public final static Key<FieldDefinition> FIELD_DEFINITION = Key.create("FieldDefinition");
     public final static Key<MethodDefinition> METHOD_DEFINITION = Key.create("MethodDefinition");
     public final static Key<TypeDefinition> TYPE_DEFINITION = Key.create("TypeDefinition");
+    public final static Key<TypeReference> TYPE_REFERENCE = Key.create("TypeReference");
 }

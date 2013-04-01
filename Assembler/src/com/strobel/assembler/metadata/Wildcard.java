@@ -149,7 +149,7 @@ public final class Wildcard extends TypeReference {
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         if (_hasSuperBound) {
             sb.append("? super ");
-            if (_bound.isGenericParameter()) {
+            if (_bound.isGenericParameter() || _bound.isWildcardType()) {
                 return sb.append(_bound.getSimpleName());
             }
             return _bound.appendSimpleDescription(sb);
@@ -161,7 +161,7 @@ public final class Wildcard extends TypeReference {
 
         sb.append("? extends ");
 
-        if (_bound.isGenericParameter()) {
+        if (_bound.isGenericParameter() || _bound.isWildcardType()) {
             return sb.append(_bound.getSimpleName());
         }
 

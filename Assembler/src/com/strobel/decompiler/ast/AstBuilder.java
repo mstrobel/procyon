@@ -244,7 +244,8 @@ public final class AstBuilder {
         cfg.computeDominance();
         cfg.computeDominanceFrontier();
 
-        for (final ExceptionHandler handler : exceptionHandlers) {
+        for (int i = 0; i < exceptionHandlers.size(); i++) {
+            final ExceptionHandler handler = exceptionHandlers.get(i);
             final HandlerInfo handlerInfo = new HandlerInfo(handler);
 
             for (final ControlFlowNode node : cfg.getNodes()) {
@@ -265,6 +266,61 @@ public final class AstBuilder {
             }
 
             handlers.put(handler, handlerInfo);
+
+            //
+            // Look for trailing branch instructions between a try block and its handler and adjust the
+            // try block range to include them.
+            //
+
+            if (!handlerInfo.tryNodes.isEmpty() &&
+                !handlerInfo.handlerNodes.isEmpty()) {
+
+                final ControlFlowNode lastTryNode = handlerInfo.tryNodes.get(handlerInfo.tryNodes.size() - 1);
+                final ControlFlowNode lastCatchNode = handlerInfo.handlerNodes.get(handlerInfo.handlerNodes.size() - 1);
+
+                if (lastTryNode.getBlockIndex() < lastCatchNode.getBlockIndex() - 1) {
+                    final ControlFlowNode nodeAfterTry = cfg.getNodes().get(lastTryNode.getBlockIndex() + 1);
+
+                    if (nodeAfterTry != null &&
+                        nodeAfterTry.getNodeType() == ControlFlowNodeType.Normal &&
+                        nodeAfterTry.getStart() == nodeAfterTry.getEnd() &&
+                        nodeAfterTry.getEnd().getNext() == handlerInfo.handlerNodes.get(0).getStart() &&
+                        (nodeAfterTry.getStart().getOpCode() == OpCode.GOTO ||
+                         nodeAfterTry.getStart().getOpCode() == OpCode.GOTO_W)) {
+
+                        handlerInfo.tryNodes.add(nodeAfterTry);
+
+                        if (handler.isCatch()) {
+                            exceptionHandlers.set(
+                                i,
+                                ExceptionHandler.createCatch(
+                                    new ExceptionBlock(
+                                        handler.getTryBlock().getFirstInstruction(),
+                                        nodeAfterTry.getStart()
+                                    ),
+                                    handler.getHandlerBlock(),
+                                    handler.getCatchType()
+                                )
+                            );
+                        }
+                        else {
+                            exceptionHandlers.set(
+                                i,
+                                ExceptionHandler.createFinally(
+                                    new ExceptionBlock(
+                                        handler.getTryBlock().getFirstInstruction(),
+                                        nodeAfterTry.getStart()
+                                    ),
+                                    handler.getHandlerBlock()
+                                )
+                            );
+                        }
+
+                        handlers.remove(handler);
+                        handlers.put(exceptionHandlers.get(i), handlerInfo);
+                    }
+                }
+            }
         }
 
         analyzeHandlers(instructions, handlers);
@@ -392,8 +448,6 @@ public final class AstBuilder {
 
                     assert firstAfterTry != null;
 
-                    boolean first = true;
-
                     Instruction pTry, pFinally;
 
                     pTry = firstAfterTry.getStart();
@@ -432,18 +486,24 @@ public final class AstBuilder {
                         );
                     }
 
+//                    boolean first = true;
+
                     while (pFinally != null &&
                            pTry != null &&
                            pFinally.getOffset() <= lastFinallyInstruction.getOffset() &&
                            pTry.getOpCode() == pFinally.getOpCode()) {
 
-                        if (first) {
-                            if (pTry.getLabel() != null) {
-                                remappedJumps.put(pTry, firstFinallyInstruction);
-                            }
-
-                            first = false;
+                        if (pTry.getLabel() != null) {
+                            remappedJumps.put(pTry, pFinally);
                         }
+
+//                        if (first) {
+//                            if (pTry.getLabel() != null) {
+//                                remappedJumps.put(pTry, firstFinallyInstruction);
+//                            }
+//
+//                            first = false;
+//                        }
 
                         toRemove.add(pTry);
                         pTry = pTry.getNext();
@@ -751,7 +811,7 @@ public final class AstBuilder {
                 //
                 // After GOTO, finally block might have touched the variables.
                 //
-                newVariableState = VariableSlot.makeUnknownState(variableCount);
+                newVariableState = unknownVariables;
             }
 
             //

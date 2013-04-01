@@ -14,6 +14,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.core.StringComparator;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 
 import java.util.List;
@@ -100,7 +101,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
 
     @Override
     public FieldDefinition resolve(final FieldReference field) {
-        final TypeDefinition declaringType = resolve(VerifyArgument.notNull(field, "field").getDeclaringType());
+        final TypeDefinition declaringType = VerifyArgument.notNull(field, "field").getDeclaringType().resolve();
 
         if (declaringType == null) {
             return null;
@@ -111,13 +112,19 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
 
     @Override
     public MethodDefinition resolve(final MethodReference method) {
-        final TypeDefinition declaringType = resolve(VerifyArgument.notNull(method, "method").getDeclaringType());
+        TypeReference declaringType = VerifyArgument.notNull(method, "method").getDeclaringType();
 
-        if (declaringType == null) {
+        if (declaringType.isArray()) {
+            declaringType = BuiltinTypes.Object;
+        }
+
+        final TypeDefinition resolvedDeclaringType = declaringType.resolve();
+
+        if (resolvedDeclaringType == null) {
             return null;
         }
 
-        return getMethod(declaringType, method);
+        return getMethod(resolvedDeclaringType, method);
     }
 
     // <editor-fold defaultstate="collapsed" desc="Member Resolution Helpers">
@@ -147,7 +154,40 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
     final MethodDefinition getMethod(final TypeDefinition declaringType, final MethodReference reference) {
         TypeDefinition type = declaringType;
 
-        while (type != null) {            
+        MethodDefinition method = getMethod(type.getDeclaredMethods(), reference);
+
+        if (method != null) {
+            return method;
+        }
+
+        final TypeReference baseType = declaringType.getBaseType();
+
+        if (baseType != null) {
+            type = baseType.resolve();
+
+            if (type != null) {
+                method = getMethod(type, reference);
+
+                if (method != null) {
+                    return method;
+                }
+            }
+        }
+
+        for (final TypeReference interfaceType : declaringType.getExplicitInterfaces()) {
+            type = interfaceType.resolve();
+
+            if (type != null) {
+                method = getMethod(type, reference);
+
+                if (method != null) {
+                    return method;
+                }
+            }
+        }
+
+/*
+        while (type != null) {
             final MethodDefinition method = getMethod(type.getDeclaredMethods(), reference);
 
             if (method != null) {
@@ -190,7 +230,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
             }
 
             type = resolve(baseType);
-        }
+        }*/
 
         return null;
     }
@@ -226,11 +266,17 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
     }
 
     static MethodDefinition getMethod(final List<MethodDefinition> candidates, final MethodReference reference) {
+        final String erasedSignature = reference.getErasedSignature();
+
         for (int i = 0, n = candidates.size(); i < n; i++) {
             final MethodDefinition candidate = candidates.get(i);
 
             if (!StringComparator.Ordinal.equals(candidate.getName(), reference.getName())) {
                 continue;
+            }
+
+            if (StringComparator.Ordinal.equals(candidate.getErasedSignature(), erasedSignature)) {
+                return candidate;
             }
 
             if (reference.hasGenericParameters()) {
@@ -242,7 +288,9 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
             }
 
             if (!areEquivalent(candidate.getReturnType(), reference.getReturnType())) {
-                continue;
+                if (!candidate.getReturnType().isGenericParameter() || !BuiltinTypes.Object.equals(reference.getReturnType())) {
+                    continue;
+                }
             }
 
             if (candidate.hasParameters() != reference.hasParameters()) {
@@ -319,7 +367,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
                        areEquivalent((IGenericInstance) a, (IGenericInstance) b);
             }
 
-            return areEquivalent(a.getGenericParameters(), b.getGenericParameters());
+            return StringUtilities.equals(a.getErasedSignature(), b.getErasedSignature());
         }
 
         if (a.isArray()) {
@@ -410,8 +458,33 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
     }
 
     private static boolean areEquivalent(final GenericParameter a, final GenericParameter b) {
-        return a.getPosition() == b.getPosition() &&
-               areEquivalent(a.getExtendsBound(), b.getExtendsBound());
+        if (a.getPosition() != b.getPosition()) {
+            return false;
+        }
+//
+//        final IGenericParameterProvider ownerA = a.getOwner();
+//        final IGenericParameterProvider ownerB = b.getOwner();
+//
+//        if (ownerA instanceof TypeDefinition) {
+//            if (!(ownerB instanceof TypeDefinition)) {
+//                return false;
+//            }
+//            return areEquivalent((TypeDefinition)ownerA, (TypeDefinition)ownerB);
+//        }
+//
+//        if (ownerA instanceof MethodDefinition) {
+//            if (!(ownerB instanceof MethodDefinition)) {
+//                return false;
+//            }
+//
+//            final MethodDefinition methodA = (MethodDefinition) ownerA;
+//            final MethodDefinition methodB = (MethodDefinition) ownerB;
+//
+//            return areEquivalent(methodA.getDeclaringType(), methodB.getDeclaringType()) &&
+//                   StringUtilities.equals(methodA.getErasedSignature(), methodB.getErasedSignature());
+//        }
+//
+        return true;
     }
 
     // </editor-fold>

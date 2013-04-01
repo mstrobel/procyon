@@ -382,6 +382,16 @@ public class DeclareVariablesTransform implements IAstTransform {
                     ++count;
                 }
             }
+            else if (d instanceof UnaryOperatorExpression) {
+                final UnaryOperatorExpression unary = (UnaryOperatorExpression) d;
+                final Expression operand = unary.getExpression();
+
+                if (operand instanceof IdentifierExpression &&
+                    StringUtilities.equals(((IdentifierExpression) operand).getIdentifier(), variableName)) {
+
+                    ++count;
+                }
+            }
         }
 
         return count;

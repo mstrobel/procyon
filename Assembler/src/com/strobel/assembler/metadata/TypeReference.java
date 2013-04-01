@@ -344,7 +344,15 @@ public abstract class TypeReference extends MemberReference implements IGenericP
                     if (i != 0) {
                         s.append(", ");
                     }
-                    s = typeArguments.get(i).appendSimpleDescription(s);
+
+                    final TypeReference typeArgument = typeArguments.get(i);
+
+                    if (typeArgument instanceof GenericParameter) {
+                        s.append(typeArgument.getSimpleName());
+                    }
+                    else {
+                        s = typeArgument.appendSimpleDescription(s);
+                    }
                 }
                 s.append('>');
             }

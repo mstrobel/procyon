@@ -29,16 +29,14 @@ import com.strobel.decompiler.languages.java.ast.transforms.IAstTransform;
 
 public class JavaLanguage extends Language {
     private final String _name;
-    private final boolean _showAllMembers;
     private final Predicate<IAstTransform> _transformAbortCondition;
 
     public JavaLanguage() {
-        this("Java", true, null);
+        this("Java", null);
     }
 
-    private JavaLanguage(final String name, final boolean showAllMembers, final Predicate<IAstTransform> transformAbortCondition) {
+    private JavaLanguage(final String name, final Predicate<IAstTransform> transformAbortCondition) {
         _name = name;
-        _showAllMembers = showAllMembers;
         _transformAbortCondition = transformAbortCondition;
     }
 
@@ -95,6 +93,7 @@ public class JavaLanguage extends Language {
         return new AstBuilder(context);
     }
 
+    @SuppressWarnings("UnusedParameters")
     private void runTransformsAndGenerateCode(
         final AstBuilder astBuilder,
         final ITextOutput output,

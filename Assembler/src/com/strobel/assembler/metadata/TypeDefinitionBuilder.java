@@ -128,8 +128,9 @@ public class TypeDefinitionBuilder implements TypeVisitor {
 
     @Override
     public void visitDeclaringMethod(final MethodReference method) {
-        if (method == null)
+        if (method == null) {
             return;
+        }
 
         _typeDefinition.setDeclaringMethod(method);
 
@@ -187,7 +188,11 @@ public class TypeDefinitionBuilder implements TypeVisitor {
 
     @Override
     public void visitInnerType(final TypeDefinition type) {
-        _typeDefinition.getDeclaredTypesInternal().add(type);
+        final Collection<TypeDefinition> declaredTypes = _typeDefinition.getDeclaredTypesInternal();
+
+        if (!declaredTypes.contains(type)) {
+            declaredTypes.add(type);
+        }
     }
 
     @Override
