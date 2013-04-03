@@ -285,8 +285,7 @@ public final class AstBuilder {
                         nodeAfterTry.getNodeType() == ControlFlowNodeType.Normal &&
                         nodeAfterTry.getStart() == nodeAfterTry.getEnd() &&
                         nodeAfterTry.getEnd().getNext() == handlerInfo.handlerNodes.get(0).getStart() &&
-                        (nodeAfterTry.getStart().getOpCode() == OpCode.GOTO ||
-                         nodeAfterTry.getStart().getOpCode() == OpCode.GOTO_W)) {
+                        nodeAfterTry.getStart().getOpCode().isUnconditionalBranch()) {
 
                         handlerInfo.tryNodes.add(nodeAfterTry);
 
@@ -1778,7 +1777,7 @@ public final class AstBuilder {
                         catchBlock.setExceptionVariable(null);
                     }
                     else if (loadException.storeTo.size() == 1) {
-                        if (catchBlock.getBody().get(0) instanceof Expression) {
+                        if (!catchBlock.getBody().isEmpty() && catchBlock.getBody().get(0) instanceof Expression) {
                             final Expression first = (Expression) catchBlock.getBody().get(0);
                             final AstCode firstCode = first.getCode();
                             final Expression firstArgument = first.getArguments().get(0);
