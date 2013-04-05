@@ -68,7 +68,7 @@ public final class TypeAnalysis {
                 final Variable variable = (Variable) operand;
 
                 if (variable.isGenerated()) {
-                    variable.setType(null);
+//                    variable.setType(null);
                 }
             }
         }
@@ -288,6 +288,10 @@ public final class TypeAnalysis {
                     if (inferredType == null) {
                         inferredType = BuiltinTypes.Object;
                     }
+                    else if (inferredType.isWildcardType()) {
+                        inferredType = inferredType.hasSuperBound() ? inferredType.getSuperBound()
+                                                                    : inferredType.getExtendsBound();
+                    }
 
                     variable.setType(inferredType);
 
@@ -332,6 +336,22 @@ public final class TypeAnalysis {
 
                 if (variable.getType().getSimpleType() == SimpleType.Integer && variable.isGenerated()) {
                     variable.setType(BuiltinTypes.Boolean);
+                }
+            }
+        }
+        else if (expression.getInferredType() == BuiltinTypes.Integer &&
+                 expression.getExpectedType() == BuiltinTypes.Character) {
+
+            if (expression.getCode() == AstCode.Load || expression.getCode() == AstCode.Store) {
+                final Variable variable = (Variable) expression.getOperand();
+
+                expression.setInferredType(BuiltinTypes.Character);
+
+                if (variable.getType().getSimpleType() == SimpleType.Integer &&
+                    variable.isGenerated() &&
+                    _singleLoadVariables.contains(variable)) {
+
+                    variable.setType(BuiltinTypes.Character);
                 }
             }
         }
@@ -427,7 +447,14 @@ public final class TypeAnalysis {
                 final Variable v = (Variable) operand;
 
                 if (v.getType() == null && _singleLoadVariables.contains(v)) {
-                    v.setType(expectedType);
+                    TypeReference inferredType = expectedType;
+
+                    if (inferredType.isWildcardType()) {
+                        inferredType = inferredType.hasSuperBound() ? inferredType.getSuperBound()
+                                                                    : inferredType.getExtendsBound();
+                    }
+
+                    v.setType(inferredType);
                 }
 
                 return v.getType();
@@ -446,15 +473,19 @@ public final class TypeAnalysis {
 
                 if (forceInferChildren) {
                     if (hasThis) {
+                        final TypeReference targetType;
+
                         inferTypeForExpression(
                             arguments.get(0),
                             methodReference.getDeclaringType()
                         );
 
+                        targetType = arguments.get(0).getInferredType();
+
                         for (int i = 0; i < parameters.size(); i++) {
                             inferTypeForExpression(
                                 arguments.get(i + 1),
-                                substituteTypeArguments(parameters.get(i).getParameterType(), methodReference)
+                                substituteTypeArguments(parameters.get(i).getParameterType(), methodReference, targetType)
                             );
                         }
                     }
@@ -462,7 +493,7 @@ public final class TypeAnalysis {
                         for (int i = 0; i < parameters.size(); i++) {
                             inferTypeForExpression(
                                 arguments.get(i),
-                                substituteTypeArguments(parameters.get(i).getParameterType(), methodReference)
+                                substituteTypeArguments(parameters.get(i).getParameterType(), methodReference, null)
                             );
                         }
                     }
@@ -472,7 +503,11 @@ public final class TypeAnalysis {
                     return methodReference.getDeclaringType();
                 }
 
-                return substituteTypeArguments(methodReference.getReturnType(), methodReference);
+                return substituteTypeArguments(
+                    methodReference.getReturnType(),
+                    methodReference,
+                    methodDefinition.hasThis() ? arguments.get(0).getInferredType() : null
+                );
             }
 
             case GetField: {
@@ -851,10 +886,21 @@ public final class TypeAnalysis {
                         binaryArguments = arguments;
                     }
 
+                    runInference(binaryArguments.get(0));
+                    runInference(binaryArguments.get(1));
+
+                    binaryArguments.get(0).setExpectedType(binaryArguments.get(0).getInferredType());
+                    binaryArguments.get(1).setExpectedType(binaryArguments.get(0).getInferredType());
+                    binaryArguments.get(0).setInferredType(null);
+                    binaryArguments.get(1).setInferredType(null);
+
                     inferBinaryArguments(
                         binaryArguments.get(0),
                         binaryArguments.get(1),
-                        expectedType,
+                        typeWithMoreInformation(
+                            binaryArguments.get(0).getExpectedType(),
+                            binaryArguments.get(1).getExpectedType()
+                        ),
                         false,
                         null,
                         null
@@ -1079,13 +1125,13 @@ public final class TypeAnalysis {
     }
 
     static TypeReference getFieldType(final FieldReference field) {
-        return substituteTypeArguments(field.getFieldType(), field);
+        return substituteTypeArguments(field.getFieldType(), field, null);
     }
 
-    static TypeReference substituteTypeArguments(final TypeReference type, final MemberReference member) {
+    static TypeReference substituteTypeArguments(final TypeReference type, final MemberReference member, final TypeReference targetType) {
         if (type instanceof ArrayType) {
             final ArrayType arrayType = (ArrayType) type;
-            final TypeReference elementType = substituteTypeArguments(arrayType.getElementType(), member);
+            final TypeReference elementType = substituteTypeArguments(arrayType.getElementType(), member, targetType);
 
             if (elementType != arrayType.getElementType()) {
                 return elementType.makeArrayType();
@@ -1101,7 +1147,7 @@ public final class TypeAnalysis {
             boolean isChanged = false;
 
             for (final TypeReference typeArgument : genericInstance.getTypeArguments()) {
-                final TypeReference newTypeArgument = substituteTypeArguments(typeArgument, member);
+                final TypeReference newTypeArgument = substituteTypeArguments(typeArgument, member, targetType);
 
                 newTypeArguments.add(newTypeArgument);
                 isChanged |= newTypeArgument != typeArgument;
@@ -1117,6 +1163,10 @@ public final class TypeAnalysis {
 
             if (owner == member && member instanceof IGenericInstance) {
                 final List<TypeReference> typeArguments = ((IGenericInstance) member).getTypeArguments();
+                return typeArguments.get(genericParameter.getPosition());
+            }
+            else if (targetType != null && owner == targetType.resolve() && targetType instanceof IGenericInstance) {
+                final List<TypeReference> typeArguments = ((IGenericInstance) targetType).getTypeArguments();
                 return typeArguments.get(genericParameter.getPosition());
             }
 //            else {

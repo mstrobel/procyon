@@ -19,6 +19,7 @@ import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
+import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableDefinition;
 import com.strobel.core.StringUtilities;
@@ -37,26 +38,33 @@ import java.util.Set;
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public class AstMethodBodyBuilder {
+    private final AstBuilder _astBuilder;
     private final MethodDefinition _method;
     private final DecompilerContext _context;
     private final Set<Variable> _localVariablesToDefine = new LinkedHashSet<>();
 
     public static BlockStatement createMethodBody(
+        final AstBuilder astBuilder,
         final MethodDefinition method,
         final DecompilerContext context,
         final Iterable<ParameterDeclaration> parameters) {
 
+        VerifyArgument.notNull(astBuilder, "astBuilder");
         VerifyArgument.notNull(method, "method");
         VerifyArgument.notNull(context, "context");
 
         final MethodDefinition oldCurrentMethod = context.getCurrentMethod();
 
-        assert oldCurrentMethod == null || oldCurrentMethod == method;
+/*
+        assert oldCurrentMethod == null ||
+               oldCurrentMethod == method ||
+               method.getDeclaringType().getDeclaringMethod() == oldCurrentMethod;
+*/
 
         context.setCurrentMethod(method);
 
         try {
-            final AstMethodBodyBuilder builder = new AstMethodBodyBuilder(method, context);
+            final AstMethodBodyBuilder builder = new AstMethodBodyBuilder(astBuilder, method, context);
             return builder.createMethodBody(parameters);
         }
         finally {
@@ -64,7 +72,8 @@ public class AstMethodBodyBuilder {
         }
     }
 
-    private AstMethodBodyBuilder(final MethodDefinition method, final DecompilerContext context) {
+    private AstMethodBodyBuilder(final AstBuilder astBuilder, final MethodDefinition method, final DecompilerContext context) {
+        _astBuilder = astBuilder;
         _method = method;
         _context = context;
     }
@@ -326,6 +335,7 @@ public class AstMethodBodyBuilder {
     @SuppressWarnings("ConstantConditions")
     private AstNode transformByteCode(final com.strobel.decompiler.ast.Expression byteCode) {
         final Object operand = byteCode.getOperand();
+        final Label label = operand instanceof Label ? (Label) operand : null;
         final AstType operandType = operand instanceof TypeReference ? AstBuilder.convertType((TypeReference) operand) : AstType.NULL;
         final Variable variableOperand = operand instanceof Variable ? (Variable) operand : null;
         final FieldReference fieldOperand = operand instanceof FieldReference ? (FieldReference) operand : null;
@@ -530,6 +540,7 @@ public class AstMethodBodyBuilder {
 
                 final IdentifierExpression name = new IdentifierExpression(variableOperand.getName());
 
+                name.getIdentifierToken().putUserData(Keys.VARIABLE, variableOperand);
                 name.putUserData(Keys.VARIABLE, variableOperand);
 
                 final PrimitiveExpression deltaExpression = (PrimitiveExpression) arg1;
@@ -593,10 +604,10 @@ public class AstMethodBodyBuilder {
                 return new ConditionalExpression(arg1, arg2, arg3);
 
             case LoopOrSwitchBreak:
-                return new BreakStatement();
+                return label != null ? new BreakStatement(label.getName()) : new BreakStatement();
 
             case LoopContinue:
-                return new ContinueStatement();
+                return label != null ? new ContinueStatement(label.getName()) : new ContinueStatement();
 
             case CompoundAssignment:
                 throw ContractUtils.unreachable();
@@ -659,9 +670,27 @@ public class AstMethodBodyBuilder {
             }
         }
         else if (methodReference.isConstructor()) {
-            final ObjectCreationExpression creation = new ObjectCreationExpression(
-                AstBuilder.convertType(declaringType)
-            );
+            final ObjectCreationExpression creation;
+            final TypeDefinition resolvedType = declaringType.resolve();
+
+            if (resolvedType != null && resolvedType.isAnonymous()) {
+                final AstType declaredType;
+
+                if (resolvedType.getExplicitInterfaces().isEmpty()) {
+                    declaredType = AstBuilder.convertType(resolvedType.getBaseType());
+                }
+                else {
+                    declaredType = AstBuilder.convertType(resolvedType.getExplicitInterfaces().get(0));
+                }
+
+                creation = new AnonymousObjectCreationExpression(
+                    _astBuilder.createType(resolvedType).clone(),
+                    declaredType
+                );
+            }
+            else {
+                creation = new ObjectCreationExpression(AstBuilder.convertType(declaringType));
+            }
 
             creation.getArguments().addAll(adjustArgumentsForMethodCall(methodReference, arguments));
             creation.putUserData(Keys.MEMBER_REFERENCE, methodReference);
@@ -700,6 +729,16 @@ public class AstMethodBodyBuilder {
 
     @SuppressWarnings("UnusedParameters")
     private List<Expression> adjustArgumentsForMethodCall(final MethodReference method, final List<Expression> arguments) {
+        if (!arguments.isEmpty() && method.isConstructor()) {
+            final TypeDefinition declaringType = method.getDeclaringType().resolve();
+
+            if (declaringType != null &&
+                !declaringType.isStatic() &&
+                (declaringType.isInnerClass() || declaringType.isLocalClass())) {
+
+                return arguments.subList(1, arguments.size());
+            }
+        }
         //
         // TODO: Convert arguments.
         //

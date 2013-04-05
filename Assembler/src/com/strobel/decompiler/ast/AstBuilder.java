@@ -523,6 +523,10 @@ public final class AstBuilder {
         instructions.recomputeOffsets();
 
         for (final Instruction instruction : instructions) {
+            if (instruction.hasLabel()) {
+                instruction.getLabel().setIndex(instruction.getOffset());
+            }
+
             if (instruction.getOperandCount() == 0) {
                 continue;
             }
@@ -841,7 +845,7 @@ public final class AstBuilder {
                     //
                     if (target.label == null) {
                         target.label = new Label();
-                        target.label.setName(target.name());
+                        target.label.setName(target.makeLabelName());
                     }
                 }
             }
@@ -856,7 +860,7 @@ public final class AstBuilder {
                 //
                 if (target.label == null) {
                     target.label = new Label();
-                    target.label.setName(target.name());
+                    target.label.setName(target.makeLabelName());
                 }
             }
             else if (byteCode.operand instanceof SwitchInfo) {
@@ -870,7 +874,7 @@ public final class AstBuilder {
                 //
                 if (defaultTarget.label == null) {
                     defaultTarget.label = new Label();
-                    defaultTarget.label.setName(defaultTarget.name());
+                    defaultTarget.label.setName(defaultTarget.makeLabelName());
                 }
 
                 for (final Instruction instruction : switchInfo.getTargets()) {
@@ -883,7 +887,7 @@ public final class AstBuilder {
                     //
                     if (target.label == null) {
                         target.label = new Label();
-                        target.label.setName(target.name());
+                        target.label.setName(target.makeLabelName());
                     }
                 }
             }
@@ -1017,7 +1021,11 @@ public final class AstBuilder {
                         tempVariable.setType(_context.getCurrentType());
                         break;
                     case Reference:
-                        tempVariable.setType((TypeReference) value.getParameter());
+                        TypeReference refType = (TypeReference) value.getParameter();
+                        if (refType.isWildcardType()) {
+                            refType = refType.hasSuperBound() ? refType.getSuperBound() : refType.getExtendsBound();
+                        }
+                        tempVariable.setType(refType);
                         break;
                 }
 
@@ -1099,6 +1107,9 @@ public final class AstBuilder {
                                 break;
                             case Reference:
                                 type = (TypeReference) slot.value.getParameter();
+                                if (type.isWildcardType()) {
+                                    type = type.hasSuperBound() ? type.getSuperBound() : type.getExtendsBound();
+                                }
                                 break;
                         }
                     }
@@ -1402,6 +1413,7 @@ public final class AstBuilder {
                 }
 
                 variable.setOriginalVariable(variableDefinition);
+                variable.setGenerated(!variableDefinition.isFromMetadata());
 
                 final VariableInfo variableInfo = new VariableInfo(variable, definitions, references);
 
@@ -1423,7 +1435,14 @@ public final class AstBuilder {
                     );
 
                     final TypeReference variableType;
-                    final FrameValue stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
+                    final FrameValue stackValue;
+
+                    if (b.code == AstCode.Inc) {
+                        stackValue = FrameValue.INTEGER;
+                    }
+                    else {
+                        stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
+                    }
 
                     switch (stackValue.getType()) {
                         case Integer:
@@ -1451,6 +1470,7 @@ public final class AstBuilder {
 
                     variable.setType(variableType);
                     variable.setOriginalVariable(variableDefinition);
+                    variable.setGenerated(!variableDefinition.isFromMetadata());
 
                     final VariableInfo variableInfo = new VariableInfo(
                         variable,
@@ -1672,9 +1692,11 @@ public final class AstBuilder {
             // Cut from the end of the try to the beginning of the first handler.
             //
 
+/*
             while (!body.isEmpty() && body.get(0).offset < firstHandlerStart) {
                 body.remove(0);
             }
+*/
 
             //
             // Cut all handlers.
@@ -1711,6 +1733,11 @@ public final class AstBuilder {
                 //
                 for (final CatchBlock catchBlock : tryCatchBlock.getCatchBlocks()) {
                     final Expression firstExpression = firstOrDefault(catchBlock.getSelfAndChildrenRecursive(Expression.class));
+
+                    if (firstExpression == null) {
+                        continue;
+                    }
+
                     final int otherHandlerStart = firstExpression.getRanges().get(0).getStart();
 
                     if (otherHandlerStart == handlerStart) {
@@ -1777,7 +1804,10 @@ public final class AstBuilder {
                         catchBlock.setExceptionVariable(null);
                     }
                     else if (loadException.storeTo.size() == 1) {
-                        if (!catchBlock.getBody().isEmpty() && catchBlock.getBody().get(0) instanceof Expression) {
+                        if (!catchBlock.getBody().isEmpty() &&
+                            catchBlock.getBody().get(0) instanceof Expression &&
+                            !((Expression) catchBlock.getBody().get(0)).getArguments().isEmpty()) {
+
                             final Expression first = (Expression) catchBlock.getBody().get(0);
                             final AstCode firstCode = first.getCode();
                             final Expression firstArgument = first.getArguments().get(0);
@@ -2037,7 +2067,8 @@ public final class AstBuilder {
     private final static class ByteCode {
         Label label;
         Instruction instruction;
-        int offset;
+        String name;
+        int offset; // NOTE: If you change 'offset', clear out 'name'.
         int endOffset;
         AstCode code;
         Object operand;
@@ -2052,7 +2083,14 @@ public final class AstBuilder {
         List<Variable> storeTo;
 
         public final String name() {
-            return format("#%1$04d", offset);
+            if (name == null) {
+                name = format("#%1$04d", offset);
+            }
+            return name;
+        }
+
+        public final String makeLabelName() {
+            return format("Label_%1$04d", offset);
         }
 
         public final Frame getFrameBefore() {
@@ -2084,7 +2122,8 @@ public final class AstBuilder {
         }
 
         public final boolean isVariableDefinition() {
-            return code == AstCode.Store;
+            return code == AstCode.Store ||
+                   code == AstCode.Inc;
         }
 
         @Override

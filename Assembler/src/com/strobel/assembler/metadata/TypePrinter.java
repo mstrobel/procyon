@@ -100,14 +100,25 @@ public class TypePrinter implements TypeVisitor {
                 _output.writeLine();
                 break;
             }
+
             case AttributeNames.Deprecated: {
                 _output.write("  Deprecated");
                 _output.writeLine();
                 break;
             }
+
             case AttributeNames.EnclosingMethod: {
+                final TypeReference enclosingType = ((EnclosingMethodAttribute) attribute).getEnclosingType();
                 final MethodReference enclosingMethod = ((EnclosingMethodAttribute) attribute).getEnclosingMethod();
-                _output.write("  EnclosingMethod: %s:%s", enclosingMethod.getFullName(), enclosingMethod.getSignature());
+
+                if (enclosingType != null) {
+                    _output.write("  EnclosingType: ", enclosingType.getSignature());
+                }
+
+                if (enclosingMethod != null) {
+                    _output.write("  EnclosingMethod: %s:%s", enclosingMethod.getFullName(), enclosingMethod.getSignature());
+                }
+
                 _output.writeLine();
                 break;
             }

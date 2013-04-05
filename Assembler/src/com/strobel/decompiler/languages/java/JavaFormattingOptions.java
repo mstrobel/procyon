@@ -25,6 +25,7 @@ public class JavaFormattingOptions {
     public boolean IndentBreakStatements;
     public boolean AlignEmbeddedUsingStatements;
     public boolean AlignEmbeddedIfStatements;
+    public BraceStyle AnonymousClassBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle ClassBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle InterfaceBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle AnnotationBraceStyle = BraceStyle.DoNotChange;
@@ -146,6 +147,7 @@ public class JavaFormattingOptions {
         options.IndentCaseBody = true;
         options.IndentBreakStatements = true;
         options.ClassBraceStyle = BraceStyle.NextLine;
+        options.AnonymousClassBraceStyle = BraceStyle.EndOfLine;
         options.InterfaceBraceStyle = BraceStyle.NextLine;
         options.EnumBraceStyle = BraceStyle.NextLine;
         options.MethodBraceStyle = BraceStyle.EndOfLine;

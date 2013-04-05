@@ -56,8 +56,16 @@ public class TypeDeclaration extends EntityDeclaration {
         return getChildrenByRole(Roles.TYPE_PARAMETER);
     }
 
-    public final AstNodeCollection<AstType> getBaseTypes() {
-        return getChildrenByRole(Roles.BASE_TYPE);
+    public final AstNodeCollection<AstType> getInterfaces() {
+        return getChildrenByRole(Roles.IMPLEMENTED_INTERFACE);
+    }
+
+    public final AstType getBaseType() {
+        return getChildByRole(Roles.BASE_TYPE);
+    }
+
+    public final void setBaseType(final AstType value) {
+        setChildByRole(Roles.BASE_TYPE, value);
     }
 
     public final JavaTokenNode getLeftBraceToken() {
@@ -88,6 +96,13 @@ public class TypeDeclaration extends EntityDeclaration {
     }
 
     @Override
+    public TypeDeclaration clone() {
+        final TypeDeclaration copy = (TypeDeclaration) super.clone();
+        copy._classType = _classType;
+        return copy;
+    }
+
+    @Override
     public boolean matches(final INode other, final Match match) {
         if (other instanceof TypeDeclaration) {
             final TypeDeclaration otherDeclaration = (TypeDeclaration) other;
@@ -97,10 +112,34 @@ public class TypeDeclaration extends EntityDeclaration {
                    matchString(getName(), otherDeclaration.getName()) &&
                    matchAnnotationsAndModifiers(otherDeclaration, match) &&
                    getTypeParameters().matches(otherDeclaration.getTypeParameters(), match) &&
-                   getBaseTypes().matches(otherDeclaration.getBaseTypes(), match) &&
+                   getBaseType().matches(otherDeclaration.getBaseType(), match) &&
+                   getInterfaces().matches(otherDeclaration.getInterfaces(), match) &&
                    getMembers().matches(otherDeclaration.getMembers(), match);
         }
 
         return false;
     }
+
+    // <editor-fold defaultstate="collapsed" desc="Null TypeDeclaration">
+
+    public final static TypeDeclaration NULL = new NullTypeDeclaration();
+
+    private static final class NullTypeDeclaration extends TypeDeclaration {
+        @Override
+        public final boolean isNull() {
+            return true;
+        }
+
+        @Override
+        public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
+            return null;
+        }
+
+        @Override
+        public boolean matches(final INode other, final Match match) {
+            return other == null || other.isNull();
+        }
+    }
+
+    // </editor-fold>
 }

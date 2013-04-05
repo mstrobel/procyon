@@ -13,6 +13,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
@@ -31,12 +32,16 @@ public abstract class ContextTrackingVisitor<TResult> extends DepthFirstAstVisit
 
     public TResult visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void _) {
         final TypeDefinition oldType = context.getCurrentType();
+        final MethodDefinition oldMethod = context.getCurrentMethod();
+
         try {
             context.setCurrentType(typeDeclaration.getUserData(Keys.TYPE_DEFINITION));
+            context.setCurrentMethod(null);
             return super.visitTypeDeclaration(typeDeclaration, _);
         }
         finally {
             context.setCurrentType(oldType);
+            context.setCurrentMethod(oldMethod);
         }
     }
 

@@ -44,7 +44,7 @@ public final class AstOptimizer {
     private int _nextLabelIndex;
 
     public static void optimize(final DecompilerContext context, final Block method) {
-        optimize(context, method, context.getSettings().getAbortBeforeStep());
+        optimize(context, method, AstOptimizationStep.None);
     }
 
     public static void optimize(final DecompilerContext context, final Block method, final AstOptimizationStep abortBeforeStep) {
@@ -967,14 +967,14 @@ public final class AstOptimizer {
             final StrongBox<Variable> v = new StrongBox<>();
             final StrongBox<Expression> newObject = new StrongBox<>();
             final StrongBox<TypeReference> objectType = new StrongBox<>();
+            final StrongBox<MethodReference> constructor = new StrongBox<>();
+            final List<Expression> arguments = new ArrayList<>();
 
             if (position < body.size() - 1 &&
                 matchGetArgument(head, AstCode.Store, v, newObject) &&
                 matchGetOperand(newObject.get(), AstCode.__New, objectType)) {
 
                 final Node next = body.get(position + 1);
-                final StrongBox<MethodReference> constructor = new StrongBox<>();
-                final List<Expression> arguments = new ArrayList<>();
                 final StrongBox<Variable> v2 = new StrongBox<>();
 
                 if (matchGetArguments(next, AstCode.InvokeSpecial, constructor, arguments) &&
@@ -992,6 +992,24 @@ public final class AstOptimizer {
 
                     return true;
                 }
+            }
+
+            if (matchGetArguments(head, AstCode.InvokeSpecial, constructor, arguments) &&
+                constructor.get().isConstructor() &&
+                !arguments.isEmpty() &&
+                matchGetArgument(arguments.get(0), AstCode.Store, v, newObject) &&
+                matchGetOperand(newObject.get(), AstCode.__New, objectType)) {
+
+                final Expression initExpression = new Expression(AstCode.InitObject, constructor.get());
+
+                arguments.remove(0);
+
+                initExpression.getArguments().addAll(arguments);
+                initExpression.getRanges().addAll(head.getRanges());
+
+                body.set(position, new Expression(AstCode.Store, v.get(), initExpression));
+
+                return true;
             }
 
             return false;
@@ -1352,19 +1370,15 @@ public final class AstOptimizer {
                     condition.setTrueBlock(condition.getFalseBlock());
                     condition.setFalseBlock(temp);
 
-                    if (conditionExpression.getCode() == AstCode.LogicalNot) {
-                        condition.setCondition(conditionExpression.getArguments().get(0));
-                    }
-                    else {
-                        final Expression notExpression = new Expression(AstCode.LogicalNot, null, conditionExpression);
-
-                        if (simplifyLogicalNotArgument(notExpression)) {
-                            condition.setCondition(notExpression.getArguments().get(0));
-                        }
-                        else {
-                            condition.setCondition(notExpression);
-                        }
-                    }
+                    condition.setCondition(
+                        simplifyLogicalNot(
+                            new Expression(
+                                AstCode.LogicalNot,
+                                null,
+                                conditionExpression
+                            )
+                        )
+                    );
                 }
             }
         }
@@ -1587,6 +1601,13 @@ public final class AstOptimizer {
             newExpression.setInferredType(BuiltinTypes.Boolean);
             return newExpression;
         }
+    }
+
+    private final static BooleanBox SCRATCH_BOOLEAN_BOX = new BooleanBox();
+
+    static Expression simplifyLogicalNot(final Expression expression) {
+        final Expression result = simplifyLogicalNot(expression, SCRATCH_BOOLEAN_BOX);
+        return result != null ? result : expression;
     }
 
     static Expression simplifyLogicalNot(final Expression expression, final BooleanBox modified) {

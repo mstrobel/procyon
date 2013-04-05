@@ -285,6 +285,14 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         return Flags.testAny(getFlags(), Flags.ANONYMOUS);
     }
 
+    public final boolean isInnerClass() {
+        return getDeclaringType() != null;
+    }
+
+    public final boolean isLocalClass() {
+        return getDeclaringMethod() != null;
+    }
+
     public boolean isNested() {
         return getDeclaringType() != null;
     }

@@ -13,11 +13,9 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
-import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
-import com.strobel.util.ContractUtils;
 
 public class SimpleType extends AstType {
     public SimpleType(final String identifier) {
@@ -70,11 +68,6 @@ public class SimpleType extends AstType {
 
     public final AstNodeCollection<AstType> getTypeArguments() {
         return getChildrenByRole(Roles.TYPE_ARGUMENT);
-    }
-
-    @Override
-    public TypeReference toTypeReference() {
-        throw ContractUtils.unreachable();
     }
 
     @Override

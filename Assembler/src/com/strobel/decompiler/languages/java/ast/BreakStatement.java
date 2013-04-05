@@ -20,6 +20,13 @@ import com.strobel.decompiler.patterns.Match;
 public class BreakStatement extends Statement {
     public final static TokenRole BREAK_KEYWORD_ROLE = new TokenRole("break");
 
+    public BreakStatement() {
+    }
+
+    public BreakStatement(final String label) {
+        setLabel(label);
+    }
+
     public final JavaTokenNode getBreakToken() {
         return getChildByRole(BREAK_KEYWORD_ROLE);
     }

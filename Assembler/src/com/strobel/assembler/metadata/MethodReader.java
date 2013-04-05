@@ -526,14 +526,26 @@ public class MethodReader {
         }
 
         variables.updateScopes(_code.getCodeSize());
+        variables.mergeVariables();
+        variables.updateScopes(_code.getCodeSize());
 
         int labelCount = 0;
 
         for (int i = 0; i < body.size(); i++) {
-            final Instruction inst = body.get(i);
+            final Instruction instruction = body.get(i);
+            final Object operand = instruction.hasOperand() ? instruction.getOperand(0) : null;
 
-            if (inst.hasLabel()) {
-                inst.getLabel().setIndex(labelCount++);
+            if (operand instanceof VariableDefinition) {
+                final VariableDefinition currentVariable = (VariableDefinition) operand;
+                final VariableDefinition actualVariable = variables.tryFind(currentVariable.getSlot(), instruction.getOffset());
+
+                if (actualVariable != currentVariable) {
+                    instruction.setOperand(actualVariable);
+                }
+            }
+
+            if (instruction.hasLabel()) {
+                instruction.getLabel().setIndex(labelCount++);
             }
         }
 
@@ -567,19 +579,19 @@ public class MethodReader {
             );
         }
 
-        Collections.sort(entries);
+//        Collections.sort(entries);
 
         final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(body, Collections.<ExceptionHandler>emptyList());
 
         cfg.computeDominance();
+        cfg.computeDominanceFrontier();
 
         for (int i = 0; i < entries.size(); i++) {
             final HandlerWithRange entry = entries.get(i);
             int minOffset = Integer.MAX_VALUE;
-
             final List<ControlFlowNode> nodes = cfg.getNodes();
-            for (int j = 0; j < nodes.size(); j++) {
 
+            for (int j = 0; j < nodes.size(); j++) {
                 final ControlFlowNode node = nodes.get(j);
 
                 if (node.getNodeType() != ControlFlowNodeType.Normal) {
@@ -587,13 +599,26 @@ public class MethodReader {
                 }
 
                 if (node.getStart().getOffset() == entry.range.getStart()) {
-                    final ControlFlowNode end = findHandlerEnd(node, new LinkedHashSet<ControlFlowNode>());
+                    final ControlFlowNode end = findHandlerEnd(node, new LinkedHashSet<ControlFlowNode>(), cfg.getRegularExit());
 
                     if (end != null && end.getNodeType() == ControlFlowNodeType.Normal) {
                         minOffset = end.getEnd().getEndOffset();
                     }
                     else {
                         minOffset = node.getEnd().getEndOffset();
+                    }
+
+                    for (int k = 0; k < entries.size(); k++) {
+                        final HandlerWithRange other = entries.get(k);
+
+                        if (k != i &&
+                            entry.entry.getStartOffset() >= other.entry.getStartOffset() &&
+                            entry.entry.getHandlerOffset() < other.entry.getHandlerOffset() &&
+                            entry.entry.getEndOffset() <= other.entry.getEndOffset() &&
+                            other.range.getStart() < minOffset) {
+
+                            minOffset = other.range.getStart();
+                        }
                     }
 
                     break;
@@ -605,7 +630,7 @@ public class MethodReader {
             }
         }
 
-        Collections.sort(entries);
+//        Collections.sort(entries);
 
         final List<ExceptionHandler> exceptionHandlers = _methodBody.getExceptionHandlers();
 
@@ -661,7 +686,11 @@ public class MethodReader {
         }
     }
 
-    private static ControlFlowNode findHandlerEnd(final ControlFlowNode node, final Set<ControlFlowNode> visited) {
+    private static ControlFlowNode findHandlerEnd(
+        final ControlFlowNode node,
+        final Set<ControlFlowNode> visited,
+        final ControlFlowNode regularExit) {
+
         if (!visited.add(node)) {
             return null;
         }
@@ -670,14 +699,17 @@ public class MethodReader {
             if (successor.getNodeType() != ControlFlowNodeType.Normal) {
                 continue;
             }
+
             if (successor.getDominatorTreeChildren().isEmpty()) {
-                final ControlFlowNode result = findHandlerEnd(successor, visited);
+                final ControlFlowNode result = findHandlerEnd(successor, visited, regularExit);
 
                 if (result != null) {
                     return result;
                 }
 
-                return successor;
+                if (!successor.getDominanceFrontier().contains(regularExit)) {
+                    return successor;
+                }
             }
         }
 
@@ -695,7 +727,27 @@ public class MethodReader {
 
         @Override
         public final int compareTo(final HandlerWithRange o) {
-            return range.compareTo(o.range);
+            int compareResult = Integer.compare(this.entry.getEndOffset(), o.entry.getEndOffset());
+
+            if (compareResult != 0) {
+                return compareResult;
+            }
+
+            compareResult = Integer.compare(o.entry.getStartOffset(), this.entry.getStartOffset());
+
+            if (compareResult != 0) {
+                return compareResult;
+            }
+
+            compareResult = Integer.compare(this.range.getEnd(), o.range.getEnd());
+
+            if (compareResult != 0) {
+                return compareResult;
+            }
+
+            compareResult = Integer.compare(o.range.getStart(), this.range.getStart());
+
+            return compareResult;
         }
 
         @Override

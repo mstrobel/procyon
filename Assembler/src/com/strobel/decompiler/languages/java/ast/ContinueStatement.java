@@ -20,6 +20,13 @@ import com.strobel.decompiler.patterns.Match;
 public class ContinueStatement extends Statement {
     public final static TokenRole CONTINUE_KEYWORD_ROLE = new TokenRole("continue");
 
+    public ContinueStatement() {
+    }
+
+    public ContinueStatement(final String label) {
+        setLabel(label);
+    }
+
     public final JavaTokenNode getContinueToken() {
         return getChildByRole(CONTINUE_KEYWORD_ROLE);
     }

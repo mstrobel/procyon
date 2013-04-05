@@ -27,7 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-public class AstNodeCollection<T extends AstNode> extends AbstractCollection<T> {
+public final class AstNodeCollection<T extends AstNode> extends AbstractCollection<T> {
     private final AstNode _node;
     private final Role<T> _role;
 
@@ -51,7 +51,13 @@ public class AstNodeCollection<T extends AstNode> extends AbstractCollection<T> 
 
     @Override
     public boolean isEmpty() {
-        return size() == 0;
+        for (AstNode current = _node.getFirstChild(); current != null; current = current.getNextSibling()) {
+            if (current.getRole() == _role) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     @Override

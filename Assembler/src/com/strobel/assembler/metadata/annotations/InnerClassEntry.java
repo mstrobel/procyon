@@ -17,10 +17,10 @@ package com.strobel.assembler.metadata.annotations;
  * @author Mike Strobel
  */
 public final class InnerClassEntry {
-    private String _innerClassName;
-    private String _outerClassName;
-    private String _shortName;
-    private int _accessFlags;
+    private final String _innerClassName;
+    private final String _outerClassName;
+    private final String _shortName;
+    private final int _accessFlags;
 
     public InnerClassEntry(final String innerClassName, final String outerClassName, final String shortName, final int accessFlags) {
         _innerClassName = innerClassName;

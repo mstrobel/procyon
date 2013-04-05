@@ -63,6 +63,17 @@ public final class Range implements Comparable<Range> {
         return false;
     }
 
+    public final boolean isInside(final int start, final int end) {
+        return _start >= start &&
+               _end <= end;
+    }
+
+    public final boolean isInside(final Range range) {
+        return range != null &&
+               _start >= range._start &&
+               _end <= range._end;
+    }
+
     @Override
     public final int hashCode() {
         int result = _start;
@@ -75,7 +86,11 @@ public final class Range implements Comparable<Range> {
         if (o == null) {
             return 1;
         }
-        return Integer.compare(_start, o._start);
+
+        final int compareResult = Integer.compare(_start, o._start);
+
+        return compareResult != 0 ? compareResult
+                                  : Integer.compare(_end, o._end);
     }
 
     @Override

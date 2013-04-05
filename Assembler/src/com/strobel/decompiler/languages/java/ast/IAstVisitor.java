@@ -78,4 +78,6 @@ public interface IAstVisitor<T, R> {
     R visitGotoStatement(GotoStatement gotoStatement, T data);
     R visitParenthesizedExpression(ParenthesizedExpression parenthesizedExpression, T data);
     R visitSynchronizedStatement(SynchronizedStatement synchronizedStatement, T data);
+    R visitAnonymousObjectCreationExpression(AnonymousObjectCreationExpression node, T data);
+    R visitWildcardType(WildcardType node, T data);
 }

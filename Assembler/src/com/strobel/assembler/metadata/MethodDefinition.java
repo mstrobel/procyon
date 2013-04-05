@@ -22,9 +22,11 @@ import java.util.List;
 public class MethodDefinition extends MethodReference implements IMemberDefinition {
     private final GenericParameterCollection _genericParameters;
     private final ParameterDefinitionCollection _parameters;
+    private final AnonymousLocalTypeCollection _declaredTypes;
     private final Collection<TypeReference> _thrownTypes;
     private final Collection<CustomAnnotation> _customAnnotations;
     private final List<GenericParameter> _genericParametersView;
+    private final List<TypeDefinition> _declaredTypesView;
     private final List<ParameterDefinition> _parametersView;
     private final List<TypeReference> _thrownTypesView;
     private final List<CustomAnnotation> _customAnnotationsView;
@@ -38,10 +40,12 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     protected MethodDefinition() {
         _genericParameters = new GenericParameterCollection(this);
         _parameters = new ParameterDefinitionCollection(this);
+        _declaredTypes = new AnonymousLocalTypeCollection(this);
         _thrownTypes = new Collection<>();
         _customAnnotations = new Collection<>();
         _genericParametersView = Collections.unmodifiableList(_genericParameters);
         _parametersView = Collections.unmodifiableList(_parameters);
+        _declaredTypesView = Collections.unmodifiableList(_declaredTypes);
         _thrownTypesView = Collections.unmodifiableList(_thrownTypes);
         _customAnnotationsView = Collections.unmodifiableList(_customAnnotations);
     }
@@ -65,6 +69,18 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     @Override
     public final boolean isDefinition() {
         return true;
+    }
+
+    public final boolean isAnonymousClassConstructor() {
+        return Flags.testAny(_flags, Flags.ANONCONSTR);
+    }
+
+    public final List<TypeDefinition> getDeclaredTypes() {
+        return _declaredTypesView;
+    }
+
+    protected final AnonymousLocalTypeCollection getDeclaredTypesInternal() {
+        return _declaredTypes;
     }
 
     @Override
@@ -250,7 +266,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
             final TypeDefinition declaringType = getDeclaringType();
 
             if (declaringType != null) {
-                return declaringType.appendName(sb, true, false).append(getName());
+                return declaringType.appendName(sb, true, false).append('.').append(getName());
             }
         }
 

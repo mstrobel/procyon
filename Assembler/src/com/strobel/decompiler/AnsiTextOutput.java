@@ -18,6 +18,7 @@ import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.Label;
 import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.ParameterReference;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableReference;
 import com.strobel.decompiler.ast.AstCode;
@@ -27,15 +28,15 @@ import com.strobel.io.Ansi;
 import java.io.Writer;
 
 public class AnsiTextOutput extends PlainTextOutput {
-    private final static Ansi KEYWORD = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.BLUE, Ansi.Color.BLACK);
-    private final static Ansi INSTRUCTION = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.BLUE, Ansi.Color.BLACK);
-    private final static Ansi LABEL = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.BLACK, Ansi.Color.BLACK);
-    private final static Ansi TYPE = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.CYAN, Ansi.Color.BLACK);
-    private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.MAGENTA, Ansi.Color.BLACK);
-    private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.YELLOW, Ansi.Color.BLACK);
-    private final static Ansi LOCAL = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.RED, Ansi.Color.BLACK);
-    private final static Ansi LITERAL = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.GREEN, Ansi.Color.BLACK);
-    private final static Ansi COMMENT = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.RED, Ansi.Color.BLACK);
+    private final static Ansi KEYWORD = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.BLUE, null);
+    private final static Ansi INSTRUCTION = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.BLUE, null);
+    private final static Ansi LABEL = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.GREEN, null);
+    private final static Ansi TYPE = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.CYAN, null);
+    private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.MAGENTA, null);
+    private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.YELLOW, null);
+    private final static Ansi LOCAL = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.WHITE, null);
+    private final static Ansi LITERAL = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.RED, null);
+    private final static Ansi COMMENT = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.RED, null);
 
     public AnsiTextOutput() {
     }
@@ -94,6 +95,7 @@ public class AnsiTextOutput extends PlainTextOutput {
             colorizedText = FIELD.colorize(text);
         }
         else if (definition instanceof VariableReference ||
+                 definition instanceof ParameterReference ||
                  definition instanceof Variable) {
 
             colorizedText = LOCAL.colorize(text);
@@ -135,6 +137,7 @@ public class AnsiTextOutput extends PlainTextOutput {
             colorizedText = FIELD.colorize(text);
         }
         else if (reference instanceof VariableReference ||
+                 reference instanceof ParameterReference ||
                  reference instanceof Variable) {
 
             colorizedText = LOCAL.colorize(text);

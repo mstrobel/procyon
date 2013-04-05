@@ -160,6 +160,9 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
         node.remove();
 
+        final Iterable<Statement> increment = m2.get("increment");
+        final AstNode previousSibling = firstOrDefault(increment).getPreviousSibling();
+
         final BlockStatement newBody = new BlockStatement();
 
         for (final Statement statement : m2.<Statement>get("statement")) {
@@ -183,7 +186,19 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             }
         }
 
-        final Iterable<Statement> increment = m2.get("increment");
+        if (previousSibling instanceof LabelStatement) {
+            final String continueLabel = ((LabelStatement) previousSibling).getLabel();
+
+            for (final AstNode d : newBody.getDescendants()) {
+                if (d instanceof GotoStatement) {
+                    final GotoStatement gotoStatement = (GotoStatement) d;
+
+                    if (StringUtilities.equals(gotoStatement.getLabel(), continueLabel)) {
+                        gotoStatement.replaceWith(new ContinueStatement());
+                    }
+                }
+            }
+        }
 
         condition.remove();
 
@@ -635,6 +650,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             ((UnaryOperatorExpression) condition).getOperator() == UnaryOperatorType.NOT) {
 
             condition = ((UnaryOperatorExpression) condition).getExpression();
+            condition.remove();
         }
         else {
             condition = new UnaryOperatorExpression(UnaryOperatorType.NOT, condition);

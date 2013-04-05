@@ -26,6 +26,10 @@ public class MethodDeclaration extends EntityDeclaration {
         setChildByRole(PRIVATE_IMPLEMENTATION_TYPE_ROLE, type);
     }
 
+    public final AstNodeCollection<TypeDeclaration> getDeclaredTypes() {
+        return getChildrenByRole(Roles.LOCAL_TYPE_DECLARATION);
+    }
+
     public final AstNodeCollection<TypeParameterDeclaration> getTypeParameters() {
         return getChildrenByRole(Roles.TYPE_PARAMETER);
     }

@@ -13,16 +13,26 @@
 
 package com.strobel.decompiler;
 
-import com.sampullara.cli.Argument;
-import com.strobel.decompiler.ast.AstOptimizationStep;
+import com.strobel.decompiler.languages.Language;
+import com.strobel.decompiler.languages.Languages;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 
 public class DecompilerSettings {
-    private boolean _printUsage;
     private boolean _showSyntheticMembers;
     private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
-    private AstOptimizationStep _abortBeforeStep = AstOptimizationStep.None;
     private JavaFormattingOptions _formattingOptions;
+    private Language _language;
+
+    public DecompilerSettings() {
+    }
+
+    public final Language getLanguage() {
+        return _language != null ? _language : Languages.java();
+    }
+
+    public final void setLanguage(final Language language) {
+        _language = language;
+    }
 
     public final boolean getShowSyntheticMembers() {
         return _showSyntheticMembers;
@@ -40,29 +50,10 @@ public class DecompilerSettings {
         _formattingOptions = formattingOptions;
     }
 
-    public final boolean getPrintUsage() {
-        return _printUsage;
-    }
-
-    @Argument(value = "?", description = "Display this usage information and exit.")
-    public final void setPrintUsage(final boolean printUsage) {
-        _printUsage = printUsage;
-    }
-
-    public final AstOptimizationStep getAbortBeforeStep() {
-        return _abortBeforeStep;
-    }
-
-    @Argument(value = "a", description = "Abort before this step.")
-    public final void setAbortBeforeStep(final AstOptimizationStep abortBeforeStep) {
-        _abortBeforeStep = abortBeforeStep != null ? abortBeforeStep : AstOptimizationStep.None;
-    }
-
     public final boolean getAlwaysGenerateExceptionVariableForCatchBlocks() {
         return _alwaysGenerateExceptionVariableForCatchBlocks;
     }
 
-    @Argument(value = "ev", description = "Always generate exception variables for catch blocks.")
     public final void setAlwaysGenerateExceptionVariableForCatchBlocks(final boolean value) {
         _alwaysGenerateExceptionVariableForCatchBlocks = value;
     }

@@ -96,6 +96,13 @@ public abstract class EntityDeclaration extends AstNode {
         setChildByRole(Roles.TYPE, type);
     }
 
+    @Override
+    public EntityDeclaration clone() {
+        final EntityDeclaration copy = (EntityDeclaration) super.clone();
+        copy._anyModifiers = _anyModifiers;
+        return copy;
+    }
+
     protected final boolean matchAnnotationsAndModifiers(final EntityDeclaration other, final Match match) {
         VerifyArgument.notNull(other, "other");
 

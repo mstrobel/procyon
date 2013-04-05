@@ -31,7 +31,7 @@ import java.util.List;
 
 import static com.strobel.decompiler.DecompilerHelpers.writeType;
 
-public final class Expression extends Node {
+public final class Expression extends Node implements Cloneable {
     public static final Object ANY_OPERAND = new Object();
 
     private final Collection<Expression> _arguments = new Collection<>();
@@ -253,5 +253,21 @@ public final class Expression extends Node {
         }
 
         output.write(')');
+    }
+
+    @SuppressWarnings("CloneDoesntCallSuperClone")
+    public final Expression clone() {
+        final Expression clone = new Expression(_code, _operand);
+
+        clone._code = _code;
+        clone._expectedType = _expectedType;
+        clone._inferredType = _inferredType;
+        clone._operand = _operand;
+
+        for (final Expression argument : _arguments) {
+            clone._arguments.add(argument.clone());
+        }
+
+        return clone;
     }
 }

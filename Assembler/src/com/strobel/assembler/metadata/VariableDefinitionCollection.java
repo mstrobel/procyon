@@ -16,6 +16,7 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.core.StringUtilities;
+import com.strobel.reflection.SimpleType;
 
 import java.util.ArrayList;
 import java.util.NoSuchElementException;
@@ -72,22 +73,6 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
     }
 
     public VariableDefinition ensure(final int slot, final OpCode op, final int instructionOffset) {
-        VariableDefinition variable = tryFind(slot, instructionOffset);
-
-        if (variable != null) {
-            return variable;
-        }
-
-        if (op.isStore()) {
-            final int adjustedOffset = instructionOffset + op.getSize() + op.getOperandType().getBaseSize();
-
-            variable = tryFind(slot, adjustedOffset);
-
-            if (variable != null) {
-                return variable;
-            }
-        }
-
         final TypeReference variableType;
 
         switch (op) {
@@ -161,6 +146,40 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
                 break;
         }
 
+        VariableDefinition variable = tryFind(slot, instructionOffset);
+
+        if (variable != null) {
+            if (variable.isFromMetadata()) {
+                return variable;
+            }
+
+            final TypeReference targetType = op.isStore() ? variable.getVariableType() : variableType;
+            final TypeReference sourceType = op.isStore() ? variableType : variable.getVariableType();
+
+            if (isTargetTypeCompatible(targetType, sourceType)) {
+                return variable;
+            }
+
+            variable.setScopeEnd(instructionOffset - 1);
+        }
+        else if (op.isStore()) {
+            final int adjustedOffset = instructionOffset + op.getSize() + op.getOperandType().getBaseSize();
+
+            variable = tryFind(slot, adjustedOffset);
+
+            if (variable != null) {
+                if (variable.isFromMetadata()) {
+                    return variable;
+                }
+
+                if (isTargetTypeCompatible(variable.getVariableType(), variableType)) {
+                    return variable;
+                }
+
+                variable.setScopeEnd(instructionOffset - 1);
+            }
+        }
+
         variable = new VariableDefinition(
             slot,
             String.format("$%d_%d$", slot, instructionOffset),
@@ -181,9 +200,11 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
     }
 
     public void updateScopes(final int codeSize) {
-        boolean modified = false;
+        boolean modified;
 
         do {
+            modified = false;
+
             for (int i = 0; i < size(); i++) {
                 final VariableDefinition variable = get(i);
 
@@ -221,6 +242,7 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
     outer:
         for (int i = 0; i < size(); i++) {
             final VariableDefinition variable = get(i);
+            final TypeReference variableType = variable.getVariableType();
 
             for (int j = 0; j < size(); j++) {
                 final VariableDefinition other;
@@ -241,19 +263,28 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
             for (int j = 0; j < slotSharers.size(); j++) {
                 final VariableDefinition slotSharer = slotSharers.get(j);
+                final TypeReference slotSharerType = slotSharer.getVariableType();
 
-                if (slotSharer.getScopeStart() < minScopeStart) {
-                    merged = true;
-                    minScopeStart = slotSharer.getScopeStart();
-                }
+                if (isTargetTypeCompatible(variableType, slotSharerType) ||
+                    isTargetTypeCompatible(slotSharerType, variableType)) {
 
-                if (slotSharer.getScopeEnd() > maxScopeEnd) {
-                    merged = true;
-                    maxScopeEnd = slotSharer.getScopeEnd();
-                }
+                    if (slotSharer.getScopeStart() < minScopeStart) {
+                        merged = true;
+                        minScopeStart = slotSharer.getScopeStart();
+                    }
 
-                if (merged) {
-                    remove(slotSharer);
+                    if (slotSharer.getScopeEnd() > maxScopeEnd) {
+                        merged = true;
+                        maxScopeEnd = slotSharer.getScopeEnd();
+                    }
+
+                    if (merged) {
+                        remove(slotSharer);
+                    }
+
+                    if (!isTargetTypeCompatible(variableType, slotSharerType)) {
+                        variable.setVariableType(slotSharerType);
+                    }
                 }
             }
 
@@ -263,7 +294,13 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
             }
         }
     }
-/*
+
+    private boolean isTargetTypeCompatible(final TypeReference targetType, final TypeReference sourceType) {
+        return MetadataHelper.isAssignableFrom(targetType, sourceType) ||
+               targetType.getSimpleType() == SimpleType.Integer && sourceType.getSimpleType() == SimpleType.Boolean;
+    }
+
+    /*
     @Override
     protected void afterAdd(final int index, final VariableDefinition v, final boolean appended) {
         v.setIndex(index);

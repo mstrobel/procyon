@@ -53,7 +53,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
     final int minorVersion;
     final Buffer buffer;
     final ConstantPool constantPool;
-    final int accessFlags;
     final ConstantPool.TypeInfoEntry thisClassEntry;
     final ConstantPool.TypeInfoEntry baseClassEntry;
     final ConstantPool.TypeInfoEntry[] interfaceEntries;
@@ -66,6 +65,8 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
     private final AtomicBoolean _completed;
     private final Scope _scope;
+
+    long flags;
 
     private ClassFileReader(
         final int options,
@@ -93,7 +94,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         this.minorVersion = minorVersion;
         this.buffer = buffer;
         this.constantPool = constantPool;
-        this.accessFlags = accessFlags;
+        this.flags = accessFlags;
         this.thisClassEntry = VerifyArgument.notNull(thisClassEntry, "thisClassEntry");
         this.baseClassEntry = baseClassEntry;
         this.interfaceEntries = VerifyArgument.notNull(interfaceEntries, "interfaceEntries");
@@ -129,7 +130,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
     }
 
     @Override
-    protected MetadataParser getParser() {
+    public MetadataParser getParser() {
         return _scope._parser;
     }
 
@@ -419,6 +420,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
         final MethodReference declaringMethod;
 
+        //noinspection UnusedDeclaration
         try (final AutoCloseable ignored = _scope._parser.suppressTypeResolution()) {
             if (enclosingMethod instanceof BlobAttribute) {
                 enclosingMethod = inflateAttribute(enclosingMethod);
@@ -558,6 +560,12 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     }
                 }
 
+                if (StringUtilities.isNullOrEmpty(entry.getShortName())) {
+                    flags |= Flags.ANONYMOUS;
+                }
+
+                flags |= entry.getAccessFlags();
+
                 outerType = _scope._parser.parseTypeDescriptor(outerClassName);
                 resolvedOuterType = outerType.resolve();
 
@@ -581,7 +589,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         visitor.visit(
             majorVersion,
             minorVersion,
-            Flags.fromStandardFlags(accessFlags),
+            flags,
             thisClassEntry.getName(),
             signature != null ? signature.getSignature() : null,
             baseClassEntry != null ? baseClassEntry.getName() : null,
@@ -695,7 +703,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             }
 
             final FieldVisitor fieldVisitor = visitor.visitField(
-                Flags.fromStandardFlags(field.accessFlags),
+                field.accessFlags,
                 field.name,
                 fieldType
             );
@@ -736,6 +744,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
     @SuppressWarnings("ConstantConditions")
     private void visitMethods(final TypeVisitor visitor) {
+        //noinspection UnusedDeclaration
         try (final AutoCloseable ignored = _scope._parser.suppressTypeResolution()) {
             for (final MethodInfo method : methods) {
                 final IMethodSignature methodSignature;
@@ -743,7 +752,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
                 final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, method.attributes);
 
-                if ((accessFlags & Flags.ENUM) != 0 && "<init>".equals(method.name)) {
+                if ((flags & Flags.ENUM) != 0 && "<init>".equals(method.name)) {
                     methodSignature = _scope._parser.parseMethodSignature(
                         signature != null ? "(Ljava/lang/String;I" + signature.getSignature().substring(1)
                                           : method.descriptor
@@ -779,8 +788,14 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                         thrownTypes = EmptyArrayCache.fromElementType(TypeReference.class);
                     }
 
+                    long methodFlags = method.accessFlags;
+
+                    if (Flags.testAny(flags, Flags.ANONYMOUS) && "<init>".equals(method.name)) {
+                        methodFlags |= Flags.ANONCONSTR | Flags.SYNTHETIC;
+                    }
+
                     final MethodVisitor methodVisitor = visitor.visitMethod(
-                        Flags.fromStandardFlags(method.accessFlags),
+                        methodFlags,
                         method.name,
                         methodSignature,
                         thrownTypes

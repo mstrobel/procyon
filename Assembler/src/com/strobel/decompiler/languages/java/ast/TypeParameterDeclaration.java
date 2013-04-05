@@ -39,6 +39,14 @@ public class TypeParameterDeclaration extends AstNode {
         setChildByRole(Roles.IDENTIFIER, Identifier.create(value));
     }
 
+    public final AstType getExtendsBound() {
+        return getChildByRole(Roles.EXTENDS_BOUND);
+    }
+
+    public final void setExtendsBound(final AstType value) {
+        setChildByRole(Roles.EXTENDS_BOUND, value);
+    }
+
     public final Identifier getNameToken() {
         return getChildByRole(Roles.IDENTIFIER);
     }
@@ -64,6 +72,7 @@ public class TypeParameterDeclaration extends AstNode {
 
             return !otherDeclaration.isNull() &&
                    matchString(getName(), otherDeclaration.getName()) &&
+                   getExtendsBound().matches(otherDeclaration.getExtendsBound(), match) &&
                    getAnnotations().matches(otherDeclaration.getAnnotations(), match);
         }
 

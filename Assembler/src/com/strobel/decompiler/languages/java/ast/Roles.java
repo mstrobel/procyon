@@ -24,7 +24,10 @@ public final class Roles {
     
     public final static Role<AstType> TYPE = new Role<>("Type", AstType.class, AstType.NULL);
     public final static Role<AstType> BASE_TYPE = new Role<>("BaseType", AstType.class, AstType.NULL);
+    public final static Role<AstType> IMPLEMENTED_INTERFACE = new Role<>("ImplementedInterface", AstType.class, AstType.NULL);
     public final static Role<AstType> TYPE_ARGUMENT = new Role<>("TypeArgument", AstType.class, AstType.NULL);
+    public final static Role<AstType> EXTENDS_BOUND = new Role<>("ExtendsBound", AstType.class, AstType.NULL);
+    public final static Role<AstType> SUPER_BOUND = new Role<>("SuperBound", AstType.class, AstType.NULL);
     public final static Role<TypeParameterDeclaration> TYPE_PARAMETER = new Role<>("TypeParameter", TypeParameterDeclaration.class);
     public final static Role<Expression> ARGUMENT = new Role<>("Argument", Expression.class, Expression.NULL);
     public final static Role<ParameterDeclaration> PARAMETER = new Role<>("Parameter", ParameterDeclaration.class);
@@ -38,6 +41,7 @@ public final class Roles {
     public final static Role<Annotation> ANNOTATION = new Role<>("Annotation", Annotation.class);
     public final static Role<VariableInitializer> VARIABLE = new Role<>("Variable", VariableInitializer.class, VariableInitializer.NULL);
     public final static Role<EntityDeclaration> TYPE_MEMBER = new Role<>("TypeMember", EntityDeclaration.class);
+    public final static Role<TypeDeclaration> LOCAL_TYPE_DECLARATION = new Role<>("LocalTypeDeclaration", TypeDeclaration.class, TypeDeclaration.NULL);
     public final static Role<PackageDeclaration> PACKAGE = new Role<>("Package", PackageDeclaration.class, PackageDeclaration.NULL);
     public final static Role<NewLineNode> NEW_LINE = new Role<>("NewLine", NewLineNode.class);
 

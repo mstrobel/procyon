@@ -31,4 +31,10 @@ public final class ExceptionBlock {
     public final Instruction getLastInstruction() {
         return _lastInstruction;
     }
+
+    public final boolean isWithin(final ExceptionBlock block) {
+        return block != null &&
+               block.getFirstInstruction().getOffset() >= getFirstInstruction().getOffset() &&
+               block.getLastInstruction().getOffset() < getLastInstruction().getEndOffset();
+    }
 }

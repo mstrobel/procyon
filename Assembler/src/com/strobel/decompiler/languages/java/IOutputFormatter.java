@@ -21,10 +21,10 @@ public interface IOutputFormatter {
     void endNode(AstNode node);
 
     void writeIdentifier(String identifier);
-
     void writeKeyword(String keyword);
-
     void writeToken(String token);
+    void writeLiteral(String value);
+
     void space();
 
     void openBrace(BraceStyle style);

@@ -14,6 +14,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.SimpleType;
 
 public final class MetadataHelper {
     public static TypeReference findCommonSuperType(final TypeReference type1, final TypeReference type2) {
@@ -88,10 +89,32 @@ public final class MetadataHelper {
         VerifyArgument.notNull(target, "target");
 
         if (target.isPrimitive()) {
-            return MetadataResolver.areEquivalent(source, target);
+            final SimpleType targetSimpleType = target.getSimpleType();
+            final SimpleType sourceSimpleType = source.getSimpleType();
+
+            if (targetSimpleType == sourceSimpleType) {
+                return true;
+            }
+
+            if (sourceSimpleType == SimpleType.Boolean) {
+                return false;
+            }
+
+            if (targetSimpleType.isIntegral()) {
+                return sourceSimpleType.isIntegral() &&
+                       sourceSimpleType.bitWidth() <= targetSimpleType.bitWidth();
+            }
+
+            if (targetSimpleType.isFloating()) {
+                return sourceSimpleType.isFloating() &&
+                       sourceSimpleType.bitWidth() <= targetSimpleType.bitWidth();
+            }
+
+            return false;
         }
 
-        return isSubType(source, target);
+        return BuiltinTypes.Object.equals(target) ||
+               isSubType(source, target);
     }
 
     public static boolean isSubType(final TypeReference type, final TypeReference baseType) {

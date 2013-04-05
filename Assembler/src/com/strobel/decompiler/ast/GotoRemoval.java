@@ -39,6 +39,7 @@ final class GotoRemoval {
     };
 
     final Map<Node, Label> labels = new IdentityHashMap<>();
+    final Map<Label, Node> labelLookup = new IdentityHashMap<>();
     final Map<Node, Node> parentLookup = new IdentityHashMap<>();
     final Map<Node, Node> nextSibling = new IdentityHashMap<>();
 
@@ -58,6 +59,7 @@ final class GotoRemoval {
                 if (previousChild != null) {
                     if (previousChild instanceof Label) {
                         labels.put(child, (Label) previousChild);
+                        labelLookup.put((Label) previousChild, child);
                     }
                     nextSibling.put(previousChild, child);
                 }
@@ -141,10 +143,19 @@ final class GotoRemoval {
         visitedNodes.clear();
         visitedNodes.add(gotoExpression);
 
+        int loopDepth = 0;
         Node breakBlock = null;
 
         for (final Node parent : getParents(gotoExpression)) {
-            if (parent instanceof Loop || parent instanceof Switch) {
+            if (parent instanceof Loop) {
+                ++loopDepth;
+                if (target == exit(parent, visitedNodes)) {
+                    breakBlock = parent;
+                    break;
+                }
+            }
+            else if (parent instanceof Switch &&
+                     target == exit(parent, visitedNodes)) {
                 breakBlock = parent;
                 break;
             }
@@ -153,28 +164,39 @@ final class GotoRemoval {
         visitedNodes.clear();
         visitedNodes.add(gotoExpression);
 
-        if (breakBlock != null && target == exit(breakBlock, visitedNodes)) {
+        if (breakBlock != null) {
             gotoExpression.setCode(AstCode.LoopOrSwitchBreak);
-            gotoExpression.setOperand(null);
+            gotoExpression.setOperand(loopDepth > 1 ? gotoExpression.getOperand() : null);
             return true;
         }
 
+        loopDepth = 0;
         Loop continueBlock = null;
 
         for (final Node parent : getParents(gotoExpression)) {
             if (parent instanceof Loop) {
-                continueBlock = (Loop) parent;
-                break;
+                ++loopDepth;
+                if (target == enter(parent, visitedNodes)) {
+                    continueBlock = (Loop) parent;
+                    break;
+                }
             }
         }
 
         visitedNodes.clear();
         visitedNodes.add(gotoExpression);
 
-        if (continueBlock != null && target == enter(continueBlock, visitedNodes)) {
+        if (continueBlock != null) {
             gotoExpression.setCode(AstCode.LoopContinue);
-            gotoExpression.setOperand(null);
+            gotoExpression.setOperand(loopDepth > 1 ? gotoExpression.getOperand() : null);
             return true;
+        }
+
+        if (match(target, AstCode.Return)) {
+            gotoExpression.setCode(AstCode.Return);
+            gotoExpression.setOperand(null);
+            gotoExpression.getArguments().clear();
+            gotoExpression.getArguments().addAll(((Expression)target).clone().getArguments());
         }
 
         return false;

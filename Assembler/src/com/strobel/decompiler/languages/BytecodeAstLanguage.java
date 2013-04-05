@@ -176,13 +176,13 @@ public class BytecodeAstLanguage extends Language {
         final AstOptimizationStep[] steps = AstOptimizationStep.values();
         final BytecodeAstLanguage[] languages = new BytecodeAstLanguage[steps.length];
 
-        languages[0] = new BytecodeAstLanguage("BytecodeAst (Unoptimized)", false, steps[0]);
+        languages[0] = new BytecodeAstLanguage("Bytecode AST (Unoptimized)", false, steps[0]);
 
-        String nextName = "BytecodeAst (Variable Splitting)";
+        String nextName = "Bytecode AST (Variable Splitting)";
 
         for (int i = 1; i < languages.length; i++) {
             languages[i] = new BytecodeAstLanguage(nextName, true, steps[i - 1]);
-            nextName = "BytecodeAst (After " + steps[i - 1].name() + ")";
+            nextName = "Bytecode AST (After " + steps[i - 1].name() + ")";
         }
 
         return ArrayUtilities.asUnmodifiableList(languages);

@@ -13,7 +13,6 @@
 
 package com.strobel.decompiler.languages.java;
 
-import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
@@ -23,6 +22,7 @@ import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.ast.*;
+import sun.reflect.generics.tree.TypeArgument;
 
 import java.util.Stack;
 
@@ -76,13 +76,6 @@ public class TextOutputFormatter implements IOutputFormatter {
 
     @Override
     public void writeIdentifier(final String identifier) {
-        Object definition = getCurrentDefinition();
-
-        if (definition != null) {
-            output.writeDefinition(identifier, definition, false);
-            return;
-        }
-
         Object reference = getCurrentTypeReference();
 
         if (reference != null) {
@@ -94,6 +87,13 @@ public class TextOutputFormatter implements IOutputFormatter {
 
         if (reference != null) {
             output.writeReference(identifier, reference);
+            return;
+        }
+
+        Object definition = getCurrentDefinition();
+
+        if (definition != null) {
+            output.writeDefinition(identifier, definition, false);
             return;
         }
 
@@ -126,6 +126,7 @@ public class TextOutputFormatter implements IOutputFormatter {
 
     @Override
     public void writeToken(final String token) {
+/*
         final MemberReference member = getCurrentMemberReference();
         final AstNode node = nodeStack.peek();
 
@@ -135,6 +136,13 @@ public class TextOutputFormatter implements IOutputFormatter {
         else {
             output.write(token);
         }
+*/
+        output.write(token);
+    }
+
+    @Override
+    public void writeLiteral(final String value) {
+        output.writeLiteral(value);
     }
 
     @Override
@@ -181,7 +189,6 @@ public class TextOutputFormatter implements IOutputFormatter {
             case BannerStyle:
                 break;
         }
-
 
         output.writeLine("{");
         output.indent();
@@ -286,22 +293,54 @@ public class TextOutputFormatter implements IOutputFormatter {
             return null;
         }
 
+        Object definition;
+
         final AstNode node = nodeStack.peek();
 
         if (isDefinition(node)) {
-            return node.getUserData(Keys.MEMBER_REFERENCE);
+            definition = node.getUserData(Keys.TYPE_DEFINITION);
+
+            if (definition != null) {
+                return definition;
+            }
+
+            definition = node.getUserData(Keys.METHOD_DEFINITION);
+
+            if (definition != null) {
+                return definition;
+            }
+
+            definition = node.getUserData(Keys.FIELD_DEFINITION);
+
+            if (definition != null) {
+                return definition;
+            }
         }
 
-        final AstNode parent = node.getParent();
+        if (node.getRole() == Roles.IDENTIFIER) {
+            final AstNode parent = node.getParent();
 
-        if (parent == null) {
-            return null;
-        }
+            if (parent == null) {
+                return null;
+            }
 
-        final FieldDefinition field = parent.getUserData(Keys.FIELD_DEFINITION);
+            definition = parent.getUserData(Keys.TYPE_DEFINITION);
 
-        if (field != null) {
-            return parent.getUserData(Keys.MEMBER_REFERENCE);
+            if (definition != null) {
+                return definition;
+            }
+
+            definition = parent.getUserData(Keys.METHOD_DEFINITION);
+
+            if (definition != null) {
+                return definition;
+            }
+
+            definition = parent.getUserData(Keys.FIELD_DEFINITION);
+
+            if (definition != null) {
+                return definition;
+            }
         }
 
         return null;
@@ -309,7 +348,23 @@ public class TextOutputFormatter implements IOutputFormatter {
 
     private MemberReference getCurrentTypeReference() {
         final AstNode node = nodeStack.peek();
-        return node.getUserData(Keys.TYPE_REFERENCE);
+        final TypeReference typeReference = node.getUserData(Keys.TYPE_REFERENCE);
+
+        if (typeReference != null) {
+            return typeReference;
+        }
+
+        if (node instanceof Identifier) {
+            final AstNode parent = node.getParent();
+
+            if (parent instanceof TypeArgument ||
+                parent instanceof TypeParameterDeclaration) {
+
+                return parent.getUserData(Keys.TYPE_REFERENCE);
+            }
+        }
+
+        return null;
     }
 
     private MemberReference getCurrentMemberReference() {
@@ -320,6 +375,7 @@ public class TextOutputFormatter implements IOutputFormatter {
         if (member == null &&
             node.getRole() == Roles.TARGET_EXPRESSION &&
             (node.getParent() instanceof InvocationExpression || node.getParent() instanceof ObjectCreationExpression)) {
+
             member = node.getParent().getUserData(Keys.MEMBER_REFERENCE);
         }
 
@@ -328,13 +384,18 @@ public class TextOutputFormatter implements IOutputFormatter {
 
     private Object getCurrentLocalReference() {
         final AstNode node = nodeStack.peek();
-        final Variable variable = node.getUserData(Keys.VARIABLE);
+
+        Variable variable = node.getUserData(Keys.VARIABLE);
+
+        if (variable == null && node instanceof Identifier && node.getParent() != null) {
+            variable = node.getParent().getUserData(Keys.VARIABLE);
+        }
 
         if (variable != null) {
-            if (variable.getOriginalParameter() != null) {
+            if (variable.isParameter()) {
                 return variable.getOriginalParameter();
             }
-            return variable;
+            return variable.getOriginalVariable();
         }
 
         return null;
@@ -354,13 +415,18 @@ public class TextOutputFormatter implements IOutputFormatter {
         }
 
         if (node instanceof VariableInitializer || node instanceof CatchClause/* || node instanceof ForEachStatement*/) {
-            final Variable variable = node.getUserData(Keys.VARIABLE);
+            Variable variable = node.getUserData(Keys.VARIABLE);
+
+            if (variable == null && node.getParent() instanceof VariableDeclarationStatement) {
+                variable = node.getParent().getUserData(Keys.VARIABLE);
+            }
+
             if (variable != null) {
                 if (variable.getOriginalParameter() != null) {
                     return variable.getOriginalParameter();
                 }
 
-                return variable;
+                return variable.getOriginalVariable();
             }
         }
 

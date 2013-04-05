@@ -30,7 +30,9 @@ public abstract class AstType extends AstNode {
         return NodeType.TYPE_REFERENCE;
     }
 
-    public abstract TypeReference toTypeReference();
+    public TypeReference toTypeReference() {
+        return getUserData(Keys.TYPE_REFERENCE);
+    }
 
     // <editor-fold defaultstate="collapsed" desc="Null AstType">
 

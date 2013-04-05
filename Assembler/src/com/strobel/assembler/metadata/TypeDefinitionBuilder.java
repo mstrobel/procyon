@@ -1,16 +1,15 @@
-
 /*
- * TypeDefinitionBuilder.java
- *
- * Copyright (c) 2013 Mike Strobel
- *
- * This source code is subject to terms and conditions of the Apache License, Version 2.0.
- * A copy of the license can be found in the License.html file at the root of this distribution.
- * By using this source code in any fashion, you are agreeing to be bound by the terms of the
- * Apache License, Version 2.0.
- *
- * You must not remove this notice, or any other, from this software.
- */
+* TypeDefinitionBuilder.java
+*
+* Copyright (c) 2013 Mike Strobel
+*
+* This source code is subject to terms and conditions of the Apache License, Version 2.0.
+* A copy of the license can be found in the License.html file at the root of this distribution.
+* By using this source code in any fashion, you are agreeing to be bound by the terms of the
+* Apache License, Version 2.0.
+*
+* You must not remove this notice, or any other, from this software.
+*/
 
 package com.strobel.assembler.metadata;
 
@@ -32,8 +31,7 @@ import java.util.HashMap;
  * @author Mike Strobel
  */
 public class TypeDefinitionBuilder implements TypeVisitor {
-    private final ResolverFrame _resolverFrame;
-
+    private ResolverFrame _resolverFrame;
     private TypeDefinition _typeDefinition;
     private MetadataParser _parser;
     private int _genericContextCount = 0;
@@ -93,6 +91,7 @@ public class TypeDefinitionBuilder implements TypeVisitor {
 
                 for (final GenericParameter genericParameter : _typeDefinition.getGenericParametersInternal()) {
                     genericParameter.setDeclaringType(_typeDefinition);
+                    _resolverFrame.addTypeVariable(genericParameter);
                 }
             }
 
@@ -132,7 +131,18 @@ public class TypeDefinitionBuilder implements TypeVisitor {
             return;
         }
 
-        _typeDefinition.setDeclaringMethod(method);
+        final MethodDefinition resolvedMethod = method instanceof MethodDefinition
+                                                ? (MethodDefinition) method
+                                                : method.resolve();
+
+        if (resolvedMethod != null) {
+            if (!resolvedMethod.getDeclaredTypesInternal().contains(_typeDefinition)) {
+                resolvedMethod.getDeclaredTypesInternal().add(_typeDefinition);
+            }
+        }
+        else {
+            _typeDefinition.setDeclaringMethod(method);
+        }
 
         if (method.hasGenericParameters()) {
             _parser.pushGenericContext(method);
@@ -256,6 +266,8 @@ public class TypeDefinitionBuilder implements TypeVisitor {
         final IMethodSignature signature,
         final TypeReference... thrownTypes) {
 
+        final long modifiedFlags;
+
         final MethodDefinitionBuilder builder = new MethodDefinitionBuilder(
             _typeDefinition,
             flags,
@@ -277,7 +289,10 @@ public class TypeDefinitionBuilder implements TypeVisitor {
     @Override
     public void visitEnd() {
         try {
-            _parser.getResolver().popFrame();
+            if (_resolverFrame != null) {
+                _resolverFrame = null;
+                _parser.getResolver().popFrame();
+            }
         }
         finally {
             popGenericContexts();
@@ -323,10 +338,22 @@ public class TypeDefinitionBuilder implements TypeVisitor {
 
         @Override
         public TypeReference findTypeVariable(final String name) {
-            final GenericParameter type = typeVariables.get(name);
+            final GenericParameter typeVariable = typeVariables.get(name);
 
-            if (type != null) {
-                return type;
+            if (typeVariable != null) {
+                return typeVariable;
+            }
+
+            for (final String typeName : types.keySet()) {
+                final TypeReference t = types.get(typeName);
+
+                if (t.containsGenericParameters()) {
+                    for (final GenericParameter p : t.getGenericParameters()) {
+                        if (StringUtilities.equals(p.getName(), name)) {
+                            return p;
+                        }
+                    }
+                }
             }
 
             return null;

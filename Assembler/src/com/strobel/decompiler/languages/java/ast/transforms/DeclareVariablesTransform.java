@@ -43,7 +43,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
             if (replacedAssignment == null) {
                 final BlockStatement block = (BlockStatement) v.getInsertionPoint().getParent();
-                final boolean effectivelyFinal = getAssignmentCount(block, v.getName()) == 1;
+                final boolean effectivelyFinal = isSingleAssignment(v, block);
                 final VariableDeclarationStatement declaration = new VariableDeclarationStatement(v.getType().clone(), v.getName());
 
                 if (variable != null) {
@@ -72,10 +72,11 @@ public class DeclareVariablesTransform implements IAstTransform {
                 final Expression right = replacedAssignment.getRight();
 
                 right.remove();
-                right.putUserData(Keys.MEMBER_REFERENCE, replacedAssignment.getUserData(Keys.MEMBER_REFERENCE));
-                right.putUserData(Keys.VARIABLE, variable);
+                right.putUserDataIfAbsent(Keys.MEMBER_REFERENCE, replacedAssignment.getUserData(Keys.MEMBER_REFERENCE));
+                right.putUserDataIfAbsent(Keys.VARIABLE, variable);
 
                 initializer.setInitializer(right);
+                initializer.putUserData(Keys.VARIABLE, variable);
 
                 final VariableDeclarationStatement declaration = new VariableDeclarationStatement();
 
@@ -85,16 +86,16 @@ public class DeclareVariablesTransform implements IAstTransform {
                 final AstNode parent = replacedAssignment.getParent();
 
                 if (parent instanceof ExpressionStatement) {
-                    if (getAssignmentCount(parent.getParent(), v.getName()) == 1) {
+                    if (isSingleAssignment(v, parent.getParent())) {
                         declaration.addModifier(Modifier.FINAL);
                     }
 
-                    declaration.putUserData(Keys.MEMBER_REFERENCE, parent.getUserData(Keys.MEMBER_REFERENCE));
-                    declaration.putUserData(Keys.VARIABLE, parent.getUserData(Keys.VARIABLE));
+                    declaration.putUserDataIfAbsent(Keys.MEMBER_REFERENCE, parent.getUserData(Keys.MEMBER_REFERENCE));
+                    declaration.putUserData(Keys.VARIABLE, variable);
                     parent.replaceWith(declaration);
                 }
                 else {
-                    if (getAssignmentCount(parent, v.getName()) == 1) {
+                    if (isSingleAssignment(v, parent)) {
                         declaration.addModifier(Modifier.FINAL);
                     }
 
@@ -104,6 +105,12 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         variablesToDeclare.clear();
+    }
+
+    private boolean isSingleAssignment(final VariableToDeclare v, final AstNode scope) {
+        final IsSingleAssignmentVisitor isSingleAssignmentVisitor = new IsSingleAssignmentVisitor(v.getName());
+        scope.acceptVisitor(isSingleAssignmentVisitor, null);
+        return isSingleAssignmentVisitor.isSingleAssignment();
     }
 
     private void run(final AstNode node, final DefiniteAssignmentAnalysis daa) {
@@ -138,7 +145,7 @@ public class DeclareVariablesTransform implements IAstTransform {
             for (final VariableDeclarationStatement declaration : variables) {
                 final VariableInitializer initializer = declaration.getVariables().firstOrNullObject();
                 final String variableName = initializer.getName();
-                final Variable variable = initializer.getUserData(Keys.VARIABLE);
+                final Variable variable = declaration.getUserData(Keys.VARIABLE);
 
                 declareVariableInBlock(analysis, block, declaration.getType(), variableName, variable, true);
             }
@@ -368,35 +375,6 @@ public class DeclareVariablesTransform implements IAstTransform {
         return false;
     }
 
-    private static int getAssignmentCount(final AstNode node, final String variableName) {
-        int count = 0;
-
-        for (final AstNode d : node.getDescendantsAndSelf()) {
-            if (d instanceof AssignmentExpression) {
-                final AssignmentExpression assignment = (AssignmentExpression) d;
-                final Expression left = assignment.getLeft();
-
-                if (left instanceof IdentifierExpression &&
-                    StringUtilities.equals(((IdentifierExpression) left).getIdentifier(), variableName)) {
-
-                    ++count;
-                }
-            }
-            else if (d instanceof UnaryOperatorExpression) {
-                final UnaryOperatorExpression unary = (UnaryOperatorExpression) d;
-                final Expression operand = unary.getExpression();
-
-                if (operand instanceof IdentifierExpression &&
-                    StringUtilities.equals(((IdentifierExpression) operand).getIdentifier(), variableName)) {
-
-                    ++count;
-                }
-            }
-        }
-
-        return count;
-    }
-
     private static boolean hasNestedBlocks(final AstNode node) {
         return node instanceof CatchClause || node instanceof SwitchSection;
     }
@@ -454,8 +432,6 @@ public class DeclareVariablesTransform implements IAstTransform {
         private final Statement _insertionPoint;
         private final AssignmentExpression _replacedAssignment;
 
-        private boolean _effectivelyFinal;
-
         public VariableToDeclare(
             final AstType type,
             final String name,
@@ -502,14 +478,6 @@ public class DeclareVariablesTransform implements IAstTransform {
             return _insertionPoint;
         }
 
-        public boolean isEffectivelyFinal() {
-            return _effectivelyFinal;
-        }
-
-        public void setEffectivelyFinal(final boolean effectivelyFinal) {
-            _effectivelyFinal = effectivelyFinal;
-        }
-
         @Override
         public String toString() {
             return "VariableToDeclare{" +
@@ -518,8 +486,126 @@ public class DeclareVariablesTransform implements IAstTransform {
                    ", Variable=" + _variable +
                    ", InsertionPoint=" + _insertionPoint +
                    ", ReplacedAssignment=" + _replacedAssignment +
-                   ", EffectivelyFinal=" + _effectivelyFinal +
                    '}';
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="IsSingleAssignmentVisitor Class">
+
+    private final static class IsSingleAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
+        private final String _variableName;
+        private boolean _abort;
+        private int _loopDepth;
+        private int _assignmentCount;
+
+        IsSingleAssignmentVisitor(final String variableName) {
+            _variableName = variableName;
+        }
+
+        final boolean isSingleAssignment() {
+            return _assignmentCount < 2 && !_abort;
+        }
+
+        @Override
+        protected Boolean visitChildren(final AstNode node, final Void data) {
+            if (_abort) {
+                return Boolean.FALSE;
+            }
+            return super.visitChildren(node, data);
+        }
+
+        @Override
+        public Boolean visitForStatement(final ForStatement node, final Void _) {
+            ++_loopDepth;
+            try {
+                return super.visitForStatement(node, _);
+            }
+            finally {
+                --_loopDepth;
+            }
+        }
+
+        @Override
+        public Boolean visitForEachStatement(final ForEachStatement node, final Void _) {
+            ++_loopDepth;
+            try {
+                return super.visitForEachStatement(node, _);
+            }
+            finally {
+                --_loopDepth;
+            }
+        }
+
+        @Override
+        public Boolean visitDoWhileStatement(final DoWhileStatement node, final Void _) {
+            ++_loopDepth;
+            try {
+                return super.visitDoWhileStatement(node, _);
+            }
+            finally {
+                --_loopDepth;
+            }
+        }
+
+        @Override
+        public Boolean visitWhileStatement(final WhileStatement node, final Void _) {
+            ++_loopDepth;
+            try {
+                return super.visitWhileStatement(node, _);
+            }
+            finally {
+                --_loopDepth;
+            }
+        }
+
+        @Override
+        public Boolean visitAssignmentExpression(final AssignmentExpression node, final Void _) {
+            final Expression left = node.getLeft();
+
+            if (left instanceof IdentifierExpression &&
+                StringUtilities.equals(((IdentifierExpression) left).getIdentifier(), _variableName)) {
+
+                if (_loopDepth != 0) {
+                    _abort = true;
+                    return Boolean.FALSE;
+                }
+
+                ++_assignmentCount;
+            }
+
+            return super.visitAssignmentExpression(node, _);
+        }
+
+        @Override
+        public Boolean visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void _) {
+            final Expression operand = node.getExpression();
+
+            switch (node.getOperator()) {
+                case INCREMENT:
+                case DECREMENT:
+                case POST_INCREMENT:
+                case POST_DECREMENT: {
+                    if (operand instanceof IdentifierExpression &&
+                        StringUtilities.equals(((IdentifierExpression) operand).getIdentifier(), _variableName)) {
+
+                        if (_loopDepth != 0) {
+                            _abort = true;
+                            return Boolean.FALSE;
+                        }
+
+                        if (_assignmentCount == 0) {
+                            ++_assignmentCount;
+                        }
+
+                        ++_assignmentCount;
+                    }
+                    break;
+                }
+            }
+
+            return super.visitUnaryOperatorExpression(node, _);
         }
     }
 

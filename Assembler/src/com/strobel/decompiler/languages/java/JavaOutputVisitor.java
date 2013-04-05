@@ -1070,11 +1070,18 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         final MethodDefinition definition = node.getUserData(Keys.METHOD_DEFINITION);
 
         if (definition == null || !definition.isTypeInitializer()) {
+            final AstNodeCollection<TypeParameterDeclaration> typeParameters = node.getTypeParameters();
+
+            if (any(typeParameters)) {
+                space();
+                writeTypeParameters(typeParameters);
+                space();
+            }
+
             node.getReturnType().acceptVisitor(this, _);
             space();
             writePrivateImplementationType(node.getPrivateImplementationType());
             node.getNameToken().acceptVisitor(this, _);
-            writeTypeParameters(node.getTypeParameters());
             space(policy.SpaceBeforeMethodDeclarationParentheses);
             writeCommaSeparatedListInParenthesis(node.getParameters(), policy.SpaceWithinMethodDeclarationParentheses);
         }
@@ -1112,6 +1119,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         startNode(node);
         writeAttributes(node.getAnnotations());
         node.getNameToken().acceptVisitor(this, _);
+
+        final AstType extendsBound = node.getExtendsBound();
+
+        if (extendsBound != null && !extendsBound.isNull()) {
+            writeKeyword(Roles.EXTENDS_KEYWORD);
+            extendsBound.acceptVisitor(this, _);
+        }
+
         endNode(node);
         return null;
     }
@@ -1150,38 +1165,70 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitTypeDeclaration(final TypeDeclaration node, final Void _) {
         startNode(node);
-        writeAttributes(node.getAnnotations());
-        writeModifiers(node.getModifiers());
+
+        final TypeDefinition type = node.getUserData(Keys.TYPE_DEFINITION);
+
+        final boolean isTrulyAnonymous = type != null &&
+                                         type.isAnonymous() &&
+                                         node.getParent() instanceof AnonymousObjectCreationExpression;
+
+        if (!isTrulyAnonymous) {
+            writeAttributes(node.getAnnotations());
+            writeModifiers(node.getModifiers());
+
+            switch (node.getClassType()) {
+                case ENUM:
+                    writeKeyword(Roles.ENUM_KEYWORD);
+                    break;
+                case INTERFACE:
+                    writeKeyword(Roles.INTERFACE_KEYWORD);
+                    break;
+                case ANNOTATION:
+                    writeKeyword(Roles.ANNOTATION_KEYWORD);
+                    break;
+                default:
+                    writeKeyword(Roles.CLASS_KEYWORD);
+                    break;
+            }
+
+            node.getNameToken().acceptVisitor(this, _);
+            writeTypeParameters(node.getTypeParameters());
+
+            if (!node.getBaseType().isNull()) {
+                space();
+                writeKeyword(Roles.EXTENDS_KEYWORD);
+                space();
+                node.getBaseType().acceptVisitor(this, _);
+            }
+
+            if (any(node.getInterfaces())) {
+                space();
+                writeKeyword(Roles.IMPLEMENTS_KEYWORD);
+                space();
+                writeCommaSeparatedList(node.getInterfaces());
+            }
+        }
 
         final BraceStyle braceStyle;
 
         switch (node.getClassType()) {
             case ENUM:
-                writeKeyword(Roles.ENUM_KEYWORD);
                 braceStyle = policy.EnumBraceStyle;
                 break;
             case INTERFACE:
-                writeKeyword(Roles.INTERFACE_KEYWORD);
                 braceStyle = policy.InterfaceBraceStyle;
                 break;
             case ANNOTATION:
-                writeKeyword(Roles.ANNOTATION_KEYWORD);
                 braceStyle = policy.AnnotationBraceStyle;
                 break;
             default:
-                writeKeyword(Roles.CLASS_KEYWORD);
-                braceStyle = policy.ClassBraceStyle;
+                if (type != null && type.isAnonymous()) {
+                    braceStyle = policy.AnonymousClassBraceStyle;
+                }
+                else {
+                    braceStyle = policy.ClassBraceStyle;
+                }
                 break;
-        }
-
-        node.getNameToken().acceptVisitor(this, _);
-        writeTypeParameters(node.getTypeParameters());
-
-        if (any(node.getBaseTypes())) {
-            space();
-            writeToken(Roles.COLON);
-            space();
-            writeCommaSeparatedList(node.getBaseTypes());
         }
 
 //        for (final Constraint constraint : node.getConstraints()) {
@@ -1222,8 +1269,12 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 //        }
 
         closeBrace(braceStyle);
-        optionalSemicolon();
-        newLine();
+
+        if (type == null || !type.isAnonymous()) {
+            optionalSemicolon();
+            newLine();
+        }
+
         endNode(node);
         return null;
     }
@@ -1295,7 +1346,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public Void visitPrimitiveExpression(final PrimitiveExpression node, final Void _) {
         startNode(node);
         if (!StringUtilities.isNullOrEmpty(node.getLiteralValue())) {
-            formatter.writeToken(node.getLiteralValue());
+            formatter.writeLiteral(node.getLiteralValue());
         }
         else {
             writePrimitiveValue(node.getValue());
@@ -1321,11 +1372,11 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         if (val instanceof String) {
-            formatter.writeToken("\"" + convertString(val.toString()) + "\"");
+            formatter.writeLiteral("\"" + convertString(val.toString()) + "\"");
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Character) {
-            formatter.writeToken("'" + convertCharacter((Character) val) + "'");
+            formatter.writeLiteral("'" + convertCharacter((Character) val) + "'");
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Float) {
@@ -1344,7 +1395,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 }
                 return;
             }
-            formatter.writeToken(Float.toString(f) + "f");
+            formatter.writeLiteral(Float.toString(f) + "f");
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Double) {
@@ -1370,11 +1421,15 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 number += ".0";
             }
 
-            formatter.writeToken(number);
+            formatter.writeLiteral(number);
             lastWritten = LastWritten.KeywordOrIdentifier;
         }
+        else if (val instanceof Long) {
+            formatter.writeLiteral(String.valueOf(val) + "L");
+            lastWritten = LastWritten.Other;
+        }
         else {
-            formatter.writeToken(String.valueOf(val));
+            formatter.writeLiteral(String.valueOf(val));
             lastWritten = LastWritten.Other;
         }
     }
@@ -1565,6 +1620,44 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         node.getType().acceptVisitor(this, _);
         space(policy.SpaceBeforeMethodCallParentheses);
         writeCommaSeparatedListInParenthesis(node.getArguments(), policy.SpaceWithinMethodCallParentheses);
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitAnonymousObjectCreationExpression(final AnonymousObjectCreationExpression node, final Void _) {
+        startNode(node);
+        writeKeyword(ObjectCreationExpression.NEW_KEYWORD_ROLE);
+        node.getType().acceptVisitor(this, _);
+        space(policy.SpaceBeforeMethodCallParentheses);
+        writeCommaSeparatedListInParenthesis(node.getArguments(), policy.SpaceWithinMethodCallParentheses);
+        visitTypeDeclaration(node.getTypeDeclaration(), _);
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitWildcardType(final WildcardType node, final Void _) {
+        startNode(node);
+        writeToken(WildcardType.WILDCARD_TOKEN_ROLE);
+
+        final AstNodeCollection<AstType> extendsBounds = node.getExtendsBounds();
+
+        if (!extendsBounds.isEmpty()) {
+            space();
+            writeKeyword(WildcardType.EXTENDS_KEYWORD_ROLE);
+            writePipeSeparatedList(extendsBounds);
+        }
+        else {
+            final AstNodeCollection<AstType> superBounds = node.getSuperBounds();
+
+            if (!superBounds.isEmpty()) {
+                space();
+                writeKeyword(WildcardType.SUPER_KEYWORD_ROLE);
+                writePipeSeparatedList(superBounds);
+            }
+        }
+
         endNode(node);
         return null;
     }

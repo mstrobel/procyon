@@ -29,11 +29,14 @@ import com.strobel.decompiler.languages.java.ast.transforms.TransformationPipeli
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class AstBuilder {
     private final DecompilerContext _context;
     private final CompilationUnit _compileUnit = new CompilationUnit();
+    private final Map<String, TypeDeclaration> _typeDeclarations = new LinkedHashMap<>();
 
     private boolean _decompileMethodBodies = true;
     private boolean _haveTransformationsRun;
@@ -79,6 +82,12 @@ public final class AstBuilder {
     public final TypeDeclaration createType(final TypeDefinition type) {
         VerifyArgument.notNull(type, "type");
 
+        final TypeDeclaration existingDeclaration = _typeDeclarations.get(type.getInternalName());
+
+        if (existingDeclaration != null) {
+            return existingDeclaration;
+        }
+
         final ClasspathTypeLoader loader = new ClasspathTypeLoader();
         final Buffer buffer = new Buffer(0);
 
@@ -122,7 +131,9 @@ public final class AstBuilder {
         final List<ParameterDeclaration> declarations = new ArrayList<>();
 
         for (final ParameterDefinition p : parameters) {
-            declarations.add(new ParameterDeclaration(p.getName(), convertType(p.getParameterType())));
+            final ParameterDeclaration d = new ParameterDeclaration(p.getName(), convertType(p.getParameterType()));
+            d.putUserData(Keys.PARAMETER_DEFINITION, p);
+            declarations.add(d);
         }
 
         return Collections.unmodifiableList(declarations);
@@ -147,6 +158,20 @@ public final class AstBuilder {
             final SimpleType simpleType = new SimpleType(type.getSimpleName());
             simpleType.putUserData(Keys.TYPE_DEFINITION, type.resolve());
             return simpleType;
+        }
+
+        if (type.isWildcardType()) {
+            final WildcardType wildcardType = new WildcardType();
+
+            if (type.hasExtendsBound()) {
+                wildcardType.addChild(convertType(type.getExtendsBound()), Roles.EXTENDS_BOUND);
+            }
+            else if (type.hasSuperBound()) {
+                wildcardType.addChild(convertType(type.getSuperBound()), Roles.SUPER_BOUND);
+            }
+
+            wildcardType.putUserData(Keys.TYPE_REFERENCE, type);
+            return wildcardType;
         }
 
         final boolean includeTypeParameterDefinitions = options == null ||
@@ -184,8 +209,16 @@ public final class AstBuilder {
             return baseType;
         }
 
-        final String name = options == null || options.getIncludePackage() ? type.getFullName()
-                                                                           : type.getName();
+        final String name;
+
+        if (options == null || options.getIncludePackage()) {
+            final String packageName = type.getPackageName();
+            name = StringUtilities.isNullOrEmpty(packageName) ? type.getSimpleName()
+                                                              : packageName + "." + type.getSimpleName();
+        }
+        else {
+            name = type.getSimpleName();
+        }
 
         final SimpleType astType = new SimpleType(name);
 
@@ -205,6 +238,13 @@ public final class AstBuilder {
         if (!StringUtilities.isNullOrEmpty(packageName)) {
             astType.setPackage(new PackageDeclaration(packageName));
         }
+
+        _typeDeclarations.put(type.getInternalName(), astType);
+
+        EntityDeclaration.setModifiers(
+            astType,
+            Flags.asModifierSet(type.getFlags() & (Flags.ClassFlags | Flags.STATIC))
+        );
 
         astType.setName(type.getSimpleName());
         astType.putUserData(Keys.TYPE_DEFINITION, type);
@@ -236,7 +276,7 @@ public final class AstBuilder {
         }
 
         for (final TypeReference interfaceType : type.getExplicitInterfaces()) {
-            astType.addChild(convertType(interfaceType), Roles.BASE_TYPE);
+            astType.addChild(convertType(interfaceType), Roles.IMPLEMENTED_INTERFACE);
         }
 
         addTypeMembers(astType, type);
@@ -246,7 +286,9 @@ public final class AstBuilder {
 
     private void addTypeMembers(final TypeDeclaration astType, final TypeDefinition type) {
         for (final FieldDefinition field : type.getDeclaredFields()) {
-            astType.addChild(createField(field), Roles.TYPE_MEMBER);
+            if (!isMemberHidden(field, _context.getSettings())) {
+                astType.addChild(createField(field), Roles.TYPE_MEMBER);
+            }
         }
 
         for (final MethodDefinition method : type.getDeclaredMethods()) {
@@ -278,6 +320,8 @@ public final class AstBuilder {
 
         if (field.hasConstantValue()) {
             initializer.setInitializer(new PrimitiveExpression(field.getConstantValue()));
+            initializer.putUserData(Keys.FIELD_DEFINITION, field);
+            initializer.putUserData(Keys.MEMBER_REFERENCE, field);
         }
 
         return astField;
@@ -327,6 +371,11 @@ public final class AstBuilder {
         for (int i = 0; i < count; i++) {
             final GenericParameter genericParameter = genericParameters.get(i);
             final TypeParameterDeclaration typeParameter = new TypeParameterDeclaration(genericParameter.getName());
+
+            if (genericParameter.hasExtendsBound()) {
+                typeParameter.setExtendsBound(convertType(genericParameter.getExtendsBound()));
+            }
+
             typeParameter.putUserData(Keys.TYPE_REFERENCE, genericParameter);
             typeParameters[i] = typeParameter;
         }
@@ -341,7 +390,11 @@ public final class AstBuilder {
             final AstType[] typeArguments = new AstType[count];
 
             for (int i = 0; i < count; i++) {
-                typeArguments[i] = new SimpleType(genericParameters.get(i).getName());
+                final GenericParameter genericParameter = genericParameters.get(i);
+                final SimpleType typeParameter = new SimpleType(genericParameter.getName());
+
+                typeParameter.putUserData(Keys.TYPE_REFERENCE, genericParameter);
+                typeArguments[i] = typeParameter;
             }
 
             applyTypeArguments(astType, ArrayUtilities.asUnmodifiableList(typeArguments));
@@ -360,7 +413,7 @@ public final class AstBuilder {
         final Iterable<ParameterDeclaration> parameters) {
 
         if (_decompileMethodBodies) {
-            return AstMethodBodyBuilder.createMethodBody(method, _context, parameters);
+            return AstMethodBodyBuilder.createMethodBody(this, method, _context, parameters);
         }
 
         return null;
@@ -425,20 +478,8 @@ public final class AstBuilder {
         _compileUnit.acceptVisitor(new JavaOutputVisitor(output, _context.getSettings().getFormattingOptions()), null);
     }
 
-    public static boolean isMemberHidden(final MemberReference member, final DecompilerSettings settings) {
-        if (member instanceof MethodDefinition) {
-            if (settings.getShowSyntheticMembers()) {
-                return false;
-            }
-
-            final MethodDefinition method = (MethodDefinition) member;
-
-            if (Flags.testAny(method.getFlags(), Flags.ACC_BRIDGE | Flags.ACC_SYNTHETIC)) {
-                return true;
-            }
-        }
-
-        return false;
+    public static boolean isMemberHidden(final IMemberDefinition member, final DecompilerSettings settings) {
+        return member.isSynthetic() && !settings.getShowSyntheticMembers();
     }
 }
 

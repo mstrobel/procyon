@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
+import static com.strobel.core.CollectionUtilities.firstOrDefault;
 import static com.strobel.decompiler.ast.AstOptimizer.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
@@ -235,19 +236,15 @@ final class LoopsAndConditions {
                             trueLabel.set(falseLabel.get());
                             falseLabel.set(temp);
 
-                            if (match(condition.get(), AstCode.LogicalNot)) {
-                                condition.set(condition.get().getArguments().get(0));
-                            }
-                            else {
-                                final Expression notExpression = new Expression(AstCode.LogicalNot, null, condition.get());
-
-                                if (AstOptimizer.simplifyLogicalNotArgument(notExpression)) {
-                                    condition.set(notExpression.getArguments().get(0));
-                                }
-                                else {
-                                    condition.set(notExpression);
-                                }
-                            }
+                            condition.set(
+                                AstOptimizer.simplifyLogicalNot(
+                                    new Expression(
+                                        AstCode.LogicalNot,
+                                        null,
+                                        condition.get()
+                                    )
+                                )
+                            );
                         }
 
                         final ControlFlowNode postLoopTarget = labelsToNodes.get(falseLabel.get());
@@ -348,7 +345,7 @@ final class LoopsAndConditions {
         final Set<ControlFlowNode> result = new LinkedHashSet<>();
 
         while (!agenda.isEmpty()) {
-            final ControlFlowNode addNode = agenda.iterator().next();
+            final ControlFlowNode addNode = firstOrDefault(agenda);
 
             agenda.remove(addNode);
 
@@ -488,7 +485,6 @@ final class LoopsAndConditions {
                 final StrongBox<Label> falseLabel = new StrongBox<>();
 
                 if (matchLastAndBreak(block, AstCode.IfTrue, trueLabel, condition, falseLabel)) {
-/*
                     //
                     // Flip bodies since that seems to be the Java compiler tradition.
                     //
@@ -497,8 +493,16 @@ final class LoopsAndConditions {
 
                     trueLabel.set(falseLabel.get());
                     falseLabel.set(temp);
-                    condition.set(new Expression(AstCode.LogicalNot, null, condition.get()));
-*/
+
+                    condition.set(
+                        AstOptimizer.simplifyLogicalNot(
+                            new Expression(
+                                AstCode.LogicalNot,
+                                null,
+                                condition.get()
+                            )
+                        )
+                    );
 
                     //
                     // Convert IfTrue expression to Condition.
