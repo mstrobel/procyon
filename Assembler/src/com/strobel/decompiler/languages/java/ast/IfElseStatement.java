@@ -18,8 +18,8 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
 public class IfElseStatement extends Statement {
-    public final static TokenRole IF_KEYWORD_ROLE = new TokenRole("if");
-    public final static TokenRole ELSE_KEYWORD_ROLE = new TokenRole("else");
+    public final static TokenRole IF_KEYWORD_ROLE = new TokenRole("if", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole ELSE_KEYWORD_ROLE = new TokenRole("else", TokenRole.FLAG_KEYWORD);
     public final static Role<Expression> CONDITION_ROLE = Roles.CONDITION;
     public final static Role<Statement> TRUE_ROLE = new Role<>("True", Statement.class, Statement.NULL);
     public final static Role<Statement> FALSE_ROLE = new Role<>("False", Statement.class, Statement.NULL);

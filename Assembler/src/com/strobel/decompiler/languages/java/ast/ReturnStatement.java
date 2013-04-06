@@ -17,7 +17,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class ReturnStatement extends Statement {
-    public final static TokenRole RETURN_KEYWORD_ROLE = new TokenRole("return");
+    public final static TokenRole RETURN_KEYWORD_ROLE = new TokenRole("return", TokenRole.FLAG_KEYWORD);
 
     public ReturnStatement() {
     }

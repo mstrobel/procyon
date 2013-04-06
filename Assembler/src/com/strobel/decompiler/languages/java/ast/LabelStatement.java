@@ -25,19 +25,19 @@ public class LabelStatement extends Statement {
     }
 
     public final String getLabel() {
-        return getChildByRole(Roles.IDENTIFIER).getName();
+        return getChildByRole(Roles.LABEL).getName();
     }
 
     public final void setLabel(final String value) {
-        setChildByRole(Roles.IDENTIFIER, Identifier.create(value));
+        setChildByRole(Roles.LABEL, Identifier.create(value));
     }
 
     public final Identifier getLabelToken() {
-        return getChildByRole(Roles.IDENTIFIER);
+        return getChildByRole(Roles.LABEL);
     }
 
     public final void setLabelToken(final Identifier value) {
-        setChildByRole(Roles.IDENTIFIER, value);
+        setChildByRole(Roles.LABEL, value);
     }
 
     public final JavaTokenNode getColonToken() {

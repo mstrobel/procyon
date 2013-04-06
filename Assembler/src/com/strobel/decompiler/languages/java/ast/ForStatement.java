@@ -18,7 +18,7 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
 public class ForStatement extends Statement {
-    public final static TokenRole FOR_KEYWORD_ROLE = new TokenRole("for");
+    public final static TokenRole FOR_KEYWORD_ROLE = new TokenRole("for", TokenRole.FLAG_KEYWORD);
     public final static Role<Statement> INITIALIZER_ROLE = new Role<>("Initializer", Statement.class, Statement.NULL);
     public final static Role<Statement> ITERATOR_ROLE = new Role<>("Iterator", Statement.class, Statement.NULL);
 

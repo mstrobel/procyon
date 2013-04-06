@@ -13,12 +13,17 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.patterns.Role;
 
 public final class TokenRole extends Role<JavaTokenNode> {
+    public final static byte FLAG_KEYWORD = 0x01;
+    public final static byte FLAG_OPERATOR = 0x02;
+
     private final String _token;
     private final int _length;
+    private final byte _flags;
 
     public final String getToken() {
         return _token;
@@ -28,10 +33,23 @@ public final class TokenRole extends Role<JavaTokenNode> {
         return _length;
     }
 
+    public final boolean isKeyword() {
+        return Flags.testAny(_flags, FLAG_KEYWORD);
+    }
+
+    public final boolean isOperator() {
+        return Flags.testAny(_flags, FLAG_OPERATOR);
+    }
+
     public TokenRole(final String token) {
+        this(token, 0);
+    }
+
+    public TokenRole(final String token, final int flags) {
         super(token, JavaTokenNode.class, JavaTokenNode.NULL);
 
         _token = VerifyArgument.notNull(token, "token");
         _length = token.length();
+        _flags = (byte) (flags & 0xFF);
     }
 }

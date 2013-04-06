@@ -13,15 +13,14 @@
 
 package com.strobel.decompiler;
 
+import com.beust.jcommander.JCommander;
 import com.sampullara.cli.Args;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
-import com.strobel.decompiler.languages.Language;
 import com.strobel.decompiler.languages.Languages;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
-import com.strobel.util.ContractUtils;
 
 import java.util.List;
 
@@ -58,19 +57,23 @@ public final class Decompiler {
     public static void main(final String[] args) {
         final PlainTextOutput printer = new AnsiTextOutput();
         final CommandLineOptions options = new CommandLineOptions();
+        final JCommander jCommander;
         final List<String> typeNames;
 
         try {
-            typeNames = Args.parse(options, args);
+            jCommander = new JCommander(options);
+            jCommander.setAllowAbbreviatedOptions(true);
+            jCommander.parse(args);
+            typeNames = options.getClassNames();
         }
         catch (Throwable t) {
             System.err.println(t.getMessage());
             System.exit(-1);
-            throw ContractUtils.unreachable();
+            return;
         }
 
         if (options.getPrintUsage()) {
-            printUsageAndExit(options);
+            jCommander.usage();
             return;
         }
 
@@ -78,7 +81,11 @@ public final class Decompiler {
 
         settings.setAlwaysGenerateExceptionVariableForCatchBlocks(options.getAlwaysGenerateExceptionVariableForCatchBlocks());
         settings.setShowSyntheticMembers(options.getShowSyntheticMembers());
-        settings.setLanguage(decodeLanguage(options.getLanguage()));
+        
+        if (options.isBytecodeAst()) {
+            settings.setLanguage(options.isUnoptimized() ? Languages.bytecodeAstUnoptimized()
+                                                         : Languages.bytecodeAst());
+        }
 
         if (typeNames.isEmpty()) {
             decompile("com/strobel/decompiler/Decompiler", printer, settings);
@@ -90,47 +97,5 @@ public final class Decompiler {
         }
 
         System.out.print(printer.toString());
-    }
-
-    private static void printUsageAndExit(final CommandLineOptions options) {
-        Args.usage(options);
-        printLanguages();
-    }
-
-    private static Language decodeLanguage(final String language) {
-        int languageIndex = -1;
-
-        if (language != null) {
-            try {
-                languageIndex = Integer.parseInt(language) - 1;
-            }
-            catch (NumberFormatException e) {
-                System.err.printf("Invalid language selection: %d.\n", languageIndex + 1);
-                System.exit(-1);
-            }
-        }
-
-        if (languageIndex >= 0) {
-            if (languageIndex < Languages.all().size()) {
-                return Languages.all().get(languageIndex);
-            }
-            else {
-                System.err.printf("Invalid language selection: %d.\n", languageIndex + 1);
-                System.exit(-1);
-            }
-        }
-
-        return Languages.java();
-    }
-
-    private static void printLanguages() {
-        System.out.printf("\nAvailable Languages:\n");
-
-        final List<Language> all = Languages.all();
-
-        for (int i = 0; i < all.size(); i++) {
-            final Language language = all.get(i);
-            System.out.printf("  %d) %s\n", i + 1, language.getName());
-        }
     }
 }

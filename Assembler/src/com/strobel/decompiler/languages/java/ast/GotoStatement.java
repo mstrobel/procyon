@@ -18,7 +18,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class GotoStatement extends Statement {
-    public final static TokenRole GOTO_KEYWORD_ROLE = new TokenRole("goto");
+    public final static TokenRole GOTO_KEYWORD_ROLE = new TokenRole("goto", TokenRole.FLAG_KEYWORD);
 
     public GotoStatement() {
     }

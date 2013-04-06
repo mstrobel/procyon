@@ -18,10 +18,10 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
 public class TryCatchStatement extends Statement {
-    public static final TokenRole TRY_KEYWORD_ROLE = new TokenRole("try");
+    public static final TokenRole TRY_KEYWORD_ROLE = new TokenRole("try", TokenRole.FLAG_KEYWORD);
     public static final Role<BlockStatement> TRY_BLOCK_ROLE = new Role<>("TryBlock", BlockStatement.class, BlockStatement.NULL);
     public static final Role<CatchClause> CATCH_CLAUSE_ROLE = new Role<>("CatchClause", CatchClause.class);
-    public static final TokenRole FINALLY_KEYWORD_ROLE = new TokenRole("finally");
+    public static final TokenRole FINALLY_KEYWORD_ROLE = new TokenRole("finally", TokenRole.FLAG_KEYWORD);
     public static final Role<BlockStatement> FINALLY_BLOCK_ROLE = new Role<>("FinallyBlock", BlockStatement.class, BlockStatement.NULL);
 
     public final JavaTokenNode getTryToken() {

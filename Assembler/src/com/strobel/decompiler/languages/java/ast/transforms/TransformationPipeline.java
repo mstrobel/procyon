@@ -22,6 +22,7 @@ public final class TransformationPipeline {
     public static IAstTransform[] createPipeline(final DecompilerContext context) {
         return new IAstTransform[] {
             new PatternStatementTransform(context),
+            new BreakTargetRelocation(),
             new DeclareVariablesTransform(context)
         };
     }

@@ -28,6 +28,7 @@ public interface ITextOutput {
 
     void writeLabel(final String value);
     void writeLiteral(final Object value);
+    void writeTextLiteral(final Object value);
 
     void writeComment(final String value);
     void writeComment(final String format, final Object... args);
@@ -37,6 +38,7 @@ public interface ITextOutput {
     void writeLine(final String format, final Object... args);
     void writeLine();
 
+    void writeOperator(final String text);
     void writeKeyword(final String text);
 
     void writeDefinition(final String text, final Object definition);

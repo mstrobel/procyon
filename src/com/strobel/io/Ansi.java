@@ -84,8 +84,72 @@ public class Ansi {
         BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE
     }
 
+    public final static class AnsiColor {
+        public final static AnsiColor BLACK = new AnsiColor(Color.BLACK);
+        public final static AnsiColor RED = new AnsiColor(Color.RED);
+        public final static AnsiColor GREEN = new AnsiColor(Color.GREEN);
+        public final static AnsiColor YELLOW = new AnsiColor(Color.YELLOW);
+        public final static AnsiColor BLUE = new AnsiColor(Color.BLUE);
+        public final static AnsiColor MAGENTA = new AnsiColor(Color.MAGENTA);
+        public final static AnsiColor CYAN = new AnsiColor(Color.CYAN);
+        public final static AnsiColor WHITE = new AnsiColor(Color.WHITE);
+
+        private final int _colorIndex;
+        private final Color _standardColor;
+
+        public AnsiColor(final int colorIndex) {
+            _colorIndex = colorIndex;
+            _standardColor = null;
+        }
+
+        public AnsiColor(final Color standardColor) {
+            _colorIndex = -1;
+            _standardColor = standardColor;
+        }
+
+        public final int getColorIndex() {
+            return _colorIndex;
+        }
+
+        public final boolean isStandardColor() {
+            return _standardColor != null;
+        }
+
+        public final Color getStandardColor() {
+            return _standardColor;
+        }
+
+        public static AnsiColor forStandardColor(final Color color) {
+            if (color == null) {
+                return null;
+            }
+
+            switch (color) {
+                case BLACK:
+                    return BLACK;
+                case RED:
+                    return RED;
+                case GREEN:
+                    return GREEN;
+                case YELLOW:
+                    return YELLOW;
+                case BLUE:
+                    return BLUE;
+                case MAGENTA:
+                    return MAGENTA;
+                case CYAN:
+                    return CYAN;
+                case WHITE:
+                    return WHITE;
+                default:
+                    return new AnsiColor(color);
+            }
+        }
+    }
+
     private static final String PREFIX = "\u001b["; //NOI18N
     private static final String SUFFIX = "m";
+    private static final String XTERM_256_SEPARATOR = "5;";
     private static final String SEPARATOR = ";";
     private static final String END = PREFIX + SUFFIX;
 
@@ -99,6 +163,17 @@ public class Ansi {
      * @param background background color of text, null means don't change
      */
     public Ansi(final Attribute attr, final Color foreground, final Color background) {
+        init(attr, AnsiColor.forStandardColor(foreground), AnsiColor.forStandardColor(background));
+    }
+
+    /**
+     * Creates new instanceof Ansi.
+     *
+     * @param attr attribute of text, null means don't change
+     * @param foreground foreground color of text, null means don't change
+     * @param background background color of text, null means don't change
+     */
+    public Ansi(final Attribute attr, final AnsiColor foreground, final AnsiColor background) {
         init(attr, foreground, background);
     }
 
@@ -146,10 +221,10 @@ public class Ansi {
             e.printStackTrace();
         }
 
-        init(attribute, foreground, background);
+        init(attribute, AnsiColor.forStandardColor(foreground), AnsiColor.forStandardColor(background));
     }
 
-    private void init(final Attribute attr, final Color foreground, final Color background) {
+    private void init(final Attribute attr, final AnsiColor foreground, final AnsiColor background) {
         final StringBuilder buff = new StringBuilder();
 
         if (attr != null) {
@@ -160,13 +235,23 @@ public class Ansi {
             if (buff.length() > 0) {
                 buff.append(SEPARATOR);
             }
-            buff.append(30 + foreground.ordinal());
+            if (foreground.isStandardColor()) {
+                buff.append(30 + foreground._standardColor.ordinal());
+            }
+            else {
+                buff.append(38).append(SEPARATOR).append(XTERM_256_SEPARATOR).append(foreground._colorIndex);
+            }
         }
         if (background != null) {
             if (buff.length() > 0) {
                 buff.append(SEPARATOR);
             }
-            buff.append(40 + background.ordinal());
+            if (background.isStandardColor()) {
+                buff.append(40 + background._standardColor.ordinal());
+            }
+            else {
+                buff.append(48).append(SEPARATOR).append(XTERM_256_SEPARATOR).append(background._colorIndex);
+            }
         }
         buff.insert(0, PREFIX);
         buff.append(SUFFIX);

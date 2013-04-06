@@ -103,6 +103,11 @@ public class PlainTextOutput implements ITextOutput {
     }
 
     @Override
+    public void writeTextLiteral(final Object value) {
+        write(String.valueOf(value));
+    }
+
+    @Override
     public void writeComment(final String value) {
         write(value);
     }
@@ -141,6 +146,11 @@ public class PlainTextOutput implements ITextOutput {
         _needsIndent = true;
         ++_line;
         _column = 1;
+    }
+
+    @Override
+    public void writeOperator(final String text) {
+        write(text);
     }
 
     @Override

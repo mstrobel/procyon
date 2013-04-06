@@ -312,17 +312,6 @@ public enum AstCode {
         return StringUtilities.trimAndRemoveLeft(name().toLowerCase(), "__");
     }
 
-    public final boolean isLogical() {
-        switch (this) {
-            case LogicalNot:
-            case LogicalAnd:
-            case LogicalOr:
-                return true;
-
-            default:
-                return false;
-        }
-    }
     public final boolean isComparison() {
         switch (this) {
             case CmpEq:
@@ -331,6 +320,18 @@ public enum AstCode {
             case CmpGt:
             case CmpGe:
             case CmpLt:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public final boolean isLogical() {
+        switch (this) {
+            case LogicalNot:
+            case LogicalAnd:
+            case LogicalOr:
                 return true;
 
             default:

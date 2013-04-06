@@ -16,9 +16,12 @@ package com.strobel.decompiler.languages.java.ast;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
+import javax.lang.model.element.Modifier;
+import java.util.List;
+
 public class ForEachStatement extends Statement {
     public final static TokenRole FOR_KEYWORD_ROLE = ForStatement.FOR_KEYWORD_ROLE;
-    public final static TokenRole COLON_ROLE = Roles.COLON;
+    public final static TokenRole COLON_ROLE = new TokenRole(":", TokenRole.FLAG_OPERATOR);
 
     public final JavaTokenNode getForToken() {
         return getChildByRole(FOR_KEYWORD_ROLE);
@@ -54,6 +57,22 @@ public class ForEachStatement extends Statement {
 
     public final void setVariableNameToken(final Identifier value) {
         setChildByRole(Roles.IDENTIFIER, value);
+    }
+
+    public final List<Modifier> getVariableModifiers() {
+        return EntityDeclaration.getModifiers(this);
+    }
+
+    public final void addVariableModifier(final Modifier modifier) {
+        EntityDeclaration.addModifier(this, modifier);
+    }
+
+    public final void removeVariableModifier(final Modifier modifier) {
+        EntityDeclaration.removeModifier(this, modifier);
+    }
+
+    public final void setVariableModifiers(final List<Modifier> modifiers) {
+        EntityDeclaration.setModifiers(this, modifiers);
     }
 
     public final JavaTokenNode getLeftParenthesisToken() {

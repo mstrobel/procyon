@@ -1369,16 +1369,7 @@ public final class AstOptimizer {
 
                     condition.setTrueBlock(condition.getFalseBlock());
                     condition.setFalseBlock(temp);
-
-                    condition.setCondition(
-                        simplifyLogicalNot(
-                            new Expression(
-                                AstCode.LogicalNot,
-                                null,
-                                conditionExpression
-                            )
-                        )
-                    );
+                    condition.setCondition(simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, conditionExpression)));
                 }
             }
         }
@@ -1671,9 +1662,10 @@ public final class AstOptimizer {
                 arguments = e.getArguments();
             }
             else {
-                if (simplifyLogicalNotArgument(e)) {
+                if (simplifyLogicalNotArgument(a)) {
                     result = e = a;
                     arguments = e.getArguments();
+                    modified.set(true);
                 }
                 break;
             }
@@ -1692,30 +1684,44 @@ public final class AstOptimizer {
     }
 
     static boolean simplifyLogicalNotArgument(final Expression e) {
-        final Expression a = e.getArguments().get(0);
+        if (!canSimplifyLogicalNotArgument(e)) {
+            return false;
+        }
 
         final AstCode c;
 
-        switch (a.getCode()) {
+        switch (e.getCode()) {
             case CmpEq:
             case CmpNe:
             case CmpLt:
             case CmpGe:
             case CmpGt:
             case CmpLe:
-                c = a.getCode().reverse();
+                c = e.getCode().reverse();
                 break;
+
+            case LogicalNot:
+                final Expression a = e.getArguments().get(0);
+                e.setCode(a.getCode());
+                e.setOperand(a.getOperand());
+                e.getArguments().clear();
+                e.getArguments().addAll(a.getArguments());
+                e.getRanges().addAll(a.getRanges());
+                return true;
 
             case LogicalAnd:
             case LogicalOr:
-                final List<Expression> arguments = a.getArguments();
+                final List<Expression> arguments = e.getArguments();
+                final AstCode leftCode = arguments.get(0).getCode();
+                final AstCode rightCode = arguments.get(1).getCode();
 
-                if (arguments.get(0).getCode().isComparison() &&
-                    arguments.get(1).getCode().isComparison()) {
+                if ((leftCode.isComparison() || leftCode.isLogical()) &&
+                    (rightCode.isComparison() || rightCode.isLogical())) {
 
-                    arguments.get(0).setCode(arguments.get(0).getCode().reverse());
-                    arguments.get(1).setCode(arguments.get(1).getCode().reverse());
-                    a.setCode(a.getCode().reverse());
+                    simplifyLogicalNotArgument(arguments.get(0));
+                    simplifyLogicalNotArgument(arguments.get(1));
+
+                    e.setCode(e.getCode().reverse());
 
                     return true;
                 }
@@ -1726,10 +1732,33 @@ public final class AstOptimizer {
                 return false;
         }
 
-        a.setCode(c);
-        a.getRanges().addAll(e.getRanges());
+        e.setCode(c);
 
         return true;
+    }
+
+    private static boolean canSimplifyLogicalNotArgument(final Expression e) {
+        switch (e.getCode()) {
+            case CmpEq:
+            case CmpNe:
+            case CmpLt:
+            case CmpGe:
+            case CmpGt:
+            case CmpLe:
+                return true;
+
+            case LogicalNot:
+                return true;
+
+            case LogicalAnd:
+            case LogicalOr:
+                final List<Expression> arguments = e.getArguments();
+                return canSimplifyLogicalNotArgument(arguments.get(0)) &&
+                       canSimplifyLogicalNotArgument(arguments.get(1));
+
+            default:
+                return false;
+        }
     }
 
     // </editor-fold>

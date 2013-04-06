@@ -13,28 +13,54 @@
 
 package com.strobel.decompiler;
 
-import com.sampullara.cli.Argument;
+import com.beust.jcommander.Parameter;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class CommandLineOptions {
-    private boolean _printUsage;
-    private boolean _showSyntheticMembers;
-    private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
-    private String _language;
+    @Parameter(description = "<class names>")
+    private final List<String> _classNames = new ArrayList<>();
 
-    public final String getLanguage() {
-        return _language;
+    @Parameter(names = { "-?", "--help" }, help = true, description = "Display this usage information and exit.")
+    private boolean _printUsage;
+
+    @Parameter(names = { "-s", "--show-synthetic" }, description = "Show synthetic (compiler-generated) members.")
+    private boolean _showSyntheticMembers;
+
+    @Parameter(names = { "-ev", "--exception-variables" }, description = "Always generate exception variables for catch blocks.")
+    private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
+
+    @Parameter(names = { "-b", "--bytecode-ast" }, description = "Output Bytecode AST instead of Java.")
+    private boolean _bytecodeAst;
+
+    @Parameter(names = { "-u", "--unoptimized" }, description = "Show unoptimized code (only in combination with -b).")
+    private boolean _unoptimized;
+
+    public final List<String> getClassNames() {
+        return _classNames;
     }
 
-    @Argument(value = "l", description = "Specify output language.")
-    public final void setLanguage(final String language) {
-        _language = language;
+    public final boolean isBytecodeAst() {
+        return _bytecodeAst;
+    }
+
+    public final void setBytecodeAst(final boolean bytecodeAst) {
+        _bytecodeAst = bytecodeAst;
+    }
+
+    public final boolean isUnoptimized() {
+        return _unoptimized;
+    }
+
+    public final void setUnoptimized(final boolean unoptimized) {
+        _unoptimized = unoptimized;
     }
 
     public final boolean getShowSyntheticMembers() {
         return _showSyntheticMembers;
     }
 
-    @Argument(value = "s", description = "Show synthetic (compiler-generated) members.")
     public final void setShowSyntheticMembers(final boolean showSyntheticMembers) {
         _showSyntheticMembers = showSyntheticMembers;
     }
@@ -43,7 +69,6 @@ public class CommandLineOptions {
         return _printUsage;
     }
 
-    @Argument(value = "?", description = "Display this usage information and exit.")
     public final void setPrintUsage(final boolean printUsage) {
         _printUsage = printUsage;
     }
@@ -52,8 +77,7 @@ public class CommandLineOptions {
         return _alwaysGenerateExceptionVariableForCatchBlocks;
     }
 
-    @Argument(value = "ev", description = "Always generate exception variables for catch blocks.")
-    public final void setAlwaysGenerateExceptionVariableForCatchBlocks(final boolean value) {
-        _alwaysGenerateExceptionVariableForCatchBlocks = value;
+    public final void setAlwaysGenerateExceptionVariableForCatchBlocks(final boolean names) {
+        _alwaysGenerateExceptionVariableForCatchBlocks = names;
     }
 }

@@ -75,6 +75,11 @@ public class TextOutputFormatter implements IOutputFormatter {
     }
 
     @Override
+    public void writeLabel(final String label) {
+        output.writeLabel(label);
+    }
+
+    @Override
     public void writeIdentifier(final String identifier) {
         Object reference = getCurrentTypeReference();
 
@@ -125,6 +130,11 @@ public class TextOutputFormatter implements IOutputFormatter {
     }
 
     @Override
+    public void writeOperator(final String token) {
+        output.writeOperator(token);
+    }
+
+    @Override
     public void writeToken(final String token) {
 /*
         final MemberReference member = getCurrentMemberReference();
@@ -143,6 +153,11 @@ public class TextOutputFormatter implements IOutputFormatter {
     @Override
     public void writeLiteral(final String value) {
         output.writeLiteral(value);
+    }
+
+    @Override
+    public void writeTextLiteral(final String value) {
+        output.writeTextLiteral(value);
     }
 
     @Override

@@ -17,7 +17,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class InstanceOfExpression extends Expression {
-    public final static TokenRole INSTANCE_OF_KEYWORD_ROLE = new TokenRole("instanceof");
+    public final static TokenRole INSTANCE_OF_KEYWORD_ROLE = new TokenRole("instanceof", TokenRole.FLAG_KEYWORD | TokenRole.FLAG_OPERATOR);
 
     public InstanceOfExpression() {
     }

@@ -17,7 +17,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class ThrowStatement extends Statement {
-    public final static TokenRole THROW_KEYWORD_ROLE = new TokenRole("throw");
+    public final static TokenRole THROW_KEYWORD_ROLE = new TokenRole("throw", TokenRole.FLAG_KEYWORD);
 
     public ThrowStatement() {
     }

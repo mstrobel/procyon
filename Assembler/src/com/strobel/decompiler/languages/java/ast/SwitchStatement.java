@@ -18,7 +18,7 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
 public class SwitchStatement extends Statement {
-    public final static TokenRole SWITCH_KEYWORD_ROLE = new TokenRole("switch");
+    public final static TokenRole SWITCH_KEYWORD_ROLE = new TokenRole("switch", TokenRole.FLAG_KEYWORD);
     public final static Role<SwitchSection> SWITCH_SECTION_ROLE = new Role<>("SwitchSection", SwitchSection.class);
 
     public SwitchStatement() {

@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
 import static com.strobel.decompiler.ast.AstOptimizer.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
@@ -235,16 +234,7 @@ final class LoopsAndConditions {
 
                             trueLabel.set(falseLabel.get());
                             falseLabel.set(temp);
-
-                            condition.set(
-                                AstOptimizer.simplifyLogicalNot(
-                                    new Expression(
-                                        AstCode.LogicalNot,
-                                        null,
-                                        condition.get()
-                                    )
-                                )
-                            );
+                            condition.set(AstOptimizer.simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.get())));
                         }
 
                         final ControlFlowNode postLoopTarget = labelsToNodes.get(falseLabel.get());
@@ -345,7 +335,7 @@ final class LoopsAndConditions {
         final Set<ControlFlowNode> result = new LinkedHashSet<>();
 
         while (!agenda.isEmpty()) {
-            final ControlFlowNode addNode = firstOrDefault(agenda);
+            final ControlFlowNode addNode = agenda.iterator().next();
 
             agenda.remove(addNode);
 
@@ -493,16 +483,7 @@ final class LoopsAndConditions {
 
                     trueLabel.set(falseLabel.get());
                     falseLabel.set(temp);
-
-                    condition.set(
-                        AstOptimizer.simplifyLogicalNot(
-                            new Expression(
-                                AstCode.LogicalNot,
-                                null,
-                                condition.get()
-                            )
-                        )
-                    );
+                    condition.set(AstOptimizer.simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.get())));
 
                     //
                     // Convert IfTrue expression to Condition.

@@ -9,6 +9,7 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="Expressions" />
+    <orderEntry type="library" name="com.beust:jcommander:1.30" level="project" />
   </component>
   <component name="POM File Configuration" pomFile="" />
 </module>

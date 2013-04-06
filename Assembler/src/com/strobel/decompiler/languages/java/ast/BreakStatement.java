@@ -18,7 +18,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class BreakStatement extends Statement {
-    public final static TokenRole BREAK_KEYWORD_ROLE = new TokenRole("break");
+    public final static TokenRole BREAK_KEYWORD_ROLE = new TokenRole("break", TokenRole.FLAG_KEYWORD);
 
     public BreakStatement() {
     }

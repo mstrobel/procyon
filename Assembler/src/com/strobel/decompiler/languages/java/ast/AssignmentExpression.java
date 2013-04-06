@@ -21,19 +21,19 @@ public class AssignmentExpression extends Expression {
     public final static Role<Expression> LEFT_ROLE = BinaryOperatorExpression.LEFT_ROLE;
     public final static Role<Expression> RIGHT_ROLE = BinaryOperatorExpression.RIGHT_ROLE;
 
-    public final static TokenRole ASSIGN_ROLE = new TokenRole("=");
-    public final static TokenRole ADD_ROLE = new TokenRole("+=");
-    public final static TokenRole SUBTRACT_ROLE = new TokenRole("-=");
-    public final static TokenRole MULTIPLY_ROLE = new TokenRole("*=");
-    public final static TokenRole DIVIDE_ROLE = new TokenRole("/=");
-    public final static TokenRole MODULUS_ROLE = new TokenRole("%=");
-    public final static TokenRole SHIFT_LEFT_ROLE = new TokenRole("<<=");
-    public final static TokenRole SHIFT_RIGHT_ROLE = new TokenRole(">>=");
-    public final static TokenRole UNSIGNED_SHIFT_RIGHT_ROLE = new TokenRole(">>>=");
-    public final static TokenRole BITWISE_AND_ROLE = new TokenRole("&=");
-    public final static TokenRole BITWISE_OR_ROLE = new TokenRole("|=");
-    public final static TokenRole EXCLUSIVE_OR_ROLE = new TokenRole("^=");
-    public final static TokenRole ANY_ROLE = new TokenRole("(assign)");
+    public final static TokenRole ASSIGN_ROLE = new TokenRole("=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole ADD_ROLE = new TokenRole("+=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole SUBTRACT_ROLE = new TokenRole("-=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole MULTIPLY_ROLE = new TokenRole("*=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole DIVIDE_ROLE = new TokenRole("/=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole MODULUS_ROLE = new TokenRole("%=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole SHIFT_LEFT_ROLE = new TokenRole("<<=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole SHIFT_RIGHT_ROLE = new TokenRole(">>=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole UNSIGNED_SHIFT_RIGHT_ROLE = new TokenRole(">>>=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole BITWISE_AND_ROLE = new TokenRole("&=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole BITWISE_OR_ROLE = new TokenRole("|=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole EXCLUSIVE_OR_ROLE = new TokenRole("^=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole ANY_ROLE = new TokenRole("(assign)", TokenRole.FLAG_OPERATOR);
 
     private AssignmentOperatorType _operator;
 

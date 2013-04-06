@@ -35,6 +35,7 @@ public final class Roles {
     public final static Role<Expression> TARGET_EXPRESSION = new Role<>("Target", Expression.class, Expression.NULL);
     public final static Role<Expression> CONDITION = new Role<>("Condition", Expression.class, Expression.NULL);
     public final static Role<Comment> COMMENT = new Role<>("Comment", Comment.class);
+    public final static Role<Identifier> LABEL = new Role<>("Label", Identifier.class, Identifier.NULL);
     public final static Role<Identifier> IDENTIFIER = new Role<>("Identifier", Identifier.class, Identifier.NULL);
     public final static Role<Statement> EMBEDDED_STATEMENT = new Role<>("EmbeddedStatement", Statement.class, Statement.NULL);
     public final static Role<BlockStatement> BODY = new Role<>("Body", BlockStatement.class, BlockStatement.NULL);
@@ -62,18 +63,18 @@ public final class Roles {
     public final static TokenRole SEMICOLON = new TokenRole(";");
     public final static TokenRole COLON = new TokenRole(":");
     public final static TokenRole DOUBLE_COLON = new TokenRole("::");
-    public final static TokenRole ASSIGN = new TokenRole("=");
-    public final static TokenRole PIPE = new TokenRole("|");
+    public final static TokenRole ASSIGN = new TokenRole("=", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole PIPE = new TokenRole("|", TokenRole.FLAG_OPERATOR);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // KEYWORD TOKENS                                                                                                     //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public final static TokenRole PACKAGE_KEYWORD = new TokenRole("package");
-    public final static TokenRole ENUM_KEYWORD = new TokenRole("enum");
-    public final static TokenRole INTERFACE_KEYWORD = new TokenRole("interface");
-    public final static TokenRole CLASS_KEYWORD = new TokenRole("class");
-    public final static TokenRole ANNOTATION_KEYWORD = new TokenRole("@interface");
-    public final static TokenRole EXTENDS_KEYWORD = new TokenRole("extends");
-    public final static TokenRole IMPLEMENTS_KEYWORD = new TokenRole("implements");
+    public final static TokenRole PACKAGE_KEYWORD = new TokenRole("package", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole ENUM_KEYWORD = new TokenRole("enum", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole INTERFACE_KEYWORD = new TokenRole("interface", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole CLASS_KEYWORD = new TokenRole("class", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole ANNOTATION_KEYWORD = new TokenRole("@interface", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole EXTENDS_KEYWORD = new TokenRole("extends", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole IMPLEMENTS_KEYWORD = new TokenRole("implements", TokenRole.FLAG_KEYWORD);
 }

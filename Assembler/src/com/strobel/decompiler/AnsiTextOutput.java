@@ -28,15 +28,17 @@ import com.strobel.io.Ansi;
 import java.io.Writer;
 
 public class AnsiTextOutput extends PlainTextOutput {
-    private final static Ansi KEYWORD = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.BLUE, null);
+    private final static Ansi KEYWORD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(33/*39*/), null);
     private final static Ansi INSTRUCTION = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.BLUE, null);
-    private final static Ansi LABEL = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.GREEN, null);
-    private final static Ansi TYPE = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.CYAN, null);
-    private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.MAGENTA, null);
-    private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.YELLOW, null);
-    private final static Ansi LOCAL = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.WHITE, null);
-    private final static Ansi LITERAL = new Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.RED, null);
-    private final static Ansi COMMENT = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.RED, null);
+    private final static Ansi LABEL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(248), null);
+    private final static Ansi TYPE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(45), null);
+    private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(213), null);
+    private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*222*/216), null);
+    private final static Ansi LOCAL = new Ansi(Ansi.Attribute.NORMAL, (Ansi.Color) null, null);
+    private final static Ansi LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(204), null);
+    private final static Ansi TEXT_LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(48), null);
+    private final static Ansi COMMENT = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(244), null);
+    private final static Ansi OPERATOR = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(247), null);
 
     public AnsiTextOutput() {
     }
@@ -56,6 +58,11 @@ public class AnsiTextOutput extends PlainTextOutput {
     }
 
     @Override
+    public void writeTextLiteral(final Object value) {
+        write(TEXT_LITERAL.colorize(String.valueOf(value)));
+    }
+
+    @Override
     public void writeComment(final String value) {
         write(COMMENT.colorize(value));
     }
@@ -63,6 +70,11 @@ public class AnsiTextOutput extends PlainTextOutput {
     @Override
     public void writeComment(final String format, final Object... args) {
         write(COMMENT.colorize(String.format(format, args)));
+    }
+
+    @Override
+    public void writeOperator(final String text) {
+        write(OPERATOR.colorize(text));
     }
 
     @Override

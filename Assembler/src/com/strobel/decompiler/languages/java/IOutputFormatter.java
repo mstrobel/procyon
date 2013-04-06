@@ -20,10 +20,13 @@ public interface IOutputFormatter {
     void startNode(AstNode node);
     void endNode(AstNode node);
 
+    void writeLabel(String label);
     void writeIdentifier(String identifier);
     void writeKeyword(String keyword);
+    void writeOperator(String token);
     void writeToken(String token);
     void writeLiteral(String value);
+    void writeTextLiteral(String value);
 
     void space();
 

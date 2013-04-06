@@ -1,5 +1,5 @@
 /*
- * ClassOfExpression.java
+ * CommentStatement.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -16,36 +16,38 @@ package com.strobel.decompiler.languages.java.ast;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
-public final class ClassOfExpression extends Expression {
-    public final static TokenRole ClassKeywordRole = new TokenRole("class", TokenRole.FLAG_KEYWORD);
+final class CommentStatement extends Statement {
+    private final String _comment;
 
-    public ClassOfExpression() {
+    CommentStatement(final String comment) {
+        _comment = comment;
     }
 
-    public ClassOfExpression(final AstType type) {
-        addChild(type, Roles.TYPE);
+    final String getComment() {
+        return _comment;
     }
 
-    public final AstType getType() {
-        return getChildByRole(Roles.TYPE);
-    }
-
-    public final void setType(final AstType type) {
-        setChildByRole(Roles.TYPE, type);
-    }
-
-    public final JavaTokenNode getDotToken() {
-        return getChildByRole(Roles.DOT);
+    public static void replaceAll(final AstNode tree) {
+        for (final AstNode node : tree.getDescendants()) {
+            if (node instanceof CommentStatement) {
+                node.getParent().insertChildBefore(
+                    node,
+                    new Comment(((CommentStatement) node).getComment()),
+                    Roles.COMMENT
+                );
+                node.remove();
+            }
+        }
     }
 
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
-        return visitor.visitClassOfExpression(this, data);
+        return null;
     }
 
     @Override
     public boolean matches(final INode other, final Match match) {
-        return other instanceof ClassOfExpression &&
-               getType().matches(((ClassOfExpression) other).getType(), match);
+        return other instanceof CommentStatement &&
+               matchString(_comment, ((CommentStatement) other)._comment);
     }
 }

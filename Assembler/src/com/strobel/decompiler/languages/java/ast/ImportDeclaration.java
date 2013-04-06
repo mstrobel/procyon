@@ -18,7 +18,7 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
 public class ImportDeclaration extends AstNode {
-    public final static TokenRole IMPORT_KEYWORD_RULE = new TokenRole("import");
+    public final static TokenRole IMPORT_KEYWORD_RULE = new TokenRole("import", TokenRole.FLAG_KEYWORD);
     public final static Role<AstType> IMPORT_ROLE = new Role<>("Import", AstType.class, AstType.NULL);
 
     public ImportDeclaration() {

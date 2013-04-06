@@ -183,7 +183,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             if (lastWritten == LastWritten.KeywordOrIdentifier) {
                 space();
             }
-            // this space instanceof not strictly required, so we call Space()
+            // this space instanceof not strictly required, so we call space()
 //            formatter.writeToken("$");
         }
         else if (lastWritten == LastWritten.KeywordOrIdentifier) {
@@ -191,7 +191,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             // this space instanceof strictly required, so we directly call the formatter
         }
 
-        formatter.writeIdentifier(identifier);
+        if (identifierRole == Roles.LABEL) {
+            formatter.writeLabel(identifier);
+        }
+        else {
+            formatter.writeIdentifier(identifier);
+        }
+
         lastWritten = LastWritten.KeywordOrIdentifier;
     }
 
@@ -199,8 +205,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeToken(tokenRole.getToken(), tokenRole);
     }
 
-    void writeToken(final String token, final Role tokenRole) {
-        writeSpecialsUpToRole(tokenRole);
+    void writeToken(final String token, final Role role) {
+        writeSpecialsUpToRole(role);
 
         if (lastWritten == LastWritten.Plus && token.charAt(0) == '+' ||
             lastWritten == LastWritten.Minus && token.charAt(0) == '-' ||
@@ -209,6 +215,21 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             lastWritten == LastWritten.Division && token.charAt(0) == '*') {
 
             formatter.space();
+        }
+
+        if (role instanceof TokenRole) {
+            final TokenRole tokenRole = (TokenRole) role;
+
+            if (tokenRole.isKeyword()) {
+                formatter.writeKeyword(token);
+                lastWritten = LastWritten.KeywordOrIdentifier;
+                return;
+            }
+            else if (tokenRole.isOperator()) {
+                formatter.writeOperator(token);
+                lastWritten = LastWritten.Operator;
+                return;
+            }
         }
 
         formatter.writeToken(token);
@@ -619,8 +640,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             writeToken(Roles.DOT);
         }
 
-        writeIdentifier(node.getMemberName());
         writeTypeArguments(node.getTypeArguments());
+        writeIdentifier(node.getMemberName());
         endNode(node);
         return null;
     }
@@ -820,7 +841,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitLabelStatement(final LabelStatement node, final Void _) {
         startNode(node);
-        writeIdentifier(node.getLabel());
+        writeIdentifier(node.getLabel(), Roles.LABEL);
         writeToken(Roles.COLON);
 
         boolean foundLabelledStatement = false;
@@ -1253,19 +1274,19 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 //            newLine();
 //        }
 //        else {
-            boolean first = true;
+        boolean first = true;
 
-            for (final EntityDeclaration member : node.getMembers()) {
-                if (first) {
-                    first = false;
-                }
-                else {
-                    for (int i = 0; i < policy.BlankLinesBetweenMembers; i++) {
-                        formatter.newLine();
-                    }
-                }
-                member.acceptVisitor(this, _);
+        for (final EntityDeclaration member : node.getMembers()) {
+            if (first) {
+                first = false;
             }
+            else {
+                for (int i = 0; i < policy.BlankLinesBetweenMembers; i++) {
+                    formatter.newLine();
+                }
+            }
+            member.acceptVisitor(this, _);
+        }
 //        }
 
         closeBrace(braceStyle);
@@ -1372,11 +1393,11 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         if (val instanceof String) {
-            formatter.writeLiteral("\"" + convertString(val.toString()) + "\"");
+            formatter.writeTextLiteral("\"" + convertString(val.toString()) + "\"");
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Character) {
-            formatter.writeLiteral("'" + convertCharacter((Character) val) + "'");
+            formatter.writeTextLiteral("'" + convertCharacter((Character) val) + "'");
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Float) {
@@ -1731,10 +1752,12 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         space(policy.SpaceBeforeForeachParentheses);
         leftParenthesis();
         space(policy.SpacesWithinForeachParentheses);
+        writeModifiers(node.getChildrenByRole(EntityDeclaration.MODIFIER_ROLE));
         node.getVariableType().acceptVisitor(this, _);
         space();
         node.getVariableNameToken().acceptVisitor(this, _);
-        writeKeyword(ForEachStatement.COLON_ROLE);
+        space();
+        writeToken(ForEachStatement.COLON_ROLE);
         space();
         node.getInExpression().acceptVisitor(this, _);
         space(policy.SpacesWithinForeachParentheses);
@@ -1866,7 +1889,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         Minus,
         Ampersand,
         QuestionMark,
-        Division
+        Division,
+        Operator
     }
 
     // </editor-fold>

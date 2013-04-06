@@ -19,9 +19,9 @@ import com.strobel.decompiler.patterns.Role;
 
 public class ConditionalExpression extends Expression {
     public final static Role<Expression> CONDITION_ROLE = Roles.CONDITION;
-    public final static TokenRole QUESTION_MARK_ROLE = new TokenRole("?");
+    public final static TokenRole QUESTION_MARK_ROLE = new TokenRole("?", TokenRole.FLAG_OPERATOR);
     public final static Role<Expression> TRUE_ROLE = new Role<>("True", Expression.class, Expression.NULL);
-    public final static TokenRole COLON_ROLE = Roles.COLON;
+    public final static TokenRole COLON_ROLE = new TokenRole(":", TokenRole.FLAG_OPERATOR);
     public final static Role<Expression> FALSE_ROLE = new Role<>("False", Expression.class, Expression.NULL);
 
     public ConditionalExpression() {

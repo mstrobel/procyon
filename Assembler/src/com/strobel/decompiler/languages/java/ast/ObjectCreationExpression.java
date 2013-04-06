@@ -17,7 +17,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class ObjectCreationExpression extends Expression {
-    public final static TokenRole NEW_KEYWORD_ROLE = new TokenRole("new");
+    public final static TokenRole NEW_KEYWORD_ROLE = new TokenRole("new", TokenRole.FLAG_KEYWORD);
 
     public ObjectCreationExpression() {
     }

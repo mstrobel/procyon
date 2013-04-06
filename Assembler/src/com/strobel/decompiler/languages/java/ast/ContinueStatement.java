@@ -18,7 +18,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class ContinueStatement extends Statement {
-    public final static TokenRole CONTINUE_KEYWORD_ROLE = new TokenRole("continue");
+    public final static TokenRole CONTINUE_KEYWORD_ROLE = new TokenRole("continue", TokenRole.FLAG_KEYWORD);
 
     public ContinueStatement() {
     }

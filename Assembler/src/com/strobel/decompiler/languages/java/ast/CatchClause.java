@@ -21,7 +21,7 @@ import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 
 public class CatchClause extends AstNode {
-    public final static TokenRole CATCH_KEYWORD_ROLE = new TokenRole("catch");
+    public final static TokenRole CATCH_KEYWORD_ROLE = new TokenRole("catch", TokenRole.FLAG_KEYWORD);
 
     public CatchClause() {
     }

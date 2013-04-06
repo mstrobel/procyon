@@ -119,6 +119,9 @@ public class AstMethodBodyBuilder {
         NameVariables.assignNamesToVariables(_context, methodParameters, localVariables, method);
 
         final BlockStatement astBlock = transformBlock(method);
+
+        CommentStatement.replaceAll(astBlock);
+
         final AstNodeCollection<Statement> statements = astBlock.getStatements();
         final Statement insertionPoint = firstOrDefault(statements);
 

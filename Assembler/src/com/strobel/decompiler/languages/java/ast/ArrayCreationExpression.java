@@ -18,7 +18,7 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
 public class ArrayCreationExpression extends Expression {
-    public final static TokenRole NEW_KEYWORD_ROLE = new TokenRole("new");
+    public final static TokenRole NEW_KEYWORD_ROLE = new TokenRole("new", TokenRole.FLAG_KEYWORD);
 
     public final static Role<ArraySpecifier> ADDITIONAL_ARRAY_SPECIFIER_ROLE = new Role<>(
         "AdditionalArraySpecifier",

@@ -19,7 +19,7 @@ import com.strobel.decompiler.patterns.Match;
 public class WildcardType extends AstType {
     public final static TokenRole WILDCARD_TOKEN_ROLE = new TokenRole("?");
     public final static TokenRole EXTENDS_KEYWORD_ROLE = Roles.EXTENDS_KEYWORD;
-    public final static TokenRole SUPER_KEYWORD_ROLE = new TokenRole("super");
+    public final static TokenRole SUPER_KEYWORD_ROLE = new TokenRole("super", TokenRole.FLAG_KEYWORD);
 
     public final JavaTokenNode getWildcardToken() {
         return getChildByRole(WILDCARD_TOKEN_ROLE);

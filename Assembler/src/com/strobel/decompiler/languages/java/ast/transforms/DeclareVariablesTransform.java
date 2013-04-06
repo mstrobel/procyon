@@ -54,7 +54,13 @@ public class DeclareVariablesTransform implements IAstTransform {
                     declaration.addModifier(Modifier.FINAL);
                 }
 
-                block.getStatements().insertBefore(v.getInsertionPoint(), declaration);
+                Statement insertionPoint = v.getInsertionPoint();
+
+                while (insertionPoint.getPreviousSibling() instanceof LabelStatement) {
+                    insertionPoint = (Statement) insertionPoint.getPreviousSibling();
+                }
+
+                block.getStatements().insertBefore(insertionPoint, declaration);
             }
         }
 
