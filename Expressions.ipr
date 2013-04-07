@@ -43,6 +43,13 @@
   </component>
   <component name="CopyrightManager" default="">
     <copyright>
+      <option name="notice" value="&amp;#36;file.fileName&#10;&#10;Copyright (c) &amp;#36;today.year Mike Strobel&#10;&#10;This source code is based Mono.Cecil from Jb Evain, Copyright (c) Jb Evain;&#10;and ILSpy/ICSharpCode from SharpDevelop, Copyright (c) AlphaSierraPapa.&#10;&#10;This source code is subject to terms and conditions of the Apache License, Version 2.0.&#10;A copy of the license can be found in the License.html file at the root of this distribution.&#10;By using this source code in any fashion, you are agreeing to be bound by the terms of the&#10;Apache License, Version 2.0.&#10;&#10;You must not remove this notice, or any other, from this software." />
+      <option name="keyword" value="Copyright" />
+      <option name="allowReplaceKeyword" value="" />
+      <option name="myName" value="Assembler" />
+      <option name="myLocal" value="true" />
+    </copyright>
+    <copyright>
       <option name="notice" value="&amp;#36;file.fileName&#10;&#10;Copyright (c) &amp;#36;today.year Mike Strobel&#10;&#10;This source code is based on the Dynamic Language Runtime from Microsoft,&#10;  Copyright (c) Microsoft Corporation.&#10;&#10;This source code is subject to terms and conditions of the Apache License, Version 2.0.&#10;A copy of the license can be found in the License.html file at the root of this distribution.&#10;By using this source code in any fashion, you are agreeing to be bound by the terms of the&#10;Apache License, Version 2.0.&#10;&#10;You must not remove this notice, or any other, from this software." />
       <option name="keyword" value="Copyright" />
       <option name="allowReplaceKeyword" value="" />
@@ -57,6 +64,7 @@
       <option name="myLocal" value="true" />
     </copyright>
     <module2copyright>
+      <element module="Assembler" copyright="Assembler" />
       <element module="com.strobel.expressions" copyright="DLR" />
       <element module="com.strobel" copyright="Non-DLR" />
     </module2copyright>
@@ -67,6 +75,7 @@
   <component name="DependencyValidationManager">
     <scope name="Sun/Java" pattern="lib:java..*||lib:com.sun..*" />
     <scope name="Java" pattern="lib:java..*" />
+    <scope name="Assembler" pattern="src[Assembler]:*..*" />
     <scope name="com.strobel.expressions" pattern="src:com.strobel.expressions..*" />
     <scope name="com.strobel" pattern="file:src//*&amp;&amp;!file:src/com/strobel/expressions//*||file:test//*" />
     <option name="SKIP_IMPORT_STATEMENTS" value="false" />
@@ -424,6 +433,7 @@
         <w>browsable</w>
         <w>decompilation</w>
         <w>dominator</w>
+        <w>evain</w>
         <w>gotos</w>
         <w>irix</w>
         <w>iterable</w>

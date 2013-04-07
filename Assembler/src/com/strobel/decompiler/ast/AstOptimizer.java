@@ -3,6 +3,9 @@
  *
  * Copyright (c) 2013 Mike Strobel
  *
+ * This source code is based Mono.Cecil from Jb Evain, Copyright (c) Jb Evain;
+ * and ILSpy/ICSharpCode from SharpDevelop, Copyright (c) AlphaSierraPapa.
+ *
  * This source code is subject to terms and conditions of the Apache License, Version 2.0.
  * A copy of the license can be found in the License.html file at the root of this distribution.
  * By using this source code in any fashion, you are agreeing to be bound by the terms of the
@@ -29,7 +32,6 @@ import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.core.delegates.Func;
 import com.strobel.decompiler.DecompilerContext;
-import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.functions.Function;
 import com.strobel.util.ContractUtils;
 
@@ -257,7 +259,7 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">
 
-    @SuppressWarnings("ConstantConditions")
+    @SuppressWarnings({ "ConstantConditions", "StatementWithEmptyBody" })
     static void removeRedundantCode(final Block method) {
         final Map<Label, MutableInteger> labelReferenceCount = new IdentityHashMap<>();
 
@@ -1378,6 +1380,7 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="FlattenBasicBlocks Step">
 
+    @SuppressWarnings("StatementWithEmptyBody")
     private static void flattenBasicBlocks(final Node node) {
         if (node instanceof Block) {
             final Block block = (Block) node;
