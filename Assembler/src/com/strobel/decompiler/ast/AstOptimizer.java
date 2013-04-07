@@ -1296,6 +1296,10 @@ public final class AstOptimizer {
 
                     break;
                 }
+
+                default: {
+                    return false;
+                }
             }
 
             final Expression add = storeCode == AstCode.Inc ? nextExpression : nextExpression.getArguments().get(0);
