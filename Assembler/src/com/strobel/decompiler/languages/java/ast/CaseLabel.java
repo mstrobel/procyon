@@ -20,7 +20,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class CaseLabel extends AstNode {
-    public final static TokenRole CASE_KEYWORD_ROLE = new TokenRole("switch", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole CASE_KEYWORD_ROLE = new TokenRole("case", TokenRole.FLAG_KEYWORD);
     public final static TokenRole DEFAULT_KEYWORD_ROLE = new TokenRole("default", TokenRole.FLAG_KEYWORD);
 
     @Override

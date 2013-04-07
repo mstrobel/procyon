@@ -152,7 +152,7 @@ public final class AstBuilder {
         }
 
         if (type.isGenericParameter()) {
-            final SimpleType simpleType = new SimpleType(type.getName());
+            final SimpleType simpleType = new SimpleType(type.getSimpleName());
             simpleType.putUserData(Keys.TYPE_REFERENCE, type);
             return simpleType;
         }
@@ -213,14 +213,16 @@ public final class AstBuilder {
         }
 
         final String name;
+        final TypeDefinition resolvedType = type.resolve();
+        final TypeReference nameSource = resolvedType != null ? resolvedType : type;
 
         if (options == null || options.getIncludePackage()) {
-            final String packageName = type.getPackageName();
-            name = StringUtilities.isNullOrEmpty(packageName) ? type.getSimpleName()
-                                                              : packageName + "." + type.getSimpleName();
+            final String packageName = nameSource.getPackageName();
+            name = StringUtilities.isNullOrEmpty(packageName) ? nameSource.getSimpleName()
+                                                              : packageName + "." + nameSource.getSimpleName();
         }
         else {
-            name = type.getSimpleName();
+            name = nameSource.getSimpleName();
         }
 
         final SimpleType astType = new SimpleType(name);

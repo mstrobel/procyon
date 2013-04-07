@@ -308,7 +308,7 @@ public class TextOutputFormatter implements IOutputFormatter {
     }
 
     private Object getCurrentDefinition() {
-        if (nodeStack == null || nodeStack.isEmpty()) {
+        if (nodeStack.isEmpty()) {
             return null;
         }
 
@@ -337,10 +337,14 @@ public class TextOutputFormatter implements IOutputFormatter {
         }
 
         if (node.getRole() == Roles.IDENTIFIER) {
-            final AstNode parent = node.getParent();
+            AstNode parent = node.getParent();
 
             if (parent == null) {
                 return null;
+            }
+
+            if (parent instanceof VariableInitializer) {
+                parent = parent.getParent();
             }
 
             definition = parent.getUserData(Keys.TYPE_DEFINITION);
