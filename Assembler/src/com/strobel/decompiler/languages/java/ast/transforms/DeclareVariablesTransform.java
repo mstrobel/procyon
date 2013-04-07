@@ -43,15 +43,20 @@ public class DeclareVariablesTransform implements IAstTransform {
 
             if (replacedAssignment == null) {
                 final BlockStatement block = (BlockStatement) v.getInsertionPoint().getParent();
-                final boolean effectivelyFinal = isSingleAssignment(v, block);
+                final AnalysisResult analysisResult = analyze(v, block);
                 final VariableDeclarationStatement declaration = new VariableDeclarationStatement(v.getType().clone(), v.getName());
 
                 if (variable != null) {
                     declaration.getVariables().firstOrNullObject().putUserData(Keys.VARIABLE, variable);
                 }
 
-                if (effectivelyFinal) {
+                if (analysisResult.isSingleAssignment) {
                     declaration.addModifier(Modifier.FINAL);
+                }
+                else if (analysisResult.needsInitializer && variable != null) {
+                    declaration.getVariables().firstOrNullObject().setInitializer(
+                        AstBuilder.makeDefaultValue(variable.getType())
+                    );
                 }
 
                 Statement insertionPoint = v.getInsertionPoint();
@@ -92,7 +97,9 @@ public class DeclareVariablesTransform implements IAstTransform {
                 final AstNode parent = replacedAssignment.getParent();
 
                 if (parent instanceof ExpressionStatement) {
-                    if (isSingleAssignment(v, parent.getParent())) {
+                    final AnalysisResult analysisResult = analyze(v, parent.getParent());
+
+                    if (analysisResult.isSingleAssignment) {
                         declaration.addModifier(Modifier.FINAL);
                     }
 
@@ -101,7 +108,9 @@ public class DeclareVariablesTransform implements IAstTransform {
                     parent.replaceWith(declaration);
                 }
                 else {
-                    if (isSingleAssignment(v, parent)) {
+                    final AnalysisResult analysisResult = analyze(v, parent.getParent());
+
+                    if (analysisResult.isSingleAssignment) {
                         declaration.addModifier(Modifier.FINAL);
                     }
 
@@ -113,10 +122,35 @@ public class DeclareVariablesTransform implements IAstTransform {
         variablesToDeclare.clear();
     }
 
-    private boolean isSingleAssignment(final VariableToDeclare v, final AstNode scope) {
-        final IsSingleAssignmentVisitor isSingleAssignmentVisitor = new IsSingleAssignmentVisitor(v.getName());
+    private AnalysisResult analyze(final VariableToDeclare v, final AstNode scope) {
+        final BlockStatement block = v.getBlock();
+        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(block);
+
+        if (v.getInsertionPoint() != null) {
+            analysis.setAnalyzedRange(v.getInsertionPoint(), v.getInsertionPoint().getNextStatement());
+        }
+        else {
+            final ExpressionStatement parentStatement = (ExpressionStatement) v.getReplacedAssignment().getParent();
+            analysis.setAnalyzedRange(parentStatement, parentStatement.getNextStatement());
+        }
+
+        final IsSingleAssignmentVisitor isSingleAssignmentVisitor = new IsSingleAssignmentVisitor(
+            v.getName(),
+            analysis
+        );
+
         scope.acceptVisitor(isSingleAssignmentVisitor, null);
-        return isSingleAssignmentVisitor.isSingleAssignment();
+        return isSingleAssignmentVisitor.getResult();
+    }
+
+    private final static class AnalysisResult {
+        final boolean isSingleAssignment;
+        final boolean needsInitializer;
+
+        private AnalysisResult(final boolean singleAssignment, final boolean needsInitializer) {
+            isSingleAssignment = singleAssignment;
+            this.needsInitializer = needsInitializer;
+        }
     }
 
     private void run(final AstNode node, final DefiniteAssignmentAnalysis daa) {
@@ -158,7 +192,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         for (AstNode child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
-            run(child, daa);
+            run(child, analysis);
         }
     }
 
@@ -197,7 +231,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                     final AstNodeCollection<Statement> initializers = forStatement.getInitializers();
 
                     if (initializers.size() == 1) {
-                        if (tryConvertAssignmentExpressionIntoVariableDeclaration(initializers.firstOrNullObject(), type, variableName)) {
+                        if (tryConvertAssignmentExpressionIntoVariableDeclaration(block, initializers.firstOrNullObject(), type, variableName)) {
                             continue;
                         }
                     }
@@ -217,8 +251,9 @@ public class DeclareVariablesTransform implements IAstTransform {
                 }
             }
         }
-        else if (!tryConvertAssignmentExpressionIntoVariableDeclaration(declarationPoint.get(), type, variableName)) {
-            variablesToDeclare.add(new VariableToDeclare(type, variableName, variable, declarationPoint.get()));
+        else if (!tryConvertAssignmentExpressionIntoVariableDeclaration(block, declarationPoint.get(), type, variableName)) {
+            final VariableToDeclare vtd = new VariableToDeclare(type, variableName, variable, declarationPoint.get(), block);
+            variablesToDeclare.add(vtd);
         }
     }
 
@@ -386,12 +421,14 @@ public class DeclareVariablesTransform implements IAstTransform {
     }
 
     private boolean tryConvertAssignmentExpressionIntoVariableDeclaration(
+        final BlockStatement block,
         final Statement declarationPoint,
         final AstType type,
         final String variableName) {
 
         return declarationPoint instanceof ExpressionStatement &&
                tryConvertAssignmentExpressionIntoVariableDeclaration(
+                   block,
                    ((ExpressionStatement) declarationPoint).getExpression(),
                    type,
                    variableName
@@ -399,6 +436,7 @@ public class DeclareVariablesTransform implements IAstTransform {
     }
 
     private boolean tryConvertAssignmentExpressionIntoVariableDeclaration(
+        final BlockStatement block,
         final Expression expression,
         final AstType type,
         final String variableName) {
@@ -416,7 +454,8 @@ public class DeclareVariablesTransform implements IAstTransform {
                                 type,
                                 variableName,
                                 identifier.getUserData(Keys.VARIABLE),
-                                assignment
+                                assignment,
+                                block
                             )
                         );
 
@@ -437,31 +476,40 @@ public class DeclareVariablesTransform implements IAstTransform {
         private final Variable _variable;
         private final Statement _insertionPoint;
         private final AssignmentExpression _replacedAssignment;
+        private final BlockStatement _block;
 
         public VariableToDeclare(
             final AstType type,
             final String name,
             final Variable variable,
-            final Statement insertionPoint) {
+            final Statement insertionPoint,
+            final BlockStatement block) {
 
             _type = type;
             _name = name;
             _variable = variable;
             _insertionPoint = insertionPoint;
             _replacedAssignment = null;
+            _block = block;
         }
 
         public VariableToDeclare(
             final AstType type,
             final String name,
             final Variable variable,
-            final AssignmentExpression replacedAssignment) {
+            final AssignmentExpression replacedAssignment,
+            final BlockStatement block) {
 
             _type = type;
             _name = name;
             _variable = variable;
             _insertionPoint = null;
             _replacedAssignment = replacedAssignment;
+            _block = block;
+        }
+
+        public BlockStatement getBlock() {
+            return _block;
         }
 
         public AstType getType() {
@@ -502,16 +550,22 @@ public class DeclareVariablesTransform implements IAstTransform {
 
     private final static class IsSingleAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
         private final String _variableName;
+        private final DefiniteAssignmentAnalysis _analysis;
         private boolean _abort;
         private int _loopDepth;
         private int _assignmentCount;
+        private boolean _needsInitializer;
 
-        IsSingleAssignmentVisitor(final String variableName) {
-            _variableName = variableName;
+        IsSingleAssignmentVisitor(final String variableName, final DefiniteAssignmentAnalysis analysis) {
+            _variableName = VerifyArgument.notNull(variableName, "variableName");
+            _analysis = VerifyArgument.notNull(analysis, "analysis");
         }
 
-        final boolean isSingleAssignment() {
-            return _assignmentCount < 2 && !_abort;
+        final AnalysisResult getResult() {
+            return new AnalysisResult(
+                _assignmentCount < 2 && !_abort,
+                _needsInitializer
+            );
         }
 
         @Override
@@ -595,6 +649,25 @@ public class DeclareVariablesTransform implements IAstTransform {
                 case POST_DECREMENT: {
                     if (operand instanceof IdentifierExpression &&
                         StringUtilities.equals(((IdentifierExpression) operand).getIdentifier(), _variableName)) {
+
+                        Statement parentStatement = null;
+
+                        for (AstNode n = node; n != null; n = n.getParent()) {
+                            if (n instanceof Statement) {
+                                parentStatement = (Statement) n;
+                                break;
+                            }
+                        }
+
+                        if (parentStatement != null) {
+                            _analysis.analyze(_variableName);
+
+                            final DefiniteAssignmentStatus statusBefore = _analysis.getStatusBefore(parentStatement);
+
+                            if (statusBefore != DefiniteAssignmentStatus.DEFINITELY_ASSIGNED) {
+                                _needsInitializer = true;
+                            }
+                        }
 
                         if (_loopDepth != 0) {
                             _abort = true;

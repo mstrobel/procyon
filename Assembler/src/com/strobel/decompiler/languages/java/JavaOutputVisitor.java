@@ -768,7 +768,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         final String label = node.getLabel();
 
         if (!StringUtilities.isNullOrEmpty(label)) {
-            writeIdentifier(label);
+            writeIdentifier(label, Roles.LABEL);
         }
 
         semicolon();
@@ -784,7 +784,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         final String label = node.getLabel();
 
         if (!StringUtilities.isNullOrEmpty(label)) {
-            writeIdentifier(label);
+            writeIdentifier(label, Roles.LABEL);
         }
 
         semicolon();
@@ -1790,7 +1790,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public Void visitGotoStatement(final GotoStatement node, final Void _) {
         startNode(node);
         writeKeyword(GotoStatement.GOTO_KEYWORD_ROLE);
-        writeIdentifier(node.getLabel());
+        writeIdentifier(node.getLabel(), Roles.LABEL);
         semicolon();
         endNode(node);
         return null;

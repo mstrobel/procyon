@@ -205,7 +205,7 @@ public class AstMethodBodyBuilder {
 
             @SuppressWarnings("UnusedDeclaration")
             final List<Range> orderedAndJoinedRanges = Range.orderAndJoint(ranges);
-            final AstNode codeExpression = transformExpression((com.strobel.decompiler.ast.Expression) node);
+            final AstNode codeExpression = transformExpression((com.strobel.decompiler.ast.Expression) node, true);
 
             if (codeExpression != null) {
                 if (codeExpression instanceof Expression) {
@@ -221,7 +221,7 @@ public class AstMethodBodyBuilder {
             final com.strobel.decompiler.ast.Expression loopCondition = loop.getCondition();
 
             if (loopCondition != null) {
-                whileStatement.setCondition((Expression) transformExpression(loopCondition));
+                whileStatement.setCondition((Expression) transformExpression(loopCondition, false));
             }
             else {
                 whileStatement.setCondition(new PrimitiveExpression(true));
@@ -240,7 +240,7 @@ public class AstMethodBodyBuilder {
             final boolean hasFalseBlock = falseBlock.getEntryGoto() != null || !falseBlock.getBody().isEmpty();
 
             return new IfElseStatement(
-                (Expression) transformExpression(testCondition),
+                (Expression) transformExpression(testCondition, false),
                 transformBlock(trueBlock),
                 hasFalseBlock ? transformBlock(falseBlock) : null
             );
@@ -255,7 +255,7 @@ public class AstMethodBodyBuilder {
             }
 
             final List<CaseBlock> caseBlocks = switchNode.getCaseBlocks();
-            final SwitchStatement switchStatement = new SwitchStatement((Expression) transformExpression(testCondition));
+            final SwitchStatement switchStatement = new SwitchStatement((Expression) transformExpression(testCondition, false));
 
             for (final CaseBlock caseBlock : caseBlocks) {
                 final SwitchSection section = new SwitchSection();
@@ -326,17 +326,17 @@ public class AstMethodBodyBuilder {
 
     private SynchronizedStatement transformSynchronized(final com.strobel.decompiler.ast.Expression expression, final TryCatchBlock tryCatch) {
         final SynchronizedStatement s = new SynchronizedStatement();
-        s.setExpression((Expression) transformExpression(expression.getArguments().get(0)));
+        s.setExpression((Expression) transformExpression(expression.getArguments().get(0), false));
         s.setEmbeddedStatement(transformBlock(tryCatch.getTryBlock()));
         return s;
     }
 
-    private AstNode transformExpression(final com.strobel.decompiler.ast.Expression e) {
-        return transformByteCode(e);
+    private AstNode transformExpression(final com.strobel.decompiler.ast.Expression e, final boolean isTopLevel) {
+        return transformByteCode(e, isTopLevel);
     }
 
     @SuppressWarnings("ConstantConditions")
-    private AstNode transformByteCode(final com.strobel.decompiler.ast.Expression byteCode) {
+    private AstNode transformByteCode(final com.strobel.decompiler.ast.Expression byteCode, final boolean isTopLevel) {
         final Object operand = byteCode.getOperand();
         final Label label = operand instanceof Label ? (Label) operand : null;
         final AstType operandType = operand instanceof TypeReference ? AstBuilder.convertType((TypeReference) operand) : AstType.NULL;
@@ -346,7 +346,7 @@ public class AstMethodBodyBuilder {
         final List<Expression> arguments = new ArrayList<>();
 
         for (final com.strobel.decompiler.ast.Expression e : byteCode.getArguments()) {
-            arguments.add((Expression) transformExpression(e));
+            arguments.add((Expression) transformExpression(e, false));
         }
 
         final Expression arg1 = arguments.size() >= 1 ? arguments.get(0) : null;
@@ -616,6 +616,10 @@ public class AstMethodBodyBuilder {
                 throw ContractUtils.unreachable();
 
             case PostIncrement:
+                final Integer incrementAmount = (Integer) operand;
+                if (incrementAmount < 0) {
+                    return new UnaryOperatorExpression(UnaryOperatorType.POST_DECREMENT, arg1);
+                }
                 return new UnaryOperatorExpression(UnaryOperatorType.POST_INCREMENT, arg1);
 
             case Box:
@@ -629,7 +633,13 @@ public class AstMethodBodyBuilder {
                 return AstBuilder.makeDefaultValue((TypeReference) operand);
         }
 
-        return inlineAssembly(byteCode, arguments);
+        final Expression inlinedAssembly = inlineAssembly(byteCode, arguments);
+
+        if (isTopLevel) {
+            return new CommentStatement(" " + inlinedAssembly.toString());
+        }
+
+        return inlinedAssembly;
     }
 
     private AstNode transformCall(

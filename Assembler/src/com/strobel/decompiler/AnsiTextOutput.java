@@ -29,14 +29,14 @@ import java.io.Writer;
 
 public class AnsiTextOutput extends PlainTextOutput {
     private final static Ansi KEYWORD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(33/*39*/), null);
-    private final static Ansi INSTRUCTION = new Ansi(Ansi.Attribute.NORMAL, Ansi.Color.BLUE, null);
-    private final static Ansi LABEL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(248), null);
-    private final static Ansi TYPE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(45), null);
-    private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(213), null);
-    private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*222*/216), null);
+    private final static Ansi INSTRUCTION = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*45*//*33*/141), null);
+    private final static Ansi LABEL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(249), null);
+    private final static Ansi TYPE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(45/*105*//*141*/), null);
+    private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*213*/212), null);
+    private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(222/*216*/), null);
     private final static Ansi LOCAL = new Ansi(Ansi.Attribute.NORMAL, (Ansi.Color) null, null);
     private final static Ansi LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(204), null);
-    private final static Ansi TEXT_LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(48), null);
+    private final static Ansi TEXT_LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*48*/42), null);
     private final static Ansi COMMENT = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(244), null);
     private final static Ansi OPERATOR = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(247), null);
 

@@ -14,6 +14,7 @@
 package com.strobel.decompiler.ast;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
+import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeReference;
@@ -23,10 +24,12 @@ import com.strobel.core.CollectionUtilities;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.Predicate;
 import com.strobel.core.Predicates;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.core.delegates.Func;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.functions.Function;
 import com.strobel.util.ContractUtils;
 
@@ -136,6 +139,12 @@ public final class AstOptimizer {
                 }
 
                 modified |= runOptimization(block, new TransformArrayInitializersOptimization(context, method));
+
+                if (abortBeforeStep == AstOptimizationStep.IntroducePostIncrement) {
+                    continue;
+                }
+
+                modified |= runOptimization(block, new IntroducePostIncrementOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.MakeAssignmentExpressions) {
                     continue;
@@ -1188,6 +1197,180 @@ public final class AstOptimizer {
             }
 
             return false;
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="IntroducePostIncrement Optimization">
+
+    private final static class IntroducePostIncrementOptimization extends AbstractExpressionOptimization {
+        protected IntroducePostIncrementOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public boolean run(final List<Node> body, final Expression head, final int position) {
+            boolean modified = introducePostIncrementForVariables(body, head, position);
+
+            assert body.get(position) == head;
+
+            final Expression newExpression = introducePostIncrementForInstanceFields(head);
+
+            if (newExpression != null) {
+                modified = true;
+                body.set(position, newExpression);
+                new Inlining(method).inlineIfPossible(body, new MutableInteger(position));
+            }
+
+            return modified;
+        }
+
+        private boolean introducePostIncrementForVariables(final List<Node> body, final Expression e, final int position) {
+            //
+            // Works for local variables and static fields:
+            //
+            // e = load(i); inc(i, 1) => e = postincrement(i, 1)
+            //   --or--
+            // e = load(i); store(i, add(e, ldc(1)) => e = postincrement(i, 1)
+            //
+
+            final StrongBox<Variable> variable = new StrongBox<>();
+            final StrongBox<Expression> initializer = new StrongBox<>();
+
+            if (!matchGetArgument(e, AstCode.Store, variable, initializer) || !variable.get().isGenerated()) {
+                return false;
+            }
+
+            final Node next = getOrDefault(body, position + 1);
+
+            if (!(next instanceof Expression)) {
+                return false;
+            }
+
+            final Expression nextExpression = (Expression) next;
+            final AstCode loadCode = initializer.get().getCode();
+            final AstCode storeCode = nextExpression.getCode();
+
+            boolean recombineVariables = false;
+
+            switch (loadCode) {
+                case Load: {
+                    if (storeCode != AstCode.Inc && storeCode != AstCode.Store) {
+                        return false;
+                    }
+
+                    final Variable loadVariable = (Variable) initializer.get().getOperand();
+                    final Variable storeVariable = (Variable) initializer.get().getOperand();
+
+                    if (loadVariable != storeVariable) {
+                        if (loadVariable.getOriginalVariable() != null &&
+                            loadVariable.getOriginalVariable() == storeVariable.getOriginalVariable()) {
+
+                            recombineVariables = true;
+                        }
+                        else {
+                            return false;
+                        }
+                    }
+
+                    break;
+                }
+
+                case GetStatic: {
+                    if (storeCode != AstCode.PutStatic) {
+                        return false;
+                    }
+
+                    final FieldReference initializerOperand = (FieldReference) initializer.get().getOperand();
+                    final FieldReference nextOperand = (FieldReference) nextExpression.getOperand();
+
+                    if (initializerOperand == null ||
+                        nextOperand == null ||
+                        !StringUtilities.equals(initializerOperand.getFullName(), nextOperand.getFullName())) {
+
+                        return false;
+                    }
+
+                    break;
+                }
+            }
+
+            final Expression add = storeCode == AstCode.Inc ? nextExpression : nextExpression.getArguments().get(0);
+            final StrongBox<Integer> incrementAmount = new StrongBox<>();
+            final AstCode incrementCode = getIncrementCode(add, incrementAmount);
+
+            if (incrementCode == AstCode.Nop || !(match(add, AstCode.Inc) || match(add.getArguments().get(0), AstCode.Load))) {
+                return false;
+            }
+
+            if (recombineVariables) {
+                replaceVariables(
+                    method,
+                    new Function<Variable, Variable>() {
+                        @Override
+                        public Variable apply(final Variable old) {
+                            return old == nextExpression.getOperand() ? (Variable) initializer.get().getOperand() : old;
+                        }
+                    }
+                );
+            }
+
+            e.getArguments().set(
+                0,
+                new Expression(incrementCode, incrementAmount.get(), initializer.get())
+            );
+
+            body.remove(position + 1);
+            return true;
+        }
+
+        private Expression introducePostIncrementForInstanceFields(final Expression e) {
+            return null;
+        }
+
+        private AstCode getIncrementCode(final Expression add, final StrongBox<Integer> incrementAmount) {
+            final AstCode incrementCode;
+            final Expression amountArgument;
+            final boolean decrement;
+
+            switch (add.getCode()) {
+                case Add: {
+                    incrementCode = AstCode.PostIncrement;
+                    amountArgument = add.getArguments().get(1);
+                    decrement = false;
+                    break;
+                }
+
+                case Sub: {
+                    incrementCode = AstCode.PostIncrement;
+                    amountArgument = add.getArguments().get(1);
+                    decrement = true;
+                    break;
+                }
+
+                case Inc: {
+                    incrementCode = AstCode.PostIncrement;
+                    amountArgument = add.getArguments().get(0);
+                    decrement = false;
+                    break;
+                }
+
+                default: {
+                    return AstCode.Nop;
+                }
+            }
+
+            if (matchGetOperand(amountArgument, AstCode.LdC, incrementAmount)) {
+                if (incrementAmount.get() == 1 || incrementAmount.get() == -1) {
+                    if (decrement) {
+                        incrementAmount.set(-incrementAmount.get());
+                    }
+                    return incrementCode;
+                }
+            }
+
+            return AstCode.Nop;
         }
     }
 

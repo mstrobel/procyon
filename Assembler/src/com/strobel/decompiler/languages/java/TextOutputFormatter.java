@@ -264,15 +264,16 @@ public class TextOutputFormatter implements IOutputFormatter {
     public void writeComment(final CommentType commentType, final String content) {
         switch (commentType) {
             case SingleLine: {
-                output.write("//");
-                output.writeLine(content);
+                output.writeComment("//");
+                output.writeComment(content);
+                output.writeLine();
                 break;
             }
 
             case MultiLine: {
-                output.write("/*");
-                output.write(content);
-                output.write("*/");
+                output.writeComment("/*");
+                output.writeComment(content);
+                output.writeComment("*/");
                 break;
             }
 
@@ -284,8 +285,8 @@ public class TextOutputFormatter implements IOutputFormatter {
                     output.markFoldStart("///" + content, true);
                 }
 
-                output.write("///");
-                output.write(content);
+                output.writeComment("///");
+                output.writeComment(content);
 
                 if (inDocumentationComment && isLastLine) {
                     inDocumentationComment = false;

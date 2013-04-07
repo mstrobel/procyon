@@ -72,7 +72,14 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
     @Override
     public AstNode visitWhileStatement(final WhileStatement node, final Void data) {
         final DoWhileStatement doWhile = transformDoWhile(node);
-        return doWhile != null ? doWhile : super.visitWhileStatement(node, data);
+
+        if (doWhile != null) {
+            return doWhile;
+        }
+
+        transformContinueOuter(node);
+
+        return super.visitWhileStatement(node, data);
     }
 
     // </editor-fold>
@@ -711,6 +718,42 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         }
 
         return doWhile;
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Continue Outer Loop Transforms">
+
+    private final static WhileStatement CONTINUE_OUTER_PATTERN;
+
+    static {
+        final WhileStatement continueOuter = new WhileStatement();
+
+        continueOuter.setCondition(new AnyNode().toExpression());
+
+        continueOuter.setEmbeddedStatement(
+            new BlockStatement(
+                new NamedNode("label", new LabelStatement(Pattern.ANY_STRING)).toStatement(),
+                new Repeat(new AnyNode("statement")).toStatement()
+            )
+        );
+
+        CONTINUE_OUTER_PATTERN = continueOuter;
+    }
+
+    public final WhileStatement transformContinueOuter(final WhileStatement loop) {
+        final Match m = CONTINUE_OUTER_PATTERN.match(loop);
+
+        if (!m.success()) {
+            return null;
+        }
+
+        final LabelStatement label = (LabelStatement) m.get("label").iterator().next();
+
+        label.remove();
+        loop.getParent().insertChildBefore(loop, label, BlockStatement.STATEMENT_ROLE);
+
+        return loop;
     }
 
     // </editor-fold>
