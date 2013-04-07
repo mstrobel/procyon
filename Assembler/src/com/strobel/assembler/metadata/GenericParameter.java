@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2013 Mike Strobel
  *
- * This source code is based Mono.Cecil from Jb Evain, Copyright (c) Jb Evain;
+ * This source code is based on Mono.Cecil from Jb Evain, Copyright (c) Jb Evain;
  * and ILSpy/ICSharpCode from SharpDevelop, Copyright (c) AlphaSierraPapa.
  *
  * This source code is subject to terms and conditions of the Apache License, Version 2.0.
