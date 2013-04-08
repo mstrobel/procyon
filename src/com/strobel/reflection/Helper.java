@@ -411,7 +411,7 @@ final class Helper {
                     Ui = Types.Object;
                 }
 
-                if (Ti.isUnbound()) {
+                if (Ti.isUnbounded()) {
                     currentS.head = Si = new CapturedType(
                         Si.getDeclaringType(),
                         substitute(Ui, A, S),
@@ -578,8 +578,8 @@ final class Helper {
             return false;
         }
 
-        if (p.isUnbound()) {
-            return t.isUnbound();
+        if (p.isUnbounded()) {
+            return t.isUnbounded();
         }
 
         if (p.hasSuperBound()) {
@@ -1605,7 +1605,7 @@ final class Helper {
                 }
 
                 for (final Type p : t.getTypeArguments()) {
-                    if (p.isUnbound()) {
+                    if (p.isUnbounded()) {
                         return Boolean.FALSE;
                     }
                 }
