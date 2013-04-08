@@ -1,18 +1,18 @@
 /*
- * DeclareVariablesTransform.java
- *
- * Copyright (c) 2013 Mike Strobel
- *
- * This source code is based on Mono.Cecil from Jb Evain, Copyright (c) Jb Evain;
- * and ILSpy/ICSharpCode from SharpDevelop, Copyright (c) AlphaSierraPapa.
- *
- * This source code is subject to terms and conditions of the Apache License, Version 2.0.
- * A copy of the license can be found in the License.html file at the root of this distribution.
- * By using this source code in any fashion, you are agreeing to be bound by the terms of the
- * Apache License, Version 2.0.
- *
- * You must not remove this notice, or any other, from this software.
- */
+* DeclareVariablesTransform.java
+*
+* Copyright (c) 2013 Mike Strobel
+*
+* This source code is based on Mono.Cecil from Jb Evain, Copyright (c) Jb Evain;
+* and ILSpy/ICSharpCode from SharpDevelop, Copyright (c) AlphaSierraPapa.
+*
+* This source code is subject to terms and conditions of the Apache License, Version 2.0.
+* A copy of the license can be found in the License.html file at the root of this distribution.
+* By using this source code in any fashion, you are agreeing to be bound by the terms of the
+* Apache License, Version 2.0.
+*
+* You must not remove this notice, or any other, from this software.
+*/
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
@@ -84,6 +84,8 @@ public class DeclareVariablesTransform implements IAstTransform {
             if (replacedAssignment != null) {
                 final VariableInitializer initializer = new VariableInitializer(v.getName());
                 final Expression right = replacedAssignment.getRight();
+                final AstNode parent = replacedAssignment.getParent();
+                final AnalysisResult analysisResult = analyze(v, parent.getParent());
 
                 right.remove();
                 right.putUserDataIfAbsent(Keys.MEMBER_REFERENCE, replacedAssignment.getUserData(Keys.MEMBER_REFERENCE));
@@ -97,11 +99,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                 declaration.setType(v.getType().clone());
                 declaration.getVariables().add(initializer);
 
-                final AstNode parent = replacedAssignment.getParent();
-
                 if (parent instanceof ExpressionStatement) {
-                    final AnalysisResult analysisResult = analyze(v, parent.getParent());
-
                     if (analysisResult.isSingleAssignment) {
                         declaration.addModifier(Modifier.FINAL);
                     }
@@ -111,8 +109,6 @@ public class DeclareVariablesTransform implements IAstTransform {
                     parent.replaceWith(declaration);
                 }
                 else {
-                    final AnalysisResult analysisResult = analyze(v, parent.getParent());
-
                     if (analysisResult.isSingleAssignment) {
                         declaration.addModifier(Modifier.FINAL);
                     }
@@ -131,22 +127,21 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         if (v.getInsertionPoint() != null) {
             final Statement parentStatement = v.getInsertionPoint();
-            final Statement nextStatement = parentStatement.getNextStatement();
-            analysis.setAnalyzedRange(parentStatement, nextStatement != null ? nextStatement : parentStatement);
+            analysis.setAnalyzedRange(parentStatement, block);
         }
         else {
             final ExpressionStatement parentStatement = (ExpressionStatement) v.getReplacedAssignment().getParent();
-            final Statement nextStatement = parentStatement.getNextStatement();
-            analysis.setAnalyzedRange(parentStatement, nextStatement != null ? nextStatement : parentStatement);
+            analysis.setAnalyzedRange(parentStatement, block);
         }
 
-        final IsSingleAssignmentVisitor isSingleAssignmentVisitor = new IsSingleAssignmentVisitor(
-            v.getName(),
-            analysis
-        );
+        analysis.analyze(v.getName());
+
+        final boolean needsInitializer = !analysis.getUnassignedVariableUses().isEmpty();
+        final IsSingleAssignmentVisitor isSingleAssignmentVisitor = new IsSingleAssignmentVisitor(v.getName());
 
         scope.acceptVisitor(isSingleAssignmentVisitor, null);
-        return isSingleAssignmentVisitor.getResult();
+
+        return new AnalysisResult(isSingleAssignmentVisitor.isSingleAssignment(), needsInitializer);
     }
 
     private final static class AnalysisResult {
@@ -554,24 +549,18 @@ public class DeclareVariablesTransform implements IAstTransform {
 
     // <editor-fold defaultstate="collapsed" desc="IsSingleAssignmentVisitor Class">
 
-    private final static class IsSingleAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
+    private final class IsSingleAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
         private final String _variableName;
-        private final DefiniteAssignmentAnalysis _analysis;
         private boolean _abort;
         private int _loopDepth;
         private int _assignmentCount;
-        private boolean _needsInitializer;
 
-        IsSingleAssignmentVisitor(final String variableName, final DefiniteAssignmentAnalysis analysis) {
+        IsSingleAssignmentVisitor(final String variableName) {
             _variableName = VerifyArgument.notNull(variableName, "variableName");
-            _analysis = VerifyArgument.notNull(analysis, "analysis");
         }
 
-        final AnalysisResult getResult() {
-            return new AnalysisResult(
-                _assignmentCount < 2 && !_abort,
-                _needsInitializer
-            );
+        final boolean isSingleAssignment() {
+            return _assignmentCount < 2 && !_abort;
         }
 
         @Override
@@ -655,25 +644,6 @@ public class DeclareVariablesTransform implements IAstTransform {
                 case POST_DECREMENT: {
                     if (operand instanceof IdentifierExpression &&
                         StringUtilities.equals(((IdentifierExpression) operand).getIdentifier(), _variableName)) {
-
-                        Statement parentStatement = null;
-
-                        for (AstNode n = node; n != null; n = n.getParent()) {
-                            if (n instanceof Statement) {
-                                parentStatement = (Statement) n;
-                                break;
-                            }
-                        }
-
-                        if (parentStatement != null) {
-                            _analysis.analyze(_variableName);
-
-                            final DefiniteAssignmentStatus statusBefore = _analysis.getStatusBefore(parentStatement);
-
-                            if (statusBefore != DefiniteAssignmentStatus.DEFINITELY_ASSIGNED) {
-                                _needsInitializer = true;
-                            }
-                        }
 
                         if (_loopDepth != 0) {
                             _abort = true;

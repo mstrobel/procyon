@@ -173,6 +173,10 @@ public class DefiniteAssignmentAnalysis {
     }
 
     private DefiniteAssignmentStatus cleanSpecialValues(final DefiniteAssignmentStatus status) {
+        if (status == null) {
+            return null;
+        }
+
         switch (status) {
             case ASSIGNED_AFTER_TRUE_EXPRESSION:
             case ASSIGNED_AFTER_FALSE_EXPRESSION:
@@ -217,6 +221,7 @@ public class DefiniteAssignmentAnalysis {
                     break;
                 }
                 //
+
                 // Fall through to LoopCondition if next statement is If/Else...
                 //
             }
@@ -431,7 +436,12 @@ public class DefiniteAssignmentAnalysis {
 
         @Override
         public DefiniteAssignmentStatus visitAssignmentExpression(final AssignmentExpression node, final DefiniteAssignmentStatus data) {
-            return super.visitAssignmentExpression(node, data);
+            if (node.getOperator() == AssignmentOperatorType.ASSIGN) {
+                return handleAssignment(node.getLeft(), node.getRight(), data);
+            }
+            else {
+                return visitChildren(node, data);
+            }
         }
 
         final DefiniteAssignmentStatus handleAssignment(final Expression left, final Expression right, final DefiniteAssignmentStatus initialStatus) {
@@ -440,7 +450,7 @@ public class DefiniteAssignmentAnalysis {
 
                 if (StringUtilities.equals(variableName, identifier.getIdentifier())) {
                     if (right != null) {
-                        return right.acceptVisitor(this, initialStatus);
+                        right.acceptVisitor(this, initialStatus);
                     }
 
                     return DefiniteAssignmentStatus.DEFINITELY_ASSIGNED;

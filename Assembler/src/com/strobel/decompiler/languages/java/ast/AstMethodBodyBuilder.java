@@ -426,14 +426,18 @@ public class AstMethodBodyBuilder {
                 return new GotoStatement(((Label) operand).getName());
 
             case GetStatic: {
-                final MemberReferenceExpression staticFieldReference = AstBuilder.convertType(fieldOperand.getDeclaringType())
+                final ConvertTypeOptions options = new ConvertTypeOptions();
+                options.setIncludeTypeParameterDefinitions(false);
+                final MemberReferenceExpression staticFieldReference = AstBuilder.convertType(fieldOperand.getDeclaringType(), options)
                                                                                  .member(fieldOperand.getName());
                 staticFieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
                 return staticFieldReference;
             }
 
             case PutStatic: {
-                final MemberReferenceExpression staticFieldReference = AstBuilder.convertType(fieldOperand.getDeclaringType())
+                final ConvertTypeOptions options = new ConvertTypeOptions();
+                options.setIncludeTypeParameterDefinitions(false);
+                final MemberReferenceExpression staticFieldReference = AstBuilder.convertType(fieldOperand.getDeclaringType(), options)
                                                                                  .member(fieldOperand.getName());
                 staticFieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
                 return new AssignmentExpression(staticFieldReference, arg1);
@@ -677,7 +681,9 @@ public class AstMethodBodyBuilder {
             target = Expression.NULL;
         }
         else {
-            target = new TypeReferenceExpression(AstBuilder.convertType(declaringType));
+            final ConvertTypeOptions options = new ConvertTypeOptions();
+            options.setIncludeTypeParameterDefinitions(false);
+            target = new TypeReferenceExpression(AstBuilder.convertType(declaringType, options));
         }
 
         if (target instanceof ThisReferenceExpression) {
@@ -705,7 +711,9 @@ public class AstMethodBodyBuilder {
                 );
             }
             else {
-                creation = new ObjectCreationExpression(AstBuilder.convertType(declaringType));
+                final ConvertTypeOptions options = new ConvertTypeOptions();
+                options.setIncludeTypeParameterDefinitions(false);
+                creation = new ObjectCreationExpression(AstBuilder.convertType(declaringType, options));
             }
 
             creation.getArguments().addAll(adjustArgumentsForMethodCall(methodReference, arguments));
