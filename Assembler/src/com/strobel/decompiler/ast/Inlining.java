@@ -119,8 +119,8 @@ final class Inlining {
 
             if (v != null &&
                 v.isGenerated() &&
-                count(storeCounts, v) == 0 &&
-                count(loadCounts, v) == 0) {
+                count(storeCounts, v) == 1 &&
+                count(loadCounts, v) == 1) {
 
                 if (matchGetArgument(body.get(0), AstCode.Store, tempVariable, tempExpression) &&
                     matchLoad(tempExpression.get(), v)) {
