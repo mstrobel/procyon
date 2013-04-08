@@ -348,6 +348,10 @@ public final class AstBuilder {
             astMethod.setBody(createMethodBody(method, astMethod.getParameters()));
         }
 
+        for (final TypeReference thrownType : method.getThrownTypes()) {
+            astMethod.addChild(convertType(thrownType), Roles.THROWN_TYPE);
+        }
+
         return astMethod;
     }
 
@@ -361,6 +365,10 @@ public final class AstBuilder {
         astMethod.setBody(createMethodBody(method, astMethod.getParameters()));
         astMethod.putUserData(Keys.METHOD_DEFINITION, method);
         astMethod.putUserData(Keys.MEMBER_REFERENCE, method);
+
+        for (final TypeReference thrownType : method.getThrownTypes()) {
+            astMethod.addChild(convertType(thrownType), Roles.THROWN_TYPE);
+        }
 
         return astMethod;
     }

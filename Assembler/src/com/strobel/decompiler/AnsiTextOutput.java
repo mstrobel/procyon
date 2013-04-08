@@ -19,6 +19,7 @@ package com.strobel.decompiler;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.metadata.FieldReference;
+import com.strobel.assembler.metadata.IMethodSignature;
 import com.strobel.assembler.metadata.Label;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterReference;
@@ -37,11 +38,13 @@ public class AnsiTextOutput extends PlainTextOutput {
     private final static Ansi TYPE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(45/*105*//*141*/), null);
     private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*213*/212), null);
     private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(222/*216*/), null);
-    private final static Ansi LOCAL = new Ansi(Ansi.Attribute.NORMAL, (Ansi.Color) null, null);
+    private final static Ansi LOCAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(230), null);
     private final static Ansi LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(204), null);
     private final static Ansi TEXT_LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*48*/42), null);
     private final static Ansi COMMENT = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(244), null);
     private final static Ansi OPERATOR = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(247), null);
+    private final static Ansi DELIMITER = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(249), null);
+    private final static Ansi ATTRIBUTE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(214), null);
 
     public AnsiTextOutput() {
     }
@@ -76,6 +79,16 @@ public class AnsiTextOutput extends PlainTextOutput {
     }
 
     @Override
+    public void writeDelimiter(final String text) {
+        write(DELIMITER.colorize(text));
+    }
+
+    @Override
+    public void writeAttribute(final String text) {
+        write(ATTRIBUTE.colorize(text));
+    }
+
+    @Override
     public void writeOperator(final String text) {
         write(OPERATOR.colorize(text));
     }
@@ -96,14 +109,10 @@ public class AnsiTextOutput extends PlainTextOutput {
             colorizedText = INSTRUCTION.colorize(text);
         }
         else if (definition instanceof TypeReference) {
-            if (((TypeReference) definition).isPrimitive()) {
-                colorizedText = KEYWORD.colorize(text);
-            }
-            else {
-                colorizedText = TYPE.colorize(text);
-            }
+            colorizedText = TYPE.colorize(text);
         }
-        else if (definition instanceof MethodReference) {
+        else if (definition instanceof MethodReference ||
+                 definition instanceof IMethodSignature) {
             colorizedText = METHOD.colorize(text);
         }
         else if (definition instanceof FieldReference) {
@@ -138,14 +147,10 @@ public class AnsiTextOutput extends PlainTextOutput {
             colorizedText = INSTRUCTION.colorize(text);
         }
         else if (reference instanceof TypeReference) {
-            if (((TypeReference) reference).isPrimitive()) {
-                colorizedText = KEYWORD.colorize(text);
-            }
-            else {
-                colorizedText = TYPE.colorize(text);
-            }
+            colorizedText = TYPE.colorize(text);
         }
-        else if (reference instanceof MethodReference) {
+        else if (reference instanceof MethodReference ||
+                 reference instanceof IMethodSignature) {
             colorizedText = METHOD.colorize(text);
         }
         else if (reference instanceof FieldReference) {

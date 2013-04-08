@@ -1110,9 +1110,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             writeCommaSeparatedListInParenthesis(node.getParameters(), policy.SpaceWithinMethodDeclarationParentheses);
         }
 
-//        for (final Constraint constraint : node.getConstraints()) {
-//            constraint.acceptVisitor(this, _);
-//        }
+        final AstNodeCollection<AstType> thrownTypes = node.getThrownTypes();
+
+        if (!thrownTypes.isEmpty()) {
+            space();
+            writeKeyword(MethodDeclaration.THROWS_KEYWORD);
+            writeCommaSeparatedList(thrownTypes);
+        }
 
         writeMethodBody(node.getBody());
         endNode(node);
@@ -1133,6 +1137,15 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         endNode(node.getNameToken());
         space(policy.SpaceBeforeConstructorDeclarationParentheses);
         writeCommaSeparatedListInParenthesis(node.getParameters(), policy.SpaceWithinMethodDeclarationParentheses);
+
+        final AstNodeCollection<AstType> thrownTypes = node.getThrownTypes();
+
+        if (!thrownTypes.isEmpty()) {
+            space();
+            writeKeyword(MethodDeclaration.THROWS_KEYWORD);
+            writeCommaSeparatedList(thrownTypes);
+        }
+
         writeMethodBody(node.getBody());
         endNode(node);
         return null;

@@ -23,6 +23,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.strobel.core.CollectionUtilities.getOrDefault;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 import static java.lang.String.format;
 
@@ -62,6 +63,10 @@ final class Inlining {
                     increment(storeCounts, localVariable);
                 }
                 else if (code == AstCode.Inc) {
+                    increment(loadCounts, localVariable);
+                    increment(storeCounts, localVariable);
+                }
+                else if (code == AstCode.PostIncrement) {
                     increment(loadCounts, localVariable);
                     increment(storeCounts, localVariable);
                 }
@@ -119,8 +124,8 @@ final class Inlining {
 
             if (v != null &&
                 v.isGenerated() &&
-                count(storeCounts, v) == 0 &&
-                count(loadCounts, v) == 0) {
+                count(storeCounts, v) == 1 &&
+                count(loadCounts, v) == 1) {
 
                 if (matchGetArgument(body.get(0), AstCode.Store, tempVariable, tempExpression) &&
                     matchLoad(tempExpression.get(), v)) {
@@ -240,11 +245,14 @@ final class Inlining {
             n = ((Loop) n).getCondition();
         }
 
+        if (!(n instanceof Expression)) {
+            return false;
+        }
+
         final StrongBox<Expression> parent = new StrongBox<>();
         final MutableInteger position = new MutableInteger();
 
-        if (n instanceof Expression &&
-            findLoadInNext((Expression) n, variable, inlinedExpression, parent, position) == Boolean.TRUE) {
+        if (findLoadInNext((Expression) n, variable, inlinedExpression, parent, position) == Boolean.TRUE) {
 
             if (!aggressive &&
                 !variable.isGenerated() &&
@@ -319,12 +327,19 @@ final class Inlining {
 
             final Expression argument = arguments.get(i);
 
-            if (argument.getCode() == AstCode.Load &&
-                argument.getOperand() == variable) {
-
+            if (argument.getCode() == AstCode.Load && argument.getOperand() == variable) {
                 parent.set(expression);
                 position.setValue(i);
                 return Boolean.TRUE;
+            }
+
+            final StrongBox<Expression> tempExpression = new StrongBox<>();
+            final StrongBox<Object> tempOperand = new StrongBox<>();
+
+            if (matchGetArgument(argument, AstCode.PostIncrement, tempOperand, tempExpression) &&
+                matchGetOperand(tempExpression.get(), AstCode.Load, tempOperand) && tempOperand.get() == variable) {
+
+                return Boolean.FALSE;
             }
 
             final Boolean result = findLoadInNext(argument, variable, expressionBeingMoved, parent, position);
@@ -353,7 +368,7 @@ final class Inlining {
                 final Variable loadedVariable = (Variable) expression.getOperand();
 
                 for (final Expression potentialStore : expressionBeingMoved.getSelfAndChildrenRecursive(Expression.class)) {
-                    if (potentialStore.getCode() == AstCode.Store &&
+                    if ((potentialStore.getCode() == AstCode.Store || potentialStore.getCode() == AstCode.Inc) &&
                         potentialStore.getOperand() == loadedVariable) {
 
                         return false;
@@ -382,8 +397,7 @@ final class Inlining {
         final Node node = body.get(position);
 
         if (matchGetArgument(node, AstCode.Store, variable, inlinedExpression)) {
-            if (position < body.size() - 1 &&
-                inlineIfPossible(variable.get(), inlinedExpression.get(), body.get(position + 1), aggressive)) {
+            if (inlineIfPossible(variable.get(), inlinedExpression.get(), getOrDefault(body, position + 1), aggressive)) {
                 //
                 // Assign the ranges of the Store instruction.
                 //
@@ -557,6 +571,8 @@ final class Inlining {
             case MultiANewArray:
             case Store:
             case StoreElement:
+            case Inc:
+            case PostIncrement:
                 return true;
 
             default:

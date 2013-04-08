@@ -18,7 +18,7 @@ package com.strobel.decompiler;
 
 public enum NameSyntax {
     SIGNATURE,
-    SIGNATURE_NO_NAMED_TYPE_VARIABLES,
+    DESCRIPTOR,
     TYPE_NAME,
     SHORT_TYPE_NAME
 }

@@ -21,8 +21,14 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class ConstructorDeclaration extends EntityDeclaration {
+    public final static TokenRole THROWS_KEYWORD = MethodDeclaration.THROWS_KEYWORD;
+
     public final AstNodeCollection<ParameterDeclaration> getParameters() {
         return getChildrenByRole(Roles.PARAMETER);
+    }
+
+    public final AstNodeCollection<AstType> getThrownTypes() {
+        return getChildrenByRole(Roles.THROWN_TYPE);
     }
 
     public final BlockStatement getBody() {

@@ -95,7 +95,7 @@ public final class MetadataParser {
         }
 
         if (arrayDepth == 0) {
-            return _resolver.lookupType(descriptor);
+            return parseTypeSignature("L" + descriptor + ";");
         }
 
         final TypeReference elementType = parseTypeSignature(descriptor.substring(arrayDepth));

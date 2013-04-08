@@ -34,12 +34,16 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
+import com.strobel.decompiler.NameSyntax;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
+
+import static java.lang.String.format;
 
 public class MethodPrinter implements MethodVisitor {
     private final ITextOutput _output;
@@ -74,7 +78,8 @@ public class MethodPrinter implements MethodVisitor {
         final List<String> flagStrings = new ArrayList<>();
 
         if ("<clinit>".equals(_name)) {
-            _output.write("static {}");
+            _output.writeKeyword("static");
+            _output.write("{}");
         }
         else {
             final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(_flags & Flags.MethodFlags);
@@ -84,46 +89,49 @@ public class MethodPrinter implements MethodVisitor {
             }
 
             if (flagSet.size() > 0) {
-                _output.write(StringUtilities.join(" ", flagStrings));
-                _output.write(' ');
+                for (int i = 0; i < flagStrings.size(); i++) {
+                    _output.writeKeyword(flagStrings.get(i));
+                    _output.write(' ');
+                }
             }
 
             final List<GenericParameter> genericParameters = _signature.getGenericParameters();
 
             if (!genericParameters.isEmpty()) {
-                _output.write('<');
+                _output.writeDelimiter("<");
 
                 for (int i = 0; i < genericParameters.size(); i++) {
                     if (i != 0) {
-                        _output.write(", ");
+                        _output.writeDelimiter(", ");
                     }
 
-                    _output.write(genericParameters.get(i).getBriefDescription());
+                    DecompilerHelpers.writeType(_output, genericParameters.get(i), NameSyntax.TYPE_NAME);
                 }
 
-                _output.write('>');
+                _output.writeDelimiter(">");
+                _output.write(' ');
             }
 
-            _output.write(_signature.getReturnType().getBriefDescription());
+            DecompilerHelpers.writeType(_output, _signature.getReturnType(), NameSyntax.TYPE_NAME);
             _output.write(' ');
-            _output.write(_name);
-            _output.write('(');
+            _output.writeReference(_name, _signature);
+            _output.writeDelimiter("(");
 
             final List<ParameterDefinition> parameters = _signature.getParameters();
 
             for (int i = 0; i < parameters.size(); i++) {
                 if (i != 0) {
-                    _output.write(", ");
+                    _output.writeDelimiter(", ");
                 }
 
                 final ParameterDefinition parameter = parameters.get(i);
 
                 if (Flags.testAny(_flags, Flags.ACC_VARARGS) && i == parameters.size() - 1) {
-                    _output.write(parameter.getParameterType().getUnderlyingType().getBriefDescription());
-                    _output.write("...");
+                    DecompilerHelpers.writeType(_output, parameter.getParameterType().getUnderlyingType(), NameSyntax.TYPE_NAME);
+                    _output.writeDelimiter("...");
                 }
                 else {
-                    _output.write(parameter.getParameterType().getBriefDescription());
+                    DecompilerHelpers.writeType(_output, parameter.getParameterType(), NameSyntax.TYPE_NAME);
                 }
 
                 _output.write(' ');
@@ -138,21 +146,23 @@ public class MethodPrinter implements MethodVisitor {
                 }
             }
 
-            _output.write(')');
+            _output.writeDelimiter(")");
 
             if (_thrownTypes != null && _thrownTypes.length > 0) {
-                _output.write(" throws ");
+                _output.writeKeyword(" throws ");
 
                 for (int i = 0; i < _thrownTypes.length; i++) {
                     if (i != 0) {
-                        _output.write(", ");
+                        _output.writeDelimiter(", ");
                     }
 
                     _output.write(_thrownTypes[i].getBriefDescription());
                 }
             }
         }
-        _output.writeLine(";");
+
+        _output.writeDelimiter(";");
+        _output.writeLine();
 
         flagStrings.clear();
 
@@ -164,8 +174,25 @@ public class MethodPrinter implements MethodVisitor {
             return;
         }
 
-        _output.write("  Flags: %s", StringUtilities.join(", ", flagStrings));
-        _output.writeLine();
+        _output.indent();
+
+        try {
+            _output.writeAttribute("Flags");
+            _output.write(": ");
+
+            for (int i = 0; i < flagStrings.size(); i++) {
+                if (i != 0) {
+                    _output.write(", ");
+                }
+
+                _output.writeLiteral(flagStrings.get(i));
+            }
+
+            _output.writeLine();
+        }
+        finally {
+            _output.unindent();
+        }
     }
 
     @Override
@@ -176,20 +203,37 @@ public class MethodPrinter implements MethodVisitor {
     @Override
     public InstructionVisitor visitBody(final MethodBody body) {
         _body = body;
-        _output.writeLine("  Code:");
 
-        _output.write(
-            "    stack=%d, locals=%d, arguments=%d\n",
-            body.getMaxStackSize(),
-            body.getMaxLocals(),
-            _signature.getParameters().size()
-        );
+        _output.indent();
 
-        final InstructionCollection instructions = body.getInstructions();
+        try {
+            _output.writeAttribute("Code");
+            _output.writeLine(":");
 
-        if (!instructions.isEmpty()) {
-            _lineNumbers = new int[body.getCodeSize()];
-            Arrays.fill(_lineNumbers, -1);
+            _output.indent();
+
+            try {
+                _output.write("stack=");
+                _output.writeLiteral(body.getMaxStackSize());
+                _output.write(", locals=");
+                _output.writeLiteral(body.getMaxLocals());
+                _output.write(", arguments=");
+                _output.writeLiteral(_signature.getParameters().size());
+                _output.writeLine();
+            }
+            finally {
+                _output.unindent();
+            }
+
+            final InstructionCollection instructions = body.getInstructions();
+
+            if (!instructions.isEmpty()) {
+                _lineNumbers = new int[body.getCodeSize()];
+                Arrays.fill(_lineNumbers, -1);
+            }
+        }
+        finally {
+            _output.unindent();
         }
 
         return new InstructionPrinter();
@@ -203,7 +247,13 @@ public class MethodPrinter implements MethodVisitor {
 
         final List<ExceptionHandler> handlers = _body.getExceptionHandlers();
 
-        if (!handlers.isEmpty()) {
+        if (handlers.isEmpty()) {
+            return;
+        }
+
+        _output.indent();
+
+        try {
             int longestType = "Type".length();
 
             for (final ExceptionHandler handler : handlers) {
@@ -218,42 +268,55 @@ public class MethodPrinter implements MethodVisitor {
                 }
             }
 
-            _output.write("  Exceptions:");
-            _output.writeLine();
-            _output.write("    Try           Handler");
-            _output.writeLine();
-            _output.write("    Start  End    Start  End    %1$-" + longestType + "s", "Type");
-            _output.writeLine();
+            _output.writeAttribute("Exceptions");
+            _output.writeLine(":");
 
-            _output.write(
-                "    -----  -----  -----  -----  %1$-" + longestType + "s",
-                StringUtilities.repeat('-', longestType)
-            );
+            _output.indent();
 
-            _output.writeLine();
-
-            for (final ExceptionHandler handler : handlers) {
-                final String signature;
-                final TypeReference catchType = handler.getCatchType();
-
-                if (catchType != null) {
-                    signature = catchType.getSignature();
-                }
-                else {
-                    signature = "Any";
-                }
+            try {
+                _output.write("Try           Handler");
+                _output.writeLine();
+                _output.write("Start  End    Start  End    %1$-" + longestType + "s", "Type");
+                _output.writeLine();
 
                 _output.write(
-                    "    %1$-5d  %2$-5d  %3$-5d  %4$-5d  %5$-" + longestType + "s",
-                    handler.getTryBlock().getFirstInstruction().getOffset(),
-                    handler.getTryBlock().getLastInstruction().getEndOffset(),
-                    handler.getHandlerBlock().getFirstInstruction().getOffset(),
-                    handler.getHandlerBlock().getLastInstruction().getEndOffset(),
-                    signature
+                    "-----  -----  -----  -----  %1$-" + longestType + "s",
+                    StringUtilities.repeat('-', longestType)
                 );
 
                 _output.writeLine();
+
+                for (final ExceptionHandler handler : handlers) {
+                    final String signature;
+
+                    TypeReference catchType = handler.getCatchType();
+
+                    if (catchType != null) {
+                        signature = catchType.getSignature();
+                    }
+                    else {
+                        catchType = MetadataSystem.instance().lookupType("java/lang/Throwable");
+                        signature = "Any";
+                    }
+
+                    _output.writeLiteral(format("%1$-5d", handler.getTryBlock().getFirstInstruction().getOffset()));
+                    _output.write("  ");
+                    _output.writeLiteral(format("%1$-5d", handler.getTryBlock().getLastInstruction().getEndOffset()));
+                    _output.write("  ");
+                    _output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getLastInstruction().getEndOffset()));
+                    _output.write("  ");
+                    _output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getLastInstruction().getEndOffset()));
+                    _output.write("  ");
+                    _output.writeReference(signature, catchType);
+                    _output.writeLine();
+                }
             }
+            finally {
+                _output.unindent();
+            }
+        }
+        finally {
+            _output.unindent();
         }
     }
 
@@ -280,10 +343,27 @@ public class MethodPrinter implements MethodVisitor {
                 final List<TypeReference> exceptionTypes = exceptionsAttribute.getExceptionTypes();
 
                 if (!exceptionTypes.isEmpty()) {
-                    _output.writeLine("  Exceptions:");
-                    for (final TypeReference exceptionType : exceptionTypes) {
-                        _output.write("    throws %s", exceptionType.getBriefDescription());
-                        _output.writeLine();
+                    _output.indent();
+                    try {
+                        _output.writeAttribute("Exceptions");
+                        _output.writeLine(":");
+
+                        _output.indent();
+
+                        try {
+                            for (final TypeReference exceptionType : exceptionTypes) {
+                                _output.writeKeyword("throws");
+                                _output.write(' ');
+                                DecompilerHelpers.writeType(_output, exceptionType, NameSyntax.TYPE_NAME);
+                                _output.writeLine();
+                            }
+                        }
+                        finally {
+                            _output.unindent();
+                        }
+                    }
+                    finally {
+                        _output.unindent();
                     }
                 }
 
@@ -321,8 +401,9 @@ public class MethodPrinter implements MethodVisitor {
                     }
                 }
 
-                _output.write("  %s:", attribute.getName());
-                _output.writeLine();
+                _output.write("  ");
+                _output.writeAttribute(attribute.getName());
+                _output.writeLine(":");
                 _output.write("    Start  Length  Slot  %1$-" + longestName + "s  Signature", "Name");
                 _output.writeLine();
 
@@ -344,14 +425,19 @@ public class MethodPrinter implements MethodVisitor {
                         signature = entry.getType().getErasedSignature();
                     }
 
-                    _output.write(
-                        "    %1$-5d  %2$-6d  %3$-4d  %4$-" + longestName + "s  %5$s",
-                        entry.getScopeOffset(),
-                        entry.getScopeLength(),
-                        entry.getIndex(),
-                        entry.getName(),
-                        signature
+                    _output.write("    ");
+                    _output.writeLiteral(format("%1$-5d", entry.getScopeOffset()));
+                    _output.write("  ");
+                    _output.writeLiteral(format("%1$-6d", entry.getScopeLength()));
+                    _output.write("  ");
+                    _output.writeLiteral(format("%1$-4d", entry.getIndex()));
+
+                    _output.writeReference(
+                        String.format("  %1$-" + longestName + "s  ", entry.getName()),
+                        _body.getVariables().tryFind(entry.getIndex(), entry.getScopeOffset())
                     );
+
+                    _output.writeReference(signature, entry.getType());
 
                     _output.writeLine();
                 }
@@ -400,6 +486,8 @@ public class MethodPrinter implements MethodVisitor {
     }
 
     private final class InstructionPrinter implements InstructionVisitor {
+        private int _currentOffset = -1;
+
         private void printOpCode(final OpCode opCode) {
             switch (opCode) {
                 case TABLESWITCH:
@@ -426,9 +514,11 @@ public class MethodPrinter implements MethodVisitor {
                         LINE_NUMBER_CODE,
                         lineNumber
                     );
-                    endLine();
+                    _output.writeLine();
                 }
             }
+
+            _currentOffset = instruction.getOffset();
 
             try {
                 _output.writeLabel(String.format("%1$8d", instruction.getOffset()));
@@ -454,7 +544,10 @@ public class MethodPrinter implements MethodVisitor {
                     _output.write("!!! ERROR");
                 }
 
-                endLine();
+                _output.writeLine();
+            }
+            finally {
+                _currentOffset = -1;
             }
         }
 
@@ -462,21 +555,24 @@ public class MethodPrinter implements MethodVisitor {
         public void visit(final OpCode op) {
             printOpCode(op);
 
-            final int argumentIndex = OpCodeHelpers.getLoadStoreMacroArgumentIndex(op);
+            final int slot = OpCodeHelpers.getLoadStoreMacroArgumentIndex(op);
 
-            if (argumentIndex >= 0) {
+            if (slot >= 0) {
                 final VariableDefinitionCollection variables = _body.getVariables();
 
-                if (argumentIndex < variables.size()) {
-                    final VariableDefinition variable = variables.get(argumentIndex);
+                if (slot < variables.size()) {
+                    final VariableDefinition variable = variables.tryFind(slot, _currentOffset);
 
-                    if (variable.hasName()) {
+                    if (variable.hasName() && variable.isFromMetadata()) {
                         _output.writeComment(" /* %s */", variable.getName());
+                    }
+                    else {
+                        _output.writeLiteral(slot);
                     }
                 }
             }
 
-            endLine();
+            _output.writeLine();
         }
 
         @Override
@@ -487,10 +583,6 @@ public class MethodPrinter implements MethodVisitor {
             _output.writeReference(value.getErasedSignature(), value);
             _output.write(".class");
 
-            endLine();
-        }
-
-        private void endLine() {
             _output.writeLine();
         }
 
@@ -501,7 +593,7 @@ public class MethodPrinter implements MethodVisitor {
             _output.write(' ');
             _output.writeLiteral(value);
 
-            endLine();
+            _output.writeLine();
         }
 
         @Override
@@ -511,7 +603,7 @@ public class MethodPrinter implements MethodVisitor {
             _output.write(' ');
             _output.writeLiteral(value);
 
-            endLine();
+            _output.writeLine();
         }
 
         @Override
@@ -521,7 +613,7 @@ public class MethodPrinter implements MethodVisitor {
             _output.write(' ');
             _output.writeLiteral(value);
 
-            endLine();
+            _output.writeLine();
         }
 
         @Override
@@ -531,7 +623,7 @@ public class MethodPrinter implements MethodVisitor {
             _output.write(' ');
             _output.writeLiteral(value);
 
-            endLine();
+            _output.writeLine();
         }
 
         @Override
@@ -539,9 +631,9 @@ public class MethodPrinter implements MethodVisitor {
             printOpCode(op);
 
             _output.write(' ');
-            _output.writeLiteral(StringUtilities.escape(value, true));
+            _output.writeTextLiteral(StringUtilities.escape(value, true));
 
-            endLine();
+            _output.writeLine();
         }
 
         @Override
@@ -551,7 +643,7 @@ public class MethodPrinter implements MethodVisitor {
             _output.write(' ');
             _output.writeLabel(String.valueOf(target.getOffset()));
 
-            endLine();
+            _output.writeLine();
         }
 
         @Override
@@ -559,9 +651,17 @@ public class MethodPrinter implements MethodVisitor {
             printOpCode(op);
 
             _output.write(' ');
-            _output.writeReference(variable.getName(), variable);
 
-            endLine();
+            final VariableDefinition definition = _body.getVariables().tryFind(variable.getSlot(), _currentOffset);
+
+            if (definition != null && definition.hasName() && definition.isFromMetadata()) {
+                _output.writeReference(variable.getName(), variable);
+            }
+            else {
+                _output.writeLiteral(variable.getSlot());
+            }
+
+            _output.writeLine();
         }
 
         @Override
@@ -569,17 +669,19 @@ public class MethodPrinter implements MethodVisitor {
             printOpCode(op);
             _output.write(' ');
 
-            if (StringUtilities.isNullOrEmpty(variable.getName())) {
-                _output.writeReference("$" + variable.getSlot(), variable);
+            final VariableDefinition definition = _body.getVariables().tryFind(variable.getSlot(), _currentOffset);
+
+            if (definition != null && definition.hasName() && definition.isFromMetadata()) {
+                _output.writeReference(variable.getName(), variable);
             }
             else {
-                _output.writeReference(variable.getName(), variable);
+                _output.writeLiteral(variable.getSlot());
             }
 
             _output.write(", ");
             _output.writeLiteral(String.valueOf(operand));
 
-            endLine();
+            _output.writeLine();
         }
 
         @Override
@@ -589,7 +691,7 @@ public class MethodPrinter implements MethodVisitor {
             _output.write(' ');
             _output.writeReference(type.getSignature(), type);
 
-            endLine();
+            _output.writeLine();
         }
 
         @Override
@@ -597,13 +699,10 @@ public class MethodPrinter implements MethodVisitor {
             printOpCode(op);
 
             _output.write(' ');
-            _output.writeReference(method.getDeclaringType().getInternalName(), method.getDeclaringType());
-            _output.write('.');
-            _output.writeReference(method.getName(), method);
-            _output.write(':');
-            _output.write(method.getErasedSignature());
 
-            endLine();
+            DecompilerHelpers.writeMethod(_output, method);
+
+            _output.writeLine();
         }
 
         @Override
@@ -611,13 +710,10 @@ public class MethodPrinter implements MethodVisitor {
             printOpCode(op);
 
             _output.write(' ');
-            _output.writeReference(field.getDeclaringType().getInternalName(), field.getDeclaringType());
-            _output.write('.');
-            _output.writeReference(field.getName(), field);
-            _output.write(':');
-            _output.write(field.getErasedSignature());
 
-            endLine();
+            DecompilerHelpers.writeField(_output, field);
+
+            _output.writeLine();
         }
 
         @Override
@@ -628,7 +724,7 @@ public class MethodPrinter implements MethodVisitor {
         public void visitSwitch(final OpCode op, final SwitchInfo switchInfo) {
             printOpCode(op);
             _output.write(" {");
-            endLine();
+            _output.writeLine();
 
             switch (op) {
                 case TABLESWITCH: {
@@ -675,7 +771,7 @@ public class MethodPrinter implements MethodVisitor {
             }
 
             _output.write("          }");
-            endLine();
+            _output.writeLine();
         }
 
         @Override

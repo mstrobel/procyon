@@ -21,12 +21,18 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class MethodDeclaration extends EntityDeclaration {
+    public final static TokenRole THROWS_KEYWORD = new TokenRole("throws", TokenRole.FLAG_KEYWORD);
+
     public final AstType getPrivateImplementationType() {
         return getChildByRole(PRIVATE_IMPLEMENTATION_TYPE_ROLE);
     }
 
     public final void setPrivateImplementationType(final AstType type) {
         setChildByRole(PRIVATE_IMPLEMENTATION_TYPE_ROLE, type);
+    }
+
+    public final AstNodeCollection<AstType> getThrownTypes() {
+        return getChildrenByRole(Roles.THROWN_TYPE);
     }
 
     public final AstNodeCollection<TypeDeclaration> getDeclaredTypes() {

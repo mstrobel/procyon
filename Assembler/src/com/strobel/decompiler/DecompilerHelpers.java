@@ -24,7 +24,10 @@ import com.strobel.assembler.ir.FrameValue;
 import com.strobel.assembler.ir.FrameValueType;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.metadata.FieldReference;
+import com.strobel.assembler.metadata.IGenericInstance;
+import com.strobel.assembler.metadata.IMethodSignature;
 import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.ParameterReference;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableReference;
@@ -34,6 +37,7 @@ import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import java.util.List;
+import java.util.Stack;
 
 import static java.lang.String.format;
 
@@ -47,12 +51,13 @@ public final class DecompilerHelpers {
         VerifyArgument.notNull(writer, "writer");
         VerifyArgument.notNull(syntax, "syntax");
 
+/*
         switch (syntax) {
             case SIGNATURE:
                 writer.writeReference(type.getSignature(), type);
                 break;
 
-            case SIGNATURE_NO_NAMED_TYPE_VARIABLES:
+            case DESCRIPTOR:
                 writer.writeReference(type.getSignature(), type);
                 break;
 
@@ -64,24 +69,43 @@ public final class DecompilerHelpers {
                 writer.writeReference(type.getSimpleDescription(), type);
                 break;
         }
+*/
+        formatType(writer, type, syntax, type.isDefinition(), new Stack<TypeReference>());
     }
 
     public static void writeMethod(final ITextOutput writer, final MethodReference method) {
         VerifyArgument.notNull(method, "method");
         VerifyArgument.notNull(writer, "writer");
 
+        final Stack<TypeReference> typeStack = new Stack<>();
+
+        formatType(writer, method.getDeclaringType(), NameSyntax.DESCRIPTOR, false, typeStack);
+        writer.writeDelimiter(".");
         writer.writeReference(method.getFullName(), method);
-        writer.write(':');
-        writer.write(method.getSignature());
+        writer.writeDelimiter(":");
+        formatMethodSignature(writer, method, typeStack);
+    }
+
+    public static void writeMethodSignature(final ITextOutput writer, final IMethodSignature signature) {
+        VerifyArgument.notNull(signature, "signature");
+        VerifyArgument.notNull(writer, "writer");
+
+        final Stack<TypeReference> typeStack = new Stack<>();
+
+        formatMethodSignature(writer, signature, typeStack);
     }
 
     public static void writeField(final ITextOutput writer, final FieldReference field) {
         VerifyArgument.notNull(field, "field");
         VerifyArgument.notNull(writer, "writer");
 
-        writer.write(field.getFullName());
-        writer.write(':');
-        writer.write(field.getSignature());
+        final Stack<TypeReference> typeStack = new Stack<>();
+
+        formatType(writer, field.getDeclaringType(), NameSyntax.DESCRIPTOR, false, typeStack);
+        writer.writeDelimiter(".");
+        writer.writeReference(field.getFullName(), field);
+        writer.writeDelimiter(":");
+        formatType(writer, field.getFieldType(), NameSyntax.SIGNATURE, false, typeStack);
     }
 
     public static void writeOperand(final ITextOutput writer, final Object operand) {
@@ -353,6 +377,175 @@ public final class DecompilerHelpers {
                 writer.write(", ");
             }
             writeOperand(writer, instruction.getOperand(i));
+        }
+    }
+
+    private static void formatMethodSignature(
+        final ITextOutput writer,
+        final IMethodSignature signature,
+        final Stack<TypeReference> typeStack) {
+
+        final List<ParameterDefinition> parameters = signature.getParameters();
+
+        writer.writeDelimiter("(");
+
+        for (int i = 0, n = parameters.size(); i < n; ++i) {
+            final ParameterDefinition p = parameters.get(i);
+            formatType(writer, p.getParameterType(), NameSyntax.SIGNATURE, false, typeStack);
+        }
+
+        writer.writeDelimiter(")");
+
+        formatType(writer, signature.getReturnType(), NameSyntax.SIGNATURE, false, typeStack);
+    }
+
+    private static void formatType(
+        final ITextOutput writer,
+        final TypeReference type,
+        final NameSyntax syntax,
+        final boolean isDefinition,
+        final Stack<TypeReference> stack) {
+
+        if (type.isGenericParameter()) {
+            switch (syntax) {
+                case SIGNATURE: {
+                    formatType(writer, type.getExtendsBound(), syntax, isDefinition, stack);
+                    return;
+                }
+
+                case DESCRIPTOR: {
+                    writer.writeReference("T" + type.getName() + ";", type);
+                    return;
+                }
+
+                default: {
+                    writer.writeReference(type.getName(), type);
+
+                    if (type.hasExtendsBound() && !stack.contains(type.getExtendsBound())) {
+                        writer.writeKeyword(" extends ");
+                        stack.push(type);
+                        try {
+                            formatType(writer, type.getExtendsBound(), syntax, false, stack);
+                        }
+                        finally {
+                            stack.pop();
+                        }
+                    }
+
+                    return;
+                }
+            }
+        }
+
+        if (type.isWildcardType()) {
+            switch (syntax) {
+                case DESCRIPTOR: {
+                    formatType(writer, type.getExtendsBound(), syntax, false, stack);
+                    return;
+                }
+
+                case SIGNATURE: {
+                    if (type.hasSuperBound()) {
+                        writer.write("-");
+                        formatType(writer, type.getSuperBound(), syntax, false, stack);
+                    }
+                    else if (type.hasExtendsBound()) {
+                        writer.write("+");
+                        formatType(writer, type.getExtendsBound(), syntax, false, stack);
+                    }
+                    else {
+                        writer.write("*");
+                    }
+                    return;
+                }
+
+                default: {
+                    writer.write("?");
+
+                    if (type.hasSuperBound()) {
+                        writer.writeKeyword(" super ");
+                        formatType(writer, type.getSuperBound(), syntax, false, stack);
+                    }
+                    else if (type.hasExtendsBound()) {
+                        writer.writeKeyword(" extends ");
+                        formatType(writer, type.getExtendsBound(), syntax, false, stack);
+                    }
+
+                    return;
+                }
+            }
+        }
+
+        if (type.isArray()) {
+            switch (syntax) {
+                case SIGNATURE:
+                case DESCRIPTOR: {
+                    writer.write("[");
+                    formatType(writer, type.getElementType(), syntax, false, stack);
+                    break;
+                }
+
+                case TYPE_NAME:
+                case SHORT_TYPE_NAME: {
+                    formatType(writer, type.getElementType(), syntax, false, stack);
+                    writer.write("[]");
+                }
+            }
+
+            return;
+        }
+
+        stack.push(type);
+
+        try {
+            final String name;
+
+            switch (syntax) {
+                case TYPE_NAME:
+                    name = type.getFullName();
+                    break;
+                case SHORT_TYPE_NAME:
+                    name = type.getSimpleName();
+                    break;
+                case DESCRIPTOR:
+                    name = type.getInternalName();
+                    break;
+                default:
+                    name = type.isPrimitive() ? type.getInternalName() : "L" + type.getInternalName();
+                    break;
+            }
+
+            if (type.isPrimitive() && (syntax == NameSyntax.TYPE_NAME || syntax == NameSyntax.SHORT_TYPE_NAME)) {
+                writer.writeKeyword(name);
+            }
+            else if (isDefinition) {
+                writer.writeDefinition(name, type);
+            }
+            else {
+                writer.writeReference(name, type);
+            }
+
+            if (type instanceof IGenericInstance && syntax != NameSyntax.DESCRIPTOR) {
+                final List<TypeReference> typeArguments = ((IGenericInstance) type).getTypeArguments();
+                final int count = typeArguments.size();
+
+                if (count > 0) {
+                    writer.write('<');
+                    for (int i = 0; i < count; ++i) {
+                        final TypeReference typeArgument = typeArguments.get(i);
+
+                        formatType(writer, typeArgument, syntax, false, stack);
+                    }
+                    writer.write('>');
+                }
+            }
+
+            if (!type.isPrimitive() && syntax == NameSyntax.SIGNATURE) {
+                writer.write(';');
+            }
+        }
+        finally {
+            stack.pop();
         }
     }
 }
