@@ -130,11 +130,14 @@ public class DeclareVariablesTransform implements IAstTransform {
         final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(block);
 
         if (v.getInsertionPoint() != null) {
-            analysis.setAnalyzedRange(v.getInsertionPoint(), v.getInsertionPoint().getNextStatement());
+            final Statement parentStatement = v.getInsertionPoint();
+            final Statement nextStatement = parentStatement.getNextStatement();
+            analysis.setAnalyzedRange(parentStatement, nextStatement != null ? nextStatement : parentStatement);
         }
         else {
             final ExpressionStatement parentStatement = (ExpressionStatement) v.getReplacedAssignment().getParent();
-            analysis.setAnalyzedRange(parentStatement, parentStatement.getNextStatement());
+            final Statement nextStatement = parentStatement.getNextStatement();
+            analysis.setAnalyzedRange(parentStatement, nextStatement != null ? nextStatement : parentStatement);
         }
 
         final IsSingleAssignmentVisitor isSingleAssignmentVisitor = new IsSingleAssignmentVisitor(
