@@ -4,9 +4,6 @@
     <asm skipDebug="false" skipFrames="false" skipCode="false" expandFrames="true" />
     <groovy codeStyle="LEGACY" />
   </component>
-  <component name="AntConfiguration">
-    <defaultAnt bundledAnt="true" />
-  </component>
   <component name="ArtifactManager">
     <artifact type="jar" build-on-make="true" name="com.strobel:jar">
       <output-path>$PROJECT_DIR$/out/artifacts/com.strobel_jar</output-path>
@@ -38,7 +35,11 @@
       <entry name="?*.tld" />
       <entry name="?*.ftl" />
     </wildcardResourcePatterns>
-    <annotationProcessing enabled="false" useClasspath="true" />
+    <annotationProcessing>
+      <profile default="true" name="Default" enabled="false">
+        <processorPath useClasspath="true" />
+      </profile>
+    </annotationProcessing>
   </component>
   <component name="CopyrightManager" default="">
     <copyright>
@@ -648,7 +649,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.assembler.Disassembler" />
       <option name="VM_PARAMETERS" value="" />
-      <option name="PROGRAM_PARAMETERS" value="com/strobel/decompiler/DecompilerTests" />
+      <option name="PROGRAM_PARAMETERS" value="java/util/Collections$CheckedCollection" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />
@@ -661,9 +662,6 @@
         <option name="DEBUG_PORT" value="" />
         <option name="TRANSPORT" value="0" />
         <option name="LOCAL" value="true" />
-      </RunnerSettings>
-      <RunnerSettings RunnerId="Profile ">
-        <option name="myExternalizedOptions" value="&#13;&#10;additional-options2=onexit\=snapshot&#13;&#10;" />
       </RunnerSettings>
       <RunnerSettings RunnerId="Run" />
       <ConfigurationWrapper RunnerId="Debug" />
@@ -679,7 +677,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.decompiler.Decompiler" />
       <option name="VM_PARAMETERS" value="-ea -Dcom/strobel/decompiler/DecompilerTests" />
-      <option name="PROGRAM_PARAMETERS" value="java/lang/String" />
+      <option name="PROGRAM_PARAMETERS" value="com/strobel/decompiler/EnumTests" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />

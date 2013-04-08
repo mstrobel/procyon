@@ -201,7 +201,7 @@ final class ErasedType<T> extends Type<T> {
 
     @Override
     public Type getGenericTypeDefinition() {
-        throw Error.notGenericType(this);
+        return _originalType;
     }
 
     @Override
@@ -212,6 +212,11 @@ final class ErasedType<T> extends Type<T> {
     @Override
     public final boolean isGenericType() {
         return false;
+    }
+
+    @Override
+    public boolean isRawType() {
+        return true;
     }
 
     @Override

@@ -65,20 +65,20 @@ final class LambdaCompiler {
     final static AtomicInteger nextId = new AtomicInteger();
 
     final LambdaExpression<?> lambda;
-    final TypeBuilder typeBuilder;
-    final MethodBuilder methodBuilder;
-    final CodeGenerator generator;
+    final TypeBuilder         typeBuilder;
+    final MethodBuilder       methodBuilder;
+    final CodeGenerator       generator;
 
-    private final AnalyzedTree _tree;
+    private final AnalyzedTree                      _tree;
     private final KeyedQueue<Type<?>, LocalBuilder> _freeLocals;
-    private final BoundConstants _boundConstants;
-    private final Map<LabelTarget, LabelInfo> _labelInfo = new HashMap<>();
+    private final BoundConstants                    _boundConstants;
+    private final Map<LabelTarget, LabelInfo>       _labelInfo = new HashMap<>();
 
     private ConstructorBuilder _constructorBuilder;
-    private boolean _hasClosureArgument;
-    private FieldBuilder _closureField;
-    private CompilerScope _scope;
-    private LabelScopeInfo _labelBlock = new LabelScopeInfo(null, LabelScopeKind.Lambda);
+    private boolean            _hasClosureArgument;
+    private FieldBuilder       _closureField;
+    private CompilerScope      _scope;
+    private LabelScopeInfo     _labelBlock = new LabelScopeInfo(null, LabelScopeKind.Lambda);
 
     LambdaCompiler(final AnalyzedTree tree, final LambdaExpression<?> lambda) {
         this.lambda = lambda;
@@ -243,7 +243,7 @@ final class LambdaCompiler {
                 case Label:
                     // Found the label.  We can directly return from this place only if
                     // the label type is reference assignable to the lambda return type.
-                    final LabelTarget label = ((LabelExpression)expression).getTarget();
+                    final LabelTarget label = ((LabelExpression) expression).getTarget();
 
                     _labelInfo.put(
                         label,
@@ -261,7 +261,7 @@ final class LambdaCompiler {
 
                 case Block:
                     // Look in the last significant expression of a block.
-                    final BlockExpression body = (BlockExpression)expression;
+                    final BlockExpression body = (BlockExpression) expression;
 
                     // Omit empty and debug info at the end of the block since they
                     // are not going to emit any bytecode.
@@ -285,7 +285,7 @@ final class LambdaCompiler {
 
     private static boolean significant(final Expression node) {
         if (node instanceof BlockExpression) {
-            final BlockExpression block = (BlockExpression)node;
+            final BlockExpression block = (BlockExpression) node;
             for (int i = 0; i < block.getExpressionCount(); i++) {
                 if (significant(block.getExpression(i))) {
                     return true;
@@ -306,7 +306,7 @@ final class LambdaCompiler {
         final Pair<AnalyzedTree, LambdaExpression<T>> result = analyzeLambda(lambda);
         final AnalyzedTree tree = result.getFirst();
         final LambdaExpression<T> analyzedLambda = result.getSecond();
-        
+
         tree.setDebugInfoGenerator(debugInfoGenerator);
 
         // 2. Create lambda compiler
@@ -315,7 +315,7 @@ final class LambdaCompiler {
         // 3. emit
         c.emitLambdaBody();
 
-        final Type<T> generatedType = (Type<T>)c.typeBuilder.createType();
+        final Type<T> generatedType = (Type<T>) c.typeBuilder.createType();
         final Class<T> generatedClass = generatedType.getErasedClass();
 
         return c.createDelegate(generatedClass);
@@ -329,7 +329,7 @@ final class LambdaCompiler {
             if (_hasClosureArgument) {
                 final Constructor<?> constructor = generatedClass.getConstructor(Closure.class);
                 final Closure closure = new Closure(_boundConstants.toArray(), null);
-                instance = (T)constructor.newInstance(closure);
+                instance = (T) constructor.newInstance(closure);
             }
             else {
                 instance = generatedClass.newInstance();
@@ -341,7 +341,7 @@ final class LambdaCompiler {
                 Type.FilterMethodOverride,
                 lambda.getType().getMethods().get(0)
             );
-            
+
             return new Delegate<>(
                 instance,
                 (MethodInfo) method.get(0)
@@ -423,17 +423,17 @@ final class LambdaCompiler {
     }
 
     private static final class CompilationFlags {
-        private static final int EmitExpressionStart = 0x0001;
+        private static final int EmitExpressionStart   = 0x0001;
         private static final int EmitNoExpressionStart = 0x0002;
-        private static final int EmitAsDefaultType = 0x0010;
-        private static final int EmitAsVoidType = 0x0020;
-        private static final int EmitAsTail = 0x0100;   // at the tail position of a lambda; tail call can be safely emitted
-        private static final int EmitAsMiddle = 0x0200; // in the middle of a lambda; tail call can be emitted if it is in a return
-        private static final int EmitAsNoTail = 0x0400; // neither at the tail or in a return; or tail call is not turned on; no tail call is emitted
+        private static final int EmitAsDefaultType     = 0x0010;
+        private static final int EmitAsVoidType        = 0x0020;
+        private static final int EmitAsTail            = 0x0100;   // at the tail position of a lambda; tail call can be safely emitted
+        private static final int EmitAsMiddle          = 0x0200; // in the middle of a lambda; tail call can be emitted if it is in a return
+        private static final int EmitAsNoTail          = 0x0400; // neither at the tail or in a return; or tail call is not turned on; no tail call is emitted
 
         private static final int EmitExpressionStartMask = 0x000f;
-        private static final int EmitAsTypeMask = 0x00f0;
-        private static final int EmitAsTailCallMask = 0x0f00;
+        private static final int EmitAsTypeMask          = 0x00f0;
+        private static final int EmitAsTailCallMask      = 0x0f00;
 
         private static final int EmitAsSuperCall = 0x1000;
     }
@@ -704,13 +704,13 @@ final class LambdaCompiler {
 
         switch (node.getNodeType()) {
             case Assign:
-                emitAssign((BinaryExpression)node, CompilationFlags.EmitAsVoidType);
+                emitAssign((BinaryExpression) node, CompilationFlags.EmitAsVoidType);
                 break;
             case Block:
-                emit((BlockExpression)node, updateEmitAsTypeFlag(flags, CompilationFlags.EmitAsVoidType));
+                emit((BlockExpression) node, updateEmitAsTypeFlag(flags, CompilationFlags.EmitAsVoidType));
                 break;
             case Throw:
-                emitThrow((UnaryExpression)node, CompilationFlags.EmitAsVoidType);
+                emitThrow((UnaryExpression) node, CompilationFlags.EmitAsVoidType);
                 break;
             case Goto:
                 emitGotoExpression(node, updateEmitAsTypeFlag(flags, CompilationFlags.EmitAsVoidType));
@@ -765,7 +765,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Assignments">
 
     private void emitAssignBinaryExpression(final Expression expr) {
-        emitAssign((BinaryExpression)expr, CompilationFlags.EmitAsDefaultType);
+        emitAssign((BinaryExpression) expr, CompilationFlags.EmitAsDefaultType);
     }
 
     private void emitAssign(final BinaryExpression node, final int emitAs) {
@@ -785,7 +785,7 @@ final class LambdaCompiler {
     }
 
     private void emitMemberAssignment(final BinaryExpression node, final int flags) {
-        final MemberExpression lValue = (MemberExpression)node.getLeft();
+        final MemberExpression lValue = (MemberExpression) node.getLeft();
         final Expression rValue = node.getRight();
         final MemberInfo member = lValue.getMember();
 
@@ -813,7 +813,7 @@ final class LambdaCompiler {
 
         switch (member.getMemberType()) {
             case Field:
-                generator.putField((FieldInfo)member);
+                generator.putField((FieldInfo) member);
                 break;
 
             default:
@@ -827,7 +827,7 @@ final class LambdaCompiler {
     }
 
     private void emitVariableAssignment(final BinaryExpression node, final int flags) {
-        final ParameterExpression variable = (ParameterExpression)node.getLeft();
+        final ParameterExpression variable = (ParameterExpression) node.getLeft();
         final int emitAs = flags & CompilationFlags.EmitAsTypeMask;
         final Expression right = node.getRight();
         final ExpressionType rightNodeType = right.getNodeType();
@@ -868,7 +868,7 @@ final class LambdaCompiler {
     private void emitIndexAssignment(final BinaryExpression node, final int flags) {
         final Expression left = node.getLeft();
         final Expression right = node.getRight();
-        final BinaryExpression index = (BinaryExpression)left;
+        final BinaryExpression index = (BinaryExpression) left;
         final int emitAs = flags & CompilationFlags.EmitAsTypeMask;
 
         // Emit the target array.
@@ -910,10 +910,10 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Blocks">
 
     private static boolean hasVariables(final Object node) {
-        if (node instanceof BlockExpression)  {
-            return ((BlockExpression)node).getVariables().size() > 0;
+        if (node instanceof BlockExpression) {
+            return ((BlockExpression) node).getVariables().size() > 0;
         }
-        return ((CatchBlock)node).getVariable() != null;
+        return ((CatchBlock) node).getVariable() != null;
     }
 
     private void enterScope(final Object node) {
@@ -951,7 +951,7 @@ final class LambdaCompiler {
     }
 
     private void emitBlockExpression(final Expression expr, final int flags) {
-        emit((BlockExpression)expr, updateEmitAsTypeFlag(flags, CompilationFlags.EmitAsDefaultType));
+        emit((BlockExpression) expr, updateEmitAsTypeFlag(flags, CompilationFlags.EmitAsDefaultType));
     }
 
     private void emit(final BlockExpression node, final int flags) {
@@ -990,7 +990,7 @@ final class LambdaCompiler {
             int tailCallFlag = middleTailCall;
 
             if (next instanceof GotoExpression) {
-                final GotoExpression g = (GotoExpression)next;
+                final GotoExpression g = (GotoExpression) next;
 
                 if (g.getValue() == null || !significant(g.getValue())) {
                     final LabelInfo labelInfo = referenceLabel(g.getTarget());
@@ -1030,7 +1030,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="AndAlso Binary Expressions">
 
     private void emitAndAlsoBinaryExpression(final Expression expr, final int flags) {
-        final BinaryExpression b = (BinaryExpression)expr;
+        final BinaryExpression b = (BinaryExpression) expr;
 
         if (b.getMethod() != null) {
             throw Error.andAlsoCannotProvideMethod();
@@ -1126,7 +1126,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="OrElse Binary Expressions">
 
     private void emitOrElseBinaryExpression(final Expression expr, final int flags) {
-        final BinaryExpression b = (BinaryExpression)expr;
+        final BinaryExpression b = (BinaryExpression) expr;
 
         if (b.getMethod() != null) {
             throw Error.orElseCannotProvideMethod();
@@ -1222,7 +1222,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Coalesce Expressions">
 
     private void emitCoalesceBinaryExpression(final Expression expr) {
-        final BinaryExpression b = (BinaryExpression)expr;
+        final BinaryExpression b = (BinaryExpression) expr;
         assert (b.getMethod() == null);
 
         if (b.getLeft().getType().isPrimitive()) {
@@ -1310,7 +1310,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Conditional Expressions">
 
     private void emitConditionalExpression(final Expression expr, final int flags) {
-        final ConditionalExpression node = (ConditionalExpression)expr;
+        final ConditionalExpression node = (ConditionalExpression) expr;
 
         assert node.getTest().getType() == PrimitiveTypes.Boolean;
 
@@ -1343,7 +1343,7 @@ final class LambdaCompiler {
     }
 
     private void emitBinaryExpression(final Expression expr, final int flags) {
-        final BinaryExpression b = (BinaryExpression)expr;
+        final BinaryExpression b = (BinaryExpression) expr;
         final ExpressionType nodeType = b.getNodeType();
 
         assert nodeType != ExpressionType.AndAlso &&
@@ -1377,7 +1377,7 @@ final class LambdaCompiler {
 
     private Expression getEqualityOperand(final Expression expression) {
         if (expression.getNodeType() == ExpressionType.Convert) {
-            final UnaryExpression convert = (UnaryExpression)expression;
+            final UnaryExpression convert = (UnaryExpression) expression;
             if (TypeUtils.areReferenceAssignable(convert.getType(), convert.getOperand().getType())) {
                 return convert.getOperand();
             }
@@ -2002,7 +2002,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Constants and Default Values">
 
     private void emitConstantExpression(final Expression expr) {
-        final ConstantExpression node = (ConstantExpression)expr;
+        final ConstantExpression node = (ConstantExpression) expr;
         emitConstant(node.getValue(), node.getType());
     }
 
@@ -2025,7 +2025,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Branching">
 
     private void emitGotoExpression(final Expression expr, final int flags) {
-        final GotoExpression node = (GotoExpression)expr;
+        final GotoExpression node = (GotoExpression) expr;
         final LabelInfo labelInfo = referenceLabel(node.getTarget());
 
         int finalFlags = flags;
@@ -2067,14 +2067,14 @@ final class LambdaCompiler {
                 switch (node.getNodeType()) {
                     case Not:
                     case IsFalse:
-                        emitBranchNot(branchValue, (UnaryExpression)node, label);
+                        emitBranchNot(branchValue, (UnaryExpression) node, label);
                         return;
                     case AndAlso:
                     case OrElse:
-                        emitBranchLogical(branchValue, (BinaryExpression)node, label);
+                        emitBranchLogical(branchValue, (BinaryExpression) node, label);
                         return;
                     case Block:
-                        emitBranchBlock(branchValue, (BlockExpression)node, label);
+                        emitBranchBlock(branchValue, (BlockExpression) node, label);
                         return;
                     case Equal:
                     case NotEqual:
@@ -2448,7 +2448,8 @@ final class LambdaCompiler {
         //
         if (branch == isAnd) {
             emitBranchAnd(branch, node, label);
-        } else {
+        }
+        else {
             emitBranchOr(branch, node, label);
         }
     }
@@ -2492,7 +2493,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Invocation Expressions">
 
     private void emitInvocationExpression(final Expression expr, final int flags) {
-        final InvocationExpression node = (InvocationExpression)expr;
+        final InvocationExpression node = (InvocationExpression) expr;
         final LambdaExpression<?> lambdaOperand = node.getLambdaOperand();
 
         // Optimization: inline code for literal lambda's directly
@@ -2539,7 +2540,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Labels">
 
     private void emitLabelExpression(final Expression expr, int flags) {
-        final LabelExpression node = (LabelExpression)expr;
+        final LabelExpression node = (LabelExpression) expr;
 
         assert node.getTarget() != null;
 
@@ -2606,7 +2607,7 @@ final class LambdaCompiler {
                     // block it becomes associate with the block's scope. Same
                     // thing if it's in a switch case body.
                     if (_labelBlock.kind == LabelScopeKind.Block) {
-                        final LabelTarget label = ((LabelExpression)node).getTarget();
+                        final LabelTarget label = ((LabelExpression) node).getTarget();
 
                         if (_labelBlock.containsTarget(label)) {
                             return false;
@@ -2647,7 +2648,7 @@ final class LambdaCompiler {
                     // Define labels inside of the switch cases so they are in
                     // scope for the whole switch. This allows "goto case" and
                     // "goto default" to be considered as local jumps.
-                    final SwitchExpression s = (SwitchExpression)node;
+                    final SwitchExpression s = (SwitchExpression) node;
 
                     for (final SwitchCase c : s.getCases()) {
                         defineBlockLabels(c.getBody());
@@ -2693,13 +2694,13 @@ final class LambdaCompiler {
             return;
         }
 
-        final BlockExpression block = (BlockExpression)node;
+        final BlockExpression block = (BlockExpression) node;
 
         for (int i = 0, n = block.getExpressionCount(); i < n; i++) {
             final Expression e = block.getExpression(i);
 
             if (e instanceof LabelExpression) {
-                defineLabel(((LabelExpression)e).getTarget());
+                defineLabel(((LabelExpression) e).getTarget());
             }
         }
     }
@@ -2734,7 +2735,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Lambda Expressions">
 
     private void emitLambdaExpression(final Expression expr) {
-        final LambdaExpression node = (LambdaExpression)expr;
+        final LambdaExpression node = (LambdaExpression) expr;
         emitDelegateConstruction(node);
     }
 
@@ -2775,8 +2776,18 @@ final class LambdaCompiler {
     }
 
     static String getUniqueLambdaName(final String name, final Class<?> creationContext) {
-        final Package p = creationContext != null ? creationContext.getPackage()
-                                                  : LambdaCompiler.class.getPackage();
+        Package p;
+
+        if (creationContext != null) {
+            p = creationContext.getPackage();
+
+            if (p == null) {
+                p = LambdaCompiler.class.getPackage();
+            }
+        }
+        else {
+            p = LambdaCompiler.class.getPackage();
+        }
 
         if (name != null) {
             return String.format("%s.%s[0x%3$04x]", p.getName(), name, nextId.getAndIncrement());
@@ -2784,7 +2795,6 @@ final class LambdaCompiler {
 
         return String.format("%s.f__Lambda[0x%2$04x]", p.getName(), nextId.getAndIncrement());
     }
-
 
     private void emitLambdaBody() {
         // The lambda body is the "last" expression of the lambda
@@ -2891,7 +2901,7 @@ final class LambdaCompiler {
             _constructorBuilder = typeBuilder.defineDefaultConstructor();
         }
     }
-    
+
     private void ensureClosure() {
         if (_hasClosureArgument) {
             return;
@@ -2946,7 +2956,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Loop Expressions">
 
     private void emitLoopExpression(final Expression expr) {
-        final LoopExpression node = (LoopExpression)expr;
+        final LoopExpression node = (LoopExpression) expr;
 
         pushLabelBlock(LabelScopeKind.Statement);
 
@@ -2969,7 +2979,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Member Expressions">
 
     private void emitMemberExpression(final Expression expr) {
-        final MemberExpression node = (MemberExpression)expr;
+        final MemberExpression node = (MemberExpression) expr;
 
         // Emit "this", if any.
         if (node.getTarget() != null) {
@@ -2983,7 +2993,7 @@ final class LambdaCompiler {
     private void emitMemberGet(final MemberInfo member) {
         switch (member.getMemberType()) {
             case Field:
-                final FieldInfo field = (FieldInfo)member;
+                final FieldInfo field = (FieldInfo) member;
                 if (field.getFieldType().isPrimitive() && field.isStatic() && field.isFinal()) {
                     try {
                         emitConstant(field.getRawField().get(null), field.getFieldType());
@@ -3010,7 +3020,7 @@ final class LambdaCompiler {
     }
 
     private void emitMethodCallExpression(final Expression expr, final int flags) {
-        final MethodCallExpression node = (MethodCallExpression)expr;
+        final MethodCallExpression node = (MethodCallExpression) expr;
         emitMethodCall(node.getTarget(), node.getMethod(), node, flags);
     }
 
@@ -3092,10 +3102,10 @@ final class LambdaCompiler {
         final TypeList parameters;
 
         if (method instanceof MethodBuilder) {
-            parameters = ((MethodBuilder)method).getParameterTypes();
+            parameters = ((MethodBuilder) method).getParameterTypes();
         }
         else if (method instanceof ConstructorBuilder) {
-            parameters = ((ConstructorBuilder)method).getMethodBuilder().getParameterTypes();
+            parameters = ((ConstructorBuilder) method).getMethodBuilder().getParameterTypes();
         }
         else {
             parameters = method.getParameters().getParameterTypes();
@@ -3127,14 +3137,15 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="New and New Array Expressions">
 
     private void emitNewExpression(final Expression expr) {
-        final NewExpression node = (NewExpression)expr;
+        final NewExpression node = (NewExpression) expr;
         final ConstructorInfo constructor = node.getConstructor();
 
         if (constructor == null) {
             assert node.getArguments().size() == 0
                 : "Node with arguments must have a constructor.";
 
-            assert node.getType().isPrimitive() :
+            assert node.getType().isPrimitive()
+                :
                 "Only primitive type may have no constructor set.";
 
             generator.emitDefaultValue(node.getType());
@@ -3148,7 +3159,7 @@ final class LambdaCompiler {
     }
 
     private void emitNewArrayExpression(final Expression expr) {
-        final NewArrayExpression node = (NewArrayExpression)expr;
+        final NewArrayExpression node = (NewArrayExpression) expr;
         final ExpressionList<? extends Expression> expressions = node.getExpressions();
         final Type elementType = node.getType().getElementType();
 
@@ -3181,7 +3192,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Parameter Expressions">
 
     private void emitParameterExpression(final Expression expr) {
-        final ParameterExpression node = (ParameterExpression)expr;
+        final ParameterExpression node = (ParameterExpression) expr;
         if (node instanceof SelfExpression || node instanceof SuperExpression) {
             if (methodBuilder.isStatic()) {
                 throw Error.cannotAccessThisFromStaticMember();
@@ -3209,7 +3220,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Runtime Variables">
 
     private void emitRuntimeVariablesExpression(final Expression expr) {
-        final RuntimeVariablesExpression node = (RuntimeVariablesExpression)expr;
+        final RuntimeVariablesExpression node = (RuntimeVariablesExpression) expr;
         _scope.emitVariableAccess(this, node.getVariables());
     }
 
@@ -3218,7 +3229,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Type Binary Expressions">
 
     private void emitTypeBinaryExpression(final Expression expr) {
-        final TypeBinaryExpression node = (TypeBinaryExpression)expr;
+        final TypeBinaryExpression node = (TypeBinaryExpression) expr;
 
         if (node.getNodeType() == ExpressionType.TypeEqual) {
             emitExpression(node.reduceTypeEqual());
@@ -3279,7 +3290,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Unary Expressions">
 
     private void emitUnaryExpression(final Expression expr, final int flags) {
-        emitUnary((UnaryExpression)expr, flags);
+        emitUnary((UnaryExpression) expr, flags);
     }
 
     private void emitUnary(final UnaryExpression node, final int flags) {
@@ -3561,7 +3572,7 @@ final class LambdaCompiler {
     }
 
     private void emitConvertUnaryExpression(final Expression expr, final int flags) {
-        emitConvert((UnaryExpression)expr, flags);
+        emitConvert((UnaryExpression) expr, flags);
     }
 
     private void emitConvert(final UnaryExpression node, final int flags) {
@@ -3583,7 +3594,7 @@ final class LambdaCompiler {
     }
 
     private void emitUnboxUnaryExpression(final Expression expr) {
-        final UnaryExpression node = (UnaryExpression)expr;
+        final UnaryExpression node = (UnaryExpression) expr;
 
         assert node.getType().isPrimitive();
 
@@ -3598,7 +3609,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Throw Expressions">
 
     private void emitThrowUnaryExpression(final Expression expr) {
-        emitThrow((UnaryExpression)expr, CompilationFlags.EmitAsDefaultType);
+        emitThrow((UnaryExpression) expr, CompilationFlags.EmitAsDefaultType);
     }
 
     private void emitThrow(final UnaryExpression expr, final int flags) {
@@ -3612,7 +3623,7 @@ final class LambdaCompiler {
     // <editor-fold defaultstate="collapsed" desc="Try Expressions">
 
     private void emitTryExpression(final Expression expr) {
-        final TryExpression node = (TryExpression)expr;
+        final TryExpression node = (TryExpression) expr;
 
         checkTry();
 
@@ -3799,11 +3810,10 @@ final class LambdaCompiler {
 
     // </editor-fold>
 
-
     // <editor-fold defaultstate="collapsed" desc="Switch Expressions">
 
     private void emitSwitchExpression(final Expression expr, final int flags) {
-        final SwitchExpression node = (SwitchExpression)expr;
+        final SwitchExpression node = (SwitchExpression) expr;
 
         if (tryEmitLookupSwitch(node, flags)) {
             return;
@@ -3866,7 +3876,7 @@ final class LambdaCompiler {
             final ExpressionList<? extends Expression> testValues = c.getTestValues();
 
             for (int j = 0, n = testValues.size(); j < n; j++) {
-                final String s = (String)((ConstantExpression)testValues.get(j)).getValue();
+                final String s = (String) ((ConstantExpression) testValues.get(j)).getValue();
 
                 keys[i++] = s;
                 caseBodies.put(s, c.getBody());
@@ -3973,13 +3983,13 @@ final class LambdaCompiler {
 
             for (int k = 0, m = testValues.size(); k < m; k++) {
                 final int key;
-                final ConstantExpression test = (ConstantExpression)testValues.get(k);
+                final ConstantExpression test = (ConstantExpression) testValues.get(k);
 
                 if (isEnum) {
-                    key = ((Enum)test.getValue()).ordinal();
+                    key = ((Enum) test.getValue()).ordinal();
                 }
                 else {
-                    key = ((Number)test.getValue()).intValue();
+                    key = ((Number) test.getValue()).intValue();
                 }
 
                 keys[i++] = key;

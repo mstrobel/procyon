@@ -23,10 +23,12 @@ import static org.junit.Assert.*;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings("unchecked")
 public final class TypeTests {
     private static class StringList extends ArrayList<String> {}
+
     private final static class ExtendsStringList extends StringList {}
-    
+
     @Test
     public void testGenericAssignmentCompatibility() throws Throwable {
         final Type<Enum> e = Types.Enum;
@@ -146,10 +148,10 @@ public final class TypeTests {
 
         // ArrayList<?> a; List<? super String> l = a;
         assertFalse(l.makeGenericType(Type.makeSuperWildcard(s)).isAssignableFrom(a.makeGenericType(Type.makeWildcard())));
-        
+
         // ArrayList<T> a; List<String> l = a;
         assertFalse(l.makeGenericType(s).isAssignableFrom(a));
-        
+
         // ArrayList<String> a; List<T> l = a;
         assertTrue(l.isAssignableFrom(a.makeGenericType(s)));
 
@@ -165,4 +167,54 @@ public final class TypeTests {
         // ArrayList a; List l = a;
         assertTrue(l.getErasedType().isAssignableFrom(a.getErasedType()));
     }
+
+    @Test
+    public void testSignatureParsing() throws Throwable {
+        final Type<I> i = Type.of(I.class);
+        final Type<C> c = Type.of(C.class);
+        final Type<D> d = Type.of(D.class);
+        final Type<E> e = Type.of(E.class);
+
+        final Type<?> ei = e.makeGenericType(
+            Type.makeExtendsWildcard(c),
+            Type.makeSuperWildcard(d)
+        );
+
+        for (final Type<?> type : PrimitiveTypes.allPrimitives()) {
+            testSignatureRoundTrip(type);
+
+            if (type != PrimitiveTypes.Void) {
+                testSignatureRoundTrip(type.makeArrayType());
+                testSignatureRoundTrip(type.makeArrayType().makeArrayType());
+            }
+        }
+
+        testSignatureRoundTrip(ei);
+        testSignatureRoundTrip(i);
+        testSignatureRoundTrip(c);
+        testSignatureRoundTrip(d);
+        testSignatureRoundTrip(e);
+        testSignatureRoundTrip(Types.Map);
+        testSignatureRoundTrip(Types.Map.getErasedType());
+        testSignatureRoundTrip(Types.Map.makeGenericType(Types.Map.getGenericTypeParameters().get(0), Types.String));
+    }
+
+    private void testSignatureRoundTrip(final Type<?> t) {
+        final String signature = t.getSignature();
+        final Type<?> resolvedType = Type.forName(signature);
+
+        assertSame(t, resolvedType);
+    }
+
+    static void testMe(final Class c) {}
+
+    private interface I {}
+
+    private static class B {}
+
+    private static class C extends B implements I {}
+
+    private static class D extends C {}
+
+    private static class E<K extends B & I, V> {}
 }

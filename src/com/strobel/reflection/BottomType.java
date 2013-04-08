@@ -13,6 +13,8 @@
 
 package com.strobel.reflection;
 
+import com.strobel.util.ContractUtils;
+
 import javax.lang.model.type.TypeKind;
 
 /**
@@ -31,8 +33,18 @@ final class BottomType extends Type {
     }
 
     @Override
+    public boolean isInstance(final Object o) {
+        return false;
+    }
+
+    @Override
     public boolean isAssignableFrom(final Type type) {
         return true;
+    }
+
+    @Override
+    public final Type makeArrayType() {
+        throw ContractUtils.unsupported();
     }
 
     @Override

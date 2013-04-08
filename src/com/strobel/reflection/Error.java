@@ -241,4 +241,72 @@ final class Error {
             )
         );
     }
+
+    public static RuntimeException invalidSignatureTypeExpected(final String signature, final int position) {
+        return new IllegalArgumentException(
+            format(
+                "Invalid signature: type expected at position %d (%s).",
+                position,
+                signature
+            )
+        );
+    }
+    public static RuntimeException invalidSignatureTopLevelGenericParameterUnexpected(final String signature, final int position) {
+        return new IllegalArgumentException(
+            format(
+                "Invalid signature: unexpected generic parameter at position %d.  (%s)",
+                position,
+                signature
+            )
+        );
+    }
+
+    public static RuntimeException invalidSignatureNonGenericTypeTypeArguments(final Type<?> type) {
+        return new IllegalArgumentException(
+            format(
+                "Invalid signature: unexpected type arguments specified for non-generic type '%s'.",
+                type.getBriefDescription()
+            )
+        );
+    }
+
+    public static RuntimeException invalidSignatureUnexpectedToken(final String signature, final int position) {
+        return new IllegalArgumentException(
+            format(
+                "Invalid signature: unexpected token at position %d.  (%s)",
+                position,
+                signature
+            )
+        );
+    }
+
+    public static RuntimeException invalidSignatureUnexpectedEnd(final String signature, final int position) {
+        return new IllegalArgumentException(
+            format(
+                "Invalid signature: unexpected end of signature at position %d.  (%s)",
+                position,
+                signature
+            )
+        );
+    }
+
+    public static RuntimeException invalidSignatureExpectedEndOfTypeArguments(final String signature, final int position) {
+        return new IllegalArgumentException(
+            format(
+                "Invalid signature: expected end of type argument list at position %d.  (%s)",
+                position,
+                signature
+            )
+        );
+    }
+
+    public static RuntimeException invalidSignatureExpectedTypeArgument(final String signature, final int position) {
+        return new IllegalArgumentException(
+            format(
+                "Invalid signature: expected type argument at position %d.  (%s)",
+                position,
+                signature
+            )
+        );
+    }
 }

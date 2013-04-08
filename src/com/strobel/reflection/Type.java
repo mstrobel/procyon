@@ -129,6 +129,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                !typeArguments.hasBoundParameters();
     }
 
+    public boolean isRawType() {
+        return false;
+    }
+
     public boolean isGenericParameter() {
         return false;
     }
@@ -311,7 +315,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                this instanceof ICapturedType;
     }
 
-    public boolean isUnbound() {
+    public boolean isUnbounded() {
         return isWildcardType() &&
                getSuperBound() == Bottom &&
                getExtendsBound() == Types.Object;
@@ -450,7 +454,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     public boolean isInstance(final Object o) {
         return o != null &&
-               isAssignableFrom(of(o.getClass()));
+               getErasedClass().isInstance(o);
     }
 
     @SuppressWarnings("UnusedParameters")
@@ -1091,7 +1095,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
     }
 
-    public final Type<T> makeGenericType(final TypeList typeArguments) {
+    public final Type<? extends T> makeGenericType(final TypeList typeArguments) {
         VerifyArgument.noNullElements(typeArguments, "typeArguments");
         return makeGenericTypeCore(typeArguments);
     }
@@ -1527,6 +1531,22 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             }
 
             return (Type<T>)resolvedType;
+        }
+    }
+
+    public static Type<?> forName(final String name) {
+        return forName(name, true);
+    }
+
+    public static Type<?> forName(final String name, final boolean throwOnError) {
+        try {
+            return TypeParser.parse(name);
+        }
+        catch (Throwable t) {
+            if (throwOnError) {
+                throw t;
+            }
+            return null;
         }
     }
 
