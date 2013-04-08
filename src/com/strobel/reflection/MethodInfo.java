@@ -361,9 +361,25 @@ public abstract class MethodInfo extends MethodBase {
 
     @Override
     public StringBuilder appendSignature(final StringBuilder sb) {
+        StringBuilder s = sb;
+
+        if (isGenericMethod()) {
+            final TypeList typeArguments = getTypeBindings().getBoundTypes();
+            final int count = typeArguments.size();
+
+            if (count > 0) {
+                s.append('<');
+                //noinspection ForLoopReplaceableByForEach
+                for (int i = 0; i < count; ++i) {
+                    final Type type = typeArguments.get(i);
+                    s = type.appendGenericSignature(s);
+                }
+                s.append('>');
+            }
+        }
+
         final ParameterList parameters = getParameters();
 
-        StringBuilder s = sb;
         s.append('(');
 
         for (int i = 0, n = parameters.size(); i < n; ++i) {
@@ -535,19 +551,19 @@ public abstract class MethodInfo extends MethodBase {
 }
 
 class ReflectedMethod extends MethodInfo {
-    private final Type _declaringType;
+    private final Type<?> _declaringType;
     private final Method _rawMethod;
     private final ParameterList _parameters;
-    private final Type _returnType;
+    private final SignatureType _signatureType;
     private final TypeBindings _bindings;
     private final TypeList _thrownTypes;
-    private final Type _reflectedType;
+    private final Type<?> _reflectedType;
 
     ReflectedMethod(
-        final Type declaringType,
+        final Type<?> declaringType,
         final Method rawMethod,
         final ParameterList parameters,
-        final Type returnType,
+        final Type<?> returnType,
         final TypeList thrownTypes,
         final TypeBindings bindings) {
 
@@ -604,7 +620,12 @@ class ReflectedMethod extends MethodInfo {
         _reflectedType = VerifyArgument.notNull(reflectedType, "reflectedType");
         _rawMethod = VerifyArgument.notNull(rawMethod, "rawMethod");
         _parameters = VerifyArgument.notNull(parameters, "parameters");
-        _returnType = VerifyArgument.notNull(returnType, "returnType");
+
+        _signatureType = new SignatureType(
+            VerifyArgument.notNull(returnType, "returnType"),
+            _parameters.getParameterTypes()
+        );
+
         _thrownTypes = VerifyArgument.notNull(thrownTypes, "thrownTypes");
 
         if (genericParameters == null) {
@@ -617,7 +638,12 @@ class ReflectedMethod extends MethodInfo {
 
     @Override
     public Type<?> getReturnType() {
-        return _returnType;
+        return _signatureType.getReturnType();
+    }
+
+    @Override
+    public SignatureType getSignatureType() {
+        return _signatureType;
     }
 
     @Override
@@ -686,7 +712,7 @@ final class GenericMethod extends MethodInfo {
     private final MethodInfo _genericMethodDefinition;
     private final TypeBindings _typeBindings;
     private final ParameterList _parameters;
-    private final Type _returnType;
+    private final SignatureType _signatureType;
 
     GenericMethod(final TypeBindings typeBindings, final MethodInfo genericMethodDefinition) {
         _typeBindings = VerifyArgument.notNull(typeBindings, "typeBindings");
@@ -727,7 +753,10 @@ final class GenericMethod extends MethodInfo {
             }
         }
 
-        _returnType = resolveBindings(genericMethodDefinition.getReturnType());
+        _signatureType = new SignatureType(
+            resolveBindings(genericMethodDefinition.getReturnType()),
+            _parameters.getParameterTypes()
+        );
     }
 
     @Override
@@ -742,7 +771,12 @@ final class GenericMethod extends MethodInfo {
 
     @Override
     public Type<?> getReturnType() {
-        return _returnType;
+        return _signatureType.getReturnType();
+    }
+
+    @Override
+    public SignatureType getSignatureType() {
+        return _signatureType;
     }
 
     @Override

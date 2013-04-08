@@ -62,6 +62,7 @@ final class WildcardType<T> extends Type<T> {
 
         return _extendsBound.appendErasedDescription(sb);
     }
+
     @Override
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         if (_superBound != Bottom) {

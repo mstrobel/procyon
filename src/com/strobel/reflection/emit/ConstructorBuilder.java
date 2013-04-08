@@ -141,6 +141,11 @@ public final class ConstructorBuilder extends ConstructorInfo {
     }
 
     @Override
+    public SignatureType getSignatureType() {
+        return _methodBuilder.getSignatureType();
+    }
+
+    @Override
     public ParameterList getParameters() {
         verifyTypeCreated();
         return generatedConstructor.getParameters();

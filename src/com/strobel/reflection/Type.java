@@ -25,9 +25,7 @@ import com.strobel.util.TypeUtils;
 
 import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Array;
-import java.lang.reflect.GenericArrayType;
-import java.lang.reflect.Modifier;
+import java.lang.reflect.*;
 import java.util.*;
 
 /**
@@ -1568,7 +1566,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         if (declaringClass != null) {
             final Type<?> declaringType = of(declaringClass);
 
-            if (declaringType != null) {
+            if (declaringType != null &&
+                actualClass.getEnclosingMethod() == null &&
+                actualClass.getEnclosingConstructor() == null) {
+
                 return declaringType.getNestedType(
                     actualClass.getSimpleName(),
                     BindingFlags.All
@@ -1796,7 +1797,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return new TypeList(types);
     }
 
-    public static TypeList list(final List<? extends Type> types) {
+    public static TypeList list(final List<? extends Type<?>> types) {
         return new TypeList(types);
     }
 

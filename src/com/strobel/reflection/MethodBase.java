@@ -17,6 +17,8 @@ package com.strobel.reflection;
  * @author Mike Strobel
  */
 public abstract class MethodBase extends MemberInfo {
+    public abstract SignatureType getSignatureType();
+
     public ParameterList getParameters() {
         return ParameterList.empty();
     }

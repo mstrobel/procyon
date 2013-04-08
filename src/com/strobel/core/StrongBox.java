@@ -13,6 +13,7 @@
 
 package com.strobel.core;
 
+import com.strobel.functions.Block;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
 
@@ -20,7 +21,7 @@ import com.strobel.reflection.Types;
  * @author Mike Strobel
  */
 @SuppressWarnings("PublicField")
-public final class StrongBox<T> implements IStrongBox {
+public final class StrongBox<T> implements IStrongBox, Block<T> {
     public T value;
 
     public StrongBox() {}
@@ -61,5 +62,10 @@ public final class StrongBox<T> implements IStrongBox {
             default:
                 return Types.StrongBox.makeGenericType(type);
         }
+    }
+
+    @Override
+    public void accept(final T input) {
+        this.value = input;
     }
 }

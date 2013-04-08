@@ -459,7 +459,7 @@ final class ConstantPool {
         @Override
         public Void visitUtf8StringConstant(final Utf8StringConstant info, final CodeStream codeStream) {
             codeStream.putByte(info.getTag().value);
-            codeStream.putUTF8(info.value);
+            codeStream.putUtf8(info.value);
             return null;
         }
     }
@@ -1001,13 +1001,13 @@ final class ConstantPool {
 
         public void set(final float floatValue) {
             _tag = Tag.FloatConstant;
-            _intValue = Float.floatToIntBits(floatValue);
+            _intValue = Float.floatToRawIntBits(floatValue);
             _hashCode = 0x7FFFFFFF & (_tag.value + _intValue);
         }
 
         public void set(final double doubleValue) {
             _tag = Tag.DoubleConstant;
-            _longValue = Double.doubleToLongBits(doubleValue);
+            _longValue = Double.doubleToRawLongBits(doubleValue);
             _hashCode = 0x7FFFFFFF & (_tag.value + (int)_longValue);
         }
 

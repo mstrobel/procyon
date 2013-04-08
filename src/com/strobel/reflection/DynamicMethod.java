@@ -52,10 +52,10 @@ public final class DynamicMethod extends MethodInfo {
         return new DynamicMethod(methodType, INVOKE_EXACT);
     }
 
-    private final Type<?> _returnType;
     private final ParameterList _parameters;
     private final Method _invokeMethod;
     private final MethodHandle _methodHandle;
+    private final SignatureType _signatureType;
 
     private DynamicMethod(final MethodHandle methodHandle, final Method invokeMethod) {
         _methodHandle = VerifyArgument.notNull(methodHandle, "methodHandle");
@@ -63,8 +63,6 @@ public final class DynamicMethod extends MethodInfo {
         
         final MethodType methodType = methodHandle.type();
 
-        _returnType = Type.of(methodType.returnType());
-
         final ParameterInfo[] parameters = new ParameterInfo[methodType.parameterCount()];
 
         for (int i = 0, n = parameters.length; i < n; i++) {
@@ -76,6 +74,11 @@ public final class DynamicMethod extends MethodInfo {
         }
 
         _parameters = new ParameterList(parameters);
+
+        _signatureType = new SignatureType(
+            Type.of(methodType.returnType()),
+            _parameters.getParameterTypes()
+        );
     }
 
     private DynamicMethod(final MethodType methodType, final Method invokeMethod) {
@@ -83,7 +86,6 @@ public final class DynamicMethod extends MethodInfo {
 
         _invokeMethod = VerifyArgument.notNull(invokeMethod, "invokeMethod");
         _methodHandle = null;
-        _returnType = Type.of(methodType.returnType());
 
         final ParameterInfo[] parameters = new ParameterInfo[methodType.parameterCount()];
 
@@ -96,6 +98,11 @@ public final class DynamicMethod extends MethodInfo {
         }
 
         _parameters = new ParameterList(parameters);
+
+        _signatureType = new SignatureType(
+            Type.of(methodType.returnType()),
+            _parameters.getParameterTypes()
+        );
     }
 
     public MethodHandle getHandle() {
@@ -104,7 +111,12 @@ public final class DynamicMethod extends MethodInfo {
 
     @Override
     public Type<?> getReturnType() {
-        return _returnType;
+        return _signatureType.getReturnType();
+    }
+
+    @Override
+    public SignatureType getSignatureType() {
+        return _signatureType;
     }
 
     @Override

@@ -203,8 +203,8 @@ public final class TypeUtils {
             return false;
         }
 
-        final Set<Type> set1 = new HashSet<>(types1);
-        final Set<Type> set2 = new HashSet<>(types2);
+        final Set<Type<?>> set1 = new HashSet<>(types1);
+        final Set<Type<?>> set2 = new HashSet<>(types2);
 
         return set1.size() == set2.size() &&
                set1.containsAll(set2);
@@ -455,7 +455,10 @@ public final class TypeUtils {
     }
 
     public static boolean isValidInvocationTargetType(final MethodInfo method, final Type<?> targetType) {
-        return areReferenceAssignable(method.getDeclaringType(), targetType);
+        final Type declaringType = method.getDeclaringType();
+
+        return areReferenceAssignable(declaringType, targetType) ||
+               targetType.isSubTypeOf(declaringType);
     }
 
     public static boolean isSameOrSubType(final Type<?> type, final Type<?> subType) {

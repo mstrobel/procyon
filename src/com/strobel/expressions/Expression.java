@@ -463,7 +463,7 @@ public abstract class Expression {
             throw Error.argumentCannotBeOfTypeVoid();
         }
 
-        if (!TypeUtils.isIntegral(elementType)) {
+        if (!TypeUtils.isIntegral(dimension.getType())) {
             throw Error.argumentMustBeIntegral();
         }
 

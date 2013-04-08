@@ -196,10 +196,13 @@ public final class CodeStream {
      * @param s a String.
      * @return this byte stream.
      */
-    public CodeStream putUTF8(final String s) {
+    @SuppressWarnings("ConstantConditions")
+    public CodeStream putUtf8(final String s) {
         final int charLength = s.length();
 
         ensureCapacity(2 + charLength);
+
+        final int originalLength = _length;
 
         // optimistic algorithm: instead of computing the byte length and then
         // serializing the string (which requires two loops), we assume the byte
@@ -230,8 +233,8 @@ public final class CodeStream {
                     }
                 }
 
-                _data[_length] = (byte)(byteLength >>> 8);
-                _data[_length + 1] = (byte)byteLength;
+                _data[originalLength] = (byte)(byteLength >>> 8);
+                _data[originalLength + 1] = (byte)byteLength;
 
                 ensureCapacity(2 + byteLength);
 

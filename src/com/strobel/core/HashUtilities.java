@@ -13,6 +13,8 @@
 
 package com.strobel.core;
 
+import java.util.Arrays;
+
 /**
  * @author strobelm
  */
@@ -27,6 +29,52 @@ public final class HashUtilities {
         throw new UnsupportedOperationException();
     }
 
+    public static int hashCode(final Object o) {
+        if (o == null) {
+            return NullHashCode;
+        }
+
+        if (o.getClass().isArray()) {
+            if (o instanceof Object[]) {
+                return combineHashCodes((Object[]) o);
+            }
+
+            if (o instanceof byte[]) {
+                return Arrays.hashCode((byte[]) o);
+            }
+
+            if (o instanceof short[]) {
+                return Arrays.hashCode((short[]) o);
+            }
+
+            if (o instanceof int[]) {
+                return Arrays.hashCode((int[]) o);
+            }
+
+            if (o instanceof long[]) {
+                return Arrays.hashCode((long[]) o);
+            }
+
+            if (o instanceof char[]) {
+                return Arrays.hashCode((char[]) o);
+            }
+
+            if (o instanceof float[]) {
+                return Arrays.hashCode((float[]) o);
+            }
+
+            if (o instanceof double[]) {
+                return Arrays.hashCode((double[]) o);
+            }
+
+            if (o instanceof boolean[]) {
+                return Arrays.hashCode((boolean[]) o);
+            }
+        }
+
+        return o.hashCode();
+    }
+    
     public static int combineHashCodes(final int... hashes) {
         int hash = 0;
 
@@ -49,7 +97,7 @@ public final class HashUtilities {
                     entryHash = combineHashCodes((Object[])o);
                 }
                 else {
-                    entryHash = o.hashCode();
+                    entryHash = hashCode(o);
                 }
             }
 
@@ -147,25 +195,25 @@ public final class HashUtilities {
 
     public static int combineHashCodes(final Object o1, final Object o2) {
         return combineHashCodes(
-            o1 == null ? NullHashCode : o1.hashCode(),
-            o2 == null ? NullHashCode : o2.hashCode()
+            o1 == null ? NullHashCode : hashCode(o1),
+            o2 == null ? NullHashCode : hashCode(o2)
         );
     }
 
     public static int combineHashCodes(final Object o1, final Object o2, final Object o3) {
         return combineHashCodes(
-            o1 == null ? NullHashCode : o1.hashCode(),
-            o2 == null ? NullHashCode : o2.hashCode(),
-            o3 == null ? NullHashCode : o3.hashCode()
+            o1 == null ? NullHashCode : hashCode(o1),
+            o2 == null ? NullHashCode : hashCode(o2),
+            o3 == null ? NullHashCode : hashCode(o3)
         );
     }
 
     public static int combineHashCodes(final Object o1, final Object o2, final Object o3, final Object o4) {
         return combineHashCodes(
-            o1 == null ? NullHashCode : o1.hashCode(),
-            o2 == null ? NullHashCode : o2.hashCode(),
-            o3 == null ? NullHashCode : o3.hashCode(),
-            o4 == null ? NullHashCode : o4.hashCode()
+            o1 == null ? NullHashCode : hashCode(o1),
+            o2 == null ? NullHashCode : hashCode(o2),
+            o3 == null ? NullHashCode : hashCode(o3),
+            o4 == null ? NullHashCode : hashCode(o4)
         );
     }
 
@@ -177,11 +225,11 @@ public final class HashUtilities {
         final Object o5) {
 
         return combineHashCodes(
-            o1 == null ? NullHashCode : o1.hashCode(),
-            o2 == null ? NullHashCode : o2.hashCode(),
-            o3 == null ? NullHashCode : o3.hashCode(),
-            o4 == null ? NullHashCode : o4.hashCode(),
-            o5 == null ? NullHashCode : o5.hashCode()
+            o1 == null ? NullHashCode : hashCode(o1),
+            o2 == null ? NullHashCode : hashCode(o2),
+            o3 == null ? NullHashCode : hashCode(o3),
+            o4 == null ? NullHashCode : hashCode(o4),
+            o5 == null ? NullHashCode : hashCode(o5)
         );
     }
 
@@ -194,12 +242,12 @@ public final class HashUtilities {
         final Object o6) {
 
         return combineHashCodes(
-            o1 == null ? NullHashCode : o1.hashCode(),
-            o2 == null ? NullHashCode : o2.hashCode(),
-            o3 == null ? NullHashCode : o3.hashCode(),
-            o4 == null ? NullHashCode : o4.hashCode(),
-            o5 == null ? NullHashCode : o5.hashCode(),
-            o6 == null ? NullHashCode : o6.hashCode()
+            o1 == null ? NullHashCode : hashCode(o1),
+            o2 == null ? NullHashCode : hashCode(o2),
+            o3 == null ? NullHashCode : hashCode(o3),
+            o4 == null ? NullHashCode : hashCode(o4),
+            o5 == null ? NullHashCode : hashCode(o5),
+            o6 == null ? NullHashCode : hashCode(o6)
         );
     }
 
@@ -213,13 +261,13 @@ public final class HashUtilities {
         final Object o7) {
 
         return combineHashCodes(
-            o1 == null ? NullHashCode : o1.hashCode(),
-            o2 == null ? NullHashCode : o2.hashCode(),
-            o3 == null ? NullHashCode : o3.hashCode(),
-            o4 == null ? NullHashCode : o4.hashCode(),
-            o5 == null ? NullHashCode : o5.hashCode(),
-            o6 == null ? NullHashCode : o6.hashCode(),
-            o7 == null ? NullHashCode : o7.hashCode()
+            o1 == null ? NullHashCode : hashCode(o1),
+            o2 == null ? NullHashCode : hashCode(o2),
+            o3 == null ? NullHashCode : hashCode(o3),
+            o4 == null ? NullHashCode : hashCode(o4),
+            o5 == null ? NullHashCode : hashCode(o5),
+            o6 == null ? NullHashCode : hashCode(o6),
+            o7 == null ? NullHashCode : hashCode(o7)
         );
     }
 
@@ -234,14 +282,14 @@ public final class HashUtilities {
         final Object o8) {
 
         return combineHashCodes(
-            o1 == null ? NullHashCode : o1.hashCode(),
-            o2 == null ? NullHashCode : o2.hashCode(),
-            o3 == null ? NullHashCode : o3.hashCode(),
-            o4 == null ? NullHashCode : o4.hashCode(),
-            o5 == null ? NullHashCode : o5.hashCode(),
-            o6 == null ? NullHashCode : o6.hashCode(),
-            o7 == null ? NullHashCode : o7.hashCode(),
-            o8 == null ? NullHashCode : o8.hashCode()
+            o1 == null ? NullHashCode : hashCode(o1),
+            o2 == null ? NullHashCode : hashCode(o2),
+            o3 == null ? NullHashCode : hashCode(o3),
+            o4 == null ? NullHashCode : hashCode(o4),
+            o5 == null ? NullHashCode : hashCode(o5),
+            o6 == null ? NullHashCode : hashCode(o6),
+            o7 == null ? NullHashCode : hashCode(o7),
+            o8 == null ? NullHashCode : hashCode(o8)
         );
     }
 

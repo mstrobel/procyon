@@ -31,8 +31,7 @@ public final class MethodBuilder extends MethodInfo {
     private final TypeBuilder<?> _declaringType;
     private final int _modifiers;
 
-    private Type<?> _returnType;
-    private TypeList _parameterTypes;
+    private SignatureType _signatureType;
     private TypeList _thrownTypes;
 
     private boolean _isFinished;
@@ -57,8 +56,10 @@ public final class MethodBuilder extends MethodInfo {
 
         _name = VerifyArgument.notNullOrWhitespace(name, "name");
         _modifiers = modifiers;
-        _returnType = returnType != null ? returnType : PrimitiveTypes.Void;
-        _parameterTypes = parameterTypes != null ? parameterTypes : TypeList.empty();
+        _signatureType = new SignatureType(
+            returnType != null ? returnType : PrimitiveTypes.Void,
+            parameterTypes != null ? parameterTypes : TypeList.empty()
+        );
         _thrownTypes = thrownTypes != null ? thrownTypes : TypeList.empty();
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _annotations = ReadOnlyList.emptyList();
@@ -107,7 +108,12 @@ public final class MethodBuilder extends MethodInfo {
 
     @Override
     public Type<?> getReturnType() {
-        return _returnType;
+        return _signatureType.getReturnType();
+    }
+
+    @Override
+    public SignatureType getSignatureType() {
+        return _signatureType;
     }
 
     @Override
@@ -150,7 +156,7 @@ public final class MethodBuilder extends MethodInfo {
     }
 
     public TypeList getParameterTypes() {
-        return _parameterTypes;
+        return _signatureType.getParameterTypes();
     }
 
     public boolean isTypeCreated() {
@@ -175,12 +181,15 @@ public final class MethodBuilder extends MethodInfo {
     public void setSignature(final Type<?> returnType, final TypeList parameterTypes) {
         verifyNotGeneric();
 
+        Type<?> newReturnType = _signatureType.getReturnType();
+        TypeList newParameterTypes = _signatureType.getParameterTypes();
+
         if (returnType != null) {
-            _returnType = returnType;
+            newReturnType = returnType;
         }
 
         if (parameterTypes != null) {
-            _parameterTypes = parameterTypes;
+            newParameterTypes = parameterTypes;
             parameterBuilders = new ParameterBuilder[parameterTypes.size()];
 
             for (int i = 0, n = parameterTypes.size(); i < n; i++) {
@@ -191,6 +200,12 @@ public final class MethodBuilder extends MethodInfo {
                     parameterTypes.get(i)
                 );
             }
+        }
+
+        if (!newReturnType.isEquivalentTo(_signatureType.getReturnType()) ||
+            !newParameterTypes.isEquivalentTo(_signatureType.getParameterTypes())) {
+
+            _signatureType = new SignatureType(newReturnType, newParameterTypes);
         }
     }
 
@@ -322,6 +337,22 @@ public final class MethodBuilder extends MethodInfo {
     @Override
     public StringBuilder appendSignature(final StringBuilder sb) {
         StringBuilder s = sb;
+
+        if (isGenericMethod()) {
+            final GenericParameterBuilderList genericParameters = _genericParameterBuilders;
+            final int count = genericParameters.size();
+
+            if (count > 0) {
+                s.append('<');
+                //noinspection ForLoopReplaceableByForEach
+                for (int i = 0; i < count; ++i) {
+                    final Type type = genericParameters.get(i);
+                    s = type.appendGenericSignature(s);
+                }
+                s.append('>');
+            }
+        }
+
         s.append('(');
 
         final TypeList parameterTypes = getParameterTypes();
@@ -366,7 +397,9 @@ public final class MethodBuilder extends MethodInfo {
         verifyNotGeneric();
         _declaringType.verifyNotCreated();
 
-        if (_parameterTypes == null || position >= _parameterTypes.size()) {
+        final TypeList parameterTypes = _signatureType.getParameterTypes();
+
+        if (parameterTypes == null || position >= parameterTypes.size()) {
             throw new IllegalArgumentException("Position is out of range.");
         }
 
