@@ -39,7 +39,6 @@ import com.strobel.reflection.SimpleType;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -192,6 +191,11 @@ public class NameVariables {
     }
 
     public String getAlternativeName(final String oldVariableName) {
+        if (!_typeNames.containsKey(oldVariableName)) {
+            _typeNames.put(oldVariableName, 1);
+            return oldVariableName;
+        }
+
         if (oldVariableName.length() == 1 &&
             oldVariableName.charAt(0) >= 'i' &&
             oldVariableName.charAt(0) <= MAX_LOOP_VARIABLE_NAME) {
