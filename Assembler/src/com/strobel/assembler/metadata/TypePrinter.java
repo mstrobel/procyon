@@ -23,7 +23,6 @@ import com.strobel.assembler.ir.attributes.EnclosingMethodAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.ir.attributes.SourceFileAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
-import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.ITextOutput;
 
 import java.util.ArrayList;
@@ -52,16 +51,25 @@ public class TypePrinter implements TypeVisitor {
         final String baseTypeName,
         final String[] interfaceNames) {
 
-        _output.write("Class %s\n", name);
+        _output.writeLine("Class %s", name);
         _output.indent();
 
         try {
             if (genericSignature != null) {
-                _output.write("  Signature: %s\n", genericSignature);
+                _output.writeAttribute("Signature");
+                _output.write(": %s", genericSignature);
+                _output.writeLine();
             }
 
-            _output.write("  Minor version: %d\n", minorVersion);
-            _output.write("  Major version: %d\n", majorVersion);
+            _output.writeAttribute("Minor version");
+            _output.write(": ");
+            _output.writeLiteral(minorVersion);
+            _output.writeLine();
+
+            _output.writeAttribute("Major version");
+            _output.write(": ");
+            _output.writeLiteral(majorVersion);
+            _output.writeLine();
 
             final List<String> flagStrings = new ArrayList<>();
             final EnumSet<Flags.Flag> flagsSet = Flags.asFlagSet(flags & (Flags.ClassFlags | ~Flags.StandardFlags));
@@ -71,7 +79,18 @@ public class TypePrinter implements TypeVisitor {
             }
 
             if (!flagStrings.isEmpty()) {
-                _output.write("  Flags: %s\n", StringUtilities.join(", ", flagStrings));
+                _output.writeAttribute("Flags");
+                _output.write(": ");
+
+                for (int i = 0; i < flagStrings.size(); i++) {
+                    if (i != 0) {
+                        _output.write(", ");
+                    }
+
+                    _output.writeLiteral(flagStrings.get(i));
+                }
+
+                _output.writeLine();
             }
         }
         finally {
@@ -97,34 +116,53 @@ public class TypePrinter implements TypeVisitor {
 
     @Override
     public void visitAttribute(final SourceAttribute attribute) {
-        switch (attribute.getName()) {
-            case AttributeNames.SourceFile: {
-                _output.write("  SourceFile: %s", ((SourceFileAttribute) attribute).getSourceFile());
-                _output.writeLine();
-                break;
-            }
-
-            case AttributeNames.Deprecated: {
-                _output.write("  Deprecated");
-                _output.writeLine();
-                break;
-            }
-
-            case AttributeNames.EnclosingMethod: {
-                final TypeReference enclosingType = ((EnclosingMethodAttribute) attribute).getEnclosingType();
-                final MethodReference enclosingMethod = ((EnclosingMethodAttribute) attribute).getEnclosingMethod();
-
-                if (enclosingType != null) {
-                    _output.write("  EnclosingType: ", enclosingType.getSignature());
+        _output.indent();
+        try {
+            switch (attribute.getName()) {
+                case AttributeNames.SourceFile: {
+                    _output.writeAttribute("SourceFile");
+                    _output.write(": ");
+                    _output.writeTextLiteral(((SourceFileAttribute) attribute).getSourceFile());
+                    _output.writeLine();
+                    break;
                 }
 
-                if (enclosingMethod != null) {
-                    _output.write("  EnclosingMethod: %s:%s", enclosingMethod.getFullName(), enclosingMethod.getSignature());
+                case AttributeNames.Deprecated: {
+                    _output.writeAttribute("Deprecated");
+                    _output.writeLine();
+                    break;
                 }
 
-                _output.writeLine();
-                break;
+                case AttributeNames.EnclosingMethod: {
+                    final TypeReference enclosingType = ((EnclosingMethodAttribute) attribute).getEnclosingType();
+                    final MethodReference enclosingMethod = ((EnclosingMethodAttribute) attribute).getEnclosingMethod();
+
+                    if (enclosingType != null) {
+                        _output.writeAttribute("EnclosingType");
+                        _output.write(": ");
+                        _output.writeReference(enclosingType.getInternalName(), enclosingType);
+                        _output.writeLine();
+                    }
+
+                    if (enclosingMethod != null) {
+                        final TypeReference declaringType = enclosingMethod.getDeclaringType();
+
+                        _output.writeAttribute("EnclosingMethod");
+                        _output.write(": ");
+                        _output.writeReference(declaringType.getInternalName(), declaringType);
+                        _output.write(".");
+                        _output.writeReference(enclosingMethod.getName(), enclosingMethod);
+                        _output.write(":");
+                        _output.write(enclosingMethod.getSignature());
+                        _output.writeLine();
+                    }
+
+                    break;
+                }
             }
+        }
+        finally {
+            _output.unindent();
         }
     }
 

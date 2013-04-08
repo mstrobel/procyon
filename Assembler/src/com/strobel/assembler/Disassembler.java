@@ -28,6 +28,7 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.AnsiTextOutput;
 import com.strobel.decompiler.ITextOutput;
+import com.strobel.decompiler.PlainTextOutput;
 
 import java.util.List;
 
@@ -45,7 +46,7 @@ public final class Disassembler {
         final TypeDefinition resolvedType;
 
         if (type == null || (resolvedType = type.resolve()) == null) {
-            System.err.printf("!!! ERROR: Failed to load class %s.\n", internalName);
+            System.err.printf("ERROR: Could not resolve class '%s'.\n", internalName);
             return;
         }
 
@@ -53,7 +54,7 @@ public final class Disassembler {
         final Buffer buffer = new Buffer(0);
 
         if (!loader.tryLoadType(type.getInternalName(), buffer)) {
-            System.err.printf("!!! ERROR: Failed to load class %s.\n", internalName);
+            System.err.printf("ERROR: Could not resolve class '%s'.\n", internalName);
             return;
         }
 
@@ -79,7 +80,6 @@ public final class Disassembler {
     }
 
     public static void main(final String[] args) {
-        final ITextOutput output = new AnsiTextOutput();
         final DisassemblerOptions options = new DisassemblerOptions();
         final List<String> typeNames = Args.parse(options, args);
 
@@ -87,6 +87,10 @@ public final class Disassembler {
             Args.usage(options);
             return;
         }
+
+        final PlainTextOutput output = new AnsiTextOutput();
+
+        output.setIndentToken("  ");
 
         if (typeNames.isEmpty()) {
             disassemble("com/strobel/assembler/Disassembler", output, options);

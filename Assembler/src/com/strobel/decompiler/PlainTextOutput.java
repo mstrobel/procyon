@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler;
 
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 
 import java.io.IOException;
@@ -25,6 +26,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 
 public class PlainTextOutput implements ITextOutput {
     private final Writer _writer;
+    private String _indentToken = "    ";
     private int _indent;
     private boolean _needsIndent;
     private int _line = 1;
@@ -38,18 +40,31 @@ public class PlainTextOutput implements ITextOutput {
         _writer = VerifyArgument.notNull(writer, "writer");
     }
 
+    public final String getIndentToken() {
+        final String indentToken = _indentToken;
+        return indentToken != null ? indentToken : StringUtilities.EMPTY;
+    }
+
+    public final void setIndentToken(final String indentToken) {
+        _indentToken = indentToken;
+    }
+
     protected void writeIndent() {
         if (_needsIndent) {
             _needsIndent = false;
+
+            final String indentToken = getIndentToken();
+
             for (int i = 0; i < _indent; i++) {
                 try {
-                    _writer.write("    ");
+                    _writer.write(indentToken);
                 }
                 catch (IOException e) {
                     throw new UndeclaredThrowableException(e);
                 }
             }
-            _column += _indent;
+
+            _column += indentToken.length();
         }
     }
 
@@ -152,12 +167,22 @@ public class PlainTextOutput implements ITextOutput {
     }
 
     @Override
+    public void writeDelimiter(final String text) {
+        write(text);
+    }
+
+    @Override
     public void writeOperator(final String text) {
         write(text);
     }
 
     @Override
     public void writeKeyword(final String text) {
+        write(text);
+    }
+
+    @Override
+    public void writeAttribute(final String text) {
         write(text);
     }
 
