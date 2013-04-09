@@ -141,13 +141,13 @@ public class Buffer {
 
             switch (ch & 0xE0) {
                 case 0x00:
-                case 0x01:
-                case 0x02:
-                case 0x03:
-                case 0x04:
-                case 0x05:
-                case 0x06:
-                case 0x07:
+                case 0x10:
+                case 0x20:
+                case 0x30:
+                case 0x40:
+                case 0x50:
+                case 0x60:
+                case 0x70:
                     /* 0xxxxxxx*/
                     count++;
                     charBuffer[charactersRead++] = (char) ch;
