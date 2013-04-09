@@ -21,6 +21,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.util.ContractUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
@@ -195,11 +196,46 @@ final class GotoRemoval {
             return true;
         }
 
-        if (match(target, AstCode.Return)) {
+        final List<Expression> expressions = new ArrayList<>();
+
+        if (matchGetArguments(target, AstCode.Return, expressions) &&
+            (expressions.isEmpty() ||
+             expressions.size() == 1 && Inlining.hasNoSideEffect(expressions.get(0)))) {
+
             gotoExpression.setCode(AstCode.Return);
             gotoExpression.setOperand(null);
             gotoExpression.getArguments().clear();
-            gotoExpression.getArguments().addAll(((Expression)target).clone().getArguments());
+
+            if (!expressions.isEmpty()) {
+                gotoExpression.getArguments().add(expressions.get(0).clone());
+            }
+
+            return true;
+        }
+
+        final StrongBox<Variable> v = new StrongBox<>();
+        final StrongBox<Variable> v2 = new StrongBox<>();
+
+        Node next = nextSibling.get(target);
+
+        while (next instanceof Label) {
+            next = nextSibling.get(next);
+        }
+
+        if (matchGetArguments(target, AstCode.Store, v, expressions) &&
+            expressions.size() == 1 &&
+            Inlining.hasNoSideEffect(expressions.get(0)) &&
+            matchGetArguments(next, AstCode.Return, expressions) &&
+            expressions.size() == 1 &&
+            matchGetOperand(expressions.get(0), AstCode.Load, v2) &&
+            v2.get() == v.get()) {
+
+            gotoExpression.setCode(AstCode.Return);
+            gotoExpression.setOperand(null);
+            gotoExpression.getArguments().clear();
+            gotoExpression.getArguments().add(((Expression)target).getArguments().get(0).clone());
+
+            return true;
         }
 
         return false;

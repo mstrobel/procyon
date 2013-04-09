@@ -72,6 +72,7 @@ public final class PatternMatching {
 
             if (expression.getCode() == code) {
                 assert expression.getOperand() == null;
+                arguments.clear();
                 arguments.addAll(expression.getArguments());
                 return true;
             }
@@ -87,6 +88,7 @@ public final class PatternMatching {
 
             if (expression.getCode() == code) {
                 operand.set(expression.getOperand());
+                arguments.clear();
                 arguments.addAll(expression.getArguments());
                 return true;
             }
@@ -206,6 +208,59 @@ public final class PatternMatching {
     public static <T> boolean matchLast(
         final BasicBlock block,
         final AstCode code,
+        final StrongBox<T> operand) {
+
+        final List<Node> body = block.getBody();
+
+        if (body.size() >= 1 &&
+            matchGetOperand(body.get(body.size() - 1), code, operand)) {
+
+            return true;
+        }
+
+        operand.set(null);
+        return false;
+    }
+
+    public static <T> boolean matchLast(
+        final Block block,
+        final AstCode code,
+        final StrongBox<T> operand) {
+
+        final List<Node> body = block.getBody();
+
+        if (body.size() >= 1 &&
+            matchGetOperand(body.get(body.size() - 1), code, operand)) {
+
+            return true;
+        }
+
+        operand.set(null);
+        return false;
+    }
+
+    public static <T> boolean matchLast(
+        final Block block,
+        final AstCode code,
+        final StrongBox<T> operand,
+        final StrongBox<Expression> argument) {
+
+        final List<Node> body = block.getBody();
+
+        if (body.size() >= 1 &&
+            matchGetArgument(body.get(body.size() - 1), code, operand, argument)) {
+
+            return true;
+        }
+
+        operand.set(null);
+        argument.set(null);
+        return false;
+    }
+
+    public static <T> boolean matchLast(
+        final BasicBlock block,
+        final AstCode code,
         final StrongBox<T> operand,
         final StrongBox<Expression> argument) {
 
@@ -246,27 +301,27 @@ public final class PatternMatching {
 
     public static boolean matchThis(final Node node) {
         final StrongBox<Variable> operand = new StrongBox<>();
-        
+
         return matchGetOperand(node, AstCode.Load, operand) &&
                operand.get().isParameter() &&
                operand.get().getOriginalParameter().getPosition() == -1;
     }
-    
+
     public static boolean matchLoad(final Node node, final Variable expectedVariable) {
         final StrongBox<Variable> operand = new StrongBox<>();
-        
+
         return matchGetOperand(node, AstCode.Load, operand) &&
                Comparer.equals(operand.get(), expectedVariable);
     }
 
     public static boolean matchLoad(final Node node, final Variable expectedVariable, final StrongBox<Expression> argument) {
         final StrongBox<Variable> operand = new StrongBox<>();
-        
+
         return matchGetArgument(node, AstCode.Load, operand, argument) &&
                Comparer.equals(operand.get(), expectedVariable);
     }
 
-    public static boolean matchSimplifiableComparison(final Node node)  {
+    public static boolean matchSimplifiableComparison(final Node node) {
         if (node instanceof Expression) {
             final Expression e = (Expression) node;
 
@@ -290,7 +345,6 @@ public final class PatternMatching {
 
                             return matchGetOperand(constantArgument, AstCode.LdC, Integer.class, comparand) &&
                                    comparand.get() == 0;
-
                     }
                 }
             }
@@ -299,7 +353,7 @@ public final class PatternMatching {
         return false;
     }
 
-    public static boolean matchReversibleComparison(final Node node)  {
+    public static boolean matchReversibleComparison(final Node node) {
         if (match(node, AstCode.LogicalNot)) {
             switch (((Expression) node).getArguments().get(0).getCode()) {
                 case CmpEq:

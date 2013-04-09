@@ -227,6 +227,8 @@ public final class BreakTargetRelocation implements IAstTransform {
         AstNode current = null;
         BlockStatement match = null;
 
+        final Stack<AstNode> sinceLastMatch = new Stack<>();
+
     outer:
         while (true) {
             for (final Stack<AstNode> path : paths) {
@@ -247,10 +249,21 @@ public final class BreakTargetRelocation implements IAstTransform {
             }
 
             if (current instanceof BlockStatement) {
+                sinceLastMatch.clear();
                 match = (BlockStatement) current;
+            }
+            else {
+                sinceLastMatch.push(current);
             }
 
             current = null;
+        }
+
+        while (!sinceLastMatch.isEmpty()) {
+            for (int i = 0, n = paths.size(); i < n; i++) {
+                paths.get(i).push(sinceLastMatch.peek());
+            }
+            sinceLastMatch.pop();
         }
 
         return match;

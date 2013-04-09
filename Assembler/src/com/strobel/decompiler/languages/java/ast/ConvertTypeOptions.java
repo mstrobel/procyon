@@ -17,7 +17,7 @@
 package com.strobel.decompiler.languages.java.ast;
 
 public final class ConvertTypeOptions {
-    private boolean _includePackage = true;
+    private boolean _includePackage/* = true*/;
     private boolean _includeTypeParameterDefinitions = true;
 
     public boolean getIncludePackage() {

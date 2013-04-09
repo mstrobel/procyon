@@ -1064,6 +1064,11 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         node.getImport().acceptVisitor(this, _);
         semicolon();
         endNode(node);
+
+        if (!(node.getNextSibling() instanceof ImportDeclaration)) {
+            newLine();
+        }
+
         return null;
     }
 

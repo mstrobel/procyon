@@ -26,6 +26,7 @@ import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.SwitchInfo;
+import com.strobel.core.ArrayUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
@@ -380,6 +381,7 @@ final class LoopsAndConditions {
                 final StrongBox<Label[]> caseLabels = new StrongBox<>();
                 final StrongBox<Expression> switchArgument = new StrongBox<>();
                 final StrongBox<Label> fallLabel = new StrongBox<>();
+                final StrongBox<Label> tempTarget = new StrongBox<>();
 
                 AstCode switchCode;
 
@@ -415,8 +417,11 @@ final class LoopsAndConditions {
                     final SwitchInfo switchInfo = switchInstruction.getOperand(0);
                     final int lowValue = switchInfo.getLowValue();
                     final int[] keys = switchInfo.getKeys();
+                    final ControlFlowNode defaultTarget = labelsToNodes.get(labels[0]);
 
-                    for (int i = 0; i < labels.length; i++) {
+                    boolean defaultFollowsSwitch = false;
+
+                    for (int i = 1; i < labels.length; i++) {
                         final Label caseLabel = labels[i];
                         //
                         // Find or create a new case block.
@@ -438,26 +443,37 @@ final class LoopsAndConditions {
 
                             switchNode.getCaseBlocks().add(caseBlock);
 
+                            final List<Node> caseBody = caseBlock.getBody();
+
                             if (caseTarget != null) {
+                                if (caseTarget.getDominanceFrontier().contains(defaultTarget)) {
+                                    defaultFollowsSwitch = true;
+                                }
+
                                 caseBlock.setEntryGoto(new Expression(AstCode.Goto, caseLabel));
 
                                 final Set<ControlFlowNode> content = findDominatedNodes(scope, caseTarget);
 
                                 scope.removeAll(content);
-                                caseBlock.getBody().addAll(findConditions(content, caseTarget));
+                                caseBody.addAll(findConditions(content, caseTarget));
                             }
 
-                            //
-                            // Add explicit break that should not be used by default, but which might be used
-                            // by goto removal.
-                            //
+                            if (caseBody.isEmpty() ||
+                                !matchLast((BasicBlock) caseBody.get(caseBody.size() - 1), AstCode.Goto, tempTarget) ||
+                                !ArrayUtilities.contains(labels, tempTarget.get())) {
 
-                            final BasicBlock explicitBreak = new BasicBlock();
+                                //
+                                // Add explicit break that should not be used by default, but which might be used
+                                // by goto removal.
+                                //
 
-                            explicitBreak.getBody().add(new Label("SwitchBreak_" + _nextLabelIndex++));
-                            explicitBreak.getBody().add(new Expression(AstCode.LoopOrSwitchBreak, null));
+                                final BasicBlock explicitBreak = new BasicBlock();
 
-                            caseBlock.getBody().add(explicitBreak);
+                                explicitBreak.getBody().add(new Label("SwitchBreak_" + _nextLabelIndex++));
+                                explicitBreak.getBody().add(new Expression(AstCode.LoopOrSwitchBreak, null));
+
+                                caseBody.add(explicitBreak);
+                            }
                         }
 
                         if (i != 0) {
@@ -468,6 +484,31 @@ final class LoopsAndConditions {
                                 caseBlock.getValues().add(keys[i - 1]);
                             }
                         }
+                    }
+
+                    if (!defaultFollowsSwitch) {
+                        final CaseBlock defaultBlock = new CaseBlock();
+
+                        switchNode.getCaseBlocks().add(defaultBlock);
+
+//                        defaultBlock.setEntryGoto(new Expression(AstCode.Goto, labels[0]));
+
+                        final Set<ControlFlowNode> content = findDominatedNodes(scope, defaultTarget);
+
+                        scope.removeAll(content);
+                        defaultBlock.getBody().addAll(findConditions(content, defaultTarget));
+
+                        //
+                        // Add explicit break that should not be used by default, but which might be used
+                        // by goto removal.
+                        //
+
+                        final BasicBlock explicitBreak = new BasicBlock();
+
+                        explicitBreak.getBody().add(new Label("SwitchBreak_" + _nextLabelIndex++));
+                        explicitBreak.getBody().add(new Expression(AstCode.LoopOrSwitchBreak, null));
+
+                        defaultBlock.getBody().add(explicitBreak);
                     }
                 }
 

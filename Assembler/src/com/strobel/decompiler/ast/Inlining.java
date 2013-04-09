@@ -547,7 +547,7 @@ final class Inlining {
 
     // <editor-fold defaultstate="collapsed" desc="Helper Methods">
 
-    private static boolean hasNoSideEffect(final Expression expression) {
+    static boolean hasNoSideEffect(final Expression expression) {
         switch (expression.getCode()) {
             case Load:
             case LoadElement:
