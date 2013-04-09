@@ -25,6 +25,7 @@ import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterReference;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableReference;
+import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.ast.AstCode;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.io.Ansi;
@@ -36,6 +37,7 @@ public class AnsiTextOutput extends PlainTextOutput {
     private final static Ansi INSTRUCTION = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*45*//*33*/141), null);
     private final static Ansi LABEL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(249), null);
     private final static Ansi TYPE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(45/*105*//*141*/), null);
+    private final static Ansi PACKAGE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(111), null);
     private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*213*/212), null);
     private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(222/*216*/), null);
     private final static Ansi LOCAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(230), null);
@@ -109,7 +111,7 @@ public class AnsiTextOutput extends PlainTextOutput {
             colorizedText = INSTRUCTION.colorize(text);
         }
         else if (definition instanceof TypeReference) {
-            colorizedText = TYPE.colorize(text);
+            colorizedText = colorizeType(text, (TypeReference) definition);
         }
         else if (definition instanceof MethodReference ||
                  definition instanceof IMethodSignature) {
@@ -147,7 +149,7 @@ public class AnsiTextOutput extends PlainTextOutput {
             colorizedText = INSTRUCTION.colorize(text);
         }
         else if (reference instanceof TypeReference) {
-            colorizedText = TYPE.colorize(text);
+            colorizedText = colorizeType(text, (TypeReference) reference);
         }
         else if (reference instanceof MethodReference ||
                  reference instanceof IMethodSignature) {
@@ -172,5 +174,69 @@ public class AnsiTextOutput extends PlainTextOutput {
         }
 
         super.writeReference(colorizedText, reference, isLocal);
+    }
+
+    private String colorizeType(final String text, final TypeReference type) {
+        final String packageName = type.getPackageName();
+
+        if (StringUtilities.isNullOrEmpty(packageName)) {
+            return TYPE.colorize(text);
+        }
+
+        String s = text;
+        char delimiter = '.';
+        String packagePrefix = packageName + delimiter;
+
+        int arrayDepth;
+
+        for (arrayDepth = 0; arrayDepth < s.length() && s.charAt(arrayDepth) == '['; arrayDepth++) {
+        }
+
+        if (arrayDepth > 0) {
+            s = s.substring(arrayDepth);
+        }
+
+        final boolean isSignature = s.startsWith("L") && s.endsWith(";");
+
+        if (isSignature) {
+            s = s.substring(1, s.length() - 1);
+        }
+
+        if (!StringUtilities.startsWith(s, packagePrefix)) {
+            delimiter = '/';
+            packagePrefix = packageName.replace('.', delimiter) + delimiter;
+        }
+
+        if (StringUtilities.startsWith(s, packagePrefix)) {
+            final StringBuilder sb = new StringBuilder();
+            final String[] packageParts = packageName.split("\\.");
+
+            for (int i = 0; i < arrayDepth; i++) {
+                sb.append('[');
+            }
+
+            if (isSignature) {
+                sb.append('L');
+            }
+
+            for (int i = 0; i < packageParts.length; i++) {
+                if (i != 0) {
+                    sb.append(DELIMITER.colorize(String.valueOf(delimiter)));
+                }
+
+                sb.append(PACKAGE.colorize(packageParts[i]));
+            }
+
+            sb.append(DELIMITER.colorize(String.valueOf(delimiter)));
+            sb.append(TYPE.colorize(s.substring(packagePrefix.length())));
+
+            if (isSignature) {
+                sb.append(';');
+            }
+
+            return sb.toString();
+        }
+
+        return TYPE.colorize(text);
     }
 }

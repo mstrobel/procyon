@@ -129,7 +129,7 @@ public class AstMethodBodyBuilder {
         final Statement insertionPoint = firstOrDefault(statements);
 
         for (final Variable v : _localVariablesToDefine) {
-            final AstType type = AstBuilder.convertType(v.getType());
+            final AstType type = _astBuilder.convertType(v.getType());
             final VariableDeclarationStatement declaration = new VariableDeclarationStatement(type, v.getName());
 
             declaration.putUserData(Keys.VARIABLE, v);
@@ -304,7 +304,7 @@ public class AstMethodBodyBuilder {
                 final CatchClause catchClause = new CatchClause(transformBlock(catchBlock));
 
                 for (final TypeReference caughtType : catchBlock.getCaughtTypes()) {
-                    catchClause.getExceptionTypes().add(AstBuilder.convertType(caughtType));
+                    catchClause.getExceptionTypes().add(_astBuilder.convertType(caughtType));
                 }
 
                 final Variable exceptionVariable = catchBlock.getExceptionVariable();
@@ -342,7 +342,7 @@ public class AstMethodBodyBuilder {
     private AstNode transformByteCode(final com.strobel.decompiler.ast.Expression byteCode, final boolean isTopLevel) {
         final Object operand = byteCode.getOperand();
         final Label label = operand instanceof Label ? (Label) operand : null;
-        final AstType operandType = operand instanceof TypeReference ? AstBuilder.convertType((TypeReference) operand) : AstType.NULL;
+        final AstType operandType = operand instanceof TypeReference ? _astBuilder.convertType((TypeReference) operand) : AstType.NULL;
         final Variable variableOperand = operand instanceof Variable ? (Variable) operand : null;
         final FieldReference fieldOperand = operand instanceof FieldReference ? (FieldReference) operand : null;
 
@@ -392,35 +392,35 @@ public class AstMethodBodyBuilder {
                 return arg1;
 
             case I2L:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Long), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Long), arg1);
             case I2F:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Float), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Float), arg1);
             case I2D:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Double), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Double), arg1);
             case L2I:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Integer), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Integer), arg1);
             case L2F:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Float), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Float), arg1);
             case L2D:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Double), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Double), arg1);
             case F2I:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Integer), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Integer), arg1);
             case F2L:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Long), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Long), arg1);
             case F2D:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Double), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Double), arg1);
             case D2I:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Integer), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Integer), arg1);
             case D2L:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Long), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Long), arg1);
             case D2F:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Float), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Float), arg1);
             case I2B:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Byte), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Byte), arg1);
             case I2C:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Character), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Character), arg1);
             case I2S:
-                return new CastExpression(AstBuilder.convertType(BuiltinTypes.Short), arg1);
+                return new CastExpression(_astBuilder.convertType(BuiltinTypes.Short), arg1);
 
             case Goto:
                 return new GotoStatement(((Label) operand).getName());
@@ -428,7 +428,7 @@ public class AstMethodBodyBuilder {
             case GetStatic: {
                 final ConvertTypeOptions options = new ConvertTypeOptions();
                 options.setIncludeTypeParameterDefinitions(false);
-                final MemberReferenceExpression staticFieldReference = AstBuilder.convertType(fieldOperand.getDeclaringType(), options)
+                final MemberReferenceExpression staticFieldReference = _astBuilder.convertType(fieldOperand.getDeclaringType(), options)
                                                                                  .member(fieldOperand.getName());
                 staticFieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
                 return staticFieldReference;
@@ -437,7 +437,7 @@ public class AstMethodBodyBuilder {
             case PutStatic: {
                 final ConvertTypeOptions options = new ConvertTypeOptions();
                 options.setIncludeTypeParameterDefinitions(false);
-                final MemberReferenceExpression staticFieldReference = AstBuilder.convertType(fieldOperand.getDeclaringType(), options)
+                final MemberReferenceExpression staticFieldReference = _astBuilder.convertType(fieldOperand.getDeclaringType(), options)
                                                                                  .member(fieldOperand.getName());
                 staticFieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
                 return new AssignmentExpression(staticFieldReference, arg1);
@@ -671,7 +671,7 @@ public class AstMethodBodyBuilder {
 
             if (methodDefinition != null) {
                 if (target instanceof NullReferenceExpression) {
-                    target = new CastExpression(AstBuilder.convertType(declaringType), target);
+                    target = new CastExpression(_astBuilder.convertType(declaringType), target);
                 }
             }
         }
@@ -683,7 +683,7 @@ public class AstMethodBodyBuilder {
         else {
             final ConvertTypeOptions options = new ConvertTypeOptions();
             options.setIncludeTypeParameterDefinitions(false);
-            target = new TypeReferenceExpression(AstBuilder.convertType(declaringType, options));
+            target = new TypeReferenceExpression(_astBuilder.convertType(declaringType, options));
         }
 
         if (target instanceof ThisReferenceExpression) {
@@ -699,10 +699,10 @@ public class AstMethodBodyBuilder {
                 final AstType declaredType;
 
                 if (resolvedType.getExplicitInterfaces().isEmpty()) {
-                    declaredType = AstBuilder.convertType(resolvedType.getBaseType());
+                    declaredType = _astBuilder.convertType(resolvedType.getBaseType());
                 }
                 else {
-                    declaredType = AstBuilder.convertType(resolvedType.getExplicitInterfaces().get(0));
+                    declaredType = _astBuilder.convertType(resolvedType.getExplicitInterfaces().get(0));
                 }
 
                 creation = new AnonymousObjectCreationExpression(
@@ -713,7 +713,7 @@ public class AstMethodBodyBuilder {
             else {
                 final ConvertTypeOptions options = new ConvertTypeOptions();
                 options.setIncludeTypeParameterDefinitions(false);
-                creation = new ObjectCreationExpression(AstBuilder.convertType(declaringType, options));
+                creation = new ObjectCreationExpression(_astBuilder.convertType(declaringType, options));
             }
 
             creation.getArguments().addAll(adjustArgumentsForMethodCall(methodReference, arguments));

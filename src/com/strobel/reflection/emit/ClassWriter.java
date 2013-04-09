@@ -136,11 +136,11 @@ final class ClassWriter {
         int attributeCount = 0;
 
         boolean signatureRequired = t.isGenericType() ||
-                                    baseType != null && baseType.containsGenericParameters();
+                                    baseType != null && baseType.isGenericType();
 
         if (!signatureRequired) {
             for (final Type interfaceType : interfaceTypes) {
-                signatureRequired |= interfaceType.containsGenericParameters();
+                signatureRequired |= interfaceType.isGenericType();
             }
         }
 

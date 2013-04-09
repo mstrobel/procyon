@@ -19,7 +19,9 @@ package com.strobel.decompiler.languages;
 import com.strobel.assembler.metadata.Buffer;
 import com.strobel.assembler.metadata.ClassFileReader;
 import com.strobel.assembler.metadata.ClasspathTypeLoader;
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeDefinitionBuilder;
 import com.strobel.assembler.metadata.TypeReference;
@@ -38,6 +40,7 @@ import com.strobel.decompiler.ast.Block;
 import com.strobel.decompiler.ast.Expression;
 import com.strobel.decompiler.ast.Variable;
 
+import javax.lang.model.element.Modifier;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -137,9 +140,43 @@ public class BytecodeAstLanguage extends Language {
             }
         }
 
-        output.writeLine("%s {", method.isTypeInitializer() ? "static" : method.getDescription());
-        output.indent();
+        for (final Modifier modifier : Flags.asModifierSet(method.getFlags() & Flags.MethodFlags)) {
+            output.writeKeyword(modifier.toString());
+            output.write(' ');
+        }
 
+        if (!method.isTypeInitializer()) {
+            DecompilerHelpers.writeType(output, method.getReturnType(), NameSyntax.SHORT_TYPE_NAME);
+            output.write(' ');
+
+            if (method.isConstructor()) {
+                output.writeReference(method.getDeclaringType().getName(), method.getDeclaringType());
+            }
+            else {
+                output.writeReference(method.getName(), method);
+            }
+
+            output.write("(");
+
+            final List<ParameterDefinition> parameters = method.getParameters();
+
+            for (int i = 0; i < parameters.size(); i++) {
+                final ParameterDefinition parameter = parameters.get(i);
+
+                if (i != 0) {
+                    output.write(", ");
+                }
+
+                DecompilerHelpers.writeType(output, parameter.getParameterType(), NameSyntax.SHORT_TYPE_NAME);
+                output.write(' ');
+                output.writeReference(parameter.getName(), parameter);
+            }
+
+            output.write(") ");
+        }
+
+        output.writeLine("{");
+        output.indent();
 
         if (!allVariables.isEmpty()) {
             for (final Variable variable : allVariables) {

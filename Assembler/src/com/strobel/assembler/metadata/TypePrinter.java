@@ -54,47 +54,42 @@ public class TypePrinter implements TypeVisitor {
         _output.writeLine("Class %s", name);
         _output.indent();
 
-        try {
-            if (genericSignature != null) {
-                _output.writeAttribute("Signature");
-                _output.write(": %s", genericSignature);
-                _output.writeLine();
-            }
-
-            _output.writeAttribute("Minor version");
-            _output.write(": ");
-            _output.writeLiteral(minorVersion);
+        if (genericSignature != null) {
+            _output.writeAttribute("Signature");
+            _output.write(": %s", genericSignature);
             _output.writeLine();
+        }
 
-            _output.writeAttribute("Major version");
+        _output.writeAttribute("Minor version");
+        _output.write(": ");
+        _output.writeLiteral(minorVersion);
+        _output.writeLine();
+
+        _output.writeAttribute("Major version");
+        _output.write(": ");
+        _output.writeLiteral(majorVersion);
+        _output.writeLine();
+
+        final List<String> flagStrings = new ArrayList<>();
+        final EnumSet<Flags.Flag> flagsSet = Flags.asFlagSet(flags & (Flags.ClassFlags | ~Flags.StandardFlags));
+
+        for (final Flags.Flag flag : flagsSet) {
+            flagStrings.add(flag.name());
+        }
+
+        if (!flagStrings.isEmpty()) {
+            _output.writeAttribute("Flags");
             _output.write(": ");
-            _output.writeLiteral(majorVersion);
-            _output.writeLine();
 
-            final List<String> flagStrings = new ArrayList<>();
-            final EnumSet<Flags.Flag> flagsSet = Flags.asFlagSet(flags & (Flags.ClassFlags | ~Flags.StandardFlags));
-
-            for (final Flags.Flag flag : flagsSet) {
-                flagStrings.add(flag.name());
-            }
-
-            if (!flagStrings.isEmpty()) {
-                _output.writeAttribute("Flags");
-                _output.write(": ");
-
-                for (int i = 0; i < flagStrings.size(); i++) {
-                    if (i != 0) {
-                        _output.write(", ");
-                    }
-
-                    _output.writeLiteral(flagStrings.get(i));
+            for (int i = 0; i < flagStrings.size(); i++) {
+                if (i != 0) {
+                    _output.write(", ");
                 }
 
-                _output.writeLine();
+                _output.writeLiteral(flagStrings.get(i));
             }
-        }
-        finally {
-            _output.unindent();
+
+            _output.writeLine();
         }
     }
 
@@ -197,5 +192,6 @@ public class TypePrinter implements TypeVisitor {
 
     @Override
     public void visitEnd() {
+        _output.unindent();
     }
 }

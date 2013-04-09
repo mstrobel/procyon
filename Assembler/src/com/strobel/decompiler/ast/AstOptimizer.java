@@ -76,7 +76,7 @@ public final class AstOptimizer {
             return;
         }
 
-        final Inlining inliningPhase1 = new Inlining(method);
+        final Inlining inliningPhase1 = new Inlining(context, method);
 
         inliningPhase1.inlineAllVariables();
 
@@ -158,8 +158,8 @@ public final class AstOptimizer {
                     continue;
                 }
 
-                modified |= new Inlining(method).inlineAllInBlock(block);
-                new Inlining(method).copyPropagation();
+                modified |= new Inlining(context, method).inlineAllInBlock(block);
+                new Inlining(context, method).copyPropagation();
             }
             while (modified);
         }
@@ -239,7 +239,7 @@ public final class AstOptimizer {
         // introduction of ternary operators may open up additional inlining possibilities.
         //
 
-        final Inlining inliningPhase3 = new Inlining(method);
+        final Inlining inliningPhase3 = new Inlining(context, method);
 
         inliningPhase3.inlineAllVariables();
 
@@ -1088,7 +1088,7 @@ public final class AstOptimizer {
                         body.remove(position + 1);
                     }
 
-                    new Inlining(method).inlineIfPossible(body, new MutableInteger(position));
+                    new Inlining(context, method).inlineIfPossible(body, new MutableInteger(position));
                     return true;
                 }
             }
@@ -1134,7 +1134,7 @@ public final class AstOptimizer {
                     // e = ...; store(v1, e); anyStore(v2, e) => store(v1, anyStore(v2, ...)
                     //
 
-                    final Inlining inlining = new Inlining(method);
+                    final Inlining inlining = new Inlining(context, method);
                     final MutableInteger loadCounts = inlining.loadCounts.get(ev.get());
                     final MutableInteger storeCounts = inlining.storeCounts.get(ev.get());
 
@@ -1222,7 +1222,7 @@ public final class AstOptimizer {
             if (newExpression != null) {
                 modified = true;
                 body.set(position, newExpression);
-                new Inlining(method).inlineIfPossible(body, new MutableInteger(position));
+                new Inlining(context, method).inlineIfPossible(body, new MutableInteger(position));
             }
 
             return modified;

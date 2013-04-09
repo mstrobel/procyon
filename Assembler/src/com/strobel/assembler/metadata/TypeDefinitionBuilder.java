@@ -70,6 +70,7 @@ public class TypeDefinitionBuilder implements TypeVisitor {
         }
 
         _typeDefinition.setFlags(flags);
+        _typeDefinition.setCompilerVersion(majorVersion, minorVersion);
 
         final int delimiterIndex = name.lastIndexOf('/');
 
@@ -210,6 +211,8 @@ public class TypeDefinitionBuilder implements TypeVisitor {
 
     @Override
     public void visitAttribute(final SourceAttribute attribute) {
+        _typeDefinition.getSourceAttributesInternal().add(attribute);
+
         switch (attribute.getName()) {
             case AttributeNames.InnerClasses: {
                 final InnerClassesAttribute innerClasses = (InnerClassesAttribute) attribute;

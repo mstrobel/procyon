@@ -17,6 +17,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
+import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.StringUtilities;
@@ -34,12 +35,14 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
     private final Collection<MethodDefinition> _declaredMethods;
     private final Collection<TypeReference> _explicitInterfaces;
     private final Collection<CustomAnnotation> _customAnnotations;
+    private final Collection<SourceAttribute> _sourceAttributes;
     private final List<GenericParameter> _genericParametersView;
     private final List<TypeDefinition> _declaredTypesView;
     private final List<FieldDefinition> _declaredFieldsView;
     private final List<MethodDefinition> _declaredMethodsView;
     private final List<TypeReference> _explicitInterfacesView;
     private final List<CustomAnnotation> _customAnnotationsView;
+    private final List<SourceAttribute> _sourceAttributesView;
 
     private IMetadataResolver _resolver;
     private String _simpleName;
@@ -48,6 +51,7 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
     private String _fullName;
     private TypeReference _baseType;
     private long _flags;
+    private int _compilerVersion;
     private List<Enum> _enumConstants;
     private TypeReference _rawType;
     private MethodReference _declaringMethod;
@@ -59,17 +63,31 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         _declaredMethods = new Collection<>();
         _explicitInterfaces = new Collection<>();
         _customAnnotations = new Collection<>();
+        _sourceAttributes = new Collection<>();
         _genericParametersView = Collections.unmodifiableList(_genericParameters);
         _declaredTypesView = Collections.unmodifiableList(_declaredTypes);
         _declaredFieldsView = Collections.unmodifiableList(_declaredFields);
         _declaredMethodsView = Collections.unmodifiableList(_declaredMethods);
         _explicitInterfacesView = Collections.unmodifiableList(_explicitInterfaces);
         _customAnnotationsView = Collections.unmodifiableList(_customAnnotations);
+        _sourceAttributesView = Collections.unmodifiableList(_sourceAttributes);
     }
 
     public TypeDefinition(final IMetadataResolver resolver) {
         this();
         _resolver = VerifyArgument.notNull(resolver, "resolver");
+    }
+
+    public final int getCompilerMajorVersion() {
+        return _compilerVersion >>> 16;
+    }
+
+    public final int getCompilerMinorVersion() {
+        return _compilerVersion & 0xFFFF;
+    }
+
+    protected final void setCompilerVersion(final int majorVersion, final int minorVersion) {
+        _compilerVersion = ((majorVersion & 0xFFFF) << 16) | (minorVersion & 0xFFFF);
     }
 
     public final IMetadataResolver getResolver() {
@@ -165,6 +183,10 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         return _customAnnotationsView;
     }
 
+    public final List<SourceAttribute> getSourceAttributes() {
+        return _sourceAttributesView;
+    }
+
     @Override
     public final List<GenericParameter> getGenericParameters() {
         return _genericParametersView;
@@ -182,6 +204,15 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
             }
         }
         return this;
+    }
+
+    @Override
+    protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+        if (fullName && dottedName && isNested() && !isAnonymous() && _simpleName != null) {
+            return getDeclaringType().appendName(sb, fullName, dottedName).append('.').append(_simpleName);
+        }
+
+        return super.appendName(sb, fullName, dottedName);
     }
 
     protected final GenericParameterCollection getGenericParametersInternal() {
@@ -206,6 +237,10 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
 
     protected final Collection<CustomAnnotation> getAnnotationsInternal() {
         return _customAnnotations;
+    }
+
+    protected final Collection<SourceAttribute> getSourceAttributesInternal() {
+        return _sourceAttributes;
     }
 
     @Override

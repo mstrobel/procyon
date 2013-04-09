@@ -40,6 +40,7 @@ public final class AstBuilder {
     private final DecompilerContext _context;
     private final CompilationUnit _compileUnit = new CompilationUnit();
     private final Map<String, TypeDeclaration> _typeDeclarations = new LinkedHashMap<>();
+    private final Map<String, String> _unqualifiedTypeNames = new LinkedHashMap<>();
 
     private boolean _decompileMethodBodies = true;
     private boolean _haveTransformationsRun;
@@ -122,15 +123,15 @@ public final class AstBuilder {
         }
     }
 
-    public static AstType convertType(final TypeReference type) {
+    public AstType convertType(final TypeReference type) {
         return convertType(type, new ConvertTypeOptions());
     }
 
-    public static AstType convertType(final TypeReference type, final ConvertTypeOptions options) {
+    public AstType convertType(final TypeReference type, final ConvertTypeOptions options) {
         return convertType(type, new MutableInteger(0), options);
     }
 
-    public static List<ParameterDeclaration> createParameters(final Iterable<ParameterDefinition> parameters) {
+    public final List<ParameterDeclaration> createParameters(final Iterable<ParameterDefinition> parameters) {
         final List<ParameterDeclaration> declarations = new ArrayList<>();
 
         for (final ParameterDefinition p : parameters) {
@@ -142,7 +143,7 @@ public final class AstBuilder {
         return Collections.unmodifiableList(declarations);
     }
 
-    static AstType convertType(final TypeReference type, final MutableInteger typeIndex, final ConvertTypeOptions options) {
+    final AstType convertType(final TypeReference type, final MutableInteger typeIndex, final ConvertTypeOptions options) {
         if (type == null) {
             return AstType.NULL;
         }
@@ -222,7 +223,53 @@ public final class AstBuilder {
                                                               : packageName + "." + nameSource.getSimpleName();
         }
         else {
-            name = nameSource.getSimpleName();
+            TypeReference typeToImport;
+            String unqualifiedName;
+
+            if (nameSource.isNested()) {
+                unqualifiedName = nameSource.getSimpleName();
+                TypeReference current = nameSource;
+
+                while (current.isNested()) {
+                    current = current.getDeclaringType();
+                    unqualifiedName = current.getSimpleName() + "." + unqualifiedName;
+                }
+
+                typeToImport = current;
+            }
+            else {
+                typeToImport = nameSource;
+                unqualifiedName = nameSource.getSimpleName();
+            }
+
+            if (!_typeDeclarations.containsKey(typeToImport.getInternalName())) {
+                String importedName = _unqualifiedTypeNames.get(typeToImport.getSimpleName());
+
+                if (importedName == null) {
+                    final SimpleType importedType = new SimpleType(typeToImport.getFullName());
+
+                    importedType.putUserData(Keys.TYPE_REFERENCE, typeToImport);
+
+                    if (!StringUtilities.startsWith(typeToImport.getFullName(), "java.lang.")) {
+                        _compileUnit.getImports().add(new ImportDeclaration(importedType));
+                    }
+
+                    _unqualifiedTypeNames.put(typeToImport.getSimpleName(), typeToImport.getFullName());
+                    importedName = typeToImport.getFullName();
+                }
+
+                if (importedName.equals(typeToImport.getFullName())) {
+                    name = unqualifiedName;
+                }
+                else {
+                    final String packageName = nameSource.getPackageName();
+                    name = StringUtilities.isNullOrEmpty(packageName) ? nameSource.getSimpleName()
+                                                                      : packageName + "." + nameSource.getSimpleName();
+                }
+            }
+            else {
+                name = nameSource.getSimpleName();
+            }
         }
 
         final SimpleType astType = new SimpleType(name);
@@ -373,7 +420,7 @@ public final class AstBuilder {
         return astMethod;
     }
 
-    static List<TypeParameterDeclaration> createTypeParameters(final List<GenericParameter> genericParameters) {
+    final List<TypeParameterDeclaration> createTypeParameters(final List<GenericParameter> genericParameters) {
         if (genericParameters.isEmpty()) {
             return Collections.emptyList();
         }

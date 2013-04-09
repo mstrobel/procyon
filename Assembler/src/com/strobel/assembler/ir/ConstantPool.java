@@ -20,6 +20,7 @@ import com.strobel.assembler.metadata.Buffer;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.Freezable;
 import com.strobel.core.HashUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
@@ -31,8 +32,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
-@SuppressWarnings({"PublicField", "ProtectedField"})
-public final class ConstantPool implements Iterable<ConstantPool.Entry> {
+@SuppressWarnings({ "PublicField", "ProtectedField" })
+public final class ConstantPool extends Freezable implements Iterable<ConstantPool.Entry> {
     private final ArrayList<Entry> _pool = new ArrayList<>();
     private final HashMap<Key, Entry> _entryMap = new HashMap<>();
     private final Key _lookupKey = new Key();
@@ -67,7 +68,7 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
             throw new IndexOutOfBoundsException();
         }
 
-        return (T)info;
+        return (T) info;
     }
 
     public Entry get(final int index) {
@@ -105,7 +106,7 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         final StringConstantEntry entry = (StringConstantEntry) get(index, Tag.StringConstant);
         return entry.getValue();
     }
-    
+
     public String lookupUtf8Constant(final int index) {
         final Utf8StringConstantEntry entry = (Utf8StringConstantEntry) get(index, Tag.Utf8StringConstant);
         return entry.value;
@@ -116,12 +117,12 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         final ConstantEntry entry = (ConstantEntry) get(index);
         return (T) entry.getConstantValue();
     }
-    
+
     public int lookupIntegerConstant(final int index) {
         final IntegerConstantEntry entry = (IntegerConstantEntry) get(index, Tag.IntegerConstant);
         return entry.value;
     }
-    
+
     public long lookupLongConstant(final int index) {
         final LongConstantEntry entry = (LongConstantEntry) get(index, Tag.LongConstant);
         return entry.value;
@@ -136,11 +137,14 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         final DoubleConstantEntry entry = (DoubleConstantEntry) get(index, Tag.DoubleConstant);
         return entry.value;
     }
-    
+
     public Utf8StringConstantEntry getUtf8StringConstant(final String value) {
         _lookupKey.set(value);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new Utf8StringConstantEntry(this, value);
         }
         _lookupKey.clear();
@@ -152,6 +156,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(Tag.StringConstant, utf8Constant.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new StringConstantEntry(this, utf8Constant.index);
         }
         _lookupKey.clear();
@@ -162,6 +169,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(value);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new IntegerConstantEntry(this, value);
         }
         _lookupKey.clear();
@@ -172,6 +182,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(value);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new FloatConstantEntry(this, value);
         }
         _lookupKey.clear();
@@ -182,6 +195,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(value);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new LongConstantEntry(this, value);
         }
         _lookupKey.clear();
@@ -192,6 +208,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(value);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new DoubleConstantEntry(this, value);
         }
         _lookupKey.clear();
@@ -203,6 +222,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(Tag.TypeInfo, name.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new TypeInfoEntry(this, name.index);
         }
         _lookupKey.clear();
@@ -218,6 +240,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(Tag.FieldReference, typeInfo.index, nameAndDescriptor.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new FieldReferenceEntry(this, typeInfo.index, nameAndDescriptor.index);
         }
         _lookupKey.clear();
@@ -233,6 +258,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(Tag.MethodReference, typeInfo.index, nameAndDescriptor.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new MethodReferenceEntry(this, typeInfo.index, nameAndDescriptor.index);
         }
         _lookupKey.clear();
@@ -248,6 +276,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(Tag.InterfaceMethodReference, typeInfo.index, nameAndDescriptor.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new InterfaceMethodReferenceEntry(this, typeInfo.index, nameAndDescriptor.index);
         }
         _lookupKey.clear();
@@ -260,6 +291,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(Tag.NameAndTypeDescriptor, utf8Name.index, utf8Descriptor.index);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new NameAndTypeDescriptorEntry(this, utf8Name.index, utf8Descriptor.index);
         }
         _lookupKey.clear();
@@ -270,6 +304,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(Tag.MethodHandle, referenceIndex, referenceKind);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new MethodHandleEntry(this, referenceKind, referenceIndex);
         }
         _lookupKey.clear();
@@ -280,6 +317,9 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(Tag.MethodType, descriptorIndex);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new MethodTypeEntry(this, descriptorIndex);
         }
         _lookupKey.clear();
@@ -292,13 +332,16 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         _lookupKey.set(Tag.InvokeDynamicInfo, bootstrapMethodAttributeIndex, nameAndTypeDescriptorIndex);
         Entry entry = _entryMap.get(_lookupKey);
         if (entry == null) {
+            if (isFrozen()) {
+                return null;
+            }
             entry = new InvokeDynamicInfoEntry(this, bootstrapMethodAttributeIndex, nameAndTypeDescriptorIndex);
         }
         _lookupKey.clear();
         return (InvokeDynamicInfoEntry) entry;
     }
 
-   public static ConstantPool read(final Buffer b) {
+    public static ConstantPool read(final Buffer b) {
         boolean skipOne = false;
 
         final ConstantPool pool = new ConstantPool();
@@ -388,8 +431,7 @@ public final class ConstantPool implements Iterable<ConstantPool.Entry> {
         public abstract Tag getTag();
 
         /**
-         * The number of slots in the constant pool used by this entry.
-         * 2 for DoubleConstantEntry and LongConstantEntry; 1 for everything else.
+         * The number of slots in the constant pool used by this entry. 2 for DoubleConstantEntry and LongConstantEntry; 1 for everything else.
          */
         public int size() {
             return 1;

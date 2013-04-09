@@ -344,6 +344,7 @@ public class MethodPrinter implements MethodVisitor {
 
                 if (!exceptionTypes.isEmpty()) {
                     _output.indent();
+
                     try {
                         _output.writeAttribute("Exceptions");
                         _output.writeLine(":");
@@ -401,54 +402,76 @@ public class MethodPrinter implements MethodVisitor {
                     }
                 }
 
-                _output.write("  ");
-                _output.writeAttribute(attribute.getName());
-                _output.writeLine(":");
-                _output.write("    Start  Length  Slot  %1$-" + longestName + "s  Signature", "Name");
-                _output.writeLine();
+                _output.indent();
 
-                _output.write(
-                    "    -----  ------  ----  %1$-" + longestName + "s  %2$-" + longestSignature + "s",
-                    StringUtilities.repeat('-', longestName),
-                    StringUtilities.repeat('-', longestSignature)
-                );
+                try {
+                    _output.writeAttribute(attribute.getName());
+                    _output.writeLine(":");
 
-                _output.writeLine();
+                    _output.indent();
 
-                for (final LocalVariableTableEntry entry : entries) {
-                    final String signature;
+                    try {
+                        _output.write("Start  Length  Slot  %1$-" + longestName + "s  Signature", "Name");
+                        _output.writeLine();
 
-                    if (attribute.getName().equals(AttributeNames.LocalVariableTypeTable)) {
-                        signature = entry.getType().getSignature();
+                        _output.write(
+                            "-----  ------  ----  %1$-" + longestName + "s  %2$-" + longestSignature + "s",
+                            StringUtilities.repeat('-', longestName),
+                            StringUtilities.repeat('-', longestSignature)
+                        );
+
+                        _output.writeLine();
+
+                        for (final LocalVariableTableEntry entry : entries) {
+                            final NameSyntax nameSyntax;
+
+                            if (attribute.getName().equals(AttributeNames.LocalVariableTypeTable)) {
+                                nameSyntax = NameSyntax.SIGNATURE;
+                            }
+                            else {
+                                nameSyntax = NameSyntax.ERASED_SIGNATURE;
+                            }
+
+                            _output.writeLiteral(format("%1$-5d", entry.getScopeOffset()));
+                            _output.write("  ");
+                            _output.writeLiteral(format("%1$-6d", entry.getScopeLength()));
+                            _output.write("  ");
+                            _output.writeLiteral(format("%1$-4d", entry.getIndex()));
+
+                            _output.writeReference(
+                                String.format("  %1$-" + longestName + "s  ", entry.getName()),
+                                _body.getVariables().tryFind(entry.getIndex(), entry.getScopeOffset())
+                            );
+
+                            DecompilerHelpers.writeType(_output, entry.getType(), nameSyntax);
+
+                            _output.writeLine();
+                        }
                     }
-                    else {
-                        signature = entry.getType().getErasedSignature();
+                    finally {
+                        _output.unindent();
                     }
-
-                    _output.write("    ");
-                    _output.writeLiteral(format("%1$-5d", entry.getScopeOffset()));
-                    _output.write("  ");
-                    _output.writeLiteral(format("%1$-6d", entry.getScopeLength()));
-                    _output.write("  ");
-                    _output.writeLiteral(format("%1$-4d", entry.getIndex()));
-
-                    _output.writeReference(
-                        String.format("  %1$-" + longestName + "s  ", entry.getName()),
-                        _body.getVariables().tryFind(entry.getIndex(), entry.getScopeOffset())
-                    );
-
-                    _output.writeReference(signature, entry.getType());
-
-                    _output.writeLine();
+                }
+                finally {
+                    _output.unindent();
                 }
 
                 break;
             }
 
             case AttributeNames.Signature: {
-                _output.writeLine("  Signature:");
-                _output.write("    %s", ((SignatureAttribute) attribute).getSignature());
-                _output.writeLine();
+                _output.indent();
+
+                try {
+                    _output.writeAttribute(attribute.getName());
+                    _output.writeLine(":");
+                    _output.write("    %s", ((SignatureAttribute) attribute).getSignature());
+                    _output.writeLine();
+                }
+                finally {
+                    _output.unindent();
+                }
+
                 break;
             }
         }
@@ -733,12 +756,14 @@ public class MethodPrinter implements MethodVisitor {
                     int caseValue = switchInfo.getLowValue();
 
                     for (final Instruction target : targets) {
-                        _output.writeLiteral(switchInfo.getLowValue() + caseValue++);
+                        _output.write("            ");
+                        _output.writeLiteral(format("%1$7d", switchInfo.getLowValue() + caseValue++));
                         _output.write(": ");
                         _output.writeLabel(String.valueOf(target.getOffset()));
                         _output.writeLine();
                     }
 
+                    _output.write("            ");
                     _output.writeKeyword("default");
                     _output.write(": ");
                     _output.writeLabel(String.valueOf(switchInfo.getDefaultTarget().getOffset()));
@@ -755,12 +780,14 @@ public class MethodPrinter implements MethodVisitor {
                         final int key = keys[i];
                         final Instruction target = targets[i];
 
-                        _output.writeLiteral(key);
+                        _output.write("            ");
+                        _output.writeLiteral(format("%1$7d", key));
                         _output.write(": ");
                         _output.writeLabel(String.valueOf(target.getOffset()));
                         _output.writeLine();
                     }
 
+                    _output.write("            ");
                     _output.writeKeyword("default");
                     _output.write(": ");
                     _output.writeLabel(String.valueOf(switchInfo.getDefaultTarget().getOffset()));

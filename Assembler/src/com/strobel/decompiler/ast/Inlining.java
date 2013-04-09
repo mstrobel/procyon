@@ -18,6 +18,7 @@ package com.strobel.decompiler.ast;
 
 import com.strobel.core.MutableInteger;
 import com.strobel.core.StrongBox;
+import com.strobel.decompiler.DecompilerContext;
 
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -28,12 +29,14 @@ import static com.strobel.decompiler.ast.PatternMatching.*;
 import static java.lang.String.format;
 
 final class Inlining {
+    private final DecompilerContext _context;
     private final Block _method;
 
     final Map<Variable, MutableInteger> loadCounts = new IdentityHashMap<>();
     final Map<Variable, MutableInteger> storeCounts = new IdentityHashMap<>();
 
-    public Inlining(final Block method) {
+    public Inlining(final DecompilerContext context, final Block method) {
+        _context = context;
         _method = method;
         analyzeMethod();
     }
@@ -102,7 +105,7 @@ final class Inlining {
     final boolean inlineAllVariables() {
         boolean modified = false;
 
-        final Inlining inlining = new Inlining(_method);
+        final Inlining inlining = new Inlining(_context, _method);
 
         for (final Block block : _method.getSelfAndChildrenRecursive(Block.class)) {
             modified |= inlining.inlineAllInBlock(block);

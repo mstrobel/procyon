@@ -427,48 +427,22 @@
     <option name="USE_PER_PROJECT_SETTINGS" value="true" />
   </component>
   <component name="ProjectDictionaryState">
-    <dictionary name="Mike Strobel">
+    <dictionary name="mstrobel">
       <words>
-        <w>arraycopy</w>
-        <w>booleans</w>
-        <w>bytecode</w>
-        <w>comparand</w>
-        <w>comparer</w>
-        <w>concat</w>
-        <w>contravariance</w>
-        <w>ctor</w>
-        <w>ctors</w>
-        <w>defaultstate</w>
-        <w>dword</w>
-        <w>enqueuing</w>
-        <w>fixup</w>
-        <w>fixups</w>
-        <w>functor</w>
-        <w>goto</w>
-        <w>initializers</w>
-        <w>intrinisified</w>
-        <w>javac</w>
-        <w>nullable</w>
-        <w>nulled</w>
-        <w>nulling</w>
-        <w>opcode</w>
-        <w>opcodes</w>
-        <w>overridable</w>
-        <w>parameterized</w>
-        <w>preallocation</w>
-        <w>println</w>
-        <w>reachability</w>
-        <w>recurse</w>
-        <w>resized</w>
-        <w>simplifiable</w>
-        <w>strobel</w>
-        <w>subword</w>
-        <w>trie</w>
-        <w>unary</w>
-        <w>unbox</w>
-        <w>unboxed</w>
-        <w>unintuitively</w>
-        <w>writeable</w>
+        <w>browsable</w>
+        <w>decompilation</w>
+        <w>dominator</w>
+        <w>evain</w>
+        <w>gotos</w>
+        <w>irix</w>
+        <w>iterable</w>
+        <w>kumar</w>
+        <w>postincrement</w>
+        <w>predicate's</w>
+        <w>printf</w>
+        <w>santhosh</w>
+        <w>solaris</w>
+        <w>unindent</w>
       </words>
     </dictionary>
     <dictionary name="strobelm">
@@ -607,22 +581,48 @@
         <w>variable's</w>
       </words>
     </dictionary>
-    <dictionary name="mstrobel">
+    <dictionary name="Mike Strobel">
       <words>
-        <w>browsable</w>
-        <w>decompilation</w>
-        <w>dominator</w>
-        <w>evain</w>
-        <w>gotos</w>
-        <w>irix</w>
-        <w>iterable</w>
-        <w>kumar</w>
-        <w>postincrement</w>
-        <w>predicate's</w>
-        <w>printf</w>
-        <w>santhosh</w>
-        <w>solaris</w>
-        <w>unindent</w>
+        <w>arraycopy</w>
+        <w>booleans</w>
+        <w>bytecode</w>
+        <w>comparand</w>
+        <w>comparer</w>
+        <w>concat</w>
+        <w>contravariance</w>
+        <w>ctor</w>
+        <w>ctors</w>
+        <w>defaultstate</w>
+        <w>dword</w>
+        <w>enqueuing</w>
+        <w>fixup</w>
+        <w>fixups</w>
+        <w>functor</w>
+        <w>goto</w>
+        <w>initializers</w>
+        <w>intrinisified</w>
+        <w>javac</w>
+        <w>nullable</w>
+        <w>nulled</w>
+        <w>nulling</w>
+        <w>opcode</w>
+        <w>opcodes</w>
+        <w>overridable</w>
+        <w>parameterized</w>
+        <w>preallocation</w>
+        <w>println</w>
+        <w>reachability</w>
+        <w>recurse</w>
+        <w>resized</w>
+        <w>simplifiable</w>
+        <w>strobel</w>
+        <w>subword</w>
+        <w>trie</w>
+        <w>unary</w>
+        <w>unbox</w>
+        <w>unboxed</w>
+        <w>unintuitively</w>
+        <w>writeable</w>
       </words>
     </dictionary>
   </component>
@@ -639,34 +639,6 @@
     <output url="file://$PROJECT_DIR$/out" />
   </component>
   <component name="ProjectRunConfigurationManager">
-    <configuration default="false" name="Disassembler" type="Application" factoryName="Application">
-      <extension name="coverage" enabled="false" merge="false" sample_coverage="true" runner="idea">
-        <pattern>
-          <option name="PATTERN" value="com.strobel.assembler.*" />
-          <option name="ENABLED" value="true" />
-        </pattern>
-      </extension>
-      <option name="MAIN_CLASS_NAME" value="com.strobel.assembler.Disassembler" />
-      <option name="VM_PARAMETERS" value="" />
-      <option name="PROGRAM_PARAMETERS" value="java/util/Collections$CheckedCollection" />
-      <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
-      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
-      <option name="ALTERNATIVE_JRE_PATH" value="" />
-      <option name="ENABLE_SWING_INSPECTOR" value="false" />
-      <option name="ENV_VARIABLES" />
-      <option name="PASS_PARENT_ENVS" value="true" />
-      <module name="Assembler" />
-      <envs />
-      <RunnerSettings RunnerId="Debug">
-        <option name="DEBUG_PORT" value="" />
-        <option name="TRANSPORT" value="0" />
-        <option name="LOCAL" value="true" />
-      </RunnerSettings>
-      <RunnerSettings RunnerId="Run" />
-      <ConfigurationWrapper RunnerId="Debug" />
-      <ConfigurationWrapper RunnerId="Run" />
-      <method />
-    </configuration>
     <configuration default="false" name="Decompiler" type="Application" factoryName="Application">
       <extension name="coverage" enabled="false" merge="false" sample_coverage="true" runner="idea">
         <pattern>
@@ -676,7 +648,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.decompiler.Decompiler" />
       <option name="VM_PARAMETERS" value="-ea -Dcom/strobel/decompiler/DecompilerTests" />
-      <option name="PROGRAM_PARAMETERS" value="com/strobel/decompiler/Test" />
+      <option name="PROGRAM_PARAMETERS" value="-b com/strobel/expressions/testEnumLookupSwitch[0x005a]" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />
@@ -699,6 +671,37 @@
       <ConfigurationWrapper RunnerId="Run" />
       <method />
     </configuration>
+    <configuration default="false" name="Disassembler" type="Application" factoryName="Application">
+      <extension name="coverage" enabled="false" merge="false" sample_coverage="true" runner="idea">
+        <pattern>
+          <option name="PATTERN" value="com.strobel.assembler.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="MAIN_CLASS_NAME" value="com.strobel.assembler.Disassembler" />
+      <option name="VM_PARAMETERS" value="-Dcom/strobel/expressions/f__Lambda[0x0058]" />
+      <option name="PROGRAM_PARAMETERS" value="" />
+      <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
+      <option name="ALTERNATIVE_JRE_PATH" value="" />
+      <option name="ENABLE_SWING_INSPECTOR" value="false" />
+      <option name="ENV_VARIABLES" />
+      <option name="PASS_PARENT_ENVS" value="true" />
+      <module name="Assembler" />
+      <envs />
+      <RunnerSettings RunnerId="Debug">
+        <option name="DEBUG_PORT" value="" />
+        <option name="TRANSPORT" value="0" />
+        <option name="LOCAL" value="true" />
+      </RunnerSettings>
+      <RunnerSettings RunnerId="Profile ">
+        <option name="myExternalizedOptions" value="&#13;&#10;additional-options2=onexit\=snapshot&#13;&#10;" />
+      </RunnerSettings>
+      <RunnerSettings RunnerId="Run" />
+      <ConfigurationWrapper RunnerId="Debug" />
+      <ConfigurationWrapper RunnerId="Run" />
+      <method />
+    </configuration>
   </component>
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="hg4idea" />
@@ -716,6 +719,13 @@
       <SOURCES>
         <root url="jar://$PROJECT_DIR$/lib/jcommander-1.30-sources.jar!/" />
       </SOURCES>
+    </library>
+    <library name="dump">
+      <CLASSES>
+        <root url="file://W:/dump" />
+      </CLASSES>
+      <JAVADOC />
+      <SOURCES />
     </library>
     <library name="lib">
       <CLASSES>

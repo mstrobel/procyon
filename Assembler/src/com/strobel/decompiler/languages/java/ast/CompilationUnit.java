@@ -27,9 +27,14 @@ import java.util.Stack;
 
 public class CompilationUnit extends AstNode {
     public final static Role<AstNode> MEMBER_ROLE = new Role<>("Member", AstNode.class, AstNode.NULL);
+    public final static Role<ImportDeclaration> IMPORT_ROLE = new Role<>("Import", ImportDeclaration.class, ImportDeclaration.NULL);
 
     private AstNode _topExpression;
     private String _fileName;
+
+    public final AstNodeCollection<ImportDeclaration> getImports() {
+        return getChildrenByRole(IMPORT_ROLE);
+    }
 
     public final String getFileName() {
         return _fileName;

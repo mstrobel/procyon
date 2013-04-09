@@ -472,7 +472,14 @@ public final class TypeAnalysis {
                 final MethodDefinition methodDefinition = methodReference.resolve();
                 final List<ParameterDefinition> parameters = methodReference.getParameters();
 
-                final boolean hasThis = !methodDefinition.isStatic();
+                final boolean hasThis;
+
+                if (methodDefinition != null) {
+                    hasThis = !methodDefinition.isStatic();
+                }
+                else {
+                    hasThis = code != AstCode.InvokeStatic && code != AstCode.InvokeDynamic;
+                }
 
                 if (forceInferChildren) {
                     if (hasThis) {
@@ -509,7 +516,7 @@ public final class TypeAnalysis {
                 return substituteTypeArguments(
                     methodReference.getReturnType(),
                     methodReference,
-                    methodDefinition.hasThis() ? arguments.get(0).getInferredType() : null
+                    hasThis ? arguments.get(0).getInferredType() : null
                 );
             }
 

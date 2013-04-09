@@ -105,10 +105,10 @@ public final class BreakTargetRelocation implements IAstTransform {
         final List<Stack<AstNode>> paths = new ArrayList<>();
 
         for (final GotoStatement gotoStatement : labelInfo.gotoStatements) {
-            paths.add(builtPath(gotoStatement));
+            paths.add(buildPath(gotoStatement));
         }
 
-        paths.add(builtPath(labelInfo.label));
+        paths.add(buildPath(labelInfo.label));
 
         final BlockStatement parent = findLowestCommonAncestor(paths);
 
@@ -123,6 +123,9 @@ public final class BreakTargetRelocation implements IAstTransform {
         assert startNode != null;
 
         for (final Stack<AstNode> path : paths) {
+            if (path.isEmpty()) {
+                return;
+            }
             remainingNodes.add(path.peek());
         }
 
@@ -253,10 +256,12 @@ public final class BreakTargetRelocation implements IAstTransform {
         return match;
     }
 
-    private Stack<AstNode> builtPath(final AstNode node) {
+    private Stack<AstNode> buildPath(final AstNode node) {
         assert node != null;
 
         final Stack<AstNode> path = new Stack<>();
+
+        path.push(node);
 
         for (AstNode current = node; current != null; current = current.getParent()) {
             path.push(current);

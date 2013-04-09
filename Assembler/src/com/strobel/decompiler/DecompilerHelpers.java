@@ -23,14 +23,7 @@ import com.strobel.assembler.ir.FrameType;
 import com.strobel.assembler.ir.FrameValue;
 import com.strobel.assembler.ir.FrameValueType;
 import com.strobel.assembler.ir.Instruction;
-import com.strobel.assembler.metadata.FieldReference;
-import com.strobel.assembler.metadata.IGenericInstance;
-import com.strobel.assembler.metadata.IMethodSignature;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.ParameterReference;
-import com.strobel.assembler.metadata.TypeReference;
-import com.strobel.assembler.metadata.VariableReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Variable;
@@ -46,30 +39,15 @@ public final class DecompilerHelpers {
         writeType(writer, type, NameSyntax.SIGNATURE);
     }
 
+    public static void writeGenericSignature(final ITextOutput writer, final TypeReference type) {
+        formatGenericSignature(writer, type, new Stack<TypeReference>());
+    }
+
     public static void writeType(final ITextOutput writer, final TypeReference type, final NameSyntax syntax) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(writer, "writer");
         VerifyArgument.notNull(syntax, "syntax");
 
-/*
-        switch (syntax) {
-            case SIGNATURE:
-                writer.writeReference(type.getSignature(), type);
-                break;
-
-            case DESCRIPTOR:
-                writer.writeReference(type.getSignature(), type);
-                break;
-
-            case TYPE_NAME:
-                writer.writeReference(type.getBriefDescription(), type);
-                break;
-
-            case SHORT_TYPE_NAME:
-                writer.writeReference(type.getSimpleDescription(), type);
-                break;
-        }
-*/
         formatType(writer, type, syntax, type.isDefinition(), new Stack<TypeReference>());
     }
 
@@ -81,7 +59,7 @@ public final class DecompilerHelpers {
 
         formatType(writer, method.getDeclaringType(), NameSyntax.DESCRIPTOR, false, typeStack);
         writer.writeDelimiter(".");
-        writer.writeReference(method.getFullName(), method);
+        writer.writeReference(method.getName(), method);
         writer.writeDelimiter(":");
         formatMethodSignature(writer, method, typeStack);
     }
@@ -171,6 +149,8 @@ public final class DecompilerHelpers {
 
         if (operand instanceof TypeReference) {
             writeType(writer, (TypeReference) operand, NameSyntax.TYPE_NAME);
+            writer.write('.');
+            writer.writeKeyword("class");
             return;
         }
 
@@ -385,6 +365,19 @@ public final class DecompilerHelpers {
         final IMethodSignature signature,
         final Stack<TypeReference> typeStack) {
 
+        if (signature.isGenericDefinition()) {
+            final List<GenericParameter> genericParameters = signature.getGenericParameters();
+            final int count = genericParameters.size();
+
+            if (count > 0) {
+                writer.writeDelimiter("<");
+                for (int i = 0; i < count; ++i) {
+                    formatGenericSignature(writer, genericParameters.get(i), typeStack);
+                }
+                writer.writeDelimiter(">");
+            }
+        }
+
         final List<ParameterDefinition> parameters = signature.getParameters();
 
         writer.writeDelimiter("(");
@@ -399,6 +392,7 @@ public final class DecompilerHelpers {
         formatType(writer, signature.getReturnType(), NameSyntax.SIGNATURE, false, typeStack);
     }
 
+    @SuppressWarnings("ConstantConditions")
     private static void formatType(
         final ITextOutput writer,
         final TypeReference type,
@@ -408,7 +402,8 @@ public final class DecompilerHelpers {
 
         if (type.isGenericParameter()) {
             switch (syntax) {
-                case SIGNATURE: {
+                case SIGNATURE:
+                case ERASED_SIGNATURE: {
                     formatType(writer, type.getExtendsBound(), syntax, isDefinition, stack);
                     return;
                 }
@@ -444,7 +439,8 @@ public final class DecompilerHelpers {
                     return;
                 }
 
-                case SIGNATURE: {
+                case SIGNATURE:
+                case ERASED_SIGNATURE: {
                     if (type.hasSuperBound()) {
                         writer.write("-");
                         formatType(writer, type.getSuperBound(), syntax, false, stack);
@@ -479,6 +475,7 @@ public final class DecompilerHelpers {
         if (type.isArray()) {
             switch (syntax) {
                 case SIGNATURE:
+                case ERASED_SIGNATURE:
                 case DESCRIPTOR: {
                     writer.write("[");
                     formatType(writer, type.getElementType(), syntax, false, stack);
@@ -497,21 +494,30 @@ public final class DecompilerHelpers {
 
         stack.push(type);
 
+        final TypeDefinition resolvedType = type.resolve();
+        final TypeReference nameSource =  resolvedType != null ? resolvedType : type;
+
         try {
             final String name;
 
             switch (syntax) {
                 case TYPE_NAME:
-                    name = type.getFullName();
+                    name = nameSource.getFullName();
                     break;
                 case SHORT_TYPE_NAME:
-                    name = type.getSimpleName();
+                    name = nameSource.getSimpleName();
                     break;
                 case DESCRIPTOR:
-                    name = type.getInternalName();
+                    name = nameSource.getInternalName();
                     break;
                 default:
-                    name = type.isPrimitive() ? type.getInternalName() : "L" + type.getInternalName();
+                    if (nameSource.isPrimitive()) {
+                        name = nameSource.getInternalName();
+                    }
+                    else {
+                        writer.write('L');
+                        name = nameSource.getInternalName();
+                    }
                     break;
             }
 
@@ -525,27 +531,89 @@ public final class DecompilerHelpers {
                 writer.writeReference(name, type);
             }
 
-            if (type instanceof IGenericInstance && syntax != NameSyntax.DESCRIPTOR) {
+            if (type instanceof IGenericInstance &&
+                syntax != NameSyntax.DESCRIPTOR &&
+                syntax != NameSyntax.ERASED_SIGNATURE) {
+
                 final List<TypeReference> typeArguments = ((IGenericInstance) type).getTypeArguments();
                 final int count = typeArguments.size();
 
                 if (count > 0) {
-                    writer.write('<');
+                    writer.writeDelimiter("<");
                     for (int i = 0; i < count; ++i) {
                         final TypeReference typeArgument = typeArguments.get(i);
 
                         formatType(writer, typeArgument, syntax, false, stack);
                     }
-                    writer.write('>');
+                    writer.writeDelimiter(">");
                 }
             }
 
-            if (!type.isPrimitive() && syntax == NameSyntax.SIGNATURE) {
+            if (!type.isPrimitive() && (syntax == NameSyntax.SIGNATURE || syntax == NameSyntax.ERASED_SIGNATURE)) {
                 writer.write(';');
             }
         }
         finally {
             stack.pop();
+        }
+    }
+
+    private static void formatGenericSignature(
+        final ITextOutput writer,
+        final TypeReference type,
+        final Stack<TypeReference> stack) {
+
+        if (type.isGenericParameter()) {
+            final TypeReference extendsBound = type.getExtendsBound();
+            final TypeDefinition resolvedBound = extendsBound.resolve();
+
+            writer.write(type.getName());
+
+            if (resolvedBound != null && resolvedBound.isInterface()) {
+                writer.writeDelimiter(":");
+            }
+
+            writer.writeDelimiter(":");
+
+            formatType(writer, extendsBound, NameSyntax.SIGNATURE, false, stack);
+
+            return;
+        }
+
+        if (type instanceof IGenericInstance) {
+            final List<TypeReference> typeArguments = ((IGenericInstance) type).getTypeArguments();
+            final int count = typeArguments.size();
+
+            if (count > 0) {
+                writer.writeDelimiter("<");
+                //noinspection ForLoopReplaceableByForEach
+                for (int i = 0; i < count; ++i) {
+                    formatGenericSignature(writer, typeArguments.get(i), stack);
+                }
+                writer.writeDelimiter(">");
+            }
+        }
+
+        final TypeDefinition definition = type.resolve();
+
+        if (definition == null) {
+            return;
+        }
+
+        final TypeReference baseType = definition.getBaseType();
+        final List<TypeReference> interfaces = definition.getExplicitInterfaces();
+
+        if (baseType == null) {
+            if (interfaces.isEmpty()) {
+                formatType(writer, BuiltinTypes.Object, NameSyntax.SIGNATURE, false, stack);
+            }
+        }
+        else {
+            formatType(writer, baseType, NameSyntax.SIGNATURE, false, stack);
+        }
+
+        for (final TypeReference interfaceType : interfaces) {
+            formatType(writer, interfaceType, NameSyntax.SIGNATURE, false, stack);
         }
     }
 }

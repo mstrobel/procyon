@@ -433,30 +433,31 @@ final class LoopsAndConditions {
 
                         if (caseBlock == null) {
                             caseBlock = new CaseBlock();
-                            caseBlock.setEntryGoto(new Expression(AstCode.Goto, caseLabel));
-
-                            switchNode.getCaseBlocks().add(caseBlock);
 
                             final ControlFlowNode caseTarget = labelsToNodes.get(caseLabel);
 
+                            switchNode.getCaseBlocks().add(caseBlock);
+
                             if (caseTarget != null) {
+                                caseBlock.setEntryGoto(new Expression(AstCode.Goto, caseLabel));
+
                                 final Set<ControlFlowNode> content = findDominatedNodes(scope, caseTarget);
 
                                 scope.removeAll(content);
                                 caseBlock.getBody().addAll(findConditions(content, caseTarget));
-
-                                //
-                                // Add explicit break that should not be used by default, but which might be used
-                                // by goto removal.
-                                //
-
-                                final BasicBlock explicitBreak = new BasicBlock();
-
-                                explicitBreak.getBody().add(new Label("SwitchBreak_" + _nextLabelIndex++));
-                                explicitBreak.getBody().add(new Expression(AstCode.LoopOrSwitchBreak, null));
-
-                                caseBlock.getBody().add(explicitBreak);
                             }
+
+                            //
+                            // Add explicit break that should not be used by default, but which might be used
+                            // by goto removal.
+                            //
+
+                            final BasicBlock explicitBreak = new BasicBlock();
+
+                            explicitBreak.getBody().add(new Label("SwitchBreak_" + _nextLabelIndex++));
+                            explicitBreak.getBody().add(new Expression(AstCode.LoopOrSwitchBreak, null));
+
+                            caseBlock.getBody().add(explicitBreak);
                         }
 
                         if (i != 0) {

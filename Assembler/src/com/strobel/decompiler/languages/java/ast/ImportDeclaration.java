@@ -70,4 +70,28 @@ public class ImportDeclaration extends AstNode {
         return other instanceof ImportDeclaration &&
                getImport().matches(((ImportDeclaration) other).getImport(), match);
     }
+
+    // <editor-fold defaultstate="collapsed" desc="Null ImportDeclaration">
+
+    public final static ImportDeclaration NULL = new NullImportDeclaration();
+
+    private static final class NullImportDeclaration extends ImportDeclaration {
+        @Override
+        public final boolean isNull() {
+            return true;
+        }
+
+        @Override
+        public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
+            return null;
+        }
+
+        @Override
+        public boolean matches(final INode other, final Match match) {
+            return other == null || other.isNull();
+        }
+    }
+
+    // </editor-fold>
 }
+
