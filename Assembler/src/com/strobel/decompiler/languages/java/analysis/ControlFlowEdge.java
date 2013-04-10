@@ -24,16 +24,16 @@ import java.util.Collections;
 import java.util.List;
 
 public class ControlFlowEdge {
-    public final ControlFlowNode From;
-    public final ControlFlowNode To;
-    public final ControlFlowEdgeType Type;
+    private final ControlFlowNode _from;
+    private final ControlFlowNode _to;
+    private final ControlFlowEdgeType _type;
 
     List<TryCatchStatement> jumpOutOfTryFinally;
 
     public ControlFlowEdge(final ControlFlowNode from, final ControlFlowNode to, final ControlFlowEdgeType type) {
-        this.From = VerifyArgument.notNull(from, "from");
-        this.To = VerifyArgument.notNull(to, "to");
-        this.Type = type;
+        _from = VerifyArgument.notNull(from, "from");
+        _to = VerifyArgument.notNull(to, "to");
+        _type = type;
     }
 
     final void AddJumpOutOfTryFinally(final TryCatchStatement tryFinally) {
@@ -58,5 +58,17 @@ public class ControlFlowEdge {
             return jumpOutOfTryFinally;
         }
         return Collections.emptyList();
+    }
+
+    public final ControlFlowNode getFrom() {
+        return _from;
+    }
+
+    public final ControlFlowNode getTo() {
+        return _to;
+    }
+
+    public final ControlFlowEdgeType getType() {
+        return _type;
     }
 }

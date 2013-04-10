@@ -24,14 +24,29 @@ import com.strobel.assembler.Collection;
 public final class ParameterDefinitionCollection extends Collection<ParameterDefinition> {
     final IMethodSignature signature;
 
+    private TypeReference _declaringType;
+
     ParameterDefinitionCollection(final IMethodSignature signature) {
         this.signature = signature;
+    }
+
+    public final TypeReference getDeclaringType() {
+        return _declaringType;
+    }
+
+    final void setDeclaringType(final TypeReference declaringType) {
+        _declaringType = declaringType;
+
+        for (int i = 0; i < size(); i++) {
+            get(i).setDeclaringType(declaringType);
+        }
     }
 
     @Override
     protected void afterAdd(final int index, final ParameterDefinition p, final boolean appended) {
         p.setMethod(signature);
         p.setPosition(index);
+        p.setDeclaringType(_declaringType);
 
         if (!appended) {
             for (int i = index + 1; i < size(); i++) {
@@ -46,15 +61,18 @@ public final class ParameterDefinitionCollection extends Collection<ParameterDef
 
         current.setMethod(null);
         current.setPosition(-1);
+        current.setDeclaringType(null);
 
         p.setMethod(signature);
         p.setPosition(index);
+        p.setDeclaringType(_declaringType);
     }
 
     @Override
     protected void afterRemove(final int index, final ParameterDefinition p) {
         p.setMethod(null);
         p.setPosition(-1);
+        p.setDeclaringType(null);
 
         for (int i = index; i < size(); i++) {
             get(i).setPosition(i);
@@ -66,6 +84,7 @@ public final class ParameterDefinitionCollection extends Collection<ParameterDef
         for (int i = 0; i < size(); i++) {
             get(i).setMethod(null);
             get(i).setPosition(-1);
+            get(i).setDeclaringType(null);
         }
     }
 }

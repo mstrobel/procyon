@@ -64,7 +64,7 @@ public class MethodReader {
         _modifiers = modifiers;
         _code = VerifyArgument.notNull(code, "code");
         _scope = VerifyArgument.notNull(scope, "scope");
-        _methodBody = new MethodBody();
+        _methodBody = new MethodBody(declaringType);
         _methodBody.setCodeSize(_code.getCode().size());
         _methodBody.setMaxStackSize(_code.getMaxStack());
         _methodBody.setMaxLocals(_code.getMaxLocals());

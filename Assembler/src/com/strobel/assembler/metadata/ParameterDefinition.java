@@ -31,6 +31,7 @@ public final class ParameterDefinition extends ParameterReference implements IAn
     private final int _size;
     private int _slot;
     private IMethodSignature _method;
+    private TypeReference _declaringType;
     private List<CustomAnnotation> _annotations;
 
     public ParameterDefinition(final int slot, final TypeReference parameterType) {
@@ -80,6 +81,15 @@ public final class ParameterDefinition extends ParameterReference implements IAn
             }
         }
         return _annotations;
+    }
+
+    @Override
+    public final TypeReference getDeclaringType() {
+        return _declaringType;
+    }
+
+    final void setDeclaringType(final TypeReference declaringType) {
+        _declaringType = declaringType;
     }
 
     @Override

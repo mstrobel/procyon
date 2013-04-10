@@ -25,6 +25,36 @@ import java.util.ArrayList;
 import java.util.NoSuchElementException;
 
 public final class VariableDefinitionCollection extends Collection<VariableDefinition> {
+    private final TypeReference _declaringType;
+
+    public VariableDefinitionCollection(final TypeReference declaringType) {
+        _declaringType = declaringType;
+    }
+
+    @Override
+    protected void afterAdd(final int index, final VariableDefinition d, final boolean appended) {
+        d.setDeclaringType(_declaringType);
+    }
+
+    @Override
+    protected void beforeSet(final int index, final VariableDefinition d) {
+        final VariableDefinition current = get(index);
+        current.setDeclaringType(null);
+        d.setDeclaringType(_declaringType);
+    }
+
+    @Override
+    protected void afterRemove(final int index, final VariableDefinition d) {
+        d.setDeclaringType(null);
+    }
+
+    @Override
+    protected void beforeClear() {
+        for (int i = 0; i < size(); i++) {
+            get(i).setDeclaringType(null);
+        }
+    }
+
     public int slotCount() {
         int maxSlot = -1;
 
@@ -189,6 +219,7 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
             variableType
         );
 
+        variable.setDeclaringType(_declaringType);
         variable.setScopeStart(instructionOffset);
         variable.setScopeEnd(-1);
         variable.setFromMetadata(false);

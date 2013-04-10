@@ -24,11 +24,13 @@ import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 
 public abstract class Statement extends AstNode {
-    private Statement _nextStatement;
-
     @Override
     public NodeType getNodeType() {
         return NodeType.STATEMENT;
+    }
+
+    public boolean isEmbeddable() {
+        return false;
     }
 
     // <editor-fold defaultstate="collapsed" desc="Null Statement">
@@ -43,6 +45,16 @@ public abstract class Statement extends AstNode {
         }
 
         return (Statement) next;
+    }
+
+    public final Statement getPreviousStatement() {
+        AstNode previous = getPreviousSibling();
+
+        while (previous != null && !(previous instanceof Statement)) {
+            previous = previous.getPreviousSibling();
+        }
+
+        return (Statement) previous;
     }
 
     private static final class NullStatement extends Statement {

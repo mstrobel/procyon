@@ -28,10 +28,20 @@ public final class VariableDefinition extends VariableReference {
     private int _scopeEnd;
     private boolean _isTypeKnown;
     private boolean _fromMetadata;
+    private TypeReference _declaringType;
 
     public VariableDefinition(final int slot, final String name, final TypeReference variableType) {
         super(name, variableType);
         _slot = slot;
+    }
+
+    @Override
+    public final TypeReference getDeclaringType() {
+        return _declaringType;
+    }
+
+    final void setDeclaringType(final TypeReference declaringType) {
+        _declaringType = declaringType;
     }
 
     public final int getSlot() {

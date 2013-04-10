@@ -27,6 +27,11 @@ public class ExpressionStatement extends Statement {
         setExpression(expression);
     }
 
+    @Override
+    public boolean isEmbeddable() {
+        return true;
+    }
+
     public final Expression getExpression() {
         return getChildByRole(Roles.EXPRESSION);
     }

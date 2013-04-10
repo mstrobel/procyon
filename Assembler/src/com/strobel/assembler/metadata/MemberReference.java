@@ -18,7 +18,6 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 
-import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.List;
 
@@ -27,7 +26,7 @@ import java.util.List;
  * Date: 1/6/13
  * Time: 4:38 PM
  */
-public abstract class MemberReference implements IAnnotationsProvider {
+public abstract class MemberReference implements IAnnotationsProvider, IMetadataTypeMember {
     protected MemberReference() {
     }
 

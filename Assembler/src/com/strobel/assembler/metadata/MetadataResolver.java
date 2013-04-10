@@ -464,29 +464,29 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
         if (a.getPosition() != b.getPosition()) {
             return false;
         }
-//
-//        final IGenericParameterProvider ownerA = a.getOwner();
-//        final IGenericParameterProvider ownerB = b.getOwner();
-//
-//        if (ownerA instanceof TypeDefinition) {
-//            if (!(ownerB instanceof TypeDefinition)) {
-//                return false;
-//            }
-//            return areEquivalent((TypeDefinition)ownerA, (TypeDefinition)ownerB);
-//        }
-//
-//        if (ownerA instanceof MethodDefinition) {
-//            if (!(ownerB instanceof MethodDefinition)) {
-//                return false;
-//            }
-//
-//            final MethodDefinition methodA = (MethodDefinition) ownerA;
-//            final MethodDefinition methodB = (MethodDefinition) ownerB;
-//
-//            return areEquivalent(methodA.getDeclaringType(), methodB.getDeclaringType()) &&
-//                   StringUtilities.equals(methodA.getErasedSignature(), methodB.getErasedSignature());
-//        }
-//
+
+        final IGenericParameterProvider ownerA = a.getOwner();
+        final IGenericParameterProvider ownerB = b.getOwner();
+
+        if (ownerA instanceof TypeDefinition) {
+            if (!(ownerB instanceof TypeDefinition)) {
+                return false;
+            }
+            return areEquivalent((TypeDefinition)ownerA, (TypeDefinition)ownerB);
+        }
+
+        if (ownerA instanceof MethodDefinition) {
+            if (!(ownerB instanceof MethodDefinition)) {
+                return false;
+            }
+
+            final MethodDefinition methodA = (MethodDefinition) ownerA;
+            final MethodDefinition methodB = (MethodDefinition) ownerB;
+
+            return areEquivalent(methodA.getDeclaringType(), methodB.getDeclaringType()) &&
+                   StringUtilities.equals(methodA.getErasedSignature(), methodB.getErasedSignature());
+        }
+
         return true;
     }
 

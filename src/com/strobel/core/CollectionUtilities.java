@@ -52,6 +52,18 @@ public final class CollectionUtilities {
         return it.hasNext() ? it.next() : null;
     }
 
+    public static <T> T firstOrDefault(final Iterable<T> collection, final Predicate<T> predicate) {
+        VerifyArgument.notNull(predicate, "predicate");
+
+        for (final T item : VerifyArgument.notNull(collection, "collection")) {
+            if (predicate.test(item)) {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
     public static <T> T lastOrDefault(final Iterable<T> collection) {
         VerifyArgument.notNull(collection, "collection");
 
@@ -67,6 +79,21 @@ public final class CollectionUtilities {
         }
 
         return last;
+    }
+
+    public static <T> T lastOrDefault(final Iterable<T> collection, final Predicate<T> predicate) {
+        VerifyArgument.notNull(collection, "collection");
+        VerifyArgument.notNull(predicate, "predicate");
+
+        T lastMatch = null;
+
+        for (final T item : VerifyArgument.notNull(collection, "collection")) {
+            if (predicate.test(item)) {
+                lastMatch = item;
+            }
+        }
+
+        return lastMatch;
     }
 
     public static <T> boolean contains(final Iterable<? super T> collection, final T node) {

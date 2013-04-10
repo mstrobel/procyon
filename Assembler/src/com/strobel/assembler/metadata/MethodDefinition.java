@@ -131,6 +131,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
 
     protected final void setDeclaringType(final TypeDefinition declaringType) {
         _declaringType = declaringType;
+        _parameters.setDeclaringType(declaringType);
     }
 
     protected final void setFlags(final long flags) {

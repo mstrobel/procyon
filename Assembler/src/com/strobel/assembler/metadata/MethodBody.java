@@ -34,9 +34,9 @@ public final class MethodBody extends Freezable {
     private int _maxLocals;
     private int _codeSize;
 
-    public MethodBody() {
+    public MethodBody(final TypeReference declaringType) {
         _instructions = new InstructionCollection();
-        _variables = new VariableDefinitionCollection();
+        _variables = new VariableDefinitionCollection(declaringType);
         _exceptionHandlers = new Collection<>();
     }
 

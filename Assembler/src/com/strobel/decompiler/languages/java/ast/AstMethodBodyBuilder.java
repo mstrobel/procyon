@@ -428,19 +428,19 @@ public class AstMethodBodyBuilder {
             case GetStatic: {
                 final ConvertTypeOptions options = new ConvertTypeOptions();
                 options.setIncludeTypeParameterDefinitions(false);
-                final MemberReferenceExpression staticFieldReference = _astBuilder.convertType(fieldOperand.getDeclaringType(), options)
-                                                                                 .member(fieldOperand.getName());
-                staticFieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
-                return staticFieldReference;
+                final MemberReferenceExpression fieldReference = _astBuilder.convertType(fieldOperand.getDeclaringType(), options)
+                                                                            .member(fieldOperand.getName());
+                fieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
+                return fieldReference;
             }
 
             case PutStatic: {
                 final ConvertTypeOptions options = new ConvertTypeOptions();
                 options.setIncludeTypeParameterDefinitions(false);
-                final MemberReferenceExpression staticFieldReference = _astBuilder.convertType(fieldOperand.getDeclaringType(), options)
-                                                                                 .member(fieldOperand.getName());
-                staticFieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
-                return new AssignmentExpression(staticFieldReference, arg1);
+                final MemberReferenceExpression fieldReference = _astBuilder.convertType(fieldOperand.getDeclaringType(), options)
+                                                                            .member(fieldOperand.getName());
+                fieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
+                return new AssignmentExpression(fieldReference, arg1);
             }
 
             case GetField: {
@@ -487,7 +487,7 @@ public class AstMethodBodyBuilder {
                 AstType elementType = operandType;
 
                 while (elementType instanceof ComposedType) {
-                    elementType = ((ComposedType)elementType).getBaseType();
+                    elementType = ((ComposedType) elementType).getBaseType();
                 }
 
                 arrayCreation.setType(elementType.clone());

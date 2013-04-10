@@ -166,7 +166,7 @@ public class ControlFlowGraphBuilder {
     final void annotateLeaveEdgesWithTryFinallyBlocks() {
         for (final ControlFlowNode n : nodes) {
             for (final ControlFlowEdge edge : n.getOutgoing()) {
-                if (edge.Type != ControlFlowEdgeType.Jump) {
+                if (edge.getType() != ControlFlowEdgeType.Jump) {
                     //
                     // Only jumps are candidates for leaving try-finally blocks.  Regular edges leaving
                     // try or catch blocks are already annotated by the visitor.
@@ -174,14 +174,14 @@ public class ControlFlowGraphBuilder {
                     continue;
                 }
 
-                final Statement gotoStatement = edge.From.getNextStatement();
+                final Statement gotoStatement = edge.getFrom().getNextStatement();
 
                 assert gotoStatement instanceof GotoStatement ||
                        gotoStatement instanceof BreakStatement ||
                        gotoStatement instanceof ContinueStatement;
 
-                final Statement targetStatement = edge.To.getPreviousStatement() != null ? edge.To.getPreviousStatement()
-                                                                                    : edge.To.getNextStatement();
+                final Statement targetStatement = edge.getTo().getPreviousStatement() != null ? edge.getTo().getPreviousStatement()
+                                                                                    : edge.getTo().getNextStatement();
 
                 if (gotoStatement.getParent() == targetStatement.getParent()) {
                     continue;

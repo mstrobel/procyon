@@ -24,7 +24,7 @@ import com.strobel.core.VerifyArgument;
  * Date: 1/6/13
  * Time: 5:41 PM
  */
-public abstract class ParameterReference {
+public abstract class ParameterReference implements IMetadataTypeMember {
     private String _name;
     private int _position = -1;
     private TypeReference _parameterType;
@@ -33,6 +33,9 @@ public abstract class ParameterReference {
         _name = name != null ? name : StringUtilities.EMPTY;
         _parameterType = VerifyArgument.notNull(parameterType, "parameterType");
     }
+
+    @Override
+    public abstract TypeReference getDeclaringType();
 
     public String getName() {
         if (StringUtilities.isNullOrEmpty(_name)) {

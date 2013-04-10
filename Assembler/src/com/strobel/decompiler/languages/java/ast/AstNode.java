@@ -195,6 +195,20 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         };
     }
 
+    public final boolean isAncestorOf(final AstNode node) {
+        for (AstNode n = node; n != null; n = n._parent) {
+            if (n == this) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public final boolean isDescendantOf(final AstNode node) {
+        return node != null && node.isAncestorOf(this);
+    }
+
     public final Iterable<AstNode> getAncestors() {
         return new Iterable<AstNode>() {
             @Override

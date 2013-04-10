@@ -254,12 +254,12 @@ public class DefiniteAssignmentAnalysis {
                 }
 
                 for (final ControlFlowEdge edge : node.getOutgoing()) {
-                    if (edge.Type == ControlFlowEdgeType.ConditionTrue &&
+                    if (edge.getType() == ControlFlowEdgeType.ConditionTrue &&
                         outputStatus == DefiniteAssignmentStatus.ASSIGNED_AFTER_TRUE_EXPRESSION) {
 
                         changeEdgeStatus(edge, DefiniteAssignmentStatus.DEFINITELY_ASSIGNED);
                     }
-                    else if (edge.Type == ControlFlowEdgeType.ConditionFalse &&
+                    else if (edge.getType() == ControlFlowEdgeType.ConditionFalse &&
                         outputStatus == DefiniteAssignmentStatus.ASSIGNED_AFTER_FALSE_EXPRESSION) {
 
                         changeEdgeStatus(edge, DefiniteAssignmentStatus.DEFINITELY_ASSIGNED);
@@ -326,7 +326,7 @@ public class DefiniteAssignmentAnalysis {
 
         edgeStatus.put(edge, newStatus);
 
-        final DefiniteAssignmentNode targetNode = (DefiniteAssignmentNode) edge.To;
+        final DefiniteAssignmentNode targetNode = (DefiniteAssignmentNode) edge.getTo();
 
         if (analyzedRangeStart <= targetNode.getIndex() && targetNode.getIndex() <= analyzedRangeEnd) {
             nodesWithModifiedInput.add(targetNode);

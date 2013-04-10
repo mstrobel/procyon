@@ -23,7 +23,7 @@ import com.strobel.core.StringUtilities;
  * Date: 1/6/13
  * Time: 2:07 PM
  */
-public abstract class VariableReference {
+public abstract class VariableReference implements IMetadataTypeMember {
     private String _name;
     private TypeReference _variableType;
 
@@ -39,6 +39,9 @@ public abstract class VariableReference {
     public final String getName() {
         return _name;
     }
+
+    @Override
+    public abstract TypeReference getDeclaringType();
 
     public final boolean hasName() {
         return !StringUtilities.isNullOrEmpty(_name);

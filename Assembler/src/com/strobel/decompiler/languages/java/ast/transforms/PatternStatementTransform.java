@@ -16,11 +16,17 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.CollectionUtilities;
+import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.ast.Variable;
+import com.strobel.decompiler.languages.java.analysis.ControlFlowEdge;
+import com.strobel.decompiler.languages.java.analysis.ControlFlowGraphBuilder;
+import com.strobel.decompiler.languages.java.analysis.ControlFlowNode;
+import com.strobel.decompiler.languages.java.analysis.ControlFlowNodeType;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.AnyNode;
 import com.strobel.decompiler.patterns.BackReference;
@@ -32,16 +38,21 @@ import com.strobel.decompiler.patterns.Repeat;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
+import java.util.Stack;
 
 import static com.strobel.core.CollectionUtilities.*;
+import static com.strobel.decompiler.languages.java.analysis.Correlator.areCorrelated;
 
 public final class PatternStatementTransform extends ContextTrackingVisitor<AstNode> {
+/*
     private final static AstNode VARIABLE_ASSIGN_PATTERN = new ExpressionStatement(
         new AssignmentExpression(
             new NamedNode("variable", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
             new AnyNode("initializer").toExpression()
         )
     );
+*/
 
     public PatternStatementTransform(final DecompilerContext context) {
         super(context);
@@ -51,19 +62,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
     @Override
     public AstNode visitExpressionStatement(final ExpressionStatement node, final Void data) {
-        AstNode result = transformFor(node);
-
-        if (result != null) {
-            final AstNode forEachInArray = transformForEachInArray(result.getPreviousNode());
-
-            if (forEachInArray != null) {
-                return forEachInArray;
-            }
-
-            return result;
-        }
-
-        result = transformForEach(node);
+        final AstNode result = transformForEach(node);
 
         if (result != null) {
             return result;
@@ -74,6 +73,18 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
     @Override
     public AstNode visitWhileStatement(final WhileStatement node, final Void data) {
+        final ForStatement forLoop = transformFor(node);
+
+        if (forLoop != null) {
+            final AstNode forEachInArray = transformForEachInArray(forLoop);
+
+            if (forEachInArray != null) {
+                return forEachInArray;
+            }
+
+            return forLoop;
+        }
+
         final DoWhileStatement doWhile = transformDoWhile(node);
 
         if (doWhile != null) {
@@ -89,8 +100,9 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
     // <editor-fold defaultstate="collapsed" desc="For Loop Transform">
 
-    private final static WhileStatement FOR_PATTERN;
+//    private final static WhileStatement FOR_PATTERN;
 
+/*
     static {
         final WhileStatement forPattern = new WhileStatement();
 
@@ -138,7 +150,221 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
         FOR_PATTERN = forPattern;
     }
+*/
 
+    public final ForStatement transformFor(final WhileStatement node) {
+        final Expression condition = node.getCondition();
+
+        if (condition == null || condition.isNull()) {
+            return null;
+        }
+
+        final ControlFlowGraphBuilder graphBuilder = new ControlFlowGraphBuilder();
+        final List<ControlFlowNode> nodes = graphBuilder.buildControlFlowGraph(node, new JavaResolver());
+
+        if (nodes.size() < 2) {
+            return null;
+        }
+
+        final ControlFlowNode conditionNode = firstOrDefault(
+            nodes,
+            new Predicate<ControlFlowNode>() {
+                @Override
+                public boolean test(final ControlFlowNode n) {
+                    return n.getType() == ControlFlowNodeType.LoopCondition;
+                }
+            }
+        );
+
+        if (conditionNode == null) {
+            return null;
+        }
+
+        final List<ControlFlowNode> bodyNodes = new ArrayList<>();
+
+        for (final ControlFlowEdge edge : conditionNode.getIncoming()) {
+            final ControlFlowNode from = edge.getFrom();
+            final Statement statement = from.getPreviousStatement();
+
+            if (statement != null && node.getEmbeddedStatement().isAncestorOf(statement)) {
+                bodyNodes.add(from);
+            }
+        }
+
+        if (bodyNodes.size() != 1) {
+            return null;
+        }
+
+        final List<Statement> iterators = new ArrayList<>();
+        final ControlFlowNode iteratorNode = bodyNodes.get(0);
+        final AstNodeCollection<Statement> loopBody = iteratorNode.getPreviousStatement()
+                                                                  .getChildrenByRole(BlockStatement.STATEMENT_ROLE);
+
+        final Statement firstIterator = firstOrDefault(
+            loopBody,
+            new Predicate<Statement>() {
+                @Override
+                public boolean test(final Statement s) {
+                    return s.isEmbeddable() && areCorrelated(condition, s);
+                }
+            }
+        );
+
+        if (firstIterator == null) {
+            return null;
+        }
+
+        iterators.add(firstIterator);
+
+        for (Statement s = firstIterator.getNextStatement(); s != null; s = s.getNextStatement()) {
+            if (s.isEmbeddable()) {
+                iterators.add(s);
+            }
+            else {
+                return null;
+            }
+        }
+
+        if (loopBody.size() - iterators.size() == 0) {
+            //
+            // Don't transform a 'while' loop into a 'for' loop with an empty body.
+            //
+            return null;
+        }
+
+        final ForStatement forLoop = new ForStatement();
+        final Stack<Statement> initializers = new Stack<>();
+
+        for (Statement s = node.getPreviousStatement(); s instanceof ExpressionStatement; s = s.getPreviousStatement()) {
+            final Expression e = ((ExpressionStatement) s).getExpression();
+            final Expression left;
+
+            final boolean canExtract = e instanceof AssignmentExpression &&
+                                       (left = e.getChildByRole(AssignmentExpression.LEFT_ROLE)) instanceof IdentifierExpression &&
+                                       (areCorrelated(condition, s) ||
+                                        any(
+                                            iterators,
+                                            new Predicate<Statement>() {
+                                                @Override
+                                                public boolean test(final Statement i) {
+                                                    return areCorrelated(left, i);
+                                                }
+                                            }
+                                        ));
+
+            if (canExtract) {
+                initializers.add(s);
+            }
+            else {
+                break;
+            }
+        }
+
+        final Statement body = node.getEmbeddedStatement();
+
+        condition.remove();
+        body.remove();
+
+        forLoop.setCondition(condition);
+
+        if (body instanceof BlockStatement) {
+            for (final Statement s : ((BlockStatement) body).getStatements()) {
+                if (iterators.contains(s)) {
+                    s.remove();
+                }
+            }
+
+            forLoop.setEmbeddedStatement(body);
+        }
+
+        forLoop.getIterators().addAll(iterators);
+
+        while (!initializers.isEmpty()) {
+            final Statement initializer = initializers.pop();
+            initializer.remove();
+            forLoop.getInitializers().add(initializer);
+        }
+
+        node.replaceWith(forLoop);
+
+        if (canInlineInitializerDeclarations(forLoop)) {
+            final VariableDeclarationStatement newDeclaration = new VariableDeclarationStatement();
+            final List<Statement> forInitializers = new ArrayList<>(forLoop.getInitializers());
+
+            forLoop.getInitializers().clear();
+            forLoop.getInitializers().add(newDeclaration);
+
+            for (final Statement initializer : forInitializers) {
+                final AssignmentExpression assignment = (AssignmentExpression) ((ExpressionStatement) initializer).getExpression();
+                final IdentifierExpression variable = (IdentifierExpression) assignment.getLeft();
+                final String variableName = variable.getIdentifier();
+                final VariableDeclarationStatement declaration = findVariableDeclaration(forLoop, variableName);
+                final VariableInitializer oldInitializer = declaration.getVariable(variableName);
+                final Expression initValue = assignment.getRight();
+
+                initValue.remove();
+                newDeclaration.getVariables().add(new VariableInitializer(variableName, initValue));
+
+                final AstType newDeclarationType = newDeclaration.getType();
+
+                if (newDeclarationType == null || newDeclarationType.isNull()) {
+                    newDeclaration.setType(declaration.getType().clone());
+                }
+
+                if (oldInitializer != null && !oldInitializer.isNull()) {
+                    oldInitializer.remove();
+
+                    if (declaration.getVariables().isEmpty()) {
+                        declaration.remove();
+                    }
+                }
+            }
+        }
+
+        return forLoop;
+    }
+
+    private boolean canInlineInitializerDeclarations(final ForStatement forLoop) {
+        TypeReference variableType = null;
+
+        for (final Statement initializer : forLoop.getInitializers()) {
+            final AssignmentExpression assignment = (AssignmentExpression) ((ExpressionStatement) initializer).getExpression();
+            final IdentifierExpression variable = (IdentifierExpression) assignment.getLeft();
+            final String variableName = variable.getIdentifier();
+            final VariableDeclarationStatement declaration = findVariableDeclaration(forLoop, variableName);
+
+            if (declaration == null) {
+                return false;
+            }
+
+            final Variable underlyingVariable = declaration.getUserData(Keys.VARIABLE);
+
+            if (underlyingVariable == null || underlyingVariable.isParameter()) {
+                return false;
+            }
+
+            if (variableType == null) {
+                variableType = underlyingVariable.getType();
+            }
+            else if (!variableType.equals(underlyingVariable.getType())) {
+                return false;
+            }
+
+            if (!(declaration.getParent() instanceof BlockStatement)) {
+                continue;
+            }
+
+            final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(declaration, forLoop);
+
+            if (declarationPoint != forLoop) {
+                continue;
+            }
+        }
+
+        return variableType != null;
+    }
+
+/*
     public final ForStatement transformFor(final ExpressionStatement node) {
         final Match m1 = VARIABLE_ASSIGN_PATTERN.match(node);
 
@@ -225,6 +451,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
         return forStatement;
     }
+*/
 
     // </editor-fold>
 
