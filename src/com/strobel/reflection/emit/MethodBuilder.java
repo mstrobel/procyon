@@ -261,6 +261,97 @@ public final class MethodBuilder extends MethodInfo {
     }
 
     @Override
+    public boolean isGenericMethod() {
+        return _genericParameterBuilders != null && !_genericParameterBuilders.isEmpty();
+    }
+
+    @Override
+    public boolean isGenericMethodDefinition() {
+        return _genericParameterBuilders != null && !_genericParameterBuilders.isEmpty();
+    }
+
+    @Override
+    public StringBuilder appendDescription(final StringBuilder sb) {
+        StringBuilder s = new StringBuilder();
+
+        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
+            s.append(modifier.toString());
+            s.append(' ');
+        }
+
+        if (isGenericMethodDefinition()) {
+            final GenericParameterBuilderList genericParameters = _genericParameterBuilders;
+
+            s.append('<');
+            for (int i = 0, n = genericParameters.size(); i < n; i++) {
+                if (i != 0) {
+                    s.append(", ");
+                }
+                s = genericParameters.get(i).appendSimpleDescription(s);
+            }
+            s.append('>');
+            s.append(' ');
+        }
+
+        Type returnType = getReturnType();
+
+        while (returnType.isWildcardType()) {
+            returnType = returnType.getExtendsBound();
+        }
+
+        if (returnType.isGenericParameter()) {
+            s.append(returnType.getName());
+        }
+        else {
+            s = returnType.appendSimpleDescription(s);
+        }
+
+        s.append(' ');
+        s.append(getName());
+        s.append('(');
+
+        final ParameterList parameters = getParameters();
+
+        for (int i = 0, n = parameters.size(); i < n; ++i) {
+            final ParameterInfo p = parameters.get(i);
+            if (i != 0) {
+                s.append(", ");
+            }
+
+            Type parameterType = p.getParameterType();
+
+            while (parameterType.isWildcardType()) {
+                parameterType = parameterType.getExtendsBound();
+            }
+
+            if (parameterType.isGenericParameter()) {
+                s.append(parameterType.getName());
+            }
+            else {
+                s = parameterType.appendSimpleDescription(s);
+            }
+        }
+
+        s.append(')');
+
+        final TypeList thrownTypes = getThrownTypes();
+
+        if (!thrownTypes.isEmpty()) {
+            s.append(" throws ");
+
+            for (int i = 0, n = thrownTypes.size(); i < n; ++i) {
+                final Type t = thrownTypes.get(i);
+                if (i != 0) {
+                    s.append(", ");
+                }
+                s = t.appendBriefDescription(s);
+            }
+        }
+
+        return s;
+    }
+
+    @Override
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         StringBuilder s = new StringBuilder();
 
@@ -270,7 +361,7 @@ public final class MethodBuilder extends MethodInfo {
         }
 
         if (isGenericMethodDefinition()) {
-            final TypeList genericParameters = getGenericMethodParameters();
+            final GenericParameterBuilderList genericParameters = _genericParameterBuilders;
 
             s.append('<');
             for (int i = 0, n = genericParameters.size(); i < n; i++) {
