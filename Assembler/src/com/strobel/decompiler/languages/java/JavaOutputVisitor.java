@@ -328,7 +328,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 isFirst = false;
             }
             else {
+                space();
                 writeToken(Roles.PIPE);
+                space();
             }
             node.acceptVisitor(this, null);
         }
@@ -1710,9 +1712,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeKeyword(ArrayCreationExpression.NEW_KEYWORD_ROLE);
         node.getType().acceptVisitor(this, _);
 
-        if (!node.getDimension().isNull()) {
+        for (final Expression dimension : node.getDimensions()) {
             writeToken(Roles.LEFT_BRACKET);
-            node.getDimension().acceptVisitor(this, _);
+            dimension.acceptVisitor(this, _);
             writeToken(Roles.RIGHT_BRACKET);
         }
 

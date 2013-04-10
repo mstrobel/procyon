@@ -142,6 +142,10 @@ public final class InstructionHelper {
                     return 1;
                 }
 
+                if (code == OpCode.MULTIANEWARRAY) {
+                    return instruction.getOperand(1);
+                }
+
                 if (code.getFlowControl() != FlowControl.Call) {
                     break;
                 }

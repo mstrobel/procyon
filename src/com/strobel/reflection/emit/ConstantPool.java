@@ -700,7 +700,6 @@ final class ConstantPool {
     }
 
     public static class InvokeDynamicInfo extends Entry {
-
         public final int bootstrapMethodAttributeIndex;
         public final int nameAndTypeDescriptorIndex;
 

@@ -479,8 +479,25 @@ public class AstMethodBodyBuilder {
 
             case MonitorEnter:
             case MonitorExit:
-            case MultiANewArray:
                 break;
+
+            case MultiANewArray: {
+                final ArrayCreationExpression arrayCreation = new ArrayCreationExpression();
+
+                AstType elementType = operandType;
+
+                while (elementType instanceof ComposedType) {
+                    elementType = ((ComposedType)elementType).getBaseType();
+                }
+
+                arrayCreation.setType(elementType.clone());
+
+                for (int i = 0; i < arguments.size(); i++) {
+                    arrayCreation.getDimensions().add(arguments.get(i));
+                }
+
+                return arrayCreation;
+            }
 
             case Breakpoint:
                 return null;
@@ -585,7 +602,7 @@ public class AstMethodBodyBuilder {
             case NewArray: {
                 final ArrayCreationExpression arrayCreation = new ArrayCreationExpression();
                 arrayCreation.setType(operandType);
-                arrayCreation.setDimension(arg1);
+                arrayCreation.getDimensions().add(arg1);
                 return arrayCreation;
             }
 

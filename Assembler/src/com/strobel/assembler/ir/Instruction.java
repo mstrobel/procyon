@@ -453,7 +453,7 @@ public final class Instruction {
             case PrimitiveTypeCode:
             case TypeReference:
             case TypeReferenceU1:
-                visitor.visitType(_opCode, (TypeReference) _operand);
+                visitor.visitType(_opCode, (TypeReference) getOperand(0));
                 break;
 
             case MethodReference:

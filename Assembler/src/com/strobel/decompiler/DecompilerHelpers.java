@@ -404,7 +404,12 @@ public final class DecompilerHelpers {
             switch (syntax) {
                 case SIGNATURE:
                 case ERASED_SIGNATURE: {
-                    formatType(writer, type.getExtendsBound(), syntax, isDefinition, stack);
+                    if (stack.contains(type.getExtendsBound())) {
+                        writer.writeReference(type.getSimpleName(), type);
+                    }
+                    else {
+                        formatType(writer, type.getExtendsBound(), syntax, isDefinition, stack);
+                    }
                     return;
                 }
 
@@ -535,17 +540,24 @@ public final class DecompilerHelpers {
                 syntax != NameSyntax.DESCRIPTOR &&
                 syntax != NameSyntax.ERASED_SIGNATURE) {
 
-                final List<TypeReference> typeArguments = ((IGenericInstance) type).getTypeArguments();
-                final int count = typeArguments.size();
+                stack.push(type);
 
-                if (count > 0) {
-                    writer.writeDelimiter("<");
-                    for (int i = 0; i < count; ++i) {
-                        final TypeReference typeArgument = typeArguments.get(i);
+                try {
+                    final List<TypeReference> typeArguments = ((IGenericInstance) type).getTypeArguments();
+                    final int count = typeArguments.size();
 
-                        formatType(writer, typeArgument, syntax, false, stack);
+                    if (count > 0) {
+                        writer.writeDelimiter("<");
+                        for (int i = 0; i < count; ++i) {
+                            final TypeReference typeArgument = typeArguments.get(i);
+
+                            formatType(writer, typeArgument, syntax, false, stack);
+                        }
+                        writer.writeDelimiter(">");
                     }
-                    writer.writeDelimiter(">");
+                }
+                finally {
+                    stack.pop();
                 }
             }
 

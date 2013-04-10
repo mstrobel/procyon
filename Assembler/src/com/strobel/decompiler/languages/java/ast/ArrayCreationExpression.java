@@ -34,12 +34,8 @@ public class ArrayCreationExpression extends Expression {
         ArrayInitializerExpression.NULL
     );
 
-    public final Expression getDimension() {
-        return getChildByRole(Roles.ARGUMENT);
-    }
-    
-    public final void setDimension(final Expression value) {
-        setChildByRole(Roles.ARGUMENT, value);
+    public final AstNodeCollection<Expression> getDimensions() {
+        return getChildrenByRole(Roles.ARGUMENT);
     }
 
     public final ArrayInitializerExpression getInitializer() {
@@ -78,7 +74,7 @@ public class ArrayCreationExpression extends Expression {
 
             return !otherExpression.isNull() &&
                    getType().matches(otherExpression.getType(), match) &&
-                   getDimension().matches(otherExpression.getDimension(), match) &&
+                   getDimensions().matches(otherExpression.getDimensions(), match) &&
                    getInitializer().matches(otherExpression.getInitializer(), match) &&
                    getAdditionalArraySpecifiers().matches(otherExpression.getAdditionalArraySpecifiers(), match);
         }
