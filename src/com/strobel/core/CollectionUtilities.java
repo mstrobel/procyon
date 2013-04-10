@@ -40,6 +40,18 @@ public final class CollectionUtilities {
         throw Error.sequenceHasNoElements();
     }
 
+    public static <T> T getOrDefault(final Iterable<T> collection, final int index) {
+        int i = 0;
+
+        for (final T item : collection) {
+            if (i++ == index) {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
     public static <T> T getOrDefault(final List<T> collection, final int index) {
         if (index >= VerifyArgument.notNull(collection, "collection").size() || index < 0) {
             return null;

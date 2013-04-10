@@ -94,6 +94,7 @@ public class VariableDeclarationStatement extends Statement {
             final VariableDeclarationStatement otherDeclaration = (VariableDeclarationStatement) other;
 
             return !other.isNull() &&
+                   getType().matches(otherDeclaration.getType(), match) &&
                    getChildrenByRole(MODIFIER_ROLE).matches(otherDeclaration.getChildrenByRole(MODIFIER_ROLE), match) &&
                    getVariables().matches(otherDeclaration.getVariables(), match);
         }

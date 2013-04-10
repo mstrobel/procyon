@@ -81,7 +81,7 @@ public class VariableInitializer extends AstNode {
 
             return !other.isNull() &&
                    matchString(getName(), otherInitializer.getName()) &&
-                   getInitializer().matches(otherInitializer, match);
+                   getInitializer().matches(otherInitializer.getInitializer(), match);
         }
 
         return false;
