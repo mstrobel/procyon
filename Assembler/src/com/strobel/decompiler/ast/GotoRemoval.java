@@ -200,7 +200,7 @@ final class GotoRemoval {
 
         if (matchGetArguments(target, AstCode.Return, expressions) &&
             (expressions.isEmpty() ||
-             expressions.size() == 1 && Inlining.hasNoSideEffect(expressions.get(0)))) {
+             expressions.size() == 1/* && Inlining.hasNoSideEffect(expressions.get(0))*/)) {
 
             gotoExpression.setCode(AstCode.Return);
             gotoExpression.setOperand(null);
@@ -224,7 +224,7 @@ final class GotoRemoval {
 
         if (matchGetArguments(target, AstCode.Store, v, expressions) &&
             expressions.size() == 1 &&
-            Inlining.hasNoSideEffect(expressions.get(0)) &&
+            /*Inlining.hasNoSideEffect(expressions.get(0)) &&*/
             matchGetArguments(next, AstCode.Return, expressions) &&
             expressions.size() == 1 &&
             matchGetOperand(expressions.get(0), AstCode.Load, v2) &&

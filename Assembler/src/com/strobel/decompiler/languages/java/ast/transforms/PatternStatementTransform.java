@@ -239,6 +239,12 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                 final IdentifierExpression variable = (IdentifierExpression) assignment.getLeft();
                 final String variableName = variable.getIdentifier();
                 final VariableDeclarationStatement declaration = findVariableDeclaration(forLoop, variableName);
+                final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(declaration, forLoop);
+
+                if (declarationPoint != forLoop) {
+                    continue;
+                }
+
                 final VariableInitializer oldInitializer = declaration.getVariable(variableName);
                 final Expression initValue = assignment.getRight();
 
