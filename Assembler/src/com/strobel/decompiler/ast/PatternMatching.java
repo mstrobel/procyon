@@ -368,4 +368,22 @@ public final class PatternMatching {
 
         return false;
     }
+
+    public static Boolean matchBooleanConstant(final Node node) {
+        if (match(node, AstCode.LdC)) {
+            final Object operand = ((Expression) node).getOperand();
+
+            if (operand instanceof Integer) {
+                final int intValue = (Integer) operand;
+
+                if (intValue == 0)
+                    return Boolean.FALSE;
+
+                if (intValue == 1)
+                    return Boolean.TRUE;
+            }
+        }
+
+        return null;
+    }
 }

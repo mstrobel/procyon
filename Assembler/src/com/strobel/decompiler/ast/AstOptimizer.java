@@ -123,6 +123,7 @@ public final class AstOptimizer {
                 }
 
                 modified |= runOptimization(block, new SimplifyTernaryOperatorOptimization(context, method));
+                modified |= runOptimization(block, new SimplifyTernaryOperatorRoundTwoOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.SimplifyLogicalNot) {
                     continue;
@@ -525,6 +526,8 @@ public final class AstOptimizer {
         }
     }
 
+    // </editor-fold>
+
     // <editor-fold defaultstate="collapsed" desc="ReduceComparisonInstructionSet Step">
 
     private static void reduceComparisonInstructionSet(final Expression expression) {
@@ -571,8 +574,6 @@ public final class AstOptimizer {
             arguments.addAll(firstArgument.getArguments());
         }
     }
-
-    // </editor-fold>
 
     // </editor-fold>
 
@@ -937,6 +938,76 @@ public final class AstOptimizer {
             }
 
             return false;
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="SimplifyTernaryOperatorRoundTwoOptimization Optimization">
+
+    private final static class SimplifyTernaryOperatorRoundTwoOptimization extends AbstractExpressionOptimization {
+        protected SimplifyTernaryOperatorRoundTwoOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public boolean run(final List<Node> body, final Expression head, final int position) {
+            final BooleanBox modified = new BooleanBox();
+            final Expression simplified = simplify(head, modified);
+
+            if (simplified != head) {
+                body.set(position, simplified);
+            }
+
+            return modified.get();
+        }
+
+        private static Expression simplify(final Expression head, final BooleanBox modified) {
+            final List<Expression> arguments = head.getArguments();
+
+            for (int i = 0; i < arguments.size(); i++) {
+                final Expression argument = arguments.get(i);
+                final Expression simplified = simplify(argument, modified);
+
+                if (simplified != argument) {
+                    arguments.set(i, simplified);
+                    modified.set(true);
+                }
+            }
+
+            final AstCode opType = head.getCode();
+
+            if (opType != AstCode.CmpEq && opType != AstCode.CmpNe) {
+                return head;
+            }
+
+            final Boolean right = matchBooleanConstant(arguments.get(1));
+
+            if (right == null) {
+                return head;
+            }
+
+            final Expression ternary = arguments.get(0);
+
+            if (ternary.getCode() != AstCode.TernaryOp) {
+                return head;
+            }
+
+            final Boolean ifTrue = matchBooleanConstant(ternary.getArguments().get(1));
+            final Boolean ifFalse = matchBooleanConstant(ternary.getArguments().get(2));
+
+            if (ifTrue == null || ifFalse == null || ifTrue.equals(ifFalse)) {
+                return head;
+            }
+
+            final boolean invert = !ifTrue.equals(right) ^ opType == AstCode.CmpNe;
+            final Expression condition = ternary.getArguments().get(0);
+
+            condition.getRanges().addAll(ternary.getRanges());
+            modified.set(true);
+
+            return invert ? new Expression(AstCode.LogicalNot, null, condition)
+                          : condition;
         }
     }
 
@@ -1331,6 +1402,7 @@ public final class AstOptimizer {
             return true;
         }
 
+        @SuppressWarnings("UnusedParameters")
         private Expression introducePostIncrementForInstanceFields(final Expression e) {
             return null;
         }
@@ -1878,8 +1950,6 @@ public final class AstOptimizer {
             return false;
         }
 
-        final AstCode c;
-
         switch (e.getCode()) {
             case CmpEq:
             case CmpNe:
@@ -1887,8 +1957,8 @@ public final class AstOptimizer {
             case CmpGe:
             case CmpGt:
             case CmpLe:
-                c = e.getCode().reverse();
-                break;
+                e.setCode(e.getCode().reverse());
+                return true;
 
             case LogicalNot:
                 final Expression a = e.getArguments().get(0);
@@ -1902,29 +1972,14 @@ public final class AstOptimizer {
             case LogicalAnd:
             case LogicalOr:
                 final List<Expression> arguments = e.getArguments();
-                final AstCode leftCode = arguments.get(0).getCode();
-                final AstCode rightCode = arguments.get(1).getCode();
-
-                if ((leftCode.isComparison() || leftCode.isLogical()) &&
-                    (rightCode.isComparison() || rightCode.isLogical())) {
-
-                    simplifyLogicalNotArgument(arguments.get(0));
-                    simplifyLogicalNotArgument(arguments.get(1));
-
-                    e.setCode(e.getCode().reverse());
-
-                    return true;
-                }
-
-                return false;
+                simplifyLogicalNotArgument(arguments.get(0));
+                simplifyLogicalNotArgument(arguments.get(1));
+                e.setCode(e.getCode().reverse());
+                return true;
 
             default:
                 return false;
         }
-
-        e.setCode(c);
-
-        return true;
     }
 
     private static boolean canSimplifyLogicalNotArgument(final Expression e) {
