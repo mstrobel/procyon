@@ -46,13 +46,6 @@ import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.languages.java.analysis.Correlator.areCorrelated;
 
 public final class PatternStatementTransform extends ContextTrackingVisitor<AstNode> {
-    private final static AstNode VARIABLE_ASSIGN_PATTERN = new ExpressionStatement(
-        new AssignmentExpression(
-            new NamedNode("variable", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
-            new AnyNode("initializer").toExpression()
-        )
-    );
-
     public PatternStatementTransform(final DecompilerContext context) {
         super(context);
     }
@@ -98,58 +91,6 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="For Loop Transform">
-
-//    private final static WhileStatement FOR_PATTERN;
-
-/*
-    static {
-        final WhileStatement forPattern = new WhileStatement();
-
-        forPattern.setCondition(
-            new BinaryOperatorExpression(
-                new NamedNode("identifier", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
-                BinaryOperatorType.ANY,
-                new AnyNode("endExpression").toExpression()
-            )
-        );
-
-        final BlockStatement embeddedStatement = new BlockStatement();
-
-        embeddedStatement.add(
-            new Repeat(
-                new AnyNode("statement")
-            ).toStatement()
-        );
-
-        embeddedStatement.add(
-            new NamedNode(
-                "increment",
-                new Choice(
-                    new ExpressionStatement(
-                        new AssignmentExpression(
-                            new BackReference("identifier").toExpression(),
-                            AssignmentOperatorType.ANY,
-                            new AnyNode().toExpression()
-                        )
-                    ),
-                    new ExpressionStatement(
-                        new NamedNode(
-                            "unaryUpdate",
-                            new UnaryOperatorExpression(
-                                UnaryOperatorType.ANY,
-                                new BackReference("identifier").toExpression()
-                            )
-                        ).toExpression()
-                    )
-                )
-            ).toStatement()
-        );
-
-        forPattern.setEmbeddedStatement(embeddedStatement);
-
-        FOR_PATTERN = forPattern;
-    }
-*/
 
     public final ForStatement transformFor(final WhileStatement node) {
         final Expression condition = node.getCondition();
@@ -362,95 +303,6 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
         return variableType != null;
     }
-
-/*
-    public final ForStatement transformFor(final ExpressionStatement node) {
-        final Match m1 = VARIABLE_ASSIGN_PATTERN.match(node);
-
-        if (!m1.success()) {
-            return null;
-        }
-
-        final AstNode next = node.getNextSibling();
-        final Match m2 = FOR_PATTERN.match(next);
-
-        if (!m2.success()) {
-            return null;
-        }
-
-        //
-        // Ensure that the variable in the 'for' pattern is the same as in the declaration.
-        //
-
-        final boolean variablesMatch = StringUtilities.equals(
-            m1.<IdentifierExpression>get("variable").iterator().next().getIdentifier(),
-            m2.<IdentifierExpression>get("identifier").iterator().next().getIdentifier()
-        );
-
-        if (!variablesMatch) {
-            return null;
-        }
-
-        final WhileStatement loop = (WhileStatement) next;
-
-        node.remove();
-
-        final Iterable<Statement> increment = m2.get("increment");
-        final AstNode previousSibling = firstOrDefault(increment).getPreviousSibling();
-
-        final BlockStatement newBody = new BlockStatement();
-
-        for (final Statement statement : m2.<Statement>get("statement")) {
-            statement.remove();
-            newBody.add(statement);
-        }
-
-        final ForStatement forStatement = new ForStatement();
-        final Expression condition = loop.getCondition();
-
-        if (m2.has("unaryUpdate")) {
-            switch (m2.<UnaryOperatorExpression>get("unaryUpdate").iterator().next().getOperator()) {
-                case INCREMENT:
-                case DECREMENT:
-                case POST_INCREMENT:
-                case POST_DECREMENT:
-                    break;
-
-                default:
-                    return null;
-            }
-        }
-
-        if (previousSibling instanceof LabelStatement) {
-            final String continueLabel = ((LabelStatement) previousSibling).getLabel();
-
-            for (final AstNode d : newBody.getDescendants()) {
-                if (d instanceof GotoStatement) {
-                    final GotoStatement gotoStatement = (GotoStatement) d;
-
-                    if (StringUtilities.equals(gotoStatement.getLabel(), continueLabel)) {
-                        gotoStatement.replaceWith(new ContinueStatement());
-                    }
-                }
-            }
-        }
-
-        condition.remove();
-
-        forStatement.getInitializers().add(node);
-        forStatement.setCondition(condition);
-
-        for (final Statement incrementStatement : increment) {
-            incrementStatement.remove();
-            forStatement.getIterators().add(incrementStatement);
-        }
-
-        forStatement.setEmbeddedStatement(newBody);
-        loop.replaceWith(forStatement);
-
-        return forStatement;
-    }
-*/
 
     // </editor-fold>
 
