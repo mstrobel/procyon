@@ -113,6 +113,7 @@ public class MethodPrinter implements MethodVisitor {
             }
 
             DecompilerHelpers.writeType(_output, _signature.getReturnType(), NameSyntax.TYPE_NAME);
+
             _output.write(' ');
             _output.writeReference(_name, _signature);
             _output.writeDelimiter("(");
@@ -287,16 +288,16 @@ public class MethodPrinter implements MethodVisitor {
                 _output.writeLine();
 
                 for (final ExceptionHandler handler : handlers) {
-                    final String signature;
+                    final boolean isFinally;
 
                     TypeReference catchType = handler.getCatchType();
 
                     if (catchType != null) {
-                        signature = catchType.getSignature();
+                        isFinally = false;
                     }
                     else {
                         catchType = MetadataSystem.instance().lookupType("java/lang/Throwable");
-                        signature = "Any";
+                        isFinally = true;
                     }
 
                     _output.writeLiteral(format("%1$-5d", handler.getTryBlock().getFirstInstruction().getOffset()));
@@ -307,7 +308,14 @@ public class MethodPrinter implements MethodVisitor {
                     _output.write("  ");
                     _output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getLastInstruction().getEndOffset()));
                     _output.write("  ");
-                    _output.writeReference(signature, catchType);
+
+                    if (isFinally) {
+                        _output.writeReference("Any", catchType);
+                    }
+                    else {
+                        DecompilerHelpers.writeType(_output, catchType, NameSyntax.SIGNATURE);
+                    }
+
                     _output.writeLine();
                 }
             }
@@ -603,7 +611,7 @@ public class MethodPrinter implements MethodVisitor {
             printOpCode(op);
 
             _output.write(' ');
-            _output.writeReference(value.getErasedSignature(), value);
+            DecompilerHelpers.writeType(_output, value, NameSyntax.ERASED_SIGNATURE);
             _output.write(".class");
 
             _output.writeLine();
@@ -712,7 +720,8 @@ public class MethodPrinter implements MethodVisitor {
             printOpCode(op);
 
             _output.write(' ');
-            _output.writeReference(type.getSignature(), type);
+
+            DecompilerHelpers.writeType(_output, type, NameSyntax.SIGNATURE);
 
             _output.writeLine();
         }

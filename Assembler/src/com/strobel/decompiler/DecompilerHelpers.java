@@ -405,7 +405,9 @@ public final class DecompilerHelpers {
                 case SIGNATURE:
                 case ERASED_SIGNATURE: {
                     if (stack.contains(type.getExtendsBound())) {
+                        writer.write('T');
                         writer.writeReference(type.getSimpleName(), type);
+                        writer.write(';');
                     }
                     else {
                         formatType(writer, type.getExtendsBound(), syntax, isDefinition, stack);
@@ -414,7 +416,9 @@ public final class DecompilerHelpers {
                 }
 
                 case DESCRIPTOR: {
-                    writer.writeReference("T" + type.getName() + ";", type);
+                    writer.write('T');
+                    writer.writeReference(type.getSimpleName(), type);
+                    writer.write(';');
                     return;
                 }
 
