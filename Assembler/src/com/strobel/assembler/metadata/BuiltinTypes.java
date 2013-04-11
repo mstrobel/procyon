@@ -48,7 +48,7 @@ public final class BuiltinTypes {
         Bottom = null;
 
         final Buffer buffer = new Buffer();
-        final ITypeLoader typeLoader = new ClasspathTypeLoader(System.getProperty("java.class.path"));
+        final ITypeLoader typeLoader = new ClasspathTypeLoader();
 
         if (!typeLoader.tryLoadType("java/lang/Object", buffer)) {
             throw Error.couldNotLoadObjectType();

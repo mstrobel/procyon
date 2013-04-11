@@ -16,17 +16,27 @@
 
 package com.strobel.decompiler;
 
+import com.strobel.assembler.metadata.ITypeLoader;
 import com.strobel.decompiler.languages.Language;
 import com.strobel.decompiler.languages.Languages;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 
 public class DecompilerSettings {
+    private ITypeLoader _typeLoader;
     private boolean _showSyntheticMembers;
     private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
 
     public DecompilerSettings() {
+    }
+
+    public final ITypeLoader getTypeLoader() {
+        return _typeLoader;
+    }
+
+    public final void setTypeLoader(final ITypeLoader typeLoader) {
+        _typeLoader = typeLoader;
     }
 
     public final Language getLanguage() {

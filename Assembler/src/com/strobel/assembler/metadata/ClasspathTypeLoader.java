@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import sun.misc.Resource;
 import sun.misc.URLClassPath;
@@ -25,7 +26,6 @@ import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.*;
 import java.util.regex.Pattern;
 
 /**
@@ -35,7 +35,13 @@ public final class ClasspathTypeLoader implements ITypeLoader {
     private final URLClassPath _classPath;
 
     public ClasspathTypeLoader() {
-        this(System.getProperty("java.class.path"));
+        this(
+            StringUtilities.join(
+                System.getProperty("path.separator"),
+                System.getProperty("java.class.path"),
+                System.getProperty("sun.boot.class.path")
+            )
+        );
     }
 
     public ClasspathTypeLoader(final String classPath) {

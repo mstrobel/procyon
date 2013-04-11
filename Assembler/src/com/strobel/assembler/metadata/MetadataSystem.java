@@ -43,7 +43,7 @@ public class MetadataSystem extends MetadataResolver {
     }
 
     public MetadataSystem() {
-        this(System.getProperty("java.class.path"));
+        this(new ClasspathTypeLoader());
     }
 
     public MetadataSystem(final String classPath) {

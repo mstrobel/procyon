@@ -19,6 +19,7 @@ package com.strobel.decompiler.languages.java;
 import com.strobel.assembler.metadata.Buffer;
 import com.strobel.assembler.metadata.ClassFileReader;
 import com.strobel.assembler.metadata.ClasspathTypeLoader;
+import com.strobel.assembler.metadata.ITypeLoader;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeDefinitionBuilder;
 import com.strobel.core.Predicate;
@@ -55,7 +56,12 @@ public class JavaLanguage extends Language {
 
     @Override
     public void decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
-        final ClasspathTypeLoader loader = new ClasspathTypeLoader();
+        ITypeLoader loader = options.getSettings().getTypeLoader();
+
+        if (loader == null) {
+            loader = new ClasspathTypeLoader();
+        }
+
         final Buffer buffer = new Buffer(0);
 
         if (!loader.tryLoadType(type.getInternalName(), buffer)) {
@@ -101,8 +107,7 @@ public class JavaLanguage extends Language {
         final AstBuilder astBuilder,
         final ITextOutput output,
         final DecompilationOptions options,
-        final IAstTransform additionalTransform)
-    {
+        final IAstTransform additionalTransform) {
         astBuilder.runTransformations(_transformAbortCondition);
 
         if (additionalTransform != null) {

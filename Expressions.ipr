@@ -632,12 +632,13 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Assembler/Assembler.iml" filepath="$PROJECT_DIR$/Assembler/Assembler.iml" />
       <module fileurl="file://$PROJECT_DIR$/Expressions.iml" filepath="$PROJECT_DIR$/Expressions.iml" />
+      <module fileurl="file://$PROJECT_DIR$/IntelliJDecompilerPlugin/IntelliJDecompilerPlugin.iml" filepath="$PROJECT_DIR$/IntelliJDecompilerPlugin/IntelliJDecompilerPlugin.iml" />
     </modules>
   </component>
   <component name="ProjectResources">
     <default-html-doctype>http://www.w3.org/1999/xhtml</default-html-doctype>
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_8" assert-keyword="true" jdk-15="true" project-jdk-name="1.7" project-jdk-type="JavaSDK">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_7" assert-keyword="true" jdk-15="true" project-jdk-name="1.7" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/out" />
   </component>
   <component name="ProjectRunConfigurationManager">
@@ -710,8 +711,7 @@
   </component>
   <component name="WebServicesPlugin" addRequiredLibraries="true" />
   <component name="libraryTable">
-    <library name="com.beust:jcommander:1.30" type="repository">
-      <properties maven-id="com.beust:jcommander:1.30" />
+    <library name="com.beust:jcommander:1.30">
       <CLASSES>
         <root url="jar://$PROJECT_DIR$/lib/jcommander-1.30.jar!/" />
       </CLASSES>

@@ -92,7 +92,12 @@ public final class AstBuilder {
             return existingDeclaration;
         }
 
-        final ClasspathTypeLoader loader = new ClasspathTypeLoader();
+        ITypeLoader loader = _context.getSettings().getTypeLoader();
+
+        if (loader == null) {
+            loader = new ClasspathTypeLoader();
+        }
+
         final Buffer buffer = new Buffer(0);
 
         if (!loader.tryLoadType(type.getInternalName(), buffer)) {
