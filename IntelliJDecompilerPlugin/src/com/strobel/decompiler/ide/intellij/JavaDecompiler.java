@@ -70,6 +70,10 @@ public class JavaDecompiler {
             settings.setFormattingOptions(JavaFormattingOptions.createDefault());
         }
 
+        settings.setOutputFileHeaderText(
+            "\nDecompiled by the Java Decompiler Plugin for IntelliJ IDEA by Mike Strobel\n"
+        );
+
         settings.getLanguage().decompileType(resolvedType, output, options);
 
         return output.toString();

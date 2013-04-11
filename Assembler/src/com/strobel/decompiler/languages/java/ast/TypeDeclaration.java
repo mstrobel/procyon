@@ -38,14 +38,6 @@ public class TypeDeclaration extends EntityDeclaration {
         }
     }
 
-    public final PackageDeclaration getPackage() {
-        return getChildByRole(Roles.PACKAGE);
-    }
-
-    public final void setPackage(final PackageDeclaration value) {
-        setChildByRole(Roles.PACKAGE, value);
-    }
-
     public final ClassType getClassType() {
         return _classType;
     }

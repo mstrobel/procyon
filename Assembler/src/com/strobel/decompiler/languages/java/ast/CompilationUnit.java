@@ -36,6 +36,14 @@ public class CompilationUnit extends AstNode {
         return getChildrenByRole(IMPORT_ROLE);
     }
 
+    public final PackageDeclaration getPackage() {
+        return getChildByRole(Roles.PACKAGE);
+    }
+
+    public final void setPackage(final PackageDeclaration value) {
+        setChildByRole(Roles.PACKAGE, value);
+    }
+
     public final String getFileName() {
         return _fileName;
     }

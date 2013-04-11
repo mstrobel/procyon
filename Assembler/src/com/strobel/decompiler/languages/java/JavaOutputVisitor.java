@@ -1298,17 +1298,28 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 //        }
 //        else {
         boolean first = true;
+        EntityDeclaration lastMember = null;
 
         for (final EntityDeclaration member : node.getMembers()) {
             if (first) {
                 first = false;
             }
             else {
-                for (int i = 0; i < policy.BlankLinesBetweenMembers; i++) {
+                final int blankLines;
+
+                if (member instanceof FieldDeclaration && lastMember instanceof FieldDeclaration) {
+                    blankLines = policy.BlankLinesBetweenFields;
+                }
+                else {
+                    blankLines = policy.BlankLinesBetweenMembers;
+                }
+
+                for (int i = 0; i < blankLines; i++) {
                     formatter.newLine();
                 }
             }
             member.acceptVisitor(this, _);
+            lastMember = member;
         }
 //        }
 
@@ -1338,7 +1349,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeQualifiedIdentifier(node.getIdentifiers());
         semicolon();
         newLine();
+
+        for (int i = 0; i < policy.BlankLinesAfterPackageDeclaration; i++) {
+            newLine();
+        }
+
         endNode(node);
+
         return null;
     }
 

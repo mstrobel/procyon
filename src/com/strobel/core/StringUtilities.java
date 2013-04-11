@@ -15,7 +15,9 @@ package com.strobel.core;
 
 import com.strobel.util.ContractUtils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * @author Mike Strobel
@@ -27,7 +29,7 @@ public final class StringUtilities {
         throw ContractUtils.unreachable();
     }
 
-    private final static StringComparator[] _comparators = new StringComparator[]{StringComparator.Ordinal, StringComparator.OrdinalIgnoreCase};
+    private final static StringComparator[] _comparators = new StringComparator[] { StringComparator.Ordinal, StringComparator.OrdinalIgnoreCase };
 
     public static boolean isNullOrEmpty(final String s) {
         return s == null || s.length() == 0;
@@ -587,5 +589,108 @@ public final class StringUtilities {
         final char[] c = new char[length];
         Arrays.fill(c, 0, length, ch);
         return new String(c);
+    }
+
+    public static List<String> split(
+        final String value,
+        final char firstDelimiter,
+        final char... additionalDelimiters) {
+
+        return split(value, true, firstDelimiter, additionalDelimiters);
+    }
+
+    public static List<String> split(
+        final String value,
+        final boolean removeEmptyEntries,
+        final char firstDelimiter,
+        final char... additionalDelimiters) {
+
+        VerifyArgument.notNull(value, "value");
+
+        final int end = value.length();
+        final ArrayList<String> parts = new ArrayList<>();
+
+        if (end == 0) {
+            return parts;
+        }
+
+        int start = 0;
+        int i = start;
+
+        while (i < end) {
+            final char ch = value.charAt(i);
+
+            if (ch == firstDelimiter || contains(additionalDelimiters, ch)) {
+                if (i != start || !removeEmptyEntries) {
+                    parts.add(value.substring(start, i));
+                }
+
+                start = i + 1;
+
+                if (!removeEmptyEntries && start == end) {
+                    parts.add(EMPTY);
+                }
+            }
+
+            ++i;
+        }
+
+        if (start < end) {
+            parts.add(value.substring(start, end));
+        }
+
+        return parts;
+    }
+
+    public static List<String> split(final String value, final char[] delimiters) {
+        return split(value, true, delimiters);
+    }
+
+    public static List<String> split(
+        final String value,
+        final boolean removeEmptyEntries,
+        final char[] delimiters) {
+
+        VerifyArgument.notNull(value, "value");
+        VerifyArgument.notNull(delimiters, "delimiters");
+
+        final int end = value.length();
+        final ArrayList<String> parts = new ArrayList<>();
+
+        if (end == 0) {
+            return parts;
+        }
+
+        int start = 0;
+        int i = start;
+
+        while (i < end) {
+            final char ch = value.charAt(i);
+
+            if (contains(delimiters, ch)) {
+                if (i != start || !removeEmptyEntries) {
+                    parts.add(value.substring(start, i));
+                }
+
+                start = i + 1;
+            }
+
+            ++i;
+        }
+
+        if (start < end) {
+            parts.add(value.substring(start, end));
+        }
+
+        return parts;
+    }
+
+    private static boolean contains(final char[] array, final char value) {
+        for (final char c : array) {
+            if (c == value) {
+                return true;
+            }
+        }
+        return false;
     }
 }

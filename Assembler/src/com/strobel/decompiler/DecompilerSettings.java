@@ -27,8 +27,17 @@ public class DecompilerSettings {
     private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
+    private String _outputFileHeaderText;
 
     public DecompilerSettings() {
+    }
+
+    public final String getOutputFileHeaderText() {
+        return _outputFileHeaderText;
+    }
+
+    public final void setOutputFileHeaderText(final String outputFileHeaderText) {
+        _outputFileHeaderText = outputFileHeaderText;
     }
 
     public final ITypeLoader getTypeLoader() {

@@ -1139,7 +1139,7 @@ public final class AstOptimizer {
                         !next.getArguments().get(2).containsReferenceTo(v3.get())) {
 
                         while (initializers.size() < arrayPosition.get().intValue()) {
-                            initializers.add(new Expression(AstCode.DefaultValue, elementType));
+                            initializers.add(new Expression(AstCode.DefaultValue, elementType.get()));
                         }
 
                         initializers.add(next.getArguments().get(2));

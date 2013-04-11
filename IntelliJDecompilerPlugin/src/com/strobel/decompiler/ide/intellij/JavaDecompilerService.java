@@ -22,6 +22,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.impl.compiled.ClsFileImpl;
 import com.strobel.core.StringUtilities;
+import com.strobel.util.ContractUtils;
 
 import java.util.Iterator;
 
@@ -57,19 +58,21 @@ public class JavaDecompilerService {
                 internalClassName = filePath.substring(jarSeparatorIndex + 2, filePath.length());
             }
 
-            final String decompiled = javaDecompiler.decompile(
-                basePath,
-                StringUtilities.removeRight(
-                    StringUtilities.removeLeft(internalClassName, "/"),
-                    ".class"
-                )
-            );
+            try {
+                final String decompiled = javaDecompiler.decompile(
+                    basePath,
+                    StringUtilities.removeRight(
+                        StringUtilities.removeLeft(internalClassName, "/"),
+                        ".class"
+                    )
+                );
 
-            if (validContent(decompiled)) {
-                // All text strings passed to document modification methods (setText, insertString, replaceString) must
-                // use only \n as line separators.
-                //   http://confluence.jetbrains.net/display/IDEADEV/IntelliJ+IDEA+Architectural+Overview
-                return StringUtil.convertLineSeparators(decompiled);
+                if (validContent(decompiled)) {
+                    return StringUtil.convertLineSeparators(decompiled);
+                }
+            }
+            catch (Throwable ignored) {
+                ignored.printStackTrace(System.err);
             }
         }
 
@@ -116,14 +119,18 @@ public class JavaDecompilerService {
 
                 @Override
                 public DecompilerPathArgs next() {
-                    classPathRoot = classPathRoot.getParent();
-                    final String internalClassName = VfsUtil.getRelativePath(virtualFile, classPathRoot, '/');
-                    return new DecompilerPathArgs(classPathRoot.getPresentableUrl(), internalClassName);
+                    try {
+                        final String internalClassName = VfsUtil.getRelativePath(virtualFile, classPathRoot, '/');
+                        return new DecompilerPathArgs(classPathRoot.getPresentableUrl(), internalClassName);
+                    }
+                    finally {
+                        classPathRoot = classPathRoot.getParent();
+                    }
                 }
 
                 @Override
                 public void remove() {
-                    throw new UnsupportedOperationException("why the heck would you want to do that!");
+                    throw ContractUtils.unsupported();
                 }
             };
         }

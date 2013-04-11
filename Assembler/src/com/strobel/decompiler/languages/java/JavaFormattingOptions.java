@@ -126,7 +126,7 @@ public class JavaFormattingOptions {
     public boolean SpaceAfterTypecast;
     public boolean SpaceBeforeArrayDeclarationBrackets;
     public boolean SpaceInNamedArgumentAfterDoubleColon;
-    public int BlankLinesBeforeImports;
+    public int BlankLinesAfterPackageDeclaration;
     public int BlankLinesAfterImports;
     public int BlankLinesBeforeFirstDeclaration;
     public int BlankLinesBetweenTypes;
@@ -242,7 +242,8 @@ public class JavaFormattingOptions {
 
         options.SpaceAfterIndexerDeclarationParameterComma = true;
 
-        options.BlankLinesBeforeImports = 0;
+        options.BlankLinesAfterPackageDeclaration = 1;
+        options.BlankLinesAfterPackageDeclaration = 0;
         options.BlankLinesAfterImports = 1;
 
         options.BlankLinesBeforeFirstDeclaration = 0;

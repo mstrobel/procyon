@@ -42,11 +42,27 @@ public final class AstBuilder {
     private final Map<String, TypeDeclaration> _typeDeclarations = new LinkedHashMap<>();
     private final Map<String, String> _unqualifiedTypeNames = new LinkedHashMap<>();
 
+    private TextNode _packagePlaceholder;
     private boolean _decompileMethodBodies = true;
     private boolean _haveTransformationsRun;
 
     public AstBuilder(final DecompilerContext context) {
         _context = VerifyArgument.notNull(context, "context");
+
+        final String headerText = context.getSettings().getOutputFileHeaderText();
+
+        if (!StringUtilities.isNullOrWhitespace(headerText)) {
+            final List<String> lines = StringUtilities.split(headerText, false, '\n');
+
+            for (final String line : lines) {
+                _compileUnit.addChild(new Comment(" " + line.trim(), CommentType.SingleLine), Roles.COMMENT);
+            }
+
+            _compileUnit.addChild(new UnixNewLine(), Roles.NEW_LINE);
+        }
+
+        _packagePlaceholder = new TextNode();
+        _compileUnit.addChild(_packagePlaceholder, Roles.TEXT);
     }
 
     public final boolean getDecompileMethodBodies() {
@@ -74,8 +90,13 @@ public final class AstBuilder {
         final TypeDeclaration astType = createType(type);
         final String packageName = type.getPackageName();
 
-        if (!StringUtilities.isNullOrWhitespace(packageName)) {
-            astType.setPackage(new PackageDeclaration(type.getPackageName()));
+        if (_compileUnit.getPackage().isNull() && !StringUtilities.isNullOrWhitespace(packageName)) {
+            _compileUnit.insertChildBefore(
+                _packagePlaceholder,
+                new PackageDeclaration(packageName),
+                Roles.PACKAGE
+            );
+            _packagePlaceholder.remove();
         }
 
         EntityDeclaration.setModifiers(astType, Flags.asModifierSet(type.getFlags() & Flags.ClassFlags));
@@ -228,7 +249,8 @@ public final class AstBuilder {
                                                               : packageName + "." + nameSource.getSimpleName();
         }
         else {
-            TypeReference typeToImport;
+            final TypeReference typeToImport;
+
             String unqualifiedName;
 
             if (nameSource.isNested()) {
@@ -292,8 +314,13 @@ public final class AstBuilder {
         final TypeDeclaration astType = new TypeDeclaration();
         final String packageName = type.getPackageName();
 
-        if (!StringUtilities.isNullOrEmpty(packageName)) {
-            astType.setPackage(new PackageDeclaration(packageName));
+        if (_compileUnit.getPackage().isNull() && !StringUtilities.isNullOrWhitespace(packageName)) {
+            _compileUnit.insertChildBefore(
+                _packagePlaceholder,
+                new PackageDeclaration(packageName),
+                Roles.PACKAGE
+            );
+            _packagePlaceholder.remove();
         }
 
         _typeDeclarations.put(type.getInternalName(), astType);

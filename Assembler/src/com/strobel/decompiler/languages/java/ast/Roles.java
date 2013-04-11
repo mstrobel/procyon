@@ -49,6 +49,7 @@ public final class Roles {
     public final static Role<AstType> THROWN_TYPE = new Role<>("ThrownType", AstType.class, AstType.NULL);
     public final static Role<PackageDeclaration> PACKAGE = new Role<>("Package", PackageDeclaration.class, PackageDeclaration.NULL);
     public final static Role<NewLineNode> NEW_LINE = new Role<>("NewLine", NewLineNode.class);
+    public final static Role<TextNode> TEXT = new Role<>("Text", TextNode.class);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // COMMON TOKENS                                                                                                      //
