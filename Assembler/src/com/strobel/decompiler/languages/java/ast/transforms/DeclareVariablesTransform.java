@@ -280,9 +280,11 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         for (final Statement statement : block.getStatements()) {
             if (usesVariable(statement, variableName)) {
-                if (declarationPoint.get() == null) {
-                    declarationPoint.set(statement);
+                if (declarationPoint.get() != null) {
+                    return false;
                 }
+
+                declarationPoint.set(statement);
 
                 if (!canMoveVariableIntoSubBlock(statement, variableName, allowPassIntoLoops)) {
                     //
@@ -319,12 +321,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         final String variableName,
         final boolean allowPassIntoLoops) {
 
-        if (!allowPassIntoLoops &&
-            (statement instanceof ForStatement ||
-             statement instanceof ForEachStatement ||
-             statement instanceof WhileStatement ||
-             statement instanceof DoWhileStatement)) {
-
+        if (!allowPassIntoLoops && isLoop(statement)) {
             return false;
         }
 
@@ -332,25 +329,30 @@ public class DeclareVariablesTransform implements IAstTransform {
             final ForStatement forStatement = (ForStatement) statement;
 
             //
-            // ForStatement is a special ase: we can move the variable declarations into the initializer.
+            // ForStatement is a special case: we can move the variable declarations into the initializer.
             //
 
-            if (forStatement.getInitializers().size() == 1) {
-                final Statement initializer = forStatement.getInitializers().firstOrNullObject();
+            if (!forStatement.getInitializers().isEmpty()) {
+                for (final Statement initializer : forStatement.getInitializers()) {
+                    if (initializer instanceof ExpressionStatement &&
+                        ((ExpressionStatement) initializer).getExpression() instanceof AssignmentExpression) {
 
-                if (initializer instanceof ExpressionStatement &&
-                    ((ExpressionStatement) initializer).getExpression() instanceof AssignmentExpression) {
+                        final Expression e = ((ExpressionStatement) initializer).getExpression();
 
-                    final Expression e = ((ExpressionStatement) initializer).getExpression();
+                        if (e instanceof AssignmentExpression &&
+                            ((AssignmentExpression) e).getOperator() == AssignmentOperatorType.ASSIGN &&
+                            ((AssignmentExpression) e).getLeft() instanceof IdentifierExpression) {
 
-                    if (e instanceof AssignmentExpression &&
-                        ((AssignmentExpression) e).getOperator() == AssignmentOperatorType.ASSIGN &&
-                        ((AssignmentExpression) e).getLeft() instanceof IdentifierExpression) {
+                            final IdentifierExpression identifier = (IdentifierExpression) ((AssignmentExpression) e).getLeft();
+                            final boolean usedByInitializer = usesVariable(((AssignmentExpression) e).getRight(), variableName);
 
-                        final IdentifierExpression identifier = (IdentifierExpression) ((AssignmentExpression) e).getLeft();
+                            if (usedByInitializer) {
+                                return false;
+                            }
 
-                        if (StringUtilities.equals(identifier.getIdentifier(), variableName)) {
-                            return !usesVariable(((AssignmentExpression) e).getRight(), variableName);
+                            if (StringUtilities.equals(identifier.getIdentifier(), variableName)) {
+                                return true;
+                            }
                         }
                     }
                 }
@@ -381,6 +383,13 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         return true;
+    }
+
+    private static boolean isLoop(final Statement statement) {
+        return statement instanceof ForStatement ||
+               statement instanceof ForEachStatement ||
+               statement instanceof WhileStatement ||
+               statement instanceof DoWhileStatement;
     }
 
     private static boolean usesVariable(final AstNode node, final String variableName) {
