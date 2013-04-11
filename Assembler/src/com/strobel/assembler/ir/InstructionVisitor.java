@@ -39,6 +39,7 @@ public interface InstructionVisitor {
     void visitVariable(final OpCode opCode, final VariableReference variable, int operand);
     void visitType(final OpCode opCode, final TypeReference type);
     void visitMethod(final OpCode opCode, final MethodReference method);
+    void visitDynamicCallSite(final OpCode opCode, final DynamicCallSite callSite);
     void visitField(final OpCode opCode, final FieldReference field);
 
     void visitLabel(final Label label);
@@ -100,6 +101,10 @@ public interface InstructionVisitor {
 
         @Override
         public void visitMethod(final OpCode opCode, final MethodReference method) {
+        }
+
+        @Override
+        public void visitDynamicCallSite(final OpCode opCode, final DynamicCallSite callSite) {
         }
 
         @Override

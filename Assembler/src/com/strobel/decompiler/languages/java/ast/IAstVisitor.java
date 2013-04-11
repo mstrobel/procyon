@@ -83,4 +83,5 @@ public interface IAstVisitor<T, R> {
     R visitSynchronizedStatement(SynchronizedStatement synchronizedStatement, T data);
     R visitAnonymousObjectCreationExpression(AnonymousObjectCreationExpression node, T data);
     R visitWildcardType(WildcardType node, T data);
+    R visitMethodGroupExpression(MethodGroupExpression node, T data);
 }

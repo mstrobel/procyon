@@ -16,11 +16,7 @@
 
 package com.strobel.assembler.metadata;
 
-import com.strobel.assembler.ir.ConstantPool;
-import com.strobel.assembler.ir.Instruction;
-import com.strobel.assembler.ir.InstructionCollection;
-import com.strobel.assembler.ir.InstructionVisitor;
-import com.strobel.assembler.ir.MetadataReader;
+import com.strobel.assembler.ir.*;
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.assembler.metadata.annotations.InnerClassEntry;
@@ -235,8 +231,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
                 return new InnerClassesAttribute(length, ArrayUtilities.asUnmodifiableList(entries));
             }
-        }
-        if (AttributeNames.InnerClasses.equals(name)) {
         }
 
         return super.readAttributeCore(name, buffer, length);
@@ -1064,8 +1058,50 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
         @Override
         public MethodReference lookupMethod(final int token) {
-            final ConstantPool.ReferenceEntry entry = constantPool.getEntry(token);
-            return lookupMethod(entry.typeInfoIndex, entry.nameAndTypeDescriptorIndex);
+            final ConstantPool.Entry entry = constantPool.getEntry(token);
+            final ConstantPool.ReferenceEntry reference;
+
+            if (entry instanceof ConstantPool.MethodHandleEntry) {
+                final ConstantPool.MethodHandleEntry methodHandle = (ConstantPool.MethodHandleEntry) entry;
+                reference = constantPool.getEntry(methodHandle.referenceIndex);
+            }
+            else {
+                reference = (ConstantPool.ReferenceEntry) entry;
+            }
+
+            return lookupMethod(reference.typeInfoIndex, reference.nameAndTypeDescriptorIndex);
+        }
+
+        @Override
+        public IMethodSignature lookupMethodType(final int token) {
+            final ConstantPool.MethodTypeEntry entry = constantPool.getEntry(token);
+            return _parser.parseMethodSignature(entry.getType());
+        }
+
+        @Override
+        public DynamicCallSite lookupDynamicCallSite(final int token) {
+            final ConstantPool.InvokeDynamicInfoEntry entry = constantPool.getEntry(token);
+            final SourceAttribute attribute = SourceAttribute.find(AttributeNames.BootstrapMethods, attributes);
+            final BootstrapMethodsAttribute bootstrapMethods;
+
+            if (attribute instanceof BlobAttribute) {
+                bootstrapMethods = (BootstrapMethodsAttribute) inflateAttribute(attribute);
+            }
+            else {
+                bootstrapMethods = (BootstrapMethodsAttribute) attribute;
+            }
+
+            final BootstrapMethodsTableEntry bootstrapMethod = bootstrapMethods.getBootstrapMethods()
+                                                                               .get(entry.bootstrapMethodAttributeIndex);
+
+            final ConstantPool.NameAndTypeDescriptorEntry nameAndType = constantPool.getEntry(entry.nameAndTypeDescriptorIndex);
+
+            return new DynamicCallSite(
+                bootstrapMethod.getMethod(),
+                bootstrapMethod.getArguments(),
+                nameAndType.getName(),
+                _parser.parseMethodSignature(nameAndType.getType())
+            );
         }
 
         @Override

@@ -1707,6 +1707,16 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    public Void visitMethodGroupExpression(final MethodGroupExpression node, final Void _) {
+        startNode(node);
+        node.getDeclaringType().acceptVisitor(this, _);
+        writeToken(MethodGroupExpression.DOUBLE_COLON_ROLE);
+        writeIdentifier(node.getMethodName());
+        endNode(node);
+        return null;
+    }
+
+    @Override
     public Void visitArrayCreationExpression(final ArrayCreationExpression node, final Void _) {
         startNode(node);
         writeKeyword(ArrayCreationExpression.NEW_KEYWORD_ROLE);

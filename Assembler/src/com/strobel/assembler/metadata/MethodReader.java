@@ -233,6 +233,13 @@ public class MethodReader {
                     break;
                 }
 
+                case DynamicCallSite: {
+                    inst = Instruction.create(op, _scope.lookupDynamicCallSite(b.readUnsignedShort()));
+                    b.readUnsignedByte();
+                    b.readUnsignedByte();
+                    break;
+                }
+
                 case MethodReference: {
                     inst = Instruction.create(op, _scope.lookupMethod(b.readUnsignedShort()));
 

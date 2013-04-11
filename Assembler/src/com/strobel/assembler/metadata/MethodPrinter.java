@@ -738,6 +738,20 @@ public class MethodPrinter implements MethodVisitor {
         }
 
         @Override
+        public void visitDynamicCallSite(final OpCode op, final DynamicCallSite callSite) {
+            printOpCode(op);
+
+            _output.write(' ');
+            
+            _output.writeReference(callSite.getMethodName(), callSite.getMethodType());
+            _output.writeDelimiter(":");
+
+            DecompilerHelpers.writeMethodSignature(_output, callSite.getMethodType());
+
+            _output.writeLine();
+        }
+
+        @Override
         public void visitField(final OpCode op, final FieldReference field) {
             printOpCode(op);
 

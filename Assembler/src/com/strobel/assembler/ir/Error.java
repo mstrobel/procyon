@@ -223,4 +223,31 @@ final class Error {
             )
         );
     }
+
+    public static RuntimeException invalidBootstrapMethodEntry(
+        final MethodReference bootstrapMethod,
+        final int parameterCount,
+        final int argumentCount) {
+
+        if (argumentCount > parameterCount + 3) {
+            return new IllegalStateException(
+                format(
+                    "Invalid BootstrapMethods attribute entry: %d too many arguments specified" +
+                    "for method %s.",
+                    argumentCount - (parameterCount + 3),
+                    bootstrapMethod.getFullName()
+                )
+            );
+        }
+
+        return new IllegalStateException(
+            format(
+                "Invalid BootstrapMethods attribute entry: %d additional arguments required " +
+                "for method %s, but only %d specified.",
+                parameterCount - 3,
+                bootstrapMethod.getFullName(),
+                argumentCount
+            )
+        );
+    }
 }

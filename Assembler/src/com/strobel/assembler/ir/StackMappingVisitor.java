@@ -404,6 +404,10 @@ public class StackMappingVisitor implements MethodVisitor {
         }
 
         @Override
+        public void visitDynamicCallSite(final OpCode opCode, final DynamicCallSite callSite) {
+        }
+
+        @Override
         public void visitField(final OpCode code, final FieldReference field) {
         }
 
@@ -602,7 +606,9 @@ public class StackMappingVisitor implements MethodVisitor {
                         }
 
                         case INVOKEDYNAMIC: {
-                            final IMethodSignature method = instruction.getOperand(1);
+/*
+                            final DynamicCallSite callSite = instruction.getOperand(0);
+                            final IMethodSignature method = callSite.getBootstrapMethod();
                             final List<ParameterDefinition> parameters = method.getParameters();
 
                             for (final ParameterDefinition parameter : parameters) {
@@ -620,6 +626,7 @@ public class StackMappingVisitor implements MethodVisitor {
                                         break;
                                 }
                             }
+*/
 
                             break;
                         }
@@ -838,7 +845,7 @@ public class StackMappingVisitor implements MethodVisitor {
                     final IMethodSignature signature;
 
                     if (code == OpCode.INVOKEDYNAMIC) {
-                        signature = instruction.getOperand(1);
+                        signature = instruction.<DynamicCallSite>getOperand(0).getMethodType();
                     }
                     else {
                         signature = instruction.<MethodReference>getOperand(0);

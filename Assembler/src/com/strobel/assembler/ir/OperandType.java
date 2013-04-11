@@ -36,6 +36,10 @@ public enum OperandType {
     /**
      * Opcode is followed by a method reference.
      */
+    DynamicCallSite(4),
+    /**
+     * Opcode is followed by a method reference.
+     */
     MethodReference(2),
     /**
      * Opcode is followed by a field reference.

@@ -203,7 +203,7 @@ public enum OpCode {
     INVOKESPECIAL(0xB7, FlowControl.Call, OpCodeType.ObjectModel, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
     INVOKESTATIC(0xB8, FlowControl.Call, OpCodeType.Primitive, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
     INVOKEINTERFACE(0xB9, FlowControl.Call, OpCodeType.ObjectModel, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
-    INVOKEDYNAMIC(0xBA, FlowControl.Call, OpCodeType.ObjectModel, OperandType.MethodReference, StackBehavior.VarPop, StackBehavior.VarPush),
+    INVOKEDYNAMIC(0xBA, FlowControl.Call, OpCodeType.ObjectModel, OperandType.DynamicCallSite, StackBehavior.Pop0, StackBehavior.VarPush),
     NEW(0xBB, FlowControl.Next, OpCodeType.ObjectModel, OperandType.TypeReference, StackBehavior.Pop0, StackBehavior.PushA),
     NEWARRAY(0xBC, FlowControl.Next, OpCodeType.ObjectModel, OperandType.PrimitiveTypeCode, StackBehavior.PopI4, StackBehavior.PushA),
     ANEWARRAY(0xBD, FlowControl.Next, OpCodeType.ObjectModel, OperandType.TypeReference, StackBehavior.PopI4, StackBehavior.PushA),

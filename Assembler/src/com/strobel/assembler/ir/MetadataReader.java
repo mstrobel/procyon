@@ -219,6 +219,42 @@ public abstract class MetadataReader {
                 return new SignatureAttribute(signature);
             }
 
+            case AttributeNames.BootstrapMethods: {
+                final BootstrapMethodsTableEntry[] methods = new BootstrapMethodsTableEntry[buffer.readUnsignedShort()];
+
+                for (int i = 0; i < methods.length; i++) {
+                    final MethodReference bootstrapMethod = scope.lookupMethod(buffer.readUnsignedShort());
+                    final Object[] arguments = new Object[buffer.readUnsignedShort()];
+                    final List<ParameterDefinition> parameters = bootstrapMethod.getParameters();
+
+                    for (int j = 0; j < arguments.length; j++) {
+                        final ParameterReference parameter = parameters.get(j + (parameters.size() - arguments.length));
+
+                        switch (parameter.getParameterType().getInternalName()) {
+                            case "java/lang/invoke/MethodHandle":
+                                arguments[j] = scope.lookupMethod(buffer.readUnsignedShort());
+                                continue;
+
+                            case "java/lang/invoke/MethodType":
+                                arguments[j] = scope.lookupMethodType(buffer.readUnsignedShort());
+                                continue;
+
+                            default:
+                                arguments[j] = scope.lookupConstant(buffer.readUnsignedShort());
+                                continue;
+                        }
+                    }
+
+                    if (parameters.size() != arguments.length + 3) {
+                        throw Error.invalidBootstrapMethodEntry(bootstrapMethod, parameters.size(), arguments.length);
+                    }
+
+                    methods[i] = new BootstrapMethodsTableEntry(bootstrapMethod, arguments);
+                }
+
+                return new BootstrapMethodsAttribute(methods);
+            }
+
             default: {
                 final byte[] blob = new byte[length];
                 buffer.read(blob, 0, blob.length);

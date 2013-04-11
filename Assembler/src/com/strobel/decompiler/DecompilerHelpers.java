@@ -179,7 +179,18 @@ public final class DecompilerHelpers {
             return;
         }
 
+        if (operand instanceof DynamicCallSite) {
+            writeDynamicCallSite(writer, (DynamicCallSite) operand);
+            return;
+        }
+
         writer.write(String.valueOf(operand));
+    }
+
+    public static void writeDynamicCallSite(final ITextOutput output, final DynamicCallSite operand) {
+        output.writeReference(operand.getMethodName(), operand.getMethodType());
+        output.writeDelimiter(":");
+        writeMethodSignature(output, operand.getMethodType());
     }
 
     public static String offsetToString(final int offset) {

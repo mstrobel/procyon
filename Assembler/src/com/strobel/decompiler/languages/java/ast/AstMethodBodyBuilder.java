@@ -17,19 +17,20 @@
 package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
+import com.strobel.assembler.metadata.DynamicCallSite;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
-import com.strobel.assembler.metadata.VariableDefinition;
+import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.DecompilerHelpers;
+import com.strobel.decompiler.PlainTextOutput;
 import com.strobel.decompiler.ast.*;
-import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
@@ -462,8 +463,45 @@ public class AstMethodBodyBuilder {
                 return transformCall(false, byteCode, arguments);
             case InvokeInterface:
                 return transformCall(false, byteCode, arguments);
-            case InvokeDynamic:
-                return transformCall(false, byteCode, arguments);
+
+            case InvokeDynamic: {
+                final DynamicCallSite callSite = (DynamicCallSite) operand;
+                final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
+
+                if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
+                    "metaFactory".equals(bootstrapMethod.getName()) &&
+                    callSite.getBootstrapArguments().size() == 3 &&
+                    callSite.getBootstrapArguments().get(1) instanceof MethodReference) {
+
+                    final TypeDefinition declaringType = _method.getDeclaringType();
+                    final String methodName = ((MethodReference)callSite.getBootstrapArguments().get(1)).getName();
+
+                    final MethodGroupExpression methodGroup = new MethodGroupExpression(
+                        _astBuilder.convertType(declaringType),
+                        methodName
+                    );
+
+                    final MethodReference method = firstOrDefault(
+                        declaringType.getDeclaredMethods(),
+                        new Predicate<MethodDefinition>() {
+                            @Override
+                            public boolean test(final MethodDefinition m) {
+                                return methodName.equals(m.getName());
+                            }
+                        }
+                    );
+
+                    methodGroup.putUserData(Keys.DYNAMIC_CALL_SITE, callSite);
+
+                    if (method != null) {
+                        methodGroup.putUserData(Keys.MEMBER_REFERENCE, method);
+                    }
+
+                    return methodGroup;
+                }
+
+                break;
+            }
 
             case ArrayLength:
                 return arg1.member("length");
@@ -797,26 +835,9 @@ public class AstMethodBodyBuilder {
         if (operand == null) {
             return StringUtilities.EMPTY;
         }
-        else if (operand instanceof MethodReference) {
-            return ((MethodReference) operand).getName() + "()";
-        }
-        else if (operand instanceof TypeReference) {
-            return ((TypeReference) operand).getFullName();
-        }
-        else if (operand instanceof VariableDefinition) {
-            return ((VariableDefinition) operand).getName();
-        }
-        else if (operand instanceof ParameterDefinition) {
-            return ((ParameterDefinition) operand).getName();
-        }
-        else if (operand instanceof FieldReference) {
-            return ((FieldReference) operand).getName();
-        }
-        else if (operand instanceof String) {
-            return JavaOutputVisitor.convertString((String) operand, true);
-        }
-        else {
-            return String.valueOf(operand);
-        }
+
+        final PlainTextOutput output = new PlainTextOutput();
+        DecompilerHelpers.writeOperand(output, operand);
+        return output.toString();
     }
 }

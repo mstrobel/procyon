@@ -18,6 +18,7 @@ package com.strobel.decompiler;
 
 import com.strobel.assembler.ir.FlowControl;
 import com.strobel.assembler.ir.Instruction;
+import com.strobel.assembler.metadata.DynamicCallSite;
 import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.metadata.FieldReference;
@@ -240,7 +241,15 @@ public final class InstructionHelper {
                     break;
                 }
 
-                final IMethodSignature signature = instruction.getOperand(0);
+                final IMethodSignature signature;
+
+                if (code == OpCode.INVOKEDYNAMIC) {
+                    signature = instruction.<DynamicCallSite>getOperand(0).getMethodType();
+                }
+                else {
+                    signature = instruction.getOperand(0);
+                }
+
                 final TypeReference returnType = signature.getReturnType();
                 final SimpleType simpleType = returnType.getSimpleType();
 

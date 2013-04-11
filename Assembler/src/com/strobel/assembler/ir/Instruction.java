@@ -148,6 +148,7 @@ public final class Instruction {
     }
 
     @Override
+    @SuppressWarnings("CloneDoesntCallSuperClone")
     protected Instruction clone() {
         final Instruction copy = new Instruction(_opCode, _operand);
 
@@ -179,6 +180,10 @@ public final class Instruction {
             case TypeReferenceU1:
                 return opCodeSize + operandType.getBaseSize();
 
+            case DynamicCallSite: {
+                return opCodeSize + operandType.getBaseSize();
+            }
+
             case MethodReference:
                 switch (_opCode) {
                     case INVOKEVIRTUAL:
@@ -186,7 +191,6 @@ public final class Instruction {
                     case INVOKESTATIC:
                         return opCodeSize + operandType.getBaseSize();
                     case INVOKEINTERFACE:
-                    case INVOKEDYNAMIC:
                         return opCodeSize + operandType.getBaseSize() + 2;
                 }
                 break;
@@ -332,7 +336,7 @@ public final class Instruction {
             throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
         }
 
-        return new Instruction(opCode, new Object[]{variable, operand});
+        return new Instruction(opCode, variable, operand);
     }
 
     public static Instruction create(final OpCode opCode, final TypeReference type) {
@@ -353,7 +357,7 @@ public final class Instruction {
             throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
         }
 
-        return new Instruction(opCode, new Object[] { type, operand });
+        return new Instruction(opCode, type, operand);
     }
 
     public static Instruction create(final OpCode opCode, final MethodReference method) {
@@ -364,6 +368,16 @@ public final class Instruction {
         }
 
         return new Instruction(opCode, method);
+    }
+
+    public static Instruction create(final OpCode opCode, final DynamicCallSite callSite) {
+        VerifyArgument.notNull(opCode, "opCode");
+
+        if (!checkOperand(opCode.getOperandType(), callSite)) {
+            throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
+        }
+
+        return new Instruction(opCode, callSite);
     }
 
     public static Instruction create(final OpCode opCode, final FieldReference field) {
@@ -382,7 +396,9 @@ public final class Instruction {
 
     private static final int U1_MIN_VALUE = 0x00;
     private static final int U1_MAX_VALUE = 0xFF;
+    @SuppressWarnings("UnusedDeclaration")
     private static final int U2_MIN_VALUE = 0x0000;
+    @SuppressWarnings("UnusedDeclaration")
     private static final int U2_MAX_VALUE = 0xFFFF;
 
     private static boolean checkOperand(final OperandType operandType, final int value) {
@@ -408,6 +424,17 @@ public final class Instruction {
                 return type.getSimpleType().isPrimitive();
             case TypeReference:
             case TypeReferenceU1:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static boolean checkOperand(final OperandType operandType, final DynamicCallSite callSite) {
+        VerifyArgument.notNull(callSite, "callSite");
+
+        switch (operandType) {
+            case DynamicCallSite:
                 return true;
             default:
                 return false;
@@ -454,6 +481,10 @@ public final class Instruction {
             case TypeReference:
             case TypeReferenceU1:
                 visitor.visitType(_opCode, (TypeReference) getOperand(0));
+                break;
+
+            case DynamicCallSite:
+                visitor.visitDynamicCallSite(_opCode, (DynamicCallSite) _operand);
                 break;
 
             case MethodReference:

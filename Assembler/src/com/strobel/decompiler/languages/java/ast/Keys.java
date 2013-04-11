@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.DynamicCallSite;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
@@ -35,4 +36,5 @@ public final class Keys {
     public final static Key<MethodDefinition> METHOD_DEFINITION = Key.create("MethodDefinition");
     public final static Key<TypeDefinition> TYPE_DEFINITION = Key.create("TypeDefinition");
     public final static Key<TypeReference> TYPE_REFERENCE = Key.create("TypeReference");
+    public final static Key<DynamicCallSite> DYNAMIC_CALL_SITE = Key.create("DynamicCallSite");
 }

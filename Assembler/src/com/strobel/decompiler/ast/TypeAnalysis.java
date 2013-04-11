@@ -452,7 +452,7 @@ public final class TypeAnalysis {
                 if (v.getType() == null && _singleLoadVariables.contains(v)) {
                     TypeReference inferredType = expectedType;
 
-                    if (inferredType.isWildcardType()) {
+                    if (inferredType != null && inferredType.isWildcardType()) {
                         inferredType = inferredType.hasSuperBound() ? inferredType.getSuperBound()
                                                                     : inferredType.getExtendsBound();
                     }
@@ -466,8 +466,7 @@ public final class TypeAnalysis {
             case InvokeVirtual:
             case InvokeSpecial:
             case InvokeStatic:
-            case InvokeInterface:
-            case InvokeDynamic: {
+            case InvokeInterface: {
                 final MethodReference methodReference = (MethodReference) operand;
                 final MethodDefinition methodDefinition = methodReference.resolve();
                 final List<ParameterDefinition> parameters = methodReference.getParameters();
@@ -518,6 +517,11 @@ public final class TypeAnalysis {
                     methodReference,
                     hasThis ? arguments.get(0).getInferredType() : null
                 );
+            }
+
+            case InvokeDynamic: {
+                final DynamicCallSite callSite = (DynamicCallSite) operand;
+                return callSite.getMethodType().getReturnType();
             }
 
             case GetField: {
