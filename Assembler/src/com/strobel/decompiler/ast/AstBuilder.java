@@ -800,7 +800,7 @@ public final class AstBuilder {
             //
             // Calculate new variable state.
             //
-            VariableSlot[] newVariableState = VariableSlot.cloneVariableState(byteCode.variablesBefore);
+            final VariableSlot[] newVariableState = VariableSlot.cloneVariableState(byteCode.variablesBefore);
 
             if (byteCode.isVariableDefinition()) {
                 final int slot = ((VariableReference) byteCode.operand).getSlot();
@@ -811,6 +811,7 @@ public final class AstBuilder {
                 );
             }
 
+/*
             if (byteCode.code == AstCode.Goto ||
                 byteCode.code == AstCode.__GotoW) {
 
@@ -819,6 +820,7 @@ public final class AstBuilder {
                 //
                 newVariableState = unknownVariables;
             }
+*/
 
             //
             // Find all successors.
