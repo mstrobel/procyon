@@ -227,6 +227,10 @@ public abstract class MetadataReader {
                     final Object[] arguments = new Object[buffer.readUnsignedShort()];
                     final List<ParameterDefinition> parameters = bootstrapMethod.getParameters();
 
+                    if (parameters.size() != arguments.length + 3) {
+                        throw Error.invalidBootstrapMethodEntry(bootstrapMethod, parameters.size(), arguments.length);
+                    }
+
                     for (int j = 0; j < arguments.length; j++) {
                         final ParameterReference parameter = parameters.get(j + (parameters.size() - arguments.length));
 
@@ -243,10 +247,6 @@ public abstract class MetadataReader {
                                 arguments[j] = scope.lookupConstant(buffer.readUnsignedShort());
                                 continue;
                         }
-                    }
-
-                    if (parameters.size() != arguments.length + 3) {
-                        throw Error.invalidBootstrapMethodEntry(bootstrapMethod, parameters.size(), arguments.length);
                     }
 
                     methods[i] = new BootstrapMethodsTableEntry(bootstrapMethod, arguments);
