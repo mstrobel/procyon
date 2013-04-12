@@ -133,7 +133,9 @@ public final class BreakTargetRelocation implements IAstTransform {
 
         while (lookAhead(current, remainingNodes)) {
             for (; current != null && !remainingNodes.isEmpty(); current = current.getNextSibling()) {
-                orderedNodes.addLast(current);
+                if (current instanceof Statement) {
+                    orderedNodes.addLast(current);
+                }
 
                 if (remainingNodes.remove(current)) {
                     break;
@@ -146,7 +148,9 @@ public final class BreakTargetRelocation implements IAstTransform {
 
             while (lookBehind(current, remainingNodes)) {
                 for (; current != null && !remainingNodes.isEmpty(); current = current.getPreviousSibling()) {
-                    orderedNodes.addFirst(current);
+                    if (current instanceof Statement) {
+                        orderedNodes.addFirst(current);
+                    }
 
                     if (remainingNodes.remove(current)) {
                         break;

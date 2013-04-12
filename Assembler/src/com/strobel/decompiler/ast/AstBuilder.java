@@ -712,7 +712,12 @@ public final class AstBuilder {
         final boolean hasThis = _body.hasThis();
 
         if (hasThis) {
-            unknownVariables[0] = new VariableSlot(FrameValue.UNINITIALIZED_THIS, EMPTY_DEFINITIONS);
+            if (method.isConstructor()) {
+                unknownVariables[0] = new VariableSlot(FrameValue.UNINITIALIZED_THIS, EMPTY_DEFINITIONS);
+            }
+            else {
+                unknownVariables[0] = new VariableSlot(FrameValue.makeReference(_context.getCurrentType()), EMPTY_DEFINITIONS);
+            }
         }
 
         for (int i = 0; i < parameters.size(); i++) {
@@ -1990,7 +1995,7 @@ public final class AstBuilder {
         return ast;
     }
 
-// <editor-fold defaultstate="collapsed" desc="StackSlot Class">
+    // <editor-fold defaultstate="collapsed" desc="StackSlot Class">
 
     private final static class StackSlot {
         final FrameValue value;

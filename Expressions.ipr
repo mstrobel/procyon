@@ -86,6 +86,9 @@
   <component name="EntryPointsManager">
     <entry_points version="2.0" />
   </component>
+  <component name="GradleSettings">
+    <option name="gradleHome" value="C:/dev/gradle-1.0" />
+  </component>
   <component name="IdProvider" IDEtalkID="DA74CFE9236B2783DD29DCAE0534673D" />
   <component name="InspectionProjectProfileManager">
     <profiles>
@@ -552,6 +555,7 @@
         <w>inlined</w>
         <w>inlining</w>
         <w>instanceof</w>
+        <w>intelli</w>
         <w>invokedynamic</w>
         <w>invokeinterface</w>
         <w>invokespecial</w>
@@ -651,7 +655,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.decompiler.Decompiler" />
       <option name="VM_PARAMETERS" value="-ea -Dcom/strobel/decompiler/DecompilerTests" />
-      <option name="PROGRAM_PARAMETERS" value="Test" />
+      <option name="PROGRAM_PARAMETERS" value="com/barclays/avt/typemodel/attributes/RegexConstraint_Serializer_0024" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />
@@ -692,6 +696,23 @@
       <option name="PASS_PARENT_ENVS" value="true" />
       <module name="Assembler" />
       <envs />
+      <RunnerSettings RunnerId="Debug">
+        <option name="DEBUG_PORT" value="" />
+        <option name="TRANSPORT" value="0" />
+        <option name="LOCAL" value="true" />
+      </RunnerSettings>
+      <RunnerSettings RunnerId="Profile ">
+        <option name="myExternalizedOptions" value="&#13;&#10;additional-options2=onexit\=snapshot&#13;&#10;" />
+      </RunnerSettings>
+      <RunnerSettings RunnerId="Run" />
+      <ConfigurationWrapper RunnerId="Debug" />
+      <ConfigurationWrapper RunnerId="Run" />
+      <method />
+    </configuration>
+    <configuration default="false" name="IntelliJ Decompiler Plugin" type="#org.jetbrains.idea.devkit.run.PluginConfigurationType" factoryName="Plugin">
+      <module name="IntelliJDecompilerPlugin" />
+      <option name="VM_PARAMETERS" value="-Xmx512m -Xms256m -XX:MaxPermSize=250m" />
+      <option name="PROGRAM_PARAMETERS" value="" />
       <RunnerSettings RunnerId="Debug">
         <option name="DEBUG_PORT" value="" />
         <option name="TRANSPORT" value="0" />

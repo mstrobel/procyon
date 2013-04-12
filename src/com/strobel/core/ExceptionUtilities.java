@@ -15,10 +15,13 @@ package com.strobel.core;
 
 import com.strobel.reflection.TargetInvocationException;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.UndeclaredThrowableException;
 
 public final class ExceptionUtilities {
+    @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
     public static RuntimeException asRuntimeException(final Throwable t) {
         VerifyArgument.notNull(t, "t");
 
@@ -44,5 +47,35 @@ public final class ExceptionUtilities {
         }
 
         return t;
+    }
+
+    @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
+    public static String getMessage(final Throwable t) {
+        final String message = VerifyArgument.notNull(t, "t").getMessage();
+
+        if (StringUtilities.isNullOrWhitespace(message)) {
+            return t.getClass().getSimpleName() + " was thrown.";
+        }
+
+        return message;
+    }
+
+    @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
+    public static String getStackTraceString(final Throwable t) {
+        VerifyArgument.notNull(t, "t");
+
+        try (final ByteArrayOutputStream stream = new ByteArrayOutputStream(1024);
+             final PrintWriter writer = new PrintWriter(stream)) {
+
+            t.printStackTrace(writer);
+
+            writer.flush();
+            stream.flush();
+
+            return StringUtilities.trimRight(stream.toString());
+        }
+        catch (Throwable ignored) {
+            return t.toString();
+        }
     }
 }

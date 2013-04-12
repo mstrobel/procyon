@@ -18,12 +18,14 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.DynamicCallSite;
+import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.Comparer;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
@@ -438,8 +440,25 @@ public class AstMethodBodyBuilder {
             case PutStatic: {
                 final ConvertTypeOptions options = new ConvertTypeOptions();
                 options.setIncludeTypeParameterDefinitions(false);
-                final MemberReferenceExpression fieldReference = _astBuilder.convertType(fieldOperand.getDeclaringType(), options)
-                                                                            .member(fieldOperand.getName());
+
+                final FieldDefinition resolvedField = fieldOperand.resolve();
+                final Expression fieldReference;
+
+                if (resolvedField != null &&
+                    resolvedField.isFinal() &&
+                    Comparer.equals(fieldOperand.getDeclaringType(), _context.getCurrentType())) {
+
+                    //
+                    // Fields marked 'static final' cannot be initialized using a fully qualified name.
+                    //
+
+                    fieldReference = new IdentifierExpression(fieldOperand.getName());
+                }
+                else {
+                    fieldReference = _astBuilder.convertType(fieldOperand.getDeclaringType(), options)
+                                                .member(fieldOperand.getName());
+                }
+
                 fieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
                 return new AssignmentExpression(fieldReference, arg1);
             }
@@ -474,7 +493,7 @@ public class AstMethodBodyBuilder {
                     callSite.getBootstrapArguments().get(1) instanceof MethodReference) {
 
                     final TypeDefinition declaringType = _method.getDeclaringType();
-                    final String methodName = ((MethodReference)callSite.getBootstrapArguments().get(1)).getName();
+                    final String methodName = ((MethodReference) callSite.getBootstrapArguments().get(1)).getName();
 
                     final MethodGroupExpression methodGroup = new MethodGroupExpression(
                         _astBuilder.convertType(declaringType),

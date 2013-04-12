@@ -1,38 +1,54 @@
 <idea-plugin version="2">
-  <name>Java Class Decompiler</name>
+  <name>IntelliSpy Decompiler Integration</name>
   <description>Provides decompiled Java sources for classes when original source code is unavailable.</description>
   <version>1.0</version>
   <vendor>Mike Strobel</vendor>
 
   <!-- please see http://confluence.jetbrains.net/display/IDEADEV/Build+Number+Ranges for description -->
-  <idea-version since-build="107.105"/>
+  <idea-version since-build="107.105" />
 
   <application-components>
     <!-- Add your application components here -->
+<!--
     <component>
       <implementation-class>com.strobel.decompiler.ide.intellij.JavaDecompilerComponent</implementation-class>
     </component>
+-->
   </application-components>
 
   <project-components>
     <!-- Add your project components here -->
+    <component>
+      <implementation-class>com.strobel.decompiler.ide.intellij.IntelliSpyComponent</implementation-class>
+    </component>
+    <component>
+      <implementation-class>com.strobel.decompiler.ide.intellij.IntelliSpyProjectInitializer</implementation-class>
+    </component>
   </project-components>
 
   <actions>
     <!-- Add your actions here -->
   </actions>
 
+  <extensionPoints>
+    <extensionPoint qualifiedName="com.intellij.sourceFinderDelegate"
+                    interface="com.strobel.decompiler.ide.intellij.SourceFinder" />
+  </extensionPoints>
+
   <extensions defaultExtensionNs="com.intellij">
-    <contentBasedClassFileProcessor id="javaDecompiler"
-                                    implementation="com.strobel.decompiler.ide.intellij.JavaDecompilerClassFileProcessor"/>
+    <attachSourcesProvider implementation="com.strobel.decompiler.ide.intellij.JavaDecompilerAttachSourcesProvider" />
 
-    <applicationService id="decompilerService"
-                        serviceInterface="com.strobel.decompiler.ide.intellij.JavaDecompilerService"
-                        serviceImplementation="com.strobel.decompiler.ide.intellij.JavaDecompilerService"/>
+    <sourceFinderDelegate implementation="com.strobel.decompiler.ide.intellij.JavaDecompilerSourceFinder"/>
 
-    <applicationService id="decompilerRefreshSupportService"
-                        serviceInterface="com.strobel.decompiler.ide.intellij.JavaDecompilerRefreshSupportService"
-                        serviceImplementation="com.strobel.decompiler.ide.intellij.JavaDecompilerRefreshSupportService"/>
+<!--
+    <contentBasedClassFileProcessor implementation="com.strobel.decompiler.ide.intellij.JavaDecompilerClassFileProcessor" />
+
+    <applicationService serviceInterface="com.strobel.decompiler.ide.intellij.JavaDecompilerService"
+                        serviceImplementation="com.strobel.decompiler.ide.intellij.JavaDecompilerService" />
+
+    <applicationService serviceInterface="com.strobel.decompiler.ide.intellij.JavaDecompilerRefreshSupportService"
+                        serviceImplementation="com.strobel.decompiler.ide.intellij.JavaDecompilerRefreshSupportService" />
+-->
 
     <!--<iconProvider implementation="com.strobel.decompiler.ide.intellij.JavaDecompilerIconProvider"/>-->
   </extensions>

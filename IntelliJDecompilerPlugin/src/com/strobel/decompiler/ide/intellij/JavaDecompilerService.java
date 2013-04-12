@@ -60,6 +60,7 @@ public class JavaDecompilerService {
 
             try {
                 final String decompiled = javaDecompiler.decompile(
+                    filePath,
                     basePath,
                     StringUtilities.removeRight(
                         StringUtilities.removeLeft(internalClassName, "/"),
@@ -79,6 +80,7 @@ public class JavaDecompilerService {
         // for other files if possible
         for (final DecompilerPathArgs decompilerPathArgs : new DecompilerPathArgsFinder(virtualFile)) {
             final String decompiled = javaDecompiler.decompile(
+                filePath,
                 decompilerPathArgs.getBasePath(),
                 decompilerPathArgs.getInternalClassName()
             );

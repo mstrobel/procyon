@@ -85,6 +85,10 @@ public class DeclareVariablesTransform implements IAstTransform {
                 final VariableInitializer initializer = new VariableInitializer(v.getName());
                 final Expression right = replacedAssignment.getRight();
                 final AstNode parent = replacedAssignment.getParent();
+
+                if (parent.isNull() || parent.getParent() == null) {
+                    continue;
+                }
                 final AnalysisResult analysisResult = analyze(v, parent.getParent());
 
                 right.remove();

@@ -1433,7 +1433,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         if (val instanceof String) {
-            formatter.writeTextLiteral("\"" + convertString(val.toString()) + "\"");
+            formatter.writeTextLiteral(convertString(val.toString(), true));
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Character) {
@@ -1891,6 +1891,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 return "\\r";
             case '\t':
                 return "\\t";
+            case '"':
+                return "\"";
 
             default:
                 if (Character.isISOControl(ch) ||

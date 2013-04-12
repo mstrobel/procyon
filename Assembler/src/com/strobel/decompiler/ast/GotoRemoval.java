@@ -354,7 +354,11 @@ final class GotoRemoval {
                     TryCatchBlock current = targetTryBlock;
 
                     while (current != null) {
-                        for (final Node n : current.getTryBlock().getBody()) {
+                        final List<Node> body = current.getTryBlock().getBody();
+
+                        current = null;
+
+                        for (final Node n : body) {
                             if (n instanceof Label) {
                                 if (n == target) {
                                     return targetTryBlock;

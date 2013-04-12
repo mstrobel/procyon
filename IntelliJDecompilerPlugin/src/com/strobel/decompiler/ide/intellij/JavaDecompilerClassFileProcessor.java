@@ -14,13 +14,24 @@
 package com.strobel.decompiler.ide.intellij;
 
 import com.intellij.lang.Language;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.ServiceManager;
+import com.intellij.openapi.editor.Document;
+import com.intellij.openapi.fileEditor.impl.FileDocumentManagerImpl;
 import com.intellij.openapi.fileTypes.ContentBasedClassFileProcessor;
 import com.intellij.openapi.fileTypes.StdFileTypes;
 import com.intellij.openapi.fileTypes.SyntaxHighlighter;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileManager;
+import com.intellij.openapi.vfs.VirtualFileSystem;
+import com.strobel.core.BooleanBox;
 import org.jetbrains.annotations.NotNull;
+
+import java.lang.ref.Reference;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
+import java.util.UUID;
 
 public class JavaDecompilerClassFileProcessor implements ContentBasedClassFileProcessor {
 
@@ -40,7 +51,7 @@ public class JavaDecompilerClassFileProcessor implements ContentBasedClassFilePr
     @Override
     public SyntaxHighlighter createHighlighter(final Project project, final VirtualFile vFile) {
         //noinspection ConstantConditions
-        return SyntaxHighlighter.PROVIDER.create(StdFileTypes.JAVA, project, vFile);
+        return SyntaxHighlighter.PROVIDER.create(StdFileTypes.JAVA, project, createSourceFile(vFile));
     }
 
     @NotNull
@@ -59,6 +70,65 @@ public class JavaDecompilerClassFileProcessor implements ContentBasedClassFilePr
             return Language.findLanguageByID("JAVA");
         }
         return Language.ANY;
+    }
+
+    private static VirtualFile createSourceFile(final VirtualFile originalFile) {
+        try {
+            final Reference<Document> documentRef = originalFile.getUserData(FileDocumentManagerImpl.DOCUMENT_KEY);
+
+            if (documentRef == null) {
+                return originalFile;
+            }
+
+            final Document document = documentRef.get();
+
+            if (document == null) {
+                return originalFile;
+            }
+
+            final VirtualFileSystem tempFs = VirtualFileManager.getInstance().getFileSystem("temp");
+
+            if (tempFs == null) {
+                return originalFile;
+            }
+
+            final VirtualFile root = tempFs.findFileByPath("/");
+
+            if (root == null) {
+                return originalFile;
+            }
+
+            final VirtualFile tempFile = root.createChildData(null, UUID.randomUUID().toString() + ".java");
+
+//            tempFile.putUserData(FileDocumentManagerImpl.DOCUMENT_KEY, documentRef);
+            tempFile.setCharset(Charset.defaultCharset());
+
+            final ByteBuffer encodedText = Charset.defaultCharset().encode(document.getText());
+            final byte[] contents = new byte[encodedText.remaining()];
+
+            encodedText.get(contents);
+
+            final BooleanBox succeeded = new BooleanBox();
+
+            ApplicationManager.getApplication().runWriteAction(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            tempFile.setBinaryContent(contents);
+                        }
+                        catch (Throwable t) {
+                            succeeded.set(false);
+                        }
+                    }
+                }
+            );
+
+            return succeeded.get() ? tempFile : originalFile;
+        }
+        catch (Throwable t) {
+            return originalFile;
+        }
     }
 }
 
