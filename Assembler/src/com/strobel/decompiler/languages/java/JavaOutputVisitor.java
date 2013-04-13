@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java;
 
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.ITextOutput;
@@ -25,11 +26,14 @@ import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 import com.strobel.util.ContractUtils;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Stack;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static java.lang.String.format;
 
+@SuppressWarnings("ConstantConditions")
 public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     final IOutputFormatter formatter;
     final JavaFormattingOptions policy;
@@ -433,9 +437,16 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
     }
 
-    void writeAttributes(final Iterable<AnnotationSection> annotations) {
-        for (final AnnotationSection section : annotations) {
-            section.acceptVisitor(this, null);
+    void writeAnnotations(final Iterable<Annotation> annotations, final boolean newLineAfter) {
+        for (final Annotation annotation : annotations) {
+            annotation.acceptVisitor(this, null);
+
+            if (newLineAfter) {
+                newLine();
+            }
+            else {
+                space();
+            }
         }
     }
 
@@ -1009,12 +1020,22 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
-    public Void visitAnnotationSection(final AnnotationSection node, final Void _) {
-        return null;
-    }
-
-    @Override
     public Void visitAnnotation(final Annotation node, final Void _) {
+        startNode(node);
+
+        startNode(node.getType());
+        formatter.writeIdentifier("@");
+        endNode(node.getType());
+
+        node.getType().acceptVisitor(this, _);
+
+        final AstNodeCollection<Expression> arguments = node.getArguments();
+
+        if (!arguments.isEmpty()) {
+            writeCommaSeparatedListInParenthesis(arguments, false);
+        }
+
+        endNode(node);
         return null;
     }
 
@@ -1095,7 +1116,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
         startNode(node);
-        writeAttributes(node.getAnnotations());
+        writeAnnotations(node.getAnnotations(), true);
         writeModifiers(node.getModifiers());
 
         final MethodDefinition definition = node.getUserData(Keys.METHOD_DEFINITION);
@@ -1125,6 +1146,15 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             writeCommaSeparatedList(thrownTypes);
         }
 
+        final Expression defaultValue = node.getDefaultValue();
+
+        if (defaultValue != null && !defaultValue.isNull()) {
+            space();
+            writeKeyword(MethodDeclaration.DEFAULT_KEYWORD);
+            space();
+            defaultValue.acceptVisitor(this, _);
+        }
+
         writeMethodBody(node.getBody());
         endNode(node);
         return null;
@@ -1133,7 +1163,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
         startNode(node);
-        writeAttributes(node.getAnnotations());
+        writeAnnotations(node.getAnnotations(), true);
         writeModifiers(node.getModifiers());
 
         final AstNode parent = node.getParent();
@@ -1161,7 +1191,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitTypeParameterDeclaration(final TypeParameterDeclaration node, final Void _) {
         startNode(node);
-        writeAttributes(node.getAnnotations());
+        writeAnnotations(node.getAnnotations(), false);
         node.getNameToken().acceptVisitor(this, _);
 
         final AstType extendsBound = node.getExtendsBound();
@@ -1178,7 +1208,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitParameterDeclaration(final ParameterDeclaration node, final Void _) {
         startNode(node);
-        writeAttributes(node.getAnnotations());
+        writeAnnotations(node.getAnnotations(), false);
         node.getType().acceptVisitor(this, _);
 
         if (!node.getType().isNull() && !StringUtilities.isNullOrEmpty(node.getName())) {
@@ -1196,7 +1226,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitFieldDeclaration(final FieldDeclaration node, final Void _) {
         startNode(node);
-        writeAttributes(node.getAnnotations());
+        writeAnnotations(node.getAnnotations(), true);
         writeModifiers(node.getModifiers());
         node.getReturnType().acceptVisitor(this, _);
         space();
@@ -1217,7 +1247,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                                          node.getParent() instanceof AnonymousObjectCreationExpression;
 
         if (!isTrulyAnonymous) {
-            writeAttributes(node.getAnnotations());
+            writeAnnotations(node.getAnnotations(), true);
             writeModifiers(node.getModifiers());
 
             switch (node.getClassType()) {
@@ -1246,10 +1276,38 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             }
 
             if (any(node.getInterfaces())) {
-                space();
-                writeKeyword(Roles.IMPLEMENTS_KEYWORD);
-                space();
-                writeCommaSeparatedList(node.getInterfaces());
+                final Collection<AstType> interfaceTypes;
+
+                if (node.getClassType() == ClassType.ANNOTATION) {
+                    interfaceTypes = new ArrayList<>();
+
+                    for (final AstType t : node.getInterfaces()) {
+                        final TypeReference r = t.getUserData(Keys.TYPE_REFERENCE);
+
+                        if (r != null && "java/lang/annotation/Annotation".equals(r.getInternalName())) {
+                            continue;
+                        }
+
+                        interfaceTypes.add(t);
+                    }
+                }
+                else {
+                    interfaceTypes = node.getInterfaces();
+                }
+
+                if (any(interfaceTypes)) {
+                    space();
+
+                    if (node.getClassType() == ClassType.INTERFACE || node.getClassType() == ClassType.ANNOTATION) {
+                        writeKeyword(Roles.EXTENDS_KEYWORD);
+                    }
+                    else {
+                        writeKeyword(Roles.IMPLEMENTS_KEYWORD);
+                    }
+
+                    space();
+                    writeCommaSeparatedList(node.getInterfaces());
+                }
             }
         }
 
@@ -1645,14 +1703,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     private void writeInitializerElements(final AstNodeCollection<Expression> elements) {
-        final BraceStyle style;
+        if (elements.isEmpty()) {
+            writeToken(Roles.LEFT_BRACE);
+            writeToken(Roles.RIGHT_BRACE);
+            return;
+        }
 
-        if (policy.ArrayInitializerWrapping == Wrapping.WrapAlways) {
-            style = BraceStyle.NextLine;
-        }
-        else {
-            style = BraceStyle.EndOfLine;
-        }
+        final boolean wrapElements = policy.ArrayInitializerWrapping == Wrapping.WrapAlways;
+        final BraceStyle style = wrapElements ? BraceStyle.NextLine : BraceStyle.BannerStyle;
 
         openBrace(style);
 
@@ -1663,14 +1721,21 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 isFirst = false;
             }
             else {
-                comma(node, true);
-                newLine();
+                comma(node, wrapElements);
+
+                if (wrapElements) {
+                    newLine();
+                }
             }
             node.acceptVisitor(this, null);
         }
 
         optionalComma();
-        newLine();
+
+        if (wrapElements) {
+            newLine();
+        }
+
         closeBrace(style);
     }
 

@@ -208,12 +208,24 @@ public class TextOutputFormatter implements IOutputFormatter {
                 break;
         }
 
-        output.writeLine("{");
+        output.write("{");
+
+        if (style == BraceStyle.BannerStyle) {
+            space();
+        }
+        else {
+            output.writeLine();
+        }
+
         output.indent();
     }
 
     @Override
     public void closeBrace(final BraceStyle style) {
+        if (style == BraceStyle.BannerStyle) {
+            space();
+        }
+
         output.unindent();
         output.write('}');
 

@@ -162,11 +162,6 @@ public abstract class DepthFirstAstVisitor<T, S> implements IAstVisitor<T, S> {
     }
 
     @Override
-    public S visitAnnotationSection(final AnnotationSection node, final T data) {
-        return visitChildren(node, data);
-    }
-
-    @Override
     public S visitAnnotation(final Annotation node, final T data) {
         return visitChildren(node, data);
     }

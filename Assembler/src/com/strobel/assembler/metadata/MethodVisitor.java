@@ -39,4 +39,5 @@ public interface MethodVisitor {
 
     void visitAttribute(final SourceAttribute attribute);
     void visitAnnotation(final CustomAnnotation annotation, final boolean visible);
+    void visitParameterAnnotation(final int parameter, final CustomAnnotation annotation, final boolean visible);
 }

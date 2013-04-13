@@ -111,53 +111,47 @@ public class TypePrinter implements TypeVisitor {
 
     @Override
     public void visitAttribute(final SourceAttribute attribute) {
-        _output.indent();
-        try {
-            switch (attribute.getName()) {
-                case AttributeNames.SourceFile: {
-                    _output.writeAttribute("SourceFile");
-                    _output.write(": ");
-                    _output.writeTextLiteral(((SourceFileAttribute) attribute).getSourceFile());
-                    _output.writeLine();
-                    break;
-                }
-
-                case AttributeNames.Deprecated: {
-                    _output.writeAttribute("Deprecated");
-                    _output.writeLine();
-                    break;
-                }
-
-                case AttributeNames.EnclosingMethod: {
-                    final TypeReference enclosingType = ((EnclosingMethodAttribute) attribute).getEnclosingType();
-                    final MethodReference enclosingMethod = ((EnclosingMethodAttribute) attribute).getEnclosingMethod();
-
-                    if (enclosingType != null) {
-                        _output.writeAttribute("EnclosingType");
-                        _output.write(": ");
-                        _output.writeReference(enclosingType.getInternalName(), enclosingType);
-                        _output.writeLine();
-                    }
-
-                    if (enclosingMethod != null) {
-                        final TypeReference declaringType = enclosingMethod.getDeclaringType();
-
-                        _output.writeAttribute("EnclosingMethod");
-                        _output.write(": ");
-                        _output.writeReference(declaringType.getInternalName(), declaringType);
-                        _output.write(".");
-                        _output.writeReference(enclosingMethod.getName(), enclosingMethod);
-                        _output.write(":");
-                        _output.write(enclosingMethod.getSignature());
-                        _output.writeLine();
-                    }
-
-                    break;
-                }
+        switch (attribute.getName()) {
+            case AttributeNames.SourceFile: {
+                _output.writeAttribute("SourceFile");
+                _output.write(": ");
+                _output.writeTextLiteral(((SourceFileAttribute) attribute).getSourceFile());
+                _output.writeLine();
+                break;
             }
-        }
-        finally {
-            _output.unindent();
+
+            case AttributeNames.Deprecated: {
+                _output.writeAttribute("Deprecated");
+                _output.writeLine();
+                break;
+            }
+
+            case AttributeNames.EnclosingMethod: {
+                final TypeReference enclosingType = ((EnclosingMethodAttribute) attribute).getEnclosingType();
+                final MethodReference enclosingMethod = ((EnclosingMethodAttribute) attribute).getEnclosingMethod();
+
+                if (enclosingType != null) {
+                    _output.writeAttribute("EnclosingType");
+                    _output.write(": ");
+                    _output.writeReference(enclosingType.getInternalName(), enclosingType);
+                    _output.writeLine();
+                }
+
+                if (enclosingMethod != null) {
+                    final TypeReference declaringType = enclosingMethod.getDeclaringType();
+
+                    _output.writeAttribute("EnclosingMethod");
+                    _output.write(": ");
+                    _output.writeReference(declaringType.getInternalName(), declaringType);
+                    _output.write(".");
+                    _output.writeReference(enclosingMethod.getName(), enclosingMethod);
+                    _output.write(":");
+                    _output.write(enclosingMethod.getSignature());
+                    _output.writeLine();
+                }
+
+                break;
+            }
         }
     }
 

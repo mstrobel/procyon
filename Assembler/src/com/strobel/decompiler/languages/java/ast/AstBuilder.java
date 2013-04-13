@@ -16,7 +16,18 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.ir.attributes.AnnotationDefaultAttribute;
+import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
+import com.strobel.assembler.metadata.annotations.AnnotationAnnotationElement;
+import com.strobel.assembler.metadata.annotations.AnnotationElement;
+import com.strobel.assembler.metadata.annotations.AnnotationParameter;
+import com.strobel.assembler.metadata.annotations.ArrayAnnotationElement;
+import com.strobel.assembler.metadata.annotations.ClassAnnotationElement;
+import com.strobel.assembler.metadata.annotations.ConstantAnnotationElement;
+import com.strobel.assembler.metadata.annotations.CustomAnnotation;
+import com.strobel.assembler.metadata.annotations.EnumAnnotationElement;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.Predicate;
@@ -29,12 +40,15 @@ import com.strobel.decompiler.ast.TypeAnalysis;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 import com.strobel.decompiler.languages.java.ast.transforms.IAstTransform;
 import com.strobel.decompiler.languages.java.ast.transforms.TransformationPipeline;
+import com.strobel.util.ContractUtils;
 
+import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class AstBuilder {
     private final DecompilerContext _context;
@@ -99,8 +113,6 @@ public final class AstBuilder {
             _packagePlaceholder.remove();
         }
 
-        EntityDeclaration.setModifiers(astType, Flags.asModifierSet(type.getFlags() & Flags.ClassFlags));
-
         _compileUnit.addChild(astType, CompilationUnit.MEMBER_ROLE);
     }
 
@@ -162,7 +174,13 @@ public final class AstBuilder {
 
         for (final ParameterDefinition p : parameters) {
             final ParameterDeclaration d = new ParameterDeclaration(p.getName(), convertType(p.getParameterType()));
+
             d.putUserData(Keys.PARAMETER_DEFINITION, p);
+
+            for (final CustomAnnotation annotation : p.getAnnotations()) {
+                d.getAnnotations().add(createAnnotation(annotation));
+            }
+
             declarations.add(d);
         }
 
@@ -239,14 +257,21 @@ public final class AstBuilder {
             return baseType;
         }
 
-        final String name;
+        String name;
+
         final TypeDefinition resolvedType = type.resolve();
         final TypeReference nameSource = resolvedType != null ? resolvedType : type;
+        final PackageDeclaration packageDeclaration = _compileUnit.getPackage();
 
         if (options == null || options.getIncludePackage()) {
             final String packageName = nameSource.getPackageName();
             name = StringUtilities.isNullOrEmpty(packageName) ? nameSource.getSimpleName()
                                                               : packageName + "." + nameSource.getSimpleName();
+        }
+        else if (packageDeclaration != null &&
+                 StringUtilities.equals(packageDeclaration.getName(), nameSource.getPackageName())) {
+
+            name = nameSource.getSimpleName();
         }
         else {
             final TypeReference typeToImport;
@@ -325,9 +350,15 @@ public final class AstBuilder {
 
         _typeDeclarations.put(type.getInternalName(), astType);
 
+        long flags = type.getFlags() & (Flags.ClassFlags | Flags.STATIC);
+
+        if (type.isInterface()) {
+            flags &= ~Flags.ABSTRACT;
+        }
+
         EntityDeclaration.setModifiers(
             astType,
-            Flags.asModifierSet(type.getFlags() & (Flags.ClassFlags | Flags.STATIC))
+            Flags.asModifierSet(flags)
         );
 
         astType.setName(type.getSimpleName());
@@ -361,6 +392,10 @@ public final class AstBuilder {
 
         for (final TypeReference interfaceType : type.getExplicitInterfaces()) {
             astType.addChild(convertType(interfaceType), Roles.IMPLEMENTED_INTERFACE);
+        }
+
+        for (final CustomAnnotation annotation : type.getAnnotations()) {
+            astType.getAnnotations().add(createAnnotation(annotation));
         }
 
         addTypeMembers(astType, type);
@@ -414,7 +449,16 @@ public final class AstBuilder {
     private MethodDeclaration createMethod(final MethodDefinition method) {
         final MethodDeclaration astMethod = new MethodDeclaration();
 
-        EntityDeclaration.setModifiers(astMethod, Flags.asModifierSet(method.getFlags() & Flags.MethodFlags));
+        final Set<Modifier> modifiers;
+
+        if (method.getDeclaringType().isInterface()) {
+            modifiers = Collections.emptySet();
+        }
+        else {
+            modifiers = Flags.asModifierSet(method.getFlags() & Flags.MethodFlags);
+        }
+
+        EntityDeclaration.setModifiers(astMethod, modifiers);
 
         astMethod.setName(method.getName());
         astMethod.getParameters().addAll(createParameters(method.getParameters()));
@@ -429,6 +473,23 @@ public final class AstBuilder {
 
         for (final TypeReference thrownType : method.getThrownTypes()) {
             astMethod.addChild(convertType(thrownType), Roles.THROWN_TYPE);
+        }
+
+        for (final CustomAnnotation annotation : method.getAnnotations()) {
+            astMethod.getAnnotations().add(createAnnotation(annotation));
+        }
+
+        final AnnotationDefaultAttribute defaultAttribute = SourceAttribute.find(
+            AttributeNames.AnnotationDefault,
+            method.getSourceAttributes()
+        );
+
+        if (defaultAttribute != null) {
+            final Expression defaultValue = createAnnotationElement(defaultAttribute.getDefaultValue());
+
+            if (defaultValue != null && !defaultValue.isNull()) {
+                astMethod.setDefaultValue(defaultValue);
+            }
         }
 
         return astMethod;
@@ -572,6 +633,67 @@ public final class AstBuilder {
 
     public static boolean isMemberHidden(final IMemberDefinition member, final DecompilerSettings settings) {
         return member.isSynthetic() && !settings.getShowSyntheticMembers();
+    }
+
+    public Annotation createAnnotation(final CustomAnnotation annotation) {
+        final Annotation a = new Annotation();
+        final AstNodeCollection<Expression> arguments = a.getArguments();
+
+        a.setType(convertType(annotation.getAnnotationType()));
+
+        final List<AnnotationParameter> parameters = annotation.getParameters();
+
+        for (final AnnotationParameter p : parameters) {
+            final String member = p.getMember();
+            final Expression value = createAnnotationElement(p.getValue());
+
+            if (StringUtilities.isNullOrEmpty(member) ||
+                parameters.size() == 1 && "value".equals(member)) {
+
+                arguments.add(value);
+            }
+            else {
+                arguments.add(new AssignmentExpression(new IdentifierExpression(member), value));
+            }
+        }
+
+        return a;
+    }
+
+    public Expression createAnnotationElement(final AnnotationElement element) {
+        switch (element.getElementType()) {
+            case Constant: {
+                final ConstantAnnotationElement constant = (ConstantAnnotationElement) element;
+                return new PrimitiveExpression(constant.getConstantValue());
+            }
+
+            case Enum: {
+                final EnumAnnotationElement enumElement = (EnumAnnotationElement) element;
+                return new TypeReferenceExpression(convertType(enumElement.getEnumType())).member(enumElement.getEnumConstantName());
+            }
+
+            case Array: {
+                final ArrayAnnotationElement arrayElement = (ArrayAnnotationElement) element;
+                final ArrayInitializerExpression initializer = new ArrayInitializerExpression();
+                final AstNodeCollection<Expression> elements = initializer.getElements();
+
+                for (final AnnotationElement e : arrayElement.getElements()) {
+                    elements.add(createAnnotationElement(e));
+                }
+
+                return initializer;
+            }
+
+            case Class: {
+                return new ClassOfExpression(convertType(((ClassAnnotationElement)element).getClassType()));
+            }
+
+            case Annotation: {
+                return createAnnotation(((AnnotationAnnotationElement)element).getAnnotation());
+            }
+        }
+
+        throw ContractUtils.unreachable();
     }
 }
 

@@ -489,6 +489,10 @@ public class MethodPrinter implements MethodVisitor {
     public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
     }
 
+    @Override
+    public void visitParameterAnnotation(final int parameter, final CustomAnnotation annotation, final boolean visible) {
+    }
+
     // <editor-fold defaultstate="collapsed" desc="InstructionPrinter Class">
 
     private static final int MAX_OPCODE_LENGTH;

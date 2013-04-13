@@ -23,6 +23,7 @@ import com.strobel.assembler.metadata.IMethodSignature;
 import com.strobel.assembler.metadata.Label;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterReference;
+import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableReference;
 import com.strobel.core.StringUtilities;
@@ -40,7 +41,7 @@ public class AnsiTextOutput extends PlainTextOutput {
     private final static Ansi PACKAGE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(111), null);
     private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*213*/212), null);
     private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(222/*216*/), null);
-    private final static Ansi LOCAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(230), null);
+    private final static Ansi LOCAL = new Ansi(Ansi.Attribute.NORMAL, /*new Ansi.AnsiColor(230)*/(Ansi.AnsiColor) null, null);
     private final static Ansi LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(204), null);
     private final static Ansi TEXT_LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*48*/42), null);
     private final static Ansi COMMENT = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(244), null);
@@ -178,18 +179,25 @@ public class AnsiTextOutput extends PlainTextOutput {
 
     private String colorizeType(final String text, final TypeReference type) {
         final String packageName = type.getPackageName();
+        final TypeDefinition resolvedType = type.resolve();
 
         if (StringUtilities.isNullOrEmpty(packageName)) {
-            return TYPE.colorize(text);
+            if (resolvedType != null && resolvedType.isAnnotation()) {
+                return ATTRIBUTE.colorize(text);
+            }
+            else {
+                return TYPE.colorize(text);
+            }
         }
 
         String s = text;
         char delimiter = '.';
         String packagePrefix = packageName + delimiter;
 
-        int arrayDepth;
+        int arrayDepth = 0;
 
-        for (arrayDepth = 0; arrayDepth < s.length() && s.charAt(arrayDepth) == '['; arrayDepth++) {
+        while (arrayDepth < s.length() && s.charAt(arrayDepth) == '[') {
+            arrayDepth++;
         }
 
         if (arrayDepth > 0) {
@@ -228,7 +236,13 @@ public class AnsiTextOutput extends PlainTextOutput {
             }
 
             sb.append(DELIMITER.colorize(String.valueOf(delimiter)));
-            sb.append(TYPE.colorize(s.substring(packagePrefix.length())));
+
+            if (resolvedType != null && resolvedType.isAnnotation()) {
+                sb.append(ATTRIBUTE.colorize(s.substring(packagePrefix.length())));
+            }
+            else {
+                sb.append(TYPE.colorize(s.substring(packagePrefix.length())));
+            }
 
             if (isSignature) {
                 sb.append(';');
@@ -237,6 +251,11 @@ public class AnsiTextOutput extends PlainTextOutput {
             return sb.toString();
         }
 
-        return TYPE.colorize(text);
+        if (resolvedType != null && resolvedType.isAnnotation()) {
+            return ATTRIBUTE.colorize(text);
+        }
+        else {
+            return TYPE.colorize(text);
+        }
     }
 }

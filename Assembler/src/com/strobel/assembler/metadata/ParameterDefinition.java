@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.assembler.Collection;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.StringUtilities;
 
@@ -28,11 +29,13 @@ import java.util.List;
  * Time: 5:42 PM
  */
 public final class ParameterDefinition extends ParameterReference implements IAnnotationsProvider {
+    private final Collection<CustomAnnotation> _customAnnotations = new Collection<>();
+    private final List<CustomAnnotation> _customAnnotationsView = Collections.unmodifiableList(_customAnnotations);
+
     private final int _size;
     private int _slot;
     private IMethodSignature _method;
     private TypeReference _declaringType;
-    private List<CustomAnnotation> _annotations;
 
     public ParameterDefinition(final int slot, final TypeReference parameterType) {
         super(StringUtilities.EMPTY, parameterType);
@@ -73,14 +76,11 @@ public final class ParameterDefinition extends ParameterReference implements IAn
 
     @Override
     public List<CustomAnnotation> getAnnotations() {
-        if (_annotations == null) {
-            synchronized (this) {
-                if (_annotations == null) {
-                    _annotations = populateCustomAnnotations();
-                }
-            }
-        }
-        return _annotations;
+        return _customAnnotationsView;
+    }
+
+    protected final Collection<CustomAnnotation> getAnnotationsInternal() {
+        return _customAnnotations;
     }
 
     @Override

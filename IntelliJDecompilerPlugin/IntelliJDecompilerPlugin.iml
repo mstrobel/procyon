@@ -7,7 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/resources" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="IDEA IU-117.418" jdkType="IDEA JDK" />
+    <orderEntry type="jdk" jdkName="IDEA IU-129.239" jdkType="IDEA JDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="Assembler" />
     <orderEntry type="module" module-name="Expressions" />

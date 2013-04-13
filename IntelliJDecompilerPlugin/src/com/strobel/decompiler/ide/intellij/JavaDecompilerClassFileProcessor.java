@@ -21,6 +21,7 @@ import com.intellij.openapi.fileEditor.impl.FileDocumentManagerImpl;
 import com.intellij.openapi.fileTypes.ContentBasedClassFileProcessor;
 import com.intellij.openapi.fileTypes.StdFileTypes;
 import com.intellij.openapi.fileTypes.SyntaxHighlighter;
+import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
@@ -51,7 +52,7 @@ public class JavaDecompilerClassFileProcessor implements ContentBasedClassFilePr
     @Override
     public SyntaxHighlighter createHighlighter(final Project project, final VirtualFile vFile) {
         //noinspection ConstantConditions
-        return SyntaxHighlighter.PROVIDER.create(StdFileTypes.JAVA, project, createSourceFile(vFile));
+        return SyntaxHighlighterFactory.getSyntaxHighlighter(StdFileTypes.JAVA, project, createSourceFile(vFile));
     }
 
     @NotNull

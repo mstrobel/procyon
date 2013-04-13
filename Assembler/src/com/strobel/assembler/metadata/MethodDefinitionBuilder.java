@@ -101,6 +101,8 @@ public class MethodDefinitionBuilder implements MethodVisitor {
 
     @Override
     public void visitAttribute(final SourceAttribute attribute) {
+        _method.getSourceAttributesInternal().add(attribute);
+
         switch (attribute.getName()) {
             case AttributeNames.Synthetic: {
                 _method.setFlags(_method.getFlags() | Flags.SYNTHETIC);
@@ -149,8 +151,11 @@ public class MethodDefinitionBuilder implements MethodVisitor {
 
     @Override
     public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
-        if (visible) {
-            _method.getAnnotationsInternal().add(annotation);
-        }
+        _method.getAnnotationsInternal().add(annotation);
+    }
+
+    @Override
+    public void visitParameterAnnotation(final int parameter, final CustomAnnotation annotation, final boolean visible) {
+        _method.getParameters().get(parameter).getAnnotationsInternal().add(annotation);
     }
 }

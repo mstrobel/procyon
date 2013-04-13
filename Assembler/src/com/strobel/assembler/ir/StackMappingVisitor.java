@@ -168,6 +168,13 @@ public class StackMappingVisitor implements MethodVisitor {
         }
     }
 
+    @Override
+    public void visitParameterAnnotation(final int parameter, final CustomAnnotation annotation, final boolean visible) {
+        if (_innerVisitor != null) {
+            _innerVisitor.visitParameterAnnotation(parameter, annotation, visible);
+        }
+    }
+
     protected final FrameValue get(final int local) {
         _maxLocals = Math.max(_maxLocals, local);
         return local < _locals.size() ? _locals.get(local) : FrameValue.TOP;

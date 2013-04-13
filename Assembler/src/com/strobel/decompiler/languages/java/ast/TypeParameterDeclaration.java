@@ -21,7 +21,7 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
 public class TypeParameterDeclaration extends AstNode {
-    public final static Role<AnnotationSection> ANNOTATION_ROLE = EntityDeclaration.ANNOTATION_ROLE;
+    public final static Role<Annotation> ANNOTATION_ROLE = EntityDeclaration.ANNOTATION_ROLE;
 
     public TypeParameterDeclaration() {
     }
@@ -30,7 +30,7 @@ public class TypeParameterDeclaration extends AstNode {
         setName(name);
     }
 
-    public final AstNodeCollection<AnnotationSection> getAnnotations() {
+    public final AstNodeCollection<Annotation> getAnnotations() {
         return getChildrenByRole(ANNOTATION_ROLE);
     }
 

@@ -152,6 +152,7 @@ public class JavaFormattingOptions {
         options.ClassBraceStyle = BraceStyle.NextLine;
         options.AnonymousClassBraceStyle = BraceStyle.EndOfLine;
         options.InterfaceBraceStyle = BraceStyle.NextLine;
+        options.AnnotationBraceStyle = BraceStyle.EndOfLine;
         options.EnumBraceStyle = BraceStyle.NextLine;
         options.MethodBraceStyle = BraceStyle.EndOfLine;
         options.ConstructorBraceStyle = BraceStyle.EndOfLine;

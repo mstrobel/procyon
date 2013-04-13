@@ -34,7 +34,7 @@ public class PrimitiveExpression extends Expression {
     public PrimitiveExpression(final Object value) {
         _value = value;
         _startLocation = TextLocation.EMPTY;
-        _literalValue = "";
+        _literalValue = StringUtilities.EMPTY;
     }
 
     public PrimitiveExpression(final Object value, final String literalValue) {

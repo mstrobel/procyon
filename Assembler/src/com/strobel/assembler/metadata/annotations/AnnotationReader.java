@@ -60,7 +60,27 @@ public final class AnnotationReader {
 
         switch (elementType) {
             case Constant: {
-                return new ConstantAnnotationElement(scope.lookupConstant(input.readUnsignedShort()));
+                Object constantValue = scope.lookupConstant(input.readUnsignedShort());
+
+                switch (tag) {
+                    case 'B':
+                        constantValue = ((Number)constantValue).byteValue();
+                        break;
+
+                    case 'C':
+                        constantValue = (char)((Number)constantValue).intValue();
+                        break;
+
+                    case 'S':
+                        constantValue = ((Number)constantValue).shortValue();
+                        break;
+
+                    case 'Z':
+                        constantValue = ((Number)constantValue).intValue() == 0 ? Boolean.FALSE : Boolean.TRUE;
+                        break;
+                }
+
+                return new ConstantAnnotationElement(constantValue);
             }
 
             case Enum: {

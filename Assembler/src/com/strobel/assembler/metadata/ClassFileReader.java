@@ -19,8 +19,8 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.ir.*;
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
-import com.strobel.assembler.metadata.annotations.InnerClassEntry;
-import com.strobel.assembler.metadata.annotations.InnerClassesAttribute;
+import com.strobel.assembler.ir.attributes.InnerClassEntry;
+import com.strobel.assembler.ir.attributes.InnerClassesAttribute;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
@@ -832,6 +832,40 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                         if (invisibleAnnotations != null) {
                             for (final CustomAnnotation annotation : invisibleAnnotations.getAnnotations()) {
                                 methodVisitor.visitAnnotation(annotation, false);
+                            }
+                        }
+
+                        final ParameterAnnotationsAttribute visibleParameterAnnotations = SourceAttribute.find(
+                            AttributeNames.RuntimeVisibleParameterAnnotations,
+                            method.attributes
+                        );
+
+                        final ParameterAnnotationsAttribute invisibleParameterAnnotations = SourceAttribute.find(
+                            AttributeNames.RuntimeInvisibleParameterAnnotations,
+                            method.attributes
+                        );
+
+                        if (visibleParameterAnnotations != null) {
+                            for (int i = 0; i < visibleParameterAnnotations.getAnnotations().length; i++) {
+                                final CustomAnnotation[] annotations = visibleParameterAnnotations.getAnnotations()[i];
+
+                                if (!ArrayUtilities.isNullOrEmpty(annotations)) {
+                                    for (final CustomAnnotation annotation : annotations) {
+                                        methodVisitor.visitParameterAnnotation(i, annotation, true);
+                                    }
+                                }
+                            }
+                        }
+
+                        if (invisibleParameterAnnotations != null) {
+                            for (int i = 0; i < invisibleParameterAnnotations.getAnnotations().length; i++) {
+                                final CustomAnnotation[] annotations = invisibleParameterAnnotations.getAnnotations()[i];
+
+                                if (!ArrayUtilities.isNullOrEmpty(annotations)) {
+                                    for (final CustomAnnotation annotation : annotations) {
+                                        methodVisitor.visitParameterAnnotation(i, annotation, false);
+                                    }
+                                }
                             }
                         }
                     }

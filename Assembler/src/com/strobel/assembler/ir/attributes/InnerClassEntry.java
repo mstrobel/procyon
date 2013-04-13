@@ -14,7 +14,7 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.assembler.metadata.annotations;
+package com.strobel.assembler.ir.attributes;
 
 /**
  * @author Mike Strobel

@@ -21,8 +21,8 @@ import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
-import com.strobel.assembler.metadata.annotations.InnerClassEntry;
-import com.strobel.assembler.metadata.annotations.InnerClassesAttribute;
+import com.strobel.assembler.ir.attributes.InnerClassEntry;
+import com.strobel.assembler.ir.attributes.InnerClassesAttribute;
 import com.strobel.core.Comparer;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.StringUtilities;
@@ -246,9 +246,7 @@ public class TypeDefinitionBuilder implements TypeVisitor {
 
     @Override
     public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
-        if (visible) {
-            _typeDefinition.getAnnotationsInternal().add(annotation);
-        }
+        _typeDefinition.getAnnotationsInternal().add(annotation);
     }
 
     @Override
@@ -271,8 +269,6 @@ public class TypeDefinitionBuilder implements TypeVisitor {
         final String name,
         final IMethodSignature signature,
         final TypeReference... thrownTypes) {
-
-        final long modifiedFlags;
 
         final MethodDefinitionBuilder builder = new MethodDefinitionBuilder(
             _typeDefinition,

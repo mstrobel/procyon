@@ -44,7 +44,6 @@ public interface IAstVisitor<T, R> {
     R visitCaseLabel(CaseLabel caseLabel, T data);
     R visitThrowStatement(ThrowStatement throwStatement, T data);
     R visitCatchClause(CatchClause catchClause, T data);
-    R visitAnnotationSection(AnnotationSection annotationSection, T data);
     R visitAnnotation(Annotation annotation, T data);
     R visitNewLine(NewLineNode newLineNode, T data);
     R visitVariableDeclaration(VariableDeclarationStatement variableDeclarationStatement, T data);

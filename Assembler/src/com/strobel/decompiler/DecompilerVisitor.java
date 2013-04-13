@@ -155,6 +155,10 @@ final class DecompilerVisitor implements TypeVisitor {
             @Override
             public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
             }
+
+            @Override
+            public void visitParameterAnnotation(final int parameter, final CustomAnnotation annotation, final boolean visible) {
+            }
         };
     }
 

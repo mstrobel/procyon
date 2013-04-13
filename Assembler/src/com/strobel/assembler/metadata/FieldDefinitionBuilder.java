@@ -61,9 +61,7 @@ public class FieldDefinitionBuilder implements FieldVisitor {
 
     @Override
     public void visitAnnotation(final CustomAnnotation annotation, final boolean visible) {
-        if (visible) {
-            _field.getAnnotationsInternal().add(annotation);
-        }
+        _field.getAnnotationsInternal().add(annotation);
     }
 
     @Override

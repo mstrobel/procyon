@@ -14,10 +14,8 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.assembler.metadata.annotations;
+package com.strobel.assembler.ir.attributes;
 
-import com.strobel.assembler.ir.attributes.AttributeNames;
-import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.core.VerifyArgument;
 
 import java.util.List;

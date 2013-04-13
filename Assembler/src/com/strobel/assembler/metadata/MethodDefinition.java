@@ -17,6 +17,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
+import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 
 import java.util.Collections;
@@ -28,11 +29,13 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     private final AnonymousLocalTypeCollection _declaredTypes;
     private final Collection<TypeReference> _thrownTypes;
     private final Collection<CustomAnnotation> _customAnnotations;
+    private final Collection<SourceAttribute> _sourceAttributes;
     private final List<GenericParameter> _genericParametersView;
     private final List<TypeDefinition> _declaredTypesView;
     private final List<ParameterDefinition> _parametersView;
     private final List<TypeReference> _thrownTypesView;
     private final List<CustomAnnotation> _customAnnotationsView;
+    private final List<SourceAttribute> _sourceAttributesView;
 
     private MethodBody _body;
     private String _name;
@@ -46,11 +49,13 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
         _declaredTypes = new AnonymousLocalTypeCollection(this);
         _thrownTypes = new Collection<>();
         _customAnnotations = new Collection<>();
+        _sourceAttributes = new Collection<>();
         _genericParametersView = Collections.unmodifiableList(_genericParameters);
         _parametersView = Collections.unmodifiableList(_parameters);
         _declaredTypesView = Collections.unmodifiableList(_declaredTypes);
         _thrownTypesView = Collections.unmodifiableList(_thrownTypes);
         _customAnnotationsView = Collections.unmodifiableList(_customAnnotations);
+        _sourceAttributesView = Collections.unmodifiableList(_sourceAttributes);
     }
 
     public final boolean hasBody() {
@@ -106,6 +111,10 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
         return _customAnnotationsView;
     }
 
+    public final List<SourceAttribute> getSourceAttributes() {
+        return _sourceAttributesView;
+    }
+
     @Override
     public final String getName() {
         return _name;
@@ -152,6 +161,10 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
 
     protected final Collection<CustomAnnotation> getAnnotationsInternal() {
         return _customAnnotations;
+    }
+
+    protected final Collection<SourceAttribute> getSourceAttributesInternal() {
+        return _sourceAttributes;
     }
 
     // <editor-fold defaultstate="collapsed" desc="Method Attributes">

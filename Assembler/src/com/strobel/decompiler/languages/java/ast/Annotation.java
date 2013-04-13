@@ -19,7 +19,7 @@ package com.strobel.decompiler.languages.java.ast;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
-public class Annotation extends AstNode {
+public class Annotation extends Expression {
     private boolean _hasArgumentList;
 
     public final AstType getType() {

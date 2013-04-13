@@ -19,8 +19,12 @@ package com.strobel.decompiler.languages.java.ast;
 import com.strobel.decompiler.languages.EntityType;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.Role;
 
 public class MethodDeclaration extends EntityDeclaration {
+    public final static Role<Expression> DEFAULT_VALUE_ROLE = new Role<>("DefaultValue", Expression.class, Expression.NULL);
+
+    public final static TokenRole DEFAULT_KEYWORD = new TokenRole("default", TokenRole.FLAG_KEYWORD);
     public final static TokenRole THROWS_KEYWORD = new TokenRole("throws", TokenRole.FLAG_KEYWORD);
 
     public final AstType getPrivateImplementationType() {
@@ -29,6 +33,14 @@ public class MethodDeclaration extends EntityDeclaration {
 
     public final void setPrivateImplementationType(final AstType type) {
         setChildByRole(PRIVATE_IMPLEMENTATION_TYPE_ROLE, type);
+    }
+
+    public final Expression getDefaultValue() {
+        return getChildByRole(DEFAULT_VALUE_ROLE);
+    }
+
+    public final void setDefaultValue(final Expression value) {
+        setChildByRole(DEFAULT_VALUE_ROLE, value);
     }
 
     public final AstNodeCollection<AstType> getThrownTypes() {
