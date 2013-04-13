@@ -417,9 +417,11 @@ final class LoopsAndConditions {
                     final SwitchInfo switchInfo = switchInstruction.getOperand(0);
                     final int lowValue = switchInfo.getLowValue();
                     final int[] keys = switchInfo.getKeys();
-                    final ControlFlowNode defaultTarget = labelsToNodes.get(labels[0]);
+                    final Label defaultLabel = labels[0];
+                    final ControlFlowNode defaultTarget = labelsToNodes.get(defaultLabel);
 
                     boolean defaultFollowsSwitch = false;
+                    List<CaseBlock> defaultPredecessors = null;
 
                     for (int i = 1; i < labels.length; i++) {
                         final Label caseLabel = labels[i];
@@ -440,22 +442,37 @@ final class LoopsAndConditions {
                             caseBlock = new CaseBlock();
 
                             final ControlFlowNode caseTarget = labelsToNodes.get(caseLabel);
-
-                            switchNode.getCaseBlocks().add(caseBlock);
-
                             final List<Node> caseBody = caseBlock.getBody();
 
-                            if (caseTarget != null) {
-                                if (caseTarget.getDominanceFrontier().contains(defaultTarget)) {
-                                    defaultFollowsSwitch = true;
+                            if (caseLabel == defaultLabel) {
+                                if (defaultPredecessors == null) {
+                                    defaultPredecessors = new ArrayList<>();
                                 }
 
-                                caseBlock.setEntryGoto(new Expression(AstCode.Goto, caseLabel));
+                                defaultPredecessors.add(caseBlock);
 
-                                final Set<ControlFlowNode> content = findDominatedNodes(scope, caseTarget);
+                                final BasicBlock gotoDefault = new BasicBlock();
 
-                                scope.removeAll(content);
-                                caseBody.addAll(findConditions(content, caseTarget));
+                                gotoDefault.getBody().add(new Label("GotoDefault_" + _nextLabelIndex++));
+                                gotoDefault.getBody().add(new Expression(AstCode.Goto, defaultLabel));
+
+                                caseBody.add(gotoDefault);
+                            }
+                            else {
+                                switchNode.getCaseBlocks().add(caseBlock);
+
+                                if (caseTarget != null) {
+                                    if (caseTarget.getDominanceFrontier().contains(defaultTarget)) {
+                                        defaultFollowsSwitch = true;
+                                    }
+
+                                    caseBlock.setEntryGoto(new Expression(AstCode.Goto, caseLabel));
+
+                                    final Set<ControlFlowNode> content = findDominatedNodes(scope, caseTarget);
+
+                                    scope.removeAll(content);
+                                    caseBody.addAll(findConditions(content, caseTarget));
+                                }
                             }
 
                             if (caseBody.isEmpty() ||
@@ -486,6 +503,12 @@ final class LoopsAndConditions {
                         }
                     }
 
+                    if (defaultPredecessors != null) {
+                        for (final CaseBlock caseBlock : defaultPredecessors) {
+                            switchNode.getCaseBlocks().add(caseBlock);
+                        }
+                    }
+
                     if (!defaultFollowsSwitch) {
                         final CaseBlock defaultBlock = new CaseBlock();
 
@@ -510,6 +533,10 @@ final class LoopsAndConditions {
 
                         defaultBlock.getBody().add(explicitBreak);
                     }
+
+                    //
+                    // TODO: Arrange the case blocks such that fall-throughs go to the right block.
+                    //
                 }
 
                 //

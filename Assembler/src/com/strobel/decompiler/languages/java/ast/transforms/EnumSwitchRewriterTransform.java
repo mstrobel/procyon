@@ -27,6 +27,7 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -333,7 +334,7 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
         }
 
         private boolean rewriteSwitch(final SwitchStatement s, final Map<Integer, Expression> mappings) {
-            final Map<Expression, Expression> replacements = new LinkedHashMap<>();
+            final Map<Expression, Expression> replacements = new IdentityHashMap<>();
 
             for (final SwitchSection section : s.getSwitchSections()) {
                 for (final CaseLabel caseLabel : section.getCaseLabels()) {
