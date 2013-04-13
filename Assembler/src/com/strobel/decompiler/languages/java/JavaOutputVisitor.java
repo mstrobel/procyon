@@ -1820,7 +1820,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         for (AstNode next = node.getNextSibling(); next != null; next = next.getNextSibling()) {
             if (next.getRole() == Roles.TYPE_MEMBER) {
-                isLast = !(next instanceof EnumValueDeclaration);
+                if (next instanceof EnumValueDeclaration) {
+                    isLast = false;
+                }
                 break;
             }
         }

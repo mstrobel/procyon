@@ -132,6 +132,35 @@ public class EnumRewriterTransform implements IAstTransform {
         }
 
         @Override
+        public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
+            final TypeDefinition currentType = context.getCurrentType();
+
+            if (currentType != null && currentType.isEnum()) {
+                final AstNodeCollection<ParameterDeclaration> parameters = node.getParameters();
+
+                for (int i = 0; i < 2 && !parameters.isEmpty(); i++) {
+                    parameters.firstOrNullObject().remove();
+                }
+
+                final Statement firstStatement = node.getBody().getStatements().firstOrNullObject();
+
+                if (firstStatement instanceof ExpressionStatement) {
+                    final Expression e = ((ExpressionStatement) firstStatement).getExpression();
+
+                    if (e instanceof InvocationExpression && ((InvocationExpression) e).getTarget() instanceof SuperReferenceExpression) {
+                        firstStatement.remove();
+                    }
+                }
+
+                if (node.getBody().getStatements().isEmpty()) {
+                    node.remove();
+                }
+            }
+
+            return super.visitConstructorDeclaration(node, _);
+        }
+
+        @Override
         public Void visitMethodDeclaration(final MethodDeclaration methodDeclaration, final Void _) {
             final TypeDefinition currentType = context.getCurrentType();
 

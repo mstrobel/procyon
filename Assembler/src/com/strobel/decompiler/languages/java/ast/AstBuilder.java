@@ -355,6 +355,9 @@ public final class AstBuilder {
         if (type.isInterface()) {
             flags &= ~Flags.ABSTRACT;
         }
+        else if (type.isEnum()) {
+            flags &= ~Flags.FINAL;
+        }
 
         EntityDeclaration.setModifiers(
             astType,
@@ -386,11 +389,14 @@ public final class AstBuilder {
 
         final TypeReference baseType = type.getBaseType();
 
-        if (baseType != null && !BuiltinTypes.Object.equals(baseType)) {
+        if (baseType != null && !type.isEnum() && !BuiltinTypes.Object.equals(baseType)) {
             astType.addChild(convertType(baseType), Roles.BASE_TYPE);
         }
 
         for (final TypeReference interfaceType : type.getExplicitInterfaces()) {
+            if (type.isAnnotation() && "java/lang/annotations/Annotation".equals(interfaceType.getInternalName())) {
+                continue;
+            }
             astType.addChild(convertType(interfaceType), Roles.IMPLEMENTED_INTERFACE);
         }
 
