@@ -72,6 +72,7 @@ public class JavaFormattingOptions {
     public boolean SpaceBeforeConstructorDeclarationParameterComma;
     public boolean SpaceAfterConstructorDeclarationParameterComma;
     public boolean SpaceWithinConstructorDeclarationParentheses;
+    public boolean SpaceWithinEnumDeclarationParentheses;
     public boolean SpaceBeforeIndexerDeclarationBracket;
     public boolean SpaceWithinIndexerDeclarationBracket;
     public boolean SpaceBeforeIndexerDeclarationParameterComma;

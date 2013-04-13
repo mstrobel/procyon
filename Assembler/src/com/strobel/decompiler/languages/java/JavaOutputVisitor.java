@@ -1697,8 +1697,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitArrayInitializerExpression(final ArrayInitializerExpression node, final Void _) {
         startNode(node);
+
+        if (node.getParent() instanceof ArrayCreationExpression) {
+            space();
+        }
+
         writeInitializerElements(node.getElements());
         endNode(node);
+
         return null;
     }
 
@@ -1794,6 +1800,38 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         node.getDeclaringType().acceptVisitor(this, _);
         writeToken(MethodGroupExpression.DOUBLE_COLON_ROLE);
         writeIdentifier(node.getMethodName());
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitEnumValueDeclaration(final EnumValueDeclaration node, final Void _) {
+        startNode(node);
+        writeAnnotations(node.getAnnotations(), true);
+        writeIdentifier(node.getName());
+
+        final AstNodeCollection<Expression> arguments = node.getArguments();
+
+        if (!arguments.isEmpty()) {
+            writeCommaSeparatedListInParenthesis(arguments, policy.SpaceWithinEnumDeclarationParentheses);
+        }
+
+        boolean isLast = true;
+
+        for (AstNode next = node.getNextSibling(); next != null; next = next.getNextSibling()) {
+            if (next.getRole() == Roles.TYPE_MEMBER) {
+                isLast = !(next instanceof EnumValueDeclaration);
+                break;
+            }
+        }
+
+        if (isLast) {
+            semicolon();
+        }
+        else {
+            comma(node.getNextSibling());
+        }
+
         endNode(node);
         return null;
     }

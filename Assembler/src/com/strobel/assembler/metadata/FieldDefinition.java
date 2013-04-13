@@ -52,7 +52,7 @@ public class FieldDefinition extends FieldReference implements IMemberDefinition
     // <editor-fold defaultstate="collapsed" desc="Field Attributes">
 
     public final boolean isEnumConstant() {
-        return (getModifiers() & Flags.ENUM) != 0;
+        return Flags.testAny(getFlags(), Flags.ENUM);
     }
 
     @Override

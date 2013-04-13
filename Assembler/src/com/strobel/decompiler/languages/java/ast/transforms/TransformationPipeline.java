@@ -24,6 +24,7 @@ public final class TransformationPipeline {
     @SuppressWarnings("UnusedParameters")
     public static IAstTransform[] createPipeline(final DecompilerContext context) {
         return new IAstTransform[] {
+            new EnumRewriterTransform(context),
             new PatternStatementTransform(context),
             new BreakTargetRelocation(),
             new DeclareVariablesTransform(context)

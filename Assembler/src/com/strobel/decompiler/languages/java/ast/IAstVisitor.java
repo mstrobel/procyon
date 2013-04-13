@@ -83,4 +83,5 @@ public interface IAstVisitor<T, R> {
     R visitAnonymousObjectCreationExpression(AnonymousObjectCreationExpression node, T data);
     R visitWildcardType(WildcardType node, T data);
     R visitMethodGroupExpression(MethodGroupExpression node, T data);
+    R visitEnumValueDeclaration(EnumValueDeclaration enumValueDeclaration, T data);
 }
