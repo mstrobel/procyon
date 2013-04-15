@@ -308,6 +308,24 @@ public class StackMappingVisitor implements MethodVisitor {
         _stack.add(value);
     }
 
+    protected void initialize(final FrameValue value, final TypeReference type) {
+        VerifyArgument.notNull(type, "type");
+
+        final FrameValue initializedValue = FrameValue.makeReference(type);
+
+        for (int i = 0; i < _stack.size(); i++) {
+            if (_stack.get(i) == value) {
+                _stack.set(i, initializedValue);
+            }
+        }
+
+        for (int i = 0; i < _locals.size(); i++) {
+            if (_locals.get(i) == value) {
+                _locals.set(i, initializedValue);
+            }
+        }
+    }
+
     private final class InstructionAnalyzer implements InstructionVisitor {
         private final InstructionVisitor _innerVisitor;
         private final MethodBody _body;
@@ -580,12 +598,17 @@ public class StackMappingVisitor implements MethodVisitor {
 
                             if (code == OpCode.INVOKESPECIAL) {
                                 final FrameValue firstParameter = _stack.get(parameters.size());
+                                final FrameValueType firstParameterType = firstParameter.getType();
 
-                                if (firstParameter.getType() == FrameValueType.UninitializedThis) {
-                                    set(0, FrameValue.makeReference(_body.getMethod().getDeclaringType()));
-                                }
-                                else if (firstParameter.getType() == FrameValueType.Uninitialized) {
-                                    set(0, FrameValue.makeReference(method.getDeclaringType()));
+                                if (firstParameterType == FrameValueType.UninitializedThis ||
+                                    firstParameterType == FrameValueType.Uninitialized) {
+
+                                    if (firstParameterType == FrameValueType.UninitializedThis) {
+                                        initialize(firstParameter, _body.getMethod().getDeclaringType());
+                                    }
+                                    else {
+                                        initialize(firstParameter, method.getDeclaringType());
+                                    }
                                 }
                             }
 

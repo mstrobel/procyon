@@ -92,6 +92,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
     // <editor-fold defaultstate="collapsed" desc="For Loop Transform">
 
+    @SuppressWarnings("ConstantConditions")
     public final ForStatement transformFor(final WhileStatement node) {
         final Expression condition = node.getCondition();
 
@@ -267,50 +268,85 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
     private boolean canInlineInitializerDeclarations(final ForStatement forLoop) {
         TypeReference variableType = null;
 
-        for (final Statement initializer : forLoop.getInitializers()) {
-            final AssignmentExpression assignment = (AssignmentExpression) ((ExpressionStatement) initializer).getExpression();
-            final IdentifierExpression variable = (IdentifierExpression) assignment.getLeft();
-            final String variableName = variable.getIdentifier();
-            final VariableDeclarationStatement declaration = findVariableDeclaration(forLoop, variableName);
+        final BlockStatement tempOuter = new BlockStatement();
+        final BlockStatement temp = new BlockStatement();
+        final Statement[] initializers = forLoop.getInitializers().toArray(new Statement[forLoop.getInitializers().size()]);
 
-            if (declaration == null) {
-                return false;
-            }
+        forLoop.getParent().insertChildBefore(forLoop, tempOuter, BlockStatement.STATEMENT_ROLE);
+        forLoop.remove();
 
-            final Variable underlyingVariable = declaration.getUserData(Keys.VARIABLE);
-
-            if (underlyingVariable == null || underlyingVariable.isParameter()) {
-                return false;
-            }
-
-            if (variableType == null) {
-                variableType = underlyingVariable.getType();
-            }
-            else if (!variableType.equals(underlyingVariable.getType())) {
-                return false;
-            }
-
-            if (!(declaration.getParent() instanceof BlockStatement)) {
-                return false;
-            }
-
-            final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(declaration, forLoop);
-
-            if (declarationPoint != forLoop) {
-                return false;
-            }
+        for (final Statement initializer : initializers) {
+            initializer.remove();
+            temp.getStatements().add(initializer);
         }
 
-        return variableType != null;
+        temp.getStatements().add(forLoop);
+        tempOuter.getStatements().add(temp);
+
+        try {
+            for (final Statement initializer : initializers) {
+                final AssignmentExpression assignment = (AssignmentExpression) ((ExpressionStatement) initializer).getExpression();
+                final IdentifierExpression variable = (IdentifierExpression) assignment.getLeft();
+                final String variableName = variable.getIdentifier();
+                final VariableDeclarationStatement declaration = findVariableDeclaration(forLoop, variableName);
+
+                if (declaration == null) {
+                    return false;
+                }
+
+                final Variable underlyingVariable = declaration.getUserData(Keys.VARIABLE);
+
+                if (underlyingVariable == null || underlyingVariable.isParameter()) {
+                    return false;
+                }
+
+                if (variableType == null) {
+                    variableType = underlyingVariable.getType();
+                }
+                else if (!variableType.equals(underlyingVariable.getType())) {
+                    return false;
+                }
+
+                if (!(declaration.getParent() instanceof BlockStatement)) {
+                    return false;
+                }
+
+                final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(declaration, forLoop);
+
+                if (declarationPoint != tempOuter) {
+                    return false;
+                }
+            }
+
+            return variableType != null;
+        }
+        finally {
+            forLoop.remove();
+            tempOuter.replaceWith(forLoop);
+
+            for (final Statement initializer : initializers) {
+                initializer.remove();
+                forLoop.getInitializers().add(initializer);
+            }
+        }
     }
 
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="For Each Loop Transform (Arrays)">
 
+    private final static ExpressionStatement ARRAY_INIT_PATTERN;
     private final static ForStatement FOR_ARRAY_PATTERN;
+    private final static ForStatement ALT_FOR_ARRAY_PATTERN;
 
     static {
+        ARRAY_INIT_PATTERN = new ExpressionStatement(
+            new AssignmentExpression(
+                new NamedNode("array", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                new AnyNode("initializer").toExpression()
+            )
+        );
+
         final ForStatement forArrayPattern = new ForStatement();
         final VariableDeclarationStatement declaration = new VariableDeclarationStatement();
         final SimpleType variableType = new SimpleType("int");
@@ -362,7 +398,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                     new NamedNode("item", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
                     AssignmentOperatorType.ASSIGN,
                     new IndexerExpression(
-                        new AnyNode("array").toExpression(),
+                        new BackReference("array").toExpression(),
                         new BackReference("index").toExpression()
                     )
                 )
@@ -378,33 +414,85 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         forArrayPattern.setEmbeddedStatement(embeddedStatement);
 
         FOR_ARRAY_PATTERN = forArrayPattern;
+
+        final ForStatement altForArrayPattern = new ForStatement();
+
+        altForArrayPattern.getInitializers().add(
+            new ExpressionStatement(
+                new AssignmentExpression(
+                    new NamedNode("length", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    AssignmentOperatorType.ASSIGN,
+                    new NamedNode("array", new IdentifierExpression(Pattern.ANY_STRING)).toExpression().member("length")
+                )
+            )
+        );
+
+        altForArrayPattern.getInitializers().add(
+            new ExpressionStatement(
+                new AssignmentExpression(
+                    new NamedNode("index", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    AssignmentOperatorType.ASSIGN,
+                    new PrimitiveExpression(0)
+                )
+            )
+        );
+
+        altForArrayPattern.setCondition(
+            new BinaryOperatorExpression(
+                new BackReference("index").toExpression(),
+                BinaryOperatorType.LESS_THAN,
+                new BackReference("length").toExpression()
+            )
+        );
+
+        altForArrayPattern.getIterators().add(
+            new ExpressionStatement(
+                new UnaryOperatorExpression(
+                    UnaryOperatorType.INCREMENT,
+                    new BackReference("index").toExpression()
+                )
+            )
+        );
+
+        final BlockStatement altEmbeddedStatement = new BlockStatement();
+
+        altEmbeddedStatement.add(
+            new ExpressionStatement(
+                new AssignmentExpression(
+                    new NamedNode("item", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    AssignmentOperatorType.ASSIGN,
+                    new IndexerExpression(
+                        new BackReference("array").toExpression(),
+                        new BackReference("index").toExpression()
+                    )
+                )
+            )
+        );
+
+        altEmbeddedStatement.add(
+            new Repeat(
+                new AnyNode("statement")
+            ).toStatement()
+        );
+
+        altForArrayPattern.setEmbeddedStatement(altEmbeddedStatement);
+
+        ALT_FOR_ARRAY_PATTERN = altForArrayPattern;
     }
 
     public final ForEachStatement transformForEachInArray(final ForStatement loop) {
-        final Match m = FOR_ARRAY_PATTERN.match(loop);
+        Match m = FOR_ARRAY_PATTERN.match(loop);
 
         if (!m.success()) {
-            return null;
+            m = ALT_FOR_ARRAY_PATTERN.match(loop);
+
+            if (!m.success()) {
+                return null;
+            }
         }
 
-        final VariableDeclarationStatement declaration = m.<VariableDeclarationStatement>get("declaration").iterator().next();
         final IdentifierExpression array = m.<IdentifierExpression>get("array").iterator().next();
-        final IdentifierExpression index = m.<IdentifierExpression>get("index").iterator().next();
-        final IdentifierExpression length = m.<IdentifierExpression>get("length").iterator().next();
         final IdentifierExpression item = m.<IdentifierExpression>get("item").iterator().next();
-
-        final VariableInitializer lengthDeclaration = getOrDefault(declaration.getVariables(), 0);
-        final VariableInitializer indexDeclaration = getOrDefault(declaration.getVariables(), 1);
-
-        //
-        // Ensure that the length and index variable references match the declaration.
-        //
-
-        if (!Pattern.matchString(length.getIdentifier(), lengthDeclaration.getName()) ||
-            !Pattern.matchString(index.getIdentifier(), indexDeclaration.getName())) {
-
-            return null;
-        }
 
         //
         // Find the declaration of the item variable.  Because we look only outside the loop,
@@ -444,9 +532,10 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         );
 
         final BlockStatement body = new BlockStatement();
+        final BlockStatement parent = (BlockStatement) loop.getParent();
 
         forEach.setEmbeddedStatement(body);
-        ((BlockStatement) loop.getParent()).getStatements().insertBefore(loop, forEach);
+        parent.getStatements().insertBefore(loop, forEach);
 
         loop.remove();
         body.add(loop);
@@ -458,6 +547,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         //
 
         array.remove();
+
         forEach.setInExpression(array);
 
         final AstNodeCollection<Statement> bodyStatements = body.getStatements();
@@ -470,8 +560,56 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         }
 
         itemDeclaration.remove();
-        indexDeclaration.remove();
-        lengthDeclaration.remove();
+
+        final Statement previous = forEach.getPreviousStatement();
+
+        if (previous != null) {
+            final Match m2 = ARRAY_INIT_PATTERN.match(previous);
+
+            if (m2.success()) {
+                final Expression initializer = m2.<Expression>get("initializer").iterator().next();
+                final IdentifierExpression array2 = m2.<IdentifierExpression>get("array").iterator().next();
+
+                if (StringUtilities.equals(array2.getIdentifier(), array.getIdentifier())) {
+                    final BlockStatement tempOuter = new BlockStatement();
+                    final BlockStatement temp = new BlockStatement();
+
+                    boolean restorePrevious = true;
+
+                    parent.insertChildBefore(forEach, tempOuter, BlockStatement.STATEMENT_ROLE);
+                    previous.remove();
+                    forEach.remove();
+                    temp.add(previous);
+                    temp.add(forEach);
+                    tempOuter.add(temp);
+
+                    try {
+                        final VariableDeclarationStatement arrayDeclaration = findVariableDeclaration(forEach, array.getIdentifier());
+
+                        if (arrayDeclaration != null && arrayDeclaration.getParent() instanceof BlockStatement) {
+                            final Statement arrayDeclarationPoint = canMoveVariableDeclarationIntoStatement(arrayDeclaration, forEach);
+
+                            if (arrayDeclarationPoint == tempOuter) {
+                                initializer.remove();
+                                array.replaceWith(initializer);
+                                restorePrevious = false;
+                            }
+                        }
+                    }
+                    finally {
+                        previous.remove();
+                        forEach.remove();
+
+                        if (restorePrevious) {
+                            parent.insertChildBefore(tempOuter, previous, BlockStatement.STATEMENT_ROLE);
+                        }
+
+                        parent.insertChildBefore(tempOuter, forEach, BlockStatement.STATEMENT_ROLE);
+                        tempOuter.remove();
+                    }
+                }
+            }
+        }
 
         return forEach;
     }
@@ -844,6 +982,10 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         final VariableDeclarationStatement declaration,
         final Statement targetStatement) {
 
+        if (declaration == null) {
+            return null;
+        }
+
         final BlockStatement parent = (BlockStatement) declaration.getParent();
 
         //noinspection AssertWithSideEffects
@@ -877,13 +1019,16 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         final StrongBox<Statement> declarationPoint = new StrongBox<>();
         final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(blocks.get(0));
 
+        Statement result = null;
+
         for (final BlockStatement block : blocks) {
             if (!DeclareVariablesTransform.findDeclarationPoint(analysis, declaration, block, declarationPoint)) {
-                return null;
+                break;
             }
+            result = declarationPoint.get();
         }
 
-        return declarationPoint.get();
+        return result;
     }
 
     // </editor-fold>

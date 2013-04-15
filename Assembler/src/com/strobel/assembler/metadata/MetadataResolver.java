@@ -88,13 +88,13 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
         }
 
         if (t.isNested()) {
-            final TypeReference declaringType = t.getDeclaringType().resolve();
+            final TypeDefinition declaringType = t.getDeclaringType().resolve();
 
-            if (!(declaringType instanceof TypeDefinition)) {
+            if (declaringType == null) {
                 return null;
             }
 
-            return getNestedType(((TypeDefinition) declaringType).getDeclaredTypes(), type);
+            return getNestedType(declaringType.getDeclaredTypes(), type);
         }
 
         return resolveCore(t);
@@ -189,52 +189,6 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
             }
         }
 
-/*
-        while (type != null) {
-            final MethodDefinition method = getMethod(type.getDeclaredMethods(), reference);
-
-            if (method != null) {
-                return method;
-            }
-
-            final TypeReference baseType = type.getBaseType();
-
-            if (baseType == null) {
-                break;
-            }
-
-            type = resolve(baseType);
-        }
-
-        type = declaringType;
-
-        while (type != null) {
-            final List<TypeReference> explicitInterfaces = type.getExplicitInterfaces();
-
-            for (int i = 0; i < explicitInterfaces.size(); i++) {
-                final TypeReference interfaceType = explicitInterfaces.get(i);
-                final TypeDefinition resolvedInterfaceType = interfaceType.resolve();
-
-                if (resolvedInterfaceType == null) {
-                    continue;
-                }
-
-                final MethodDefinition interfaceMethod = getMethod(resolvedInterfaceType.getDeclaredMethods(), reference);
-
-                if (interfaceMethod != null) {
-                    return interfaceMethod;
-                }
-            }
-
-            final TypeReference baseType = type.getBaseType();
-
-            if (baseType == null) {
-                return null;
-            }
-
-            type = resolve(baseType);
-        }*/
-
         return null;
     }
 
@@ -327,13 +281,15 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
             return false;
         }
 
-/*
-        if (!a.isDefinition() && b.isDefinition()) {
-            return areEquivalent(a.resolve(), b);
-        }
-*/
-
         if (a.getSimpleType() != b.getSimpleType()) {
+            return false;
+        }
+
+        if (a.isArray()) {
+            return areEquivalent(a.getUnderlyingType(), b.getUnderlyingType());
+        }
+
+        if (!StringUtilities.equals(a.getInternalName(), b.getInternalName())) {
             return false;
         }
 
@@ -369,18 +325,6 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
                 return a instanceof IGenericInstance &&
                        areEquivalent((IGenericInstance) a, (IGenericInstance) b);
             }
-
-            return StringUtilities.equals(a.getErasedSignature(), b.getErasedSignature());
-        }
-
-        if (a.isArray()) {
-            return areEquivalent(a.getUnderlyingType(), b.getUnderlyingType());
-        }
-
-        if (!StringComparator.Ordinal.equals(a.getName(), b.getName()) ||
-            !StringComparator.Ordinal.equals(a.getPackageName(), b.getPackageName())) {
-
-            return false;
         }
 
         // TODO: Check scope.
@@ -469,10 +413,8 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
         final IGenericParameterProvider ownerB = b.getOwner();
 
         if (ownerA instanceof TypeDefinition) {
-            if (!(ownerB instanceof TypeDefinition)) {
-                return false;
-            }
-            return areEquivalent((TypeDefinition)ownerA, (TypeDefinition)ownerB);
+            return ownerB instanceof TypeDefinition &&
+                   areEquivalent((TypeDefinition) ownerA, (TypeDefinition) ownerB);
         }
 
         if (ownerA instanceof MethodDefinition) {

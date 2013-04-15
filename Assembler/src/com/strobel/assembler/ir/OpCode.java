@@ -505,9 +505,9 @@ public enum OpCode {
     private static OpCode[] getOpcodeBlock(final int prefix) {
         switch (prefix) {
             case STANDARD:
-                return _standardOpCodes;
+                return standardOpCodes;
             case WIDE:
-                return _wideOpCodes;
+                return wideOpCodes;
             default:
                 return null;
         }
@@ -519,12 +519,15 @@ public enum OpCode {
     public static final int STANDARD = 0x00;
     public static final int WIDE = 0xC4;
 
-    private static OpCode[] _standardOpCodes = new OpCode[256];
-    private static OpCode[] _wideOpCodes = new OpCode[256];
+    private static final OpCode[] standardOpCodes = new OpCode[256];
+    private static final OpCode[] wideOpCodes = new OpCode[256];
 
     static {
         for (final OpCode o : values()) {
             getOpcodeBlock(o._code >> 8)[o._code & 0xff] = o;
+        }
+        for (final FlowControl o : FlowControl.values()) {
+            System.out.println(o.name());
         }
     }
 

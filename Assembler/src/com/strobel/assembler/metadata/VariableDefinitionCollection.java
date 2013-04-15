@@ -270,6 +270,7 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     public final void mergeVariables() {
         final ArrayList<VariableDefinition> slotSharers = new ArrayList<>();
 

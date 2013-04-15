@@ -1395,7 +1395,7 @@ public final class AstBuilder {
                                     if (stackValue.getParameter() instanceof Instruction &&
                                         ((Instruction) stackValue.getParameter()).getOpCode() == OpCode.NEW) {
 
-                                        variableType = (TypeReference) ((Instruction) stackValue.getParameter()).getOperand(0);
+                                        variableType = ((Instruction) stackValue.getParameter()).getOperand(0);
                                     }
                                     else {
                                         variableType = variableDefinition.getVariableType();
@@ -2137,6 +2137,7 @@ public final class AstBuilder {
         }
 
         @Override
+        @SuppressWarnings("ConstantConditions")
         public final String toString() {
             final StringBuilder sb = new StringBuilder();
 
