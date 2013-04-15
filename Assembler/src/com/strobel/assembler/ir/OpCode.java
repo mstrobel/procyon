@@ -526,9 +526,6 @@ public enum OpCode {
         for (final OpCode o : values()) {
             getOpcodeBlock(o._code >> 8)[o._code & 0xff] = o;
         }
-        for (final FlowControl o : FlowControl.values()) {
-            System.out.println(o.name());
-        }
     }
 
     private static final byte[] stackChange = {
