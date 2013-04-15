@@ -552,7 +552,7 @@ public final class TypeAnalysis {
                     );
                 }
 
-                return getFieldType((FieldReference) operand);
+                return null; //getFieldType((FieldReference) operand);
             }
 
             case PutStatic: {
@@ -563,7 +563,7 @@ public final class TypeAnalysis {
                     );
                 }
 
-                return getFieldType((FieldReference) operand);
+                return null; //getFieldType((FieldReference) operand);
             }
 
             case __New: {

@@ -562,6 +562,8 @@ final class Inlining {
 
     private static boolean canBeExpressionStatement(final Expression expression) {
         switch (expression.getCode()) {
+            case PutStatic:
+            case PutField:
             case InvokeVirtual:
             case InvokeSpecial:
             case InvokeStatic:
