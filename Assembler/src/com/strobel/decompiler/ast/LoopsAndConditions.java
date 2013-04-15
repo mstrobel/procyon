@@ -440,7 +440,6 @@ final class LoopsAndConditions {
                     final ControlFlowNode defaultTarget = labelsToNodes.get(defaultLabel);
 
                     boolean defaultFollowsSwitch = false;
-                    List<CaseBlock> defaultPredecessors = null;
 
                     for (int i = 1; i < labels.length; i++) {
                         final Label caseLabel = labels[i];
@@ -466,18 +465,7 @@ final class LoopsAndConditions {
                             final List<Node> caseBody = caseBlock.getBody();
 
                             if (caseLabel == defaultLabel) {
-                                if (defaultPredecessors == null) {
-                                    defaultPredecessors = new ArrayList<>();
-                                }
-
-                                defaultPredecessors.add(caseBlock);
-
-                                final BasicBlock gotoDefault = new BasicBlock();
-
-                                gotoDefault.getBody().add(new Label("GotoDefault_" + _nextLabelIndex++));
-                                gotoDefault.getBody().add(new Expression(AstCode.Goto, defaultLabel));
-
-                                caseBody.add(gotoDefault);
+                                continue;
                             }
                             else {
                                 switchNode.getCaseBlocks().add(caseBlock);
@@ -527,12 +515,6 @@ final class LoopsAndConditions {
                             else {
                                 caseBlock.getValues().add(keys[i - 1]);
                             }
-                        }
-                    }
-
-                    if (defaultPredecessors != null) {
-                        for (final CaseBlock caseBlock : defaultPredecessors) {
-                            switchNode.getCaseBlocks().add(caseBlock);
                         }
                     }
 
