@@ -56,7 +56,8 @@ public class TypePrinter implements TypeVisitor {
 
         if (genericSignature != null) {
             _output.writeAttribute("Signature");
-            _output.write(": %s", genericSignature);
+            _output.write(": ");
+            _output.writeTextLiteral(genericSignature);
             _output.writeLine();
         }
 

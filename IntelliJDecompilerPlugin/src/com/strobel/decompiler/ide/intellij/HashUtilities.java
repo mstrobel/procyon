@@ -28,6 +28,10 @@ final class HashUtilities {
         InputStream inputStream = null;
 
         try {
+            if (physicalFile.isDirectory()) {
+                return DigestUtils.shaHex(physicalFile.getCanonicalPath());
+            }
+
             inputStream = physicalFile.getInputStream();
             final String hash = DigestUtils.shaHex(StreamUtil.loadFromStream(inputStream));
             Logger.getInstance(HashUtilities.class).info(physicalFile + " -> " + hash);

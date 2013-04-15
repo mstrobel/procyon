@@ -40,8 +40,10 @@ import com.strobel.decompiler.ast.Range;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class MethodReader {
@@ -596,10 +598,62 @@ public class MethodReader {
         cfg.computeDominance();
         cfg.computeDominanceFrontier();
 
+        final List<ControlFlowNode> nodes = cfg.getNodes();
+        final Map<Instruction, ControlFlowNode> nodeLookup = new IdentityHashMap<>();
+
+        for (int j = 0; j < nodes.size(); j++) {
+            final ControlFlowNode node = nodes.get(j);
+
+            if (node.getNodeType() != ControlFlowNodeType.Normal) {
+                continue;
+            }
+
+            for (Instruction i = node.getStart();
+                 i != null && i.getOffset() < node.getEnd().getEndOffset();
+                 i = i.getNext()) {
+
+                nodeLookup.put(i, node);
+            }
+        }
+
         for (int i = 0; i < entries.size(); i++) {
-            final HandlerWithRange entry = entries.get(i);
             int minOffset = Integer.MAX_VALUE;
-            final List<ControlFlowNode> nodes = cfg.getNodes();
+
+            HandlerWithRange entry = entries.get(i);
+            ControlFlowNode tryEnd = null;
+
+            for (int j = 0; j < nodes.size(); j++) {
+                final ControlFlowNode node = nodes.get(j);
+                final Instruction end = node.getEnd();
+
+                if (end != null && end.getOffset() == entry.entry.getEndOffset()) {
+                    final Instruction previousInstruction = node.getStart().getPrevious();
+                    final Instruction firstHandlerInstruction = body.atOffset(entry.range.getStart());
+
+                    if (end.getOpCode() == OpCode.GOTO && end.getNext() == firstHandlerInstruction) {
+                        tryEnd = nodeLookup.get(end);
+
+/*
+                        entry = new HandlerWithRange(
+                            new ExceptionTableEntry(
+                                entry.entry.getStartOffset(),
+                                end.getEndOffset(),
+                                entry.entry.getHandlerOffset(),
+                                entry.entry.getCatchType()
+                            ),
+                            entry.range
+                        );
+
+                        entries.set(i, entry);
+*/
+                    }
+                    else if (previousInstruction != null) {
+                        tryEnd = nodeLookup.get(previousInstruction);
+                    }
+
+                    break;
+                }
+            }
 
             for (int j = 0; j < nodes.size(); j++) {
                 final ControlFlowNode node = nodes.get(j);
@@ -609,7 +663,7 @@ public class MethodReader {
                 }
 
                 if (node.getStart().getOffset() == entry.range.getStart()) {
-                    final ControlFlowNode end = findHandlerEnd(node, new LinkedHashSet<ControlFlowNode>(), cfg.getRegularExit());
+                    final ControlFlowNode end = findHandlerEnd(node, tryEnd, new LinkedHashSet<ControlFlowNode>(), cfg.getRegularExit());
 
                     if (end != null && end.getNodeType() == ControlFlowNodeType.Normal) {
                         minOffset = end.getEnd().getEndOffset();
@@ -698,7 +752,7 @@ public class MethodReader {
 
     private static ControlFlowNode findHandlerEnd(
         final ControlFlowNode node,
-        final Set<ControlFlowNode> visited,
+        final ControlFlowNode tryEnd, final Set<ControlFlowNode> visited,
         final ControlFlowNode regularExit) {
 
         if (!visited.add(node)) {
@@ -710,8 +764,12 @@ public class MethodReader {
                 continue;
             }
 
+            if (tryEnd != null && tryEnd.dominates(successor)) {
+                continue;
+            }
+
             if (successor.getDominatorTreeChildren().isEmpty()) {
-                final ControlFlowNode result = findHandlerEnd(successor, visited, regularExit);
+                final ControlFlowNode result = findHandlerEnd(successor, tryEnd, visited, regularExit);
 
                 if (result != null) {
                     return result;

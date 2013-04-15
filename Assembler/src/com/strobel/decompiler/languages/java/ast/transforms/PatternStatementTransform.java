@@ -177,21 +177,25 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         final Stack<Statement> initializers = new Stack<>();
 
         for (Statement s = node.getPreviousStatement(); s instanceof ExpressionStatement; s = s.getPreviousStatement()) {
+            final Statement fs = s;
             final Expression e = ((ExpressionStatement) s).getExpression();
             final Expression left;
 
-            final boolean canExtract = e instanceof AssignmentExpression &&
-                                       (left = e.getChildByRole(AssignmentExpression.LEFT_ROLE)) instanceof IdentifierExpression &&
-                                       (areCorrelated(condition, s) ||
-                                        any(
-                                            iterators,
-                                            new Predicate<Statement>() {
-                                                @Override
-                                                public boolean test(final Statement i) {
-                                                    return areCorrelated(left, i);
-                                                }
-                                            }
-                                        ));
+            final boolean canExtract =
+                e instanceof AssignmentExpression &&
+                (left = e.getChildByRole(AssignmentExpression.LEFT_ROLE)) instanceof IdentifierExpression &&
+                (areCorrelated(condition, s) ||
+                 any(
+                     iterators,
+                     new Predicate<Statement>() {
+                         @Override
+                         public boolean test(final Statement i) {
+                             return (i instanceof ExpressionStatement &&
+                                     areCorrelated(((ExpressionStatement) i).getExpression(), fs)) ||
+                                    areCorrelated(left, i);
+                         }
+                     }
+                 ));
 
             if (canExtract) {
                 initializers.add(s);
@@ -228,14 +232,25 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
         node.replaceWith(forLoop);
 
-        if (canInlineInitializerDeclarations(forLoop)) {
+        final Statement firstInlinableInitializer = canInlineInitializerDeclarations(forLoop);
+
+        if (firstInlinableInitializer != null) {
+            final BlockStatement parent = (BlockStatement) forLoop.getParent();
             final VariableDeclarationStatement newDeclaration = new VariableDeclarationStatement();
             final List<Statement> forInitializers = new ArrayList<>(forLoop.getInitializers());
+            final int firstInlinableInitializerIndex = forInitializers.indexOf(firstInlinableInitializer);
 
             forLoop.getInitializers().clear();
             forLoop.getInitializers().add(newDeclaration);
 
-            for (final Statement initializer : forInitializers) {
+            for (int i = 0; i < forInitializers.size(); i++) {
+                final Statement initializer = forInitializers.get(i);
+
+                if (i < firstInlinableInitializerIndex) {
+                    parent.insertChildBefore(forLoop, initializer, BlockStatement.STATEMENT_ROLE);
+                    continue;
+                }
+
                 final AssignmentExpression assignment = (AssignmentExpression) ((ExpressionStatement) initializer).getExpression();
                 final IdentifierExpression variable = (IdentifierExpression) assignment.getLeft();
                 final String variableName = variable.getIdentifier();
@@ -252,6 +267,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                     newDeclaration.setType(declaration.getType().clone());
                 }
 
+/*
                 if (oldInitializer != null && !oldInitializer.isNull()) {
                     oldInitializer.remove();
 
@@ -259,18 +275,21 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                         declaration.remove();
                     }
                 }
+*/
             }
         }
 
         return forLoop;
     }
 
-    private boolean canInlineInitializerDeclarations(final ForStatement forLoop) {
+    private Statement canInlineInitializerDeclarations(final ForStatement forLoop) {
         TypeReference variableType = null;
 
         final BlockStatement tempOuter = new BlockStatement();
         final BlockStatement temp = new BlockStatement();
         final Statement[] initializers = forLoop.getInitializers().toArray(new Statement[forLoop.getInitializers().size()]);
+
+        Statement firstInlinableInitializer = null;
 
         forLoop.getParent().insertChildBefore(forLoop, tempOuter, BlockStatement.STATEMENT_ROLE);
         forLoop.remove();
@@ -291,34 +310,39 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                 final VariableDeclarationStatement declaration = findVariableDeclaration(forLoop, variableName);
 
                 if (declaration == null) {
-                    return false;
+                    return null;
                 }
 
                 final Variable underlyingVariable = declaration.getUserData(Keys.VARIABLE);
 
                 if (underlyingVariable == null || underlyingVariable.isParameter()) {
-                    return false;
+                    return null;
                 }
 
                 if (variableType == null) {
                     variableType = underlyingVariable.getType();
                 }
                 else if (!variableType.equals(underlyingVariable.getType())) {
-                    return false;
+                    variableType = underlyingVariable.getType();
+                    firstInlinableInitializer = null;
                 }
 
                 if (!(declaration.getParent() instanceof BlockStatement)) {
-                    return false;
+                    return null;
                 }
 
                 final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(declaration, forLoop);
 
                 if (declarationPoint != tempOuter) {
-                    return false;
+                    variableType = null;
+                    firstInlinableInitializer = null;
+                }
+                else if (firstInlinableInitializer == null) {
+                    firstInlinableInitializer = initializer;
                 }
             }
 
-            return variableType != null;
+            return firstInlinableInitializer;
         }
         finally {
             forLoop.remove();

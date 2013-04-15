@@ -79,7 +79,7 @@ public class MethodPrinter implements MethodVisitor {
 
         if ("<clinit>".equals(_name)) {
             _output.writeKeyword("static");
-            _output.write("{}");
+            _output.write(" {}");
         }
         else {
             final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(_flags & Flags.MethodFlags);
@@ -304,7 +304,7 @@ public class MethodPrinter implements MethodVisitor {
                     _output.write("  ");
                     _output.writeLiteral(format("%1$-5d", handler.getTryBlock().getLastInstruction().getEndOffset()));
                     _output.write("  ");
-                    _output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getLastInstruction().getEndOffset()));
+                    _output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getFirstInstruction().getOffset()));
                     _output.write("  ");
                     _output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getLastInstruction().getEndOffset()));
                     _output.write("  ");

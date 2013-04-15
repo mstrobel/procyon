@@ -403,6 +403,25 @@ public class DeclareVariablesTransform implements IAstTransform {
             }
         }
 
+        if (node instanceof ForStatement) {
+            final ForStatement forLoop = (ForStatement) node;
+
+            for (final Statement statement : forLoop.getInitializers()) {
+                if (statement instanceof VariableDeclarationStatement) {
+                    final AstNodeCollection<VariableInitializer> variables = ((VariableDeclarationStatement) statement).getVariables();
+
+                    for (final VariableInitializer variable : variables) {
+                        if (StringUtilities.equals(variable.getName(), variableName)) {
+                            //
+                            // No need to introduce the variable here.
+                            //
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
         if (node instanceof ForEachStatement) {
             if (StringUtilities.equals(((ForEachStatement) node).getVariableName(), variableName)) {
                 //

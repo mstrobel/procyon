@@ -14,14 +14,15 @@
 package com.strobel.decompiler.ide.intellij;
 
 import com.intellij.lang.Language;
-import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.Result;
+import com.intellij.openapi.application.WriteAction;
 import com.intellij.openapi.components.ServiceManager;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.fileEditor.impl.FileDocumentManagerImpl;
 import com.intellij.openapi.fileTypes.ContentBasedClassFileProcessor;
 import com.intellij.openapi.fileTypes.StdFileTypes;
 import com.intellij.openapi.fileTypes.SyntaxHighlighter;
-import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
@@ -35,6 +36,7 @@ import java.nio.charset.Charset;
 import java.util.UUID;
 
 public class JavaDecompilerClassFileProcessor implements ContentBasedClassFileProcessor {
+    private final static Logger LOGGER = Logger.getInstance(JavaDecompilerClassFileProcessor.class);
 
     private final JavaDecompilerService _javaDecompilerService;
 //    private final JavaDecompilerComponent _jdPluginComponent = ApplicationManager.getApplication().getComponent(JavaDecompilerComponent.class);
@@ -51,8 +53,15 @@ public class JavaDecompilerClassFileProcessor implements ContentBasedClassFilePr
     @NotNull
     @Override
     public SyntaxHighlighter createHighlighter(final Project project, final VirtualFile vFile) {
+        final VirtualFile sourceFile = new WriteAction<VirtualFile>() {
+            @Override
+            protected void run(final Result<VirtualFile> result) throws Throwable {
+                result.setResult(createSourceFile(vFile));
+            }
+        }.execute().throwException().getResultObject();
+
         //noinspection ConstantConditions
-        return SyntaxHighlighterFactory.getSyntaxHighlighter(StdFileTypes.JAVA, project, createSourceFile(vFile));
+        return SyntaxHighlighter.PROVIDER.create(StdFileTypes.JAVA, project, sourceFile);
     }
 
     @NotNull
@@ -101,7 +110,6 @@ public class JavaDecompilerClassFileProcessor implements ContentBasedClassFilePr
 
             final VirtualFile tempFile = root.createChildData(null, UUID.randomUUID().toString() + ".java");
 
-//            tempFile.putUserData(FileDocumentManagerImpl.DOCUMENT_KEY, documentRef);
             tempFile.setCharset(Charset.defaultCharset());
 
             final ByteBuffer encodedText = Charset.defaultCharset().encode(document.getText());
@@ -111,23 +119,19 @@ public class JavaDecompilerClassFileProcessor implements ContentBasedClassFilePr
 
             final BooleanBox succeeded = new BooleanBox();
 
-            ApplicationManager.getApplication().runWriteAction(
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            tempFile.setBinaryContent(contents);
-                        }
-                        catch (Throwable t) {
-                            succeeded.set(false);
-                        }
-                    }
-                }
-            );
+            try {
+                tempFile.setBinaryContent(contents);
+                succeeded.set(true);
+            }
+            catch (Throwable t) {
+                LOGGER.error(t);
+                succeeded.set(false);
+            }
 
             return succeeded.get() ? tempFile : originalFile;
         }
         catch (Throwable t) {
+            LOGGER.error(t);
             return originalFile;
         }
     }

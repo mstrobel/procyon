@@ -36,11 +36,12 @@
   </extensionPoints>
 
   <extensions defaultExtensionNs="com.intellij">
+<!--
     <attachSourcesProvider implementation="com.strobel.decompiler.ide.intellij.JavaDecompilerAttachSourcesProvider" />
 
     <sourceFinderDelegate implementation="com.strobel.decompiler.ide.intellij.JavaDecompilerSourceFinder"/>
+-->
 
-<!--
     <contentBasedClassFileProcessor implementation="com.strobel.decompiler.ide.intellij.JavaDecompilerClassFileProcessor" />
 
     <applicationService serviceInterface="com.strobel.decompiler.ide.intellij.JavaDecompilerService"
@@ -48,7 +49,6 @@
 
     <applicationService serviceInterface="com.strobel.decompiler.ide.intellij.JavaDecompilerRefreshSupportService"
                         serviceImplementation="com.strobel.decompiler.ide.intellij.JavaDecompilerRefreshSupportService" />
--->
 
     <!--<iconProvider implementation="com.strobel.decompiler.ide.intellij.JavaDecompilerIconProvider"/>-->
   </extensions>

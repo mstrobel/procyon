@@ -331,6 +331,13 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
     }
 
     private boolean isTargetTypeCompatible(final TypeReference targetType, final TypeReference sourceType) {
+        //noinspection SimplifiableIfStatement
+        if (sourceType.isPrimitive() || targetType.isPrimitive()) {
+            if (sourceType.isPrimitive() != targetType.isPrimitive()) {
+                return false;
+            }
+        }
+
         return MetadataHelper.isAssignableFrom(targetType, sourceType) ||
                targetType.getSimpleType() == SimpleType.Integer && sourceType.getSimpleType() == SimpleType.Boolean;
     }

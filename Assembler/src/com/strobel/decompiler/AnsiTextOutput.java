@@ -58,47 +58,58 @@ public class AnsiTextOutput extends PlainTextOutput {
 
     @Override
     public void writeLabel(final String value) {
-        write(LABEL.colorize(value));
+        writeAnsi(value, LABEL.colorize(value));
+    }
+
+    protected final void writeAnsi(final String originalText, final String ansiText) {
+        super.write(ansiText);
+
+        if (originalText != null && ansiText != null) {
+            super.column -= (ansiText.length() - originalText.length());
+        }
     }
 
     @Override
     public void writeLiteral(final Object value) {
-        write(LITERAL.colorize(String.valueOf(value)));
+        final String literal = String.valueOf(value);
+        writeAnsi(literal, LITERAL.colorize(literal));
     }
 
     @Override
     public void writeTextLiteral(final Object value) {
-        write(TEXT_LITERAL.colorize(String.valueOf(value)));
+        final String literal = String.valueOf(value);
+        writeAnsi(literal, TEXT_LITERAL.colorize(literal));
     }
 
     @Override
     public void writeComment(final String value) {
-        write(COMMENT.colorize(value));
+        writeAnsi(value, COMMENT.colorize(value));
     }
 
     @Override
     public void writeComment(final String format, final Object... args) {
-        write(COMMENT.colorize(String.format(format, args)));
+        final String text = String.format(format, args);
+        writeAnsi(text, COMMENT.colorize(text));
     }
 
     @Override
     public void writeDelimiter(final String text) {
-        write(DELIMITER.colorize(text));
+        writeAnsi(text, DELIMITER.colorize(text));
     }
 
     @Override
     public void writeAttribute(final String text) {
-        write(ATTRIBUTE.colorize(text));
+        writeAnsi(text, ATTRIBUTE.colorize(text));
     }
 
     @Override
     public void writeOperator(final String text) {
-        write(OPERATOR.colorize(text));
+        writeAnsi(text, OPERATOR.colorize(text));
     }
 
     @Override
     public void writeKeyword(final String text) {
-        write(KEYWORD.colorize(text));
+        writeAnsi(text, KEYWORD.colorize(text));
     }
 
     @Override
@@ -136,7 +147,7 @@ public class AnsiTextOutput extends PlainTextOutput {
             colorizedText = text;
         }
 
-        super.writeDefinition(colorizedText, definition, isLocal);
+        writeAnsi(text, colorizedText);
     }
 
     @Override
@@ -174,7 +185,7 @@ public class AnsiTextOutput extends PlainTextOutput {
             colorizedText = text;
         }
 
-        super.writeReference(colorizedText, reference, isLocal);
+        writeAnsi(text, colorizedText);
     }
 
     private String colorizeType(final String text, final TypeReference type) {

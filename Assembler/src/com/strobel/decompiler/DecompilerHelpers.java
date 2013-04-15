@@ -159,32 +159,32 @@ public final class DecompilerHelpers {
             return;
         }
 
-        if (operand instanceof String) {
-            writer.writeLiteral(JavaOutputVisitor.convertString((String) operand, true));
-            return;
-        }
-
-        if (operand instanceof Character) {
-            writer.writeLiteral(String.valueOf((int) ((Character) operand).charValue()));
-            return;
-        }
-
-        if (operand instanceof Boolean) {
-            writer.writeKeyword(Boolean.TRUE.equals(operand) ? "true" : "false");
-            return;
-        }
-
-        if (operand instanceof Number) {
-            writer.writeLiteral(operand);
-            return;
-        }
+//        if (operand instanceof String) {
+//            writer.writeLiteral(JavaOutputVisitor.convertString((String) operand, true));
+//            return;
+//        }
+//
+//        if (operand instanceof Character) {
+//            writer.writeLiteral(String.valueOf((int) ((Character) operand).charValue()));
+//            return;
+//        }
+//
+//        if (operand instanceof Boolean) {
+//            writer.writeKeyword(Boolean.TRUE.equals(operand) ? "true" : "false");
+//            return;
+//        }
+//
+//        if (operand instanceof Number) {
+//            writer.writeLiteral(operand);
+//            return;
+//        }
 
         if (operand instanceof DynamicCallSite) {
             writeDynamicCallSite(writer, (DynamicCallSite) operand);
             return;
         }
 
-        writer.write(String.valueOf(operand));
+        writePrimitiveValue(writer, operand);;
     }
 
     public static void writeDynamicCallSite(final ITextOutput output, final DynamicCallSite operand) {
@@ -641,6 +641,80 @@ public final class DecompilerHelpers {
 
         for (final TypeReference interfaceType : interfaces) {
             formatType(writer, interfaceType, NameSyntax.SIGNATURE, false, stack);
+        }
+    }
+
+    public static void writePrimitiveValue(final ITextOutput output, final Object value) {
+        if (value == null) {
+            output.writeKeyword("null");
+            return;
+        }
+
+        if (value instanceof Boolean) {
+            if ((Boolean) value) {
+                output.writeKeyword("true");
+            }
+            else {
+                output.writeKeyword("false");
+            }
+            return;
+        }
+
+        if (value instanceof String) {
+            output.writeTextLiteral(JavaOutputVisitor.convertString(value.toString(), true));
+        }
+        else if (value instanceof Character) {
+            output.writeTextLiteral("'" + JavaOutputVisitor.convertCharacter((Character) value) + "'");
+        }
+        else if (value instanceof Float) {
+            final float f = (Float) value;
+            if (Float.isInfinite(f) || Float.isNaN(f)) {
+                output.writeReference("Float", MetadataSystem.instance().lookupType("java/lang/Float"));
+                output.write(".");
+                if (f == Float.POSITIVE_INFINITY) {
+                    output.write("POSITIVE_INFINITY");
+                }
+                else if (f == Float.NEGATIVE_INFINITY) {
+                    output.write("NEGATIVE_INFINITY");
+                }
+                else {
+                    output.write("NaN");
+                }
+                return;
+            }
+            output.writeLiteral(Float.toString(f) + "f");
+        }
+        else if (value instanceof Double) {
+            final double d = (Double) value;
+            if (Double.isInfinite(d) || Double.isNaN(d)) {
+                final TypeReference doubleType = MetadataSystem.instance().lookupType("java/lang/Double");
+                output.writeReference("Double", doubleType);
+                output.write(".");
+                if (d == Double.POSITIVE_INFINITY) {
+                    output.write("POSITIVE_INFINITY");
+                }
+                else if (d == Double.NEGATIVE_INFINITY) {
+                    output.write("NEGATIVE_INFINITY");
+                }
+                else {
+                    output.write("NaN");
+                }
+                return;
+            }
+
+            String number = Double.toString(d);
+
+            if (number.indexOf('.') < 0 && number.indexOf('E') < 0) {
+                number += ".0";
+            }
+
+            output.writeLiteral(number);
+        }
+        else if (value instanceof Long) {
+            output.writeLiteral(String.valueOf(value) + "L");
+        }
+        else {
+            output.writeLiteral(String.valueOf(value));
         }
     }
 }

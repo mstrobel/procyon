@@ -17,7 +17,9 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.ir.ConstantPool;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
@@ -40,15 +42,15 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         MAX_TAG_LENGTH = maxTagLength;
     }
 
-    private final ITextOutput _printer;
+    private final ITextOutput _output;
     private boolean _isHeaderPrinted;
 
-    public ConstantPoolPrinter(final ITextOutput printer) {
-        _printer = VerifyArgument.notNull(printer, "printer");
+    public ConstantPoolPrinter(final ITextOutput output) {
+        _output = VerifyArgument.notNull(output, "output");
     }
 
     protected void printTag(final ConstantPool.Tag tag) {
-        _printer.write("%1$-" + MAX_TAG_LENGTH + "s  ", tag);
+        _output.writeAttribute(format("%1$-" + MAX_TAG_LENGTH + "s  ", tag));
     }
 
     @Override
@@ -56,139 +58,217 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         VerifyArgument.notNull(entry, "entry");
 
         if (!_isHeaderPrinted) {
-            _printer.write("Constant Pool:");
-            _printer.writeLine();
+            _output.writeAttribute("Constant Pool");
+            _output.write(':');
+            _output.writeLine();
             _isHeaderPrinted = true;
         }
 
-        _printer.write("  %1$5d: ", entry.index);
+        _output.indent();
+        _output.writeLiteral(format("%1$5d", entry.index));
+        _output.write(": ");
+
         printTag(entry.getTag());
         entry.accept(this);
-        _printer.writeLine();
+
+        _output.writeLine();
+        _output.unindent();
     }
 
     @Override
     public void visitTypeInfo(final ConstantPool.TypeInfoEntry info) {
-        _printer.write("#%1$-13d //  %2$s", info.nameIndex, info.getName());
+        _output.writeDelimiter("#");
+        _output.writeLiteral(format("%1$-14d", info.nameIndex));
+        _output.writeComment(format("//  %1$s", info.getName()));
     }
 
     @Override
     public void visitDoubleConstant(final ConstantPool.DoubleConstantEntry info) {
-        _printer.write("%1$-13s", info.getConstantValue());
+        DecompilerHelpers.writePrimitiveValue(_output, info.getConstantValue());
     }
 
     @Override
     public void visitFieldReference(final ConstantPool.FieldReferenceEntry info) {
         final ConstantPool.NameAndTypeDescriptorEntry nameAndTypeInfo = info.getNameAndTypeInfo();
+        final int startColumn = _output.getColumn();
 
-        _printer.write(
-            "%1$-14s //  %2$s.%3$s:%4$s",
+        _output.writeDelimiter("#");
+        _output.writeLiteral(info.typeInfoIndex);
+        _output.writeDelimiter(".");
+        _output.writeDelimiter("#");
+        _output.writeLiteral(info.nameAndTypeDescriptorIndex);
+
+        final int endColumn = _output.getColumn();
+        final int padding = (14 - (endColumn - startColumn));
+        final String paddingText = padding > 0 ? StringUtilities.repeat(' ', padding) : "";
+
+        _output.writeComment(
             format(
-                "#%1$d.#%2$d",
-                info.typeInfoIndex,
-                info.nameAndTypeDescriptorIndex
-            ),
-            info.getClassName(),
-            nameAndTypeInfo.getName(),
-            nameAndTypeInfo.getType()
+                paddingText + " //  %1$s.%2$s:%3$s",
+                info.getClassName(),
+                nameAndTypeInfo.getName(),
+                nameAndTypeInfo.getType()
+            )
         );
     }
 
     @Override
     public void visitFloatConstant(final ConstantPool.FloatConstantEntry info) {
-        _printer.write("%1$-13s", info.getConstantValue());
+        DecompilerHelpers.writePrimitiveValue(_output, info.getConstantValue());
     }
 
     @Override
     public void visitIntegerConstant(final ConstantPool.IntegerConstantEntry info) {
-        _printer.write("%1$-13s", info.getConstantValue());
+        DecompilerHelpers.writePrimitiveValue(_output, info.getConstantValue());
     }
 
     @Override
     public void visitInterfaceMethodReference(final ConstantPool.InterfaceMethodReferenceEntry info) {
         final ConstantPool.NameAndTypeDescriptorEntry nameAndTypeInfo = info.getNameAndTypeInfo();
+        final int startColumn = _output.getColumn();
 
-        _printer.write(
-            "%1$-14s //  %2$s.%3$s:%4$s",
+        _output.writeDelimiter("#");
+        _output.writeLiteral(info.typeInfoIndex);
+        _output.writeDelimiter(".");
+        _output.writeDelimiter("#");
+        _output.writeLiteral(info.nameAndTypeDescriptorIndex);
+
+        final int endColumn = _output.getColumn();
+        final int padding = (14 - (endColumn - startColumn));
+        final String paddingText = padding > 0 ? StringUtilities.repeat(' ', padding) : "";
+
+        _output.writeComment(
             format(
-                "#%1$d.#%2$d",
-                info.typeInfoIndex,
-                info.nameAndTypeDescriptorIndex
-            ),
-            info.getClassName(),
-            nameAndTypeInfo.getName(),
-            nameAndTypeInfo.getType()
+                paddingText + " //  %1$s.%2$s:%3$s",
+                info.getClassName(),
+                nameAndTypeInfo.getName(),
+                nameAndTypeInfo.getType()
+            )
         );
     }
 
     @Override
     public void visitInvokeDynamicInfo(final ConstantPool.InvokeDynamicInfoEntry info) {
-        _printer.write("%1$-13s", info.bootstrapMethodAttributeIndex);
-        info.getNameAndTypeDescriptor().accept(this);
+        final ConstantPool.NameAndTypeDescriptorEntry nameAndTypeInfo = info.getNameAndTypeDescriptor();
+        final int startColumn = _output.getColumn();
+
+        _output.writeLiteral(info.bootstrapMethodAttributeIndex);
+        _output.writeDelimiter(", ");
+        _output.writeDelimiter("#");
+        _output.writeLiteral(nameAndTypeInfo.nameIndex);
+        _output.writeDelimiter(".");
+        _output.writeDelimiter("#");
+        _output.writeLiteral(nameAndTypeInfo.typeDescriptorIndex);
+
+        final int endColumn = _output.getColumn();
+        final int padding = (14 - (endColumn - startColumn));
+        final String paddingText = padding > 0 ? StringUtilities.repeat(' ', padding) : "";
+
+        _output.writeComment(
+            format(
+                paddingText + " //  %1$s:%2$s",
+                nameAndTypeInfo.getName(),
+                nameAndTypeInfo.getType()
+            )
+        );
     }
 
     @Override
     public void visitLongConstant(final ConstantPool.LongConstantEntry info) {
-        _printer.write("%1$-13s", info.getConstantValue());
+        DecompilerHelpers.writePrimitiveValue(_output, info.getConstantValue());
     }
 
     @Override
     public void visitNameAndTypeDescriptor(final ConstantPool.NameAndTypeDescriptorEntry info) {
-        _printer.write(
-            "%1$-14s //  %2$s:%3$s",
+        final int startColumn = _output.getColumn();
+
+        _output.writeDelimiter("#");
+        _output.writeLiteral(info.nameIndex);
+        _output.writeDelimiter(".");
+        _output.writeDelimiter("#");
+        _output.writeLiteral(info.typeDescriptorIndex);
+
+        final int endColumn = _output.getColumn();
+        final int padding = (14 - (endColumn - startColumn));
+        final String paddingText = padding > 0 ? StringUtilities.repeat(' ', padding) : "";
+
+        _output.writeComment(
             format(
-                "#%1$d.#%2$d",
-                info.nameIndex,
-                info.typeDescriptorIndex
-            ),
-            info.getName(),
-            info.getType()
+                paddingText + " //  %1$s:%2$s",
+                info.getName(),
+                info.getType()
+            )
         );
     }
 
     @Override
     public void visitMethodReference(final ConstantPool.MethodReferenceEntry info) {
         final ConstantPool.NameAndTypeDescriptorEntry nameAndTypeInfo = info.getNameAndTypeInfo();
+        final int startColumn = _output.getColumn();
 
-        _printer.write(
-            "%1$-14s //  %2$s.%3$s:%4$s",
+        _output.writeDelimiter("#");
+        _output.writeLiteral(info.typeInfoIndex);
+        _output.writeDelimiter(".");
+        _output.writeDelimiter("#");
+        _output.writeLiteral(info.nameAndTypeDescriptorIndex);
+
+        final int endColumn = _output.getColumn();
+        final int padding = (14 - (endColumn - startColumn));
+        final String paddingText = padding > 0 ? StringUtilities.repeat(' ', padding) : "";
+
+        _output.writeComment(
             format(
-                "#%1$d.#%2$d",
-                info.typeInfoIndex,
-                info.nameAndTypeDescriptorIndex
-            ),
-            info.getClassName(),
-            nameAndTypeInfo.getName(),
-            nameAndTypeInfo.getType()
+                paddingText + " //  %1$s.%2$s:%3$s",
+                info.getClassName(),
+                nameAndTypeInfo.getName(),
+                nameAndTypeInfo.getType()
+            )
         );
     }
 
     @Override
     public void visitMethodHandle(final ConstantPool.MethodHandleEntry info) {
-        _printer.write("%1$s ", info.referenceKind);
-        info.getReference().accept(this);
+        final ConstantPool.ReferenceEntry reference = info.getReference();
+        final ConstantPool.NameAndTypeDescriptorEntry nameAndTypeInfo = reference.getNameAndTypeInfo();
+        final int startColumn = _output.getColumn();
+
+        _output.writeLiteral(info.referenceKind);
+        _output.write(' ');
+        _output.writeDelimiter("#");
+        _output.writeLiteral(reference.typeInfoIndex);
+        _output.writeDelimiter(".");
+        _output.writeDelimiter("#");
+        _output.writeLiteral(reference.nameAndTypeDescriptorIndex);
+
+        final int endColumn = _output.getColumn();
+        final int padding = (28 - (endColumn - startColumn));
+        final String paddingText = padding > 0 ? StringUtilities.repeat(' ', padding) : "";
+
+        _output.writeComment(
+            format(
+                paddingText + " //  %1$s.%2$s:%3$s",
+                reference.getClassName(),
+                nameAndTypeInfo.getName(),
+                nameAndTypeInfo.getType()
+            )
+        );
     }
 
     @Override
     public void visitMethodType(final ConstantPool.MethodTypeEntry info) {
-        _printer.write("%1$-13s", info.getType());
+        _output.write("%1$-13s", info.getType());
     }
 
     @Override
     public void visitStringConstant(final ConstantPool.StringConstantEntry info) {
-        _printer.write(
-            "#%1$-13s //  \"%2$s\"",
-            info.stringIndex,
-            JavaOutputVisitor.convertString(info.getValue())
-        );
+        _output.writeDelimiter("#");
+        _output.writeLiteral(format("%1$-14d", info.stringIndex));
+        _output.writeComment(format("//  %1$s", JavaOutputVisitor.convertString(info.getValue(), true)));
     }
 
     @Override
     public void visitUtf8StringConstant(final ConstantPool.Utf8StringConstantEntry info) {
-        _printer.write(
-            "\"%1$s\"",
-            JavaOutputVisitor.convertString((String) info.getConstantValue())
-        );
+        DecompilerHelpers.writePrimitiveValue(_output, info.getConstantValue());
     }
 
     @Override

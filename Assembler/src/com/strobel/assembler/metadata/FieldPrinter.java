@@ -21,9 +21,10 @@ import com.strobel.assembler.ir.attributes.ConstantValueAttribute;
 import com.strobel.assembler.ir.attributes.SignatureAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
-import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
+import com.strobel.decompiler.NameSyntax;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import java.util.ArrayList;
@@ -54,11 +55,14 @@ public class FieldPrinter implements FieldVisitor {
         }
 
         if (flagSet.size() > 0) {
-            _output.write(StringUtilities.join(" ", flagStrings));
-            _output.write(' ');
+            for (int i = 0; i < flagStrings.size(); i++) {
+                _output.writeKeyword(flagStrings.get(i));
+                _output.write(' ');
+            }
         }
 
-        _output.write(_fieldType.getBriefDescription());
+        DecompilerHelpers.writeType(_output, _fieldType, NameSyntax.TYPE_NAME);
+
         _output.write(' ');
         _output.write(_name);
         _output.write(';');
@@ -70,8 +74,28 @@ public class FieldPrinter implements FieldVisitor {
             flagStrings.add(flag.name());
         }
 
-        if (!flagStrings.isEmpty()) {
-            _output.write("  Flags: %s\n", StringUtilities.join(", ", flagStrings));
+        if (flagStrings.isEmpty()) {
+            return;
+        }
+
+        _output.indent();
+
+        try {
+            _output.writeAttribute("Flags");
+            _output.write(": ");
+
+            for (int i = 0; i < flagStrings.size(); i++) {
+                if (i != 0) {
+                    _output.write(", ");
+                }
+
+                _output.writeLiteral(flagStrings.get(i));
+            }
+
+            _output.writeLine();
+        }
+        finally {
+            _output.unindent();
         }
     }
 
@@ -79,20 +103,28 @@ public class FieldPrinter implements FieldVisitor {
     public void visitAttribute(final SourceAttribute attribute) {
         switch (attribute.getName()) {
             case AttributeNames.ConstantValue: {
+                _output.indent();
+
                 Object constantValue = ((ConstantValueAttribute) attribute).getValue();
 
                 if (constantValue instanceof String) {
                     constantValue = JavaOutputVisitor.convertString((String) constantValue, true);
                 }
 
-                _output.write("  ConstantValue: %s", constantValue);
+                _output.writeAttribute("ConstantValue");
+                _output.write(": ");
+                DecompilerHelpers.writeOperand(_output, constantValue);
                 _output.writeLine();
+                _output.unindent();
 
                 break;
             }
 
             case AttributeNames.Signature: {
-                _output.write("  Signature: %s", ((SignatureAttribute) attribute).getSignature());
+                _output.indent();
+                _output.writeAttribute("Signature");
+                _output.write(": ");
+                _output.writeTextLiteral(((SignatureAttribute) attribute).getSignature());
                 _output.writeLine();
                 break;
             }

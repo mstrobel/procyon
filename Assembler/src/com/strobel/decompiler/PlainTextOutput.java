@@ -25,12 +25,15 @@ import java.io.Writer;
 import java.lang.reflect.UndeclaredThrowableException;
 
 public class PlainTextOutput implements ITextOutput {
+    private final static String NULL_TEXT = String.valueOf((Object) null);
+
     private final Writer _writer;
     private String _indentToken = "    ";
     private int _indent;
     private boolean _needsIndent;
-    private int _line = 1;
-    private int _column = 1;
+
+    protected int line = 1;
+    protected int column = 1;
 
     public PlainTextOutput() {
         _writer = new StringWriter();
@@ -64,18 +67,18 @@ public class PlainTextOutput implements ITextOutput {
                 }
             }
 
-            _column += indentToken.length();
+            column += indentToken.length();
         }
     }
 
     @Override
     public int getRow() {
-        return _line;
+        return line;
     }
 
     @Override
     public int getColumn() {
-        return _needsIndent ? _column + _indent :_column;
+        return _needsIndent ? column + _indent : column;
     }
 
     @Override
@@ -93,6 +96,7 @@ public class PlainTextOutput implements ITextOutput {
         writeIndent();
         try {
             _writer.write(ch);
+            column++;
         }
         catch (IOException e) {
             throw new UndeclaredThrowableException(e);
@@ -104,6 +108,7 @@ public class PlainTextOutput implements ITextOutput {
         writeIndent();
         try {
             _writer.write(text);
+            column += text != null ? text.length() : NULL_TEXT.length();
         }
         catch (IOException e) {
             throw new UndeclaredThrowableException(e);
@@ -162,8 +167,8 @@ public class PlainTextOutput implements ITextOutput {
             throw new UndeclaredThrowableException(e);
         }
         _needsIndent = true;
-        ++_line;
-        _column = 1;
+        ++line;
+        column = 1;
     }
 
     @Override

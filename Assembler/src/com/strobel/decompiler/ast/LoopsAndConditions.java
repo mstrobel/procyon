@@ -31,15 +31,7 @@ import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Stack;
+import java.util.*;
 
 import static com.strobel.decompiler.ast.AstOptimizer.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
@@ -354,6 +346,29 @@ final class LoopsAndConditions {
             result.add(head);
         }
 
+        if (result.size() <= 1) {
+            return result;
+        }
+
+        final List<ControlFlowNode> sortedResult = new ArrayList<>();
+
+        for (final ControlFlowNode node : result) {
+            sortedResult.add(node);
+        }
+
+        Collections.sort(
+            sortedResult,
+            new Comparator<ControlFlowNode>() {
+                @Override
+                public int compare(final ControlFlowNode o1, final ControlFlowNode o2) {
+                    return Integer.compare(o1.getBlockIndex(), o2.getBlockIndex());
+                }
+            }
+        );
+
+        result.clear();
+        result.addAll(sortedResult);
+
         return result;
     }
 
@@ -369,6 +384,10 @@ final class LoopsAndConditions {
 
         while (!agenda.isEmpty()) {
             final ControlFlowNode node = agenda.pop();
+
+            if (node == null) {
+                continue;
+            }
 
             //
             // Find a block that represents a simple condition.
@@ -441,6 +460,8 @@ final class LoopsAndConditions {
                         if (caseBlock == null) {
                             caseBlock = new CaseBlock();
 
+                            caseBlock.setEntryGoto(new Expression(AstCode.Goto, caseLabel));
+
                             final ControlFlowNode caseTarget = labelsToNodes.get(caseLabel);
                             final List<Node> caseBody = caseBlock.getBody();
 
@@ -466,12 +487,18 @@ final class LoopsAndConditions {
                                         defaultFollowsSwitch = true;
                                     }
 
-                                    caseBlock.setEntryGoto(new Expression(AstCode.Goto, caseLabel));
-
                                     final Set<ControlFlowNode> content = findDominatedNodes(scope, caseTarget);
 
                                     scope.removeAll(content);
                                     caseBody.addAll(findConditions(content, caseTarget));
+                                }
+                                else {
+                                    final BasicBlock explicitGoto = new BasicBlock();
+
+                                    explicitGoto.getBody().add(new Label("SwitchGoto_" + _nextLabelIndex++));
+                                    explicitGoto.getBody().add(new Expression(AstCode.Goto, caseLabel));
+
+                                    caseBody.add(explicitGoto);
                                 }
                             }
 

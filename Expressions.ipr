@@ -4,6 +4,9 @@
     <asm skipDebug="false" skipFrames="false" skipCode="false" expandFrames="true" />
     <groovy codeStyle="LEGACY" />
   </component>
+  <component name="AntConfiguration">
+    <defaultAnt bundledAnt="true" />
+  </component>
   <component name="ArtifactManager">
     <artifact type="jar" build-on-make="true" name="com.strobel:jar">
       <output-path>$PROJECT_DIR$/out/artifacts/com.strobel_jar</output-path>
@@ -35,15 +38,7 @@
       <entry name="?*.tld" />
       <entry name="?*.ftl" />
     </wildcardResourcePatterns>
-    <annotationProcessing>
-      <profile default="true" name="Default" enabled="false">
-        <processorPath useClasspath="true" />
-      </profile>
-    </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="Assembler" target="" />
-      <module name="IntelliJDecompilerPlugin" target="1.6" />
-    </bytecodeTargetLevel>
+    <annotationProcessing enabled="false" useClasspath="true" />
   </component>
   <component name="CopyrightManager" default="">
     <copyright>
@@ -90,6 +85,9 @@
   <component name="Encoding" useUTFGuessing="true" native2AsciiForPropertiesFiles="false" />
   <component name="EntryPointsManager">
     <entry_points version="2.0" />
+  </component>
+  <component name="GradleSettings">
+    <option name="gradleHome" value="C:/dev/gradle-1.0" />
   </component>
   <component name="IdProvider" IDEtalkID="DA74CFE9236B2783DD29DCAE0534673D" />
   <component name="InspectionProjectProfileManager">
@@ -530,6 +528,7 @@
         <w>iinc</w>
         <w>iload</w>
         <w>ineg</w>
+        <w>inlinable</w>
         <w>inlined</w>
         <w>inlining</w>
         <w>instanceof</w>
@@ -658,7 +657,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.assembler.Disassembler" />
       <option name="VM_PARAMETERS" value="-ea -Dcom/strobel/expressions/f__Lambda[0x0058]" />
-      <option name="PROGRAM_PARAMETERS" value="Test" />
+      <option name="PROGRAM_PARAMETERS" value="-v java/lang/Double" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />
@@ -689,7 +688,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.decompiler.Decompiler" />
       <option name="VM_PARAMETERS" value="-ea -Dcom/strobel/decompiler/DecompilerTests -Dcom/strobel/assembler/ir/OpCode" />
-      <option name="PROGRAM_PARAMETERS" value="java/util/Arrays" />
+      <option name="PROGRAM_PARAMETERS" value="java/lang/String" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />
@@ -712,7 +711,7 @@
       <ConfigurationWrapper RunnerId="Run" />
       <method />
     </configuration>
-    <configuration default="false" name="IntelliJ Decompiler Plugin" type="#org.jetbrains.idea.devkit.run.PluginConfigurationType" factoryName="Plugin" singleton="true">
+    <configuration default="false" name="IntelliJ Decompiler Plugin" type="#org.jetbrains.idea.devkit.run.PluginConfigurationType" factoryName="Plugin">
       <module name="IntelliJDecompilerPlugin" />
       <option name="VM_PARAMETERS" value="-Xmx512m -Xms256m -XX:MaxPermSize=250m" />
       <option name="PROGRAM_PARAMETERS" value="" />
@@ -747,6 +746,7 @@
     <library name="dump">
       <CLASSES>
         <root url="file://W:/dump" />
+        <root url="file://W:/soot/jasmin-2.5.0/classes" />
       </CLASSES>
       <JAVADOC />
       <SOURCES />
