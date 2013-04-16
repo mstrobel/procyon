@@ -269,6 +269,13 @@ public final class AstBuilder {
             }
 
             handlers.put(handler, handlerInfo);
+        }
+
+        final List<HandlerInfo> handlersCopy = toList(handlers.values());
+
+        for (int i = 0; i < exceptionHandlers.size(); i++) {
+            final ExceptionHandler handler = exceptionHandlers.get(i);
+            final HandlerInfo handlerInfo = handlers.get(handler);
 
             //
             // Look for trailing branch instructions between a try block and its handler and adjust the
@@ -279,7 +286,8 @@ public final class AstBuilder {
                 !handlerInfo.handlerNodes.isEmpty()) {
 
                 final ControlFlowNode lastTryNode = handlerInfo.tryNodes.get(handlerInfo.tryNodes.size() - 1);
-                final ControlFlowNode lastCatchNode = handlerInfo.handlerNodes.get(handlerInfo.handlerNodes.size() - 1);
+                final HandlerInfo nearestHandler = findNearestHandler(handlerInfo, handlersCopy);
+                final ControlFlowNode lastCatchNode = nearestHandler.handlerNodes.get(nearestHandler.handlerNodes.size() - 1);
 
                 if (lastTryNode.getBlockIndex() < lastCatchNode.getBlockIndex() - 1) {
                     final ControlFlowNode nodeAfterTry = cfg.getNodes().get(lastTryNode.getBlockIndex() + 1);
@@ -287,7 +295,7 @@ public final class AstBuilder {
                     if (nodeAfterTry != null &&
                         nodeAfterTry.getNodeType() == ControlFlowNodeType.Normal &&
                         nodeAfterTry.getStart() == nodeAfterTry.getEnd() &&
-                        nodeAfterTry.getEnd().getNext() == handlerInfo.handlerNodes.get(0).getStart() &&
+                        nodeAfterTry.getEnd().getNext() == nearestHandler.handlerNodes.get(0).getStart() &&
                         nodeAfterTry.getStart().getOpCode().isUnconditionalBranch()) {
 
                         handlerInfo.tryNodes.add(nodeAfterTry);
@@ -328,6 +336,30 @@ public final class AstBuilder {
         analyzeHandlers(instructions, handlers);
 
         return instructions;
+    }
+
+    private HandlerInfo findNearestHandler(final HandlerInfo handler, final Collection<HandlerInfo> handlers) {
+        final Instruction tryStart = handler.handler.getTryBlock().getFirstInstruction();
+        final Instruction tryEnd = handler.handler.getTryBlock().getLastInstruction();
+
+        HandlerInfo nearestHandler = handler;
+        int nearestHandlerStart = handler.handler.getHandlerBlock().getFirstInstruction().getOffset();
+
+        for (final HandlerInfo h : handlers) {
+            final ExceptionBlock tryBlock = h.handler.getTryBlock();
+            final ExceptionBlock handlerBlock = h.handler.getHandlerBlock();
+
+            if (tryBlock.getFirstInstruction() == tryStart &&
+                tryBlock.getLastInstruction() == tryEnd &&
+                handlerBlock.getFirstInstruction().getOffset() < nearestHandlerStart &&
+                !h.handlerNodes.isEmpty()) {
+
+                nearestHandler = h;
+                nearestHandlerStart = handlerBlock.getFirstInstruction().getOffset();
+            }
+        }
+
+        return nearestHandler;
     }
 
     @SuppressWarnings("ConstantConditions")

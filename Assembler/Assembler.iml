@@ -11,6 +11,7 @@
     <orderEntry type="module" module-name="Expressions" exported="" />
     <orderEntry type="library" name="com.beust:jcommander:1.30" level="project" />
     <orderEntry type="library" name="dump" level="project" />
+    <orderEntry type="library" name="lib" level="project" />
   </component>
   <component name="POM File Configuration" pomFile="" />
 </module>

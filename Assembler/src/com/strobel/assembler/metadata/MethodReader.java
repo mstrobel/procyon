@@ -628,7 +628,8 @@ public class MethodReader {
 
                 if (end != null && end.getOffset() == entry.entry.getEndOffset()) {
                     final Instruction previousInstruction = node.getStart().getPrevious();
-                    final Instruction firstHandlerInstruction = body.atOffset(entry.range.getStart());
+                    final HandlerWithRange nearestHandler = findNearestHandler(entries, entry);
+                    final Instruction firstHandlerInstruction = body.atOffset(nearestHandler.range.getStart());
 
                     if (end.getOpCode() == OpCode.GOTO && end.getNext() == firstHandlerInstruction) {
                         tryEnd = nodeLookup.get(end);
@@ -748,6 +749,23 @@ public class MethodReader {
 
             exceptionHandlers.add(handler);
         }
+    }
+
+    private HandlerWithRange findNearestHandler(final List<HandlerWithRange> entries, final HandlerWithRange entry) {
+        HandlerWithRange nearestHandler = entry;
+        int nearestHandlerStart = nearestHandler.range.getStart();
+
+        for (final HandlerWithRange h : entries) {
+            if (h.entry.getStartOffset() == entry.entry.getStartOffset() &&
+                h.entry.getEndOffset() == entry.entry.getEndOffset() &&
+                h.range.getStart() < nearestHandlerStart) {
+
+                nearestHandler = h;
+                nearestHandlerStart = nearestHandler.range.getStart();
+            }
+        }
+
+        return nearestHandler;
     }
 
     private static ControlFlowNode findHandlerEnd(
