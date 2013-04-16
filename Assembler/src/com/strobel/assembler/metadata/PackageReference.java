@@ -27,6 +27,8 @@ public class PackageReference {
     private final PackageReference _parent;
     private final String _name;
 
+    private String _fullName;
+
     private PackageReference() {
         _parent = null;
         _name = StringUtilities.EMPTY;
@@ -51,10 +53,15 @@ public class PackageReference {
     }
 
     public final String getFullName() {
-        if (_parent == null || _parent.equals(GLOBAL))
-            return getName();
-
-        return _parent.getName() + "." + getName();
+        if (_fullName == null) {
+            if (_parent == null || _parent.equals(GLOBAL)) {
+                _fullName = getName();
+            }
+            else {
+                _fullName = _parent.getFullName() + "." + getName();
+            }
+        }
+        return _fullName;
     }
 
     public final PackageReference getParent() {
