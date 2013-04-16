@@ -23,6 +23,7 @@ import com.strobel.assembler.ir.attributes.EnclosingMethodAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.ir.attributes.SourceFileAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
+import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
 
 import java.util.ArrayList;
@@ -144,10 +145,10 @@ public class TypePrinter implements TypeVisitor {
                     _output.writeAttribute("EnclosingMethod");
                     _output.write(": ");
                     _output.writeReference(declaringType.getInternalName(), declaringType);
-                    _output.write(".");
+                    _output.writeDelimiter(".");
                     _output.writeReference(enclosingMethod.getName(), enclosingMethod);
-                    _output.write(":");
-                    _output.write(enclosingMethod.getSignature());
+                    _output.writeDelimiter(":");
+                    DecompilerHelpers.writeMethodSignature(_output, enclosingMethod);
                     _output.writeLine();
                 }
 

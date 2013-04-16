@@ -16,15 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
-import com.strobel.assembler.metadata.BuiltinTypes;
-import com.strobel.assembler.metadata.DynamicCallSite;
-import com.strobel.assembler.metadata.FieldDefinition;
-import com.strobel.assembler.metadata.FieldReference;
-import com.strobel.assembler.metadata.MethodBody;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.Comparer;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
@@ -33,6 +25,7 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.PlainTextOutput;
 import com.strobel.decompiler.ast.*;
+import com.strobel.decompiler.ast.Label;
 import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
@@ -842,11 +835,45 @@ public class AstMethodBodyBuilder {
         if (!arguments.isEmpty() && method.isConstructor()) {
             final TypeDefinition declaringType = method.getDeclaringType().resolve();
 
-            if (declaringType != null &&
-                !declaringType.isStatic() &&
-                (declaringType.isInnerClass() || declaringType.isLocalClass())) {
+            if (declaringType != null) {
+                if (declaringType.isLocalClass()) {
+                    return arguments.subList(1, arguments.size());
+                }
 
-                return arguments.subList(1, arguments.size());
+                if (declaringType.isInnerClass()) {
+                    final MethodDefinition resolvedMethod = method.resolve();
+
+                    if (resolvedMethod != null &&
+                        resolvedMethod.isSynthetic() &&
+                        (resolvedMethod.getFlags() & Flags.AccessFlags) == 0) {
+
+                        final List<ParameterDefinition> parameters = resolvedMethod.getParameters();
+
+                        int tailArgumentsToRemove = 0;
+
+                        for (int i = parameters.size() - 1; i >= 0; i--) {
+                            final TypeReference parameterType = parameters.get(i).getParameterType();
+                            final TypeDefinition resolvedParameterType = parameterType.resolve();
+
+                            if (resolvedParameterType != null && resolvedParameterType.isAnonymous()) {
+                                ++tailArgumentsToRemove;
+                            }
+                            else {
+                                break;
+                            }
+                        }
+
+                        while (tailArgumentsToRemove-- > 0 && !arguments.isEmpty()) {
+                            arguments.remove(arguments.size() - 1);
+                        }
+
+                        if (!declaringType.isStatic()) {
+                            arguments.remove(0);
+                        }
+
+                        return arguments;
+                    }
+                }
             }
         }
         //
