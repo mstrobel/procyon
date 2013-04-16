@@ -184,7 +184,7 @@ public final class DecompilerHelpers {
             return;
         }
 
-        writePrimitiveValue(writer, operand);;
+        writePrimitiveValue(writer, operand);
     }
 
     public static void writeDynamicCallSite(final ITextOutput output, final DynamicCallSite operand) {

@@ -25,7 +25,6 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.NameSyntax;
-import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -103,14 +102,8 @@ public class FieldPrinter implements FieldVisitor {
     public void visitAttribute(final SourceAttribute attribute) {
         switch (attribute.getName()) {
             case AttributeNames.ConstantValue: {
+                final Object constantValue = ((ConstantValueAttribute) attribute).getValue();
                 _output.indent();
-
-                Object constantValue = ((ConstantValueAttribute) attribute).getValue();
-
-                if (constantValue instanceof String) {
-                    constantValue = JavaOutputVisitor.convertString((String) constantValue, true);
-                }
-
                 _output.writeAttribute("ConstantValue");
                 _output.write(": ");
                 DecompilerHelpers.writeOperand(_output, constantValue);
