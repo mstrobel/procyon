@@ -373,6 +373,10 @@ public class NameVariables {
 
     private static String getNameFromExpression(final Expression e) {
         switch (e.getCode()) {
+            case ArrayLength: {
+                return cleanUpVariableName("length");
+            }
+
             case GetField:
             case GetStatic: {
                 return cleanUpVariableName(((FieldReference) e.getOperand()).getName());
@@ -476,16 +480,19 @@ public class NameVariables {
         if (type.isArray()) {
             name = "array";
         }
-        else if (type.getName().endsWith("Exception")) {
+        else if (StringUtilities.equals(type.getName(), "java/lang/Throwable")) {
+            name = "t";
+        }
+        else if (StringUtilities.endsWith(type.getName(), "Exception")) {
             name = "ex";
         }
-        else if (type.getName().endsWith("List")) {
+        else if (StringUtilities.endsWith(type.getName(), "List")) {
             name = "list";
         }
-        else if (type.getName().endsWith("Set")) {
+        else if (StringUtilities.endsWith(type.getName(), "Set")) {
             name = "set";
         }
-        else if (type.getName().endsWith("Collection")) {
+        else if (StringUtilities.endsWith(type.getName(), "Collection")) {
             name = "collection";
         }
         else {

@@ -28,6 +28,12 @@ public class CommandLineOptions {
     @Parameter(names = { "-?", "--help" }, help = true, description = "Display this usage information and exit.")
     private boolean _printUsage;
 
+    @Parameter(names = { "-ei", "--explicit-imports" }, description = "Force explicit type imports (never import '*').")
+    private boolean _forceExplicitImports;
+
+    @Parameter(names = { "-fsb", "--flatten-switch-blocks" }, description = "Remove block statements around switch sections when possible.")
+    private boolean _flattenSwitchBlocks;
+
     @Parameter(names = { "-s", "--show-synthetic" }, description = "Show synthetic (compiler-generated) members.")
     private boolean _showSyntheticMembers;
 
@@ -46,6 +52,22 @@ public class CommandLineOptions {
 
     public final boolean isBytecodeAst() {
         return _bytecodeAst;
+    }
+
+    public final boolean getFlattenSwitchBlocks() {
+        return _flattenSwitchBlocks;
+    }
+
+    public final void setFlattenSwitchBlocks(final boolean flattenSwitchBlocks) {
+        _flattenSwitchBlocks = flattenSwitchBlocks;
+    }
+
+    public final boolean getForceExplicitImports() {
+        return _forceExplicitImports;
+    }
+
+    public final void setForceExplicitImports(final boolean forceExplicitImports) {
+        _forceExplicitImports = forceExplicitImports;
     }
 
     public final void setBytecodeAst(final boolean bytecodeAst) {

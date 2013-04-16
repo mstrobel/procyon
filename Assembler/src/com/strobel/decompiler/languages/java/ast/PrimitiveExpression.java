@@ -24,6 +24,7 @@ import com.strobel.decompiler.patterns.Match;
 
 public class PrimitiveExpression extends Expression {
     public final static Object ANY_VALUE = new Object();
+    public final static Object ANY_STRING = new Object();
 
     private final TextLocation _startLocation;
     private TextLocation _endLocation;
@@ -94,8 +95,12 @@ public class PrimitiveExpression extends Expression {
     @Override
     public boolean matches(final INode other, final Match match) {
         if (other instanceof PrimitiveExpression) {
+            final PrimitiveExpression otherPrimitive = (PrimitiveExpression) other;
+
             return !other.isNull() &&
-                   (_value == ANY_VALUE || Comparer.equals(_value, ((PrimitiveExpression) other)._value));
+                   (_value == ANY_VALUE ||
+                    _value == ANY_STRING && otherPrimitive._value instanceof String ||
+                    Comparer.equals(_value, otherPrimitive._value));
         }
 
         return false;

@@ -1083,8 +1083,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitImportDeclaration(final ImportDeclaration node, final Void _) {
         startNode(node);
+
         writeKeyword(ImportDeclaration.IMPORT_KEYWORD_RULE);
-        node.getImport().acceptVisitor(this, _);
+        node.getImportIdentifier().acceptVisitor(this, _);
         semicolon();
         endNode(node);
 
@@ -1834,6 +1835,26 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             comma(node.getNextSibling());
         }
 
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitAssertStatement(final AssertStatement node, final Void _) {
+        startNode(node);
+        writeKeyword(AssertStatement.ASSERT_KEYWORD_ROLE);
+        node.getCondition().acceptVisitor(this, _);
+
+        final String message = node.getMessage();
+
+        if (message != null) {
+            space();
+            writeToken(Roles.COLON);
+            space();
+            formatter.writeTextLiteral(convertString(message, true));
+        }
+
+        semicolon();
         endNode(node);
         return null;
     }

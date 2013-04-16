@@ -553,7 +553,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
     }
 
-    public final AstNode replaceWith(final Function<AstNode, AstNode> replaceFunction) {
+    public final AstNode replaceWith(final Function<? super AstNode, ? extends AstNode> replaceFunction) {
         VerifyArgument.notNull(replaceFunction, "replaceFunction");
 
         if (_parent == null) {

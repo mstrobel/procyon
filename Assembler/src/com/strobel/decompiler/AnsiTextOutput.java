@@ -22,6 +22,7 @@ import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.IMethodSignature;
 import com.strobel.assembler.metadata.Label;
 import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.PackageReference;
 import com.strobel.assembler.metadata.ParameterReference;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -114,6 +115,11 @@ public class AnsiTextOutput extends PlainTextOutput {
 
     @Override
     public void writeDefinition(final String text, final Object definition, final boolean isLocal) {
+        if (text == null) {
+            super.write(text);
+            return;
+        }
+
         final String colorizedText;
 
         if (definition instanceof Instruction ||
@@ -138,6 +144,9 @@ public class AnsiTextOutput extends PlainTextOutput {
 
             colorizedText = LOCAL.colorize(text);
         }
+        else if (definition instanceof PackageReference) {
+            colorizedText = colorizePackage(text);
+        }
         else if (definition instanceof Label ||
                  definition instanceof com.strobel.decompiler.ast.Label) {
 
@@ -152,6 +161,11 @@ public class AnsiTextOutput extends PlainTextOutput {
 
     @Override
     public void writeReference(final String text, final Object reference, final boolean isLocal) {
+        if (text == null) {
+            super.write(text);
+            return;
+        }
+
         final String colorizedText;
 
         if (reference instanceof Instruction ||
@@ -175,6 +189,9 @@ public class AnsiTextOutput extends PlainTextOutput {
                  reference instanceof Variable) {
 
             colorizedText = LOCAL.colorize(text);
+        }
+        else if (reference instanceof PackageReference) {
+            colorizedText = colorizePackage(text);
         }
         else if (reference instanceof Label ||
                  reference instanceof com.strobel.decompiler.ast.Label) {
@@ -268,5 +285,26 @@ public class AnsiTextOutput extends PlainTextOutput {
         else {
             return TYPE.colorize(text);
         }
+    }
+
+    private String colorizePackage(final String text) {
+        final String[] packageParts = text.split("\\.");
+        final StringBuilder sb = new StringBuilder(text.length() * 2);
+
+        for (int i = 0; i < packageParts.length; i++) {
+            if (i != 0)
+                sb.append(DELIMITER.colorize("."));
+
+            final String packagePart = packageParts[i];
+
+            if ("*".equals(packagePart)) {
+                sb.append(packagePart);
+            }
+            else {
+                sb.append(PACKAGE.colorize(packagePart));
+            }
+        }
+
+        return sb.toString();
     }
 }

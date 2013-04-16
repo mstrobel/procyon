@@ -28,7 +28,10 @@ public final class TransformationPipeline {
             new EnumSwitchRewriterTransform(context),
             new PatternStatementTransform(context),
             new BreakTargetRelocation(),
-            new DeclareVariablesTransform(context)
+            new DeclareVariablesTransform(context),
+            new CollapseImportsTransform(context),
+            new PushNegationTransform(context),
+            new FlattenSwitchBlocksTransform(context)
         };
     }
 

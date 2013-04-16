@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java;
 
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.PackageReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
@@ -92,6 +93,13 @@ public class TextOutputFormatter implements IOutputFormatter {
         }
 
         reference = getCurrentMemberReference();
+
+        if (reference != null) {
+            output.writeReference(identifier, reference);
+            return;
+        }
+
+        reference = getCurrentPackageReference();
 
         if (reference != null) {
             output.writeReference(identifier, reference);
@@ -393,13 +401,28 @@ public class TextOutputFormatter implements IOutputFormatter {
             final AstNode parent = node.getParent();
 
             if (parent instanceof TypeArgument ||
-                parent instanceof TypeParameterDeclaration) {
+                parent instanceof TypeParameterDeclaration ||
+                parent instanceof ImportDeclaration) {
 
                 return parent.getUserData(Keys.TYPE_REFERENCE);
             }
         }
 
         return null;
+    }
+
+    private PackageReference getCurrentPackageReference() {
+        final AstNode node = nodeStack.peek();
+
+        PackageReference pkg = node.getUserData(Keys.PACKAGE_REFERENCE);
+
+        if (pkg == null &&
+            node.getParent() instanceof ImportDeclaration) {
+
+            pkg = node.getParent().getUserData(Keys.PACKAGE_REFERENCE);
+        }
+
+        return pkg;
     }
 
     private MemberReference getCurrentMemberReference() {

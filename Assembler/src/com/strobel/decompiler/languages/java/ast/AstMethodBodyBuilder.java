@@ -122,6 +122,18 @@ public class AstMethodBodyBuilder {
             }
         }
 
+        final List<CatchBlock> catchBlocks = method.getSelfAndChildrenRecursive(
+            CatchBlock.class
+        );
+
+        for (final CatchBlock catchBlock : catchBlocks) {
+            final Variable exceptionVariable = catchBlock.getExceptionVariable();
+
+            if (exceptionVariable != null) {
+                localVariables.add(exceptionVariable);
+            }
+        }
+
         NameVariables.assignNamesToVariables(_context, methodParameters, localVariables, method);
 
         final BlockStatement astBlock = transformBlock(method);

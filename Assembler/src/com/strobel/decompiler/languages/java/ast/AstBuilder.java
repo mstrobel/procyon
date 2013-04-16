@@ -340,11 +340,16 @@ public final class AstBuilder {
         final String packageName = type.getPackageName();
 
         if (_compileUnit.getPackage().isNull() && !StringUtilities.isNullOrWhitespace(packageName)) {
+            final PackageDeclaration packageDeclaration = new PackageDeclaration(packageName);
+
+            packageDeclaration.putUserData(Keys.PACKAGE_REFERENCE, PackageReference.parse(packageName));
+
             _compileUnit.insertChildBefore(
                 _packagePlaceholder,
-                new PackageDeclaration(packageName),
+                packageDeclaration,
                 Roles.PACKAGE
             );
+
             _packagePlaceholder.remove();
         }
 

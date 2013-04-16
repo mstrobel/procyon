@@ -17,7 +17,6 @@
 package com.strobel.decompiler;
 
 import com.beust.jcommander.JCommander;
-import com.sampullara.cli.Args;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -83,6 +82,8 @@ public final class Decompiler {
         final DecompilerSettings settings = new DecompilerSettings();
 
         settings.setAlwaysGenerateExceptionVariableForCatchBlocks(options.getAlwaysGenerateExceptionVariableForCatchBlocks());
+        settings.setFlattenSwitchBlocks(options.getFlattenSwitchBlocks());
+        settings.setForceExplicitImports(options.getForceExplicitImports());
         settings.setShowSyntheticMembers(options.getShowSyntheticMembers());
         
         if (options.isBytecodeAst()) {

@@ -26,6 +26,7 @@ import com.strobel.util.ContractUtils;
 
 import java.util.AbstractCollection;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -158,6 +159,15 @@ public final class AstNodeCollection<T extends AstNode> extends AbstractCollecti
     public void clear() {
         for (final T item : this) {
             item.remove();
+        }
+    }
+
+    public void moveTo(final Collection<T> destination) {
+        VerifyArgument.notNull(destination, "destination");
+
+        for (final T node : this) {
+            node.remove();
+            destination.add(node);
         }
     }
 

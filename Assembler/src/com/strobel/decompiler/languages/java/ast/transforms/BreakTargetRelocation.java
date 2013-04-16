@@ -16,15 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
-import com.strobel.decompiler.languages.java.ast.AstNode;
-import com.strobel.decompiler.languages.java.ast.AstNodeCollection;
-import com.strobel.decompiler.languages.java.ast.BlockStatement;
-import com.strobel.decompiler.languages.java.ast.BreakStatement;
-import com.strobel.decompiler.languages.java.ast.GotoStatement;
-import com.strobel.decompiler.languages.java.ast.Keys;
-import com.strobel.decompiler.languages.java.ast.LabelStatement;
-import com.strobel.decompiler.languages.java.ast.MethodDeclaration;
-import com.strobel.decompiler.languages.java.ast.Statement;
+import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -98,7 +90,9 @@ public final class BreakTargetRelocation implements IAstTransform {
     private void run(final LabelInfo labelInfo) {
         assert labelInfo != null;
 
-        if (labelInfo.label == null || labelInfo.gotoStatements.isEmpty()) {
+        final LabelStatement label = labelInfo.label;
+
+        if (label == null || labelInfo.gotoStatements.isEmpty()) {
             return;
         }
 
@@ -108,9 +102,58 @@ public final class BreakTargetRelocation implements IAstTransform {
             paths.add(buildPath(gotoStatement));
         }
 
-        paths.add(buildPath(labelInfo.label));
+        paths.add(buildPath(label));
 
-        final BlockStatement parent = findLowestCommonAncestor(paths);
+        final Statement commonAncestor = findLowestCommonAncestor(paths);
+
+        if (commonAncestor instanceof SwitchStatement &&
+            labelInfo.gotoStatements.size() == 1 &&
+            label.getParent() instanceof BlockStatement &&
+            label.getParent().getParent() instanceof SwitchSection &&
+            label.getParent().getParent().getParent() == commonAncestor) {
+
+            final GotoStatement s = labelInfo.gotoStatements.get(0);
+            
+            if (s.getParent() instanceof BlockStatement &&
+                s.getParent().getParent() instanceof SwitchSection &&
+                s.getParent().getParent().getParent() == commonAncestor) {
+
+                //
+                // We have a switch section that should fall through to another section.
+                // make sure the fall through target is positioned after the section with
+                // the goto, then remove the goto and the target label.
+                //
+
+                final SwitchStatement parentSwitch = (SwitchStatement) commonAncestor;
+
+                final SwitchSection targetSection = (SwitchSection) label.getParent().getParent();
+                final BlockStatement fallThroughBlock = (BlockStatement) s.getParent();
+                final SwitchSection fallThroughSection = (SwitchSection) fallThroughBlock.getParent();
+
+                if (fallThroughSection.getNextSibling() != targetSection) {
+                    targetSection.remove();
+                    parentSwitch.getSwitchSections().insertAfter(fallThroughSection, targetSection);
+                }
+
+                final BlockStatement parentBlock = (BlockStatement) label.getParent();
+
+                s.remove();
+                label.remove();
+
+                if (fallThroughBlock.getStatements().isEmpty()) {
+                    fallThroughBlock.remove();
+                }
+
+                if (parentBlock.getStatements().isEmpty()) {
+                    parentBlock.remove();
+                }
+
+                return;
+            }
+        }
+
+
+        final BlockStatement parent = findLowestCommonAncestorBlock(paths);
 
         if (parent == null) {
             return;
@@ -174,19 +217,19 @@ public final class BreakTargetRelocation implements IAstTransform {
             blockStatements.add((Statement) node);
         }
 
-        labelInfo.label.remove();
+        label.remove();
 
         if (insertBefore != null) {
-            parent.insertChildBefore(insertBefore, labelInfo.label, BlockStatement.STATEMENT_ROLE);
+            parent.insertChildBefore(insertBefore, label, BlockStatement.STATEMENT_ROLE);
         }
         else if (insertAfter != null) {
-            parent.insertChildAfter(insertAfter, labelInfo.label, BlockStatement.STATEMENT_ROLE);
+            parent.insertChildAfter(insertAfter, label, BlockStatement.STATEMENT_ROLE);
         }
         else {
-            parent.getStatements().add(labelInfo.label);
+            parent.getStatements().add(label);
         }
 
-        parent.insertChildAfter(labelInfo.label, newBlock, BlockStatement.STATEMENT_ROLE);
+        parent.insertChildAfter(label, newBlock, BlockStatement.STATEMENT_ROLE);
 
         for (final GotoStatement gotoStatement : labelInfo.gotoStatements) {
             final BreakStatement breakStatement = new BreakStatement();
@@ -223,7 +266,7 @@ public final class BreakTargetRelocation implements IAstTransform {
         return false;
     }
 
-    private BlockStatement findLowestCommonAncestor(final List<Stack<AstNode>> paths) {
+    private BlockStatement findLowestCommonAncestorBlock(final List<Stack<AstNode>> paths) {
         if (paths.isEmpty()) {
             return null;
         }
@@ -255,6 +298,56 @@ public final class BreakTargetRelocation implements IAstTransform {
             if (current instanceof BlockStatement) {
                 sinceLastMatch.clear();
                 match = (BlockStatement) current;
+            }
+            else {
+                sinceLastMatch.push(current);
+            }
+
+            current = null;
+        }
+
+        while (!sinceLastMatch.isEmpty()) {
+            for (int i = 0, n = paths.size(); i < n; i++) {
+                paths.get(i).push(sinceLastMatch.peek());
+            }
+            sinceLastMatch.pop();
+        }
+
+        return match;
+    }
+
+    private Statement findLowestCommonAncestor(final List<Stack<AstNode>> paths) {
+        if (paths.isEmpty()) {
+            return null;
+        }
+
+        AstNode current = null;
+        Statement match = null;
+
+        final Stack<AstNode> sinceLastMatch = new Stack<>();
+
+    outer:
+        while (true) {
+            for (final Stack<AstNode> path : paths) {
+                if (path.isEmpty()) {
+                    break outer;
+                }
+
+                if (current == null) {
+                    current = path.peek();
+                }
+                else if (path.peek() != current) {
+                    break outer;
+                }
+            }
+
+            for (final Stack<AstNode> path : paths) {
+                path.pop();
+            }
+
+            if (current instanceof Statement) {
+                sinceLastMatch.clear();
+                match = (Statement) current;
             }
             else {
                 sinceLastMatch.push(current);

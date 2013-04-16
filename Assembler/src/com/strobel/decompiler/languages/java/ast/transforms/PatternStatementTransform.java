@@ -34,6 +34,7 @@ import com.strobel.decompiler.patterns.BackReference;
 import com.strobel.decompiler.patterns.Choice;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.NamedNode;
+import com.strobel.decompiler.patterns.OptionalNode;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Repeat;
 
@@ -86,6 +87,17 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         transformContinueOuter(node);
 
         return super.visitWhileStatement(node, data);
+    }
+
+    @Override
+    public AstNode visitIfElseStatement(final IfElseStatement node, final Void data) {
+        final AssertStatement assertStatement = transformAssert(node);
+
+        if (assertStatement != null) {
+            return assertStatement;
+        }
+
+        return super.visitIfElseStatement(node, data);
     }
 
     // </editor-fold>
@@ -971,6 +983,61 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         loop.getParent().insertChildBefore(loop, label, BlockStatement.STATEMENT_ROLE);
 
         return loop;
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Assert Transform">
+
+    private final static IfElseStatement ASSERT_PATTERN;
+
+    static {
+        ASSERT_PATTERN = new IfElseStatement(
+            new UnaryOperatorExpression(
+                UnaryOperatorType.NOT,
+                new BinaryOperatorExpression(
+                    new TypeReferenceExpression(new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled"),
+                    BinaryOperatorType.LOGICAL_OR,
+                    new AnyNode("condition").toExpression()
+                )
+            ),
+            new BlockStatement(
+                new ThrowStatement(
+                    new ObjectCreationExpression(
+                        new SimpleType("AssertionError"),
+                        new OptionalNode(
+                            new NamedNode(
+                                "message",
+                                new PrimitiveExpression(PrimitiveExpression.ANY_STRING)
+                            )
+                        ).toExpression()
+                    )
+                )
+            )
+        );
+    }
+
+    private AssertStatement transformAssert(final IfElseStatement ifElse) {
+        final Match m = ASSERT_PATTERN.match(ifElse);
+
+        if (!m.success()) {
+            return null;
+        }
+
+        final Expression condition = m.<Expression>get("condition").iterator().next();
+        final AssertStatement assertStatement = new AssertStatement();
+
+        condition.remove();
+        assertStatement.setCondition(condition);
+
+        if (m.has("message")) {
+            final PrimitiveExpression message = m.<PrimitiveExpression>get("message").iterator().next();
+            assertStatement.setMessage((String) message.getValue());
+        }
+
+        ifElse.replaceWith(assertStatement);
+
+        return assertStatement;
     }
 
     // </editor-fold>

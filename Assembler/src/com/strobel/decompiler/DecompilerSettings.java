@@ -25,11 +25,29 @@ public class DecompilerSettings {
     private ITypeLoader _typeLoader;
     private boolean _showSyntheticMembers;
     private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
+    private boolean _forceExplicitImports;
+    private boolean _flattenSwitchBlocks;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
     private String _outputFileHeaderText;
 
     public DecompilerSettings() {
+    }
+
+    public final boolean getFlattenSwitchBlocks() {
+        return _flattenSwitchBlocks;
+    }
+
+    public final void setFlattenSwitchBlocks(final boolean flattenSwitchBlocks) {
+        _flattenSwitchBlocks = flattenSwitchBlocks;
+    }
+
+    public final boolean getForceExplicitImports() {
+        return _forceExplicitImports;
+    }
+
+    public final void setForceExplicitImports(final boolean forceExplicitImports) {
+        _forceExplicitImports = forceExplicitImports;
     }
 
     public final String getOutputFileHeaderText() {

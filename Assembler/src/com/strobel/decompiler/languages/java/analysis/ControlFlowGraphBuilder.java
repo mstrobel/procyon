@@ -181,7 +181,7 @@ public class ControlFlowGraphBuilder {
                        gotoStatement instanceof ContinueStatement;
 
                 final Statement targetStatement = edge.getTo().getPreviousStatement() != null ? edge.getTo().getPreviousStatement()
-                                                                                    : edge.getTo().getNextStatement();
+                                                                                              : edge.getTo().getNextStatement();
 
                 if (gotoStatement.getParent() == targetStatement.getParent()) {
                     continue;
@@ -376,6 +376,11 @@ public class ControlFlowGraphBuilder {
             }
 
             return end;
+        }
+
+        @Override
+        public ControlFlowNode visitAssertStatement(final AssertStatement node, final ControlFlowNode data) {
+            return createConnectedEndNode(node, data);
         }
 
         @Override

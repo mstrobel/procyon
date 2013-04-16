@@ -16,35 +16,58 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.metadata.PackageReference;
+import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
-import com.strobel.decompiler.patterns.Role;
 
 public class ImportDeclaration extends AstNode {
     public final static TokenRole IMPORT_KEYWORD_RULE = new TokenRole("import", TokenRole.FLAG_KEYWORD);
-    public final static Role<AstType> IMPORT_ROLE = new Role<>("Import", AstType.class, AstType.NULL);
 
     public ImportDeclaration() {
     }
 
-    public ImportDeclaration(final String packageName) {
-        setImport(new SimpleType(packageName));
+    public ImportDeclaration(final String packageOrTypeName) {
+        setImport(packageOrTypeName);
+    }
+
+    public ImportDeclaration(final PackageReference pkg) {
+        setImport(VerifyArgument.notNull(pkg, "pkg").getFullName() + ".*");
+        putUserData(Keys.PACKAGE_REFERENCE, pkg);
+    }
+
+    public ImportDeclaration(final TypeReference type) {
+        setImport(VerifyArgument.notNull(type, "pkg").getFullName() + ".*");
+        putUserData(Keys.TYPE_REFERENCE, type);
     }
 
     public ImportDeclaration(final AstType type) {
-        setImport(type);
+        final TypeReference typeReference = VerifyArgument.notNull(type, "type").toTypeReference();
+
+        if (typeReference != null) {
+            setImport(typeReference.getFullName());
+            putUserData(Keys.TYPE_REFERENCE, typeReference);
+        }
+        else {
+            setImport(type.toString());
+        }
     }
 
-    public final AstType getImport() {
-        return getChildByRole(IMPORT_ROLE);
+    public final String getImport() {
+        return getChildByRole(Roles.IDENTIFIER).getName();
     }
 
-    public final void setImport(final AstType type) {
-        setChildByRole(IMPORT_ROLE, type);
+    public final void setImport(final String value) {
+        setChildByRole(Roles.IDENTIFIER, Identifier.create(value));
     }
 
-    public final String getPackage() {
-        return getImport().toString();
+    public final Identifier getImportIdentifier() {
+        return getChildByRole(Roles.IDENTIFIER);
+    }
+
+    public final void setImportIdentifier(final Identifier value) {
+        setChildByRole(Roles.IDENTIFIER, value);
     }
 
     public final JavaTokenNode getImportToken() {
@@ -68,7 +91,7 @@ public class ImportDeclaration extends AstNode {
     @Override
     public boolean matches(final INode other, final Match match) {
         return other instanceof ImportDeclaration &&
-               getImport().matches(((ImportDeclaration) other).getImport(), match);
+               getImportIdentifier().matches(((ImportDeclaration) other).getImportIdentifier(), match);
     }
 
     // <editor-fold defaultstate="collapsed" desc="Null ImportDeclaration">

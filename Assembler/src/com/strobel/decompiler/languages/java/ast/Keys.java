@@ -20,6 +20,7 @@ import com.strobel.assembler.metadata.DynamicCallSite;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.PackageReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -32,6 +33,7 @@ public final class Keys {
     public final static Key<VariableDefinition> VARIABLE_DEFINITION = Key.create("VariableDefinition");
     public final static Key<ParameterDefinition> PARAMETER_DEFINITION = Key.create("ParameterDefinition");
     public final static Key<MemberReference> MEMBER_REFERENCE = Key.create("MemberReference");
+    public final static Key<PackageReference> PACKAGE_REFERENCE = Key.create("PackageReference");
     public final static Key<FieldDefinition> FIELD_DEFINITION = Key.create("FieldDefinition");
     public final static Key<MethodDefinition> METHOD_DEFINITION = Key.create("MethodDefinition");
     public final static Key<TypeDefinition> TYPE_DEFINITION = Key.create("TypeDefinition");
