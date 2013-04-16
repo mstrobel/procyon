@@ -119,6 +119,7 @@ public class FieldPrinter implements FieldVisitor {
                 _output.write(": ");
                 _output.writeTextLiteral(((SignatureAttribute) attribute).getSignature());
                 _output.writeLine();
+                _output.unindent();
                 break;
             }
         }

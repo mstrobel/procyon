@@ -157,7 +157,7 @@ public class MethodPrinter implements MethodVisitor {
                         _output.writeDelimiter(", ");
                     }
 
-                    _output.write(_thrownTypes[i].getBriefDescription());
+                    DecompilerHelpers.writeType(_output, _thrownTypes[i], NameSyntax.TYPE_NAME);
                 }
             }
         }
