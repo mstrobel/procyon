@@ -84,7 +84,7 @@ public class MethodReader {
         );
 
         final LocalVariableTableAttribute localVariableTypeTable = SourceAttribute.find(
-            AttributeNames.LocalVariableTable,
+            AttributeNames.LocalVariableTypeTable,
             _code.getAttributes()
         );
 
@@ -157,7 +157,7 @@ public class MethodReader {
         }
 
         if (localVariableTypeTable != null) {
-            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
+            final List<LocalVariableTableEntry> entries = localVariableTypeTable.getEntries();
 
             for (final LocalVariableTableEntry entry : entries) {
                 final int slot = entry.getIndex();
@@ -177,9 +177,9 @@ public class MethodReader {
                 }
                 else if (!StringUtilities.isNullOrEmpty(entry.getName())) {
                     variable.setName(entry.getName());
-                    variable.setVariableType(entry.getType());
                 }
 
+                variable.setVariableType(entry.getType());
                 variable.setTypeKnown(true);
                 variable.setFromMetadata(true);
 

@@ -26,7 +26,10 @@ import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableDefinition;
 import com.strobel.componentmodel.Key;
+import com.strobel.core.ArrayUtilities;
 import com.strobel.decompiler.ast.Variable;
+
+import java.util.List;
 
 public final class Keys {
     public final static Key<Variable> VARIABLE = Key.create("Variable");
@@ -39,4 +42,17 @@ public final class Keys {
     public final static Key<TypeDefinition> TYPE_DEFINITION = Key.create("TypeDefinition");
     public final static Key<TypeReference> TYPE_REFERENCE = Key.create("TypeReference");
     public final static Key<DynamicCallSite> DYNAMIC_CALL_SITE = Key.create("DynamicCallSite");
+
+    public final static List<Key<?>> ALL_KEYS = ArrayUtilities.asUnmodifiableList(
+        VARIABLE,
+        VARIABLE_DEFINITION,
+        PARAMETER_DEFINITION,
+        MEMBER_REFERENCE,
+        PACKAGE_REFERENCE,
+        FIELD_DEFINITION,
+        METHOD_DEFINITION,
+        TYPE_DEFINITION,
+        TYPE_REFERENCE,
+        DYNAMIC_CALL_SITE
+    );
 }

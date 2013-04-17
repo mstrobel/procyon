@@ -362,6 +362,11 @@ public abstract class DepthFirstAstVisitor<T, S> implements IAstVisitor<T, S> {
     }
 
     @Override
+    public S visitLambdaExpression(final LambdaExpression node, final T data) {
+        return visitChildren(node, data);
+    }
+
+    @Override
     public S visitTryCatchStatement(final TryCatchStatement node, final T data) {
         return visitChildren(node, data);
     }

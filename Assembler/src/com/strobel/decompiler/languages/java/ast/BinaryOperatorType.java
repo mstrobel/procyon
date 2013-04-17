@@ -37,6 +37,5 @@ public enum BinaryOperatorType
     MODULUS,
     SHIFT_LEFT,
     SHIFT_RIGHT,
-    UNSIGNED_SHIFT_RIGHT,
-    NULL_COALESCING
+    UNSIGNED_SHIFT_RIGHT
 }

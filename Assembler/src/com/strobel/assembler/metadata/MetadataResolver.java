@@ -272,7 +272,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
 
     // <editor-fold defaultstate="collapsed" desc="Equivalence Tests">
 
-    static boolean areEquivalent(final TypeReference a, final TypeReference b) {
+    public static boolean areEquivalent(final TypeReference a, final TypeReference b) {
         if (a == b) {
             return true;
         }

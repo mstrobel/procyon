@@ -85,4 +85,5 @@ public interface IAstVisitor<T, R> {
     R visitMethodGroupExpression(MethodGroupExpression node, T data);
     R visitEnumValueDeclaration(EnumValueDeclaration enumValueDeclaration, T data);
     R visitAssertStatement(AssertStatement node, T data);
+    R visitLambdaExpression(LambdaExpression node, T data);
 }

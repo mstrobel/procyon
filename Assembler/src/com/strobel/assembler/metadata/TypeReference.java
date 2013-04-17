@@ -131,6 +131,13 @@ public abstract class TypeReference extends MemberReference implements IGenericP
             );
         }
 
+        if (this instanceof IGenericInstance) {
+            return new ParameterizedType(
+                (TypeReference) ((IGenericInstance)this).getGenericDefinition(),
+                ArrayUtilities.asUnmodifiableList(typeArguments.toArray(new TypeReference[typeArguments.size()]))
+            );
+        }
+
         throw Error.notGenericType(this);
     }
 

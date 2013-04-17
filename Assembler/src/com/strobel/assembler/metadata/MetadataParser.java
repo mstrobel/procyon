@@ -835,17 +835,17 @@ public final class MetadataParser {
 
         @Override
         public String getSimpleName() {
-            return getName();
+            return _genericDefinition.getSimpleName();
         }
 
         @Override
         public String getFullName() {
-            return getName();
+            return _genericDefinition.getFullName();
         }
 
         @Override
         public String getInternalName() {
-            return getName();
+            return _genericDefinition.getInternalName();
         }
 
         @Override

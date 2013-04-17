@@ -19,6 +19,7 @@ package com.strobel.decompiler.ast;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.Comparer;
 import com.strobel.core.Predicate;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.core.delegates.Func;
 import com.strobel.decompiler.DecompilerContext;
@@ -494,7 +495,10 @@ public final class TypeAnalysis {
                         for (int i = 0; i < parameters.size(); i++) {
                             inferTypeForExpression(
                                 arguments.get(i + 1),
-                                substituteTypeArguments(parameters.get(i).getParameterType(), methodReference, targetType)
+                                substituteTypeArguments(
+                                    substituteTypeArguments(parameters.get(i).getParameterType(), methodReference),
+                                    targetType
+                                )
                             );
                         }
                     }
@@ -502,7 +506,7 @@ public final class TypeAnalysis {
                         for (int i = 0; i < parameters.size(); i++) {
                             inferTypeForExpression(
                                 arguments.get(i),
-                                substituteTypeArguments(parameters.get(i).getParameterType(), methodReference, null)
+                                substituteTypeArguments(parameters.get(i).getParameterType(), methodReference)
                             );
                         }
                     }
@@ -512,10 +516,24 @@ public final class TypeAnalysis {
                     return methodReference.getDeclaringType();
                 }
 
+                if (hasThis) {
+                    inferTypeForExpression(
+                        arguments.get(0),
+                        methodReference.getDeclaringType()
+                    );
+
+                    return substituteTypeArguments(
+                        substituteTypeArguments(
+                            methodReference.getReturnType(),
+                            methodReference
+                        ),
+                        arguments.get(0).getInferredType()
+                    );
+                }
+
                 return substituteTypeArguments(
                     methodReference.getReturnType(),
-                    methodReference,
-                    hasThis ? arguments.get(0).getInferredType() : null
+                    methodReference
                 );
             }
 
@@ -739,7 +757,7 @@ public final class TypeAnalysis {
             }
 
             case LoadElement: {
-                TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
+                final TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
 
                 if (forceInferChildren) {
                     inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
@@ -1139,9 +1157,99 @@ public final class TypeAnalysis {
     }
 
     static TypeReference getFieldType(final FieldReference field) {
-        return substituteTypeArguments(field.getFieldType(), field, null);
+        return substituteTypeArguments(field.getFieldType(), field);
     }
 
+    static TypeReference substituteTypeArguments(final TypeReference type, final MemberReference member) {
+        if (type instanceof ArrayType) {
+            final ArrayType arrayType = (ArrayType) type;
+
+            final TypeReference elementType = substituteTypeArguments(
+                arrayType.getElementType(),
+                member
+            );
+
+            if (!MetadataResolver.areEquivalent(elementType, arrayType.getElementType())) {
+                return elementType.makeArrayType();
+            }
+
+            return type;
+        }
+
+        if (type instanceof IGenericInstance) {
+            final IGenericInstance genericInstance = (IGenericInstance) type;
+            final List<TypeReference> newTypeArguments = new ArrayList<>();
+
+            boolean isChanged = false;
+
+            for (final TypeReference typeArgument : genericInstance.getTypeArguments()) {
+                final TypeReference newTypeArgument = substituteTypeArguments(typeArgument, member);
+
+                newTypeArguments.add(newTypeArgument);
+                isChanged |= newTypeArgument != typeArgument;
+            }
+
+            return isChanged ? type.makeGenericType(newTypeArguments)
+                             : type;
+        }
+
+        if (type instanceof GenericParameter) {
+            final GenericParameter genericParameter = (GenericParameter) type;
+            final IGenericParameterProvider owner = genericParameter.getOwner();
+
+            if (member.getDeclaringType() instanceof ArrayType) {
+                return member.getDeclaringType().getElementType();
+            }
+            else if (owner instanceof MethodReference && member instanceof MethodReference) {
+                final MethodReference method = (MethodReference) member;
+                final MethodReference ownerMethod = (MethodReference) owner;
+
+                if (method.isGenericMethod() &&
+                    MetadataResolver.areEquivalent(ownerMethod.getDeclaringType(), method.getDeclaringType()) &&
+                    StringUtilities.equals(ownerMethod.getName(), method.getName()) &&
+                    StringUtilities.equals(ownerMethod.getErasedSignature(), method.getErasedSignature())) {
+
+                    if (method instanceof IGenericInstance) {
+                        final List<TypeReference> typeArguments = ((IGenericInstance) member).getTypeArguments();
+                        return typeArguments.get(genericParameter.getPosition());
+                    }
+                    else {
+                        return method.getGenericParameters().get(genericParameter.getPosition());
+                    }
+                }
+            }
+            else if (owner instanceof TypeReference) {
+                TypeReference declaringType;
+
+                if (member instanceof TypeReference) {
+                    declaringType = (TypeReference) member;
+                }
+                else {
+                    declaringType = member.getDeclaringType();
+                }
+
+                if (MetadataResolver.areEquivalent((TypeReference) owner, declaringType)) {
+                    if (declaringType instanceof IGenericInstance) {
+                        final List<TypeReference> typeArguments = ((IGenericInstance) declaringType).getTypeArguments();
+                        return typeArguments.get(genericParameter.getPosition());
+                    }
+
+                    if (!declaringType.isGenericDefinition()) {
+                        declaringType = declaringType.resolve();
+                    }
+
+                    if (declaringType != null && declaringType.isGenericDefinition()) {
+                        return declaringType.getGenericParameters().get(genericParameter.getPosition());
+                    }
+                }
+            }
+        }
+
+        return type;
+    }
+
+
+/*
     static TypeReference substituteTypeArguments(final TypeReference type, final MemberReference member, final TypeReference targetType) {
         if (type instanceof ArrayType) {
             final ArrayType arrayType = (ArrayType) type;
@@ -1190,6 +1298,7 @@ public final class TypeAnalysis {
 
         return type;
     }
+*/
 
     private boolean isSameType(final TypeReference t1, final TypeReference t2) {
         //noinspection SimplifiableIfStatement

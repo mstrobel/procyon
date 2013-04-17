@@ -22,6 +22,7 @@ import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
+import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.IntegerBox;
 import com.strobel.core.StringUtilities;
@@ -475,34 +476,45 @@ public class NameVariables {
     }
 
     private String getNameForType(final TypeReference type) {
+
+        TypeReference nameSource = type;
+
         String name;
 
-        if (type.isArray()) {
+        if (nameSource.isArray()) {
             name = "array";
         }
-        else if (StringUtilities.equals(type.getName(), "java/lang/Throwable")) {
+        else if (StringUtilities.equals(nameSource.getInternalName(), "java/lang/Throwable")) {
             name = "t";
         }
-        else if (StringUtilities.endsWith(type.getName(), "Exception")) {
+        else if (StringUtilities.endsWith(nameSource.getName(), "Exception")) {
             name = "ex";
         }
-        else if (StringUtilities.endsWith(type.getName(), "List")) {
+        else if (StringUtilities.endsWith(nameSource.getName(), "List")) {
             name = "list";
         }
-        else if (StringUtilities.endsWith(type.getName(), "Set")) {
+        else if (StringUtilities.endsWith(nameSource.getName(), "Set")) {
             name = "set";
         }
-        else if (StringUtilities.endsWith(type.getName(), "Collection")) {
+        else if (StringUtilities.endsWith(nameSource.getName(), "Collection")) {
             name = "collection";
         }
         else {
-            name = BUILT_IN_TYPE_NAMES.get(type.getInternalName());
+            name = BUILT_IN_TYPE_NAMES.get(nameSource.getInternalName());
 
             if (name != null) {
                 return name;
             }
 
-            name = type.getSimpleName();
+            if (!nameSource.isDefinition()) {
+                final TypeDefinition resolvedType = nameSource.resolve();
+
+                if (resolvedType != null) {
+                    nameSource = resolvedType;
+                }
+            }
+
+            name = nameSource.getSimpleName();
 
             //
             // Remove leading 'I' for interfaces.

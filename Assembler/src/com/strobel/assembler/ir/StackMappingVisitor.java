@@ -19,19 +19,26 @@ package com.strobel.assembler.ir;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.InstructionHelper;
+import com.strobel.reflection.SimpleType;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
 
 public class StackMappingVisitor implements MethodVisitor {
     private final MethodVisitor _innerVisitor;
 
     private int _maxLocals;
-//    private int _maxStack;
+    //    private int _maxStack;
     private List<FrameValue> _stack = new ArrayList<>();
     private List<FrameValue> _locals = new ArrayList<>();
+    private Map<Instruction, TypeReference> _initializations = new IdentityHashMap<>();
 
     public StackMappingVisitor() {
         _innerVisitor = null;
@@ -65,6 +72,10 @@ public class StackMappingVisitor implements MethodVisitor {
     public final FrameValue getLocalValue(final int slot) {
         VerifyArgument.inRange(0, getLocalCount(), slot, "slot");
         return _locals.get(slot);
+    }
+
+    public final Map<Instruction, TypeReference> getInitializations() {
+        return Collections.unmodifiableMap(_initializations);
     }
 
     public final FrameValue[] getStackSnapshot() {
@@ -120,10 +131,12 @@ public class StackMappingVisitor implements MethodVisitor {
         if (_locals != null) {
             _locals.clear();
             _stack.clear();
+            _initializations.clear();
         }
         else {
             _locals = new ArrayList<>();
             _stack = new ArrayList<>();
+            _initializations = new IdentityHashMap<>();
         }
 
         for (final FrameValue frameValue : frame.getLocalValues()) {
@@ -186,6 +199,7 @@ public class StackMappingVisitor implements MethodVisitor {
         if (_locals == null) {
             _locals = new ArrayList<>();
             _stack = new ArrayList<>();
+            _initializations = new IdentityHashMap<>();
         }
 
         while (local >= _locals.size()) {
@@ -201,6 +215,7 @@ public class StackMappingVisitor implements MethodVisitor {
         if (_locals == null) {
             _locals = new ArrayList<>();
             _stack = new ArrayList<>();
+            _initializations = new IdentityHashMap<>();
         }
 
         while (local >= _locals.size()) {
@@ -263,6 +278,7 @@ public class StackMappingVisitor implements MethodVisitor {
         if (_stack == null) {
             _locals = new ArrayList<>();
             _stack = new ArrayList<>();
+            _initializations = new IdentityHashMap<>();
         }
 
         switch (type.getSimpleType()) {
@@ -304,6 +320,7 @@ public class StackMappingVisitor implements MethodVisitor {
         if (_stack == null) {
             _locals = new ArrayList<>();
             _stack = new ArrayList<>();
+            _initializations = new IdentityHashMap<>();
         }
         _stack.add(value);
     }
@@ -311,7 +328,12 @@ public class StackMappingVisitor implements MethodVisitor {
     protected void initialize(final FrameValue value, final TypeReference type) {
         VerifyArgument.notNull(type, "type");
 
+        final Object parameter = value.getParameter();
         final FrameValue initializedValue = FrameValue.makeReference(type);
+
+        if (parameter instanceof Instruction) {
+            _initializations.put((Instruction) parameter, type);
+        }
 
         for (int i = 0; i < _stack.size(); i++) {
             if (_stack.get(i) == value) {
@@ -450,6 +472,7 @@ public class StackMappingVisitor implements MethodVisitor {
 
         private final Stack<FrameValue> _temp = new Stack<>();
 
+        @SuppressWarnings("ConstantConditions")
         private void execute(final Instruction instruction) {
             final OpCode code = instruction.getOpCode();
 
@@ -592,23 +615,52 @@ public class StackMappingVisitor implements MethodVisitor {
                         case INVOKEVIRTUAL:
                         case INVOKESPECIAL:
                         case INVOKESTATIC:
-                        case INVOKEINTERFACE: {
-                            final MethodReference method = instruction.getOperand(0);
+                        case INVOKEINTERFACE:
+                        case INVOKEDYNAMIC: {
+                            final IMethodSignature method;
+
+                            if (code == OpCode.INVOKEDYNAMIC) {
+                                method = instruction.<DynamicCallSite>getOperand(0).getMethodType();
+                            }
+                            else {
+                                method = instruction.getOperand(0);
+                            }
+
                             final List<ParameterDefinition> parameters = method.getParameters();
 
                             if (code == OpCode.INVOKESPECIAL) {
-                                final FrameValue firstParameter = _stack.get(parameters.size());
+                                final FrameValue firstParameter = getStackValue(parameters.size());
                                 final FrameValueType firstParameterType = firstParameter.getType();
 
                                 if (firstParameterType == FrameValueType.UninitializedThis ||
                                     firstParameterType == FrameValueType.Uninitialized) {
 
+                                    TypeReference initializedType;
+
                                     if (firstParameterType == FrameValueType.UninitializedThis) {
-                                        initialize(firstParameter, _body.getMethod().getDeclaringType());
+                                        initializedType = _body.getMethod().getDeclaringType();
                                     }
                                     else {
-                                        initialize(firstParameter, method.getDeclaringType());
+                                        initializedType = ((MethodReference) method).getDeclaringType();
                                     }
+
+                                    if (initializedType.isGenericDefinition()) {
+                                        final Instruction next = instruction.getNext();
+
+                                        if (next != null && next.getOpCode().isStore()) {
+                                            final int slot = InstructionHelper.getLoadOrStoreSlot(next);
+                                            final VariableDefinition variable = _body.getVariables().find(slot);
+
+                                            if (variable.isFromMetadata() &&
+                                                variable.getVariableType() instanceof IGenericInstance &&
+                                                StringUtilities.equals(initializedType.getInternalName(), variable.getVariableType().getInternalName())) {
+
+                                                initializedType = variable.getVariableType();
+                                            }
+                                        }
+                                    }
+
+                                    initialize(firstParameter, initializedType);
                                 }
                             }
 
@@ -628,35 +680,9 @@ public class StackMappingVisitor implements MethodVisitor {
                                 }
                             }
 
-                            if (code != OpCode.INVOKESTATIC) {
+                            if (code != OpCode.INVOKESTATIC && code != OpCode.INVOKEDYNAMIC) {
                                 _temp.push(pop());
                             }
-
-                            break;
-                        }
-
-                        case INVOKEDYNAMIC: {
-/*
-                            final DynamicCallSite callSite = instruction.getOperand(0);
-                            final IMethodSignature method = callSite.getBootstrapMethod();
-                            final List<ParameterDefinition> parameters = method.getParameters();
-
-                            for (final ParameterDefinition parameter : parameters) {
-                                final TypeReference parameterType = parameter.getParameterType();
-
-                                switch (parameterType.getSimpleType()) {
-                                    case Long:
-                                    case Double:
-                                        _temp.push(pop());
-                                        _temp.push(pop());
-                                        break;
-
-                                    default:
-                                        _temp.push(pop());
-                                        break;
-                                }
-                            }
-*/
 
                             break;
                         }
@@ -685,7 +711,7 @@ public class StackMappingVisitor implements MethodVisitor {
             }
 
             if (code.isArrayLoad()) {
-                push(((TypeReference)_temp.pop().getParameter()).getElementType());
+                push(((TypeReference) _temp.pop().getParameter()).getElementType());
                 return;
             }
 
@@ -786,7 +812,7 @@ public class StackMappingVisitor implements MethodVisitor {
                     break;
                 }
 
-                case Push2_Push2:{
+                case Push2_Push2: {
                     final FrameValue t2 = _temp.pop();
                     final FrameValue t1 = _temp.pop();
                     push(t2);
@@ -881,7 +907,46 @@ public class StackMappingVisitor implements MethodVisitor {
                         signature = instruction.<MethodReference>getOperand(0);
                     }
 
-                    final TypeReference returnType = signature.getReturnType();
+                    TypeReference returnType = signature.getReturnType();
+
+                    if (returnType.getSimpleType() != SimpleType.Void) {
+                        if (code != OpCode.INVOKESTATIC &&
+                            code != OpCode.INVOKEDYNAMIC &&
+                            code != OpCode.INVOKESPECIAL) {
+
+                            final TypeReference targetType = substituteTypeArguments(
+                                (TypeReference) _temp.peek().getParameter(),
+                                (MemberReference) signature
+                            );
+
+                            returnType = substituteTypeArguments(
+                                substituteTypeArguments(
+                                    signature.getReturnType(),
+                                    (MemberReference) signature
+                                ),
+                                targetType
+                            );
+                        }
+                        else if (instruction.getNext() != null &&
+                                 instruction.getNext().getOpCode().isStore()) {
+
+                            final Instruction next = instruction.getNext();
+                            final int slot = InstructionHelper.getLoadOrStoreSlot(next);
+                            final VariableDefinition variable = _body.getVariables().find(slot);
+
+                            if (variable != null && variable.isFromMetadata()) {
+                                returnType = substituteTypeArguments(
+                                    variable.getVariableType(),
+                                    signature.getReturnType()
+                                );
+                            }
+                        }
+                    }
+
+                    if (returnType.isWildcardType()) {
+                        returnType = returnType.hasSuperBound() ? returnType.getSuperBound()
+                                                                : returnType.getExtendsBound();
+                    }
 
                     switch (returnType.getSimpleType()) {
                         case Boolean:
@@ -920,6 +985,94 @@ public class StackMappingVisitor implements MethodVisitor {
                     break;
                 }
             }
+        }
+
+        private TypeReference substituteTypeArguments(final TypeReference type, final MemberReference member) {
+            if (type instanceof ArrayType) {
+                final ArrayType arrayType = (ArrayType) type;
+
+                final TypeReference elementType = substituteTypeArguments(
+                    arrayType.getElementType(),
+                    member
+                );
+
+                if (!MetadataResolver.areEquivalent(elementType, arrayType.getElementType())) {
+                    return elementType.makeArrayType();
+                }
+
+                return type;
+            }
+
+            if (type instanceof IGenericInstance) {
+                final IGenericInstance genericInstance = (IGenericInstance) type;
+                final List<TypeReference> newTypeArguments = new ArrayList<>();
+
+                boolean isChanged = false;
+
+                for (final TypeReference typeArgument : genericInstance.getTypeArguments()) {
+                    final TypeReference newTypeArgument = substituteTypeArguments(typeArgument, member);
+
+                    newTypeArguments.add(newTypeArgument);
+                    isChanged |= newTypeArgument != typeArgument;
+                }
+
+                return isChanged ? type.makeGenericType(newTypeArguments)
+                                 : type;
+            }
+
+            if (type instanceof GenericParameter) {
+                final GenericParameter genericParameter = (GenericParameter) type;
+                final IGenericParameterProvider owner = genericParameter.getOwner();
+
+                if (member.getDeclaringType() instanceof ArrayType) {
+                    return member.getDeclaringType().getElementType();
+                }
+                else if (owner instanceof MethodReference && member instanceof MethodReference) {
+                    final MethodReference method = (MethodReference) member;
+                    final MethodReference ownerMethod = (MethodReference) owner;
+
+                    if (method.isGenericMethod() &&
+                        MetadataResolver.areEquivalent(ownerMethod.getDeclaringType(), method.getDeclaringType()) &&
+                        StringUtilities.equals(ownerMethod.getName(), method.getName()) &&
+                        StringUtilities.equals(ownerMethod.getErasedSignature(), method.getErasedSignature())) {
+
+                        if (method instanceof IGenericInstance) {
+                            final List<TypeReference> typeArguments = ((IGenericInstance) member).getTypeArguments();
+                            return typeArguments.get(genericParameter.getPosition());
+                        }
+                        else {
+                            return method.getGenericParameters().get(genericParameter.getPosition());
+                        }
+                    }
+                }
+                else if (owner instanceof TypeReference) {
+                    TypeReference declaringType;
+
+                    if (member instanceof TypeReference) {
+                        declaringType = (TypeReference) member;
+                    }
+                    else {
+                        declaringType = member.getDeclaringType();
+                    }
+
+                    if (MetadataResolver.areEquivalent((TypeReference) owner, declaringType)) {
+                        if (declaringType instanceof IGenericInstance) {
+                            final List<TypeReference> typeArguments = ((IGenericInstance) declaringType).getTypeArguments();
+                            return typeArguments.get(genericParameter.getPosition());
+                        }
+
+                        if (!declaringType.isGenericDefinition()) {
+                            declaringType = declaringType.resolve();
+                        }
+
+                        if (declaringType != null && declaringType.isGenericDefinition()) {
+                            return declaringType.getGenericParameters().get(genericParameter.getPosition());
+                        }
+                    }
+                }
+            }
+
+            return type;
         }
     }
 }

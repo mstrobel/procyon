@@ -152,6 +152,13 @@ public final class BreakTargetRelocation implements IAstTransform {
             }
         }
 
+        paths.clear();
+
+        for (final GotoStatement gotoStatement : labelInfo.gotoStatements) {
+            paths.add(buildPath(gotoStatement));
+        }
+
+        paths.add(buildPath(label));
 
         final BlockStatement parent = findLowestCommonAncestorBlock(paths);
 

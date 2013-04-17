@@ -18,6 +18,8 @@ package com.strobel.decompiler;
 
 import com.strobel.assembler.ir.FlowControl;
 import com.strobel.assembler.ir.Instruction;
+import com.strobel.assembler.ir.OpCodeHelpers;
+import com.strobel.assembler.ir.OpCodeType;
 import com.strobel.assembler.metadata.DynamicCallSite;
 import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.ir.OpCode;
@@ -25,6 +27,7 @@ import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.IMethodSignature;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.VariableDefinition;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.SimpleType;
 import com.strobel.util.ContractUtils;
@@ -32,6 +35,22 @@ import com.strobel.util.ContractUtils;
 import java.util.List;
 
 public final class InstructionHelper {
+    public static int getLoadOrStoreSlot(final Instruction instruction) {
+        final OpCode code = instruction.getOpCode();
+
+        if (!code.isLoad() && !code.isStore()) {
+            return -1;
+        }
+
+        if (code.getOpCodeType() == OpCodeType.Macro) {
+            return OpCodeHelpers.getLoadStoreMacroArgumentIndex(code);
+        }
+
+        final VariableDefinition variable = instruction.getOperand(0);
+
+        return variable.getSlot();
+    }
+
     public static int getPopDelta(final Instruction instruction, final MethodBody body) {
         VerifyArgument.notNull(instruction, "instruction");
         VerifyArgument.notNull(body, "body");
@@ -151,12 +170,22 @@ public final class InstructionHelper {
                     break;
                 }
 
-                final IMethodSignature signature = instruction.getOperand(0);
+                final IMethodSignature signature;
+
+                if (code == OpCode.INVOKEDYNAMIC) {
+                    signature = instruction.<DynamicCallSite>getOperand(0).getMethodType();
+                }
+                else {
+                    signature = instruction.getOperand(0);
+                }
+
                 final List<ParameterDefinition> parameters = signature.getParameters();
 
                 int count = parameters.size();
 
-                if (instruction.getOpCode() != OpCode.INVOKESTATIC) {
+                if (instruction.getOpCode() != OpCode.INVOKESTATIC &&
+                    instruction.getOpCode() != OpCode.INVOKEDYNAMIC) {
+
                     ++count;
                 }
 

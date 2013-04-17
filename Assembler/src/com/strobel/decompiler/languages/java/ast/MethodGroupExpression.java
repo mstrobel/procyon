@@ -18,8 +18,10 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.Role;
 
 public class MethodGroupExpression extends Expression {
+    public final static Role<Expression> CLOSURE_ARGUMENT_RULE = new Role<>("ClosureArgument", Expression.class, Expression.NULL);
     public final static TokenRole DOUBLE_COLON_ROLE = new TokenRole("::", TokenRole.FLAG_OPERATOR);
 
     public MethodGroupExpression() {
@@ -28,6 +30,10 @@ public class MethodGroupExpression extends Expression {
     public MethodGroupExpression(final AstType declaringType, final String methodName) {
         setDeclaringType(declaringType);
         setMethodName(methodName);
+    }
+
+    public final AstNodeCollection<Expression> getClosureArguments() {
+        return getChildrenByRole(CLOSURE_ARGUMENT_RULE);
     }
 
     public final JavaTokenNode getDoubleColonToken() {

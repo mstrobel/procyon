@@ -1860,6 +1860,31 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    public Void visitLambdaExpression(final LambdaExpression node, final Void _) {
+        startNode(node);
+
+        if (lambdaNeedsParenthesis(node)) {
+            writeCommaSeparatedListInParenthesis(node.getParameters(), policy.SpaceWithinMethodDeclarationParentheses);
+        }
+        else {
+            node.getParameters().firstOrNullObject().acceptVisitor(this, _);
+        }
+
+        space();
+        writeToken(LambdaExpression.ARROW_ROLE);
+        space();
+        node.getBody().acceptVisitor(this, _);
+        endNode(node);
+
+        return null;
+    }
+
+    private static boolean lambdaNeedsParenthesis(final LambdaExpression lambda) {
+        return lambda.getParameters().size() != 1 ||
+               !lambda.getParameters().firstOrNullObject().getType().isNull();
+    }
+
+    @Override
     public Void visitArrayCreationExpression(final ArrayCreationExpression node, final Void _) {
         startNode(node);
         writeKeyword(ArrayCreationExpression.NEW_KEYWORD_ROLE);

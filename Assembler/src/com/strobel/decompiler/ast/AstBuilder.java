@@ -837,7 +837,29 @@ public final class AstBuilder {
             //
             // Calculate new variable state.
             //
+
             final VariableSlot[] newVariableState = VariableSlot.cloneVariableState(byteCode.variablesBefore);
+            final Map<Instruction, TypeReference> initializations = stackMapper.getInitializations();
+
+            for (int i = 0; i < newVariableState.length; i++) {
+                final VariableSlot slot = newVariableState[i];
+
+                if (slot.isUninitialized()) {
+                    final Object parameter = slot.value.getParameter();
+
+                    if (parameter instanceof Instruction) {
+                        final Instruction instruction = (Instruction) parameter;
+                        final TypeReference initializedType = initializations.get(instruction);
+
+                        if (initializedType != null) {
+                            newVariableState[i] = new VariableSlot(
+                                FrameValue.makeReference(initializedType),
+                                slot.definitions
+                            );
+                        }
+                    }
+                }
+            }
 
             if (byteCode.isVariableDefinition()) {
                 final int slot = ((VariableReference) byteCode.operand).getSlot();
@@ -971,6 +993,7 @@ public final class AstBuilder {
                     for (int i = 0; i < newStack.length; i++) {
                         final ByteCode[] oldDefinitions = branchTarget.stackBefore[i].definitions;
                         final ByteCode[] newDefinitions = ArrayUtilities.union(oldDefinitions, newStack[i].definitions);
+                        final Object parameter = branchTarget.stackBefore[i].value.getParameter();
 
                         if (newDefinitions.length > oldDefinitions.length) {
                             branchTarget.stackBefore[i] = new StackSlot(newStack[i].value, newDefinitions);
@@ -1233,7 +1256,22 @@ public final class AstBuilder {
     }
 
     private static StackSlot[] createModifiedStack(final ByteCode byteCode, final StackMappingVisitor stackMapper) {
-        final StackSlot[] oldStack = byteCode.stackBefore;
+        final Map<Instruction, TypeReference> initializations = stackMapper.getInitializations();
+        final StackSlot[] oldStack = byteCode.stackBefore.clone();
+
+        for (int i = 0; i < oldStack.length; i++) {
+            if (oldStack[i].value.getParameter() instanceof Instruction) {
+                final TypeReference initializedType = initializations.get((Instruction) oldStack[i].value.getParameter());
+
+                if (initializedType != null) {
+                    oldStack[i] = new StackSlot(
+                        FrameValue.makeReference(initializedType),
+                        oldStack[i].definitions,
+                        oldStack[i].loadFrom
+                    );
+                }
+            }
+        }
 
         if (byteCode.popCount == 0 && byteCode.pushCount == 0) {
             return oldStack;

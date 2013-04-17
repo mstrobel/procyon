@@ -31,7 +31,10 @@ public final class TransformationPipeline {
             new DeclareVariablesTransform(context),
             new CollapseImportsTransform(context),
             new PushNegationTransform(context),
-            new FlattenSwitchBlocksTransform(context)
+            new FlattenSwitchBlocksTransform(context),
+            new LambdaTransform(context),
+            new RemoveHiddenMembersTransform(context),
+            new AutoUnboxingTransform(context)
         };
     }
 

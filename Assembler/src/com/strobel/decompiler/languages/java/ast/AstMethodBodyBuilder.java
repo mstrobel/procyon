@@ -18,7 +18,6 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.Comparer;
-import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
@@ -497,29 +496,19 @@ public class AstMethodBodyBuilder {
                     callSite.getBootstrapArguments().size() == 3 &&
                     callSite.getBootstrapArguments().get(1) instanceof MethodReference) {
 
-                    final TypeDefinition declaringType = _method.getDeclaringType();
-                    final String methodName = ((MethodReference) callSite.getBootstrapArguments().get(1)).getName();
+                    final MethodReference targetMethod = (MethodReference) callSite.getBootstrapArguments().get(1);
+                    final TypeReference declaringType = targetMethod.getDeclaringType();
+                    final String methodName = targetMethod.getName();
 
                     final MethodGroupExpression methodGroup = new MethodGroupExpression(
                         _astBuilder.convertType(declaringType),
                         methodName
                     );
 
-                    final MethodReference method = firstOrDefault(
-                        declaringType.getDeclaredMethods(),
-                        new Predicate<MethodDefinition>() {
-                            @Override
-                            public boolean test(final MethodDefinition m) {
-                                return methodName.equals(m.getName());
-                            }
-                        }
-                    );
+                    methodGroup.getClosureArguments().addAll(arguments);
 
                     methodGroup.putUserData(Keys.DYNAMIC_CALL_SITE, callSite);
-
-                    if (method != null) {
-                        methodGroup.putUserData(Keys.MEMBER_REFERENCE, method);
-                    }
+                    methodGroup.putUserData(Keys.MEMBER_REFERENCE, targetMethod);
 
                     return methodGroup;
                 }

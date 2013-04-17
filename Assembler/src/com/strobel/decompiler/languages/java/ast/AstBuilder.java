@@ -257,8 +257,7 @@ public final class AstBuilder {
             return baseType;
         }
 
-        String name;
-
+        final String name;
         final TypeDefinition resolvedType = type.resolve();
         final TypeReference nameSource = resolvedType != null ? resolvedType : type;
         final PackageDeclaration packageDeclaration = _compileUnit.getPackage();
@@ -416,19 +415,15 @@ public final class AstBuilder {
 
     private void addTypeMembers(final TypeDeclaration astType, final TypeDefinition type) {
         for (final FieldDefinition field : type.getDeclaredFields()) {
-            if (!isMemberHidden(field, _context.getSettings())) {
-                astType.addChild(createField(field), Roles.TYPE_MEMBER);
-            }
+            astType.addChild(createField(field), Roles.TYPE_MEMBER);
         }
 
         for (final MethodDefinition method : type.getDeclaredMethods()) {
-            if (!isMemberHidden(method, _context.getSettings())) {
-                if (method.isConstructor()) {
-                    astType.addChild(createConstructor(method), Roles.TYPE_MEMBER);
-                }
-                else {
-                    astType.addChild(createMethod(method), Roles.TYPE_MEMBER);
-                }
+            if (method.isConstructor()) {
+                astType.addChild(createConstructor(method), Roles.TYPE_MEMBER);
+            }
+            else {
+                astType.addChild(createMethod(method), Roles.TYPE_MEMBER);
             }
         }
 
