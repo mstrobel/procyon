@@ -571,6 +571,8 @@
         <w>multianewarray</w>
         <w>newarray</w>
         <w>noouterthis</w>
+        <w>obfuscator</w>
+        <w>obfuscators</w>
         <w>opcode</w>
         <w>preallocation</w>
         <w>putfield</w>
@@ -587,6 +589,7 @@
         <w>supertype</w>
         <w>tableswitch</w>
         <w>tmpdir</w>
+        <w>unreachability</w>
         <w>variable's</w>
       </words>
     </dictionary>

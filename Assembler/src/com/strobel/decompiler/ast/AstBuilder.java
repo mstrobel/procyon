@@ -491,7 +491,7 @@ public final class AstBuilder {
                          pTry.getOpCode() == OpCode.GOTO_W) &&
                         ((Instruction) pTry.getOperand(0)).getOffset() > lastFinallyInstruction.getOffset()) {
 
-                        final Instruction oldBranchTarget = (Instruction) pTry.getOperand(0);
+                        final Instruction oldBranchTarget = pTry.getOperand(0);
 
                         //
                         // If the try block ends with an explicit break bypassing the finally handler, redirect it.
@@ -993,7 +993,6 @@ public final class AstBuilder {
                     for (int i = 0; i < newStack.length; i++) {
                         final ByteCode[] oldDefinitions = branchTarget.stackBefore[i].definitions;
                         final ByteCode[] newDefinitions = ArrayUtilities.union(oldDefinitions, newStack[i].definitions);
-                        final Object parameter = branchTarget.stackBefore[i].value.getParameter();
 
                         if (newDefinitions.length > oldDefinitions.length) {
                             branchTarget.stackBefore[i] = new StackSlot(newStack[i].value, newDefinitions);
@@ -1261,7 +1260,7 @@ public final class AstBuilder {
 
         for (int i = 0; i < oldStack.length; i++) {
             if (oldStack[i].value.getParameter() instanceof Instruction) {
-                final TypeReference initializedType = initializations.get((Instruction) oldStack[i].value.getParameter());
+                final TypeReference initializedType = initializations.get(oldStack[i].value.getParameter());
 
                 if (initializedType != null) {
                     oldStack[i] = new StackSlot(
@@ -1971,6 +1970,7 @@ public final class AstBuilder {
         return ast;
     }
 
+    @SuppressWarnings("ConstantConditions")
     private List<Node> convertToAst(final List<ByteCode> body) {
         final ArrayList<Node> ast = new ArrayList<>();
 
