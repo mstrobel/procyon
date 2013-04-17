@@ -2106,9 +2106,9 @@ public final class AstBuilder {
         }
     }
 
-// </editor-fold>
+    // </editor-fold>
 
-// <editor-fold defaultstate="collapsed" desc="VariableSlot Class">
+    // <editor-fold defaultstate="collapsed" desc="VariableSlot Class">
 
     private final static class VariableSlot {
         final static VariableSlot UNKNOWN_INSTANCE = new VariableSlot(FrameValue.UNINITIALIZED, EMPTY_DEFINITIONS);
@@ -2140,9 +2140,9 @@ public final class AstBuilder {
         }
     }
 
-// </editor-fold>
+    // </editor-fold>
 
-// <editor-fold defaultstate="collapsed" desc="ByteCode Class">
+    // <editor-fold defaultstate="collapsed" desc="ByteCode Class">
 
     private final static class ByteCode {
         Label label;
@@ -2318,5 +2318,5 @@ public final class AstBuilder {
         }
     }
 
-// </editor-fold>
+    // </editor-fold>
 }
