@@ -233,18 +233,19 @@ public abstract class MetadataReader {
 
                     for (int j = 0; j < arguments.length; j++) {
                         final ParameterReference parameter = parameters.get(j + (parameters.size() - arguments.length));
+                        final int token = buffer.readUnsignedShort();
 
                         switch (parameter.getParameterType().getInternalName()) {
                             case "java/lang/invoke/MethodHandle":
-                                arguments[j] = scope.lookupMethod(buffer.readUnsignedShort());
+                                arguments[j] = scope.lookupMethodHandle(token);
                                 continue;
 
                             case "java/lang/invoke/MethodType":
-                                arguments[j] = scope.lookupMethodType(buffer.readUnsignedShort());
+                                arguments[j] = scope.lookupMethodType(token);
                                 continue;
 
                             default:
-                                arguments[j] = scope.lookupConstant(buffer.readUnsignedShort());
+                                arguments[j] = scope.lookupConstant(token);
                                 continue;
                         }
                     }

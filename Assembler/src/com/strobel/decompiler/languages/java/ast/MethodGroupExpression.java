@@ -27,8 +27,13 @@ public class MethodGroupExpression extends Expression {
     public MethodGroupExpression() {
     }
 
+    public MethodGroupExpression(final Expression target, final String methodName) {
+        setTarget(target);
+        setMethodName(methodName);
+    }
+
     public MethodGroupExpression(final AstType declaringType, final String methodName) {
-        setDeclaringType(declaringType);
+        setTarget(new TypeReferenceExpression(declaringType));
         setMethodName(methodName);
     }
 
@@ -56,12 +61,12 @@ public class MethodGroupExpression extends Expression {
         setChildByRole(Roles.IDENTIFIER, token);
     }
 
-    public final AstType getDeclaringType() {
-        return getChildByRole(Roles.TYPE);
+    public final Expression getTarget() {
+        return getChildByRole(Roles.TARGET_EXPRESSION);
     }
 
-    public final void setDeclaringType(final AstType value) {
-        setChildByRole(Roles.TYPE, value);
+    public final void setTarget(final Expression value) {
+        setChildByRole(Roles.TARGET_EXPRESSION, value);
     }
 
     @Override

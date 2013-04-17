@@ -36,7 +36,6 @@ public final class DynamicCallSite {
         _bootstrapArguments = VerifyArgument.notNull(bootstrapArguments, "bootstrapArguments");
         _methodName = VerifyArgument.notNull(methodName, "methodName");
         _methodType = VerifyArgument.notNull(methodType, "methodType");
-
     }
 
     public final String getMethodName() {

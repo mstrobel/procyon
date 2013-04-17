@@ -34,7 +34,7 @@ public final class TransformationPipeline {
             new FlattenSwitchBlocksTransform(context),
             new LambdaTransform(context),
             new RemoveHiddenMembersTransform(context),
-            new AutoUnboxingTransform(context)
+            new RemoveImplicitBoxingTransform(context)
         };
     }
 

@@ -19,25 +19,20 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.decompiler.DecompilerContext;
-import com.strobel.decompiler.languages.java.ast.BinaryOperatorExpression;
-import com.strobel.decompiler.languages.java.ast.ContextTrackingVisitor;
-import com.strobel.decompiler.languages.java.ast.Expression;
-import com.strobel.decompiler.languages.java.ast.InvocationExpression;
-import com.strobel.decompiler.languages.java.ast.Keys;
-import com.strobel.decompiler.languages.java.ast.MemberReferenceExpression;
-import com.strobel.decompiler.languages.java.ast.UnaryOperatorExpression;
+import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.HashSet;
 import java.util.Set;
 
-public class AutoUnboxingTransform extends ContextTrackingVisitor<Void> {
+public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> {
+    private final static Set<String> BOX_METHODS;
     private final static Set<String> UNBOX_METHODS;
 
     static {
+        BOX_METHODS = new HashSet<>();
         UNBOX_METHODS = new HashSet<>();
 
         final String[] boxTypes = {
-            "java/lang/Number",
             "java/lang/Byte",
             "java/lang/Short",
             "java/lang/Integer",
@@ -55,6 +50,25 @@ public class AutoUnboxingTransform extends ContextTrackingVisitor<Void> {
             "doubleValue:()D"
         };
 
+        final String[] boxMethods = {
+            "java/lang/Boolean.valueOf:(Z)Ljava/lang/Boolean;",
+            "java/lang/Character.valueOf:(C)Ljava/lang/Character;",
+            "java/lang/Byte.valueOf:(B)Ljava/lang/Byte;",
+            "java/lang/Short.valueOf:(S)Ljava/lang/Short;",
+            "java/lang/Integer.valueOf:(I)Ljava/lang/Integer;",
+            "java/lang/Long.valueOf:(J)Ljava/lang/Long;",
+            "java/lang/Float.valueOf:(F)Ljava/lang/Float;",
+            "java/lang/Double.valueOf:(D)Ljava/lang/Double;"
+        };
+
+        for (final String boxMethod : boxMethods) {
+            BOX_METHODS.add(boxMethod);
+        }
+
+        for (final String unboxMethod : unboxMethods) {
+            UNBOX_METHODS.add("java/lang/Number." + unboxMethod);
+        }
+
         for (final String boxType : boxTypes) {
             for (final String unboxMethod : unboxMethods) {
                 UNBOX_METHODS.add(boxType + "." + unboxMethod);
@@ -65,8 +79,44 @@ public class AutoUnboxingTransform extends ContextTrackingVisitor<Void> {
         UNBOX_METHODS.add("java/lang/Boolean.booleanValue:()Z");
     }
 
-    public AutoUnboxingTransform(final DecompilerContext context) {
+    public RemoveImplicitBoxingTransform(final DecompilerContext context) {
         super(context);
+    }
+
+    @Override
+    public Void visitInvocationExpression(final InvocationExpression node, final Void data) {
+        if (node.getArguments().size() == 1 &&
+            node.getTarget() instanceof MemberReferenceExpression &&
+            isValidPrimitiveParent(node.getParent())) {
+
+            removeBoxing(node);
+        }
+
+        return super.visitInvocationExpression(node, data);
+    }
+
+    private boolean isValidPrimitiveParent(final AstNode parent) {
+        if (parent instanceof BinaryOperatorExpression) {
+            final BinaryOperatorExpression binary = (BinaryOperatorExpression) parent;
+
+            if (binary.getLeft() instanceof NullReferenceExpression ||
+                binary.getRight() instanceof NullReferenceExpression) {
+
+                return false;
+            }
+
+            return true;
+        }
+
+        return !(
+            parent instanceof MemberReferenceExpression ||
+            parent instanceof ClassOfExpression ||
+            parent instanceof MethodGroupExpression ||
+            parent instanceof InvocationExpression ||
+            parent instanceof IndexerExpression ||
+            parent instanceof SynchronizedStatement ||
+            parent instanceof ThrowStatement
+        );
     }
 
     @Override
@@ -85,8 +135,9 @@ public class AutoUnboxingTransform extends ContextTrackingVisitor<Void> {
     }
 
     private void unbox(final Expression e) {
-        if (e == null || e.isNull())
+        if (e == null || e.isNull()) {
             return;
+        }
 
         if (!(e instanceof InvocationExpression)) {
             return;
@@ -110,6 +161,22 @@ public class AutoUnboxingTransform extends ContextTrackingVisitor<Void> {
             final Expression boxedValue = ((MemberReferenceExpression) target).getTarget();
             boxedValue.remove();
             e.replaceWith(boxedValue);
+        }
+    }
+
+    private void removeBoxing(final InvocationExpression node) {
+        final MemberReference reference = node.getUserData(Keys.MEMBER_REFERENCE);
+
+        if (!(reference instanceof MethodReference)) {
+            return;
+        }
+
+        final String key = reference.getFullName() + ":" + reference.getSignature();
+
+        if (BOX_METHODS.contains(key)) {
+            final Expression underlyingValue = node.getArguments().firstOrNullObject();
+            underlyingValue.remove();
+            node.replaceWith(underlyingValue);
         }
     }
 }

@@ -494,18 +494,40 @@ public class AstMethodBodyBuilder {
                 if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
                     "metaFactory".equals(bootstrapMethod.getName()) &&
                     callSite.getBootstrapArguments().size() == 3 &&
-                    callSite.getBootstrapArguments().get(1) instanceof MethodReference) {
+                    callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
 
-                    final MethodReference targetMethod = (MethodReference) callSite.getBootstrapArguments().get(1);
+                    final MethodHandle targetMethodHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
+                    final MethodReference targetMethod = targetMethodHandle.getMethod();
                     final TypeReference declaringType = targetMethod.getDeclaringType();
                     final String methodName = targetMethod.getName();
 
+                    final boolean hasInstanceArgument;
+
+                    switch (targetMethodHandle.getHandleType()) {
+                        case GetField:
+                        case PutField:
+                        case InvokeVirtual:
+                        case InvokeSpecial:
+                        case NewInvokeSpecial:
+                        case InvokeInterface:
+                            assert arg1 != null;
+                            hasInstanceArgument = true;
+                            break;
+
+                        default:
+                            hasInstanceArgument = false;
+                            break;
+                    }
+
                     final MethodGroupExpression methodGroup = new MethodGroupExpression(
-                        _astBuilder.convertType(declaringType),
+                        hasInstanceArgument ? arg1
+                                            : new TypeReferenceExpression(_astBuilder.convertType(declaringType)),
                         methodName
                     );
 
-                    methodGroup.getClosureArguments().addAll(arguments);
+                    methodGroup.getClosureArguments().addAll(
+                        hasInstanceArgument ? arguments.subList(1, arguments.size()) : arguments
+                    );
 
                     methodGroup.putUserData(Keys.DYNAMIC_CALL_SITE, callSite);
                     methodGroup.putUserData(Keys.MEMBER_REFERENCE, targetMethod);

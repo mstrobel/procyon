@@ -1062,6 +1062,8 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
     // <editor-fold defaultstate="collapsed" desc="Metadata Scope">
 
+    private final static MethodHandleType[] METHOD_HANDLE_TYPES = MethodHandleType.values();
+
     private class Scope implements IMetadataScope {
         private final MetadataParser _parser;
 
@@ -1104,6 +1106,17 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             }
 
             return lookupMethod(reference.typeInfoIndex, reference.nameAndTypeDescriptorIndex);
+        }
+
+        @Override
+        public MethodHandle lookupMethodHandle(final int token) {
+            final ConstantPool.MethodHandleEntry entry = constantPool.getEntry(token);
+            final ConstantPool.ReferenceEntry reference = constantPool.getEntry(entry.referenceIndex);
+
+            return new MethodHandle(
+                lookupMethod(reference.typeInfoIndex, reference.nameAndTypeDescriptorIndex),
+                METHOD_HANDLE_TYPES[entry.referenceKind.ordinal()]
+            );
         }
 
         @Override
