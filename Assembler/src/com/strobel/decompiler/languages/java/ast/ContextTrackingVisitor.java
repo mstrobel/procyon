@@ -48,22 +48,22 @@ public abstract class ContextTrackingVisitor<TResult> extends DepthFirstAstVisit
         }
     }
 
-    public TResult visitMethodDeclaration(final MethodDeclaration methodDeclaration, final Void _) {
+    public TResult visitMethodDeclaration(final MethodDeclaration node, final Void _) {
         assert context.getCurrentMethod() == null;
         try {
-            context.setCurrentMethod(methodDeclaration.getUserData(Keys.METHOD_DEFINITION));
-            return super.visitMethodDeclaration(methodDeclaration, _);
+            context.setCurrentMethod(node.getUserData(Keys.METHOD_DEFINITION));
+            return super.visitMethodDeclaration(node, _);
         }
         finally {
             context.setCurrentMethod(null);
         }
     }
 
-    public TResult visitConstructorDeclaration(final ConstructorDeclaration constructorDeclaration, final Void _) {
+    public TResult visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
         assert (context.getCurrentMethod() == null);
         try {
-            context.setCurrentMethod(constructorDeclaration.getUserData(Keys.METHOD_DEFINITION));
-            return super.visitConstructorDeclaration(constructorDeclaration, _);
+            context.setCurrentMethod(node.getUserData(Keys.METHOD_DEFINITION));
+            return super.visitConstructorDeclaration(node, _);
         }
         finally {
             context.setCurrentMethod(null);

@@ -33,9 +33,10 @@ public final class TransformationPipeline {
             new PushNegationTransform(context),
             new FlattenSwitchBlocksTransform(context),
             new LambdaTransform(context),
-            new RemoveHiddenMembersTransform(context),
             new RemoveImplicitBoxingTransform(context),
-            new IntroduceStringConcatenationTransform(context)
+            new IntroduceStringConcatenationTransform(context),
+            new IntroduceOuterClassReferencesTransform(context),
+            new RemoveHiddenMembersTransform(context)
         };
     }
 

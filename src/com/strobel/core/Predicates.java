@@ -128,10 +128,10 @@ public final class Predicates {
      * @return a predicate that evaluates to {@code true} if the object being
      * tested is an instance of the provided class
      */
-    public static Predicate<Object> instanceOf(final Class<?> clazz) {
-        return new Predicate<Object>() {
+    public static <T> Predicate<T> instanceOf(final Class<?> clazz) {
+        return new Predicate<T>() {
             @Override
-            public boolean test(final Object o) {
+            public boolean test(final T o) {
                 return clazz.isInstance(o);
             }
         };

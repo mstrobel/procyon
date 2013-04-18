@@ -161,11 +161,11 @@ public class EnumRewriterTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitMethodDeclaration(final MethodDeclaration methodDeclaration, final Void _) {
+        public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
             final TypeDefinition currentType = context.getCurrentType();
 
             if (currentType != null && currentType.isEnum() && !context.getSettings().getShowSyntheticMembers()) {
-                final MethodDefinition method = methodDeclaration.getUserData(Keys.METHOD_DEFINITION);
+                final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
                 if (method != null &&
                     method.isPublic() &&
@@ -176,7 +176,7 @@ public class EnumRewriterTransform implements IAstTransform {
                             if (method.getParameters().isEmpty() &&
                                 currentType.makeArrayType().equals(method.getReturnType())) {
 
-                                methodDeclaration.remove();
+                                node.remove();
                             }
                             break;
                         }
@@ -188,7 +188,7 @@ public class EnumRewriterTransform implements IAstTransform {
                                 final ParameterDefinition p = method.getParameters().get(0);
 
                                 if ("java/lang/String".equals(p.getParameterType().getInternalName())) {
-                                    methodDeclaration.remove();
+                                    node.remove();
                                 }
                             }
                             break;
@@ -197,7 +197,7 @@ public class EnumRewriterTransform implements IAstTransform {
                 }
             }
 
-            return super.visitMethodDeclaration(methodDeclaration, _);
+            return super.visitMethodDeclaration(node, _);
         }
 
         private void rewrite(

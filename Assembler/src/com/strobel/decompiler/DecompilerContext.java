@@ -30,6 +30,13 @@ public final class DecompilerContext {
     private TypeDefinition _currentType;
     private MethodDefinition _currentMethod;
 
+    public DecompilerContext() {
+    }
+
+    public DecompilerContext(final DecompilerSettings settings) {
+        _settings = settings;
+    }
+
     public DecompilerSettings getSettings() {
         return _settings;
     }

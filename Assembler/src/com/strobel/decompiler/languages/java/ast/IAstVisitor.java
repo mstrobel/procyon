@@ -86,4 +86,5 @@ public interface IAstVisitor<T, R> {
     R visitEnumValueDeclaration(EnumValueDeclaration enumValueDeclaration, T data);
     R visitAssertStatement(AssertStatement node, T data);
     R visitLambdaExpression(LambdaExpression node, T data);
+    R visitOuterTypeReferenceExpression(OuterTypeReferenceExpression node, T data);
 }

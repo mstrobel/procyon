@@ -809,6 +809,14 @@ public class AstMethodBodyBuilder {
             creation.getArguments().addAll(adjustArgumentsForMethodCall(methodReference, arguments));
             creation.putUserData(Keys.MEMBER_REFERENCE, methodReference);
 
+            if (creation instanceof AnonymousObjectCreationExpression) {
+                AnonymousTypeHelper.replaceClosureMembers(
+                    _context.getSettings(),
+                    (AnonymousObjectCreationExpression) creation,
+                    arguments
+                );
+            }
+
             return creation;
         }
 
@@ -848,7 +856,10 @@ public class AstMethodBodyBuilder {
 
             if (declaringType != null) {
                 if (declaringType.isLocalClass()) {
-                    return arguments.subList(1, arguments.size());
+                    return arguments.subList(
+                        _context.getSettings().getShowSyntheticMembers() ? 0 : 1,
+                        arguments.size()
+                    );
                 }
 
                 if (declaringType.isInnerClass()) {
@@ -860,29 +871,26 @@ public class AstMethodBodyBuilder {
 
                         final List<ParameterDefinition> parameters = resolvedMethod.getParameters();
 
-                        int tailArgumentsToRemove = 0;
+                        int start = 0;
+                        int end = arguments.size();
 
                         for (int i = parameters.size() - 1; i >= 0; i--) {
                             final TypeReference parameterType = parameters.get(i).getParameterType();
                             final TypeDefinition resolvedParameterType = parameterType.resolve();
 
                             if (resolvedParameterType != null && resolvedParameterType.isAnonymous()) {
-                                ++tailArgumentsToRemove;
+                                --end;
                             }
                             else {
                                 break;
                             }
                         }
 
-                        while (tailArgumentsToRemove-- > 0 && !arguments.isEmpty()) {
-                            arguments.remove(arguments.size() - 1);
+                        if (!declaringType.isStatic() && !_context.getSettings().getShowSyntheticMembers()) {
+                            ++start;
                         }
 
-                        if (!declaringType.isStatic()) {
-                            arguments.remove(0);
-                        }
-
-                        return arguments;
+                        return arguments.subList(start, end);
                     }
                 }
             }

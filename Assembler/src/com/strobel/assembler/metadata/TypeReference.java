@@ -417,6 +417,11 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return appendErasedClassSignature(sb);
     }
 
+    @Override
+    public String toString() {
+        return getSignature();
+    }
+
     protected StringBuilder appendGenericSignature(final StringBuilder sb) {
         StringBuilder s = sb;
 

@@ -168,7 +168,7 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
         methodGroup.replaceWith(lambda);
     }
 
-    private final String makeMethodKey(final MethodReference method) {
+    private static String makeMethodKey(final MethodReference method) {
         return method.getFullName() + ":" + method.getErasedSignature();
     }
 }

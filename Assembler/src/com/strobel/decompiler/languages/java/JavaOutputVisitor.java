@@ -1879,6 +1879,16 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         return null;
     }
 
+    @Override
+    public Void visitOuterTypeReferenceExpression(final OuterTypeReferenceExpression node, final Void _) {
+        startNode(node);
+        node.getOuterType().acceptVisitor(this, _);
+        writeToken(Roles.DOT);
+        writeKeyword(OuterTypeReferenceExpression.THIS_KEYWORD_ROLE);
+        endNode(node);
+        return null;
+    }
+
     private static boolean lambdaNeedsParenthesis(final LambdaExpression lambda) {
         return lambda.getParameters().size() != 1 ||
                !lambda.getParameters().firstOrNullObject().getType().isNull();

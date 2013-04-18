@@ -96,7 +96,7 @@ public abstract class MemberReference implements IAnnotationsProvider, IMetadata
 
     @Override
     public String toString() {
-        return getSignature();
+        return getFullName() + ":" + getSignature();
     }
 
     // </editor-fold>
