@@ -30,6 +30,14 @@ public final class CompoundTypeReference extends TypeReference {
         _interfaces = interfaces;
     }
 
+    public final TypeReference getBaseType() {
+        return _baseType;
+    }
+
+    public final List<TypeReference> getInterfaces() {
+        return _interfaces;
+    }
+
     @Override
     public TypeReference getDeclaringType() {
         return null;
@@ -74,7 +82,7 @@ public final class CompoundTypeReference extends TypeReference {
 
         StringBuilder s = sb;
 
-        if (baseType != null && !baseType.equals(BuiltinTypes.Object)) {
+        if (baseType != null) {
             s = baseType.appendBriefDescription(s);
             if (!interfaces.isEmpty()) {
                 s.append(" & ");
@@ -98,7 +106,7 @@ public final class CompoundTypeReference extends TypeReference {
 
         StringBuilder s = sb;
 
-        if (baseType != BuiltinTypes.Object) {
+        if (baseType != null) {
             s = baseType.appendSimpleDescription(s);
             if (!interfaces.isEmpty()) {
                 s.append(" & ");
@@ -122,7 +130,7 @@ public final class CompoundTypeReference extends TypeReference {
 
         StringBuilder s = sb;
 
-        if (baseType != BuiltinTypes.Object) {
+        if (baseType != null) {
             s = baseType.appendErasedDescription(s);
             if (!interfaces.isEmpty()) {
                 s.append(" & ");
@@ -148,7 +156,7 @@ public final class CompoundTypeReference extends TypeReference {
     public StringBuilder appendSignature(final StringBuilder sb) {
         StringBuilder s = sb;
 
-        if (_baseType != null && !_baseType.equals(BuiltinTypes.Object)) {
+        if (_baseType != null) {
             s = _baseType.appendSignature(s);
         }
 
@@ -166,6 +174,14 @@ public final class CompoundTypeReference extends TypeReference {
 
     @Override
     public StringBuilder appendErasedSignature(final StringBuilder sb) {
-        return super.appendErasedSignature(sb);
+        if (_baseType != null) {
+            return _baseType.appendErasedSignature(sb);
+        }
+
+        if (!_interfaces.isEmpty()) {
+            return _interfaces.get(0).appendErasedSignature(sb);
+        }
+
+        return BuiltinTypes.Object.appendErasedSignature(sb);
     }
 }

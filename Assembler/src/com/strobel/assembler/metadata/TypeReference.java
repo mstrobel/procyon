@@ -133,7 +133,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
         if (this instanceof IGenericInstance) {
             return new ParameterizedType(
-                (TypeReference) ((IGenericInstance)this).getGenericDefinition(),
+                (TypeReference) ((IGenericInstance) this).getGenericDefinition(),
                 ArrayUtilities.asUnmodifiableList(typeArguments.toArray(new TypeReference[typeArguments.size()]))
             );
         }
@@ -173,19 +173,22 @@ public abstract class TypeReference extends MemberReference implements IGenericP
                this instanceof ICapturedType;
     }
 
-    public boolean isUnbound() {
+    public boolean isUnbounded() {
         return isWildcardType() &&
-               BuiltinTypes.Bottom.equals(getSuperBound()) &&
-               BuiltinTypes.Object.equals(getExtendsBound());
+               BuiltinTypes.Object.equals(getExtendsBound()) &&
+               MetadataResolver.areEquivalent(BuiltinTypes.Bottom, getSuperBound());
     }
 
     public boolean hasExtendsBound() {
         return isGenericParameter() ||
-               isWildcardType() && BuiltinTypes.Bottom.equals(getSuperBound());
+               (isWildcardType() &&
+                !BuiltinTypes.Object.equals(getExtendsBound()) &&
+                MetadataResolver.areEquivalent(BuiltinTypes.Bottom, getSuperBound()));
     }
 
     public boolean hasSuperBound() {
-        return isWildcardType() && !BuiltinTypes.Bottom.equals(getSuperBound());
+        return isWildcardType() &&
+               !MetadataResolver.areEquivalent(BuiltinTypes.Bottom, getSuperBound());
     }
 
     public TypeReference getExtendsBound() {

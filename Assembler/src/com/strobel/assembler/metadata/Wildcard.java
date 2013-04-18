@@ -80,14 +80,14 @@ public final class Wildcard extends TypeReference {
     }
 
     @Override
-    public boolean isUnbound() {
+    public boolean isUnbounded() {
         return !_hasSuperBound &&
-               _bound == BuiltinTypes.Object;
+               BuiltinTypes.Object.equals(_bound);
     }
 
     @Override
     public boolean hasExtendsBound() {
-        return !_hasSuperBound;
+        return !_hasSuperBound && !BuiltinTypes.Object.equals(_bound);
     }
 
     @Override

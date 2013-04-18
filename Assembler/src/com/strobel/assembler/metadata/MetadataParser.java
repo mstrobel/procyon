@@ -375,6 +375,7 @@ public final class MetadataParser {
     private TypeReference parseCompoundType(final String signature, final MutableInteger position) {
         final TypeReference baseType;
 
+        boolean hasExplicitBaseType = true;
         List<TypeReference> interfaceTypes;
 
         if (signature.charAt(position.getValue()) == ':') {
@@ -382,19 +383,10 @@ public final class MetadataParser {
             position.increment();
             interfaceTypes = new ArrayList<>();
             interfaceTypes.add(parseTopLevelSignature(signature, position));
+            hasExplicitBaseType = false;
         }
         else {
-            final TypeReference t = parseTopLevelSignature(signature, position);
-            final TypeReference r;
-
-            if (_suppressResolveDepth.get() > 0) {
-                r = t;
-            }
-            else {
-                r = _resolver.resolve(t);
-            }
-
-            baseType = r != null ? r : t;
+            baseType = parseTopLevelSignature(signature, position);
             interfaceTypes = null;
         }
 
@@ -403,21 +395,18 @@ public final class MetadataParser {
 
             position.increment();
 
-            final TypeReference t = parseTopLevelSignature(signature, position);
-            final TypeReference r = _resolver.resolve(t);
-
             if (interfaceTypes == null) {
                 interfaceTypes = new ArrayList<>();
             }
 
-            interfaceTypes.add(r != null ? r : t);
+            interfaceTypes.add(parseTopLevelSignature(signature, position));
         }
 
         if (interfaceTypes != null) {
-            if (BuiltinTypes.Object.equals(baseType) && interfaceTypes.size() == 1) {
+            if (!hasExplicitBaseType && BuiltinTypes.Object.equals(baseType) && interfaceTypes.size() == 1) {
                 return interfaceTypes.get(0);
             }
-            return new CompoundTypeReference(baseType, interfaceTypes);
+            return new CompoundTypeReference(hasExplicitBaseType ? baseType : null, interfaceTypes);
         }
 
         return baseType;

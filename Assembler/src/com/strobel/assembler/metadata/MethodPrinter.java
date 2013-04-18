@@ -37,6 +37,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.NameSyntax;
+import com.strobel.decompiler.PlainTextOutput;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -471,10 +472,25 @@ public class MethodPrinter implements MethodVisitor {
                 _output.indent();
 
                 try {
+                    final String signature = ((SignatureAttribute) attribute).getSignature();
+
                     _output.writeAttribute(attribute.getName());
                     _output.writeLine(":");
-                    _output.write("    %s", ((SignatureAttribute) attribute).getSignature());
+                    _output.indent();
+
+                    final PlainTextOutput temp = new PlainTextOutput();
+
+                    DecompilerHelpers.writeMethodSignature(temp, _signature);
+
+                    if (StringUtilities.equals(temp.toString(), signature)) {
+                        DecompilerHelpers.writeMethodSignature(_output, _signature);
+                    }
+                    else {
+                        _output.writeTextLiteral(signature);
+                    }
+
                     _output.writeLine();
+                    _output.unindent();
                 }
                 finally {
                     _output.unindent();
@@ -746,7 +762,7 @@ public class MethodPrinter implements MethodVisitor {
             printOpCode(op);
 
             _output.write(' ');
-            
+
             _output.writeReference(callSite.getMethodName(), callSite.getMethodType());
             _output.writeDelimiter(":");
 

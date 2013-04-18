@@ -21,10 +21,12 @@ import com.strobel.assembler.ir.attributes.ConstantValueAttribute;
 import com.strobel.assembler.ir.attributes.SignatureAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.NameSyntax;
+import com.strobel.decompiler.PlainTextOutput;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -114,10 +116,24 @@ public class FieldPrinter implements FieldVisitor {
             }
 
             case AttributeNames.Signature: {
+                final String signature = ((SignatureAttribute) attribute).getSignature();
+
                 _output.indent();
                 _output.writeAttribute("Signature");
                 _output.write(": ");
-                _output.writeTextLiteral(((SignatureAttribute) attribute).getSignature());
+
+
+                final PlainTextOutput temp = new PlainTextOutput();
+
+                DecompilerHelpers.writeType(temp, _fieldType, NameSyntax.SIGNATURE);
+
+                if (StringUtilities.equals(temp.toString(), signature)) {
+                    DecompilerHelpers.writeType(_output, _fieldType, NameSyntax.SIGNATURE);
+                }
+                else {
+                    _output.writeTextLiteral(signature);
+                }
+
                 _output.writeLine();
                 _output.unindent();
                 break;

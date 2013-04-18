@@ -414,18 +414,7 @@ public final class DecompilerHelpers {
         if (type.isGenericParameter()) {
             switch (syntax) {
                 case SIGNATURE:
-                case ERASED_SIGNATURE: {
-                    if (stack.contains(type.getExtendsBound())) {
-                        writer.write('T');
-                        writer.writeReference(type.getSimpleName(), type);
-                        writer.write(';');
-                    }
-                    else {
-                        formatType(writer, type.getExtendsBound(), syntax, isDefinition, stack);
-                    }
-                    return;
-                }
-
+                case ERASED_SIGNATURE:
                 case DESCRIPTOR: {
                     writer.write('T');
                     writer.writeReference(type.getSimpleName(), type);
@@ -436,7 +425,10 @@ public final class DecompilerHelpers {
                 default: {
                     writer.writeReference(type.getName(), type);
 
-                    if (type.hasExtendsBound() && !stack.contains(type.getExtendsBound())) {
+                    if (type.hasExtendsBound() &&
+                        !stack.contains(type.getExtendsBound()) &&
+                        !BuiltinTypes.Object.equals(type.getExtendsBound())) {
+
                         writer.writeKeyword(" extends ");
                         stack.push(type);
                         try {
@@ -492,6 +484,61 @@ public final class DecompilerHelpers {
             }
         }
 
+        if (type instanceof CompoundTypeReference) {
+            final CompoundTypeReference compoundType = (CompoundTypeReference) type;
+            final TypeReference baseType = compoundType.getBaseType();
+            final List<TypeReference> interfaces = compoundType.getInterfaces();
+
+            switch (syntax) {
+                case SIGNATURE: {
+                    if (baseType != null) {
+                        formatType(writer, baseType, syntax, false, stack);
+                    }
+
+                    for (final TypeReference interfaceType : interfaces) {
+                        writer.writeDelimiter(":");
+                        formatType(writer, interfaceType, syntax, false, stack);
+                    }
+
+                    break;
+                }
+
+                case ERASED_SIGNATURE:
+                case DESCRIPTOR: {
+                    final TypeReference erasedType;
+
+                    if (baseType != null) {
+                        erasedType = baseType;
+                    }
+                    else if (!interfaces.isEmpty()) {
+                        erasedType = interfaces.get(0);
+                    }
+                    else {
+                        erasedType = BuiltinTypes.Object;
+                    }
+
+                    formatType(writer, erasedType, syntax, false, stack);
+                    break;
+                }
+
+                case TYPE_NAME:
+                case SHORT_TYPE_NAME: {
+                    if (baseType != null) {
+                        formatType(writer, baseType, syntax, false, stack);
+                    }
+
+                    for (final TypeReference interfaceType : interfaces) {
+                        writer.writeDelimiter(" & ");
+                        formatType(writer, interfaceType, syntax, false, stack);
+                    }
+
+                    break;
+                }
+            }
+
+            return;
+        }
+
         if (type.isArray()) {
             switch (syntax) {
                 case SIGNATURE:
@@ -515,7 +562,7 @@ public final class DecompilerHelpers {
         stack.push(type);
 
         final TypeDefinition resolvedType = type.resolve();
-        final TypeReference nameSource =  resolvedType != null ? resolvedType : type;
+        final TypeReference nameSource = resolvedType != null ? resolvedType : type;
 
         try {
             final String name;
@@ -631,9 +678,7 @@ public final class DecompilerHelpers {
         final List<TypeReference> interfaces = definition.getExplicitInterfaces();
 
         if (baseType == null) {
-            if (interfaces.isEmpty()) {
-                formatType(writer, BuiltinTypes.Object, NameSyntax.SIGNATURE, false, stack);
-            }
+            formatType(writer, BuiltinTypes.Object, NameSyntax.SIGNATURE, false, stack);
         }
         else {
             formatType(writer, baseType, NameSyntax.SIGNATURE, false, stack);
