@@ -763,19 +763,19 @@ public final class AstBuilder {
                 case Character:
                 case Short:
                 case Integer:
-                    unknownVariables[hasThis ? slot + 1 : slot] = new VariableSlot(FrameValue.INTEGER, EMPTY_DEFINITIONS);
+                    unknownVariables[slot] = new VariableSlot(FrameValue.INTEGER, EMPTY_DEFINITIONS);
                     break;
                 case Long:
-                    unknownVariables[hasThis ? slot + 1 : slot] = new VariableSlot(FrameValue.LONG, EMPTY_DEFINITIONS);
+                    unknownVariables[slot] = new VariableSlot(FrameValue.LONG, EMPTY_DEFINITIONS);
                     break;
                 case Float:
-                    unknownVariables[hasThis ? slot + 1 : slot] = new VariableSlot(FrameValue.FLOAT, EMPTY_DEFINITIONS);
+                    unknownVariables[slot] = new VariableSlot(FrameValue.FLOAT, EMPTY_DEFINITIONS);
                     break;
                 case Double:
-                    unknownVariables[hasThis ? slot + 1 : slot] = new VariableSlot(FrameValue.DOUBLE, EMPTY_DEFINITIONS);
+                    unknownVariables[slot] = new VariableSlot(FrameValue.DOUBLE, EMPTY_DEFINITIONS);
                     break;
                 default:
-                    unknownVariables[hasThis ? slot + 1 : slot] = new VariableSlot(FrameValue.makeReference(parameterType), EMPTY_DEFINITIONS);
+                    unknownVariables[slot] = new VariableSlot(FrameValue.makeReference(parameterType), EMPTY_DEFINITIONS);
                     break;
             }
         }
@@ -1373,7 +1373,7 @@ public final class AstBuilder {
         }
 
         for (final ParameterDefinition parameter : parameters) {
-            parameterMap[parameter.getSlot() + (hasThis ? 1 : 0)] = parameter;
+            parameterMap[parameter.getSlot()] = parameter;
         }
 
         for (final VariableDefinition variableDefinition : variables) {

@@ -19,8 +19,10 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.InstructionCollection;
+import com.strobel.assembler.ir.StackMapFrame;
 import com.strobel.core.Freezable;
 
+import java.util.Collections;
 import java.util.List;
 
 public final class MethodBody extends Freezable {
@@ -28,6 +30,7 @@ public final class MethodBody extends Freezable {
     private final VariableDefinitionCollection _variables;
     private final Collection<ExceptionHandler> _exceptionHandlers;
 
+    private List<StackMapFrame> _stackMapFrames;
     private MethodReference _method;
     private ParameterDefinition _thisParameter;
     private int _maxStackSize;
@@ -50,6 +53,17 @@ public final class MethodBody extends Freezable {
 
     public final List<ExceptionHandler> getExceptionHandlers() {
         return _exceptionHandlers;
+    }
+
+    public final List<StackMapFrame> getStackMapFrames() {
+        final List<StackMapFrame> stackMapFrames = _stackMapFrames;
+
+        return stackMapFrames != null ? stackMapFrames
+                                      : Collections.<StackMapFrame>emptyList();
+    }
+
+    final void setStackMapFrames(final List<StackMapFrame> stackMapFrames) {
+        _stackMapFrames = stackMapFrames;
     }
 
     public final MethodReference getMethod() {

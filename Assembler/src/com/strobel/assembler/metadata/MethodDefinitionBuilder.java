@@ -58,8 +58,16 @@ public class MethodDefinitionBuilder implements MethodVisitor {
             genericParameter.setDeclaringMethod(_method);
         }
 
+        int slot = 0;
+
+        if (!Flags.testAny(flags, Flags.STATIC)) {
+            ++slot;
+        }
+
         for (final ParameterDefinition parameter : signature.getParameters()) {
+            parameter.setSlot(slot);
             parameters.add(parameter);
+            slot += parameter.getSize();
         }
 
         if (thrownTypes != null) {

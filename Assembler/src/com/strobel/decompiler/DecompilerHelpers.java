@@ -51,6 +51,19 @@ public final class DecompilerHelpers {
         formatType(writer, type, syntax, type.isDefinition(), new Stack<TypeReference>());
     }
 
+    public static void writeType(
+        final ITextOutput writer,
+        final TypeReference type,
+        final NameSyntax syntax,
+        final boolean isDefinition) {
+
+        VerifyArgument.notNull(type, "type");
+        VerifyArgument.notNull(writer, "writer");
+        VerifyArgument.notNull(syntax, "syntax");
+
+        formatType(writer, type, syntax, isDefinition, new Stack<TypeReference>());
+    }
+
     public static void writeMethod(final ITextOutput writer, final MethodReference method) {
         VerifyArgument.notNull(method, "method");
         VerifyArgument.notNull(writer, "writer");
@@ -243,13 +256,13 @@ public final class DecompilerHelpers {
     public static void writeOffsetReference(final ITextOutput writer, final Instruction instruction) {
         VerifyArgument.notNull(writer, "writer");
 
-        writer.writeReference(offsetToString(instruction.getOffset()), instruction);
+        writer.writeLabel(offsetToString(instruction.getOffset()));
     }
 
     public static void writeEndOffsetReference(final ITextOutput writer, final Instruction instruction) {
         VerifyArgument.notNull(writer, "writer");
 
-        writer.writeReference(offsetToString(instruction.getEndOffset()), instruction);
+        writer.writeLabel(offsetToString(instruction.getEndOffset()));
     }
 
     public static String escapeIdentifier(final String name) {
@@ -293,7 +306,7 @@ public final class DecompilerHelpers {
 
         final FrameType frameType = frame.getFrameType();
 
-        writer.write(String.valueOf(frameType));
+        writer.writeLiteral(String.valueOf(frameType));
 
         final List<FrameValue> localValues = frame.getLocalValues();
         final List<FrameValue> stackValues = frame.getStackValues();
@@ -301,50 +314,56 @@ public final class DecompilerHelpers {
         if (!localValues.isEmpty()) {
             writer.writeLine();
             writer.indent();
-            writer.write("Locals: [");
+            writer.write("Locals: ");
+            writer.writeDelimiter("[");
 
             for (int i = 0; i < localValues.size(); i++) {
                 final FrameValue value = localValues.get(i);
 
                 if (i != 0) {
-                    writer.write(", ");
+                    writer.writeDelimiter(", ");
                 }
 
                 if (value.getType() == FrameValueType.Reference) {
-                    writer.write("Ref(");
+                    writer.writeLiteral("Reference");
+                    writer.writeDelimiter("(");
                     writeType(writer, (TypeReference) value.getParameter(), NameSyntax.SIGNATURE);
-                    writer.write(')');
+                    writer.writeDelimiter(")");
                 }
                 else {
-                    writer.write(String.valueOf(value.getType()));
+                    writer.writeLiteral(String.valueOf(value.getType()));
                 }
             }
 
-            writer.write("]");
+            writer.writeDelimiter("]");
             writer.unindent();
         }
 
         if (!stackValues.isEmpty()) {
             writer.writeLine();
             writer.indent();
-            writer.write("Stack: [");
+            writer.write("Stack: ");
+            writer.writeDelimiter("[");
 
             for (int i = 0; i < stackValues.size(); i++) {
                 final FrameValue value = stackValues.get(i);
 
                 if (i != 0) {
-                    writer.write(", ");
+                    writer.writeDelimiter(", ");
                 }
 
                 if (value.getType() == FrameValueType.Reference) {
+                    writer.writeLiteral("Reference");
+                    writer.writeDelimiter("(");
                     writeType(writer, (TypeReference) value.getParameter(), NameSyntax.SIGNATURE);
+                    writer.writeDelimiter(")");
                 }
                 else {
-                    writer.write(String.valueOf(value.getType()));
+                    writer.writeLiteral(String.valueOf(value.getType()));
                 }
             }
 
-            writer.write("]");
+            writer.writeDelimiter("]");
             writer.unindent();
         }
     }
@@ -425,12 +444,14 @@ public final class DecompilerHelpers {
                 default: {
                     writer.writeReference(type.getName(), type);
 
-                    if (type.hasExtendsBound() &&
+                    if (isDefinition &&
+                        type.hasExtendsBound() &&
                         !stack.contains(type.getExtendsBound()) &&
                         !BuiltinTypes.Object.equals(type.getExtendsBound())) {
 
                         writer.writeKeyword(" extends ");
                         stack.push(type);
+
                         try {
                             formatType(writer, type.getExtendsBound(), syntax, false, stack);
                         }

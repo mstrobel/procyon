@@ -48,6 +48,16 @@ public final class MetadataHelper {
             return BuiltinTypes.Object;
         }
 
+        while (elementType1.isBoundedType()) {
+            elementType1 = elementType1.hasSuperBound() ? elementType1.getSuperBound()
+                                                        : elementType1.getExtendsBound();
+        }
+
+        while (elementType2.isBoundedType()) {
+            elementType2 = elementType2.hasSuperBound() ? elementType2.getSuperBound()
+                                                        : elementType2.getExtendsBound();
+        }
+
         TypeReference result = findCommonSuperTypeCore(elementType1, elementType2);
 
         while (rank1-- > 0) {

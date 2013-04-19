@@ -96,6 +96,7 @@ public final class VariableDefinition extends VariableReference {
                ", ScopeStart=" + _scopeStart +
                ", ScopeEnd=" + _scopeEnd +
                ", Name=" + getName() +
+               ", IsFromMetadata=" + _fromMetadata +
                ", IsTypeKnown=" + _isTypeKnown +
                ", Type=" + getVariableType().getSignature() +
                '}';

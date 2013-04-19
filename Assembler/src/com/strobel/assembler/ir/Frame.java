@@ -126,7 +126,7 @@ public final class Frame {
     }
 
     @SuppressWarnings("ConstantConditions")
-    public static Frame merge(final Frame input, final Frame output, final Frame next, final Map<FrameValue, TypeReference> initializations) {
+    public static Frame merge(final Frame input, final Frame output, final Frame next, final Map<Instruction, TypeReference> initializations) {
         VerifyArgument.notNull(input, "input");
         VerifyArgument.notNull(output, "output");
 
@@ -151,10 +151,15 @@ public final class Frame {
             }
 
             if (initializations != null) {
-                final TypeReference initializedType = initializations.get(t);
+                final Object parameter = t.getParameter();
 
-                if (initializedType != null) {
-                    t = FrameValue.makeReference(initializedType);
+                if (parameter instanceof Instruction) {
+                    final Instruction newInstruction = (Instruction) parameter;
+                    final TypeReference initializedType = initializations.get(newInstruction);
+
+                    if (initializedType != null) {
+                        t = FrameValue.makeReference(initializedType);
+                    }
                 }
             }
 
@@ -260,7 +265,7 @@ public final class Frame {
             case Chop: {
                 return new Frame(
                     type,
-                    Arrays.copyOfRange(nextLocals, newLocalCount, inputLocalCount),
+                    inputLocals.subList(newLocalCount, inputLocalCount).toArray(new FrameValue[inputLocalCount - newLocalCount]),
                     EmptyArrayCache.fromElementType(FrameValue.class)
                 );
             }
@@ -283,7 +288,7 @@ public final class Frame {
                 return new Frame(
                     type,
                     EmptyArrayCache.fromElementType(FrameValue.class),
-                    new FrameValue[]{nextStack[newStackSize - 1]}
+                    new FrameValue[] { nextStack[newStackSize - 1] }
                 );
             }
 
@@ -307,8 +312,9 @@ public final class Frame {
         }
 
         if (u == null) {
-            values[index] = t;
-            return true;
+//            values[index] = t;
+//            return true;
+            return false;
         }
 
         final FrameValueType tType = t.getType();

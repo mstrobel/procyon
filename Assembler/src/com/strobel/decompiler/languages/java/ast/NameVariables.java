@@ -73,6 +73,7 @@ public class NameVariables {
         builtInTypeNames.put("java/lang/Character", "c");
         builtInTypeNames.put("java/lang/Object", "obj");
         builtInTypeNames.put("java/lang/String", "s");
+        builtInTypeNames.put("java/lang/Class", "clazz");
 
         BUILT_IN_TYPE_NAMES = Collections.unmodifiableMap(builtInTypeNames);
     }
@@ -366,7 +367,7 @@ public class NameVariables {
         name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
 
         if (JavaOutputVisitor.isKeyword(name)) {
-            return name;
+            return name + "1";
         }
 
         return name;

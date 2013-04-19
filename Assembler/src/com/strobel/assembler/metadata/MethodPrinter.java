@@ -25,6 +25,7 @@ import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.InstructionVisitor;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OpCodeHelpers;
+import com.strobel.assembler.ir.StackMapFrame;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.ExceptionsAttribute;
 import com.strobel.assembler.ir.attributes.LocalVariableTableAttribute;
@@ -106,14 +107,14 @@ public class MethodPrinter implements MethodVisitor {
                         _output.writeDelimiter(", ");
                     }
 
-                    DecompilerHelpers.writeType(_output, genericParameters.get(i), NameSyntax.TYPE_NAME);
+                    DecompilerHelpers.writeType(_output, genericParameters.get(i), NameSyntax.TYPE_NAME, true);
                 }
 
                 _output.writeDelimiter(">");
                 _output.write(' ');
             }
 
-            DecompilerHelpers.writeType(_output, _signature.getReturnType(), NameSyntax.TYPE_NAME);
+            DecompilerHelpers.writeType(_output, _signature.getReturnType(), NameSyntax.TYPE_NAME, false);
 
             _output.write(' ');
             _output.writeReference(_name, _signature);
@@ -129,11 +130,11 @@ public class MethodPrinter implements MethodVisitor {
                 final ParameterDefinition parameter = parameters.get(i);
 
                 if (Flags.testAny(_flags, Flags.ACC_VARARGS) && i == parameters.size() - 1) {
-                    DecompilerHelpers.writeType(_output, parameter.getParameterType().getUnderlyingType(), NameSyntax.TYPE_NAME);
+                    DecompilerHelpers.writeType(_output, parameter.getParameterType().getUnderlyingType(), NameSyntax.TYPE_NAME, false);
                     _output.writeDelimiter("...");
                 }
                 else {
-                    DecompilerHelpers.writeType(_output, parameter.getParameterType(), NameSyntax.TYPE_NAME);
+                    DecompilerHelpers.writeType(_output, parameter.getParameterType(), NameSyntax.TYPE_NAME, false);
                 }
 
                 _output.write(' ');
@@ -242,90 +243,116 @@ public class MethodPrinter implements MethodVisitor {
     }
 
     @Override
+    @SuppressWarnings("ConstantConditions")
     public void visitEnd() {
         if (_body == null) {
             return;
         }
 
         final List<ExceptionHandler> handlers = _body.getExceptionHandlers();
+        final List<StackMapFrame> stackMapFrames = _body.getStackMapFrames();
 
-        if (handlers.isEmpty()) {
-            return;
-        }
-
-        _output.indent();
-
-        try {
-            int longestType = "Type".length();
-
-            for (final ExceptionHandler handler : handlers) {
-                final TypeReference catchType = handler.getCatchType();
-
-                if (catchType != null) {
-                    final String signature = catchType.getSignature();
-
-                    if (signature.length() > longestType) {
-                        longestType = signature.length();
-                    }
-                }
-            }
-
-            _output.writeAttribute("Exceptions");
-            _output.writeLine(":");
-
+        if (!handlers.isEmpty()) {
             _output.indent();
 
             try {
-                _output.write("Try           Handler");
-                _output.writeLine();
-                _output.write("Start  End    Start  End    %1$-" + longestType + "s", "Type");
-                _output.writeLine();
-
-                _output.write(
-                    "-----  -----  -----  -----  %1$-" + longestType + "s",
-                    StringUtilities.repeat('-', longestType)
-                );
-
-                _output.writeLine();
+                int longestType = "Type".length();
 
                 for (final ExceptionHandler handler : handlers) {
-                    final boolean isFinally;
-
-                    TypeReference catchType = handler.getCatchType();
+                    final TypeReference catchType = handler.getCatchType();
 
                     if (catchType != null) {
-                        isFinally = false;
-                    }
-                    else {
-                        catchType = MetadataSystem.instance().lookupType("java/lang/Throwable");
-                        isFinally = true;
-                    }
+                        final String signature = catchType.getSignature();
 
-                    _output.writeLiteral(format("%1$-5d", handler.getTryBlock().getFirstInstruction().getOffset()));
-                    _output.write("  ");
-                    _output.writeLiteral(format("%1$-5d", handler.getTryBlock().getLastInstruction().getEndOffset()));
-                    _output.write("  ");
-                    _output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getFirstInstruction().getOffset()));
-                    _output.write("  ");
-                    _output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getLastInstruction().getEndOffset()));
-                    _output.write("  ");
+                        if (signature.length() > longestType) {
+                            longestType = signature.length();
+                        }
+                    }
+                }
 
-                    if (isFinally) {
-                        _output.writeReference("Any", catchType);
-                    }
-                    else {
-                        DecompilerHelpers.writeType(_output, catchType, NameSyntax.SIGNATURE);
-                    }
+                _output.writeAttribute("Exceptions");
+                _output.writeLine(":");
+
+                _output.indent();
+
+                try {
+                    _output.write("Try           Handler");
+                    _output.writeLine();
+                    _output.write("Start  End    Start  End    %1$-" + longestType + "s", "Type");
+                    _output.writeLine();
+
+                    _output.write(
+                        "-----  -----  -----  -----  %1$-" + longestType + "s",
+                        StringUtilities.repeat('-', longestType)
+                    );
 
                     _output.writeLine();
+
+                    for (final ExceptionHandler handler : handlers) {
+                        final boolean isFinally;
+
+                        TypeReference catchType = handler.getCatchType();
+
+                        if (catchType != null) {
+                            isFinally = false;
+                        }
+                        else {
+                            catchType = MetadataSystem.instance().lookupType("java/lang/Throwable");
+                            isFinally = true;
+                        }
+
+                        _output.writeLiteral(format("%1$-5d", handler.getTryBlock().getFirstInstruction().getOffset()));
+                        _output.write("  ");
+                        _output.writeLiteral(format("%1$-5d", handler.getTryBlock().getLastInstruction().getEndOffset()));
+                        _output.write("  ");
+                        _output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getFirstInstruction().getOffset()));
+                        _output.write("  ");
+                        _output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getLastInstruction().getEndOffset()));
+                        _output.write("  ");
+
+                        if (isFinally) {
+                            _output.writeReference("Any", catchType);
+                        }
+                        else {
+                            DecompilerHelpers.writeType(_output, catchType, NameSyntax.SIGNATURE);
+                        }
+
+                        _output.writeLine();
+                    }
+                }
+                finally {
+                    _output.unindent();
                 }
             }
             finally {
                 _output.unindent();
             }
         }
-        finally {
-            _output.unindent();
+
+        if (!stackMapFrames.isEmpty()) {
+            _output.indent();
+
+            try {
+                _output.writeAttribute("Stack Map Frames");
+                _output.writeLine(":");
+
+                _output.indent();
+
+                try {
+                    for (final StackMapFrame frame : stackMapFrames) {
+                        DecompilerHelpers.writeOffsetReference(_output, frame.getStartInstruction());
+                        _output.write(' ');
+                        DecompilerHelpers.writeFrame(_output, frame.getFrame());
+                        _output.writeLine();
+                    }
+                }
+                finally {
+                    _output.unindent();
+                }
+            }
+            finally {
+                _output.unindent();
+            }
         }
     }
 
@@ -612,7 +639,9 @@ public class MethodPrinter implements MethodVisitor {
                 final VariableDefinitionCollection variables = _body.getVariables();
 
                 if (slot < variables.size()) {
-                    final VariableDefinition variable = variables.tryFind(slot, _currentOffset);
+                    final VariableDefinition variable = findVariable(op, slot, _currentOffset);
+
+                    assert variable != null;
 
                     if (variable.hasName() && variable.isFromMetadata()) {
                         _output.writeComment(" /* %s */", variable.getName());
@@ -624,6 +653,15 @@ public class MethodPrinter implements MethodVisitor {
             }
 
             _output.writeLine();
+        }
+
+        private VariableDefinition findVariable(final OpCode op, final int slot, final int offset) {
+            VariableDefinition variable = _body.getVariables().tryFind(slot, offset);
+
+            if (variable == null && op.isStore()) {
+                variable = _body.getVariables().tryFind(slot, offset + op.getSize() + op.getOperandType().getBaseSize());
+            }
+            return variable;
         }
 
         @Override
@@ -703,7 +741,7 @@ public class MethodPrinter implements MethodVisitor {
 
             _output.write(' ');
 
-            final VariableDefinition definition = _body.getVariables().tryFind(variable.getSlot(), _currentOffset);
+            final VariableDefinition definition = findVariable(op, variable.getSlot(), _currentOffset);
 
             if (definition != null && definition.hasName() && definition.isFromMetadata()) {
                 _output.writeReference(variable.getName(), variable);
@@ -720,7 +758,14 @@ public class MethodPrinter implements MethodVisitor {
             printOpCode(op);
             _output.write(' ');
 
-            final VariableDefinition definition = _body.getVariables().tryFind(variable.getSlot(), _currentOffset);
+            final VariableDefinition definition;
+
+            if (variable instanceof VariableDefinition) {
+                definition = (VariableDefinition) variable;
+            }
+            else {
+                definition = findVariable(op, variable.getSlot(), _currentOffset);
+            }
 
             if (definition != null && definition.hasName() && definition.isFromMetadata()) {
                 _output.writeReference(variable.getName(), variable);

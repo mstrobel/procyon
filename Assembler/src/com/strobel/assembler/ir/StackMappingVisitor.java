@@ -141,22 +141,10 @@ public class StackMappingVisitor implements MethodVisitor {
 
         for (final FrameValue frameValue : frame.getLocalValues()) {
             _locals.add(frameValue);
-
-            if (frameValue.getType() == FrameValueType.Double ||
-                frameValue.getType() == FrameValueType.Long) {
-
-                _locals.add(FrameValue.TOP);
-            }
         }
 
         for (final FrameValue frameValue : frame.getStackValues()) {
             _stack.add(frameValue);
-
-            if (frameValue.getType() == FrameValueType.Double ||
-                frameValue.getType() == FrameValueType.Long) {
-
-                _stack.add(FrameValue.TOP);
-            }
         }
     }
 
@@ -222,6 +210,11 @@ public class StackMappingVisitor implements MethodVisitor {
             _locals.add(FrameValue.TOP);
         }
 
+        if (type == null) {
+            _locals.set(local, FrameValue.TOP);
+            return;
+        }
+
         switch (type.getSimpleType()) {
             case Boolean:
             case Byte:
@@ -233,7 +226,12 @@ public class StackMappingVisitor implements MethodVisitor {
 
             case Long:
                 _locals.set(local, FrameValue.LONG);
-                _locals.set(local + 1, FrameValue.TOP);
+                if (local + 1 >= _locals.size()) {
+                    _locals.add(FrameValue.TOP);
+                }
+                else {
+                    _locals.set(local + 1, FrameValue.TOP);
+                }
                 break;
 
             case Float:
@@ -242,7 +240,12 @@ public class StackMappingVisitor implements MethodVisitor {
 
             case Double:
                 _locals.set(local, FrameValue.DOUBLE);
-                _locals.set(local + 1, FrameValue.TOP);
+                if (local + 1 >= _locals.size()) {
+                    _locals.add(FrameValue.TOP);
+                }
+                else {
+                    _locals.set(local + 1, FrameValue.TOP);
+                }
                 break;
 
             case Object:
@@ -348,6 +351,18 @@ public class StackMappingVisitor implements MethodVisitor {
         }
     }
 
+    public void pruneLocals() {
+        while (!_locals.isEmpty() && _locals.get(_locals.size() - 1) == FrameValue.OUT_OF_SCOPE) {
+            _locals.remove(_locals.size() - 1);
+        }
+
+        for (int i = 0; i < _locals.size(); i++) {
+            if (_locals.get(i) == FrameValue.OUT_OF_SCOPE) {
+                _locals.set(i, FrameValue.TOP);
+            }
+        }
+    }
+
     private final class InstructionAnalyzer implements InstructionVisitor {
         private final InstructionVisitor _innerVisitor;
         private final MethodBody _body;
@@ -384,17 +399,53 @@ public class StackMappingVisitor implements MethodVisitor {
             finally {
                 _afterExecute = false;
             }
+/*
+
+            boolean clearedAnyVariables = false;
+
+            final VariableDefinitionCollection variables = _body.getVariables();
+
+            for (int i = 0; i < variables.size(); i++) {
+                final VariableDefinition variable = variables.get(i);
+
+                if (variable.getScopeEnd() == instruction.getEndOffset()) {
+                    set(variable.getSlot(), FrameValue.OUT_OF_SCOPE);
+
+                    if (variable.getVariableType().getSimpleType().isDoubleWord()) {
+                        set(variable.getSlot() + 1, FrameValue.OUT_OF_SCOPE);
+                    }
+
+                    clearedAnyVariables = true;
+                }
+            }
+
+            if (clearedAnyVariables) {
+                pruneLocals();
+            }
+*/
         }
 
         @Override
         public void visit(final OpCode code) {
             if (_afterExecute) {
                 if (code.isStore()) {
-                    set(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code), _temp.isEmpty() ? pop() : _temp.pop());
+                    final FrameValue value = _temp.isEmpty() ? pop() : _temp.pop();
+
+                    set(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code), value);
+
+                    if (value.getType().isDoubleWord()) {
+                        set(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code) + 1, _temp.isEmpty() ? pop() : _temp.pop());
+                    }
                 }
             }
             else if (code.isLoad()) {
-                push(get(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code)));
+                final FrameValue value = get(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code));
+
+                push(value);
+
+                if (value.getType().isDoubleWord()) {
+                    push(get(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code) + 1));
+                }
             }
         }
 
@@ -430,11 +481,23 @@ public class StackMappingVisitor implements MethodVisitor {
         public void visitVariable(final OpCode code, final VariableReference variable) {
             if (_afterExecute) {
                 if (code.isStore()) {
-                    set(variable.getSlot(), _temp.isEmpty() ? pop() : _temp.pop());
+                    final FrameValue value = _temp.isEmpty() ? pop() : _temp.pop();
+
+                    set(variable.getSlot(), value);
+
+                    if (value.getType().isDoubleWord()) {
+                        set(variable.getSlot() + 1, _temp.isEmpty() ? pop() : _temp.pop());
+                    }
                 }
             }
             else if (code.isLoad()) {
-                push(get(variable.getSlot()));
+                final FrameValue value = get(variable.getSlot());
+
+                push(value);
+
+                if (value.getType().isDoubleWord()) {
+                    push(get(variable.getSlot() + 1));
+                }
             }
         }
 
@@ -477,6 +540,10 @@ public class StackMappingVisitor implements MethodVisitor {
             final OpCode code = instruction.getOpCode();
 
             _temp.clear();
+
+            if (code.isLoad() || code.isStore()) {
+                return;
+            }
 
             switch (code.getStackBehaviorPop()) {
                 case Pop0:

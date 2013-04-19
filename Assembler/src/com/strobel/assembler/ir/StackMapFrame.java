@@ -34,4 +34,9 @@ public final class StackMapFrame {
     public final Instruction getStartInstruction() {
         return _startInstruction;
     }
+
+    @Override
+    public final String toString() {
+        return String.format("#%1$04d: %2$s", _startInstruction.getOffset(), _frame);
+    }
 }

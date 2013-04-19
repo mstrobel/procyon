@@ -109,7 +109,7 @@ public class MethodReader {
 
         for (int i = 0; i < parameters.size(); i++) {
             final ParameterDefinition parameter = parameters.get(i);
-            final int variableSlot = hasThis ? parameter.getSlot() + 1 : parameter.getSlot();
+            final int variableSlot = parameter.getSlot();
             final VariableDefinition variable = variables.ensure(variableSlot, OpCode.NOP, 0);
 
             variable.setScopeStart(0);
@@ -145,14 +145,8 @@ public class MethodReader {
 
                 variable.setTypeKnown(true);
                 variable.setFromMetadata(true);
-
-                if (scopeStart < variable.getScopeStart()) {
-                    variable.setScopeStart(scopeStart);
-                }
-
-                if (scopeEnd > variable.getScopeEnd()) {
-                    variable.setScopeEnd(scopeEnd);
-                }
+                variable.setScopeStart(scopeStart);
+                variable.setScopeEnd(scopeEnd);
             }
         }
 
@@ -182,14 +176,8 @@ public class MethodReader {
                 variable.setVariableType(entry.getType());
                 variable.setTypeKnown(true);
                 variable.setFromMetadata(true);
-
-                if (scopeStart < variable.getScopeStart()) {
-                    variable.setScopeStart(scopeStart);
-                }
-
-                if (scopeEnd > variable.getScopeEnd()) {
-                    variable.setScopeEnd(scopeEnd);
-                }
+                variable.setScopeStart(scopeStart);
+                variable.setScopeEnd(scopeEnd);
             }
         }
 
@@ -545,11 +533,20 @@ public class MethodReader {
 
         for (int i = 0; i < body.size(); i++) {
             final Instruction instruction = body.get(i);
+            final OpCode code = instruction.getOpCode();
             final Object operand = instruction.hasOperand() ? instruction.getOperand(0) : null;
 
             if (operand instanceof VariableDefinition) {
                 final VariableDefinition currentVariable = (VariableDefinition) operand;
-                final VariableDefinition actualVariable = variables.tryFind(currentVariable.getSlot(), instruction.getOffset());
+
+                VariableDefinition actualVariable = variables.tryFind(currentVariable.getSlot(), instruction.getOffset());
+
+                if (actualVariable == null && code.isStore()) {
+                    actualVariable = variables.tryFind(
+                        currentVariable.getSlot(),
+                        instruction.getOffset() + code.getSize() + code.getOperandType().getBaseSize()
+                    );
+                }
 
                 if (actualVariable != currentVariable) {
                     instruction.setOperand(actualVariable);

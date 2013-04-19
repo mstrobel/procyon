@@ -265,11 +265,15 @@ public class AnsiTextOutput extends PlainTextOutput {
 
             sb.append(DELIMITER.colorize(String.valueOf(delimiter)));
 
-            if (resolvedType != null && resolvedType.isAnnotation()) {
-                sb.append(ATTRIBUTE.colorize(s.substring(packagePrefix.length())));
-            }
-            else {
-                sb.append(TYPE.colorize(s.substring(packagePrefix.length())));
+            final String[] typeParts = s.substring(packagePrefix.length()).split("\\$");
+            final Ansi typeColor = resolvedType != null && resolvedType.isAnnotation() ? ATTRIBUTE : TYPE;
+
+            for (int i = 0; i < typeParts.length; i++) {
+                if (i != 0) {
+                    sb.append(DELIMITER.colorize("$"));
+                }
+
+                sb.append(typeColor.colorize(typeParts[i]));
             }
 
             if (isSignature) {
@@ -292,8 +296,9 @@ public class AnsiTextOutput extends PlainTextOutput {
         final StringBuilder sb = new StringBuilder(text.length() * 2);
 
         for (int i = 0; i < packageParts.length; i++) {
-            if (i != 0)
+            if (i != 0) {
                 sb.append(DELIMITER.colorize("."));
+            }
 
             final String packagePart = packageParts[i];
 
