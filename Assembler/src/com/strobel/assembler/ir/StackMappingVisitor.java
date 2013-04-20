@@ -399,30 +399,6 @@ public class StackMappingVisitor implements MethodVisitor {
             finally {
                 _afterExecute = false;
             }
-/*
-
-            boolean clearedAnyVariables = false;
-
-            final VariableDefinitionCollection variables = _body.getVariables();
-
-            for (int i = 0; i < variables.size(); i++) {
-                final VariableDefinition variable = variables.get(i);
-
-                if (variable.getScopeEnd() == instruction.getEndOffset()) {
-                    set(variable.getSlot(), FrameValue.OUT_OF_SCOPE);
-
-                    if (variable.getVariableType().getSimpleType().isDoubleWord()) {
-                        set(variable.getSlot() + 1, FrameValue.OUT_OF_SCOPE);
-                    }
-
-                    clearedAnyVariables = true;
-                }
-            }
-
-            if (clearedAnyVariables) {
-                pruneLocals();
-            }
-*/
         }
 
         @Override

@@ -88,8 +88,8 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
             clone._nextSibling = null;
             clone.flags &= ~FROZEN_BIT;
 
-            for (final Key key : Keys.ALL_KEYS) {
-                clone._dataStore.putUserDataIfAbsent(key, _dataStore.getUserData(key));
+            for (final Key<?> key : Keys.ALL_KEYS) {
+                copyKey(this, clone, key);
             }
 
             for (AstNode current = _firstChild; current != null; current = current._nextSibling) {
@@ -103,6 +103,10 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         catch (CloneNotSupportedException e) {
             throw new UndeclaredThrowableException(e);
         }
+    }
+
+    private static <T> void copyKey(final AstNode source, final AstNode target, final Key<T> key) {
+        target._dataStore.putUserDataIfAbsent(key, source._dataStore.getUserData(key));
     }
 
     // <editor-fold defaultstate="collapsed" desc="Tree Structure">

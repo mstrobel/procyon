@@ -54,6 +54,11 @@ public final class FrameValue {
         return _parameter;
     }
 
+    public final boolean isUninitialized() {
+        return _type == FrameValueType.Uninitialized ||
+               _type == FrameValueType.UninitializedThis;
+    }
+
     @Override
     public final boolean equals(final Object o) {
         if (this == o) {

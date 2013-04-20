@@ -16,37 +16,85 @@
 
 package com.strobel.assembler.ir;
 
-import com.strobel.assembler.flowanalysis.ControlFlowGraph;
-import com.strobel.assembler.flowanalysis.ControlFlowGraphBuilder;
-import com.strobel.assembler.flowanalysis.ControlFlowNode;
-import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
-import com.strobel.assembler.metadata.IMethodSignature;
+import com.strobel.assembler.metadata.IMetadataResolver;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.ParameterDefinition;
+import com.strobel.assembler.metadata.SwitchInfo;
+import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableDefinition;
 import com.strobel.assembler.metadata.VariableDefinitionCollection;
 import com.strobel.core.ArrayUtilities;
-import com.strobel.core.CollectionUtilities;
 import com.strobel.core.VerifyArgument;
-import com.strobel.util.EmptyArrayCache;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public final class StackMapAnalyzer {
-    public static List<StackMapFrame> computeStackMapTable(final MethodBody body, final IMethodSignature signature) {
+    @SuppressWarnings("ConstantConditions")
+    public static List<StackMapFrame> computeStackMapTable(final MethodBody body) {
         VerifyArgument.notNull(body, "body");
-        VerifyArgument.notNull(signature, "signature");
 
-        final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(body);
+        final InstructionCollection instructions = body.getInstructions();
+        final List<ExceptionHandler> exceptionHandlers = body.getExceptionHandlers();
 
-        cfg.computeDominance();
+        if (instructions.isEmpty()) {
+            return Collections.emptyList();
+        }
 
         final StackMappingVisitor stackMappingVisitor = new StackMappingVisitor();
-        final InstructionVisitor instructionVisitor = stackMappingVisitor.visitBody(body);
+        final InstructionVisitor executor = stackMappingVisitor.visitBody(body);
+
+        final Set<Instruction> agenda = new LinkedHashSet<>();
+        final Map<Instruction, Frame> frames = new IdentityHashMap<>();
+        final Set<Instruction> branchTargets = new LinkedHashSet<>();
+
+        final IMetadataResolver resolver;
+
+        if (body.getMethod() != null &&
+            body.getMethod().getDeclaringType() != null) {
+
+            final TypeDefinition declaringType = body.getMethod().getDeclaringType().resolve();
+
+            if (declaringType != null) {
+                resolver = declaringType.getResolver();
+            }
+            else {
+                resolver = MetadataSystem.instance();
+            }
+        }
+        else {
+            resolver = MetadataSystem.instance();
+        }
+
+        final TypeReference throwableType = resolver.lookupType("java/lang/Throwable");
+
+        for (final ExceptionHandler handler : exceptionHandlers) {
+            final Instruction handlerStart = handler.getHandlerBlock().getFirstInstruction();
+
+            branchTargets.add(handlerStart);
+
+            frames.put(
+                handlerStart,
+                new Frame(
+                    FrameType.New,
+                    FrameValue.EMPTY_VALUES,
+                    new FrameValue[] {
+                        FrameValue.makeReference(
+                            handler.isCatch() ? handler.getCatchType()
+                                              : throwableType
+                        )
+                    }
+                )
+            );
+        }
 
         final ParameterDefinition thisParameter = body.getThisParameter();
         final boolean hasThis = thisParameter != null;
@@ -55,276 +103,255 @@ public final class StackMapAnalyzer {
             stackMappingVisitor.set(0, thisParameter.getParameterType());
         }
 
-        for (final ParameterDefinition parameter : signature.getParameters()) {
+        for (final ParameterDefinition parameter : body.getMethod().getParameters()) {
             stackMappingVisitor.set(parameter.getSlot(), parameter.getParameterType());
         }
 
-        final List<ControlFlowNode> nodes = new ArrayList<>();
-
-        populateNodes(cfg.getRegularExit(), nodes);
-        populateNodes(cfg.getExceptionalExit(), nodes);
-//        populateNodes(cfg.getEntryPoint(), nodes);
-
-        Collections.sort(
-            nodes,
-            new Comparator<ControlFlowNode>() {
-                @Override
-                public int compare(final ControlFlowNode o1, final ControlFlowNode o2) {
-                    return Integer.compare(o1.getBlockIndex(), o2.getBlockIndex());
-                }
-            }
-        );
-/*
-        Collections.sort(
-            nodes,
-            new Comparator<ControlFlowNode>() {
-                @Override
-                public int compare(final ControlFlowNode o1, final ControlFlowNode o2) {
-                    Instruction start1 = o1.getStart();
-                    Instruction start2 = o2.getStart();
-
-                    if (start1 == null) {
-                        switch (o1.getNodeType()) {
-                            case EntryPoint:
-                                return -1;
-                            case RegularExit:
-                                return 1;
-                            case ExceptionalExit:
-                                return 1;
-                            case CatchHandler:
-                            case FinallyHandler:
-                                start1 = o1.getExceptionHandler().getHandlerBlock().getFirstInstruction();
-                                break;
-                            case EndFinally:
-                                start1 = o1.getEndFinallyNode().getStart();
-                                break;
-                        }
-                    }
-
-                    if (start2 == null) {
-                        switch (o2.getNodeType()) {
-                            case EntryPoint:
-                                return 1;
-                            case RegularExit:
-                                return -1;
-                            case ExceptionalExit:
-                                return -1;
-                            case CatchHandler:
-                            case FinallyHandler:
-                                start2 = o2.getExceptionHandler().getHandlerBlock().getFirstInstruction();
-                                break;
-                            case EndFinally:
-                                start2 = o2.getEndFinallyNode().getStart();
-                                break;
-                        }
-                    }
-
-                    assert start1 != null && start2 != null;
-
-                    return Integer.compare(start1.getOffset(), start2.getOffset());
-                }
-            }
-        );
-*/
-
-        final Frame[] entryFrames = new Frame[nodes.size()];
-        final Frame[] exitFrames = new Frame[nodes.size()];
-
+        final Instruction firstInstruction = instructions.get(0);
         final Frame initialFrame = stackMappingVisitor.buildFrame();
 
-        entryFrames[0] = initialFrame;
-        exitFrames[0] = initialFrame;
+        agenda.add(firstInstruction);
+        frames.put(firstInstruction, initialFrame);
 
-        int nodeCount = 0;
+        while (!agenda.isEmpty()) {
+            final Instruction instruction = agenda.iterator().next();
+            final Frame inputFrame = frames.get(instruction);
 
-        for (final ControlFlowNode node : nodes) {
-            if (node.getNodeType() == ControlFlowNodeType.Normal && node.getOffset() != 0) {
-                ++nodeCount;
+            assert inputFrame != null;
+
+            agenda.remove(instruction);
+            stackMappingVisitor.visitFrame(inputFrame);
+            executor.visit(instruction);
+
+            final Frame outputFrame = stackMappingVisitor.buildFrame();
+            final OpCode opCode = instruction.getOpCode();
+            final OperandType operandType = opCode.getOperandType();
+
+            if (!opCode.isUnconditionalBranch()) {
+                final Instruction nextInstruction = instruction.getNext();
+
+                if (nextInstruction != null) {
+                    pruneLocals(stackMappingVisitor, nextInstruction, body.getVariables());
+
+                    final boolean changed = updateFrame(
+                        nextInstruction,
+                        inputFrame,
+                        stackMappingVisitor.buildFrame(),
+                        stackMappingVisitor.getInitializations(),
+                        frames
+                    );
+
+                    if (changed) {
+                        agenda.add(nextInstruction);
+                    }
+
+                    stackMappingVisitor.visitFrame(outputFrame);
+                }
             }
-            computeFrames(body, stackMappingVisitor, instructionVisitor, node, entryFrames, exitFrames);
+
+            if (operandType == OperandType.BranchTarget) {
+                final Instruction branchTarget = instruction.getOperand(0);
+
+                assert branchTarget != null;
+
+                pruneLocals(stackMappingVisitor, branchTarget, body.getVariables());
+
+                final boolean changed = updateFrame(
+                    branchTarget,
+                    inputFrame,
+                    stackMappingVisitor.buildFrame(),
+                    stackMappingVisitor.getInitializations(),
+                    frames
+                );
+
+                if (changed) {
+                    agenda.add(branchTarget);
+                }
+
+                branchTargets.add(branchTarget);
+                stackMappingVisitor.visitFrame(outputFrame);
+            }
+            else if (operandType == OperandType.Switch) {
+                final SwitchInfo switchInfo = instruction.getOperand(0);
+                final Instruction defaultTarget = switchInfo.getDefaultTarget();
+
+                assert defaultTarget != null;
+
+                pruneLocals(stackMappingVisitor, defaultTarget, body.getVariables());
+
+                boolean changed = updateFrame(
+                    defaultTarget,
+                    inputFrame,
+                    stackMappingVisitor.buildFrame(),
+                    stackMappingVisitor.getInitializations(),
+                    frames
+                );
+
+                if (changed) {
+                    agenda.add(defaultTarget);
+                }
+
+                branchTargets.add(defaultTarget);
+                stackMappingVisitor.visitFrame(outputFrame);
+
+                for (final Instruction branchTarget : switchInfo.getTargets()) {
+                    assert branchTarget != null;
+
+                    pruneLocals(stackMappingVisitor, branchTarget, body.getVariables());
+
+                    changed = updateFrame(
+                        branchTarget,
+                        inputFrame,
+                        stackMappingVisitor.buildFrame(),
+                        stackMappingVisitor.getInitializations(),
+                        frames
+                    );
+
+                    if (changed) {
+                        agenda.add(branchTarget);
+                    }
+
+                    branchTargets.add(branchTarget);
+                    stackMappingVisitor.visitFrame(outputFrame);
+                }
+            }
+
+            if (opCode.canThrow()) {
+                final ExceptionHandler handler = findInnermostExceptionHandler(
+                    exceptionHandlers,
+                    instruction.getOffset()
+                );
+
+                if (handler != null) {
+                    final Instruction handlerStart = handler.getHandlerBlock().getFirstInstruction();
+
+                    while (stackMappingVisitor.getStackSize() > 0) {
+                        stackMappingVisitor.pop();
+                    }
+
+                    if (handler.isCatch()) {
+                        stackMappingVisitor.push(handler.getCatchType());
+                    }
+                    else {
+                        stackMappingVisitor.push(throwableType);
+                    }
+
+                    pruneLocals(stackMappingVisitor, handlerStart, body.getVariables());
+
+                    final boolean changed = updateFrame(
+                        handlerStart,
+                        inputFrame,
+                        stackMappingVisitor.buildFrame(),
+                        stackMappingVisitor.getInitializations(),
+                        frames
+                    );
+
+                    if (changed) {
+                        agenda.add(handlerStart);
+                    }
+                }
+            }
         }
 
-        final StackMapFrame[] computedFrames = new StackMapFrame[nodeCount];
+        final StackMapFrame[] framesInStackMap = new StackMapFrame[branchTargets.size()];
 
         int i = 0;
 
-        for (final ControlFlowNode node : nodes) {
-            if (node.getNodeType() == ControlFlowNodeType.Normal &&
-                node.getOffset() != 0) {
-
-                final ControlFlowNode predecessor = findPredecessor(node);
-
-                final Frame currentEntry = entryFrames[node.getBlockIndex()];
-                final Frame previousEntry = entryFrames[predecessor.getBlockIndex()];
-                final Frame previousExit = exitFrames[predecessor.getBlockIndex()];
-
-                computedFrames[i++] = new StackMapFrame(
-                    Frame.merge(
-                        previousEntry,
-                        previousExit,
-                        currentEntry,
-                        stackMappingVisitor.getInitializations()
-                    ),
-                    node.getStart()
-                );
-            }
+        for (final Instruction branchTarget : branchTargets) {
+            framesInStackMap[i++] = new StackMapFrame(
+                frames.get(branchTarget),
+                branchTarget
+            );
         }
 
-        return ArrayUtilities.asUnmodifiableList(computedFrames);
+        Arrays.sort(
+            framesInStackMap,
+            new Comparator<StackMapFrame>() {
+                @Override
+                public int compare(final StackMapFrame o1, final StackMapFrame o2) {
+                    return Integer.compare(o1.getStartInstruction().getOffset(), o2.getStartInstruction().getOffset());
+                }
+            }
+        );
+
+        Frame lastFrame = initialFrame;
+
+        for (i = 0; i < framesInStackMap.length; i++) {
+            final StackMapFrame frame = framesInStackMap[i];
+
+            final Frame deltaFrame = Frame.computeDelta(
+                lastFrame,
+                frame.getFrame()
+            );
+
+            framesInStackMap[i] = new StackMapFrame(deltaFrame, frame.getStartInstruction());
+            lastFrame = frame.getFrame();
+        }
+
+        return ArrayUtilities.asUnmodifiableList(framesInStackMap);
     }
 
-    private static void populateNodes(final ControlFlowNode node, final List<ControlFlowNode> nodes) {
-        if (nodes.contains(node)) {
-            return;
+    private static boolean pruneLocals(
+        final StackMappingVisitor stackMappingVisitor,
+        final Instruction target,
+        final VariableDefinitionCollection variables) {
+
+        boolean changed = false;
+
+        for (int i = 0, n = stackMappingVisitor.getLocalCount(); i < n; i++) {
+            final VariableDefinition v = variables.tryFind(i, target.getOffset());
+
+            if (v == null) {
+                stackMappingVisitor.set(i, FrameValue.OUT_OF_SCOPE);
+                changed = true;
+            }
         }
 
-        final ControlFlowNode immediateDominator = node.getImmediateDominator();
-
-        if (immediateDominator != null) {
-            populateNodes(immediateDominator, nodes);
+        if (changed) {
+            stackMappingVisitor.pruneLocals();
+            return true;
         }
 
-        nodes.add(node);
-
-        for (final ControlFlowNode n : node.getPredecessors()) {
-            populateNodes(n, nodes);
-        }
-/*
-        nodes.add(node);
-
-        for (final ControlFlowNode successor : node.getSuccessors()) {
-            populateNodes(successor, nodes);
-        }
-*/
+        return false;
     }
 
-    private static void computeFrames(
-        final MethodBody body,
-        final StackMappingVisitor smv,
-        final InstructionVisitor visitor,
-        final ControlFlowNode node,
-        final Frame[] entryFrames,
-        final Frame[] exitFrames) {
+    private static boolean updateFrame(
+        final Instruction instruction,
+        final Frame inputFrame,
+        final Frame outputFrame,
+        final Map<Instruction, TypeReference> initializations,
+        final Map<Instruction, Frame> frames) {
 
-        final int index = node.getBlockIndex();
+        final Frame oldFrame = frames.get(instruction);
 
-        if (exitFrames[index] != null) {
-            return;
+        if (oldFrame != null) {
+            assert oldFrame.getStackValues().size() == outputFrame.getStackValues().size() || true;
+
+            final Frame mergedFrame = Frame.merge(inputFrame, outputFrame, oldFrame, initializations);
+            frames.put(instruction, mergedFrame);
+            return mergedFrame != oldFrame;
         }
-
-        Frame entryFrame = entryFrames[index];
-
-        if (entryFrame == null) {
-            final Frame predecessorExit;
-            final ControlFlowNode predecessor = findPredecessor(node);
-
-            if (predecessor == null) {
-                predecessorExit = exitFrames[0];
-            }
-            else {
-                computeFrames(body, smv, visitor, predecessor, entryFrames, exitFrames);
-                predecessorExit = exitFrames[predecessor.getBlockIndex()];
-            }
-
-            entryFrame = predecessorExit;
+        else {
+            frames.put(instruction, outputFrame);
+            return true;
         }
-
-        switch (node.getNodeType()) {
-            case Normal: {
-                smv.visitFrame(entryFrame);
-
-                final int startOffset = node.getStart().getOffset();
-                final VariableDefinitionCollection variables = body.getVariables();
-
-                boolean entryFrameModified = false;
-
-                for (int i = smv.getLocalCount() - 1; i >= 0; i--) {
-                    VariableDefinition v = variables.tryFind(i, startOffset);
-
-                    if (v == null) {
-                        if (i > 0) {
-                            v = variables.tryFind(i - 1, startOffset);
-
-                            if (v != null && v.getVariableType().getSimpleType().isDoubleWord()) {
-                                i--;
-                                continue;
-                            }
-                        }
-
-                        smv.set(i, FrameValue.OUT_OF_SCOPE);
-                        entryFrameModified = true;
-                    }
-                }
-
-                if (entryFrameModified) {
-                    smv.pruneLocals();
-                    entryFrame = smv.buildFrame();
-                }
-
-                final int endOffset = node.getEnd().getOffset();
-
-                for (Instruction instruction = node.getStart();
-                     instruction != null && instruction.getOffset() <= endOffset;
-                     instruction = instruction.getNext()) {
-
-                    visitor.visit(instruction);
-
-                    final OpCode opCode = instruction.getOpCode();
-
-                    if (opCode.getOperandType() == OperandType.BranchTarget) {
-                        for (final ControlFlowNode successor : node.getSuccessors()) {
-                            if (successor.getStart() == instruction.<Instruction>getOperand(0) &&
-                                entryFrames[successor.getBlockIndex()] == null) {
-
-                                entryFrames[successor.getBlockIndex()] = smv.buildFrame();
-                            }
-                        }
-                    }
-                }
-
-                break;
-            }
-
-            case CatchHandler: {
-                entryFrame = new Frame(
-                    FrameType.New,
-                    entryFrame.getLocalValues().toArray(new FrameValue[entryFrame.getLocalValues().size()]),
-                    EmptyArrayCache.fromElementType(FrameValue.class)
-                );
-
-                smv.visitFrame(entryFrame);
-                smv.push(node.getExceptionHandler().getCatchType());
-
-                break;
-            }
-
-            case FinallyHandler: {
-                entryFrame = new Frame(
-                    FrameType.New,
-                    entryFrame.getLocalValues().toArray(new FrameValue[entryFrame.getLocalValues().size()]),
-                    EmptyArrayCache.fromElementType(FrameValue.class)
-                );
-
-                smv.visitFrame(entryFrame);
-                smv.push(MetadataSystem.instance().lookupType("java/lang/Throwable"));
-
-                break;
-            }
-        }
-
-        final Frame exitFrame = smv.buildFrame();
-
-        entryFrames[index] = entryFrame;
-        exitFrames[index] = exitFrame;
     }
 
-    private static ControlFlowNode findPredecessor(final ControlFlowNode node) {
-        ControlFlowNode predecessor = node.getImmediateDominator();
+    private static ExceptionHandler findInnermostExceptionHandler(
+        final List<ExceptionHandler> exceptionHandlers,
+        final int offsetInTryBlock) {
 
-        if (predecessor == null || !predecessor.precedes(node)) {
-            predecessor = CollectionUtilities.firstOrDefault(node.getPredecessors());
+        for (final ExceptionHandler handler : exceptionHandlers) {
+            final ExceptionBlock tryBlock = handler.getTryBlock();
+            final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+
+            if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
+                offsetInTryBlock < handlerBlock.getFirstInstruction().getOffset()) {
+
+                return handler;
+            }
         }
 
-        return predecessor;
+        return null;
     }
 }

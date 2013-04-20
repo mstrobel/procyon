@@ -126,107 +126,28 @@ public final class Frame {
     }
 
     @SuppressWarnings("ConstantConditions")
-    public static Frame merge(final Frame input, final Frame output, final Frame next, final Map<Instruction, TypeReference> initializations) {
-        VerifyArgument.notNull(input, "input");
-        VerifyArgument.notNull(output, "output");
+    public static Frame computeDelta(final Frame previous, final Frame current) {
+        VerifyArgument.notNull(previous, "previous");
+        VerifyArgument.notNull(current, "current");
 
-        final List<FrameValue> inputLocals = input._localValues;
-        final List<FrameValue> outputLocals = output._localValues;
+        final List<FrameValue> previousLocals = previous._localValues;
+        final List<FrameValue> currentLocals = current._localValues;
+        final List<FrameValue> currentStack = current._stackValues;
 
-        final int inputLocalCount = inputLocals.size();
-        final int outputLocalCount = outputLocals.size();
-        final int nextLocalCount = next._localValues.size();
-        final int tempLocalCount = Math.max(nextLocalCount, inputLocalCount);
+        final int previousLocalCount = previousLocals.size();
+        final int currentLocalCount = currentLocals.size();
+        final int currentStackSize = currentStack.size();
 
-        final FrameValue[] nextLocals = next._localValues.toArray(new FrameValue[tempLocalCount]);
-
-        FrameValue t;
-
-        for (int i = 0; i < inputLocalCount; i++) {
-            if (i < outputLocalCount) {
-                t = outputLocals.get(i);
-            }
-            else {
-                t = inputLocals.get(i);
-            }
-
-            if (initializations != null) {
-                final Object parameter = t.getParameter();
-
-                if (parameter instanceof Instruction) {
-                    final Instruction newInstruction = (Instruction) parameter;
-                    final TypeReference initializedType = initializations.get(newInstruction);
-
-                    if (initializedType != null) {
-                        t = FrameValue.makeReference(initializedType);
-                    }
-                }
-            }
-
-            merge(t, nextLocals, i);
-        }
-
-        final List<FrameValue> inputStack = input._stackValues;
-        final List<FrameValue> outputStack = output._stackValues;
-
-        final int inputStackSize = inputStack.size();
-        final int outputStackSize = outputStack.size();
-        final int nextStackSize = next._stackValues.size();
-        final int tempStackSize = Math.max(nextStackSize, Math.max(inputStackSize, outputStackSize));
-
-        final FrameValue[] nextStack = next._stackValues.toArray(new FrameValue[tempStackSize]);
-
-        for (int i = 0; i < inputStackSize; i++) {
-            t = inputStack.get(i);
-
-            if (initializations != null) {
-                final TypeReference initializedType = initializations.get(t);
-
-                if (initializedType != null) {
-                    t = FrameValue.makeReference(initializedType);
-                }
-            }
-
-            merge(t, nextStack, i);
-        }
-
-        for (int i = inputStackSize; i < outputStackSize; i++) {
-            t = outputStack.get(i);
-
-            if (initializations != null) {
-                final TypeReference initializedType = initializations.get(t);
-
-                if (initializedType != null) {
-                    t = FrameValue.makeReference(initializedType);
-                }
-            }
-
-            merge(t, nextStack, i);
-        }
-
-        int newLocalCount;
-        int newStackSize;
-
-        for (newLocalCount = nextLocalCount;
-             newLocalCount < inputLocalCount && nextLocals[newLocalCount] != null;
-             newLocalCount++) {
-        }
-
-        for (newStackSize = nextStackSize;
-             newStackSize < inputStackSize && nextStack[newStackSize] != null;
-             newStackSize++) {
-        }
-
-        int localCount = inputLocalCount;
+        int localCount = previousLocalCount;
         FrameType type = FrameType.Full;
 
-        if (newStackSize == 0) {
-            switch (newLocalCount - inputLocalCount) {
+        if (currentStackSize == 0) {
+            switch (currentLocalCount - previousLocalCount) {
                 case -3:
                 case -2:
                 case -1:
                     type = FrameType.Chop;
-                    localCount = newLocalCount;
+                    localCount = currentLocalCount;
                     break;
 
                 case 0:
@@ -240,13 +161,13 @@ public final class Frame {
                     break;
             }
         }
-        else if (newLocalCount == localCount && newStackSize == 1) {
+        else if (currentLocalCount == localCount && currentStackSize == 1) {
             type = FrameType.Same1;
         }
 
         if (type != FrameType.Full) {
             for (int i = 0; i < localCount; i++) {
-                if (!nextLocals[i].equals(inputLocals.get(i))) {
+                if (!currentLocals.get(i).equals(previousLocals.get(i))) {
                     type = FrameType.Full;
                     break;
                 }
@@ -257,7 +178,8 @@ public final class Frame {
             case Append: {
                 return new Frame(
                     type,
-                    Arrays.copyOfRange(nextLocals, inputLocalCount, newLocalCount),
+                    currentLocals.subList(previousLocalCount, currentLocalCount)
+                                 .toArray(new FrameValue[currentLocalCount - previousLocalCount]),
                     EmptyArrayCache.fromElementType(FrameValue.class)
                 );
             }
@@ -265,7 +187,8 @@ public final class Frame {
             case Chop: {
                 return new Frame(
                     type,
-                    inputLocals.subList(newLocalCount, inputLocalCount).toArray(new FrameValue[inputLocalCount - newLocalCount]),
+                    previousLocals.subList(currentLocalCount, previousLocalCount)
+                                  .toArray(new FrameValue[previousLocalCount - currentLocalCount]),
                     EmptyArrayCache.fromElementType(FrameValue.class)
                 );
             }
@@ -273,10 +196,8 @@ public final class Frame {
             case Full: {
                 return new Frame(
                     type,
-                    nextLocals.length == newLocalCount ? nextLocals
-                                                       : Arrays.copyOf(nextLocals, newLocalCount),
-                    nextStack.length == newStackSize ? nextStack
-                                                     : Arrays.copyOf(nextStack, newStackSize)
+                    currentLocals,
+                    currentStack
                 );
             }
 
@@ -288,7 +209,7 @@ public final class Frame {
                 return new Frame(
                     type,
                     EmptyArrayCache.fromElementType(FrameValue.class),
-                    new FrameValue[] { nextStack[newStackSize - 1] }
+                    new FrameValue[] { currentStack.get(currentStackSize - 1) }
                 );
             }
 
@@ -296,6 +217,114 @@ public final class Frame {
                 throw ContractUtils.unreachable();
             }
         }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    public static Frame merge(final Frame input, final Frame output, final Frame next, final Map<Instruction, TypeReference> initializations) {
+        VerifyArgument.notNull(input, "input");
+        VerifyArgument.notNull(output, "output");
+        VerifyArgument.notNull(next, "next");
+
+        final List<FrameValue> inputLocals = input._localValues;
+        final List<FrameValue> outputLocals = output._localValues;
+
+        final int inputLocalCount = inputLocals.size();
+        final int outputLocalCount = outputLocals.size();
+        final int nextLocalCount = next._localValues.size();
+        final int tempLocalCount = Math.max(nextLocalCount, inputLocalCount);
+
+        final FrameValue[] nextLocals = next._localValues.toArray(new FrameValue[tempLocalCount]);
+
+        FrameValue t;
+        boolean changed = false;
+
+        for (int i = 0; i < inputLocalCount; i++) {
+            if (i < outputLocalCount) {
+                t = outputLocals.get(i);
+            }
+            else {
+                t = inputLocals.get(i);
+            }
+
+            if (initializations != null) {
+                t = initialize(initializations, t);
+            }
+
+            changed |= merge(t, nextLocals, i);
+        }
+
+        final List<FrameValue> inputStack = input._stackValues;
+        final List<FrameValue> outputStack = output._stackValues;
+
+        final int inputStackSize = inputStack.size();
+        final int outputStackSize = outputStack.size();
+        final int nextStackSize = next._stackValues.size();
+
+        final FrameValue[] nextStack = next._stackValues.toArray(new FrameValue[nextStackSize]);
+
+        for (int i = 0, max = Math.min(nextStackSize, inputStackSize); i < max; i++) {
+            t = inputStack.get(i);
+
+            if (initializations != null) {
+                t = initialize(initializations, t);
+            }
+
+            changed |= merge(t, nextStack, i);
+        }
+
+        for (int i = inputStackSize, max = Math.min(nextStackSize, outputStackSize); i < max; i++) {
+            t = outputStack.get(i);
+
+            if (initializations != null) {
+                t = initialize(initializations, t);
+            }
+
+            changed |= merge(t, nextStack, i);
+        }
+
+        if (!changed) {
+            return next;
+        }
+
+        int newLocalCount = nextLocalCount;
+/*
+        int newStackSize;
+
+        //noinspection StatementWithEmptyBody
+        for (newLocalCount = nextLocalCount;
+             newLocalCount < inputLocalCount && nextLocals[newLocalCount] != null;
+             newLocalCount++) {
+        }
+*/
+
+/*
+        //noinspection StatementWithEmptyBody
+        for (newStackSize = nextStackSize;
+             newStackSize < inputStackSize && nextStack[newStackSize] != null;
+             newStackSize++) {
+        }
+*/
+
+        return new Frame(
+            FrameType.New,
+            nextLocals.length == newLocalCount ? nextLocals
+                                               : Arrays.copyOf(nextLocals, newLocalCount),
+            nextStack
+        );
+    }
+
+    private static FrameValue initialize(final Map<Instruction, TypeReference> initializations, FrameValue t) {
+        final Object parameter = t.getParameter();
+
+        if (parameter instanceof Instruction) {
+            final TypeReference initializedType = initializations.get(parameter);
+
+            if (initializedType != null) {
+                t = FrameValue.makeReference(initializedType);
+            }
+        }
+
+        return t;
     }
 
     private static boolean merge(final FrameValue t, final FrameValue[] values, final int index) {
@@ -312,9 +341,8 @@ public final class Frame {
         }
 
         if (u == null) {
-//            values[index] = t;
-//            return true;
-            return false;
+            values[index] = t;
+            return true;
         }
 
         final FrameValueType tType = t.getType();
