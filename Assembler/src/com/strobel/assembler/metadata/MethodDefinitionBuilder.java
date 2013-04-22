@@ -135,13 +135,10 @@ public class MethodDefinitionBuilder implements MethodVisitor {
                         continue;
                     }
 
-                    final int slot = _method.isStatic() ? entry.getIndex() : entry.getIndex() - 1;
-
                     ParameterDefinition parameter = null;
 
                     for (int j = 0; j < parameters.size(); j++) {
-
-                        if (parameters.get(j).getSlot() == slot) {
+                        if (parameters.get(j).getSlot() == entry.getIndex()) {
                             parameter = parameters.get(j);
                             break;
                         }
