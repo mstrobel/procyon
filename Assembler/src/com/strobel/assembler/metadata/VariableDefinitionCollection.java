@@ -56,13 +56,13 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
     }
 
     public int slotCount() {
-        int maxSlot = -1;
+        int count = 0;
 
         for (int i = 0; i < size(); i++) {
-            maxSlot = Math.max(get(i).getSlot(), maxSlot);
+            count += get(i).getSize();
         }
 
-        return maxSlot + 1;
+        return count;
     }
 
     public VariableDefinition tryFind(final int slot) {

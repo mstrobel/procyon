@@ -767,12 +767,14 @@ public final class AstBuilder {
                     break;
                 case Long:
                     unknownVariables[slot] = new VariableSlot(FrameValue.LONG, EMPTY_DEFINITIONS);
+                    unknownVariables[slot + 1] = new VariableSlot(FrameValue.TOP, EMPTY_DEFINITIONS);
                     break;
                 case Float:
                     unknownVariables[slot] = new VariableSlot(FrameValue.FLOAT, EMPTY_DEFINITIONS);
                     break;
                 case Double:
                     unknownVariables[slot] = new VariableSlot(FrameValue.DOUBLE, EMPTY_DEFINITIONS);
+                    unknownVariables[slot + 1] = new VariableSlot(FrameValue.TOP, EMPTY_DEFINITIONS);
                     break;
                 default:
                     unknownVariables[slot] = new VariableSlot(FrameValue.makeReference(parameterType), EMPTY_DEFINITIONS);

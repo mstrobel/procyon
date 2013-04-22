@@ -267,7 +267,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                 final IdentifierExpression variable = (IdentifierExpression) assignment.getLeft();
                 final String variableName = variable.getIdentifier();
                 final VariableDeclarationStatement declaration = findVariableDeclaration(forLoop, variableName);
-                final VariableInitializer oldInitializer = declaration.getVariable(variableName);
+//                final VariableInitializer oldInitializer = declaration.getVariable(variableName);
                 final Expression initValue = assignment.getRight();
 
                 initValue.remove();
@@ -372,8 +372,9 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
     // <editor-fold defaultstate="collapsed" desc="For Each Loop Transform (Arrays)">
 
     private final static ExpressionStatement ARRAY_INIT_PATTERN;
-    private final static ForStatement FOR_ARRAY_PATTERN;
-    private final static ForStatement ALT_FOR_ARRAY_PATTERN;
+    private final static ForStatement FOR_ARRAY_PATTERN_1;
+    private final static ForStatement FOR_ARRAY_PATTERN_2;
+    private final static ForStatement FOR_ARRAY_PATTERN_3;
 
     static {
         ARRAY_INIT_PATTERN = new ExpressionStatement(
@@ -383,33 +384,33 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             )
         );
 
-        final ForStatement forArrayPattern = new ForStatement();
-        final VariableDeclarationStatement declaration = new VariableDeclarationStatement();
-        final SimpleType variableType = new SimpleType("int");
+        final ForStatement forArrayPattern1 = new ForStatement();
+        final VariableDeclarationStatement declaration1 = new VariableDeclarationStatement();
+        final SimpleType variableType1 = new SimpleType("int");
 
-        variableType.putUserData(Keys.TYPE_REFERENCE, BuiltinTypes.Integer);
+        variableType1.putUserData(Keys.TYPE_REFERENCE, BuiltinTypes.Integer);
 
-        declaration.setType(variableType);
+        declaration1.setType(variableType1);
 
-        declaration.getVariables().add(
+        declaration1.getVariables().add(
             new VariableInitializer(
                 Pattern.ANY_STRING,
                 new NamedNode("array", new IdentifierExpression(Pattern.ANY_STRING)).toExpression().member("length")
             )
         );
 
-        declaration.getVariables().add(
+        declaration1.getVariables().add(
             new VariableInitializer(
                 Pattern.ANY_STRING,
                 new PrimitiveExpression(0)
             )
         );
 
-        forArrayPattern.getInitializers().add(
-            new NamedNode("declaration", declaration).toStatement()
+        forArrayPattern1.getInitializers().add(
+            new NamedNode("declaration", declaration1).toStatement()
         );
 
-        forArrayPattern.setCondition(
+        forArrayPattern1.setCondition(
             new BinaryOperatorExpression(
                 new NamedNode("index", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
                 BinaryOperatorType.LESS_THAN,
@@ -417,7 +418,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             )
         );
 
-        forArrayPattern.getIterators().add(
+        forArrayPattern1.getIterators().add(
             new ExpressionStatement(
                 new UnaryOperatorExpression(
                     UnaryOperatorType.INCREMENT,
@@ -426,9 +427,9 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             )
         );
 
-        final BlockStatement embeddedStatement = new BlockStatement();
+        final BlockStatement embeddedStatement1 = new BlockStatement();
 
-        embeddedStatement.add(
+        embeddedStatement1.add(
             new ExpressionStatement(
                 new AssignmentExpression(
                     new NamedNode("item", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
@@ -441,15 +442,76 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             )
         );
 
-        embeddedStatement.add(
+        embeddedStatement1.add(
             new Repeat(
                 new AnyNode("statement")
             ).toStatement()
         );
 
-        forArrayPattern.setEmbeddedStatement(embeddedStatement);
+        forArrayPattern1.setEmbeddedStatement(embeddedStatement1);
 
-        FOR_ARRAY_PATTERN = forArrayPattern;
+        FOR_ARRAY_PATTERN_1 = forArrayPattern1;
+
+        final ForStatement forArrayPattern2 = new ForStatement();
+        final VariableDeclarationStatement declaration2 = new VariableDeclarationStatement();
+        final SimpleType variableType2 = new SimpleType("int");
+
+        variableType2.putUserData(Keys.TYPE_REFERENCE, BuiltinTypes.Integer);
+
+        declaration2.setType(variableType2);
+
+        declaration2.getVariables().add(
+            new VariableInitializer(
+                Pattern.ANY_STRING,
+                new PrimitiveExpression(0)
+            )
+        );
+
+        forArrayPattern2.getInitializers().add(
+            new NamedNode("declaration", declaration2).toStatement()
+        );
+
+        forArrayPattern2.setCondition(
+            new BinaryOperatorExpression(
+                new NamedNode("index", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                BinaryOperatorType.LESS_THAN,
+                new NamedNode("length", new IdentifierExpression(Pattern.ANY_STRING)).toExpression()
+            )
+        );
+
+        forArrayPattern2.getIterators().add(
+            new ExpressionStatement(
+                new UnaryOperatorExpression(
+                    UnaryOperatorType.INCREMENT,
+                    new BackReference("index").toExpression()
+                )
+            )
+        );
+
+        final BlockStatement embeddedStatement2 = new BlockStatement();
+
+        embeddedStatement2.add(
+            new ExpressionStatement(
+                new AssignmentExpression(
+                    new NamedNode("item", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    AssignmentOperatorType.ASSIGN,
+                    new IndexerExpression(
+                        new NamedNode("array", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                        new BackReference("index").toExpression()
+                    )
+                )
+            )
+        );
+
+        embeddedStatement2.add(
+            new Repeat(
+                new AnyNode("statement")
+            ).toStatement()
+        );
+
+        forArrayPattern2.setEmbeddedStatement(embeddedStatement2);
+
+        FOR_ARRAY_PATTERN_2 = forArrayPattern2;
 
         final ForStatement altForArrayPattern = new ForStatement();
 
@@ -513,17 +575,21 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
         altForArrayPattern.setEmbeddedStatement(altEmbeddedStatement);
 
-        ALT_FOR_ARRAY_PATTERN = altForArrayPattern;
+        FOR_ARRAY_PATTERN_3 = altForArrayPattern;
     }
 
     public final ForEachStatement transformForEachInArray(final ForStatement loop) {
-        Match m = FOR_ARRAY_PATTERN.match(loop);
+        Match m = FOR_ARRAY_PATTERN_1.match(loop);
 
         if (!m.success()) {
-            m = ALT_FOR_ARRAY_PATTERN.match(loop);
+            m = FOR_ARRAY_PATTERN_2.match(loop);
 
             if (!m.success()) {
-                return null;
+                m = FOR_ARRAY_PATTERN_3.match(loop);
+
+                if (!m.success()) {
+                    return null;
+                }
             }
         }
 

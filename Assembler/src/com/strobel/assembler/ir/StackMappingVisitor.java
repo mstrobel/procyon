@@ -407,10 +407,14 @@ public class StackMappingVisitor implements MethodVisitor {
                 if (code.isStore()) {
                     final FrameValue value = _temp.isEmpty() ? pop() : _temp.pop();
 
-                    set(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code), value);
+                    if (code.getStackChange() == -2) {
+                        final FrameValue doubleOrLong = _temp.isEmpty() ? pop() : _temp.pop();
 
-                    if (value.getType().isDoubleWord()) {
-                        set(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code) + 1, _temp.isEmpty() ? pop() : _temp.pop());
+                        set(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code), doubleOrLong);
+                        set(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code) + 1, value);
+                    }
+                    else {
+                        set(OpCodeHelpers.getLoadStoreMacroArgumentIndex(code), value);
                     }
                 }
             }
@@ -459,10 +463,14 @@ public class StackMappingVisitor implements MethodVisitor {
                 if (code.isStore()) {
                     final FrameValue value = _temp.isEmpty() ? pop() : _temp.pop();
 
-                    set(variable.getSlot(), value);
+                    if (code.getStackChange() == -2) {
+                        final FrameValue doubleOrLong = _temp.isEmpty() ? pop() : _temp.pop();
 
-                    if (value.getType().isDoubleWord()) {
-                        set(variable.getSlot() + 1, _temp.isEmpty() ? pop() : _temp.pop());
+                        set(variable.getSlot(), doubleOrLong);
+                        set(variable.getSlot() + 1, value);
+                    }
+                    else {
+                        set(variable.getSlot(), value);
                     }
                 }
             }
@@ -471,7 +479,7 @@ public class StackMappingVisitor implements MethodVisitor {
 
                 push(value);
 
-                if (value.getType().isDoubleWord()) {
+                if (variable.getVariableType().getSimpleType().isDoubleWord()) {
                     push(get(variable.getSlot() + 1));
                 }
             }
@@ -672,7 +680,7 @@ public class StackMappingVisitor implements MethodVisitor {
                             final List<ParameterDefinition> parameters = method.getParameters();
 
                             if (code == OpCode.INVOKESPECIAL) {
-                                final FrameValue firstParameter = getStackValue(parameters.size());
+                                final FrameValue firstParameter = getStackValue(computeSize(parameters));
                                 final FrameValueType firstParameterType = firstParameter.getType();
 
                                 if (firstParameterType == FrameValueType.UninitializedThis ||
@@ -779,7 +787,7 @@ public class StackMappingVisitor implements MethodVisitor {
                                     push(FrameValue.TOP);
                                 }
                                 else if (op instanceof Float) {
-                                    push(FrameValue.INTEGER);
+                                    push(FrameValue.FLOAT);
                                 }
                                 else if (op instanceof Double) {
                                     push(FrameValue.DOUBLE);
@@ -957,8 +965,17 @@ public class StackMappingVisitor implements MethodVisitor {
                             code != OpCode.INVOKEDYNAMIC &&
                             code != OpCode.INVOKESPECIAL) {
 
+                            final TypeReference typeReference;
+
+                            if (code == OpCode.INVOKESPECIAL) {
+                                typeReference = ((MethodReference) signature).getDeclaringType();
+                            }
+                            else {
+                                typeReference = (TypeReference) _temp.peek().getParameter();
+                            }
+
                             final TypeReference targetType = substituteTypeArguments(
-                                (TypeReference) _temp.peek().getParameter(),
+                                typeReference,
                                 (MemberReference) signature
                             );
 
@@ -1028,6 +1045,16 @@ public class StackMappingVisitor implements MethodVisitor {
                     break;
                 }
             }
+        }
+
+        private int computeSize(final List<ParameterDefinition> parameters) {
+            int size = 0;
+
+            for (final ParameterDefinition parameter : parameters) {
+                size += parameter.getSize();
+            }
+
+            return size;
         }
 
         private TypeReference substituteTypeArguments(final TypeReference type, final MemberReference member) {

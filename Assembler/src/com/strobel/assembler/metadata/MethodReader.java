@@ -196,42 +196,42 @@ public class MethodReader {
             }
 
             final OpCode op = OpCode.get(code);
-            final Instruction inst;
+            final Instruction instruction;
 
             switch (op.getOperandType()) {
                 case None: {
                     if (op.isLoad() || op.isStore()) {
                         variables.ensure(OpCodeHelpers.getLoadStoreMacroArgumentIndex(op), op, offset);
                     }
-                    inst = Instruction.create(op);
+                    instruction = Instruction.create(op);
                     break;
                 }
 
                 case PrimitiveTypeCode: {
-                    inst = Instruction.create(op, BuiltinTypes.fromPrimitiveTypeCode(b.readUnsignedByte()));
+                    instruction = Instruction.create(op, BuiltinTypes.fromPrimitiveTypeCode(b.readUnsignedByte()));
                     break;
                 }
 
                 case TypeReference: {
                     final int typeToken = b.readUnsignedShort();
-                    inst = Instruction.create(op, _scope.lookupType(typeToken));
+                    instruction = Instruction.create(op, _scope.lookupType(typeToken));
                     break;
                 }
 
                 case TypeReferenceU1: {
-                    inst = Instruction.create(op, _scope.lookupType(b.readUnsignedShort()), b.readUnsignedByte());
+                    instruction = Instruction.create(op, _scope.lookupType(b.readUnsignedShort()), b.readUnsignedByte());
                     break;
                 }
 
                 case DynamicCallSite: {
-                    inst = Instruction.create(op, _scope.lookupDynamicCallSite(b.readUnsignedShort()));
+                    instruction = Instruction.create(op, _scope.lookupDynamicCallSite(b.readUnsignedShort()));
                     b.readUnsignedByte();
                     b.readUnsignedByte();
                     break;
                 }
 
                 case MethodReference: {
-                    inst = Instruction.create(op, _scope.lookupMethod(b.readUnsignedShort()));
+                    instruction = Instruction.create(op, _scope.lookupMethod(b.readUnsignedShort()));
 
                     if (op == OpCode.INVOKEINTERFACE) {
                         b.readUnsignedByte();
@@ -242,14 +242,14 @@ public class MethodReader {
                 }
 
                 case FieldReference: {
-                    inst = Instruction.create(op, _scope.lookupField(b.readUnsignedShort()));
+                    instruction = Instruction.create(op, _scope.lookupField(b.readUnsignedShort()));
                     break;
                 }
 
                 case BranchTarget: {
                     final int targetOffset;
 
-                    inst = new Instruction(op);
+                    instruction = new Instruction(op);
 
                     if (op.isWide()) {
                         targetOffset = offset + _scope.<Integer>lookupConstant(b.readUnsignedShort());
@@ -265,24 +265,24 @@ public class MethodReader {
                             target.setLabel(new Label(targetOffset));
                         }
 
-                        inst.setOperand(target);
+                        instruction.setOperand(target);
                     }
                     else if (targetOffset == offset) {
-                        inst.setOperand(inst);
-                        inst.setLabel(new Label(offset));
+                        instruction.setOperand(instruction);
+                        instruction.setLabel(new Label(offset));
                     }
                     else if (targetOffset > b.size()) {
                         //
                         // Target is a label after the last instruction.  Insert a dummy NOP.
                         //
-                        inst.setOperand(new Instruction(targetOffset, OpCode.NOP));
+                        instruction.setOperand(new Instruction(targetOffset, OpCode.NOP));
                     }
                     else {
                         final Fixup oldFixup = fixups[targetOffset];
                         final Fixup newFixup = new Fixup() {
                             @Override
                             public void fix(final Instruction target) {
-                                inst.setOperand(target);
+                                instruction.setOperand(target);
                             }
                         };
 
@@ -294,28 +294,28 @@ public class MethodReader {
                 }
 
                 case I1: {
-                    inst = Instruction.create(op, b.readByte());
+                    instruction = Instruction.create(op, b.readByte());
                     break;
                 }
 
                 case I2: {
-                    inst = Instruction.create(op, b.readShort());
+                    instruction = Instruction.create(op, b.readShort());
                     break;
                 }
 
                 case I8: {
-                    inst = Instruction.create(op, b.readLong());
+                    instruction = Instruction.create(op, b.readLong());
                     break;
                 }
 
                 case Constant: {
-                    inst = new Instruction(op, _scope.lookupConstant(b.readUnsignedByte()));
+                    instruction = new Instruction(op, _scope.lookupConstant(b.readUnsignedByte()));
                     break;
                 }
 
                 case WideConstant: {
                     final int constantToken = b.readUnsignedShort();
-                    inst = new Instruction(op, _scope.lookupConstant(constantToken));
+                    instruction = new Instruction(op, _scope.lookupConstant(constantToken));
                     break;
                 }
 
@@ -327,13 +327,13 @@ public class MethodReader {
                     final SwitchInfo switchInfo = new SwitchInfo();
                     final int defaultOffset = offset + b.readInt();
 
-                    inst = Instruction.create(op, switchInfo);
+                    instruction = Instruction.create(op, switchInfo);
 
                     if (defaultOffset < offset) {
                         switchInfo.setDefaultTarget(body.atOffset(defaultOffset));
                     }
                     else if (defaultOffset == offset) {
-                        switchInfo.setDefaultTarget(inst);
+                        switchInfo.setDefaultTarget(instruction);
                     }
                     else {
                         switchInfo.setDefaultTarget(new Instruction(defaultOffset, OpCode.NOP));
@@ -366,7 +366,7 @@ public class MethodReader {
                                 targets[targetIndex] = body.atOffset(targetOffset);
                             }
                             else if (targetOffset == offset) {
-                                targets[targetIndex] = inst;
+                                targets[targetIndex] = instruction;
                             }
                             else {
                                 targets[targetIndex] = new Instruction(targetOffset, OpCode.NOP);
@@ -402,7 +402,7 @@ public class MethodReader {
                                 targets[targetIndex] = body.atOffset(targetOffset);
                             }
                             else if (targetOffset == offset) {
-                                targets[targetIndex] = inst;
+                                targets[targetIndex] = instruction;
                             }
                             else {
                                 targets[targetIndex] = new Instruction(targetOffset, OpCode.NOP);
@@ -440,10 +440,10 @@ public class MethodReader {
                     final VariableDefinition variable = variables.ensure(variableSlot, op, offset);
 
                     if (variableSlot < 0) {
-                        inst = new Instruction(op, new ErrorOperand("!!! BAD LOCAL: " + variableSlot + " !!!"));
+                        instruction = new Instruction(op, new ErrorOperand("!!! BAD LOCAL: " + variableSlot + " !!!"));
                     }
                     else {
-                        inst = Instruction.create(op, variable);
+                        instruction = Instruction.create(op, variable);
                     }
 
                     break;
@@ -465,14 +465,14 @@ public class MethodReader {
                     operand = b.readByte();
 
                     if (variableSlot < 0) {
-                        inst = new Instruction(
+                        instruction = new Instruction(
                             op,
                             new ErrorOperand("!!! BAD LOCAL: " + variableSlot + " !!!"),
                             operand
                         );
                     }
                     else {
-                        inst = Instruction.create(op, variable, operand);
+                        instruction = Instruction.create(op, variable, operand);
                     }
 
                     break;
@@ -494,14 +494,14 @@ public class MethodReader {
                     operand = b.readShort();
 
                     if (variableSlot < 0) {
-                        inst = new Instruction(
+                        instruction = new Instruction(
                             op,
                             new ErrorOperand("!!! BAD LOCAL: " + variableSlot + " !!!"),
                             operand
                         );
                     }
                     else {
-                        inst = Instruction.create(op, variable, operand);
+                        instruction = Instruction.create(op, variable, operand);
                     }
 
                     break;
@@ -512,16 +512,16 @@ public class MethodReader {
                 }
             }
 
-            inst.setOffset(offset);
-            body.add(inst);
+            instruction.setOffset(offset);
+            body.add(instruction);
 
             final Fixup fixup = fixups[offset];
 
             if (fixup != null) {
-                if (!inst.hasLabel()) {
-                    inst.setLabel(new Label(offset));
+                if (!instruction.hasLabel()) {
+                    instruction.setLabel(new Label(offset));
                 }
-                fixup.fix(inst);
+                fixup.fix(instruction);
             }
         }
 
