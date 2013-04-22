@@ -51,6 +51,13 @@ public class ComposedType extends AstType {
     @Override
     public AstType makeArrayType() {
         insertChildBefore(firstOrDefault(getArraySpecifiers()), new ArraySpecifier(), ARRAY_SPECIFIER_ROLE);
+
+        final TypeReference typeReference = getUserData(Keys.TYPE_REFERENCE);
+
+        if (typeReference != null) {
+            putUserData(Keys.TYPE_REFERENCE, typeReference.makeArrayType());
+        }
+
         return this;
     }
 

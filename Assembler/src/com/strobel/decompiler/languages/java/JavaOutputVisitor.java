@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java;
 
+import com.strobel.assembler.metadata.MetadataResolver;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -1698,14 +1699,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitArrayInitializerExpression(final ArrayInitializerExpression node, final Void _) {
         startNode(node);
-
-        if (node.getParent() instanceof ArrayCreationExpression) {
-            space();
-        }
-
         writeInitializerElements(node.getElements());
         endNode(node);
-
         return null;
     }
 
@@ -1897,17 +1892,44 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitArrayCreationExpression(final ArrayCreationExpression node, final Void _) {
         startNode(node);
-        writeKeyword(ArrayCreationExpression.NEW_KEYWORD_ROLE);
-        node.getType().acceptVisitor(this, _);
 
-        for (final Expression dimension : node.getDimensions()) {
-            writeToken(Roles.LEFT_BRACKET);
-            dimension.acceptVisitor(this, _);
-            writeToken(Roles.RIGHT_BRACKET);
+        boolean needType = true;
+
+        if (node.getDimensions().isEmpty() &&
+            node.getAdditionalArraySpecifiers().isEmpty() &&
+            node.getType() != null &&
+            node.getParent() instanceof ArrayInitializerExpression &&
+            node.getParent().getParent() instanceof ArrayCreationExpression) {
+
+            final AstType outerAstType = ((ArrayCreationExpression) node.getParent().getParent()).getType();
+            final TypeReference outerType = outerAstType.getUserData(Keys.TYPE_REFERENCE);
+            final TypeReference innerType = node.getType().getUserData(Keys.TYPE_REFERENCE);
+
+            if (outerType != null &&
+                innerType != null &&
+                outerType.isArray() &&
+                innerType.isArray() &&
+                MetadataResolver.areEquivalent(outerType.getElementType(), innerType)) {
+
+                needType = false;
+            }
         }
 
-        for (final ArraySpecifier specifier : node.getAdditionalArraySpecifiers()) {
-            specifier.acceptVisitor(this, _);
+        if (needType) {
+            writeKeyword(ArrayCreationExpression.NEW_KEYWORD_ROLE);
+            node.getType().acceptVisitor(this, _);
+
+            for (final Expression dimension : node.getDimensions()) {
+                writeToken(Roles.LEFT_BRACKET);
+                dimension.acceptVisitor(this, _);
+                writeToken(Roles.RIGHT_BRACKET);
+            }
+
+            for (final ArraySpecifier specifier : node.getAdditionalArraySpecifiers()) {
+                specifier.acceptVisitor(this, _);
+            }
+
+            space();
         }
 
         node.getInitializer().acceptVisitor(this, _);

@@ -112,8 +112,18 @@ public abstract class AstType extends AstNode {
 
     public AstType makeArrayType() {
         final ComposedType composedType = new ComposedType();
+
         composedType.setBaseType(this);
-        return composedType.makeArrayType();
+
+        final TypeReference typeReference = getUserData(Keys.TYPE_REFERENCE);
+
+        if (typeReference != null) {
+            composedType.putUserData(Keys.TYPE_REFERENCE, typeReference);
+        }
+
+        composedType.makeArrayType();
+
+        return composedType;
     }
 
     public InvocationExpression invoke(final String methodName, final Expression... arguments) {

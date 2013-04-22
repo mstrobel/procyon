@@ -204,7 +204,7 @@ public final class AstBuilder {
 
         if (type.isPrimitive()) {
             final SimpleType simpleType = new SimpleType(type.getSimpleName());
-            simpleType.putUserData(Keys.TYPE_DEFINITION, type.resolve());
+            simpleType.putUserData(Keys.TYPE_REFERENCE, type.resolve());
             return simpleType;
         }
 
