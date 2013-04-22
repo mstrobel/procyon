@@ -1929,7 +1929,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 specifier.acceptVisitor(this, _);
             }
 
-            space();
+            if (node.getInitializer() != null && !node.getInitializer().isNull()) {
+                space();
+            }
         }
 
         node.getInitializer().acceptVisitor(this, _);
