@@ -1101,10 +1101,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public Void visitSimpleType(final SimpleType node, final Void _) {
         startNode(node);
 
-        final TypeDefinition typeDefinition = node.getUserData(Keys.TYPE_DEFINITION);
+        final TypeReference typeReference = node.getUserData(Keys.TYPE_REFERENCE);
 
-        if (typeDefinition != null && typeDefinition.isPrimitive()) {
-            writeKeyword(typeDefinition.getSimpleName());
+        if (typeReference != null && typeReference.isPrimitive()) {
+            writeKeyword(typeReference.getSimpleName());
         }
         else {
             writeIdentifier(node.getIdentifier());
