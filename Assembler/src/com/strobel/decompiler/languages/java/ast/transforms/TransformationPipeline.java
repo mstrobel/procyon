@@ -29,14 +29,15 @@ public final class TransformationPipeline {
             new PatternStatementTransform(context),
             new BreakTargetRelocation(),
             new DeclareVariablesTransform(context),
+            new StringSwitchRewriterTransform(context),
             new CollapseImportsTransform(context),
             new PushNegationTransform(context),
-            new FlattenSwitchBlocksTransform(context),
             new LambdaTransform(context),
             new RemoveImplicitBoxingTransform(context),
             new IntroduceStringConcatenationTransform(context),
             new IntroduceOuterClassReferencesTransform(context),
             new FlattenElseIfStatementsTransform(context),
+            new FlattenSwitchBlocksTransform(context),
             new RemoveHiddenMembersTransform(context)
         };
     }

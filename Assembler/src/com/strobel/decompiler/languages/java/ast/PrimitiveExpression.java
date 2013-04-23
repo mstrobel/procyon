@@ -21,10 +21,11 @@ import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.Pattern;
 
 public class PrimitiveExpression extends Expression {
     public final static Object ANY_VALUE = new Object();
-    public final static Object ANY_STRING = new Object();
+    public final static String ANY_STRING = Pattern.ANY_STRING;
 
     private final TextLocation _startLocation;
     private TextLocation _endLocation;

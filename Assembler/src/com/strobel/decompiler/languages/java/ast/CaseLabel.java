@@ -23,6 +23,13 @@ public class CaseLabel extends AstNode {
     public final static TokenRole CASE_KEYWORD_ROLE = new TokenRole("case", TokenRole.FLAG_KEYWORD);
     public final static TokenRole DEFAULT_KEYWORD_ROLE = new TokenRole("default", TokenRole.FLAG_KEYWORD);
 
+    public CaseLabel() {
+    }
+
+    public CaseLabel(final Expression value) {
+        setExpression(value);
+    }
+
     @Override
     public NodeType getNodeType() {
         return NodeType.UNKNOWN;
