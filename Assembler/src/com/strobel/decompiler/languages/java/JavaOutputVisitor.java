@@ -751,8 +751,32 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             openBrace(style);
         }
 
+        Class<? extends AstNode> lastStatementType = null;
+
         for (final AstNode statement : statements) {
+            final Class<? extends AstNode> statementType;
+
+            if (statement instanceof ExpressionStatement) {
+                statementType = ((ExpressionStatement) statement).getExpression().getClass();
+
+                if (lastStatementType != null && lastStatementType != statementType) {
+                    newLine();
+                }
+            }
+            else {
+                statementType = statement.getClass();
+
+                if (lastStatementType != null &&
+                    !(statementType == VariableDeclarationStatement.class &&
+                      lastStatementType == VariableDeclarationStatement.class)) {
+
+                    newLine();
+                }
+            }
+
             statement.acceptVisitor(this, null);
+
+            lastStatementType = statementType;
         }
 
         if (addBraces) {
