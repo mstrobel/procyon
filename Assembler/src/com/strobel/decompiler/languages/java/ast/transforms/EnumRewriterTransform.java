@@ -122,6 +122,7 @@ public class EnumRewriterTransform implements IAstTransform {
                             _valueInitializers.put(resolvedField.getName(), (ObjectCreationExpression) right);
                         }
                         else if (resolvedField.isSynthetic() &&
+                                 !context.getSettings().getShowSyntheticMembers() &&
                                  "$VALUES".equals(resolvedField.getName()) &&
                                  MetadataResolver.areEquivalent(currentType.makeArrayType(), resolvedField.getFieldType())) {
 
