@@ -19,6 +19,7 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MemberReference;
+import com.strobel.assembler.metadata.MetadataResolver;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
@@ -28,6 +29,8 @@ import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import static com.strobel.core.CollectionUtilities.first;
 
 public class EnumRewriterTransform implements IAstTransform {
     private final DecompilerContext _context;
@@ -103,25 +106,29 @@ public class EnumRewriterTransform implements IAstTransform {
                 final Expression left = node.getLeft();
                 final Expression right = node.getRight();
 
-                if (left instanceof IdentifierExpression &&
-                    (right instanceof ObjectCreationExpression ||
-                     right instanceof ArrayCreationExpression)) {
+                final MemberReference member = left.getUserData(Keys.MEMBER_REFERENCE);
 
-                    final MemberReference member = left.getUserData(Keys.MEMBER_REFERENCE);
+                if (member instanceof FieldReference) {
+                    final FieldDefinition resolvedField = ((FieldReference) member).resolve();
 
-                    if (member instanceof FieldReference) {
-                        final FieldDefinition resolvedField = ((FieldReference) member).resolve();
+                    if (resolvedField != null &&
+                        (right instanceof ObjectCreationExpression ||
+                         right instanceof ArrayCreationExpression)) {
 
-                        if (resolvedField != null) {
-                            if (resolvedField.isEnumConstant() && right instanceof ObjectCreationExpression) {
-                                _valueInitializers.put(resolvedField.getName(), (ObjectCreationExpression) right);
-                            }
-                            else if (resolvedField.isSynthetic() && "$VALUES".equals(resolvedField.getName())) {
-                                final Statement parentStatement = findStatement(node);
+                        if (resolvedField.isEnumConstant() &&
+                            right instanceof ObjectCreationExpression &&
+                            MetadataResolver.areEquivalent(currentType, resolvedField.getFieldType())) {
 
-                                if (parentStatement != null) {
-                                    parentStatement.remove();
-                                }
+                            _valueInitializers.put(resolvedField.getName(), (ObjectCreationExpression) right);
+                        }
+                        else if (resolvedField.isSynthetic() &&
+                                 "$VALUES".equals(resolvedField.getName()) &&
+                                 MetadataResolver.areEquivalent(currentType.makeArrayType(), resolvedField.getFieldType())) {
+
+                            final Statement parentStatement = findStatement(node);
+
+                            if (parentStatement != null) {
+                                parentStatement.remove();
                             }
                         }
                     }
@@ -174,7 +181,7 @@ public class EnumRewriterTransform implements IAstTransform {
                     switch (method.getName()) {
                         case "values": {
                             if (method.getParameters().isEmpty() &&
-                                currentType.makeArrayType().equals(method.getReturnType())) {
+                                currentType.makeArrayType().equals(method.getReturnType().resolve())) {
 
                                 node.remove();
                             }
@@ -182,7 +189,7 @@ public class EnumRewriterTransform implements IAstTransform {
                         }
 
                         case "valueOf": {
-                            if (currentType.equals(method.getReturnType()) &&
+                            if (currentType.equals(method.getReturnType().resolve()) &&
                                 method.getParameters().size() == 1) {
 
                                 final ParameterDefinition p = method.getParameters().get(0);
@@ -209,6 +216,8 @@ public class EnumRewriterTransform implements IAstTransform {
             if (valueFields.isEmpty()) {
                 return;
             }
+
+            final MethodDeclaration typeInitializer = findMethodDeclaration(first(valueInitializers.values()));
 
             for (final String name : valueFields.keySet()) {
                 final FieldDeclaration field = valueFields.get(name);
@@ -242,12 +251,25 @@ public class EnumRewriterTransform implements IAstTransform {
 
                 field.replaceWith(enumDeclaration);
             }
+
+            if (typeInitializer != null && typeInitializer.getBody().getStatements().isEmpty()) {
+                typeInitializer.remove();
+            }
         }
 
         private Statement findStatement(final AstNode node) {
             for (AstNode current = node; current != null; current = current.getParent()) {
                 if (current instanceof Statement) {
                     return (Statement) current;
+                }
+            }
+            return null;
+        }
+
+        private MethodDeclaration findMethodDeclaration(final AstNode node) {
+            for (AstNode current = node; current != null; current = current.getParent()) {
+                if (current instanceof MethodDeclaration) {
+                    return (MethodDeclaration) current;
                 }
             }
             return null;

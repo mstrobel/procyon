@@ -360,7 +360,7 @@ public final class AstBuilder {
             flags &= ~Flags.ABSTRACT;
         }
         else if (type.isEnum()) {
-            flags &= ~Flags.FINAL;
+            flags &= Flags.AccessFlags;
         }
 
         EntityDeclaration.setModifiers(
