@@ -24,6 +24,7 @@ import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.VariableDefinition;
 import com.strobel.core.IntegerBox;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
@@ -142,18 +143,29 @@ public class NameVariables {
             if (v.isGenerated()) {
                 nv.addExistingName(v.getName());
             }
-            else if (v.getOriginalVariable() != null) {
-                final String varName = v.getOriginalVariable().getName();
+            else {
+                final VariableDefinition originalVariable = v.getOriginalVariable();
 
-                if (StringUtilities.isNullOrEmpty(varName) || varName.startsWith("V_") || !isValidName(varName)) {
-                    v.setName(null);
+                if (originalVariable != null) {
+/*
+                    if (originalVariable.isFromMetadata() && originalVariable.hasName()) {
+                        v.setName(originalVariable.getName());
+                        continue;
+                    }
+*/
+
+                    final String varName = originalVariable.getName();
+
+                    if (StringUtilities.isNullOrEmpty(varName) || varName.startsWith("V_") || !isValidName(varName)) {
+                        v.setName(null);
+                    }
+                    else {
+                        v.setName(nv.getAlternativeName(varName));
+                    }
                 }
                 else {
-                    v.setName(nv.getAlternativeName(varName));
+                    v.setName(null);
                 }
-            }
-            else {
-                v.setName(null);
             }
         }
 

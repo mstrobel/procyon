@@ -22,6 +22,8 @@ import com.strobel.core.StringUtilities;
 import com.strobel.reflection.SimpleType;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.NoSuchElementException;
 
 public final class VariableDefinitionCollection extends Collection<VariableDefinition> {
@@ -191,18 +193,16 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
         VariableDefinition variable = tryFind(slot, effectiveOffset);
 
         if (variable != null) {
-            if (variable.isFromMetadata()) {
-                return variable;
-            }
-
             final TypeReference targetType = op.isStore() ? variable.getVariableType() : variableType;
             final TypeReference sourceType = op.isStore() ? variableType : variable.getVariableType();
 
-            if (isTargetTypeCompatible(targetType, sourceType)) {
+            if (variableType == BuiltinTypes.Object && !variable.getVariableType().getSimpleType().isPrimitive() ||
+                isTargetTypeCompatible(targetType, sourceType)) {
+
                 return variable;
             }
 
-            variable.setScopeEnd(effectiveOffset - 1);
+            variable.setScopeEnd(instructionOffset - 1);
         }
 
         variable = new VariableDefinition(
@@ -265,21 +265,32 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
     @SuppressWarnings("ConstantConditions")
     public final void mergeVariables() {
         final ArrayList<VariableDefinition> slotSharers = new ArrayList<>();
+        final ArrayList<VariableDefinition> sortedVariables = new ArrayList<>(this);
+
+        Collections.sort(
+            sortedVariables,
+            new Comparator<VariableDefinition>() {
+                @Override
+                public int compare(final VariableDefinition o1, final VariableDefinition o2) {
+                    return Integer.compare(o1.getScopeStart(), o2.getScopeStart());
+                }
+            }
+        );
 
     outer:
-        for (int i = 0; i < size(); i++) {
-            final VariableDefinition variable = get(i);
+        for (int i = 0; i < sortedVariables.size(); i++) {
+            final VariableDefinition variable = sortedVariables.get(i);
             final TypeReference variableType = variable.getVariableType();
 
-            for (int j = 0; j < size(); j++) {
+            for (int j = i + 1; j < sortedVariables.size(); j++) {
                 final VariableDefinition other;
 
-                if (i != j && variable.getSlot() == (other = get(j)).getSlot()) {
+                if (variable.getSlot() == (other = sortedVariables.get(j)).getSlot()) {
                     if (StringUtilities.equals(other.getName(), variable.getName())) {
                         slotSharers.add(other);
                     }
                     else {
-                        continue outer;
+                        break;
                     }
                 }
             }
@@ -291,7 +302,9 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
             for (int j = 0; j < slotSharers.size(); j++) {
                 final VariableDefinition slotSharer = slotSharers.get(j);
 
-                if (slotSharer.isFromMetadata() && !StringUtilities.equals(slotSharer.getName(), variable.getName())) {
+                if (slotSharer.isFromMetadata() &&
+                    !StringUtilities.equals(slotSharer.getName(), variable.getName())) {
+
                     continue;
                 }
 
@@ -312,6 +325,7 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
                     if (merged) {
                         remove(slotSharer);
+                        sortedVariables.remove(slotSharer);
                     }
 
                     if (variable.isFromMetadata()) {
@@ -347,6 +361,9 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
         final SimpleType simpleSource = sourceType.getSimpleType();
 
         if (simpleTarget.isIntegral()) {
+            if (simpleSource == SimpleType.Integer) {
+                return true;
+            }
             return simpleSource.isIntegral() &&
                    simpleSource.bitWidth() <= simpleTarget.bitWidth();
         }
