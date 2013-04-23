@@ -64,6 +64,22 @@ public final class AstNodeCollection<T extends AstNode> extends AbstractCollecti
         return true;
     }
 
+    public boolean hasSingleElement() {
+        boolean hasElement = false;
+
+        for (AstNode current = _node.getFirstChild(); current != null; current = current.getNextSibling()) {
+            if (current.getRole() == _role) {
+                if (hasElement) {
+                    return false;
+                }
+
+                hasElement = true;
+            }
+        }
+
+        return hasElement;
+    }
+
     @Override
     public boolean contains(final Object o) {
         return o instanceof AstNode &&

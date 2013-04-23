@@ -36,6 +36,7 @@ public final class TransformationPipeline {
             new RemoveImplicitBoxingTransform(context),
             new IntroduceStringConcatenationTransform(context),
             new IntroduceOuterClassReferencesTransform(context),
+            new FlattenElseIfStatementsTransform(context),
             new RemoveHiddenMembersTransform(context)
         };
     }

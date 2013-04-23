@@ -285,6 +285,9 @@ public class DeclareVariablesTransform implements IAstTransform {
         for (final Statement statement : block.getStatements()) {
             if (usesVariable(statement, variableName)) {
                 if (declarationPoint.get() != null) {
+                    if (canRedeclareVariable(statement, variableName)) {
+                        return true;
+                    }
                     return false;
                 }
 
@@ -442,6 +445,46 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         for (AstNode child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
             if (usesVariable(child, variableName)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean canRedeclareVariable(final AstNode node, final String variableName) {
+        if (node instanceof ForStatement) {
+            final ForStatement forLoop = (ForStatement) node;
+
+            for (final Statement statement : forLoop.getInitializers()) {
+                if (statement instanceof VariableDeclarationStatement) {
+                    final AstNodeCollection<VariableInitializer> variables = ((VariableDeclarationStatement) statement).getVariables();
+
+                    for (final VariableInitializer variable : variables) {
+                        if (StringUtilities.equals(variable.getName(), variableName)) {
+                            return true;
+                        }
+                    }
+                }
+                else if (statement instanceof ExpressionStatement &&
+                    ((ExpressionStatement) statement).getExpression() instanceof AssignmentExpression) {
+
+                    final AssignmentExpression assignment = (AssignmentExpression) ((ExpressionStatement) statement).getExpression();
+                    final Expression left = assignment.getLeft();
+                    final Expression right = assignment.getRight();
+
+                    if (left instanceof IdentifierExpression &&
+                        StringUtilities.equals(((IdentifierExpression) left).getIdentifier(), variableName) &&
+                        !usesVariable(right, variableName)) {
+
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (node instanceof ForEachStatement) {
+            if (StringUtilities.equals(((ForEachStatement) node).getVariableName(), variableName)) {
                 return true;
             }
         }

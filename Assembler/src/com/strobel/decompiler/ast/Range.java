@@ -66,15 +66,24 @@ public final class Range implements Comparable<Range> {
         return false;
     }
 
-    public final boolean isInside(final int start, final int end) {
-        return _start >= start &&
-               _end <= end;
+    public final boolean contains(final int location) {
+        return location >= _start &&
+               location <= _end;
+    }
+    public final boolean contains(final int start, final int end) {
+        return start >= _start &&
+               end <= _end;
     }
 
-    public final boolean isInside(final Range range) {
+    public final boolean contains(final Range range) {
         return range != null &&
-               _start >= range._start &&
-               _end <= range._end;
+               range._start >= _start &&
+               range._end <= _end;
+    }
+
+    public final boolean intersects(final Range range) {
+        return range != null &&
+               (contains(range._start) || contains(range._end));
     }
 
     @Override

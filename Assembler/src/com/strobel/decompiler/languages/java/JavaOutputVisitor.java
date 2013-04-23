@@ -846,9 +846,17 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         rightParenthesis();
         writeEmbeddedStatement(node.getTrueStatement());
 
-        if (!node.getFalseStatement().isNull()) {
+        final Statement falseStatement = node.getFalseStatement();
+
+        if (!falseStatement.isNull()) {
             writeKeyword(IfElseStatement.ELSE_KEYWORD_ROLE);
-            writeEmbeddedStatement(node.getFalseStatement());
+
+            if (falseStatement instanceof IfElseStatement) {
+                falseStatement.acceptVisitor(this, _);
+            }
+            else {
+                writeEmbeddedStatement(falseStatement);
+            }
         }
 
         endNode(node);

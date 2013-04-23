@@ -179,7 +179,16 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
                 break;
         }
 
-        VariableDefinition variable = tryFind(slot, instructionOffset);
+        final int effectiveOffset;
+
+        if (op.isStore()) {
+            effectiveOffset = instructionOffset + op.getSize() + op.getOperandType().getBaseSize();
+        }
+        else {
+            effectiveOffset = instructionOffset;
+        }
+
+        VariableDefinition variable = tryFind(slot, effectiveOffset);
 
         if (variable != null) {
             if (variable.isFromMetadata()) {
@@ -193,34 +202,17 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
                 return variable;
             }
 
-            variable.setScopeEnd(instructionOffset - 1);
-        }
-        else if (op.isStore()) {
-            final int adjustedOffset = instructionOffset + op.getSize() + op.getOperandType().getBaseSize();
-
-            variable = tryFind(slot, adjustedOffset);
-
-            if (variable != null) {
-                if (variable.isFromMetadata()) {
-                    return variable;
-                }
-
-                if (isTargetTypeCompatible(variable.getVariableType(), variableType)) {
-                    return variable;
-                }
-
-                variable.setScopeEnd(instructionOffset - 1);
-            }
+            variable.setScopeEnd(effectiveOffset - 1);
         }
 
         variable = new VariableDefinition(
             slot,
-            String.format("$%d_%d$", slot, instructionOffset),
+            String.format("$%d_%d$", slot, effectiveOffset),
             variableType
         );
 
         variable.setDeclaringType(_declaringType);
-        variable.setScopeStart(instructionOffset);
+        variable.setScopeStart(effectiveOffset);
         variable.setScopeEnd(-1);
         variable.setFromMetadata(false);
 
@@ -298,6 +290,11 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
             for (int j = 0; j < slotSharers.size(); j++) {
                 final VariableDefinition slotSharer = slotSharers.get(j);
+
+                if (slotSharer.isFromMetadata() && !StringUtilities.equals(slotSharer.getName(), variable.getName())) {
+                    continue;
+                }
+
                 final TypeReference slotSharerType = slotSharer.getVariableType();
 
                 if (isTargetTypeCompatible(variableType, slotSharerType) ||
@@ -315,6 +312,10 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
                     if (merged) {
                         remove(slotSharer);
+                    }
+
+                    if (variable.isFromMetadata()) {
+                        continue;
                     }
 
                     if (!isTargetTypeCompatible(variableType, slotSharerType)) {
@@ -338,8 +339,24 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
             }
         }
 
-        return MetadataHelper.isAssignableFrom(targetType, sourceType) ||
-               targetType.getSimpleType() == SimpleType.Integer && sourceType.getSimpleType() == SimpleType.Boolean;
+        if (MetadataHelper.isAssignableFrom(targetType, sourceType)) {
+            return true;
+        }
+
+        final SimpleType simpleTarget = targetType.getSimpleType();
+        final SimpleType simpleSource = sourceType.getSimpleType();
+
+        if (simpleTarget.isIntegral()) {
+            return simpleSource.isIntegral() &&
+                   simpleSource.bitWidth() <= simpleTarget.bitWidth();
+        }
+
+        if (simpleTarget.isFloating()) {
+            return simpleSource.isFloating() &&
+                   simpleSource.bitWidth() <= simpleTarget.bitWidth();
+        }
+
+        return false;
     }
 
     /*

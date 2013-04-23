@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.Comparer;
+import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
@@ -65,9 +66,46 @@ public class AstMethodBodyBuilder {
             final AstMethodBodyBuilder builder = new AstMethodBodyBuilder(astBuilder, method, context);
             return builder.createMethodBody(parameters);
         }
+        catch (Throwable t) {
+            return createErrorBlock(astBuilder, t);
+        }
         finally {
             context.setCurrentMethod(oldCurrentMethod);
         }
+    }
+
+    private static BlockStatement createErrorBlock(final AstBuilder astBuilder, final Throwable t) {
+        final BlockStatement block = new BlockStatement();
+
+        final List<String> lines = StringUtilities.split(
+            ExceptionUtilities.getStackTraceString(t),
+            true,
+            '\r',
+            '\n'
+        );
+
+        for (final String line : lines) {
+            block.addChild(new Comment(" " + line, CommentType.SingleLine), Roles.COMMENT);
+        }
+
+        try {
+            block.add(
+                new ThrowStatement(
+                    new ObjectCreationExpression(
+                        astBuilder.convertType(
+                            MetadataSystem.instance()
+                                          .lookupType("java/lang/IllegalStateException")
+                        ),
+                        new PrimitiveExpression("An error occurred while decompiling this method.")
+                    )
+                )
+            );
+        }
+        catch (Throwable ignored) {
+            block.add(new EmptyStatement());
+        }
+
+        return block;
     }
 
     private AstMethodBodyBuilder(final AstBuilder astBuilder, final MethodDefinition method, final DecompilerContext context) {

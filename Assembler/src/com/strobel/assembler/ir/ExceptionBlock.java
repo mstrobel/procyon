@@ -17,6 +17,7 @@
 package com.strobel.assembler.ir;
 
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.ast.Range;
 
 public final class ExceptionBlock {
     private final Instruction _firstInstruction;
@@ -35,9 +36,15 @@ public final class ExceptionBlock {
         return _lastInstruction;
     }
 
-    public final boolean isWithin(final ExceptionBlock block) {
+    public final boolean contains(final ExceptionBlock block) {
         return block != null &&
                block.getFirstInstruction().getOffset() >= getFirstInstruction().getOffset() &&
-               block.getLastInstruction().getOffset() < getLastInstruction().getEndOffset();
+               block.getLastInstruction().getOffset() <= getLastInstruction().getEndOffset();
+    }
+
+    public final boolean contains(final Range range) {
+        return range != null &&
+               range.getStart() >= getFirstInstruction().getOffset() &&
+               range.getEnd() <= getLastInstruction().getEndOffset();
     }
 }

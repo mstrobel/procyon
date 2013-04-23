@@ -297,7 +297,9 @@ public final class TypeAnalysis {
                                                                     : inferredType.getExtendsBound();
                     }
 
-                    variable.setType(inferredType);
+                    if (shouldInferVariableType(variable)) {
+                        variable.setType(inferredType);
+                    }
 
                     //
                     // Assign inferred types to all the assignments (in case they used different inferred types).
@@ -313,6 +315,15 @@ public final class TypeAnalysis {
                 }
             }
         }
+    }
+
+    private boolean shouldInferVariableType(final Variable variable) {
+        if (variable.isGenerated()) {
+            return true;
+        }
+
+        return !variable.isParameter() &&
+               !variable.getOriginalVariable().isFromMetadata();
     }
 
     private void runInference(final Expression expression) {
@@ -338,7 +349,9 @@ public final class TypeAnalysis {
 
                 expression.setInferredType(BuiltinTypes.Boolean);
 
-                if (variable.getType().getSimpleType() == SimpleType.Integer && variable.isGenerated()) {
+                if (variable.getType().getSimpleType() == SimpleType.Integer &&
+                    shouldInferVariableType(variable)) {
+
                     variable.setType(BuiltinTypes.Boolean);
                 }
             }
@@ -352,7 +365,7 @@ public final class TypeAnalysis {
                 expression.setInferredType(BuiltinTypes.Character);
 
                 if (variable.getType().getSimpleType() == SimpleType.Integer &&
-                    variable.isGenerated() &&
+                    shouldInferVariableType(variable) &&
                     _singleLoadVariables.contains(variable)) {
 
                     variable.setType(BuiltinTypes.Character);
@@ -458,7 +471,9 @@ public final class TypeAnalysis {
                                                                     : inferredType.getExtendsBound();
                     }
 
-                    v.setType(inferredType);
+                    if (shouldInferVariableType(v)) {
+                        v.setType(inferredType);
+                    }
                 }
 
                 return v.getType();

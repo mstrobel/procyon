@@ -538,13 +538,21 @@ public class MethodReader {
 
             if (operand instanceof VariableDefinition) {
                 final VariableDefinition currentVariable = (VariableDefinition) operand;
+                final int effectiveOffset;
 
-                VariableDefinition actualVariable = variables.tryFind(currentVariable.getSlot(), instruction.getOffset());
+                if (code.isStore()) {
+                    effectiveOffset = instruction.getOffset() + code.getSize() + code.getOperandType().getBaseSize();
+                }
+                else {
+                    effectiveOffset = instruction.getOffset();
+                }
+
+                VariableDefinition actualVariable = variables.tryFind(currentVariable.getSlot(), effectiveOffset);
 
                 if (actualVariable == null && code.isStore()) {
                     actualVariable = variables.tryFind(
                         currentVariable.getSlot(),
-                        instruction.getOffset() + code.getSize() + code.getOperandType().getBaseSize()
+                        effectiveOffset + code.getSize() + code.getOperandType().getBaseSize()
                     );
                 }
 

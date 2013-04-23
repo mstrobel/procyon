@@ -1436,7 +1436,7 @@ public final class AstBuilder {
                                                                                 : variableDefinition.getName()
                 );
 
-                if (variableDefinition.isTypeKnown()) {
+                if (variableDefinition.isFromMetadata()) {
                     variable.setType(variableDefinition.getVariableType());
                 }
                 else {
@@ -1525,31 +1525,37 @@ public final class AstBuilder {
                         stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
                     }
 
-                    switch (stackValue.getType()) {
-                        case Integer:
-                            variableType = BuiltinTypes.Integer;
-                            break;
-                        case Float:
-                            variableType = BuiltinTypes.Float;
-                            break;
-                        case Long:
-                            variableType = BuiltinTypes.Long;
-                            break;
-                        case Double:
-                            variableType = BuiltinTypes.Double;
-                            break;
-                        case UninitializedThis:
-                            variableType = _context.getCurrentType();
-                            break;
-                        case Reference:
-                            variableType = (TypeReference) stackValue.getParameter();
-                            break;
-                        default:
-                            variableType = variableDefinition.getVariableType();
-                            break;
+                    if (variableDefinition.isFromMetadata()) {
+                        variable.setType(variableDefinition.getVariableType());
+                    }
+                    else {
+                        switch (stackValue.getType()) {
+                            case Integer:
+                                variableType = BuiltinTypes.Integer;
+                                break;
+                            case Float:
+                                variableType = BuiltinTypes.Float;
+                                break;
+                            case Long:
+                                variableType = BuiltinTypes.Long;
+                                break;
+                            case Double:
+                                variableType = BuiltinTypes.Double;
+                                break;
+                            case UninitializedThis:
+                                variableType = _context.getCurrentType();
+                                break;
+                            case Reference:
+                                variableType = (TypeReference) stackValue.getParameter();
+                                break;
+                            default:
+                                variableType = variableDefinition.getVariableType();
+                                break;
+                        }
+
+                        variable.setType(variableType);
                     }
 
-                    variable.setType(variableType);
                     variable.setOriginalVariable(variableDefinition);
                     variable.setGenerated(!variableDefinition.isFromMetadata());
 
