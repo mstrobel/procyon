@@ -587,11 +587,10 @@ public class MethodPrinter implements MethodVisitor {
                 final int lineNumber = _lineNumbers[instruction.getOffset()];
 
                 if (lineNumber >= 0) {
-                    _output.write(
-                        "          %1$-" + MAX_OPCODE_LENGTH + "s %2$d",
-                        LINE_NUMBER_CODE,
-                        lineNumber
-                    );
+                    _output.write("          ");
+                    _output.write("%1$-" + MAX_OPCODE_LENGTH + "s", LINE_NUMBER_CODE);
+                    _output.write(' ');
+                    _output.writeLiteral(lineNumber);
                     _output.writeLine();
                 }
             }
