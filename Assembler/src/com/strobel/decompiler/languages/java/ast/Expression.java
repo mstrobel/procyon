@@ -48,6 +48,11 @@ public abstract class Expression extends AstNode {
     // </editor-fold>
 
     @Override
+    public Expression clone() {
+        return (Expression) super.clone();
+    }
+
+    @Override
     public NodeType getNodeType() {
         return NodeType.EXPRESSION;
     }

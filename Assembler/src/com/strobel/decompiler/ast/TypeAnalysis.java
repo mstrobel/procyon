@@ -1049,6 +1049,10 @@ public final class TypeAnalysis {
                 return null;
             }
 
+            case DefaultValue: {
+                return (TypeReference) expression.getOperand();
+            }
+
             default: {
                 System.err.printf("Type inference can't handle opcode '%s'.\n", code.getName());
                 return null;

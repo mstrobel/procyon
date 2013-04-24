@@ -23,6 +23,7 @@ import com.strobel.assembler.metadata.MetadataResolver;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
@@ -115,15 +116,17 @@ public class EnumRewriterTransform implements IAstTransform {
                         (right instanceof ObjectCreationExpression ||
                          right instanceof ArrayCreationExpression)) {
 
+                        final String fieldName = resolvedField.getName();
+
                         if (resolvedField.isEnumConstant() &&
                             right instanceof ObjectCreationExpression &&
                             MetadataResolver.areEquivalent(currentType, resolvedField.getFieldType())) {
 
-                            _valueInitializers.put(resolvedField.getName(), (ObjectCreationExpression) right);
+                            _valueInitializers.put(fieldName, (ObjectCreationExpression) right);
                         }
                         else if (resolvedField.isSynthetic() &&
                                  !context.getSettings().getShowSyntheticMembers() &&
-                                 "$VALUES".equals(resolvedField.getName()) &&
+                                 matchesValuesField(fieldName) &&
                                  MetadataResolver.areEquivalent(currentType.makeArrayType(), resolvedField.getFieldType())) {
 
                             final Statement parentStatement = findStatement(node);
@@ -182,7 +185,7 @@ public class EnumRewriterTransform implements IAstTransform {
                     switch (method.getName()) {
                         case "values": {
                             if (method.getParameters().isEmpty() &&
-                                currentType.makeArrayType().equals(method.getReturnType().resolve())) {
+                                currentType.makeArrayType().equals(method.getReturnType())) {
 
                                 node.remove();
                             }
@@ -190,7 +193,7 @@ public class EnumRewriterTransform implements IAstTransform {
                         }
 
                         case "valueOf": {
-                            if (currentType.equals(method.getReturnType().resolve()) &&
+                            if (currentType.equals(method.getReturnType()) &&
                                 method.getParameters().size() == 1) {
 
                                 final ParameterDefinition p = method.getParameters().get(0);
@@ -275,5 +278,10 @@ public class EnumRewriterTransform implements IAstTransform {
             }
             return null;
         }
+    }
+
+    private static boolean matchesValuesField(final String fieldName) {
+        return StringUtilities.equals(fieldName, "$VALUES") ||
+               StringUtilities.equals(fieldName, "ENUM$VALUES");
     }
 }

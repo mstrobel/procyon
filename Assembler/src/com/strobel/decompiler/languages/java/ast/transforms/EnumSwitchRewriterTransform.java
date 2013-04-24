@@ -19,7 +19,6 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
@@ -241,46 +240,6 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
             }
 
             return super.visitAssignmentExpression(node, data);
-        }
-
-        @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
-            final TypeDefinition currentType = context.getCurrentType();
-
-            if (currentType != null && currentType.isEnum() && !context.getSettings().getShowSyntheticMembers()) {
-                final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
-
-                if (method != null &&
-                    method.isPublic() &&
-                    method.isStatic()) {
-
-                    switch (method.getName()) {
-                        case "values": {
-                            if (method.getParameters().isEmpty() &&
-                                currentType.makeArrayType().equals(method.getReturnType())) {
-
-                                node.remove();
-                            }
-                            break;
-                        }
-
-                        case "valueOf": {
-                            if (currentType.equals(method.getReturnType()) &&
-                                method.getParameters().size() == 1) {
-
-                                final ParameterDefinition p = method.getParameters().get(0);
-
-                                if ("java/lang/String".equals(p.getParameterType().getInternalName())) {
-                                    node.remove();
-                                }
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-
-            return super.visitMethodDeclaration(node, _);
         }
 
         private void rewrite() {

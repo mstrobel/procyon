@@ -26,6 +26,13 @@ import static com.strobel.core.CollectionUtilities.firstOrDefault;
 public class ComposedType extends AstType {
     public final static Role<ArraySpecifier> ARRAY_SPECIFIER_ROLE = new Role<>("ArraySpecifier", ArraySpecifier.class);
 
+    public ComposedType() {
+    }
+
+    public ComposedType(final AstType baseType) {
+        setBaseType(baseType);
+    }
+
     public final AstType getBaseType() {
         return getChildByRole(Roles.BASE_TYPE);
     }

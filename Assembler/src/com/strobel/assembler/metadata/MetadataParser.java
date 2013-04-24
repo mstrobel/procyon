@@ -1128,6 +1128,14 @@ public final class MetadataParser {
 
         @Override
         protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+            if (fullName) {
+                final TypeReference declaringType = getDeclaringType();
+
+                if (declaringType != null) {
+                    return declaringType.appendName(sb, true, false).append('.').append(_name);
+                }
+            }
+
             return sb.append(_name);
         }
     }

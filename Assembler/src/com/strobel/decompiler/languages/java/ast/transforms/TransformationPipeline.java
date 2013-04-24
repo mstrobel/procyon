@@ -26,6 +26,7 @@ public final class TransformationPipeline {
         return new IAstTransform[] {
             new EnumRewriterTransform(context),
             new EnumSwitchRewriterTransform(context),
+            new EclipseEnumSwitchRewriterTransform(context),
             new PatternStatementTransform(context),
             new BreakTargetRelocation(),
             new DeclareVariablesTransform(context),

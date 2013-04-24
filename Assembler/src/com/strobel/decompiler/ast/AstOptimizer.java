@@ -1099,6 +1099,11 @@ public final class AstOptimizer {
     }
 
     private final static class TransformArrayInitializersOptimization extends AbstractExpressionOptimization {
+        private final static Object DEFAULT_VALUE_INTEGER = 0;
+        private final static Object DEFAULT_VALUE_LONG = 0L;
+        private final static Object DEFAULT_VALUE_FLOAT = 0f;
+        private final static Object DEFAULT_VALUE_DOUBLE = 0d;
+
         protected TransformArrayInitializersOptimization(final DecompilerContext context, final Block method) {
             super(context, method);
         }
@@ -1116,6 +1121,8 @@ public final class AstOptimizer {
                 matchGetArgument(newArray.get(), AstCode.NewArray, elementType, lengthExpression) &&
                 matchGetOperand(lengthExpression.get(), AstCode.LdC, Number.class, arrayLength) &&
                 arrayLength.get().intValue() > 0) {
+
+                final int actualArrayLength = arrayLength.get().intValue();
 
                 final StrongBox<Number> arrayPosition = new StrongBox<>();
                 final List<Expression> initializers = new ArrayList<>();
@@ -1150,7 +1157,21 @@ public final class AstOptimizer {
                     }
                 }
 
-                if (initializers.size() == arrayLength.get().intValue()) {
+                if (initializers.size() < actualArrayLength &&
+                    initializers.size() >= actualArrayLength / 2) {
+
+                    //
+                    // Some compilers like Eclipse emit sparse array initializers.  If at least half
+                    // of the elements in the array are initialized, emit an InitArray expression.
+                    // I think this is a reasonable threshold.
+                    //
+
+                    while (initializers.size() < actualArrayLength) {
+                        initializers.add(new Expression(AstCode.DefaultValue, elementType.get()));
+                    }
+                }
+
+                if (initializers.size() == actualArrayLength) {
                     final TypeReference arrayType = elementType.get().makeArrayType();
 
                     head.getArguments().set(0, new Expression(AstCode.InitArray, arrayType, initializers));

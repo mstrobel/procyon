@@ -19,8 +19,11 @@ package com.strobel.decompiler.patterns;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.decompiler.languages.java.ast.AstType;
+import com.strobel.decompiler.languages.java.ast.BlockStatement;
+import com.strobel.decompiler.languages.java.ast.CatchClause;
 import com.strobel.decompiler.languages.java.ast.Expression;
 import com.strobel.decompiler.languages.java.ast.Statement;
+import com.strobel.decompiler.languages.java.ast.VariableInitializer;
 
 import java.util.Stack;
 
@@ -41,6 +44,18 @@ public abstract class Pattern implements INode {
 
     public final Statement toStatement() {
         return Statement.forPattern(this);
+    }
+
+    public final BlockStatement toBlockStatement() {
+        return BlockStatement.forPattern(this);
+    }
+
+    public final CatchClause toCatchClause() {
+        return CatchClause.forPattern(this);
+    }
+
+    public final VariableInitializer toVariableInitializer() {
+        return VariableInitializer.forPattern(this);
     }
 
     public final AstType toType() {

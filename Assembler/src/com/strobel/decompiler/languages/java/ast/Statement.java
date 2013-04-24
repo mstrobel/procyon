@@ -25,6 +25,11 @@ import com.strobel.decompiler.patterns.Role;
 
 public abstract class Statement extends AstNode {
     @Override
+    public Statement clone() {
+        return (Statement) super.clone();
+    }
+
+    @Override
     public NodeType getNodeType() {
         return NodeType.STATEMENT;
     }
