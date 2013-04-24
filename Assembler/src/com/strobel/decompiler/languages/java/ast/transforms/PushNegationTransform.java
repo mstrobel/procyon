@@ -30,6 +30,15 @@ public class PushNegationTransform extends ContextTrackingVisitor<AstNode> imple
     private final static Function<AstNode, AstNode> NEGATE_FUNCTION = new Function<AstNode, AstNode>() {
         @Override
         public AstNode apply(final AstNode n) {
+            if (n instanceof UnaryOperatorExpression) {
+                final UnaryOperatorExpression unary = (UnaryOperatorExpression) n;
+
+                if (unary.getOperator() == UnaryOperatorType.NOT) {
+                    final Expression operand = unary.getExpression();
+                    operand.remove();
+                    return operand;
+                }
+            }
             return new UnaryOperatorExpression(UnaryOperatorType.NOT, (Expression) n);
         }
     };
