@@ -42,6 +42,7 @@ import com.strobel.decompiler.patterns.NamedNode;
 import com.strobel.decompiler.patterns.OptionalNode;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Repeat;
+import com.strobel.decompiler.patterns.TypedNode;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1128,7 +1129,13 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
     static {
         ASSERTIONS_DISABLED_PATTERN = new AssignmentExpression(
-            new NamedNode("$assertionsDisabled", new IdentifierExpression("$assertionsDisabled")).toExpression(),
+            new NamedNode(
+                "$assertionsDisabled",
+                new Choice(
+                    new IdentifierExpression("$assertionsDisabled"),
+                    new TypedNode(TypeReferenceExpression.class).toExpression().member("$assertionsDisabled")
+                )
+            ).toExpression(),
             new UnaryOperatorExpression(
                 UnaryOperatorType.NOT,
                 new InvocationExpression(
@@ -1168,7 +1175,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             return;
         }
 
-        final IdentifierExpression field = m.<IdentifierExpression>get("$assertionsDisabled").iterator().next();
+        final Expression field = first(m.<IdentifierExpression>get("$assertionsDisabled"));
         final ClassOfExpression type = m.<ClassOfExpression>get("type").iterator().next();
         final MemberReference reference = field.getUserData(Keys.MEMBER_REFERENCE);
 
