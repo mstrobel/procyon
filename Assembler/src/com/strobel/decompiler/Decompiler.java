@@ -96,7 +96,7 @@ public final class Decompiler {
         }
         else {
             for (final String typeName : typeNames) {
-                decompile(typeName, printer, settings);
+                decompile(typeName.replace('.', '/'), printer, settings);
             }
         }
 

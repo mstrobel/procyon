@@ -57,7 +57,7 @@ public abstract class MethodReference extends MemberReference implements IMethod
 
     @Override
     public boolean containsGenericParameters() {
-        if (super.containsGenericParameters()) {
+        if (super.containsGenericParameters() || hasGenericParameters()) {
             return true;
         }
 

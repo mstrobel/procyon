@@ -372,6 +372,13 @@ public class DefiniteAssignmentAnalysis {
             for (AstNode child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
                 assert !(child instanceof Statement);
 
+                if (child instanceof TypeDeclaration) {
+                    //
+                    // Ignore the content of anonymous local types.
+                    //
+                    continue;
+                }
+
                 status = child.acceptVisitor(this, status);
                 status = cleanSpecialValues(status);
             }

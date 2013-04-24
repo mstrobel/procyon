@@ -665,7 +665,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.assembler.Disassembler" />
       <option name="VM_PARAMETERS" value="-ea -Dcom/strobel/expressions/f__Lambda[0x0058] -Djava/util/Collections$SynchronizedCollection" />
-      <option name="PROGRAM_PARAMETERS" value="com/strobel/core/VerifyArgument" />
+      <option name="PROGRAM_PARAMETERS" value="com/barclays/avt/concurrent/Task" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />
@@ -696,7 +696,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.decompiler.Decompiler" />
       <option name="VM_PARAMETERS" value="-ea -Dcom/strobel/decompiler/DecompilerTests -Dcom/strobel/assembler/ir/OpCode -Dcom/intellij/ide/ClassloaderUtil" />
-      <option name="PROGRAM_PARAMETERS" value="com/strobel/assembler/ir/OpCode" />
+      <option name="PROGRAM_PARAMETERS" value="com/barclays/avt/concurrent/Task" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />
@@ -752,7 +752,9 @@
       </SOURCES>
     </library>
     <library name="dump">
-      <CLASSES />
+      <CLASSES>
+        <root url="jar://W:/dump/AVTradeCommon.jar!/" />
+      </CLASSES>
       <JAVADOC />
       <SOURCES />
     </library>
