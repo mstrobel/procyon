@@ -31,6 +31,7 @@ public final class TransformationPipeline {
             new BreakTargetRelocation(),
             new DeclareVariablesTransform(context),
             new StringSwitchRewriterTransform(context),
+            new EclipseStringSwitchRewriterTransform(context),
             new CollapseImportsTransform(context),
             new PushNegationTransform(context),
             new LambdaTransform(context),

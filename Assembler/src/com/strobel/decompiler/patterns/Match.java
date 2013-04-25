@@ -121,7 +121,7 @@ public final class Match {
     }
 
     final void restoreCheckPoint(final int checkpoint) {
-        for (int i = _results.size() - 1; i > checkpoint; i--) {
+        for (int i = _results.size() - 1; i >= checkpoint; i--) {
             _results.remove(i);
         }
     }
