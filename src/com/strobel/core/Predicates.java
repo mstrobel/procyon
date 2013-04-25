@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -175,19 +176,38 @@ public final class Predicates {
     /**
      * Creates a predicate that evaluates to {@code true} if the tested object
      * is a member of the provided collection. The collection is not defensively
-     * copied so changes to it will alter the behavior of the predicate.
+     * copied, so changes to it will alter the behavior of the predicate.
      *
      * @param <T> Type of predicate values.
      * @param target the collection against which objects will be tested.
      * @return a predicate that evaluates to {@code true} if the tested object
      * is a member of the provided collection. The collection is not defensively
-     * copied so changes to it will alter the behavior of the predicate.
+     * copied, so changes to it will alter the behavior of the predicate.
      */
     public static <T> Predicate<T> contains(final Collection<? extends T> target) {
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
                 return target.contains(t);
+            }
+        };
+    }
+    /**
+     * Creates a predicate that evaluates to {@code true} if the tested object
+     * is a key in the provided map. The map is not defensively copied, so changes
+     * to it will alter the behavior of the predicate.
+     *
+     * @param <T> Type of predicate values.
+     * @param target the map against which objects will be tested.
+     * @return a predicate that evaluates to {@code true} if the tested object
+     * is a key in the provided map. The map is not defensively copied, so changes
+     * to it will alter the behavior of the predicate.
+     */
+    public static <T> Predicate<T> containsKey(final Map<? extends T, ?> target) {
+        return new Predicate<T>() {
+            @Override
+            public boolean test(final T t) {
+                return target.containsKey(t);
             }
         };
     }

@@ -1870,6 +1870,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public Void visitAssertStatement(final AssertStatement node, final Void _) {
         startNode(node);
         writeKeyword(AssertStatement.ASSERT_KEYWORD_ROLE);
+        space();
         node.getCondition().acceptVisitor(this, _);
 
         final String message = node.getMessage();

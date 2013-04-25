@@ -15,11 +15,8 @@ import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import static com.strobel.core.CollectionUtilities.*;
@@ -27,14 +24,12 @@ import static com.strobel.core.CollectionUtilities.*;
 public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisitor<Void> {
     private final List<AstNode> _nodesToRemove;
     private final Set<ParameterDefinition> _parametersToRemove;
-    private final Map<String, MethodDeclaration> _accessMethodDeclarations;
 
     public IntroduceOuterClassReferencesTransform(final DecompilerContext context) {
         super(context);
 
         _nodesToRemove = new ArrayList<>();
         _parametersToRemove = new HashSet<>();
-        _accessMethodDeclarations = new HashMap<>();
     }
 
     @Override
@@ -49,10 +44,6 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
         for (final AstNode node : _nodesToRemove) {
             node.remove();
         }
-    }
-
-    private static String makeMethodKey(final MethodReference method) {
-        return method.getFullName() + ":" + method.getErasedSignature();
     }
 
     @Override
@@ -88,27 +79,6 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
                                     _nodesToRemove.add(argumentToRemove);
                                 }
                             }
-                        }
-                    }
-                }
-
-                final String key = makeMethodKey(resolvedMethod != null ? resolvedMethod : method);
-                final MethodDeclaration declaration = _accessMethodDeclarations.get(key);
-
-                if (declaration != null) {
-                    final MethodDefinition definition = declaration.getUserData(Keys.METHOD_DEFINITION);
-
-                    if (definition != null && definition.getParameters().size() == 1) {
-                        final AstNode inlinedBody = InliningHelper.inlineMethod(
-                            declaration,
-                            Collections.singletonMap(
-                                definition.getParameters().get(0),
-                                arguments.firstOrNullObject()
-                            )
-                        );
-
-                        if (inlinedBody instanceof Expression) {
-                            node.replaceWith(inlinedBody);
                         }
                     }
                 }
@@ -194,60 +164,8 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
     // <editor-fold defaultstate="collapsed" desc="PhaseOneVisitor Class">
 
     private class PhaseOneVisitor extends ContextTrackingVisitor<Void> {
-        private boolean _baseConstructorCalled;
-
         private PhaseOneVisitor() {
             super(IntroduceOuterClassReferencesTransform.this.context);
-        }
-
-        @Override
-        public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void _) {
-            super.visitSuperReferenceExpression(node, _);
-
-            if (context.getCurrentMethod() != null &&
-                context.getCurrentMethod().isConstructor() &&
-                node.getParent() instanceof InvocationExpression) {
-
-                _baseConstructorCalled = true;
-            }
-
-            return null;
-        }
-
-        @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
-            final boolean wasDone = _baseConstructorCalled;
-
-            _baseConstructorCalled = false;
-
-            try {
-                final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
-
-                if (method != null &&
-                    method.isSynthetic() &&
-                    StringUtilities.startsWith(method.getName(), "access$") &&
-                    node.getBody().getStatements().size() == 1) {
-
-                    final Statement firstStatement = node.getBody().getStatements().firstOrNullObject();
-
-                    if (firstStatement instanceof ReturnStatement &&
-                        ((ReturnStatement) firstStatement).getExpression() instanceof MemberReferenceExpression) {
-
-                        if (method.isSynthetic() && method.isStatic()) {
-                            final List<ParameterDefinition> p = method.getParameters();
-
-                            if (p.size() == 1) {
-                                _accessMethodDeclarations.put(makeMethodKey(method), node);
-                            }
-                        }
-                    }
-                }
-
-                return super.visitMethodDeclaration(node, _);
-            }
-            finally {
-                _baseConstructorCalled = wasDone;
-            }
         }
 
         @Override

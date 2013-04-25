@@ -7,36 +7,88 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.patterns.AnyNode;
+import com.strobel.decompiler.patterns.Choice;
+import com.strobel.decompiler.patterns.INode;
+import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.NamedNode;
+import com.strobel.decompiler.patterns.OptionalNode;
+import com.strobel.decompiler.patterns.TypeReferenceDescriptorComparisonNode;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public class IntroduceStringConcatenationTransform extends ContextTrackingVisitor<Void> {
     public IntroduceStringConcatenationTransform(final DecompilerContext context) {
         super(context);
     }
 
+    private final static INode STRING_BUILDER_ARGUMENT_PATTERN;
+
+    static {
+        STRING_BUILDER_ARGUMENT_PATTERN = new OptionalNode(
+            new Choice(
+                new InvocationExpression(
+                    new MemberReferenceExpression(
+                        new TypeReferenceDescriptorComparisonNode("java/lang/String").toExpression(),
+                        "valueOf"
+                    ),
+                    new AnyNode("firstArgument").toExpression()
+                ),
+                new NamedNode(
+                    "firstArgument",
+                    new PrimitiveExpression(PrimitiveExpression.ANY_STRING)
+                )
+            )
+        );
+    }
+
     @Override
     public Void visitObjectCreationExpression(final ObjectCreationExpression node, final Void data) {
-        if (node.getArguments().isEmpty()) {
+        final AstNodeCollection<Expression> arguments = node.getArguments();
+
+        if (arguments.isEmpty() ||
+            arguments.hasSingleElement()) {
+
+            final Expression firstArgument;
+
+            if (arguments.hasSingleElement()) {
+                final Match m = STRING_BUILDER_ARGUMENT_PATTERN.match(arguments.firstOrNullObject());
+
+                if (!m.success()) {
+                    return super.visitObjectCreationExpression(node, data);
+                }
+
+                firstArgument = firstOrDefault(m.<Expression>get("firstArgument"));
+            }
+            else {
+                firstArgument = null;
+            }
+
             final TypeReference typeReference = node.getType().toTypeReference();
 
             if (typeReference != null &&
                 StringUtilities.equals(typeReference.getInternalName(), "java/lang/StringBuilder")) {
 
-                convertStringBuilderToConcatenation(node);
+                convertStringBuilderToConcatenation(node, firstArgument);
             }
         }
 
         return super.visitObjectCreationExpression(node, data);
     }
 
-    private void convertStringBuilderToConcatenation(final ObjectCreationExpression node) {
+    private void convertStringBuilderToConcatenation(final ObjectCreationExpression node, final Expression firstArgument) {
         if (node.getParent() == null || node.getParent().getParent() == null) {
             return;
         }
 
         final ArrayList<Expression> operands = new ArrayList<>();
+
+        if (firstArgument != null) {
+            operands.add(firstArgument);
+        }
 
         AstNode current;
         AstNode parent;

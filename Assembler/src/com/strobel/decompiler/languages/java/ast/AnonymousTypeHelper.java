@@ -152,6 +152,45 @@ public final class AnonymousTypeHelper {
                                 _replacements.put(member.getFullName(), argument);
                             }
                         }
+                        else if (_baseConstructorCalled &&
+                                 resolvedField != null &&
+                                 context.getCurrentMethod().isSynthetic() &&
+                                 !context.getSettings().getShowSyntheticMembers()) {
+
+                            final MemberReferenceExpression leftMemberReference = (MemberReferenceExpression) left;
+                            final MemberReference leftMember = leftMemberReference.getUserData(Keys.MEMBER_REFERENCE);
+                            final Variable rightVariable = right.getUserData(Keys.VARIABLE);
+
+                            if (rightVariable.isParameter()) {
+                                final ParameterDefinition parameter = variable.getOriginalParameter();
+                                final int parameterIndex = parameter.getPosition();
+
+                                if (parameterIndex >= 0 && parameterIndex < _originalArguments.size()) {
+                                    final Expression argument = _originalArguments.get(parameterIndex);
+
+                                    if (parameterIndex == 0 &&
+                                        argument instanceof ThisReferenceExpression &&
+                                        context.getCurrentType().isAnonymous()) {
+
+                                        //
+                                        // Don't replace outer class references; they will be rewritten later.
+                                        //
+                                        return null;
+                                    }
+
+                                    final FieldDefinition resolvedTargetField = ((FieldReference) leftMember).resolve();
+
+                                    if (resolvedTargetField != null && !resolvedTargetField.isSynthetic()) {
+                                        _parametersToRemove.add(parameter);
+                                        _initializers.put(resolvedTargetField.getFullName(), argument);
+
+                                        if (node.getParent() instanceof ExpressionStatement) {
+                                            _nodesToRemove.add(node.getParent());
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 else if (_baseConstructorCalled && right instanceof MemberReferenceExpression) {
@@ -218,7 +257,7 @@ public final class AnonymousTypeHelper {
                 final Expression initializer = _initializers.get(field.getFullName());
 
                 if (initializer != null) {
-                    node.getVariables().firstOrNullObject().setInitializer((Expression) initializer.clone());
+                    node.getVariables().firstOrNullObject().setInitializer(initializer.clone());
                 }
             }
 
