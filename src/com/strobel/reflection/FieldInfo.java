@@ -55,6 +55,36 @@ public abstract class FieldInfo extends MemberInfo {
         return getRawField().isAnnotationPresent(annotationClass);
     }
 
+    public Object getValue(final Object instance) {
+        final Field rawField = getRawField();
+
+        if (rawField == null) {
+            throw Error.rawFieldBindingFailure(this);
+        }
+
+        try {
+            return rawField.get(instance);
+        }
+        catch (IllegalAccessException e) {
+            throw Error.targetInvocationException(e);
+        }
+    }
+
+    public void setValue(final Object instance, final Object value) {
+        final Field rawField = getRawField();
+
+        if (rawField == null) {
+            throw Error.rawFieldBindingFailure(this);
+        }
+
+        try {
+            rawField.set(instance, value);
+        }
+        catch (IllegalAccessException e) {
+            throw Error.targetInvocationException(e);
+        }
+    }
+
     @Override
     public String toString() {
         return getDescription();

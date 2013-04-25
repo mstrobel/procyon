@@ -753,7 +753,11 @@
       </SOURCES>
     </library>
     <library name="dump">
+      <ANNOTATIONS>
+        <root url="jar://W:/dump/GuiServer.jar!/" />
+      </ANNOTATIONS>
       <CLASSES>
+        <root url="jar://W:/dump/GuiServer.jar!/" />
         <root url="jar://W:/dump/AVTradeCommon.jar!/" />
       </CLASSES>
       <JAVADOC />

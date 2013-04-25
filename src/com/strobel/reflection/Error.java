@@ -212,6 +212,16 @@ final class Error {
         );
     }
 
+    public static RuntimeException rawFieldBindingFailure(final FieldInfo field) {
+        return new IllegalStateException(
+            format(
+                "Could not bind to runtime field '%s' on type '%s'.",
+                field.getDescription(),
+                field.getDeclaringType().toString()
+            )
+        );
+    }
+
     public static RuntimeException rawMethodBindingFailure(final MethodBase method) {
         return new IllegalStateException(
             format(
