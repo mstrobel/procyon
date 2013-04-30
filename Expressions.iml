@@ -10,7 +10,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" exported="" name="lib" level="project" />
+    <orderEntry type="library" scope="TEST" name="junit-4.5" level="project" />
   </component>
   <component name="POM File Configuration" pomFile="" />
 </module>

@@ -426,11 +426,9 @@ public final class AstBuilder {
             }
         }
 
-        if (_context.getSettings().getShowNestedTypes()) {
-            for (final TypeDefinition nestedType : type.getDeclaredTypes()) {
-                if (!nestedType.isLocalClass()) {
-                    astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
-                }
+        for (final TypeDefinition nestedType : type.getDeclaredTypes()) {
+            if (!nestedType.isLocalClass()) {
+                astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
             }
         }
     }
@@ -647,7 +645,19 @@ public final class AstBuilder {
     }
 
     public static boolean isMemberHidden(final IMemberDefinition member, final DecompilerSettings settings) {
-        return member.isSynthetic() && !settings.getShowSyntheticMembers();
+        if (member.isSynthetic() && !settings.getShowSyntheticMembers())
+            return true;
+
+        if (member instanceof TypeReference &&
+            ((TypeReference) member).isNested() &&
+            !settings.getShowNestedTypes()) {
+
+            final TypeDefinition resolvedType = ((TypeReference) member).resolve();
+
+            return resolvedType == null || !resolvedType.isLocalClass();
+        }
+
+        return false;
     }
 
     public Annotation createAnnotation(final CustomAnnotation annotation) {

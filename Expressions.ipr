@@ -19,9 +19,21 @@
         <element id="dir-copy" path="$PROJECT_DIR$/Assembler/src" />
       </root>
     </artifact>
+    <artifact type="jar" build-on-make="true" name="decompiler:jar">
+      <output-path>$PROJECT_DIR$/out/artifacts/decompiler_jar</output-path>
+      <root id="archive" name="decompiler.jar">
+        <element id="directory" name="META-INF">
+          <element id="file-copy" path="$PROJECT_DIR$/src/META-INF/MANIFEST.MF" />
+        </element>
+        <element id="module-output" name="Assembler" />
+        <element id="module-output" name="Expressions" />
+        <element id="extracted-dir" path="$PROJECT_DIR$/lib/jcommander-1.30.jar" path-in-jar="/" />
+      </root>
+    </artifact>
   </component>
   <component name="CompilerConfiguration">
     <option name="DEFAULT_COMPILER" value="Javac" />
+    <addNotNullAssertions enabled="false" />
     <resourceExtensions />
     <wildcardResourcePatterns>
       <entry name="?*.properties" />
@@ -900,7 +912,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.decompiler.Decompiler" />
       <option name="VM_PARAMETERS" value="-ea -Dcom/strobel/decompiler/DecompilerTests -Dcom/strobel/assembler/ir/OpCode -Dcom/intellij/ide/ClassloaderUtil" />
-      <option name="PROGRAM_PARAMETERS" value="-n com/strobel/decompiler/DecompilerTests" />
+      <option name="PROGRAM_PARAMETERS" value="-fsb -n com.strobel.decompiler.DecompilerTests" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />
@@ -955,24 +967,12 @@
         <root url="jar://$PROJECT_DIR$/lib/jcommander-1.30-sources.jar!/" />
       </SOURCES>
     </library>
-    <library name="dump">
-      <ANNOTATIONS>
-        <root url="jar://W:/dump/GuiServer.jar!/" />
-      </ANNOTATIONS>
+    <library name="junit-4.5">
       <CLASSES>
-        <root url="jar://W:/dump/GuiServer.jar!/" />
-        <root url="jar://W:/dump/AVTradeCommon.jar!/" />
+        <root url="jar://$PROJECT_DIR$/lib/junit-4.5.jar!/" />
       </CLASSES>
       <JAVADOC />
       <SOURCES />
-    </library>
-    <library name="lib">
-      <CLASSES>
-        <root url="file://$PROJECT_DIR$/lib" />
-      </CLASSES>
-      <JAVADOC />
-      <SOURCES />
-      <jarDirectory url="file://$PROJECT_DIR$/lib" recursive="false" />
     </library>
   </component>
 </project>

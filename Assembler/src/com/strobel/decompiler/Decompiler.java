@@ -27,6 +27,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.languages.Languages;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 
+import java.io.StringWriter;
 import java.util.List;
 
 public final class Decompiler {
@@ -61,7 +62,6 @@ public final class Decompiler {
     }
 
     public static void main(final String[] args) {
-        final PlainTextOutput printer = new AnsiTextOutput();
         final CommandLineOptions options = new CommandLineOptions();
         final JCommander jCommander;
         final List<String> typeNames;
@@ -78,19 +78,21 @@ public final class Decompiler {
             return;
         }
 
-        if (options.getPrintUsage()) {
+        if (options.getPrintUsage() || typeNames.isEmpty()) {
             jCommander.usage();
             return;
         }
 
         final DecompilerSettings settings = new DecompilerSettings();
 
-        settings.setAlwaysGenerateExceptionVariableForCatchBlocks(options.getAlwaysGenerateExceptionVariableForCatchBlocks());
         settings.setFlattenSwitchBlocks(options.getFlattenSwitchBlocks());
         settings.setForceExplicitImports(options.getForceExplicitImports());
         settings.setShowSyntheticMembers(options.getShowSyntheticMembers());
         settings.setShowNestedTypes(options.getShowNestedTypes());
         settings.setTypeLoader(new InputTypeLoader());
+
+        final StringWriter writer = new StringWriter();
+        final PlainTextOutput printer = new AnsiTextOutput(writer);
 
         if (options.isRawBytecode()) {
             settings.setLanguage(Languages.bytecode());
@@ -101,15 +103,10 @@ public final class Decompiler {
                                                          : Languages.bytecodeAst());
         }
 
-        if (typeNames.isEmpty()) {
-            decompile("com/strobel/decompiler/Decompiler", printer, settings);
+        for (final String typeName : typeNames) {
+            decompile(typeName, printer, settings);
+            System.out.print(printer.toString());
+            writer.getBuffer().setLength(0);
         }
-        else {
-            for (final String typeName : typeNames) {
-                decompile(typeName.replace('.', '/'), printer, settings);
-            }
-        }
-
-        System.out.print(printer.toString());
     }
 }

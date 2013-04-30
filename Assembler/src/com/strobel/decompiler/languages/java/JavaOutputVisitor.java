@@ -1868,7 +1868,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         node.getType().acceptVisitor(this, _);
         space(policy.SpaceBeforeMethodCallParentheses);
         writeCommaSeparatedListInParenthesis(node.getArguments(), policy.SpaceWithinMethodCallParentheses);
-        visitTypeDeclaration(node.getTypeDeclaration(), _);
+        node.getTypeDeclaration().acceptVisitor(new JavaOutputVisitor(output, policy), _);
         endNode(node);
         return null;
     }

@@ -14,6 +14,7 @@
  * You must not remove this notice, or any other, from this software.
  */
 
+/*
 package com.strobel.assembler;
 
 import com.sampullara.cli.Argument;
@@ -79,3 +80,4 @@ public final class DisassemblerOptions {
         _printConstantPool = printConstantPool;
     }
 }
+*/

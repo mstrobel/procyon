@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CommandLineOptions {
-    @Parameter(description = "<class names>")
+    @Parameter(description = "<class files or names>")
     private final List<String> _classNames = new ArrayList<>();
 
     @Parameter(names = { "-?", "--help" }, help = true, description = "Display this usage information and exit.")
@@ -37,9 +37,6 @@ public class CommandLineOptions {
     @Parameter(names = { "-s", "--show-synthetic" }, description = "Show synthetic (compiler-generated) members.")
     private boolean _showSyntheticMembers;
 
-    @Parameter(names = { "-ev", "--exception-variables" }, description = "Always generate exception variables for catch blocks.")
-    private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
-
     @Parameter(names = { "-b", "--bytecode-ast" }, description = "Output Bytecode AST instead of Java.")
     private boolean _bytecodeAst;
 
@@ -49,7 +46,7 @@ public class CommandLineOptions {
     @Parameter(names = { "-u", "--unoptimized" }, description = "Show unoptimized code (only in combination with -b).")
     private boolean _unoptimized;
 
-    @Parameter(names = { "-n", "--show-nested" }, description = "Show nested types.")
+    @Parameter(names = { "-n", "--show-nested" }, description = "Decompile nested types along with their enclosing type.")
     private boolean _showNestedTypes;
 
     public final List<String> getClassNames() {
@@ -118,13 +115,5 @@ public class CommandLineOptions {
 
     public final void setPrintUsage(final boolean printUsage) {
         _printUsage = printUsage;
-    }
-
-    public final boolean getAlwaysGenerateExceptionVariableForCatchBlocks() {
-        return _alwaysGenerateExceptionVariableForCatchBlocks;
-    }
-
-    public final void setAlwaysGenerateExceptionVariableForCatchBlocks(final boolean names) {
-        _alwaysGenerateExceptionVariableForCatchBlocks = names;
     }
 }

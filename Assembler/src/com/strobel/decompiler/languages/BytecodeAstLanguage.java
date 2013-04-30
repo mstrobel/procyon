@@ -26,12 +26,12 @@ import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
-import com.strobel.decompiler.AnsiTextOutput;
 import com.strobel.decompiler.DecompilationOptions;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.NameSyntax;
+import com.strobel.decompiler.PlainTextOutput;
 import com.strobel.decompiler.ast.AstBuilder;
 import com.strobel.decompiler.ast.AstOptimizationStep;
 import com.strobel.decompiler.ast.AstOptimizer;
@@ -104,18 +104,21 @@ public class BytecodeAstLanguage extends Language {
     }
 
     @Override
+    @SuppressWarnings("ConstantConditions")
     public void decompileMethod(final MethodDefinition method, final ITextOutput output, final DecompilationOptions options) {
         VerifyArgument.notNull(method, "method");
         VerifyArgument.notNull(output, "output");
         VerifyArgument.notNull(options, "options");
 
+        writeMethodHeader(method, output);
+
         final MethodBody body = method.getBody();
 
         if (body == null) {
+            output.writeDelimiter(";");
+            output.writeLine();
             return;
         }
-
-        writeMethodHeader(method, output);
 
         final DecompilerContext context = new DecompilerContext();
 
@@ -231,13 +234,15 @@ public class BytecodeAstLanguage extends Language {
             return;
         }
 
-        for (final Modifier modifier : Flags.asModifierSet(method.getFlags() & Flags.MethodFlags)) {
-            output.writeKeyword(modifier.toString());
-            output.write(' ');
+        if (!method.getDeclaringType().isInterface()) {
+            for (final Modifier modifier : Flags.asModifierSet(method.getFlags() & Flags.MethodFlags)) {
+                output.writeKeyword(modifier.toString());
+                output.write(' ');
+            }
         }
 
         if (!method.isTypeInitializer()) {
-            DecompilerHelpers.writeType(output, method.getReturnType(), NameSyntax.SHORT_TYPE_NAME);
+            DecompilerHelpers.writeType(output, method.getReturnType(), NameSyntax.TYPE_NAME);
             output.write(' ');
 
             if (method.isConstructor()) {
@@ -258,7 +263,7 @@ public class BytecodeAstLanguage extends Language {
                     output.write(", ");
                 }
 
-                DecompilerHelpers.writeType(output, parameter.getParameterType(), NameSyntax.SHORT_TYPE_NAME);
+                DecompilerHelpers.writeType(output, parameter.getParameterType(), NameSyntax.TYPE_NAME);
                 output.write(' ');
                 output.writeReference(parameter.getName(), parameter);
             }
@@ -269,7 +274,7 @@ public class BytecodeAstLanguage extends Language {
 
     @Override
     public String typeToString(final TypeReference type, final boolean includePackage) {
-        final ITextOutput output = new AnsiTextOutput();
+        final ITextOutput output = new PlainTextOutput();
         DecompilerHelpers.writeType(output, type, includePackage ? NameSyntax.TYPE_NAME : NameSyntax.SHORT_TYPE_NAME);
         return output.toString();
     }
