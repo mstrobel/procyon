@@ -106,13 +106,32 @@ public class PlainTextOutput implements ITextOutput {
     @Override
     public void write(final String text) {
         writeIndent();
+
         try {
+            final int length = text != null ? text.length() : NULL_TEXT.length();
+
             _writer.write(text);
-            column += text != null ? text.length() : NULL_TEXT.length();
+
+            column += length;
+
+            if (text == null) {
+                return;
+            }
+
+            for (int i = 0; i < length; i++) {
+                if (text.charAt(i) == '\n') {
+                    line++;
+                }
+            }
         }
         catch (IOException e) {
             throw new UndeclaredThrowableException(e);
         }
+    }
+
+    @Override
+    public void writeError(final String value) {
+        write(value);
     }
 
     @Override

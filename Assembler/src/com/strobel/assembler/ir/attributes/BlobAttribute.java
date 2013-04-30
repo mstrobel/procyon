@@ -22,11 +22,21 @@ import com.strobel.core.VerifyArgument;
  * @author Mike Strobel
  */
 public final class BlobAttribute extends SourceAttribute {
+    private final int _dataOffset;
     private final byte[] _data;
 
     public BlobAttribute(final String name, final byte[] data) {
+        this(name, data, -1);
+    }
+
+    public BlobAttribute(final String name, final byte[] data, final int dataOffset) {
         super(name, data.length);
+        _dataOffset = dataOffset;
         _data = VerifyArgument.notNull(data, "data");
+    }
+
+    public int getDataOffset() {
+        return _dataOffset;
     }
 
     public byte[] getData() {

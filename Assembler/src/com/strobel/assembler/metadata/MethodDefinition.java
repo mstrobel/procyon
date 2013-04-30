@@ -610,7 +610,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
                 return true;
             }
 
-            code = new Buffer(codeAttribute.getCodeSize());
+            code = new Buffer();
 
             if (!typeLoader.tryLoadType(_declaringType.getInternalName(), code)) {
                 _flags |= Flags.LOAD_BODY_FAILED;
@@ -635,6 +635,8 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
 
             if (constantPool == null) {
                 final long magic = code.readInt() & 0xFFFFFFFFL;
+
+                assert magic == ClassFileReader.MAGIC;
 
                 if (magic != ClassFileReader.MAGIC) {
                     _flags |= Flags.LOAD_BODY_FAILED;

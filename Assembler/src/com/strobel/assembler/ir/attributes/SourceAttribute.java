@@ -260,9 +260,10 @@ public class SourceAttribute {
             }
 
             default: {
+                final int offset = buffer.position();
                 final byte[] blob = new byte[length];
                 buffer.read(blob, 0, blob.length);
-                return new BlobAttribute(name, blob);
+                return new BlobAttribute(name, blob, offset);
             }
         }
     }

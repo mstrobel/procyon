@@ -19,11 +19,12 @@ package com.strobel.decompiler;
 import com.strobel.assembler.Collection;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.componentmodel.UserDataStoreBase;
 import com.strobel.core.BooleanBox;
 
 import java.util.List;
 
-public final class DecompilerContext {
+public final class DecompilerContext extends UserDataStoreBase {
     private final List<String> _reservedVariableNames = new Collection<>();
     private DecompilerSettings _settings = new DecompilerSettings();
     private BooleanBox _isCanceled;

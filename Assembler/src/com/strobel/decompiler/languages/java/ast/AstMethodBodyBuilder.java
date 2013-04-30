@@ -85,7 +85,7 @@ public class AstMethodBodyBuilder {
         );
 
         for (final String line : lines) {
-            block.addChild(new Comment(" " + line, CommentType.SingleLine), Roles.COMMENT);
+            block.addChild(new Comment(" " + line.replace("\t", "    "), CommentType.SingleLine), Roles.COMMENT);
         }
 
         try {
@@ -846,14 +846,6 @@ public class AstMethodBodyBuilder {
             creation.getArguments().addAll(adjustArgumentsForMethodCall(methodReference, arguments));
             creation.putUserData(Keys.MEMBER_REFERENCE, methodReference);
 
-            if (creation instanceof AnonymousObjectCreationExpression) {
-                AnonymousTypeHelper.replaceClosureMembers(
-                    _context.getSettings(),
-                    (AnonymousObjectCreationExpression) creation,
-                    arguments
-                );
-            }
-
             return creation;
         }
 
@@ -893,10 +885,13 @@ public class AstMethodBodyBuilder {
 
             if (declaringType != null) {
                 if (declaringType.isLocalClass()) {
+/*
                     return arguments.subList(
                         _context.getSettings().getShowSyntheticMembers() ? 0 : 1,
                         arguments.size()
                     );
+*/
+                    return arguments;
                 }
 
                 if (declaringType.isInnerClass()) {

@@ -46,10 +46,26 @@ public abstract class MetadataReader {
         final IMetadataScope scope = getScope();
         final String name = scope.lookupConstant(nameIndex);
 
-        return readAttributeCore(name, buffer, length);
+        return readAttributeCore(name, buffer, -1, length);
     }
 
-    protected SourceAttribute readAttributeCore(final String name, final Buffer buffer, final int length) {
+    /**
+     * Reads a {@link SourceAttribute} from the specified buffer.
+     *
+     * @param name
+     *     The name of the attribute to decode.
+     * @param buffer
+     *     A buffer containing the attribute blob.
+     * @param originalOffset
+     *     The offset of position 0 in the buffer relative to the start of the original class file.
+     *     This is needed during lazy inflation of {@link CodeAttribute} (and possibly others). In
+     *     the case of {@link CodeAttribute}, it is helpful to know exactly where each method's body
+     *     begins so we can load it on demand at some point in the future.
+     * @param length
+     *     The length of the attribute.  Implementations should not rely on {@link Buffer#size()
+     *     buffer.size()}.
+     */
+    protected SourceAttribute readAttributeCore(final String name, final Buffer buffer, final int originalOffset, final int length) {
         final IMetadataScope scope = getScope();
 
         if (length == 0) {
@@ -72,8 +88,9 @@ public abstract class MetadataReader {
             case AttributeNames.Code: {
                 final int maxStack = buffer.readUnsignedShort();
                 final int maxLocals = buffer.readUnsignedShort();
-                final int codeOffset = buffer.position();
                 final int codeLength = buffer.readInt();
+                final int relativeOffset = buffer.position();
+                final int codeOffset = (originalOffset >= 0) ? (originalOffset - 2 + relativeOffset) : relativeOffset;
                 final byte[] code = new byte[codeLength];
 
                 buffer.read(code, 0, codeLength);
@@ -258,8 +275,9 @@ public abstract class MetadataReader {
 
             default: {
                 final byte[] blob = new byte[length];
+                final int offset = buffer.position();
                 buffer.read(blob, 0, blob.length);
-                return new BlobAttribute(name, blob);
+                return new BlobAttribute(name, blob, offset);
             }
         }
     }
@@ -294,8 +312,10 @@ public abstract class MetadataReader {
         if (attribute instanceof BlobAttribute) {
             buffer.reset(attribute.getLength());
 
+            final BlobAttribute blobAttribute = (BlobAttribute) attribute;
+
             System.arraycopy(
-                ((BlobAttribute) attribute).getData(),
+                blobAttribute.getData(),
                 0,
                 buffer.array(),
                 0,
@@ -305,6 +325,7 @@ public abstract class MetadataReader {
             return readAttributeCore(
                 attribute.getName(),
                 buffer,
+                blobAttribute.getDataOffset(),
                 attribute.getLength()
             );
         }
@@ -332,8 +353,10 @@ public abstract class MetadataReader {
                     buffer.reset(attribute.getLength());
                 }
 
+                final BlobAttribute blobAttribute = (BlobAttribute) attribute;
+
                 System.arraycopy(
-                    ((BlobAttribute) attribute).getData(),
+                    blobAttribute.getData(),
                     0,
                     buffer.array(),
                     0,
@@ -345,6 +368,7 @@ public abstract class MetadataReader {
                     readAttributeCore(
                         attribute.getName(),
                         buffer,
+                        blobAttribute.getDataOffset(),
                         attribute.getLength()
                     )
                 );

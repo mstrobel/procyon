@@ -49,12 +49,18 @@ public class AnsiTextOutput extends PlainTextOutput {
     private final static Ansi OPERATOR = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(247), null);
     private final static Ansi DELIMITER = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(249), null);
     private final static Ansi ATTRIBUTE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(214), null);
+    private final static Ansi ERROR = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(196), null);
 
     public AnsiTextOutput() {
     }
 
     public AnsiTextOutput(final Writer writer) {
         super(writer);
+    }
+
+    @Override
+    public void writeError(final String value) {
+        writeAnsi(value, ERROR.colorize(value));
     }
 
     @Override

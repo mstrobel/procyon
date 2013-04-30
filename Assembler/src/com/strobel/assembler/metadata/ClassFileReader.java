@@ -139,8 +139,24 @@ public final class ClassFileReader extends MetadataReader {
         return _parser;
     }
 
+    /**
+     * Reads a {@link SourceAttribute} from the specified buffer.
+     *
+     * @param name
+     *     The name of the attribute to decode.
+     * @param buffer
+     *     A buffer containing the attribute blob.
+     * @param originalOffset
+     *     The offset of position 0 in the buffer relative to the start of the original class file.
+     *     This is needed during lazy inflation of {@link CodeAttribute} (and possibly others). In
+     *     the case of {@link CodeAttribute}, it is helpful to know exactly where each method's body
+     *     begins so we can load it on demand at some point in the future.
+     * @param length
+     *     The length of the attribute.  Implementations should not rely on {@link Buffer#size()
+     *     buffer.size()}.
+     */
     @Override
-    protected SourceAttribute readAttributeCore(final String name, final Buffer buffer, final int length) {
+    protected SourceAttribute readAttributeCore(final String name, final Buffer buffer, final int originalOffset, final int length) {
         VerifyArgument.notNull(name, "name");
         VerifyArgument.notNull(buffer, "buffer");
         VerifyArgument.isNonNegative(length, "length");
@@ -150,7 +166,7 @@ public final class ClassFileReader extends MetadataReader {
                 final int maxStack = buffer.readUnsignedShort();
                 final int maxLocals = buffer.readUnsignedShort();
                 final int codeLength = buffer.readInt();
-                final int codeOffset = buffer.position();
+                final int codeOffset = originalOffset + buffer.position();
                 final byte[] code = new byte[codeLength];
 
                 buffer.read(code, 0, codeLength);
@@ -204,6 +220,7 @@ public final class ClassFileReader extends MetadataReader {
                         codeLength,
                         maxStack,
                         maxLocals,
+                        exceptionTable,
                         attributes
                     );
                 }
@@ -240,7 +257,7 @@ public final class ClassFileReader extends MetadataReader {
             }
         }
 
-        return super.readAttributeCore(name, buffer, length);
+        return super.readAttributeCore(name, buffer, originalOffset, length);
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -289,14 +306,15 @@ public final class ClassFileReader extends MetadataReader {
                 }
 
                 case AttributeNames.InnerClasses: {
-                    attributes[i] = readAttributeCore(name, buffer, length);
+                    attributes[i] = readAttributeCore(name, buffer, buffer.position(), length);
                     continue;
                 }
 
                 default: {
+                    final int offset = buffer.position();
                     final byte[] blob = new byte[length];
                     buffer.read(blob, 0, blob.length);
-                    attributes[i] = new BlobAttribute(name, blob);
+                    attributes[i] = new BlobAttribute(name, blob, offset);
                     continue;
                 }
             }
@@ -746,6 +764,7 @@ public final class ClassFileReader extends MetadataReader {
         try (final AutoCloseable ignored = _parser.suppressTypeResolution()) {
             for (final MethodInfo method : _methods) {
                 final IMethodSignature methodSignature;
+                final IMethodSignature methodDescriptor = _parser.parseMethodSignature(method.descriptor);
                 final MethodDefinition methodDefinition = new MethodDefinition();
 
                 methodDefinition.setName(method.name);
@@ -756,28 +775,27 @@ public final class ClassFileReader extends MetadataReader {
                 _parser.pushGenericContext(methodDefinition);
 
                 try {
-
                     final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, method.attributes);
 
-                    if ((_typeDefinition.getFlags() & Flags.ENUM) != 0 && "<init>".equals(method.name)) {
-                        methodSignature = _parser.parseMethodSignature(
-                            signature != null ? "(Ljava/lang/String;I" + signature.getSignature().substring(1)
-                                              : method.descriptor
-                        );
+                    methodSignature = signature != null ? _parser.parseMethodSignature(signature.getSignature())
+                                                        : methodDescriptor;
 
-                        methodSignature.getParameters().get(0).setName("name");
-                        methodSignature.getParameters().get(1).setName("ordinal");
-                    }
-                    else {
-                        methodSignature = _parser.parseMethodSignature(
-                            signature != null ? signature.getSignature() : method.descriptor
-                        );
-                    }
+                    final List<ParameterDefinition> signatureParameters = methodSignature.getParameters();
+                    final List<ParameterDefinition> descriptorParameters = methodDescriptor.getParameters();
+                    final ParameterDefinitionCollection parameters = methodDefinition.getParametersInternal();
 
                     methodDefinition.setReturnType(methodSignature.getReturnType());
-                    methodDefinition.getParametersInternal().addAll(methodSignature.getParameters());
+                    parameters.addAll(signatureParameters);
                     methodDefinition.getGenericParametersInternal().addAll(methodSignature.getGenericParameters());
                     methodDefinition.getThrownTypesInternal().addAll(methodSignature.getThrownTypes());
+
+                    final int missingParameters = descriptorParameters.size() - signatureParameters.size();
+
+                    for (int i = 0; i < missingParameters; i++) {
+                        final ParameterDefinition parameter = descriptorParameters.get(i);
+                        parameter.setFlags(parameter.getFlags() | Flags.SYNTHETIC);
+                        parameters.add(i, parameter);
+                    }
 
                     int slot = 0;
 
@@ -816,9 +834,7 @@ public final class ClassFileReader extends MetadataReader {
                         methodDefinition.setFlags(methodDefinition.getFlags() | Flags.ANONCONSTR | Flags.SYNTHETIC);
                     }
 
-                    if (Flags.testAny(_options, OPTION_PROCESS_CODE)) {
-                        readMethodBody(method, methodDefinition);
-                    }
+                    readMethodBody(method, methodDefinition);
 
                     if (SourceAttribute.find(AttributeNames.Synthetic, method.attributes) != null) {
                         methodDefinition.setFlags(methodDefinition.getFlags() | Flags.SYNTHETIC);
@@ -860,8 +876,6 @@ public final class ClassFileReader extends MetadataReader {
                         );
 
                         if (visibleParameterAnnotations != null) {
-                            final List<ParameterDefinition> parameters = methodDefinition.getParameters();
-
                             for (int i = 0; i < visibleParameterAnnotations.getAnnotations().length && i < parameters.size(); i++) {
                                 Collections.addAll(
                                     parameters.get(i).getAnnotationsInternal(),
@@ -871,8 +885,6 @@ public final class ClassFileReader extends MetadataReader {
                         }
 
                         if (invisibleParameterAnnotations != null) {
-                            final List<ParameterDefinition> parameters = methodDefinition.getParameters();
-
                             for (int i = 0; i < invisibleParameterAnnotations.getAnnotations().length && i < parameters.size(); i++) {
                                 Collections.addAll(
                                     parameters.get(i).getAnnotationsInternal(),
@@ -894,11 +906,42 @@ public final class ClassFileReader extends MetadataReader {
 
     private void readMethodBody(final MethodInfo methodInfo, final MethodDefinition methodDefinition) {
         if (methodInfo.codeAttribute instanceof CodeAttribute) {
-            final MethodReader reader = new MethodReader(methodDefinition, _scope);
-            final MethodBody body = reader.readBody();
+            if (Flags.testAny(_options, OPTION_PROCESS_CODE)) {
+                final MethodReader reader = new MethodReader(methodDefinition, _scope);
+                final MethodBody body = reader.readBody();
 
-            methodDefinition.setBody(body);
-            body.freeze();
+                methodDefinition.setBody(body);
+                body.freeze();
+            }
+            else {
+                final CodeAttribute codeAttribute = (CodeAttribute) methodInfo.codeAttribute;
+
+                final LocalVariableTableAttribute localVariables = SourceAttribute.find(
+                    AttributeNames.LocalVariableTable,
+                    codeAttribute.getAttributes()
+                );
+
+                if (localVariables == null) {
+                    return;
+                }
+
+                final List<ParameterDefinition> parameters = methodDefinition.getParameters();
+
+                for (final LocalVariableTableEntry entry : localVariables.getEntries()) {
+                    ParameterDefinition parameter = null;
+
+                    for (int j = 0; j < parameters.size(); j++) {
+                        if (parameters.get(j).getSlot() == entry.getIndex()) {
+                            parameter = parameters.get(j);
+                            break;
+                        }
+                    }
+
+                    if (parameter != null && !parameter.hasName()) {
+                        parameter.setName(entry.getName());
+                    }
+                }
+            }
         }
     }
 

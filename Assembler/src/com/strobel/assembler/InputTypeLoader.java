@@ -52,9 +52,6 @@ public class InputTypeLoader implements ITypeLoader {
 
         final boolean hasExtension = StringUtilities.endsWithIgnoreCase(typeNameOrPath, ".class");
 
-        final String internalName = (hasExtension ? typeNameOrPath.substring(0, typeNameOrPath.length() - 6)
-                                                  : typeNameOrPath).replace('.', '/');
-
         if (hasExtension && tryLoadFile(null, typeNameOrPath, buffer)) {
             return true;
         }
@@ -63,6 +60,34 @@ public class InputTypeLoader implements ITypeLoader {
             return false;
         }
 
+        String internalName = (hasExtension ? typeNameOrPath.substring(0, typeNameOrPath.length() - 6)
+                                            : typeNameOrPath).replace('.', '/');
+
+        if (tryLoadTypeFromName(internalName, buffer)) {
+            return true;
+        }
+
+        //
+        // See if it is an inner class by replacing the name delimiters with '$',
+        // starting from the right...
+        //
+
+        for (int lastDelimiter = internalName.lastIndexOf('/');
+             lastDelimiter != -1;
+             lastDelimiter = internalName.lastIndexOf('/')) {
+
+            internalName = internalName.substring(0, lastDelimiter) + "$" +
+                           internalName.substring(lastDelimiter + 1);
+
+            if (tryLoadTypeFromName(internalName, buffer)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private boolean tryLoadTypeFromName(final String internalName, final Buffer buffer) {
         if (_defaultTypeLoader.tryLoadType(internalName, buffer)) {
             return true;
         }

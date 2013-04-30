@@ -29,6 +29,8 @@ public interface ITextOutput {
     void write(final char ch);
     void write(final String text);
 
+    void writeError(final String value);
+
     void writeLabel(final String value);
     void writeLiteral(final Object value);
     void writeTextLiteral(final Object value);

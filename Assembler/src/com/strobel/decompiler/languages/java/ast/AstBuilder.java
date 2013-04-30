@@ -129,6 +129,7 @@ public final class AstBuilder {
             return existingDeclaration;
         }
 
+/*
         ITypeLoader loader = _context.getSettings().getTypeLoader();
 
         if (loader == null) {
@@ -147,13 +148,14 @@ public final class AstBuilder {
             type.getResolver(),
             buffer
         );
+*/
 
         final TypeDefinition oldCurrentType = _context.getCurrentType();
 
-        _context.setCurrentType(typeWithCode);
+        _context.setCurrentType(type/*typeWithCode*/);
 
         try {
-            return createTypeCore(typeWithCode);
+            return createTypeCore(type/*typeWithCode*/);
         }
         finally {
             _context.setCurrentType(oldCurrentType);
@@ -353,7 +355,7 @@ public final class AstBuilder {
 
         _typeDeclarations.put(type.getInternalName(), astType);
 
-        long flags = type.getFlags() & (Flags.ClassFlags | Flags.STATIC);
+        long flags = type.getFlags() & (Flags.ClassFlags | Flags.STATIC | Flags.FINAL);
 
         if (type.isInterface()) {
             flags &= ~Flags.ABSTRACT;
@@ -428,7 +430,9 @@ public final class AstBuilder {
 
         if (_context.getSettings().getShowNestedTypes()) {
             for (final TypeDefinition nestedType : type.getDeclaredTypes()) {
-                astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
+                if (!nestedType.isLocalClass()) {
+                    astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
+                }
             }
         }
     }
@@ -473,6 +477,12 @@ public final class AstBuilder {
         astMethod.setReturnType(convertType(method.getReturnType()));
         astMethod.putUserData(Keys.METHOD_DEFINITION, method);
         astMethod.putUserData(Keys.MEMBER_REFERENCE, method);
+
+        for (final TypeDefinition declaredType : method.getDeclaredTypes()) {
+            if (!declaredType.isAnonymous()) {
+                astMethod.getDeclaredTypes().add(createType(declaredType));
+            }
+        }
 
         if (!method.getDeclaringType().isInterface()) {
             astMethod.setBody(createMethodBody(method, astMethod.getParameters()));

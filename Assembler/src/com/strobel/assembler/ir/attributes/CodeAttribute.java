@@ -20,7 +20,6 @@ import com.strobel.assembler.metadata.Buffer;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -77,11 +76,13 @@ public final class CodeAttribute extends SourceAttribute {
         final int codeSize,
         final int maxStack,
         final int maxLocals,
+        final ExceptionTableEntry[] exceptionTableEntries,
         final SourceAttribute[] attributes) {
 
         super(AttributeNames.Code, size);
 
         VerifyArgument.notNull(attributes, "attributes");
+        VerifyArgument.notNull(exceptionTableEntries, "exceptionTableEntries");
 
         _maxStack = maxStack;
         _maxLocals = maxLocals;
@@ -89,7 +90,7 @@ public final class CodeAttribute extends SourceAttribute {
         _codeSize = codeSize;
         _code = null;
         _attributesView = ArrayUtilities.asUnmodifiableList(attributes.clone());
-        _exceptionTableEntriesView = Collections.emptyList();
+        _exceptionTableEntriesView = ArrayUtilities.asUnmodifiableList(exceptionTableEntries.clone());
     }
 
     public int getMaxStack() {

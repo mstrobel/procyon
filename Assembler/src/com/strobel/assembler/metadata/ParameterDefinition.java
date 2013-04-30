@@ -36,6 +36,7 @@ public final class ParameterDefinition extends ParameterReference implements IAn
     private int _slot;
     private IMethodSignature _method;
     private TypeReference _declaringType;
+    private long _flags;
 
     public ParameterDefinition(final int slot, final TypeReference parameterType) {
         super(StringUtilities.EMPTY, parameterType);
@@ -57,6 +58,14 @@ public final class ParameterDefinition extends ParameterReference implements IAn
         return _slot;
     }
 
+    public final long getFlags() {
+        return _flags;
+    }
+
+    final void setFlags(final long flags) {
+        _flags = flags;
+    }
+
     final void setSlot(final int slot) {
         _slot = slot;
     }
@@ -67,6 +76,10 @@ public final class ParameterDefinition extends ParameterReference implements IAn
 
     final void setMethod(final IMethodSignature method) {
         _method = method;
+    }
+
+    public final boolean isSynthetic() {
+        return Flags.testAny(_flags, Flags.SYNTHETIC);
     }
 
     @Override

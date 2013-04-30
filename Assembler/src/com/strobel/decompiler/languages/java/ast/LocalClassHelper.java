@@ -11,30 +11,72 @@ import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ast.Variable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class AnonymousTypeHelper {
+import static com.strobel.core.CollectionUtilities.getOrDefault;
+
+public final class LocalClassHelper {
     public static void replaceClosureMembers(
         final DecompilerSettings settings,
-        final AnonymousObjectCreationExpression node,
-        final List<Expression> originalArguments) {
+        final AnonymousObjectCreationExpression node) {
 
-        final TypeDeclaration root = VerifyArgument.notNull(node, "node").getTypeDeclaration();
+        replaceClosureMembers(
+            settings,
+            node.getTypeDeclaration(),
+            Collections.singletonList(node)
+        );
+    }
+
+    public static void replaceClosureMembers(
+        final DecompilerSettings settings,
+        final TypeDeclaration declaration,
+        final List<? extends ObjectCreationExpression> instantiations) {
+
+        final TypeDeclaration root = VerifyArgument.notNull(declaration, "declaration");
         final Map<String, Expression> initializers = new HashMap<>();
         final Map<String, Expression> replacements = new HashMap<>();
-        final List<AstNode> initializersToRemove = new ArrayList<>();
+        final List<AstNode> nodesToRemove = new ArrayList<>();
         final List<ParameterDefinition> parametersToRemove = new ArrayList<>();
+        final List<Expression> originalArguments;
 
-        new PhaseOneVisitor(new DecompilerContext(settings), originalArguments, replacements, initializers, parametersToRemove, initializersToRemove).run(root);
-        new PhaseTwoVisitor(new DecompilerContext(settings), replacements, initializers).run(root);
-
-        for (final ParameterDefinition p : parametersToRemove) {
-            node.getArguments().remove(originalArguments.get(p.getPosition()));
+        if (instantiations.isEmpty()) {
+            originalArguments = Collections.emptyList();
+        }
+        else {
+            originalArguments = new ArrayList<>(instantiations.get(0).getArguments());
         }
 
-        for (final AstNode n : initializersToRemove) {
+        new PhaseOneVisitor(new DecompilerContext(settings), originalArguments, replacements, initializers, parametersToRemove, nodesToRemove).run(root);
+        new PhaseTwoVisitor(new DecompilerContext(settings), replacements, initializers).run(root);
+
+        for (final ObjectCreationExpression instantiation : instantiations) {
+            for (final ParameterDefinition p : parametersToRemove) {
+                final Expression argumentToRemove = getOrDefault(instantiation.getArguments(), p.getPosition());
+
+                if (argumentToRemove != null) {
+                    instantiation.getArguments().remove(argumentToRemove);
+                }
+            }
+        }
+
+        for (final AstNode n : nodesToRemove) {
+            if (n instanceof Expression) {
+                final int argumentIndex = originalArguments.indexOf(n);
+
+                if (argumentIndex >= 0) {
+                    for (final ObjectCreationExpression instantiation : instantiations) {
+                        final Expression argumentToRemove = getOrDefault(instantiation.getArguments(), argumentIndex);
+
+                        if (argumentToRemove != null) {
+                            argumentToRemove.remove();
+                        }
+                    }
+                }
+            }
+
             n.remove();
         }
     }
@@ -66,13 +108,13 @@ public final class AnonymousTypeHelper {
         }
 
         @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
+        public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
             final boolean wasDone = _baseConstructorCalled;
 
             _baseConstructorCalled = false;
 
             try {
-                return super.visitMethodDeclaration(node, _);
+                return super.visitConstructorDeclaration(node, _);
             }
             finally {
                 _baseConstructorCalled = wasDone;
@@ -83,7 +125,7 @@ public final class AnonymousTypeHelper {
         protected Void visitChildren(final AstNode node, final Void _) {
             final MethodDefinition currentMethod = context.getCurrentMethod();
 
-            if (currentMethod != null && !(currentMethod.isConstructor() && currentMethod.isSynthetic())) {
+            if (currentMethod != null && !(currentMethod.isConstructor()/* && currentMethod.isSynthetic()*/)) {
                 return null;
             }
 
@@ -141,21 +183,33 @@ public final class AnonymousTypeHelper {
                             if (parameterIndex >= 0 && parameterIndex < _originalArguments.size()) {
                                 final Expression argument = _originalArguments.get(parameterIndex);
 
+                                if (argument != null) {
+                                    _nodesToRemove.add(argument);
+                                }
+
                                 if (argument instanceof ThisReferenceExpression) {
                                     //
                                     // Don't replace outer class references; they will be rewritten later.
                                     //
+                                    markConstructorParameterForRemoval(node, parameter);
                                     return null;
                                 }
 
                                 _parametersToRemove.add(parameter);
                                 _replacements.put(member.getFullName(), argument);
+
+                                if (node.getParent() instanceof ExpressionStatement) {
+                                    _nodesToRemove.add(node.getParent());
+                                }
+
+                                markConstructorParameterForRemoval(node, parameter);
                             }
                         }
                         else if (_baseConstructorCalled &&
                                  resolvedField != null &&
-                                 context.getCurrentMethod().isSynthetic() &&
-                                 !context.getSettings().getShowSyntheticMembers()) {
+                                 context.getCurrentMethod().isConstructor() &&
+                                 (!context.getCurrentMethod().isSynthetic() ||
+                                  context.getSettings().getShowSyntheticMembers())) {
 
                             final MemberReferenceExpression leftMemberReference = (MemberReferenceExpression) left;
                             final MemberReference leftMember = leftMemberReference.getUserData(Keys.MEMBER_REFERENCE);
@@ -170,7 +224,7 @@ public final class AnonymousTypeHelper {
 
                                     if (parameterIndex == 0 &&
                                         argument instanceof ThisReferenceExpression &&
-                                        context.getCurrentType().isAnonymous()) {
+                                        context.getCurrentType().isLocalClass()) {
 
                                         //
                                         // Don't replace outer class references; they will be rewritten later.
@@ -225,6 +279,21 @@ public final class AnonymousTypeHelper {
             }
 
             return null;
+        }
+
+        private void markConstructorParameterForRemoval(final AssignmentExpression node, final ParameterDefinition parameter) {
+            final ConstructorDeclaration constructorDeclaration = node.getParent(ConstructorDeclaration.class);
+
+            if (constructorDeclaration != null) {
+                final AstNodeCollection<ParameterDeclaration> parameters = constructorDeclaration.getParameters();
+
+                for (final ParameterDeclaration p : parameters) {
+                    if (p.getUserData(Keys.PARAMETER_DEFINITION) == parameter) {
+                        _nodesToRemove.add(p);
+                        break;
+                    }
+                }
+            }
         }
     }
 

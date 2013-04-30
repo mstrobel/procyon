@@ -18,11 +18,13 @@ package com.strobel.decompiler.languages;
 
 import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.ir.ErrorOperand;
+import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.InstructionVisitor;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OpCodeHelpers;
+import com.strobel.assembler.ir.StackMapFrame;
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.StringUtilities;
@@ -291,11 +293,13 @@ public class BytecodeLanguage extends Language {
         for (final SourceAttribute attribute : method.getSourceAttributes()) {
             writeMethodAttribute(output, method, attribute);
         }
+
+        writeMethodEnd(output, method, options);
     }
 
     private void writeMethodHeader(final ITextOutput output, final MethodDefinition method) {
         final String name = method.getName();
-        final long flags = method.getFlags();
+        final long flags = Flags.fromStandardFlags(method.getFlags());
         final List<String> flagStrings = new ArrayList<>();
 
         if ("<clinit>".equals(name)) {
@@ -419,6 +423,7 @@ public class BytecodeLanguage extends Language {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private void writeMethodAttribute(final ITextOutput output, final MethodDefinition method, final SourceAttribute attribute) {
         switch (attribute.getName()) {
             case AttributeNames.Exceptions: {
@@ -558,14 +563,15 @@ public class BytecodeLanguage extends Language {
                     final PlainTextOutput temp = new PlainTextOutput();
 
                     DecompilerHelpers.writeMethodSignature(temp, method);
+                    DecompilerHelpers.writeMethodSignature(output, method);
 
-                    if (StringUtilities.equals(temp.toString(), signature)) {
-                        DecompilerHelpers.writeMethodSignature(output, method);
-                    }
-                    else {
-                        DecompilerHelpers.writeMethodSignature(output, method);
+                    if (!StringUtilities.equals(temp.toString(), signature)) {
+                        output.write(' ');
+                        output.writeDelimiter("[");
+                        output.write("from metadata: ");
+                        output.writeError(signature);
+                        output.writeDelimiter("]");
                         output.writeLine();
-                        output.writeTextLiteral(signature);
                     }
 
                     output.writeLine();
@@ -641,6 +647,138 @@ public class BytecodeLanguage extends Language {
         finally {
             output.unindent();
         }
+    }
+
+    private void writeMethodEnd(final ITextOutput output, final MethodDefinition method, final DecompilationOptions options) {
+        final MethodBody body = method.getBody();
+
+        if (body == null) {
+            return;
+        }
+
+        final List<ExceptionHandler> handlers = body.getExceptionHandlers();
+        final List<StackMapFrame> stackMapFrames = body.getStackMapFrames();
+
+        if (!handlers.isEmpty()) {
+            output.indent();
+
+            try {
+                int longestType = "Type".length();
+
+                for (final ExceptionHandler handler : handlers) {
+                    final TypeReference catchType = handler.getCatchType();
+
+                    if (catchType != null) {
+                        final String signature = catchType.getSignature();
+
+                        if (signature.length() > longestType) {
+                            longestType = signature.length();
+                        }
+                    }
+                }
+
+                output.writeAttribute("Exceptions");
+                output.writeLine(":");
+
+                output.indent();
+
+                try {
+                    output.write("Try           Handler");
+                    output.writeLine();
+                    output.write("Start  End    Start  End    %1$-" + longestType + "s", "Type");
+                    output.writeLine();
+
+                    output.write(
+                        "-----  -----  -----  -----  %1$-" + longestType + "s",
+                        StringUtilities.repeat('-', longestType)
+                    );
+
+                    output.writeLine();
+
+                    for (final ExceptionHandler handler : handlers) {
+                        final boolean isFinally;
+
+                        TypeReference catchType = handler.getCatchType();
+
+                        if (catchType != null) {
+                            isFinally = false;
+                        }
+                        else {
+                            catchType = getResolver(body).lookupType("java/lang/Throwable");
+                            isFinally = true;
+                        }
+
+                        output.writeLiteral(format("%1$-5d", handler.getTryBlock().getFirstInstruction().getOffset()));
+                        output.write("  ");
+                        output.writeLiteral(format("%1$-5d", handler.getTryBlock().getLastInstruction().getEndOffset()));
+                        output.write("  ");
+                        output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getFirstInstruction().getOffset()));
+                        output.write("  ");
+                        output.writeLiteral(format("%1$-5d", handler.getHandlerBlock().getLastInstruction().getEndOffset()));
+                        output.write("  ");
+
+                        if (isFinally) {
+                            output.writeReference("Any", catchType);
+                        }
+                        else {
+                            DecompilerHelpers.writeType(output, catchType, NameSyntax.SIGNATURE);
+                        }
+
+                        output.writeLine();
+                    }
+                }
+                finally {
+                    output.unindent();
+                }
+            }
+            finally {
+                output.unindent();
+            }
+        }
+
+        if (!stackMapFrames.isEmpty()) {
+            output.indent();
+
+            try {
+                output.writeAttribute("Stack Map Frames");
+                output.writeLine(":");
+
+                output.indent();
+
+                try {
+                    for (final StackMapFrame frame : stackMapFrames) {
+                        DecompilerHelpers.writeOffsetReference(output, frame.getStartInstruction());
+                        output.write(' ');
+                        DecompilerHelpers.writeFrame(output, frame.getFrame());
+                        output.writeLine();
+                    }
+                }
+                finally {
+                    output.unindent();
+                }
+            }
+            finally {
+                output.unindent();
+            }
+        }
+    }
+
+    private static IMetadataResolver getResolver(final MethodBody body) {
+        final MethodReference method = body.getMethod();
+
+        if (method != null) {
+            final MethodDefinition resolvedMethod = method.resolve();
+
+            if (resolvedMethod != null) {
+                final TypeDefinition declaringType = resolvedMethod.getDeclaringType();
+
+                if (declaringType != null) {
+                    return declaringType.getResolver();
+                }
+            }
+        }
+
+        return MetadataSystem.instance();
     }
 
     private final static class InstructionPrinter implements InstructionVisitor {

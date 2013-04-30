@@ -69,7 +69,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
                 if (resolvedMethod != null && resolvedMethod.isConstructor()) {
                     final TypeDefinition declaringType = resolvedMethod.getDeclaringType();
 
-                    if (declaringType.isInnerClass() || declaringType.isAnonymous()) {
+                    if (declaringType.isInnerClass() || declaringType.isLocalClass()) {
                         for (final ParameterDefinition p : resolvedMethod.getParameters()) {
                             if (_parametersToRemove.contains(p)) {
                                 final int parameterIndex = p.getPosition();
@@ -135,7 +135,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
         final TypeReference outerTypeReference = field.getFieldType();
         final TypeDefinition resolvedOuterType = outerTypeReference.resolve();
 
-        if (resolvedOuterType != null && resolvedOuterType.isAnonymous()) {
+        if (resolvedOuterType != null && resolvedOuterType.isLocalClass()) {
             if (resolvedOuterType.getExplicitInterfaces().isEmpty()) {
                 outerType = new SimpleType(resolvedOuterType.getBaseType().getSimpleName());
             }
@@ -175,7 +175,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
             if (context.getSettings().getShowSyntheticMembers() ||
                 context.getCurrentMethod() == null ||
                 !context.getCurrentMethod().isConstructor() ||
-                !context.getCurrentType().isInnerClass() && !context.getCurrentType().isAnonymous()) {
+                !context.getCurrentType().isInnerClass() && !context.getCurrentType().isLocalClass()) {
 
                 return null;
             }

@@ -23,6 +23,8 @@ import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.ExceptionUtilities;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.AnsiTextOutput;
 import com.strobel.decompiler.DecompilationOptions;
@@ -69,17 +71,35 @@ public class BytecodeAstLanguage extends Language {
 
     @Override
     public void decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
-        boolean first = true;
+        writeTypeHeader(type, output);
 
-        for (final MethodDefinition method : type.getDeclaredMethods()) {
-            if (!first) {
-                output.writeLine();
-            }
-            else {
-                first = false;
+        output.writeLine(" {");
+        output.indent();
+
+        try {
+            boolean first = true;
+
+            for (final MethodDefinition method : type.getDeclaredMethods()) {
+                if (!first) {
+                    output.writeLine();
+                }
+                else {
+                    first = false;
+                }
+
+                decompileMethod(method, output, options);
             }
 
-            decompileMethod(method, output, options);
+            if (options.getSettings().getShowNestedTypes()) {
+                for (final TypeDefinition innerType : type.getDeclaredTypes()) {
+                    output.writeLine();
+                    decompileType(innerType, output, options);
+                }
+            }
+        }
+        finally {
+            output.unindent();
+            output.writeLine("}");
         }
     }
 
@@ -95,6 +115,8 @@ public class BytecodeAstLanguage extends Language {
             return;
         }
 
+        writeMethodHeader(method, output);
+
         final DecompilerContext context = new DecompilerContext();
 
         context.setCurrentMethod(method);
@@ -102,20 +124,111 @@ public class BytecodeAstLanguage extends Language {
 
         final Block methodAst = new Block();
 
-        methodAst.getBody().addAll(AstBuilder.build(body, _inlineVariables, context));
+        output.writeLine(" {");
+        output.indent();
 
-        if (_abortBeforeStep != null) {
-            AstOptimizer.optimize(context, methodAst, _abortBeforeStep);
+        try {
+            methodAst.getBody().addAll(AstBuilder.build(body, _inlineVariables, context));
+
+            if (_abortBeforeStep != null) {
+                AstOptimizer.optimize(context, methodAst, _abortBeforeStep);
+            }
+
+            final Set<Variable> allVariables = new LinkedHashSet<>();
+
+            for (final Expression e : methodAst.getSelfAndChildrenRecursive(Expression.class)) {
+                final Object operand = e.getOperand();
+
+                if (operand instanceof Variable && !((Variable) operand).isParameter()) {
+                    allVariables.add((Variable) operand);
+                }
+            }
+
+            if (!allVariables.isEmpty()) {
+                for (final Variable variable : allVariables) {
+                    output.writeDefinition(variable.getName(), variable);
+
+                    final TypeReference type = variable.getType();
+
+                    if (type != null) {
+                        output.write(" : ");
+                        DecompilerHelpers.writeType(output, type, NameSyntax.SHORT_TYPE_NAME);
+                    }
+
+                    if (variable.isGenerated()) {
+                        output.write(" [generated]");
+                    }
+
+                    output.writeLine();
+                }
+
+                output.writeLine();
+            }
+
+            methodAst.writeTo(output);
+        }
+        catch (Throwable t) {
+            writeError(output, t);
+        }
+        finally {
+            output.unindent();
+            output.writeLine("}");
+        }
+    }
+
+    private static void writeError(final ITextOutput output, final Throwable t) {
+        final List<String> lines = StringUtilities.split(
+            ExceptionUtilities.getStackTraceString(t),
+            true,
+            '\r',
+            '\n'
+        );
+
+        for (final String line : lines) {
+            output.writeComment("// " + line.replace("\t", "    "));
+            output.writeLine();
+        }
+    }
+
+    private void writeTypeHeader(final TypeDefinition type, final ITextOutput output) {
+        long flags = type.getFlags() & (Flags.ClassFlags | Flags.STATIC | Flags.FINAL);
+
+        if (type.isInterface()) {
+            flags &= ~Flags.ABSTRACT;
+        }
+        else if (type.isEnum()) {
+            flags &= Flags.AccessFlags;
         }
 
-        final Set<Variable> allVariables = new LinkedHashSet<>();
+        for (final Modifier modifier : Flags.asModifierSet(flags)) {
+            output.writeKeyword(modifier.toString());
+            output.write(' ');
+        }
 
-        for (final Expression e : methodAst.getSelfAndChildrenRecursive(Expression.class)) {
-            final Object operand = e.getOperand();
-
-            if (operand instanceof Variable && !((Variable) operand).isParameter()) {
-                allVariables.add((Variable) operand);
+        if (type.isInterface()) {
+            if (type.isAnnotation()) {
+                output.writeKeyword("@interface");
             }
+            else {
+                output.writeKeyword("interface");
+            }
+        }
+        else if (type.isEnum()) {
+            output.writeKeyword("enum");
+        }
+        else {
+            output.writeKeyword("class");
+        }
+
+        output.write(' ');
+
+        DecompilerHelpers.writeType(output, type, NameSyntax.TYPE_NAME, true);
+    }
+
+    private void writeMethodHeader(final MethodDefinition method, final ITextOutput output) {
+        if (method.isTypeInitializer()) {
+            output.writeKeyword("static");
+            return;
         }
 
         for (final Modifier modifier : Flags.asModifierSet(method.getFlags() & Flags.MethodFlags)) {
@@ -150,37 +263,8 @@ public class BytecodeAstLanguage extends Language {
                 output.writeReference(parameter.getName(), parameter);
             }
 
-            output.write(") ");
+            output.write(")");
         }
-
-        output.writeLine("{");
-        output.indent();
-
-        if (!allVariables.isEmpty()) {
-            for (final Variable variable : allVariables) {
-                output.writeDefinition(variable.getName(), variable);
-
-                final TypeReference type = variable.getType();
-
-                if (type != null) {
-                    output.write(" : ");
-                    DecompilerHelpers.writeType(output, type, NameSyntax.SHORT_TYPE_NAME);
-                }
-
-                if (variable.isGenerated()) {
-                    output.write(" [generated]");
-                }
-
-                output.writeLine();
-            }
-
-            output.writeLine();
-        }
-
-        methodAst.writeTo(output);
-
-        output.unindent();
-        output.writeLine("}");
     }
 
     @Override

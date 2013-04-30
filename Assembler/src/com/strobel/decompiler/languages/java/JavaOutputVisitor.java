@@ -40,10 +40,12 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     final JavaFormattingOptions policy;
     final Stack<AstNode> containerStack = new Stack<>();
     final Stack<AstNode> positionStack = new Stack<>();
+    final ITextOutput output;
 
     private LastWritten lastWritten;
 
     public JavaOutputVisitor(final ITextOutput output, final JavaFormattingOptions formattingPolicy) {
+        this.output = output;
         this.formatter = new TextOutputFormatter(output);
         this.policy = formattingPolicy;
     }
@@ -429,13 +431,86 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
     }
 
-    void writeMethodBody(final BlockStatement body) {
+    void writeMethodBody(final AstNodeCollection<TypeDeclaration> declaredTypes, final BlockStatement body) {
         if (body.isNull()) {
             semicolon();
+            return;
+        }
+
+        startNode(body);
+
+        final BraceStyle style;
+        final BraceEnforcement braceEnforcement;
+        final AstNode parent = body.getParent();
+
+        if (parent instanceof ConstructorDeclaration) {
+            style = policy.ConstructorBraceStyle;
+            braceEnforcement = BraceEnforcement.AddBraces;
+        }
+        else if (parent instanceof MethodDeclaration) {
+            style = policy.MethodBraceStyle;
+            braceEnforcement = BraceEnforcement.AddBraces;
         }
         else {
-            visitBlockStatement(body, null);
+            style = policy.StatementBraceStyle;
+
+            if (parent instanceof IfElseStatement) {
+                braceEnforcement = policy.IfElseBraceEnforcement;
+            }
+            else if (parent instanceof WhileStatement) {
+                braceEnforcement = policy.WhileBraceEnforcement;
+            }
+            else {
+                braceEnforcement = BraceEnforcement.AddBraces;
+            }
         }
+
+        final boolean addBraces;
+        final AstNodeCollection<Statement> statements = body.getStatements();
+
+        switch (braceEnforcement) {
+            case RemoveBraces:
+                addBraces = false;
+                break;
+            default:
+                addBraces = true;
+                break;
+        }
+
+        if (addBraces) {
+            openBrace(style);
+        }
+
+        boolean needNewLine = false;
+
+        if (declaredTypes != null && !declaredTypes.isEmpty()) {
+            for (final TypeDeclaration declaredType : declaredTypes) {
+                if (needNewLine) {
+                    newLine();
+                }
+
+                declaredType.acceptVisitor(new JavaOutputVisitor(output, policy), null);
+                needNewLine = true;
+            }
+        }
+
+        if (needNewLine) {
+            newLine();
+        }
+
+        for (final AstNode statement : statements) {
+            statement.acceptVisitor(this, null);
+        }
+
+        if (addBraces) {
+            closeBrace(style);
+        }
+
+        if (!(parent instanceof Expression)) {
+            newLine();
+        }
+
+        endNode(body);
     }
 
     void writeAnnotations(final Iterable<Annotation> annotations, final boolean newLineAfter) {
@@ -1189,7 +1264,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             defaultValue.acceptVisitor(this, _);
         }
 
-        writeMethodBody(node.getBody());
+        final AstNodeCollection<TypeDeclaration> declaredTypes = node.getDeclaredTypes();
+
+        writeMethodBody(declaredTypes, node.getBody());
         endNode(node);
         return null;
     }
@@ -1217,7 +1294,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             writeCommaSeparatedList(thrownTypes);
         }
 
-        writeMethodBody(node.getBody());
+        writeMethodBody(null, node.getBody());
         endNode(node);
         return null;
     }

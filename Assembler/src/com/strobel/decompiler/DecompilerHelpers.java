@@ -414,6 +414,9 @@ public final class DecompilerHelpers {
 
         for (int i = 0, n = parameters.size(); i < n; ++i) {
             final ParameterDefinition p = parameters.get(i);
+            if (p.isSynthetic()) {
+//                continue;
+            }
             formatType(writer, p.getParameterType(), NameSyntax.SIGNATURE, false, typeStack);
         }
 

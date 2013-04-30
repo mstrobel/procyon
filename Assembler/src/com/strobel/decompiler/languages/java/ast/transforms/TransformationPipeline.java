@@ -38,6 +38,7 @@ public final class TransformationPipeline {
             new RemoveImplicitBoxingTransform(context),
             new IntroduceStringConcatenationTransform(context),
             new EliminateSyntheticAccessorsTransform(context),
+            new RewriteLocalClassesTransform(context),
             new IntroduceOuterClassReferencesTransform(context),
             new FlattenElseIfStatementsTransform(context),
             new FlattenSwitchBlocksTransform(context),
