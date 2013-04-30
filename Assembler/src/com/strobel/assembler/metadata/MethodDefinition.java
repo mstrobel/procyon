@@ -72,7 +72,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
                 tryLoadBody();
             }
             catch (Throwable t) {
-                t.printStackTrace();
+                setFlags(getFlags() | Flags.LOAD_BODY_FAILED);
             }
         }
         return _body;
