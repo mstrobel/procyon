@@ -208,6 +208,10 @@ public class CoreMetadataFactory implements MetadataFactory {
             dollarIndex = name.indexOf(dollarIndex, dollarIndex + 2);
         }
 
+        if (dollarIndex == length - 1) {
+            dollarIndex = -1;
+        }
+
         if (dollarIndex >= 0) {
             final InnerClassEntry entry = findInnerClassEntry(name);
 

@@ -166,7 +166,7 @@ public final class ClassFileReader extends MetadataReader {
                 final int maxStack = buffer.readUnsignedShort();
                 final int maxLocals = buffer.readUnsignedShort();
                 final int codeLength = buffer.readInt();
-                final int codeOffset = originalOffset + buffer.position();
+                final int codeOffset = buffer.position();
                 final byte[] code = new byte[codeLength];
 
                 buffer.read(code, 0, codeLength);
@@ -216,7 +216,7 @@ public final class ClassFileReader extends MetadataReader {
                 else {
                     return new CodeAttribute(
                         length,
-                        codeOffset,
+                        originalOffset + codeOffset,
                         codeLength,
                         maxStack,
                         maxLocals,

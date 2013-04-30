@@ -372,11 +372,33 @@ public class NameVariables {
             name = name.substring(1);
         }
 
-        if (name.length() == 0) {
+        final int length = name.length();
+
+        if (length == 0) {
             return "obj";
         }
 
-        name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
+        int lowerEnd;
+
+        for (lowerEnd = 1;
+             lowerEnd < length && Character.isUpperCase(name.charAt(lowerEnd));
+             lowerEnd++) {
+
+            if (lowerEnd < length - 1) {
+                final char nextChar = name.charAt(lowerEnd + 1);
+
+                if (Character.isLowerCase(nextChar)) {
+                    break;
+                }
+
+                if (!Character.isAlphabetic(nextChar)) {
+                    lowerEnd++;
+                    break;
+                }
+            }
+        }
+
+        name = name.substring(0, lowerEnd).toLowerCase() + name.substring(lowerEnd);
 
         if (JavaOutputVisitor.isKeyword(name)) {
             return name + "1";
