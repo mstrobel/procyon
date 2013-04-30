@@ -238,6 +238,7 @@ public class CoreMetadataFactory implements MetadataFactory {
 
                 return new UnresolvedType(declaringType, qualifiedName, shortName);
             }
+/*
             else {
                 final int packageEnd = name.lastIndexOf('.');
                 final TypeReference declaringType = makeNamedType(name.substring(0, dollarIndex).replace('/', '.'));
@@ -256,6 +257,7 @@ public class CoreMetadataFactory implements MetadataFactory {
 
                 return new UnresolvedType(declaringType, qualifiedName, shortName);
             }
+*/
         }
 
         final int packageEnd = name.lastIndexOf('.');

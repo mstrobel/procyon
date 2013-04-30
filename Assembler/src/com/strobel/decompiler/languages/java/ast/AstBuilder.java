@@ -458,7 +458,10 @@ public final class AstBuilder {
 
         final Set<Modifier> modifiers;
 
-        if (method.getDeclaringType().isInterface()) {
+        if (method.isTypeInitializer()) {
+            modifiers = Collections.singleton(Modifier.STATIC);
+        }
+        else if (method.getDeclaringType().isInterface()) {
             modifiers = Collections.emptySet();
         }
         else {

@@ -61,9 +61,18 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
     public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
         final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
-        if (method != null && AstBuilder.isMemberHidden(method, context.getSettings())) {
-            node.remove();
-            return null;
+        if (method != null) {
+            if (AstBuilder.isMemberHidden(method, context.getSettings())) {
+                node.remove();
+                return null;
+            }
+
+            if (method.isTypeInitializer()) {
+                if (node.getBody().getStatements().isEmpty()) {
+                    node.remove();
+                    return null;
+                }
+            }
         }
 
         return super.visitMethodDeclaration(node, _);
