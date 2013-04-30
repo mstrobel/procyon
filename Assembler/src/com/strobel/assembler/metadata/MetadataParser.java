@@ -511,11 +511,6 @@ public final class MetadataParser {
         public List<TypeReference> getThrownTypes() {
             return _signature.getThrownTypes();
         }
-
-        @Override
-        protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
-            return sb.append(_name);
-        }
     }
 
     // </editor-fold>

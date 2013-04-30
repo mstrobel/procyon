@@ -172,7 +172,13 @@ public class CoreMetadataFactory implements MetadataFactory {
             }
         }
 
-        return getScope().findTypeVariable(name);
+        final IGenericContext scope = getScope();
+
+        if (scope != null) {
+            return scope.findTypeVariable(name);
+        }
+
+        return null;
     }
 
     private InnerClassEntry findInnerClassEntry(final String name) {
