@@ -105,17 +105,26 @@ public class IntroduceStringConcatenationTransform extends ContextTrackingVisito
             if (StringUtilities.equals(memberName, "append") &&
                 arguments.size() == 1) {
 
-                operands.add(arguments.firstOrNullObject());
+                final Expression argument = arguments.firstOrNullObject();
 
-                final MemberReference member = parent.getUserData(Keys.MEMBER_REFERENCE);
+                operands.add(argument);
 
-                if (member instanceof MethodReference) {
-                    final List<ParameterDefinition> p = ((MethodReference) member).getParameters();
+                if (argument instanceof PrimitiveExpression &&
+                    ((PrimitiveExpression) argument).getValue() instanceof String) {
 
-                    if (p.size() == 1 &&
-                        StringUtilities.equals(p.get(0).getParameterType().getInternalName(), "java/lang/String")) {
+                    atLeastOneStringArgument = true;
+                }
+                else {
+                    final MemberReference member = parent.getUserData(Keys.MEMBER_REFERENCE);
 
-                        atLeastOneStringArgument = true;
+                    if (member instanceof MethodReference) {
+                        final List<ParameterDefinition> p = ((MethodReference) member).getParameters();
+
+                        if (p.size() == 1 &&
+                            StringUtilities.equals(p.get(0).getParameterType().getInternalName(), "java/lang/String")) {
+
+                            atLeastOneStringArgument = true;
+                        }
                     }
                 }
             }

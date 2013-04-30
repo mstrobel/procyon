@@ -21,9 +21,11 @@
     <component>
       <implementation-class>com.strobel.decompiler.ide.intellij.IntelliSpyComponent</implementation-class>
     </component>
+<!--
     <component>
       <implementation-class>com.strobel.decompiler.ide.intellij.IntelliSpyProjectInitializer</implementation-class>
     </component>
+-->
   </project-components>
 
   <actions>
