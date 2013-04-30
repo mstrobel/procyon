@@ -94,7 +94,7 @@ public final class DecompilerHelpers {
 
         formatType(writer, field.getDeclaringType(), NameSyntax.DESCRIPTOR, false, typeStack);
         writer.writeDelimiter(".");
-        writer.writeReference(field.getFullName(), field);
+        writer.writeReference(field.getName(), field);
         writer.writeDelimiter(":");
         formatType(writer, field.getFieldType(), NameSyntax.SIGNATURE, false, typeStack);
     }
@@ -544,13 +544,20 @@ public final class DecompilerHelpers {
 
                 case TYPE_NAME:
                 case SHORT_TYPE_NAME: {
+                    boolean first = true;
+
                     if (baseType != null) {
                         formatType(writer, baseType, syntax, false, stack);
+                        first = false;
                     }
 
                     for (final TypeReference interfaceType : interfaces) {
-                        writer.writeDelimiter(" & ");
+                        if (!first) {
+                            writer.writeDelimiter(" & ");
+                        }
+
                         formatType(writer, interfaceType, syntax, false, stack);
+                        first = false;
                     }
 
                     break;
@@ -619,19 +626,33 @@ public final class DecompilerHelpers {
                 writer.writeReference(name, type);
             }
 
-            if (type instanceof IGenericInstance &&
+            if (type.isGenericType() &&
                 syntax != NameSyntax.DESCRIPTOR &&
                 syntax != NameSyntax.ERASED_SIGNATURE) {
 
                 stack.push(type);
 
                 try {
-                    final List<TypeReference> typeArguments = ((IGenericInstance) type).getTypeArguments();
+                    final List<? extends TypeReference> typeArguments;
+
+                    if (type instanceof IGenericInstance) {
+                        typeArguments = ((IGenericInstance) type).getTypeArguments();
+                    }
+                    else {
+                        typeArguments = type.getGenericParameters();
+                    }
+
                     final int count = typeArguments.size();
 
                     if (count > 0) {
                         writer.writeDelimiter("<");
                         for (int i = 0; i < count; ++i) {
+                            if (syntax != NameSyntax.SIGNATURE) {
+                                if (i != 0) {
+                                    writer.writeDelimiter(", ");
+                                }
+                            }
+
                             final TypeReference typeArgument = typeArguments.get(i);
 
                             formatType(writer, typeArgument, syntax, false, stack);
@@ -675,8 +696,16 @@ public final class DecompilerHelpers {
             return;
         }
 
-        if (type instanceof IGenericInstance) {
-            final List<TypeReference> typeArguments = ((IGenericInstance) type).getTypeArguments();
+        if (type.isGenericType()) {
+            final List<? extends TypeReference> typeArguments;
+
+            if (type instanceof IGenericInstance) {
+                typeArguments = ((IGenericInstance) type).getTypeArguments();
+            }
+            else {
+                typeArguments = type.getGenericParameters();
+            }
+
             final int count = typeArguments.size();
 
             if (count > 0) {

@@ -21,15 +21,15 @@ import com.strobel.reflection.SimpleType;
 /**
  * @author Mike Strobel
  */
-public final class Wildcard extends TypeReference {
-    private final static Wildcard UNBOUNDED = new Wildcard(BuiltinTypes.Object, BuiltinTypes.Bottom);
+public final class WildcardType extends TypeReference {
+    private final static WildcardType UNBOUNDED = new WildcardType(BuiltinTypes.Object, BuiltinTypes.Bottom);
 
     private final TypeReference _bound;
     private final boolean _hasSuperBound;
 
     private String _name;
 
-    private Wildcard(final TypeReference extendsBound, final TypeReference superBound) {
+    private WildcardType(final TypeReference extendsBound, final TypeReference superBound) {
         _hasSuperBound = superBound != BuiltinTypes.Bottom;
         _bound = _hasSuperBound ? superBound : extendsBound;
     }
@@ -81,13 +81,15 @@ public final class Wildcard extends TypeReference {
 
     @Override
     public boolean isUnbounded() {
-        return !_hasSuperBound &&
-               BuiltinTypes.Object.equals(_bound);
+        return _bound == null ||
+               !_hasSuperBound && BuiltinTypes.Object.equals(_bound);
     }
 
     @Override
     public boolean hasExtendsBound() {
-        return !_hasSuperBound && !BuiltinTypes.Object.equals(_bound);
+        return  !_hasSuperBound &&
+                _bound != null &&
+                !BuiltinTypes.Object.equals(_bound);
     }
 
     @Override
@@ -185,16 +187,16 @@ public final class Wildcard extends TypeReference {
 
     // <editor-fold defaultstate="collapsed" desc="Factory Methods">
 
-    public static Wildcard unbounded() {
+    public static WildcardType unbounded() {
         return UNBOUNDED;
     }
 
-    public static Wildcard makeSuper(final TypeReference superBound) {
-        return new Wildcard(BuiltinTypes.Object, superBound);
+    public static WildcardType makeSuper(final TypeReference superBound) {
+        return new WildcardType(BuiltinTypes.Object, superBound);
     }
 
-    public static Wildcard makeExtends(final TypeReference extendsBound) {
-        return new Wildcard(extendsBound, BuiltinTypes.Bottom);
+    public static WildcardType makeExtends(final TypeReference extendsBound) {
+        return new WildcardType(extendsBound, BuiltinTypes.Bottom);
     }
 
     // </editor-fold>

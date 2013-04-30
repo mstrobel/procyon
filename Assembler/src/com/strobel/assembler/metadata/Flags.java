@@ -342,9 +342,9 @@ public class Flags {
     public static final long SUPER = 1L << 44;
 
     /**
-     * Indicates whether a local variable type is known from metadata.
+     * Indicates whether an unsuccessful attempt has been made to load a method's body.
      */
-    public static final long IS_TYPE_KNOWN = 1L << 45;
+    public static final long LOAD_BODY_FAILED = 1L << 45;
 
     /**
      * Modifier masks.

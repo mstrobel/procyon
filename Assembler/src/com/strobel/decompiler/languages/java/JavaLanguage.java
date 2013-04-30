@@ -16,12 +16,7 @@
 
 package com.strobel.decompiler.languages.java;
 
-import com.strobel.assembler.metadata.Buffer;
-import com.strobel.assembler.metadata.ClassFileReader;
-import com.strobel.assembler.metadata.ClasspathTypeLoader;
-import com.strobel.assembler.metadata.ITypeLoader;
 import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeDefinitionBuilder;
 import com.strobel.core.Predicate;
 import com.strobel.decompiler.DecompilationOptions;
 import com.strobel.decompiler.DecompilerContext;
@@ -56,34 +51,8 @@ public class JavaLanguage extends Language {
 
     @Override
     public void decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
-        ITypeLoader loader = options.getSettings().getTypeLoader();
-
-        if (loader == null) {
-            loader = new ClasspathTypeLoader();
-        }
-
-        final Buffer buffer = new Buffer(0);
-
-        if (!loader.tryLoadType(type.getInternalName(), buffer)) {
-            output.writeLine("!!! ERROR: Failed to load class %s.", type.getInternalName());
-            return;
-        }
-
-        final ClassFileReader reader = ClassFileReader.readClass(
-            ClassFileReader.OPTION_PROCESS_CODE |
-            ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
-            type.getResolver(),
-            buffer
-        );
-
-        final TypeDefinitionBuilder typeBuilder = new TypeDefinitionBuilder();
-
-        reader.accept(typeBuilder);
-
-        final TypeDefinition typeWithCode = typeBuilder.getTypeDefinition();
-        final AstBuilder builder = createAstBuilder(options, typeWithCode, false);
-
-        builder.addType(typeWithCode);
+        final AstBuilder builder = createAstBuilder(options, type, false);
+        builder.addType(type);
         runTransformsAndGenerateCode(builder, output, options, null);
     }
 
@@ -108,6 +77,7 @@ public class JavaLanguage extends Language {
         final ITextOutput output,
         final DecompilationOptions options,
         final IAstTransform additionalTransform) {
+
         astBuilder.runTransformations(_transformAbortCondition);
 
         if (additionalTransform != null) {

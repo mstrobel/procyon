@@ -21,9 +21,6 @@ import com.strobel.util.ContractUtils;
 import java.io.File;
 import java.io.IOException;
 
-/**
- * @author strobelm
- */
 public final class PathHelper {
     public static final char DirectorySeparator;
     public static final char AlternateDirectorySeparator;

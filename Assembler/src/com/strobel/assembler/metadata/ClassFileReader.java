@@ -16,11 +16,11 @@
 
 package com.strobel.assembler.metadata;
 
-import com.strobel.assembler.ir.*;
+import com.strobel.assembler.Collection;
+import com.strobel.assembler.ir.ConstantPool;
+import com.strobel.assembler.ir.MetadataReader;
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
-import com.strobel.assembler.ir.attributes.InnerClassEntry;
-import com.strobel.assembler.ir.attributes.InnerClassesAttribute;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
@@ -29,15 +29,15 @@ import com.strobel.util.EmptyArrayCache;
 
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Mike Strobel
  */
 @SuppressWarnings("ConstantConditions")
-public final class ClassFileReader extends MetadataReader implements ClassReader {
+public final class ClassFileReader extends MetadataReader {
     public final static int OPTION_PROCESS_ANNOTATIONS = 1 << 0;
     public final static int OPTION_PROCESS_CODE = 1 << 1;
 
@@ -45,32 +45,25 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
     final static long MAGIC = 0xCAFEBABEL;
 
-    final int options;
-    final IMetadataResolver resolver;
-    final long magic;
-    final int majorVersion;
-    final int minorVersion;
-    final Buffer buffer;
-    final ConstantPool constantPool;
-    final ConstantPool.TypeInfoEntry thisClassEntry;
-    final ConstantPool.TypeInfoEntry baseClassEntry;
-    final ConstantPool.TypeInfoEntry[] interfaceEntries;
-    final List<FieldInfo> fields;
-    final List<MethodInfo> methods;
-    final List<SourceAttribute> attributes;
-    final String name;
-    final String packageName;
-    final String internalName;
+    private final int _options;
+    private final IMetadataResolver _resolver;
+    private final Buffer _buffer;
+    private final ConstantPool _constantPool;
+    private final ConstantPool.TypeInfoEntry _baseClassEntry;
+    private final ConstantPool.TypeInfoEntry[] _interfaceEntries;
+    private final List<FieldInfo> _fields;
+    private final List<MethodInfo> _methods;
+    private final List<SourceAttribute> _attributes;
+    private final String _internalName;
 
-    private final AtomicBoolean _completed;
+    private final TypeDefinition _typeDefinition;
+    private final MetadataParser _parser;
+    private final ResolverFrame _resolverFrame;
     private final Scope _scope;
-
-    long flags;
 
     private ClassFileReader(
         final int options,
         final IMetadataResolver resolver,
-        final long magic,
         final int majorVersion,
         final int minorVersion,
         final Buffer buffer,
@@ -82,45 +75,58 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
         super();
 
-        this.options = options;
-        this.resolver = resolver;
+        _typeDefinition = new TypeDefinition();
+        _options = options;
+        _resolver = resolver;
+        _resolverFrame = new ResolverFrame();
+        _internalName = thisClassEntry.getName();
+        _buffer = buffer;
+        _constantPool = constantPool;
+        _baseClassEntry = baseClassEntry;
+        _interfaceEntries = VerifyArgument.notNull(interfaceEntries, "interfaceEntries");
+        _fields = new ArrayList<>();
+        _methods = new ArrayList<>();
 
-        _scope = new Scope(this.resolver);
-
-        this.internalName = thisClassEntry.getName();
-        this.magic = magic;
-        this.majorVersion = majorVersion;
-        this.minorVersion = minorVersion;
-        this.buffer = buffer;
-        this.constantPool = constantPool;
-        this.flags = accessFlags;
-        this.thisClassEntry = VerifyArgument.notNull(thisClassEntry, "thisClassEntry");
-        this.baseClassEntry = baseClassEntry;
-        this.interfaceEntries = VerifyArgument.notNull(interfaceEntries, "interfaceEntries");
-        this.attributes = new ArrayList<>();
-        this.fields = new ArrayList<>();
-        this.methods = new ArrayList<>();
-
-        final int delimiter = this.internalName.lastIndexOf('/');
+        final int delimiter = _internalName.lastIndexOf('/');
 
         if (delimiter < 0) {
-            this.packageName = StringUtilities.EMPTY;
-            this.name = this.internalName;
+            _typeDefinition.setPackageName(StringUtilities.EMPTY);
+            _typeDefinition.setName(_internalName);
         }
         else {
-            this.packageName = this.internalName.substring(0, delimiter).replace('/', '.');
-            this.name = this.internalName.substring(delimiter + 1);
+            _typeDefinition.setPackageName(_internalName.substring(0, delimiter).replace('/', '.'));
+            _typeDefinition.setName(_internalName.substring(delimiter + 1));
         }
 
-        _completed = new AtomicBoolean();
+        _attributes = _typeDefinition.getSourceAttributesInternal();
+
+        final int delimiterIndex = _internalName.lastIndexOf('/');
+
+        if (delimiterIndex < 0) {
+            _typeDefinition.setName(_internalName);
+        }
+        else {
+            _typeDefinition.setPackageName(_internalName.substring(0, delimiterIndex).replace('/', '.'));
+            _typeDefinition.setName(_internalName.substring(delimiterIndex + 1));
+        }
+
+        _typeDefinition.setResolver(_resolver);
+        _typeDefinition.setFlags(accessFlags);
+        _typeDefinition.setCompilerVersion(majorVersion, minorVersion);
+        _resolverFrame.addType(_typeDefinition);
+        _parser = new MetadataParser(_typeDefinition);
+        _scope = new Scope(_parser, _typeDefinition, constantPool);
+
+        _constantPool.freezeIfUnfrozen();
+        _typeDefinition.setConstantPool(_constantPool);
     }
 
     protected boolean shouldProcessAnnotations() {
-        return (options & OPTION_PROCESS_ANNOTATIONS) == OPTION_PROCESS_ANNOTATIONS;
+        return (_options & OPTION_PROCESS_ANNOTATIONS) == OPTION_PROCESS_ANNOTATIONS;
     }
 
     protected boolean shouldProcessCode() {
-        return (options & OPTION_PROCESS_CODE) == OPTION_PROCESS_CODE;
+        return (_options & OPTION_PROCESS_CODE) == OPTION_PROCESS_CODE;
     }
 
     @Override
@@ -130,7 +136,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
     @Override
     public MetadataParser getParser() {
-        return _scope._parser;
+        return _parser;
     }
 
     @Override
@@ -194,6 +200,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 else {
                     return new CodeAttribute(
                         length,
+                        codeOffset,
                         codeLength,
                         maxStack,
                         maxLocals,
@@ -211,11 +218,11 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     final int shortNameIndex = buffer.readUnsignedShort();
                     final int accessFlags = buffer.readUnsignedShort();
 
-                    final ConstantPool.TypeInfoEntry innerClass = constantPool.getEntry(innerClassIndex);
+                    final ConstantPool.TypeInfoEntry innerClass = _constantPool.getEntry(innerClassIndex);
                     final ConstantPool.TypeInfoEntry outerClass;
 
                     if (outerClassIndex != 0) {
-                        outerClass = constantPool.getEntry(outerClassIndex);
+                        outerClass = _constantPool.getEntry(outerClassIndex);
                     }
                     else {
                         outerClass = null;
@@ -224,7 +231,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     entries[i] = new InnerClassEntry(
                         innerClass.getName(),
                         outerClass != null ? outerClass.getName() : null,
-                        shortNameIndex != 0 ? constantPool.<String>lookupConstant(shortNameIndex) : null,
+                        shortNameIndex != 0 ? _constantPool.<String>lookupConstant(shortNameIndex) : null,
                         accessFlags
                     );
                 }
@@ -296,11 +303,11 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         }
     }
 
-    public static ClassFileReader readClass(final IMetadataResolver resolver, final Buffer b) {
+    public static TypeDefinition readClass(final IMetadataResolver resolver, final Buffer b) {
         return readClass(OPTIONS_DEFAULT, resolver, b);
     }
 
-    public static ClassFileReader readClass(final int options, final IMetadataResolver resolver, final Buffer b) {
+    public static TypeDefinition readClass(final int options, final IMetadataResolver resolver, final Buffer b) {
         final long magic = b.readInt() & 0xFFFFFFFFL;
 
         if (magic != MAGIC) {
@@ -335,7 +342,6 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         return new ClassFileReader(
             options,
             resolver,
-            magic,
             majorVersion,
             minorVersion,
             b,
@@ -344,194 +350,146 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             thisClass,
             baseClass,
             interfaces
-        );
+        ).readClass();
     }
 
     // <editor-fold defaultstate="collapsed" desc="ClassReader Implementation">
 
-    @Override
-    public void accept(final TypeVisitor visitor) {
-        if (!_completed.getAndSet(true)) {
-            final int fieldCount = buffer.readUnsignedShort();
+    final TypeDefinition readClass() {
+        _resolver.pushFrame(_resolverFrame);
 
-            for (int i = 0; i < fieldCount; i++) {
-                final int accessFlags = buffer.readUnsignedShort();
+        try {
+            populateMemberInfo();
 
-                final String name = constantPool.lookupUtf8Constant(buffer.readUnsignedShort());
-                final String descriptor = constantPool.lookupUtf8Constant(buffer.readUnsignedShort());
+            SourceAttribute enclosingMethod = SourceAttribute.find(AttributeNames.EnclosingMethod, _attributes);
 
-                final SourceAttribute[] attributes;
-                final int attributeCount = buffer.readUnsignedShort();
+            final MethodReference declaringMethod;
 
-                if (attributeCount > 0) {
-                    attributes = new SourceAttribute[attributeCount];
-                    readAttributesPhaseOne(buffer, attributes);
-                }
-                else {
-                    attributes = EmptyArrayCache.fromElementType(SourceAttribute.class);
+            //noinspection UnusedDeclaration
+            try /*(final AutoCloseable ignored = _parser.suppressTypeResolution())*/ {
+                if (enclosingMethod instanceof BlobAttribute) {
+                    enclosingMethod = inflateAttribute(enclosingMethod);
                 }
 
-                final FieldInfo field = new FieldInfo(accessFlags, name, descriptor, attributes);
+                if (enclosingMethod instanceof EnclosingMethodAttribute) {
+                    MethodReference method = ((EnclosingMethodAttribute) enclosingMethod).getEnclosingMethod();
 
-                fields.add(field);
-            }
+                    if (method != null) {
+                        final MethodDefinition resolvedMethod = method.resolve();
 
-            final int methodCount = buffer.readUnsignedShort();
+                        if (resolvedMethod != null) {
+                            method = resolvedMethod;
 
-            for (int i = 0; i < methodCount; i++) {
-                final int accessFlags = buffer.readUnsignedShort();
+                            final AnonymousLocalTypeCollection enclosedTypes = resolvedMethod.getDeclaredTypesInternal();
 
-                final String name = constantPool.lookupUtf8Constant(buffer.readUnsignedShort());
-                final String descriptor = constantPool.lookupUtf8Constant(buffer.readUnsignedShort());
-
-                final SourceAttribute[] attributes;
-                final int attributeCount = buffer.readUnsignedShort();
-
-                if (attributeCount > 0) {
-                    attributes = new SourceAttribute[attributeCount];
-                    readAttributesPhaseOne(buffer, attributes);
-                }
-                else {
-                    attributes = EmptyArrayCache.fromElementType(SourceAttribute.class);
-                }
-
-                final MethodInfo field = new MethodInfo(accessFlags, name, descriptor, attributes);
-
-                methods.add(field);
-            }
-
-            final int typeAttributeCount = buffer.readUnsignedShort();
-
-            if (typeAttributeCount > 0) {
-                final SourceAttribute[] typeAttributes = new SourceAttribute[typeAttributeCount];
-
-                readAttributesPhaseOne(buffer, typeAttributes);
-
-                for (final SourceAttribute typeAttribute : typeAttributes) {
-                    this.attributes.add(typeAttribute);
-                }
-            }
-        }
-
-        SourceAttribute enclosingMethod = SourceAttribute.find(AttributeNames.EnclosingMethod, this.attributes);
-
-        final MethodReference declaringMethod;
-
-        //noinspection UnusedDeclaration
-        try (final AutoCloseable ignored = _scope._parser.suppressTypeResolution()) {
-            if (enclosingMethod instanceof BlobAttribute) {
-                enclosingMethod = inflateAttribute(enclosingMethod);
-            }
-
-            if (enclosingMethod instanceof EnclosingMethodAttribute) {
-                MethodReference method = ((EnclosingMethodAttribute) enclosingMethod).getEnclosingMethod();
-
-                if (method != null) {
-                    final MethodDefinition resolvedMethod = method.resolve();
-
-                    if (resolvedMethod != null) {
-                        method = resolvedMethod;
-                    }
-                }
-
-                declaringMethod = method;
-            }
-            else {
-                declaringMethod = null;
-            }
-        }
-        catch (Exception e) {
-            throw new UndeclaredThrowableException(e);
-        }
-
-        final IResolverFrame temporaryFrame;
-
-        if (declaringMethod != null &&
-            (declaringMethod.containsGenericParameters() || declaringMethod.getDeclaringType().containsGenericParameters())) {
-
-            temporaryFrame = new IResolverFrame() {
-                @Override
-                public TypeReference findType(final String descriptor) {
-                    return null;
-                }
-
-                @Override
-                public TypeReference findTypeVariable(final String name) {
-                    for (final GenericParameter parameter : declaringMethod.getGenericParameters()) {
-                        if (parameter.getName().equals(name)) {
-                            return parameter;
-                        }
-                    }
-
-                    TypeReference type = declaringMethod.getDeclaringType();
-
-                    while (type != null) {
-                        if (type.hasGenericParameters()) {
-                            for (final GenericParameter parameter : type.getGenericParameters()) {
-                                if (parameter.getName().equals(name)) {
-                                    return parameter;
-                                }
+                            if (!enclosedTypes.contains(_typeDefinition)) {
+                                enclosedTypes.add(_typeDefinition);
                             }
                         }
 
-                        final TypeDefinition resolvedType = type.resolve();
-
-                        if (resolvedType == null) {
-                            break;
-                        }
-
-                        type = resolvedType.getBaseType();
+                        _typeDefinition.setDeclaringMethod(method);
                     }
 
-                    return null;
+                    declaringMethod = method;
                 }
-            };
-
-            _scope._parser.getResolver().pushFrame(temporaryFrame);
-        }
-        else {
-            temporaryFrame = null;
-        }
-
-        try {
-            visitor.visitParser(getParser());
-            populateDeclaringType(visitor);
-            visitHeader(visitor);
+                else {
+                    declaringMethod = null;
+                }
+            }
+            catch (Exception e) {
+                throw new UndeclaredThrowableException(e);
+            }
 
             if (declaringMethod != null) {
-                visitor.visitDeclaringMethod(declaringMethod);
+                _parser.pushGenericContext(declaringMethod);
             }
 
-            populateNamedInnerTypes(visitor);
-            visitAttributes(visitor);
-            visitConstantPool(visitor);
-            visitFields(visitor);
-            visitMethods(visitor);
-            populateAnonymousInnerTypes(visitor);
-            visitor.visitEnd();
+            try {
+                populateDeclaringType();
+                populateBaseTypes();
+                populateNamedInnerTypes();
+                visitAttributes();
+                visitFields();
+                defineMethods();
+                populateAnonymousInnerTypes();
+            }
+            finally {
+                if (declaringMethod != null) {
+                    _parser.popGenericContext();
+                }
+            }
         }
         finally {
-            if (temporaryFrame != null) {
-                _scope._parser.getResolver().popFrame();
+            _resolver.popFrame();
+        }
+
+        return _typeDefinition;
+    }
+
+    private void populateMemberInfo() {
+        final int fieldCount = _buffer.readUnsignedShort();
+
+        for (int i = 0; i < fieldCount; i++) {
+            final int accessFlags = _buffer.readUnsignedShort();
+
+            final String name = _constantPool.lookupUtf8Constant(_buffer.readUnsignedShort());
+            final String descriptor = _constantPool.lookupUtf8Constant(_buffer.readUnsignedShort());
+
+            final SourceAttribute[] attributes;
+            final int attributeCount = _buffer.readUnsignedShort();
+
+            if (attributeCount > 0) {
+                attributes = new SourceAttribute[attributeCount];
+                readAttributesPhaseOne(_buffer, attributes);
+            }
+            else {
+                attributes = EmptyArrayCache.fromElementType(SourceAttribute.class);
+            }
+
+            final FieldInfo field = new FieldInfo(accessFlags, name, descriptor, attributes);
+
+            _fields.add(field);
+        }
+
+        final int methodCount = _buffer.readUnsignedShort();
+
+        for (int i = 0; i < methodCount; i++) {
+            final int accessFlags = _buffer.readUnsignedShort();
+
+            final String name = _constantPool.lookupUtf8Constant(_buffer.readUnsignedShort());
+            final String descriptor = _constantPool.lookupUtf8Constant(_buffer.readUnsignedShort());
+
+            final SourceAttribute[] attributes;
+            final int attributeCount = _buffer.readUnsignedShort();
+
+            if (attributeCount > 0) {
+                attributes = new SourceAttribute[attributeCount];
+                readAttributesPhaseOne(_buffer, attributes);
+            }
+            else {
+                attributes = EmptyArrayCache.fromElementType(SourceAttribute.class);
+            }
+
+            final MethodInfo field = new MethodInfo(accessFlags, name, descriptor, attributes);
+
+            _methods.add(field);
+        }
+
+        final int typeAttributeCount = _buffer.readUnsignedShort();
+
+        if (typeAttributeCount > 0) {
+            final SourceAttribute[] typeAttributes = new SourceAttribute[typeAttributeCount];
+
+            readAttributesPhaseOne(_buffer, typeAttributes);
+
+            for (final SourceAttribute typeAttribute : typeAttributes) {
+                _attributes.add(typeAttribute);
             }
         }
     }
 
-    private void visitConstantPool(final TypeVisitor visitor) {
-        final ConstantPool.Visitor constantPoolVisitor = visitor.visitConstantPool();
-
-        for (final ConstantPool.Entry entry : constantPool) {
-            if (entry == null) {
-                continue;
-            }
-            constantPoolVisitor.visit(entry);
-        }
-
-        constantPoolVisitor.visitEnd();
-    }
-
-    private void populateDeclaringType(final TypeVisitor visitor) {
-        final InnerClassesAttribute innerClasses = SourceAttribute.find(AttributeNames.InnerClasses, this.attributes);
+    private void populateDeclaringType() {
+        final InnerClassesAttribute innerClasses = SourceAttribute.find(AttributeNames.InnerClasses, _attributes);
 
         if (innerClasses == null) {
             return;
@@ -539,12 +497,13 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
         for (final InnerClassEntry entry : innerClasses.getEntries()) {
             final String innerClassName = entry.getInnerClassName();
+            final String shortName = entry.getShortName();
 
             String outerClassName = entry.getOuterClassName();
 
-            if (Comparer.equals(innerClassName, this.internalName)) {
+            if (Comparer.equals(innerClassName, _internalName)) {
                 final TypeReference outerType;
-                final TypeReference resolvedOuterType;
+                final TypeDefinition resolvedOuterType;
 
                 if (outerClassName == null) {
                     final int delimiterIndex = innerClassName.lastIndexOf('$');
@@ -557,17 +516,31 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                     }
                 }
 
-                if (StringUtilities.isNullOrEmpty(entry.getShortName())) {
-                    flags |= Flags.ANONYMOUS;
+                if (StringUtilities.isNullOrEmpty(shortName)) {
+                    _typeDefinition.setFlags(_typeDefinition.getFlags() | Flags.ANONYMOUS);
+                }
+                else {
+                    _typeDefinition.setSimpleName(shortName);
                 }
 
-                flags |= entry.getAccessFlags();
+                _typeDefinition.setFlags(_typeDefinition.getFlags() | entry.getAccessFlags());
 
-                outerType = _scope._parser.parseTypeDescriptor(outerClassName);
+                outerType = _parser.parseTypeDescriptor(outerClassName);
                 resolvedOuterType = outerType.resolve();
 
                 if (resolvedOuterType != null) {
-                    visitor.visitOuterType(outerType);
+                    if (_typeDefinition.getDeclaringType() == null) {
+                        _typeDefinition.setDeclaringType(resolvedOuterType);
+
+                        final Collection<TypeDefinition> declaredTypes = resolvedOuterType.getDeclaredTypesInternal();
+
+                        if (!declaredTypes.contains(_typeDefinition)) {
+                            declaredTypes.add(_typeDefinition);
+                        }
+                    }
+                }
+                else if (_typeDefinition.getDeclaringType() == null) {
+                    _typeDefinition.setDeclaringType(outerType);
                 }
 
                 return;
@@ -575,31 +548,44 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         }
     }
 
-    private void visitHeader(final TypeVisitor visitor) {
-        final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, attributes);
-        final String[] interfaceNames = new String[interfaceEntries.length];
+    private void populateBaseTypes() {
+        final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, _attributes);
+        final String[] interfaceNames = new String[_interfaceEntries.length];
 
-        for (int i = 0; i < interfaceEntries.length; i++) {
-            interfaceNames[i] = interfaceEntries[i].getName();
+        for (int i = 0; i < _interfaceEntries.length; i++) {
+            interfaceNames[i] = _interfaceEntries[i].getName();
         }
 
-        visitor.visit(
-            majorVersion,
-            minorVersion,
-            flags,
-            thisClassEntry.getName(),
-            signature != null ? signature.getSignature() : null,
-            baseClassEntry != null ? baseClassEntry.getName() : null,
-            interfaceNames
-        );
+        final TypeReference baseType;
+        final Collection<TypeReference> explicitInterfaces = _typeDefinition.getExplicitInterfacesInternal();
+        final String genericSignature = signature != null ? signature.getSignature() : null;
+
+        if (StringUtilities.isNullOrEmpty(genericSignature)) {
+            baseType = _baseClassEntry != null ? _parser.parseTypeDescriptor(_baseClassEntry.getName()) : null;
+
+            for (final String interfaceName : interfaceNames) {
+                explicitInterfaces.add(_parser.parseTypeDescriptor(interfaceName));
+            }
+        }
+        else {
+            final IClassSignature classSignature = _parser.parseClassSignature(genericSignature);
+
+            baseType = classSignature.getBaseType();
+            explicitInterfaces.addAll(classSignature.getExplicitInterfaces());
+            _typeDefinition.getGenericParametersInternal().addAll(classSignature.getGenericParameters());
+        }
+
+        _typeDefinition.setBaseType(baseType);
     }
 
-    private void populateNamedInnerTypes(final TypeVisitor visitor) {
-        final InnerClassesAttribute innerClasses = SourceAttribute.find(AttributeNames.InnerClasses, this.attributes);
+    private void populateNamedInnerTypes() {
+        final InnerClassesAttribute innerClasses = SourceAttribute.find(AttributeNames.InnerClasses, _attributes);
 
         if (innerClasses == null) {
             return;
         }
+
+        final Collection<TypeDefinition> declaredTypes = _typeDefinition.getDeclaredTypesInternal();
 
         for (final InnerClassEntry entry : innerClasses.getEntries()) {
             final String outerClassName = entry.getOuterClassName();
@@ -610,27 +596,30 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
             final String innerClassName = entry.getInnerClassName();
 
-            if (Comparer.equals(this.internalName, innerClassName)) {
+            if (Comparer.equals(_internalName, innerClassName)) {
                 continue;
             }
 
-            final TypeReference innerType = _scope._parser.parseTypeDescriptor(innerClassName);
-            final TypeReference resolvedInnerType = innerType.resolve();
+            final TypeReference innerType = _parser.parseTypeDescriptor(innerClassName);
+            final TypeDefinition resolvedInnerType = innerType.resolve();
 
-            if (resolvedInnerType instanceof TypeDefinition &&
-                Comparer.equals(this.internalName, outerClassName)) {
+            if (resolvedInnerType != null &&
+                Comparer.equals(_internalName, outerClassName) &&
+                !declaredTypes.contains(resolvedInnerType)) {
 
-                visitor.visitInnerType((TypeDefinition) resolvedInnerType);
+                declaredTypes.add(resolvedInnerType);
             }
         }
     }
 
-    private void populateAnonymousInnerTypes(final TypeVisitor visitor) {
-        final InnerClassesAttribute innerClasses = SourceAttribute.find(AttributeNames.InnerClasses, this.attributes);
+    private void populateAnonymousInnerTypes() {
+        final InnerClassesAttribute innerClasses = SourceAttribute.find(AttributeNames.InnerClasses, _attributes);
 
         if (innerClasses == null) {
             return;
         }
+
+        final Collection<TypeDefinition> declaredTypes = _typeDefinition.getDeclaredTypesInternal();
 
         for (final InnerClassEntry entry : innerClasses.getEntries()) {
             final String simpleName = entry.getShortName();
@@ -642,21 +631,22 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
             final String outerClassName = entry.getOuterClassName();
             final String innerClassName = entry.getInnerClassName();
 
-            if (outerClassName == null || Comparer.equals(innerClassName, this.internalName)) {
+            if (outerClassName == null || Comparer.equals(innerClassName, _internalName)) {
                 continue;
             }
 
-            final TypeReference innerType = _scope._parser.parseTypeDescriptor(innerClassName);
-            final TypeReference resolvedInnerType = innerType.resolve();
+            final TypeReference innerType = _parser.parseTypeDescriptor(innerClassName);
+            final TypeDefinition resolvedInnerType = innerType.resolve();
 
             if (resolvedInnerType instanceof TypeDefinition &&
-                Comparer.equals(this.internalName, outerClassName)) {
+                Comparer.equals(_internalName, outerClassName) &&
+                !declaredTypes.contains(resolvedInnerType)) {
 
-                visitor.visitInnerType((TypeDefinition) resolvedInnerType);
+                declaredTypes.add(resolvedInnerType);
             }
         }
 
-        final TypeReference self = _scope._parser.getResolver().lookupType(internalName);
+        final TypeReference self = _parser.getResolver().lookupType(_internalName);
 
         if (self != null && self.isNested()) {
             return;
@@ -671,47 +661,65 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
             final String innerClassName = entry.getInnerClassName();
 
-            if (Comparer.equals(innerClassName, this.internalName)) {
+            if (Comparer.equals(innerClassName, _internalName)) {
                 continue;
             }
 
-            final TypeReference innerType = _scope._parser.parseTypeDescriptor(innerClassName);
-            final TypeReference resolvedInnerType = innerType.resolve();
+            final TypeReference innerType = _parser.parseTypeDescriptor(innerClassName);
+            final TypeDefinition resolvedInnerType = innerType.resolve();
 
-            if (resolvedInnerType instanceof TypeDefinition &&
-                Comparer.equals(this.internalName, outerClassName)) {
+            if (resolvedInnerType != null &&
+                Comparer.equals(_internalName, outerClassName) &&
+                !declaredTypes.contains(resolvedInnerType)) {
 
-                visitor.visitInnerType((TypeDefinition) resolvedInnerType);
+                declaredTypes.add(resolvedInnerType);
             }
         }
     }
 
     @SuppressWarnings("ConstantConditions")
-    private void visitFields(final TypeVisitor visitor) {
-        for (final FieldInfo field : fields) {
+    private void visitFields() {
+        final Collection<FieldDefinition> declaredFields = _typeDefinition.getDeclaredFieldsInternal();
+
+        for (final FieldInfo field : _fields) {
             final TypeReference fieldType;
             final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, field.attributes);
 
             if (signature != null) {
-                fieldType = _scope._parser.parseTypeSignature(signature.getSignature());
+                fieldType = _parser.parseTypeSignature(signature.getSignature());
             }
             else {
-                fieldType = _scope._parser.parseTypeSignature(field.descriptor);
+                fieldType = _parser.parseTypeSignature(field.descriptor);
             }
 
-            final FieldVisitor fieldVisitor = visitor.visitField(
-                field.accessFlags,
-                field.name,
-                fieldType
-            );
+            final FieldDefinition fieldDefinition = new FieldDefinition(_resolver);
+
+            fieldDefinition.setDeclaringType(_typeDefinition);
+            fieldDefinition.setFlags(field.accessFlags);
+            fieldDefinition.setName(field.name);
+            fieldDefinition.setFieldType(fieldType);
+
+            declaredFields.add(fieldDefinition);
 
             inflateAttributes(field.attributes);
 
-            for (final SourceAttribute attribute : field.attributes) {
-                fieldVisitor.visitAttribute(attribute);
+            final ConstantValueAttribute constantValueAttribute = SourceAttribute.find(AttributeNames.ConstantValue, field.attributes);
+
+            if (constantValueAttribute != null) {
+                fieldDefinition.setConstantValue(constantValueAttribute.getValue());
+            }
+
+            if (SourceAttribute.find(AttributeNames.Synthetic, field.attributes) != null) {
+                fieldDefinition.setFlags(fieldDefinition.getFlags() | Flags.SYNTHETIC);
+            }
+
+            if (SourceAttribute.find(AttributeNames.Deprecated, field.attributes) != null) {
+                fieldDefinition.setFlags(fieldDefinition.getFlags() | Flags.DEPRECATED);
             }
 
             if (shouldProcessAnnotations()) {
+                final Collection<CustomAnnotation> annotations = fieldDefinition.getAnnotationsInternal();
+
                 final AnnotationsAttribute visibleAnnotations = SourceAttribute.find(
                     AttributeNames.RuntimeVisibleAnnotations,
                     field.attributes
@@ -723,93 +731,101 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 );
 
                 if (visibleAnnotations != null) {
-                    for (final CustomAnnotation annotation : visibleAnnotations.getAnnotations()) {
-                        fieldVisitor.visitAnnotation(annotation, true);
-                    }
+                    Collections.addAll(annotations, visibleAnnotations.getAnnotations());
                 }
 
                 if (invisibleAnnotations != null) {
-                    for (final CustomAnnotation annotation : invisibleAnnotations.getAnnotations()) {
-                        fieldVisitor.visitAnnotation(annotation, false);
-                    }
+                    Collections.addAll(annotations, invisibleAnnotations.getAnnotations());
                 }
             }
-
-            fieldVisitor.visitEnd();
         }
     }
 
     @SuppressWarnings("ConstantConditions")
-    private void visitMethods(final TypeVisitor visitor) {
-        //noinspection UnusedDeclaration
-        try (final AutoCloseable ignored = _scope._parser.suppressTypeResolution()) {
-            for (final MethodInfo method : methods) {
+    private void defineMethods() {
+        try (final AutoCloseable ignored = _parser.suppressTypeResolution()) {
+            for (final MethodInfo method : _methods) {
                 final IMethodSignature methodSignature;
-                final TypeReference[] thrownTypes;
+                final MethodDefinition methodDefinition = new MethodDefinition();
 
-                final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, method.attributes);
+                methodDefinition.setName(method.name);
+                methodDefinition.setFlags(method.accessFlags);
+                methodDefinition.setDeclaringType(_typeDefinition);
 
-                if ((flags & Flags.ENUM) != 0 && "<init>".equals(method.name)) {
-                    methodSignature = _scope._parser.parseMethodSignature(
-                        signature != null ? "(Ljava/lang/String;I" + signature.getSignature().substring(1)
-                                          : method.descriptor
-                    );
-
-                    methodSignature.getParameters().get(0).setName("name");
-                    methodSignature.getParameters().get(1).setName("ordinal");
-                }
-                else {
-                    methodSignature = _scope._parser.parseMethodSignature(
-                        signature != null ? signature.getSignature() : method.descriptor
-                    );
-                }
-
-                final boolean hasGenericParameters = methodSignature.hasGenericParameters();
-
-                if (hasGenericParameters) {
-                    _scope._parser.pushGenericContext(methodSignature);
-                }
+                _typeDefinition.getDeclaredMethodsInternal().add(methodDefinition);
+                _parser.pushGenericContext(methodDefinition);
 
                 try {
+
+                    final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, method.attributes);
+
+                    if ((_typeDefinition.getFlags() & Flags.ENUM) != 0 && "<init>".equals(method.name)) {
+                        methodSignature = _parser.parseMethodSignature(
+                            signature != null ? "(Ljava/lang/String;I" + signature.getSignature().substring(1)
+                                              : method.descriptor
+                        );
+
+                        methodSignature.getParameters().get(0).setName("name");
+                        methodSignature.getParameters().get(1).setName("ordinal");
+                    }
+                    else {
+                        methodSignature = _parser.parseMethodSignature(
+                            signature != null ? signature.getSignature() : method.descriptor
+                        );
+                    }
+
+                    methodDefinition.setReturnType(methodSignature.getReturnType());
+                    methodDefinition.getParametersInternal().addAll(methodSignature.getParameters());
+                    methodDefinition.getGenericParametersInternal().addAll(methodSignature.getGenericParameters());
+                    methodDefinition.getThrownTypesInternal().addAll(methodSignature.getThrownTypes());
+
+                    int slot = 0;
+
+                    if (!Flags.testAny(methodDefinition.getFlags(), Flags.STATIC)) {
+                        ++slot;
+                    }
+
+                    for (final ParameterDefinition parameter : methodDefinition.getParameters()) {
+                        parameter.setSlot(slot);
+                        slot += parameter.getSize();
+                    }
+
                     inflateAttributes(method.attributes);
 
+                    Collections.addAll(methodDefinition.getSourceAttributesInternal(), method.attributes);
+
                     method.codeAttribute = SourceAttribute.find(AttributeNames.Code, method.attributes);
+
+                    if (method.codeAttribute != null) {
+                        methodDefinition.getSourceAttributesInternal().addAll(((CodeAttribute) method.codeAttribute).getAttributes());
+                    }
 
                     final ExceptionsAttribute exceptions = SourceAttribute.find(AttributeNames.Exceptions, method.attributes);
 
                     if (exceptions != null) {
-                        final List<TypeReference> exceptionTypes = exceptions.getExceptionTypes();
-                        thrownTypes = exceptionTypes.toArray(new TypeReference[exceptionTypes.size()]);
-                    }
-                    else {
-                        thrownTypes = EmptyArrayCache.fromElementType(TypeReference.class);
-                    }
+                        final Collection<TypeReference> thrownTypes = methodDefinition.getThrownTypesInternal();
 
-                    long methodFlags = method.accessFlags;
-
-                    if (Flags.testAny(flags, Flags.ANONYMOUS) && "<init>".equals(method.name)) {
-                        methodFlags |= Flags.ANONCONSTR | Flags.SYNTHETIC;
-                    }
-
-                    final MethodVisitor methodVisitor = visitor.visitMethod(
-                        methodFlags,
-                        method.name,
-                        methodSignature,
-                        thrownTypes
-                    );
-
-                    if (Flags.testAny(options, OPTION_PROCESS_CODE)) {
-                        visitMethodBody(method, methodSignature, methodVisitor);
-                    }
-
-                    for (final SourceAttribute attribute : method.attributes) {
-                        methodVisitor.visitAttribute(attribute);
-
-                        if (attribute instanceof CodeAttribute) {
-                            for (final SourceAttribute bodyAttribute : ((CodeAttribute) attribute).getAttributes()) {
-                                methodVisitor.visitAttribute(bodyAttribute);
+                        for (final TypeReference thrownType : exceptions.getExceptionTypes()) {
+                            if (!thrownTypes.contains(thrownType)) {
+                                thrownTypes.add(thrownType);
                             }
                         }
+                    }
+
+                    if (Flags.testAny(_typeDefinition.getFlags(), Flags.ANONYMOUS) && "<init>".equals(method.name)) {
+                        methodDefinition.setFlags(methodDefinition.getFlags() | Flags.ANONCONSTR | Flags.SYNTHETIC);
+                    }
+
+                    if (Flags.testAny(_options, OPTION_PROCESS_CODE)) {
+                        readMethodBody(method, methodDefinition);
+                    }
+
+                    if (SourceAttribute.find(AttributeNames.Synthetic, method.attributes) != null) {
+                        methodDefinition.setFlags(methodDefinition.getFlags() | Flags.SYNTHETIC);
+                    }
+
+                    if (SourceAttribute.find(AttributeNames.Deprecated, method.attributes) != null) {
+                        methodDefinition.setFlags(methodDefinition.getFlags() | Flags.DEPRECATED);
                     }
 
                     if (shouldProcessAnnotations()) {
@@ -823,16 +839,14 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                             method.attributes
                         );
 
+                        final Collection<CustomAnnotation> annotations = methodDefinition.getAnnotationsInternal();
+
                         if (visibleAnnotations != null) {
-                            for (final CustomAnnotation annotation : visibleAnnotations.getAnnotations()) {
-                                methodVisitor.visitAnnotation(annotation, true);
-                            }
+                            Collections.addAll(annotations, visibleAnnotations.getAnnotations());
                         }
 
                         if (invisibleAnnotations != null) {
-                            for (final CustomAnnotation annotation : invisibleAnnotations.getAnnotations()) {
-                                methodVisitor.visitAnnotation(annotation, false);
-                            }
+                            Collections.addAll(annotations, invisibleAnnotations.getAnnotations());
                         }
 
                         final ParameterAnnotationsAttribute visibleParameterAnnotations = SourceAttribute.find(
@@ -846,36 +860,30 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                         );
 
                         if (visibleParameterAnnotations != null) {
-                            for (int i = 0; i < visibleParameterAnnotations.getAnnotations().length; i++) {
-                                final CustomAnnotation[] annotations = visibleParameterAnnotations.getAnnotations()[i];
+                            final List<ParameterDefinition> parameters = methodDefinition.getParameters();
 
-                                if (!ArrayUtilities.isNullOrEmpty(annotations)) {
-                                    for (final CustomAnnotation annotation : annotations) {
-                                        methodVisitor.visitParameterAnnotation(i, annotation, true);
-                                    }
-                                }
+                            for (int i = 0; i < visibleParameterAnnotations.getAnnotations().length && i < parameters.size(); i++) {
+                                Collections.addAll(
+                                    parameters.get(i).getAnnotationsInternal(),
+                                    visibleParameterAnnotations.getAnnotations()[i]
+                                );
                             }
                         }
 
                         if (invisibleParameterAnnotations != null) {
-                            for (int i = 0; i < invisibleParameterAnnotations.getAnnotations().length; i++) {
-                                final CustomAnnotation[] annotations = invisibleParameterAnnotations.getAnnotations()[i];
+                            final List<ParameterDefinition> parameters = methodDefinition.getParameters();
 
-                                if (!ArrayUtilities.isNullOrEmpty(annotations)) {
-                                    for (final CustomAnnotation annotation : annotations) {
-                                        methodVisitor.visitParameterAnnotation(i, annotation, false);
-                                    }
-                                }
+                            for (int i = 0; i < invisibleParameterAnnotations.getAnnotations().length && i < parameters.size(); i++) {
+                                Collections.addAll(
+                                    parameters.get(i).getAnnotationsInternal(),
+                                    invisibleParameterAnnotations.getAnnotations()[i]
+                                );
                             }
                         }
                     }
-
-                    methodVisitor.visitEnd();
                 }
                 finally {
-                    if (hasGenericParameters) {
-                        _scope._parser.popGenericContext();
-                    }
+                    _parser.popGenericContext();
                 }
             }
         }
@@ -884,137 +892,38 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         }
     }
 
-    private void visitMethodBody(final MethodInfo methodInfo, final IMethodSignature methodSignature, final MethodVisitor visitor) {
+    private void readMethodBody(final MethodInfo methodInfo, final MethodDefinition methodDefinition) {
         if (methodInfo.codeAttribute instanceof CodeAttribute) {
-            final CodeAttribute codeAttribute = (CodeAttribute) methodInfo.codeAttribute;
-            final TypeReference thisType = _scope._parser.lookupType(this.packageName, this.name);
+            final MethodReader reader = new MethodReader(methodDefinition, _scope);
+            final MethodBody body = reader.readBody();
 
-            final MethodReader reader = new MethodReader(
-                thisType,
-                methodSignature,
-                methodInfo.accessFlags,
-                codeAttribute,
-                _scope
-            );
-
-            if (visitor.canVisitBody()) {
-                final MethodReference methodReference;
-                final MethodBody body = reader.accept(visitor);
-
-                final SignatureAttribute signatureAttribute = SourceAttribute.find(AttributeNames.Signature, methodInfo.attributes);
-
-                if (signatureAttribute != null) {
-                    methodReference = _scope._parser.parseMethod(thisType, methodInfo.name, signatureAttribute.getSignature());
-                }
-                else {
-                    methodReference = _scope._parser.parseMethod(thisType, methodInfo.name, methodInfo.descriptor);
-                }
-
-                if (methodReference != null) {
-                    body.setMethod(methodReference);
-                }
-
-                MethodDefinition method;
-
-                if (methodReference != null) {
-                    method = methodReference.resolve();
-                }
-                else {
-                    method = null;
-                }
-
-                if (method != null) {
-                    method.setBody(body);
-                }
-
-                body.freeze();
-
-                final InstructionVisitor instructionVisitor = visitor.visitBody(body);
-                final InstructionCollection instructions = body.getInstructions();
-
-                final LineNumberTableAttribute lineNumbersAttribute = SourceAttribute.find(
-                    AttributeNames.LineNumberTable,
-                    codeAttribute.getAttributes()
-                );
-
-                final int[] lineNumbers;
-
-                if (lineNumbersAttribute != null) {
-                    final List<LineNumberTableEntry> entries = lineNumbersAttribute.getEntries();
-
-                    lineNumbers = new int[instructions.size()];
-
-                    Arrays.fill(lineNumbers, -1);
-
-                    for (int i = 0, j = 0; i < instructions.size() && j < entries.size(); i++) {
-                        final Instruction instruction = instructions.get(i);
-                        final LineNumberTableEntry entry = entries.get(j);
-
-                        if (entry.getOffset() == instruction.getOffset()) {
-                            lineNumbers[i] = entry.getLineNumber();
-                            ++j;
-                        }
-                    }
-                }
-                else {
-                    lineNumbers = null;
-                }
-
-                for (int i = 0; i < instructions.size(); i++) {
-                    final Instruction inst = instructions.get(i);
-                    final int lineNumber = lineNumbers != null ? lineNumbers[i] : -1;
-
-                    if (lineNumber >= 0) {
-                        visitor.visitLineNumber(inst, lineNumber);
-                    }
-                }
-
-                if (instructionVisitor != null) {
-                    for (int i = 0; i < instructions.size(); i++) {
-                        instructionVisitor.visit(instructions.get(i));
-                    }
-                    instructionVisitor.visitEnd();
-                }
-
-                if (method == null && methodReference != null) {
-                    method = methodReference.resolve();
-
-                    if (method != null) {
-                        body.setMethod(method);
-                    }
-                }
-            }
+            methodDefinition.setBody(body);
+            body.freeze();
         }
     }
 
-    private void visitAttributes(final TypeVisitor visitor) {
-        inflateAttributes(this.attributes);
-
-        for (final SourceAttribute attribute : attributes) {
-            visitor.visitAttribute(attribute);
-        }
+    private void visitAttributes() {
+        inflateAttributes(_attributes);
 
         if (shouldProcessAnnotations()) {
             final AnnotationsAttribute visibleAnnotations = SourceAttribute.find(
                 AttributeNames.RuntimeVisibleAnnotations,
-                this.attributes
+                _attributes
             );
 
             final AnnotationsAttribute invisibleAnnotations = SourceAttribute.find(
                 AttributeNames.RuntimeInvisibleAnnotations,
-                this.attributes
+                _attributes
             );
 
+            final Collection<CustomAnnotation> annotations = _typeDefinition.getAnnotationsInternal();
+
             if (visibleAnnotations != null) {
-                for (final CustomAnnotation annotation : visibleAnnotations.getAnnotations()) {
-                    visitor.visitAnnotation(annotation, true);
-                }
+                Collections.addAll(annotations, visibleAnnotations.getAnnotations());
             }
 
             if (invisibleAnnotations != null) {
-                for (final CustomAnnotation annotation : invisibleAnnotations.getAnnotations()) {
-                    visitor.visitAnnotation(annotation, false);
-                }
+                Collections.addAll(annotations, invisibleAnnotations.getAnnotations());
             }
         }
     }
@@ -1064,16 +973,20 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
     private final static MethodHandleType[] METHOD_HANDLE_TYPES = MethodHandleType.values();
 
-    private class Scope implements IMetadataScope {
+    static class Scope implements IMetadataScope {
         private final MetadataParser _parser;
+        private final TypeDefinition _typeDefinition;
+        private final ConstantPool _constantPool;
 
-        Scope(final IMetadataResolver resolver) {
-            _parser = new MetadataParser(VerifyArgument.notNull(resolver, "resolver"));
+        Scope(final MetadataParser parser, final TypeDefinition typeDefinition, final ConstantPool constantPool) {
+            _parser = parser;
+            _typeDefinition = typeDefinition;
+            _constantPool = constantPool;
         }
 
         @Override
         public TypeReference lookupType(final int token) {
-            final ConstantPool.Entry entry = constantPool.get(token);
+            final ConstantPool.Entry entry = _constantPool.get(token);
 
             if (entry instanceof ConstantPool.TypeInfoEntry) {
                 final ConstantPool.TypeInfoEntry typeInfo = (ConstantPool.TypeInfoEntry) entry;
@@ -1081,25 +994,25 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
                 return _parser.parseTypeDescriptor(typeInfo.getName());
             }
 
-            final String typeName = constantPool.lookupConstant(token);
+            final String typeName = _constantPool.lookupConstant(token);
 
             return _parser.parseTypeSignature(typeName);
         }
 
         @Override
         public FieldReference lookupField(final int token) {
-            final ConstantPool.FieldReferenceEntry entry = constantPool.getEntry(token);
+            final ConstantPool.FieldReferenceEntry entry = _constantPool.getEntry(token);
             return lookupField(entry.typeInfoIndex, entry.nameAndTypeDescriptorIndex);
         }
 
         @Override
         public MethodReference lookupMethod(final int token) {
-            final ConstantPool.Entry entry = constantPool.getEntry(token);
+            final ConstantPool.Entry entry = _constantPool.getEntry(token);
             final ConstantPool.ReferenceEntry reference;
 
             if (entry instanceof ConstantPool.MethodHandleEntry) {
                 final ConstantPool.MethodHandleEntry methodHandle = (ConstantPool.MethodHandleEntry) entry;
-                reference = constantPool.getEntry(methodHandle.referenceIndex);
+                reference = _constantPool.getEntry(methodHandle.referenceIndex);
             }
             else {
                 reference = (ConstantPool.ReferenceEntry) entry;
@@ -1110,8 +1023,8 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
         @Override
         public MethodHandle lookupMethodHandle(final int token) {
-            final ConstantPool.MethodHandleEntry entry = constantPool.getEntry(token);
-            final ConstantPool.ReferenceEntry reference = constantPool.getEntry(entry.referenceIndex);
+            final ConstantPool.MethodHandleEntry entry = _constantPool.getEntry(token);
+            final ConstantPool.ReferenceEntry reference = _constantPool.getEntry(entry.referenceIndex);
 
             return new MethodHandle(
                 lookupMethod(reference.typeInfoIndex, reference.nameAndTypeDescriptorIndex),
@@ -1121,27 +1034,19 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
         @Override
         public IMethodSignature lookupMethodType(final int token) {
-            final ConstantPool.MethodTypeEntry entry = constantPool.getEntry(token);
+            final ConstantPool.MethodTypeEntry entry = _constantPool.getEntry(token);
             return _parser.parseMethodSignature(entry.getType());
         }
 
         @Override
         public DynamicCallSite lookupDynamicCallSite(final int token) {
-            final ConstantPool.InvokeDynamicInfoEntry entry = constantPool.getEntry(token);
-            final SourceAttribute attribute = SourceAttribute.find(AttributeNames.BootstrapMethods, attributes);
-            final BootstrapMethodsAttribute bootstrapMethods;
+            final ConstantPool.InvokeDynamicInfoEntry entry = _constantPool.getEntry(token);
+            final BootstrapMethodsAttribute attribute = SourceAttribute.find(AttributeNames.BootstrapMethods, _typeDefinition.getSourceAttributes());
 
-            if (attribute instanceof BlobAttribute) {
-                bootstrapMethods = (BootstrapMethodsAttribute) inflateAttribute(attribute);
-            }
-            else {
-                bootstrapMethods = (BootstrapMethodsAttribute) attribute;
-            }
+            final BootstrapMethodsTableEntry bootstrapMethod = attribute.getBootstrapMethods()
+                                                                        .get(entry.bootstrapMethodAttributeIndex);
 
-            final BootstrapMethodsTableEntry bootstrapMethod = bootstrapMethods.getBootstrapMethods()
-                                                                               .get(entry.bootstrapMethodAttributeIndex);
-
-            final ConstantPool.NameAndTypeDescriptorEntry nameAndType = constantPool.getEntry(entry.nameAndTypeDescriptorIndex);
+            final ConstantPool.NameAndTypeDescriptorEntry nameAndType = _constantPool.getEntry(entry.nameAndTypeDescriptorIndex);
 
             return new DynamicCallSite(
                 bootstrapMethod.getMethod(),
@@ -1153,7 +1058,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
         @Override
         public FieldReference lookupField(final int typeToken, final int nameAndTypeToken) {
-            final ConstantPool.NameAndTypeDescriptorEntry nameAndDescriptor = constantPool.getEntry(nameAndTypeToken);
+            final ConstantPool.NameAndTypeDescriptorEntry nameAndDescriptor = _constantPool.getEntry(nameAndTypeToken);
 
             return _parser.parseField(
                 lookupType(typeToken),
@@ -1164,7 +1069,7 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
 
         @Override
         public MethodReference lookupMethod(final int typeToken, final int nameAndTypeToken) {
-            final ConstantPool.NameAndTypeDescriptorEntry nameAndDescriptor = constantPool.getEntry(nameAndTypeToken);
+            final ConstantPool.NameAndTypeDescriptorEntry nameAndDescriptor = _constantPool.getEntry(nameAndTypeToken);
 
             return _parser.parseMethod(
                 lookupType(typeToken),
@@ -1176,13 +1081,76 @@ public final class ClassFileReader extends MetadataReader implements ClassReader
         @Override
         @SuppressWarnings("unchecked")
         public <T> T lookupConstant(final int token) {
-            final ConstantPool.Entry entry = constantPool.get(token);
+            final ConstantPool.Entry entry = _constantPool.get(token);
 
             if (entry.getTag() == ConstantPool.Tag.TypeInfo) {
                 return (T) lookupType(token);
             }
 
-            return constantPool.lookupConstant(token);
+            return _constantPool.lookupConstant(token);
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="ResolverFrame Class">
+
+    private final class ResolverFrame implements IResolverFrame {
+        final HashMap<String, TypeReference> types = new HashMap<>();
+        final HashMap<String, GenericParameter> typeVariables = new HashMap<>();
+
+        public void addType(final TypeReference type) {
+            VerifyArgument.notNull(type, "type");
+            types.put(type.getInternalName(), type);
+        }
+
+        public void addTypeVariable(final GenericParameter type) {
+            VerifyArgument.notNull(type, "type");
+            typeVariables.put(type.getName(), type);
+        }
+
+        public void removeType(final TypeReference type) {
+            VerifyArgument.notNull(type, "type");
+            types.remove(type.getInternalName());
+        }
+
+        public void removeTypeVariable(final GenericParameter type) {
+            VerifyArgument.notNull(type, "type");
+            typeVariables.remove(type.getName());
+        }
+
+        @Override
+        public TypeReference findType(final String descriptor) {
+            final TypeReference type = types.get(descriptor);
+
+            if (type != null) {
+                return type;
+            }
+
+            return null;
+        }
+
+        @Override
+        public GenericParameter findTypeVariable(final String name) {
+            final GenericParameter typeVariable = typeVariables.get(name);
+
+            if (typeVariable != null) {
+                return typeVariable;
+            }
+
+            for (final String typeName : types.keySet()) {
+                final TypeReference t = types.get(typeName);
+
+                if (t.containsGenericParameters()) {
+                    for (final GenericParameter p : t.getGenericParameters()) {
+                        if (StringUtilities.equals(p.getName(), name)) {
+                            return p;
+                        }
+                    }
+                }
+            }
+
+            return null;
         }
     }
 

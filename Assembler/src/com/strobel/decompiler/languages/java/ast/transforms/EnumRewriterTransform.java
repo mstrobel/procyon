@@ -185,7 +185,7 @@ public class EnumRewriterTransform implements IAstTransform {
                     switch (method.getName()) {
                         case "values": {
                             if (method.getParameters().isEmpty() &&
-                                currentType.makeArrayType().equals(method.getReturnType())) {
+                                currentType.makeArrayType().equals(method.getReturnType().resolve())) {
 
                                 node.remove();
                             }
@@ -193,7 +193,7 @@ public class EnumRewriterTransform implements IAstTransform {
                         }
 
                         case "valueOf": {
-                            if (currentType.equals(method.getReturnType()) &&
+                            if (currentType.equals(method.getReturnType().resolve()) &&
                                 method.getParameters().size() == 1) {
 
                                 final ParameterDefinition p = method.getParameters().get(0);

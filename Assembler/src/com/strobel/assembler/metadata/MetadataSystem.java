@@ -103,14 +103,10 @@ public class MetadataSystem extends MetadataResolver {
             return null;
         }
 
-        final ClassFileReader reader = ClassFileReader.readClass(this, buffer);
-        final TypeDefinitionBuilder builder = new TypeDefinitionBuilder();
-
-        reader.accept(builder);
-
-        final TypeDefinition typeDefinition = builder.getTypeDefinition();
+        final TypeDefinition typeDefinition = ClassFileReader.readClass(this, buffer);
 
         cachedDefinition = _types.putIfAbsent(descriptor, typeDefinition);
+        typeDefinition.setTypeLoader(_typeLoader);
 
         if (cachedDefinition != null) {
             return cachedDefinition;

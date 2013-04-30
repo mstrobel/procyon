@@ -47,9 +47,9 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
     }
 
     @Override
-    public final TypeReference findTypeVariable(final String name) {
+    public final GenericParameter findTypeVariable(final String name) {
         for (int i = _frames.size() - 1; i >= 0; i--) {
-            final TypeReference type = _frames.get(i).findTypeVariable(name);
+            final GenericParameter type = _frames.get(i).findTypeVariable(name);
 
             if (type != null) {
                 return type;
@@ -94,7 +94,11 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
                 return null;
             }
 
-            return getNestedType(declaringType.getDeclaredTypes(), type);
+            final TypeDefinition nestedType = getNestedType(declaringType.getDeclaredTypes(), type);
+
+            if (nestedType != null) {
+                return nestedType;
+            }
         }
 
         return resolveCore(t);
@@ -293,6 +297,21 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
             return false;
         }
 
+        if (a instanceof CompoundTypeReference) {
+            if (!(b instanceof CompoundTypeReference)) {
+                return false;
+            }
+
+            final CompoundTypeReference cA = (CompoundTypeReference) a;
+            final CompoundTypeReference cB = (CompoundTypeReference) b;
+
+            return areEquivalent(cA.getBaseType(), cB.getBaseType()) &&
+                   areEquivalent(cA.getInterfaces(), cB.getInterfaces());
+        }
+        else if (b instanceof CompoundTypeReference) {
+            return false;
+        }
+
         if (a.isGenericParameter()) {
             if (b.isGenericParameter()) {
                 return areEquivalent((GenericParameter) a, (GenericParameter) b);
@@ -300,11 +319,17 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
 
             return areEquivalent(a.getExtendsBound(), b);
         }
+        else if (b.isGenericParameter()) {
+            return false;
+        }
 
         if (a.isWildcardType()) {
             return b.isWildcardType() &&
                    areEquivalent(a.getExtendsBound(), b.getExtendsBound()) &&
                    areEquivalent(a.getSuperBound(), b.getSuperBound());
+        }
+        else if (b.isWildcardType()) {
+            return false;
         }
 
         if (b.isGenericType()) {
@@ -365,7 +390,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
         return true;
     }
 
-    static boolean areEquivalent(final List<? extends TypeReference> a, final List<? extends TypeReference> b) {
+    static <T extends TypeReference> boolean areEquivalent(final List<T> a, final List<T> b) {
         final int count = a.size();
 
         if (b.size() != count) {
@@ -430,6 +455,26 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
         }
 
         return true;
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="LimitedResolver Class">
+
+    public static IMetadataResolver createLimitedResolver() {
+        return new LimitedResolver();
+    }
+
+    private final static class LimitedResolver extends MetadataResolver {
+        @Override
+        protected TypeReference lookupTypeCore(final String descriptor) {
+            return null;
+        }
+
+        @Override
+        protected TypeDefinition resolveCore(final TypeReference type) {
+            return type instanceof TypeDefinition ? (TypeDefinition) type : null;
+        }
     }
 
     // </editor-fold>

@@ -18,13 +18,9 @@ package com.strobel.assembler.metadata;
 
 import java.util.List;
 
-/**
- * User: Mike Strobel
- * Date: 1/6/13
- * Time: 5:40 PM
- */
-public interface IMethodSignature extends IGenericParameterProvider {
+public interface IMethodSignature extends IGenericParameterProvider, IGenericContext {
     boolean hasParameters();
     List<ParameterDefinition> getParameters();
     TypeReference getReturnType();
+    List<TypeReference> getThrownTypes();
 }

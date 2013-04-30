@@ -49,13 +49,13 @@ public final class TypeAnalysis {
     );
 
     private DecompilerContext _context;
-    private MetadataSystem _metadataSystem;
+    private IMetadataResolver _resolver;
 
     public static void run(final DecompilerContext context, final Block method) {
         final TypeAnalysis ta = new TypeAnalysis();
 
         ta._context = context;
-        ta._metadataSystem = MetadataSystem.instance();
+        ta._resolver = context.getCurrentType().getResolver();
         ta.createDependencyGraph(method);
         ta.identifySingleLoadVariables();
         ta.runInference();
@@ -66,15 +66,17 @@ public final class TypeAnalysis {
             e.setInferredType(null);
             e.setExpectedType(null);
 
+/*
             final Object operand = e.getOperand();
 
             if (operand instanceof Variable) {
                 final Variable variable = (Variable) operand;
 
                 if (variable.isGenerated()) {
-//                    variable.setType(null);
+                    variable.setType(null);
                 }
             }
+*/
         }
     }
 
@@ -318,12 +320,8 @@ public final class TypeAnalysis {
     }
 
     private boolean shouldInferVariableType(final Variable variable) {
-        if (variable.isGenerated()) {
-            return true;
-        }
-
-        return !variable.isParameter() &&
-               !variable.getOriginalVariable().isFromMetadata();
+        return variable.isGenerated() ||
+               !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata();
     }
 
     private void runInference(final Expression expression) {
@@ -484,17 +482,8 @@ public final class TypeAnalysis {
             case InvokeStatic:
             case InvokeInterface: {
                 final MethodReference methodReference = (MethodReference) operand;
-                final MethodDefinition methodDefinition = methodReference.resolve();
                 final List<ParameterDefinition> parameters = methodReference.getParameters();
-
-                final boolean hasThis;
-
-                if (methodDefinition != null) {
-                    hasThis = !methodDefinition.isStatic();
-                }
-                else {
-                    hasThis = code != AstCode.InvokeStatic && code != AstCode.InvokeDynamic;
-                }
+                final boolean hasThis = code != AstCode.InvokeStatic && code != AstCode.InvokeDynamic;
 
                 if (forceInferChildren) {
                     if (hasThis) {
@@ -716,10 +705,10 @@ public final class TypeAnalysis {
                 }
 
                 if (operand instanceof TypeReference) {
-                    return _metadataSystem.lookupType("java/lang/Class");
+                    return _resolver.lookupType("java/lang/Class");
                 }
 
-                return _metadataSystem.lookupType("java/lang/String");
+                return _resolver.lookupType("java/lang/String");
             }
 
             case NewArray:
@@ -1254,7 +1243,7 @@ public final class TypeAnalysis {
                     }
 
                     if (!declaringType.isGenericDefinition()) {
-                        declaringType = declaringType.resolve();
+                        declaringType = declaringType.getUnderlyingType();
                     }
 
                     if (declaringType != null && declaringType.isGenericDefinition()) {

@@ -16,13 +16,14 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.assembler.metadata.signatures.*;
 import com.strobel.compilerservices.RuntimeHelpers;
 import com.strobel.core.ArrayUtilities;
-import com.strobel.core.MutableInteger;
+import com.strobel.core.SafeCloseable;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.util.EmptyArrayCache;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
@@ -32,49 +33,67 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Mike Strobel
  */
 public final class MetadataParser {
-    private final Stack<IGenericContext> _genericContexts;
     private final IMetadataResolver _resolver;
-    private final AtomicInteger _suppressResolveDepth = new AtomicInteger();
+    private final SignatureParser _signatureParser;
+    private final Stack<IGenericContext> _genericContexts;
+    private final CoreMetadataFactory _factory;
+    private final AtomicInteger _suppressResolveDepth;
+
+    public MetadataParser() {
+        this(MetadataSystem.instance());
+    }
 
     public MetadataParser(final IMetadataResolver resolver) {
         _resolver = VerifyArgument.notNull(resolver, "resolver");
+        _signatureParser = SignatureParser.make();
         _genericContexts = new Stack<>();
+        _factory = CoreMetadataFactory.make(resolver, new StackBasedGenericContext());
+        _suppressResolveDepth = new AtomicInteger();
     }
 
-    public final IMetadataResolver getResolver() {
-        return _resolver;
+    public MetadataParser(final TypeDefinition owner) {
+        VerifyArgument.notNull(owner, "owner");
+
+        _resolver = owner.getResolver() != null ? owner.getResolver() : MetadataSystem.instance();
+        _signatureParser = SignatureParser.make();
+        _genericContexts = new Stack<>();
+        _factory = CoreMetadataFactory.make(owner, new StackBasedGenericContext());
+        _suppressResolveDepth = new AtomicInteger();
     }
 
-    public AutoCloseable suppressTypeResolution() {
+    public final SafeCloseable suppressTypeResolution() {
         _suppressResolveDepth.incrementAndGet();
 
-        return new AutoCloseable() {
+        return new SafeCloseable() {
             @Override
-            public void close() throws Exception {
+            public void close() {
                 _suppressResolveDepth.decrementAndGet();
             }
         };
     }
 
-    public void pushGenericContext(final IGenericParameterProvider provider) {
-        VerifyArgument.notNull(provider, "provider");
+    private final class StackBasedGenericContext implements IGenericContext {
+        @Override
+        public GenericParameter findTypeVariable(final String name) {
+            for (int i = 0, n = _genericContexts.size(); i < n; i++) {
+                final IGenericContext context = _genericContexts.get(i);
+                final GenericParameter typeVariable = context.findTypeVariable(name);
 
-        pushGenericContext(
-            new IGenericContext() {
-                @Override
-                public TypeReference findTypeVariable(final String name) {
-                    VerifyArgument.notNull(name, "name");
-
-                    for (final GenericParameter p : provider.getGenericParameters()) {
-                        if (name.equals(p.getName())) {
-                            return p;
-                        }
-                    }
-
-                    return null;
+                if (typeVariable != null) {
+                    return typeVariable;
                 }
             }
-        );
+
+            if (_resolver instanceof IGenericContext) {
+                return ((IGenericContext) _resolver).findTypeVariable(name);
+            }
+
+            return null;
+        }
+    }
+
+    public final IMetadataResolver getResolver() {
+        return _resolver;
     }
 
     public void pushGenericContext(final IGenericContext context) {
@@ -88,42 +107,22 @@ public final class MetadataParser {
     public TypeReference parseTypeDescriptor(final String descriptor) {
         VerifyArgument.notNull(descriptor, "descriptor");
 
-        int arrayDepth = 0;
-
-        while (descriptor.charAt(arrayDepth) == '[') {
-            ++arrayDepth;
+        if (descriptor.startsWith("[")) {
+            return parseTypeSignature(descriptor);
         }
 
-        if (arrayDepth == 0) {
-            return parseTypeSignature("L" + descriptor + ";");
-        }
-
-        final TypeReference elementType = parseTypeSignature(descriptor.substring(arrayDepth));
-
-        if (elementType == null) {
-            return null;
-        }
-
-        TypeReference result = elementType.makeArrayType();
-
-        while (--arrayDepth > 0) {
-            result = result.makeArrayType();
-        }
-
-        return result;
+        return parseTypeSignature("L" + descriptor + ";");
     }
 
     public TypeReference parseTypeSignature(final String signature) {
         VerifyArgument.notNull(signature, "signature");
 
-        return parseTopLevelSignature(signature, new MutableInteger(0));
-    }
+        final TypeSignature typeSignature = _signatureParser.parseTypeSignature(signature);
+        final Reifier reifier = Reifier.make(_factory);
 
-    public TypeReference parseTypeSignature(final String signature, final MutableInteger position) {
-        VerifyArgument.notNull(signature, "signature");
-        VerifyArgument.notNull(position, "position");
+        typeSignature.accept(reifier);
 
-        return parseTopLevelSignature(signature, position);
+        return reifier.getResult();
     }
 
     public FieldReference parseField(final TypeReference declaringType, final String name, final String signature) {
@@ -131,51 +130,61 @@ public final class MetadataParser {
         VerifyArgument.notNull(name, "name");
         VerifyArgument.notNull(signature, "signature");
 
-        final FieldReference reference = new UnresolvedField(
-            declaringType,
-            name,
-            parseTypeSignature(signature)
-        );
+        pushGenericContext(declaringType);
 
-        if (_suppressResolveDepth.get() > 0) {
-            return reference;
+        try {
+            return new UnresolvedField(
+                declaringType,
+                name,
+                parseTypeSignature(signature)
+            );
         }
-
-        final FieldReference resolved = _resolver.resolve(reference);
-
-        return resolved != null ? resolved : reference;
+        finally {
+            popGenericContext();
+        }
     }
 
     public MethodReference parseMethod(final TypeReference declaringType, final String name, final String descriptor) {
-        final boolean needGenericContext = declaringType.containsGenericParameters();
+        VerifyArgument.notNull(declaringType, "declaringType");
+        VerifyArgument.notNull(name, "name");
+        VerifyArgument.notNull(descriptor, "descriptor");
 
-        if (needGenericContext) {
-            pushGenericContext(declaringType);
-        }
+        pushGenericContext(declaringType);
 
         try {
             final IMethodSignature signature = parseMethodSignature(descriptor);
             return lookupMethod(declaringType, name, signature);
         }
         finally {
-            if (needGenericContext) {
-                popGenericContext();
-            }
+            popGenericContext();
         }
     }
 
     public TypeReference lookupType(final String packageName, final String typeName) {
-        final TypeReference reference = new UnresolvedType(packageName, typeName);
+//        final TypeReference reference = new UnresolvedType(packageName, typeName);
+
+        final String dottedName;
+
+        if (StringUtilities.isNullOrEmpty(packageName)) {
+            dottedName = typeName;
+        }
+        else {
+            dottedName = packageName + "." + typeName;
+        }
+
+        final TypeReference reference = _factory.makeNamedType(dottedName);
 
         if (_suppressResolveDepth.get() > 0) {
             return reference;
         }
 
-        final TypeReference resolved = _resolver.resolve(reference);
-
-        return resolved != null ? resolved : reference;
+//        final TypeReference resolved = _resolver.resolve(reference);
+//
+//        return resolved != null ? resolved : reference;
+        return reference;
     }
 
+/*
     public TypeReference lookupType(final TypeReference declaringType, final String typeName) {
         final TypeReference reference = new UnresolvedType(declaringType, typeName);
 
@@ -183,10 +192,12 @@ public final class MetadataParser {
             return reference;
         }
 
-        final TypeReference resolved = _resolver.resolve(reference);
-
-        return resolved != null ? resolved : reference;
+//        final TypeReference resolved = _resolver.resolve(reference);
+//
+//        return resolved != null ? resolved : reference;
+        return reference;
     }
+*/
 
     protected TypeReference lookupTypeVariable(final String name) {
         for (int i = 0, n = _genericContexts.size(); i < n; i++) {
@@ -205,473 +216,189 @@ public final class MetadataParser {
         return null;
     }
 
+    @SuppressWarnings("ConstantConditions")
     public IMethodSignature parseMethodSignature(final String signature) {
-        VerifyArgument.notNullOrWhitespace(signature, "signature");
-
-        final List<GenericParameter> genericParameters;
-        final MutableInteger position = new MutableInteger(0);
-
-        char ch = signature.charAt(0);
-
-        if (ch == '<') {
-            genericParameters = new ArrayList<>();
-            parseGenericParameters(genericParameters, signature, position);
-            ch = signature.charAt(position.getValue());
-        }
-        else {
-            genericParameters = Collections.emptyList();
-        }
-
-        if (ch != '(' && ch != '<') {
-            throw Error.invalidSignatureExpectedParameterList(signature, position.getValue());
-        }
-
-        position.increment();
-
-        final int length = signature.length();
-        final TypeReference returnType;
-        final boolean hasGenericParameters = !genericParameters.isEmpty();
-
-        if (hasGenericParameters) {
-            pushGenericContext(
-                new IGenericContext() {
-                    @Override
-                    public TypeReference findTypeVariable(final String name) {
-                        VerifyArgument.notNull(name, "name");
-
-                        for (final GenericParameter p : genericParameters) {
-                            if (name.equals(p.getName())) {
-                                return p;
-                            }
-                        }
-
-                        return null;
-                    }
-                }
-            );
-        }
-
-        try {
-            ArrayList<TypeReference> parameterTypes = null;
-
-            while (position.getValue() < length) {
-                switch (signature.charAt(position.getValue())) {
-                    case ')':
-                        position.increment();
-                        returnType = parseTopLevelSignature(signature, position);
-
-                        return new MethodSignature(
-                            parameterTypes != null ? parameterTypes
-                                                   : Collections.<TypeReference>emptyList(),
-                            returnType,
-                            genericParameters
-                        );
-
-                    default:
-                        if (parameterTypes == null) {
-                            parameterTypes = new ArrayList<>();
-                        }
-
-                        parameterTypes.add(parseTopLevelSignature(signature, position));
-                }
-            }
-        }
-        finally {
-            if (hasGenericParameters) {
-                popGenericContext();
-            }
-        }
-
-        throw Error.invalidSignatureExpectedReturnType(signature, position.getValue());
-    }
-
-    public void parseGenericParameters(
-        final List<GenericParameter> genericParameters,
-        final String signature,
-        final MutableInteger position) {
-
-        VerifyArgument.notNull(genericParameters, "genericParameters");
         VerifyArgument.notNull(signature, "signature");
-        VerifyArgument.notNull(position, "position");
-        VerifyArgument.inRange(0, signature.length() - 1, position.getValue(), "position");
 
-        if (signature.charAt(position.getValue()) != '<') {
-            throw Error.invalidSignatureExpectedEndOfTypeVariables(signature, 0);
-        }
+        final MethodTypeSignature methodTypeSignature = _signatureParser.parseMethodSignature(signature);
+        final Reifier reifier = Reifier.make(_factory);
 
-        pushGenericContext(
-            new IGenericContext() {
-                @Override
-                public TypeReference findTypeVariable(final String name) {
-                    VerifyArgument.notNull(name, "name");
+        final TypeReference returnType;
+        final List<TypeReference> parameterTypes;
+        final List<GenericParameter> genericParameters;
+        final List<TypeReference> thrownTypes;
 
-                    for (final GenericParameter genericParameter : genericParameters) {
-                        if (name.equals(genericParameter.getName())) {
-                            return genericParameter;
-                        }
-                    }
-                    return null;
-                }
-            }
-        );
+        final ReturnType returnTypeSignature = methodTypeSignature.getReturnType();
+        final TypeSignature[] parameterTypeSignatures = methodTypeSignature.getParameterTypes();
+        final FormalTypeParameter[] genericParameterSignatures = methodTypeSignature.getFormalTypeParameters();
+        final FieldTypeSignature[] thrownTypeSignatures = methodTypeSignature.getExceptionTypes();
+
+        boolean needPopGenericContext = false;
 
         try {
-            position.increment();
+            if (ArrayUtilities.isNullOrEmpty(genericParameterSignatures)) {
+                genericParameters = Collections.emptyList();
+            }
+            else {
+                final GenericParameter[] gp = new GenericParameter[genericParameterSignatures.length];
 
-            int typeVariableStart = position.getValue();
+                pushGenericContext(
+                    new IGenericContext() {
+                        @Override
+                        public GenericParameter findTypeVariable(final String name) {
+                            for (final GenericParameter g : gp) {
+                                if (g == null) {
+                                    break;
+                                }
 
-            for (int i = typeVariableStart, n = signature.length() - 1; i < n; position.setValue(++i)) {
-                final char ch = signature.charAt(i);
-
-                switch (ch) {
-                    case ':': {
-                        if (i == typeVariableStart) {
-                            throw Error.invalidSignatureExpectedTypeVariable(signature, i);
+                                if (StringUtilities.equals(g.getName(), name)) {
+                                    return g;
+                                }
+                            }
+                            return null;
                         }
-
-                        position.increment();
-
-                        final String typeVariableName = signature.substring(typeVariableStart, i);
-                        final GenericParameter typeVariable = new GenericParameter(typeVariableName);
-
-                        typeVariable.setPosition(genericParameters.size());
-                        genericParameters.add(typeVariable);
-
-                        final TypeReference extendsBound = parseCompoundType(signature, position);
-                        final TypeReference resolvedExtendsBound;
-
-                        if (_suppressResolveDepth.get() > 0) {
-                            resolvedExtendsBound = extendsBound;
-                        }
-                        else {
-                            resolvedExtendsBound = _resolver.resolve(extendsBound);
-                        }
-
-                        i = position.getValue();
-
-                        typeVariable.setExtendsBound(
-                            resolvedExtendsBound != null ? resolvedExtendsBound
-                                                         : extendsBound
-                        );
-
-                        typeVariableStart = i--;
-                        break;
                     }
+                );
 
-                    case '>': {
-                        position.increment();
-                        return;
+                needPopGenericContext = true;
+
+                //
+                // Reify generic parameters in two passes so that if a parameter has bounds depending
+                // on a successor parameter, the successor can be resolved.
+                //
+
+                for (int i = 0; i < gp.length; i++) {
+                    gp[i] = _factory.makeTypeVariable(
+                        genericParameterSignatures[i].getName(),
+                        EmptyArrayCache.fromElementType(FieldTypeSignature.class)
+                    );
+                }
+
+                genericParameters = ArrayUtilities.asUnmodifiableList(gp);
+
+                for (int i = 0; i < gp.length; i++) {
+                    final FieldTypeSignature[] bounds = genericParameterSignatures[i].getBounds();
+
+                    if (!ArrayUtilities.isNullOrEmpty(bounds)) {
+                        gp[i].setExtendsBound(_factory.makeTypeBound(bounds));
                     }
                 }
             }
+
+            returnTypeSignature.accept(reifier);
+            returnType = reifier.getResult();
+
+            if (ArrayUtilities.isNullOrEmpty(parameterTypeSignatures)) {
+                parameterTypes = Collections.emptyList();
+            }
+            else {
+                final TypeReference[] pt = new TypeReference[parameterTypeSignatures.length];
+
+                for (int i = 0; i < pt.length; i++) {
+                    parameterTypeSignatures[i].accept(reifier);
+                    pt[i] = reifier.getResult();
+                }
+
+                parameterTypes = ArrayUtilities.asUnmodifiableList(pt);
+            }
+
+            if (ArrayUtilities.isNullOrEmpty(thrownTypeSignatures)) {
+                thrownTypes = Collections.emptyList();
+            }
+            else {
+                final TypeReference[] tt = new TypeReference[thrownTypeSignatures.length];
+
+                for (int i = 0; i < tt.length; i++) {
+                    thrownTypeSignatures[i].accept(reifier);
+                    tt[i] = reifier.getResult();
+                }
+
+                thrownTypes = ArrayUtilities.asUnmodifiableList(tt);
+            }
+
+            return _factory.makeMethodSignature(returnType, parameterTypes, genericParameters, thrownTypes);
         }
         finally {
-            popGenericContext();
-        }
-
-        throw Error.invalidSignatureExpectedEndOfTypeVariables(signature, position.getValue());
-    }
-
-    private TypeReference parseCompoundType(final String signature, final MutableInteger position) {
-        final TypeReference baseType;
-
-        boolean hasExplicitBaseType = true;
-        List<TypeReference> interfaceTypes;
-
-        if (signature.charAt(position.getValue()) == ':') {
-            baseType = BuiltinTypes.Object;
-            position.increment();
-            interfaceTypes = new ArrayList<>();
-            interfaceTypes.add(parseTopLevelSignature(signature, position));
-            hasExplicitBaseType = false;
-        }
-        else {
-            baseType = parseTopLevelSignature(signature, position);
-            interfaceTypes = null;
-        }
-
-        while (position.getValue() < signature.length() &&
-               signature.charAt(position.getValue()) == ':') {
-
-            position.increment();
-
-            if (interfaceTypes == null) {
-                interfaceTypes = new ArrayList<>();
-            }
-
-            interfaceTypes.add(parseTopLevelSignature(signature, position));
-        }
-
-        if (interfaceTypes != null) {
-            if (!hasExplicitBaseType && BuiltinTypes.Object.equals(baseType) && interfaceTypes.size() == 1) {
-                return interfaceTypes.get(0);
-            }
-            return new CompoundTypeReference(hasExplicitBaseType ? baseType : null, interfaceTypes);
-        }
-
-        return baseType;
-    }
-
-    private TypeReference parseTopLevelSignature(final String s, final MutableInteger position) {
-        final int i = position.getValue();
-
-        if (i >= s.length()) {
-            throw Error.invalidSignatureTypeExpected(s, i);
-        }
-
-        switch (s.charAt(i)) {
-            case '*':
-                position.increment();
-                return Wildcard.unbounded();
-            case '+':
-                return Wildcard.makeExtends(parseTopLevelSignature(s, position.increment()));
-            case '-':
-                return Wildcard.makeSuper(parseTopLevelSignature(s, position.increment()));
-            case '[':
-                return parseTopLevelSignature(s, position.increment()).makeArrayType();
-            case 'B':
-                position.increment();
-                return BuiltinTypes.Byte;
-            case 'C':
-                position.increment();
-                return BuiltinTypes.Character;
-            case 'D':
-                position.increment();
-                return BuiltinTypes.Double;
-            case 'F':
-                position.increment();
-                return BuiltinTypes.Float;
-            case 'I':
-                position.increment();
-                return BuiltinTypes.Integer;
-            case 'J':
-                position.increment();
-                return BuiltinTypes.Long;
-            case 'L':
-                return finishTopLevelType(s, position);
-            case 'S':
-                position.increment();
-                return BuiltinTypes.Short;
-            case 'T':
-                return parseTypeArgument(s, position);
-            case 'V':
-                position.increment();
-                return BuiltinTypes.Void;
-            case 'Z':
-                position.increment();
-                return BuiltinTypes.Boolean;
-            default:
-                throw Error.invalidSignatureUnexpectedToken(s, i);
-        }
-    }
-
-    private TypeReference finishTopLevelType(final String s, final MutableInteger position) {
-        int i = position.getValue();
-
-        assert s.charAt(i) == 'L';
-
-        final TypeReference resolvedType;
-        final List<TypeReference> typeArguments;
-
-        final StringBuilder packageBuilder = new StringBuilder();
-        final StringBuilder nameBuilder = new StringBuilder();
-
-        while (++i < s.length()) {
-            final char c = s.charAt(i);
-
-            switch (c) {
-                case '/': {
-                    if (packageBuilder.length() > 0) {
-                        packageBuilder.append('.');
-                    }
-
-                    packageBuilder.append(nameBuilder);
-                    nameBuilder.setLength(0);
-
-                    continue;
-                }
-
-                case ';': {
-                    position.setValue(i + 1);
-                    resolvedType = lookupType(packageBuilder.toString(), nameBuilder.toString());
-
-                    if (resolvedType.isGenericDefinition()) {
-                        return resolvedType.getRawType();
-                    }
-
-                    return resolvedType;
-                }
-
-                case '<': {
-                    resolvedType = lookupType(packageBuilder.toString(), nameBuilder.toString());
-
-                    if (!resolvedType.isGenericType() && !(resolvedType instanceof UnresolvedType)) {
-                        throw Error.invalidSignatureNonGenericTypeTypeArguments(resolvedType);
-                    }
-
-                    pushGenericContext(resolvedType);
-
-                    try {
-                        position.setValue(i);
-                        typeArguments = parseTypeParameters(s, position);
-                    }
-                    finally {
-                        popGenericContext();
-                    }
-
-                    i = position.getValue();
-
-                    if (s.charAt(i) != ';' && s.charAt(i) != '.') {
-                        throw Error.invalidSignatureUnexpectedToken(s, i);
-                    }
-
-                    position.increment();
-
-                    boolean hasBoundTypes = false;
-
-                    for (final TypeReference typeArgument : typeArguments) {
-                        if (!typeArgument.isGenericParameter() || !resolvedType.equals(((GenericParameter) typeArgument).getOwner())) {
-                            hasBoundTypes = true;
-                            break;
-                        }
-                    }
-
-                    TypeReference result;
-
-                    if (hasBoundTypes) {
-                        result = resolvedType.makeGenericType(typeArguments);
-                    }
-                    else {
-                        result = resolvedType;
-                    }
-
-                    if (s.charAt(i) == '.') {
-                        result = parseInnerType(result, s, position);
-                    }
-
-                    return result;
-                }
-
-                default: {
-                    nameBuilder.append(c);
-                }
-            }
-        }
-
-        throw Error.invalidSignatureUnexpectedEnd(s, i);
-    }
-
-    private TypeReference parseInnerType(final TypeReference declaringType, final String s, final MutableInteger position) {
-        final boolean isGenericDefinition = declaringType.isGenericDefinition();
-
-        if (isGenericDefinition) {
-            pushGenericContext(declaringType);
-        }
-
-        try {
-            final StringBuilder name = new StringBuilder();
-
-            for (int i = position.getValue(); i < s.length(); i = position.increment().getValue()) {
-                final char ch = s.charAt(i);
-
-                switch (ch) {
-                    case '<':
-                        final TypeReference type = lookupType(declaringType, name.toString());
-                        final List<TypeReference> typeArgs = parseTypeParameters(s, position);
-
-                        final TypeReference genericType = type.makeGenericType(typeArgs);
-
-                        if (i < s.length() - 1 && s.charAt(i + 1) == '.') {
-                            return parseInnerType(genericType, s, position.increment().increment());
-                        }
-
-                        if (s.charAt(position.getValue()) != ';') {
-                            throw Error.invalidSignatureUnexpectedToken(s, position.getValue());
-                        }
-
-                        position.increment();
-                        return genericType;
-
-                    case ';':
-                        position.increment();
-                        return lookupType(declaringType, name.toString());
-
-                    default:
-                        name.append(ch);
-                        break;
-                }
-            }
-
-            throw Error.invalidSignatureUnexpectedEnd(s, position.getValue());
-        }
-        finally {
-            if (isGenericDefinition) {
+            if (needPopGenericContext) {
                 popGenericContext();
             }
         }
     }
 
-    private List<TypeReference> parseTypeParameters(final String s, final MutableInteger position) {
+    public IClassSignature parseClassSignature(final String signature) {
+        VerifyArgument.notNull(signature, "signature");
 
-        assert s.charAt(position.getValue()) == '<';
+        final ClassSignature classSignature = _signatureParser.parseClassSignature(signature);
+        final Reifier reifier = Reifier.make(_factory);
 
-        position.increment();
+        final TypeReference baseType;
+        final List<TypeReference> interfaceTypes;
+        final List<GenericParameter> genericParameters;
 
-        List<TypeReference> typeArguments = null;
+        final ClassTypeSignature baseTypeSignature = classSignature.getSuperType();
+        final ClassTypeSignature[] interfaceTypeSignatures = classSignature.getInterfaces();
+        final FormalTypeParameter[] genericParameterSignatures = classSignature.getFormalTypeParameters();
 
-        while (s.charAt(position.getValue()) != '>') {
-            if (typeArguments == null) {
-                typeArguments = new ArrayList<>();
+        boolean needPopGenericContext = false;
+
+        try {
+            if (ArrayUtilities.isNullOrEmpty(genericParameterSignatures)) {
+                genericParameters = Collections.emptyList();
             }
-            typeArguments.add(parseTypeArgument(s, position));
-        }
+            else {
+                final GenericParameter[] gp = new GenericParameter[genericParameterSignatures.length];
 
-        if (position.getValue() >= s.length() || s.charAt(position.getValue()) != '>') {
-            throw Error.invalidSignatureExpectedEndOfTypeArguments(s, position.getValue());
-        }
+                pushGenericContext(
+                    new IGenericContext() {
+                        @Override
+                        public GenericParameter findTypeVariable(final String name) {
+                            for (final GenericParameter g : gp) {
+                                if (g == null) {
+                                    break;
+                                }
 
-        position.increment();
-
-        return typeArguments != null ? typeArguments
-                                     : Collections.<TypeReference>emptyList();
-    }
-
-    private TypeReference parseTypeArgument(final String s, final MutableInteger position) {
-
-        int i = position.getValue();
-
-        if (i >= s.length()) {
-            throw Error.invalidSignatureExpectedTypeArgument(s, i);
-        }
-
-        switch (s.charAt(i)) {
-            case '*':
-                position.increment();
-                return Wildcard.unbounded();
-            case '+':
-                return Wildcard.makeExtends(parseTypeArgument(s, position.increment()));
-            case '-':
-                return Wildcard.makeSuper(parseTypeArgument(s, position.increment()));
-            case '[':
-                return parseTopLevelSignature(s, position);
-            case 'L':
-                return finishTopLevelType(s, position);
-            case 'T':
-                final int typeVariableStart = i + 1;
-                while (++i < s.length()) {
-                    if (s.charAt(i) == ';') {
-                        position.setValue(i + 1);
-                        final String name = s.substring(typeVariableStart, i);
-                        final TypeReference typeVariable = lookupTypeVariable(name);
-                        if (typeVariable != null) {
-                            return typeVariable;
+                                if (StringUtilities.equals(g.getName(), name)) {
+                                    return g;
+                                }
+                            }
+                            return null;
                         }
-                        throw Error.invalidSignatureUnresolvedTypeVariable(s, name, position.getValue());
                     }
+                );
+
+                needPopGenericContext = true;
+
+                for (int i = 0; i < gp.length; i++) {
+                    genericParameterSignatures[i].accept(reifier);
+                    gp[i] = (GenericParameter) reifier.getResult();
                 }
-                throw Error.invalidSignatureExpectedTypeArgument(s, position.getValue());
-            default:
-                throw Error.invalidSignatureUnexpectedToken(s, i);
+
+                genericParameters = ArrayUtilities.asUnmodifiableList(gp);
+            }
+
+            baseTypeSignature.accept(reifier);
+            baseType = reifier.getResult();
+
+            if (ArrayUtilities.isNullOrEmpty(interfaceTypeSignatures)) {
+                interfaceTypes = Collections.emptyList();
+            }
+            else {
+                final TypeReference[] it = new TypeReference[interfaceTypeSignatures.length];
+
+                for (int i = 0; i < it.length; i++) {
+                    interfaceTypeSignatures[i].accept(reifier);
+                    it[i] = reifier.getResult();
+                }
+
+                interfaceTypes = ArrayUtilities.asUnmodifiableList(it);
+            }
+
+            return _factory.makeClassSignature(baseType, interfaceTypes, genericParameters);
+        }
+        finally {
+            if (needPopGenericContext) {
+                popGenericContext();
+            }
         }
     }
 
@@ -682,9 +409,14 @@ public final class MetadataParser {
             signature
         );
 
-        final MethodReference resolved = _resolver.resolve(reference);
+        if (_suppressResolveDepth.get() > 0) {
+            return reference;
+        }
 
-        return resolved != null ? resolved : reference;
+//        final MethodReference resolved = _resolver.resolve(reference);
+//
+//        return resolved != null ? resolved : reference;
+        return reference;
     }
 
     // <editor-fold defaultstate="collapsed" desc="Primitive Lookup">
@@ -721,78 +453,116 @@ public final class MetadataParser {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="MethodSignature Class">
+    // <editor-fold defaultstate="collapsed" desc="UnresolvedMethod Class">
 
-    private final static class MethodSignature implements IMethodSignature {
-        private final List<ParameterDefinition> _parameters;
-        private final TypeReference _returnType;
+    private final class UnresolvedMethod extends MethodReference {
+        private final TypeReference _declaringType;
+        private final String _name;
+        private final IMethodSignature _signature;
         private final List<GenericParameter> _genericParameters;
 
-        MethodSignature(final List<TypeReference> parameterTypes, final TypeReference returnType) {
-            this(parameterTypes, returnType, Collections.<GenericParameter>emptyList());
-        }
+        UnresolvedMethod(final TypeReference declaringType, final String name, final IMethodSignature signature) {
+            _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+            _name = VerifyArgument.notNull(name, "name");
+            _signature = VerifyArgument.notNull(signature, "signature");
 
-        MethodSignature(
-            final List<TypeReference> parameterTypes,
-            final TypeReference returnType,
-            final List<GenericParameter> genericParameters) {
+            if (_signature.hasGenericParameters()) {
+                final GenericParameterCollection genericParameters = new GenericParameterCollection(this);
 
-            VerifyArgument.notNull(parameterTypes, "parameterTypes");
-            VerifyArgument.notNull(returnType, "returnType");
-            VerifyArgument.notNull(genericParameters, "genericParameters");
-
-            final ParameterDefinition[] parameters = new ParameterDefinition[parameterTypes.size()];
-
-            for (int i = 0, slot = 0, n = parameters.length; i < n; i++, slot++) {
-                final TypeReference parameterType = parameterTypes.get(i);
-
-                parameters[i] = new ParameterDefinition(slot, parameterType);
-
-                if (parameterType.getSimpleType().isDoubleWord()) {
-                    slot++;
+                for (final GenericParameter genericParameter : _signature.getGenericParameters()) {
+                    genericParameters.add(genericParameter);
                 }
+
+                genericParameters.freeze(false);
+
+                _genericParameters = genericParameters;
             }
-
-            _parameters = ArrayUtilities.asUnmodifiableList(parameters);
-            _returnType = returnType;
-            _genericParameters = genericParameters;
+            else {
+                _genericParameters = Collections.emptyList();
+            }
         }
 
         @Override
-        public boolean hasParameters() {
-            return !_parameters.isEmpty();
-        }
-
-        @Override
-        public List<ParameterDefinition> getParameters() {
-            return _parameters;
+        public String getName() {
+            return _name;
         }
 
         @Override
         public TypeReference getReturnType() {
-            return _returnType;
+            return _signature.getReturnType();
         }
 
         @Override
-        public boolean hasGenericParameters() {
-            return !_genericParameters.isEmpty();
+        public List<ParameterDefinition> getParameters() {
+            return _signature.getParameters();
         }
 
         @Override
-        public boolean isGenericDefinition() {
-            return !_genericParameters.isEmpty();
+        public TypeReference getDeclaringType() {
+            return _declaringType;
         }
 
         @Override
         public List<GenericParameter> getGenericParameters() {
             return _genericParameters;
         }
+
+        @Override
+        public List<TypeReference> getThrownTypes() {
+            return _signature.getThrownTypes();
+        }
+
+        @Override
+        protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+            return sb.append(_name);
+        }
     }
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="UnresolvedGenericType Class">
+    // <editor-fold defaultstate="collapsed" desc="UnresolvedField Class">
 
+    private final class UnresolvedField extends FieldReference {
+        private final TypeReference _declaringType;
+        private final String _name;
+        private final TypeReference _fieldType;
+
+        UnresolvedField(final TypeReference declaringType, final String name, final TypeReference fieldType) {
+            _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+            _name = VerifyArgument.notNull(name, "name");
+            _fieldType = VerifyArgument.notNull(fieldType, "fieldType");
+        }
+
+        @Override
+        public String getName() {
+            return _name;
+        }
+
+        @Override
+        public TypeReference getDeclaringType() {
+            return _declaringType;
+        }
+
+        @Override
+        public TypeReference getFieldType() {
+            return _fieldType;
+        }
+
+        @Override
+        protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
+            if (fullName) {
+                final TypeReference declaringType = getDeclaringType();
+
+                if (declaringType != null) {
+                    return declaringType.appendName(sb, true, false).append('.').append(_name);
+                }
+            }
+
+            return sb.append(_name);
+        }
+    }
+
+/*
     private final class UnresolvedGenericType extends TypeReference implements IGenericInstance {
         private final TypeReference _genericDefinition;
         private final List<TypeReference> _typeParameters;
@@ -887,17 +657,14 @@ public final class MetadataParser {
             return _resolver.resolve(type);
         }
     }
+*/
 
-    // </editor-fold>
-
-    // <editor-fold defaultstate="collapsed" desc="UnresolvedType Class">
-
+/*
     private final class UnresolvedType extends TypeReference {
         private final String _name;
         private final String _packageName;
         private final TypeReference _declaringType;
         private final GenericParameterCollection _genericParameters;
-
         private String _fullName;
         private String _internalName;
 
@@ -968,6 +735,11 @@ public final class MetadataParser {
         }
 
         @Override
+        public boolean isAnonymous() {
+            return _declaringType != null && _shortName == null;
+        }
+
+        @Override
         public TypeReference getDeclaringType() {
             return _declaringType;
         }
@@ -992,10 +764,11 @@ public final class MetadataParser {
             VerifyArgument.notEmpty(typeArguments, "typeArguments");
             VerifyArgument.noNullElements(typeArguments, "typeArguments");
 
-            final TypeDefinition resolved = this.resolve();
+//            final TypeDefinition resolved = this.resolve();
 
             return new UnresolvedGenericType(
-                resolved != null ? resolved : this,
+//                resolved != null ? resolved : this,
+                this,
                 ArrayUtilities.asUnmodifiableList(typeArguments.toArray(new TypeReference[typeArguments.size()]))
             );
         }
@@ -1005,10 +778,11 @@ public final class MetadataParser {
             VerifyArgument.notEmpty(typeArguments, "typeArguments");
             VerifyArgument.noNullElements(typeArguments, "typeArguments");
 
-            final TypeDefinition resolved = this.resolve();
+//            final TypeDefinition resolved = this.resolve();
 
             return new UnresolvedGenericType(
-                resolved != null ? resolved : this,
+//                resolved != null ? resolved : this,
+                this,
                 ArrayUtilities.asUnmodifiableList(typeArguments.clone())
             );
         }
@@ -1033,112 +807,7 @@ public final class MetadataParser {
             return _resolver.resolve(type);
         }
     }
-
-    // </editor-fold>
-
-    // <editor-fold defaultstate="collapsed" desc="UnresolvedMethod Class">
-
-    private final class UnresolvedMethod extends MethodReference {
-        private final TypeReference _declaringType;
-        private final String _name;
-        private final IMethodSignature _signature;
-        private final List<GenericParameter> _genericParameters;
-
-        UnresolvedMethod(final TypeReference declaringType, final String name, final IMethodSignature signature) {
-            _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
-            _name = VerifyArgument.notNull(name, "name");
-            _signature = VerifyArgument.notNull(signature, "signature");
-
-            if (_signature.hasGenericParameters()) {
-                final GenericParameterCollection genericParameters = new GenericParameterCollection(this);
-
-                for (final GenericParameter genericParameter : _signature.getGenericParameters()) {
-                    genericParameters.add(genericParameter);
-                }
-
-                genericParameters.freeze(false);
-
-                _genericParameters = genericParameters;
-            }
-            else {
-                _genericParameters = Collections.emptyList();
-            }
-        }
-
-        @Override
-        public String getName() {
-            return _name;
-        }
-
-        @Override
-        public TypeReference getReturnType() {
-            return _signature.getReturnType();
-        }
-
-        @Override
-        public List<ParameterDefinition> getParameters() {
-            return _signature.getParameters();
-        }
-
-        @Override
-        public TypeReference getDeclaringType() {
-            return _declaringType;
-        }
-
-        @Override
-        public List<GenericParameter> getGenericParameters() {
-            return _genericParameters;
-        }
-
-        @Override
-        protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
-            return sb.append(_name);
-        }
-    }
-
-    // </editor-fold>
-
-    // <editor-fold defaultstate="collapsed" desc="UnresolvedField Class">
-
-    private final class UnresolvedField extends FieldReference {
-        private final TypeReference _declaringType;
-        private final String _name;
-        private final TypeReference _fieldType;
-
-        UnresolvedField(final TypeReference declaringType, final String name, final TypeReference fieldType) {
-            _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
-            _name = VerifyArgument.notNull(name, "name");
-            _fieldType = VerifyArgument.notNull(fieldType, "fieldType");
-        }
-
-        @Override
-        public String getName() {
-            return _name;
-        }
-
-        @Override
-        public TypeReference getDeclaringType() {
-            return _declaringType;
-        }
-
-        @Override
-        public TypeReference getFieldType() {
-            return _fieldType;
-        }
-
-        @Override
-        protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
-            if (fullName) {
-                final TypeReference declaringType = getDeclaringType();
-
-                if (declaringType != null) {
-                    return declaringType.appendName(sb, true, false).append('.').append(_name);
-                }
-            }
-
-            return sb.append(_name);
-        }
-    }
+*/
 
     // </editor-fold>
 }

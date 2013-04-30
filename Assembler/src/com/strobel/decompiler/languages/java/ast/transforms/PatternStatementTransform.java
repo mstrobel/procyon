@@ -128,7 +128,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         }
 
         final ControlFlowGraphBuilder graphBuilder = new ControlFlowGraphBuilder();
-        final List<ControlFlowNode> nodes = graphBuilder.buildControlFlowGraph(node, new JavaResolver());
+        final List<ControlFlowNode> nodes = graphBuilder.buildControlFlowGraph(node, new JavaResolver(context));
 
         if (nodes.size() < 2) {
             return null;
@@ -1268,7 +1268,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         Collections.reverse(blocks);
 
         final StrongBox<Statement> declarationPoint = new StrongBox<>();
-        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(blocks.get(0));
+        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, blocks.get(0));
 
         Statement result = null;
 

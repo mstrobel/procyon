@@ -17,6 +17,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
+import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 
 import javax.lang.model.element.Modifier;
@@ -25,7 +26,9 @@ import java.util.List;
 
 public class FieldDefinition extends FieldReference implements IMemberDefinition, IConstantValueProvider {
     private final Collection<CustomAnnotation> _customAnnotations;
+    private final Collection<SourceAttribute> _sourceAttributes;
     private final List<CustomAnnotation> _customAnnotationsView;
+    private final List<SourceAttribute> _sourceAttributesView;
     private final IMetadataResolver _resolver;
 
     private String _name;
@@ -38,6 +41,8 @@ public class FieldDefinition extends FieldReference implements IMemberDefinition
         _resolver = resolver;
         _customAnnotations = new Collection<>();
         _customAnnotationsView = Collections.unmodifiableList(_customAnnotations);
+        _sourceAttributes = new Collection<>();
+        _sourceAttributesView = Collections.unmodifiableList(_sourceAttributes);
     }
 
     @Override
@@ -47,6 +52,14 @@ public class FieldDefinition extends FieldReference implements IMemberDefinition
 
     protected final Collection<CustomAnnotation> getAnnotationsInternal() {
         return _customAnnotations;
+    }
+
+    public final List<SourceAttribute> getSourceAttributes() {
+        return _sourceAttributesView;
+    }
+
+    protected final Collection<SourceAttribute> getSourceAttributesInternal() {
+        return _sourceAttributes;
     }
 
     // <editor-fold defaultstate="collapsed" desc="Field Attributes">

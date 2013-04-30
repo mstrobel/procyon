@@ -16,14 +16,11 @@
 
 package com.strobel.decompiler.languages;
 
-import com.strobel.assembler.metadata.Buffer;
-import com.strobel.assembler.metadata.ClassFileReader;
-import com.strobel.assembler.metadata.ClasspathTypeLoader;
 import com.strobel.assembler.metadata.Flags;
+import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeDefinitionBuilder;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
@@ -72,30 +69,9 @@ public class BytecodeAstLanguage extends Language {
 
     @Override
     public void decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
-        final ClasspathTypeLoader loader = new ClasspathTypeLoader();
-        final Buffer buffer = new Buffer(0);
-
-        if (!loader.tryLoadType(type.getInternalName(), buffer)) {
-            output.writeLine("!!! ERROR: Failed to load class %s.", type.getInternalName());
-            return;
-        }
-
-        final ClassFileReader reader = ClassFileReader.readClass(
-            ClassFileReader.OPTION_PROCESS_CODE |
-            ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
-            type.getResolver(),
-            buffer
-        );
-
-        final TypeDefinitionBuilder typeBuilder = new TypeDefinitionBuilder();
-
-        reader.accept(typeBuilder);
-
-        final TypeDefinition typeWithCode = typeBuilder.getTypeDefinition();
-
         boolean first = true;
 
-        for (final MethodDefinition method : typeWithCode.getDeclaredMethods()) {
+        for (final MethodDefinition method : type.getDeclaredMethods()) {
             if (!first) {
                 output.writeLine();
             }
@@ -113,7 +89,9 @@ public class BytecodeAstLanguage extends Language {
         VerifyArgument.notNull(output, "output");
         VerifyArgument.notNull(options, "options");
 
-        if (!method.hasBody()) {
+        final MethodBody body = method.getBody();
+
+        if (body == null) {
             return;
         }
 
@@ -124,7 +102,7 @@ public class BytecodeAstLanguage extends Language {
 
         final Block methodAst = new Block();
 
-        methodAst.getBody().addAll(AstBuilder.build(method.getBody(), _inlineVariables, context));
+        methodAst.getBody().addAll(AstBuilder.build(body, _inlineVariables, context));
 
         if (_abortBeforeStep != null) {
             AstOptimizer.optimize(context, methodAst, _abortBeforeStep);

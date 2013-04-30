@@ -17,6 +17,10 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
+import com.strobel.assembler.ir.ConstantPool;
+import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.CodeAttribute;
+import com.strobel.assembler.ir.attributes.ExceptionTableEntry;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 
@@ -63,6 +67,14 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     }
 
     public final MethodBody getBody() {
+        if (_body == null) {
+            try {
+                tryLoadBody();
+            }
+            catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
         return _body;
     }
 
@@ -181,7 +193,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
         return Flags.testAny(getFlags(), Flags.ACC_VARARGS);
     }
 
-    // </editor-fold>==≠
+    // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Member Attributes">_
 
@@ -423,7 +435,6 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
                 else {
                     s = typeArgument.appendSimpleDescription(s);
                 }
-
             }
             s.append('>');
             s.append(' ');
@@ -571,6 +582,79 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     @Override
     public String toString() {
         return getSimpleDescription();
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Deferred Method Body Loading">
+
+    private boolean tryLoadBody() {
+        if (Flags.testAny(_flags, Flags.LOAD_BODY_FAILED)) {
+            return false;
+        }
+
+        final CodeAttribute codeAttribute = SourceAttribute.find(AttributeNames.Code, _sourceAttributes);
+
+        if (codeAttribute == null) {
+            return false;
+        }
+
+        Buffer code = codeAttribute.getCode();
+        ConstantPool constantPool = _declaringType.getConstantPool();
+
+        if (code == null) {
+            final ITypeLoader typeLoader = _declaringType.getTypeLoader();
+
+            if (typeLoader == null) {
+                _flags |= Flags.LOAD_BODY_FAILED;
+                return true;
+            }
+
+            code = new Buffer(codeAttribute.getCodeSize());
+
+            if (!typeLoader.tryLoadType(_declaringType.getInternalName(), code)) {
+                _flags |= Flags.LOAD_BODY_FAILED;
+                return true;
+            }
+
+            final List<ExceptionTableEntry> exceptionTableEntries = codeAttribute.getExceptionTableEntries();
+            final List<SourceAttribute> codeAttributes = codeAttribute.getAttributes();
+
+            final CodeAttribute newCode = new CodeAttribute(
+                codeAttribute.getLength(),
+                codeAttribute.getMaxStack(),
+                codeAttribute.getMaxLocals(),
+                codeAttribute.getCodeOffset(),
+                codeAttribute.getCodeSize(),
+                code,
+                exceptionTableEntries.toArray(new ExceptionTableEntry[exceptionTableEntries.size()]),
+                codeAttributes.toArray(new SourceAttribute[codeAttributes.size()])
+            );
+
+            _sourceAttributes.set(_sourceAttributes.indexOf(codeAttribute), newCode);
+
+            if (constantPool == null) {
+                final long magic = code.readInt() & 0xFFFFFFFFL;
+
+                if (magic != ClassFileReader.MAGIC) {
+                    _flags |= Flags.LOAD_BODY_FAILED;
+                    return true;
+                }
+
+                code.readUnsignedShort(); // minor version
+                code.readUnsignedShort(); // major version
+
+                constantPool = ConstantPool.read(code);
+            }
+        }
+
+        final MetadataParser parser = new MetadataParser(_declaringType);
+        final IMetadataScope scope = new ClassFileReader.Scope(parser, _declaringType, constantPool);
+
+        _body = new MethodReader(this, scope).readBody();
+        _body.freeze();
+
+        return true;
     }
 
     // </editor-fold>

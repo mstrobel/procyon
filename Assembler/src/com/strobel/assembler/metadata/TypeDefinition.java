@@ -17,6 +17,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
+import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.ArrayUtilities;
@@ -55,6 +56,8 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
     private List<Enum> _enumConstants;
     private TypeReference _rawType;
     private MethodReference _declaringMethod;
+    private ConstantPool _constantPool;
+    private ITypeLoader _typeLoader;
 
     public TypeDefinition() {
         _genericParameters = new GenericParameterCollection(this);
@@ -78,12 +81,28 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         _resolver = VerifyArgument.notNull(resolver, "resolver");
     }
 
+    final ITypeLoader getTypeLoader() {
+        return _typeLoader;
+    }
+
+    final void setTypeLoader(final ITypeLoader typeLoader) {
+        _typeLoader = typeLoader;
+    }
+
     public final int getCompilerMajorVersion() {
         return _compilerVersion >>> 16;
     }
 
     public final int getCompilerMinorVersion() {
         return _compilerVersion & 0xFFFF;
+    }
+
+    public final ConstantPool getConstantPool() {
+        return _constantPool;
+    }
+
+    protected final void setConstantPool(final ConstantPool constantPool) {
+        _constantPool = constantPool;
     }
 
     protected final void setCompilerVersion(final int majorVersion, final int minorVersion) {
@@ -204,6 +223,29 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
             }
         }
         return this;
+    }
+
+    @Override
+    public GenericParameter findTypeVariable(final String name) {
+        for (final GenericParameter genericParameter : getGenericParameters()) {
+            if (StringUtilities.equals(genericParameter.getName(), name)) {
+                return genericParameter;
+            }
+        }
+
+        final MethodReference declaringMethod = getDeclaringMethod();
+
+        if (declaringMethod != null) {
+            return declaringMethod.findTypeVariable(name);
+        }
+
+        final TypeReference declaringType = getDeclaringType();
+
+        if (declaringType != null) {
+            return declaringType.findTypeVariable(name);
+        }
+
+        return null;
     }
 
     @Override

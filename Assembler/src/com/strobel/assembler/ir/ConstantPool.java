@@ -46,16 +46,19 @@ public final class ConstantPool extends Freezable implements Iterable<ConstantPo
         return _pool.iterator();
     }
 
-    public void write(final Buffer stream) {
-        stream.writeShort(_size + 1);
-
-        final Writer writer = new Writer(stream);
+    public void accept(final Visitor visitor) {
+        VerifyArgument.notNull(visitor, "visitor");
 
         for (final Entry entry : _pool) {
             if (entry != null) {
-                entry.accept(writer);
+                visitor.visit(entry);
             }
         }
+    }
+
+    public void write(final Buffer stream) {
+        stream.writeShort(_size + 1);
+        accept(new Writer(stream));
     }
 
     @SuppressWarnings("unchecked")

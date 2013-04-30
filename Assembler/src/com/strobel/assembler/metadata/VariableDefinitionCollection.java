@@ -19,6 +19,7 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.core.StringUtilities;
+import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.SimpleType;
 
 import java.util.ArrayList;
@@ -27,35 +28,37 @@ import java.util.Comparator;
 import java.util.NoSuchElementException;
 
 public final class VariableDefinitionCollection extends Collection<VariableDefinition> {
-    private final TypeReference _declaringType;
+    private final MethodDefinition _declaringMethod;
 
-    public VariableDefinitionCollection(final TypeReference declaringType) {
-        _declaringType = declaringType;
+    public VariableDefinitionCollection(final MethodDefinition declaringMethod) {
+        _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
     }
 
+/*
     @Override
     protected void afterAdd(final int index, final VariableDefinition d, final boolean appended) {
-        d.setDeclaringType(_declaringType);
+        d.setDeclaringMethod(_declaringMethod);
     }
 
     @Override
     protected void beforeSet(final int index, final VariableDefinition d) {
         final VariableDefinition current = get(index);
-        current.setDeclaringType(null);
-        d.setDeclaringType(_declaringType);
+        current.setDeclaringMethod(null);
+        d.setDeclaringMethod(_declaringMethod);
     }
 
     @Override
     protected void afterRemove(final int index, final VariableDefinition d) {
-        d.setDeclaringType(null);
+        d.setDeclaringMethod(null);
     }
 
     @Override
     protected void beforeClear() {
         for (int i = 0; i < size(); i++) {
-            get(i).setDeclaringType(null);
+            get(i).setDeclaringMethod(null);
         }
     }
+*/
 
     public int slotCount() {
         int count = 0;
@@ -208,10 +211,10 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
         variable = new VariableDefinition(
             slot,
             String.format("$%d_%d$", slot, effectiveOffset),
-            variableType
+            _declaringMethod
         );
 
-        variable.setDeclaringType(_declaringType);
+        variable.setVariableType(variableType);
         variable.setScopeStart(effectiveOffset);
         variable.setScopeEnd(-1);
         variable.setFromMetadata(false);

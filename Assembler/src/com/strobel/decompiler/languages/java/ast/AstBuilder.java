@@ -79,6 +79,10 @@ public final class AstBuilder {
         _compileUnit.addChild(_packagePlaceholder, Roles.TEXT);
     }
 
+    final DecompilerContext getContext() {
+        return _context;
+    }
+
     public final boolean getDecompileMethodBodies() {
         return _decompileMethodBodies;
     }
@@ -137,18 +141,13 @@ public final class AstBuilder {
             throw new IllegalStateException(String.format("Failed to load class %s.", type.getInternalName()));
         }
 
-        final ClassFileReader reader = ClassFileReader.readClass(
+        final TypeDefinition typeWithCode = ClassFileReader.readClass(
             ClassFileReader.OPTION_PROCESS_CODE |
             ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
             type.getResolver(),
             buffer
         );
 
-        final TypeDefinitionBuilder typeBuilder = new TypeDefinitionBuilder();
-
-        reader.accept(typeBuilder);
-
-        final TypeDefinition typeWithCode = typeBuilder.getTypeDefinition();
         final TypeDefinition oldCurrentType = _context.getCurrentType();
 
         _context.setCurrentType(typeWithCode);
@@ -427,8 +426,10 @@ public final class AstBuilder {
             }
         }
 
-        for (final TypeDefinition nestedType : type.getDeclaredTypes()) {
-            astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
+        if (_context.getSettings().getShowNestedTypes()) {
+            for (final TypeDefinition nestedType : type.getDeclaredTypes()) {
+                astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
+            }
         }
     }
 

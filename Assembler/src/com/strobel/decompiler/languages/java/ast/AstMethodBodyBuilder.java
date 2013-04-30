@@ -89,13 +89,14 @@ public class AstMethodBodyBuilder {
         }
 
         try {
+            final TypeDefinition currentType = astBuilder.getContext().getCurrentType();
+            final IMetadataResolver resolver = currentType != null ? currentType.getResolver() : MetadataSystem.instance();
+            final MetadataParser parser = new MetadataParser(resolver);
+
             block.add(
                 new ThrowStatement(
                     new ObjectCreationExpression(
-                        astBuilder.convertType(
-                            MetadataSystem.instance()
-                                          .lookupType("java/lang/IllegalStateException")
-                        ),
+                        astBuilder.convertType(parser.parseTypeDescriptor("java/lang/IllegalStateException")),
                         new PrimitiveExpression("An error occurred while decompiling this method.")
                     )
                 )
@@ -797,10 +798,8 @@ public class AstMethodBodyBuilder {
         if (hasThis) {
             target = arguments.remove(0);
 
-            if (methodDefinition != null) {
-                if (target instanceof NullReferenceExpression) {
-                    target = new CastExpression(_astBuilder.convertType(declaringType), target);
-                }
+            if (target instanceof NullReferenceExpression) {
+                target = new CastExpression(_astBuilder.convertType(declaringType), target);
             }
         }
         else if (byteCode.getCode() == AstCode.InvokeStatic &&

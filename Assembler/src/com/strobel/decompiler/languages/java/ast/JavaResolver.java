@@ -17,12 +17,22 @@
 package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
+import com.strobel.assembler.metadata.IMetadataResolver;
 import com.strobel.assembler.metadata.MetadataSystem;
+import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
 public class JavaResolver implements Function<AstNode, ResolveResult> {
+    private final DecompilerContext _context;
+
+    public JavaResolver(final DecompilerContext context) {
+        _context = VerifyArgument.notNull(context, "context");
+    }
+
     @Override
     public ResolveResult apply(final AstNode input) {
         if (input instanceof PrimitiveExpression) {
@@ -33,7 +43,10 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
             final TypeReference primitiveType;
 
             if (literalValue != null || value instanceof String) {
-                primitiveType = MetadataSystem.instance().lookupType("java/lang/String");
+                final TypeDefinition currentType = _context.getCurrentType();
+                final IMetadataResolver resolver = currentType != null ? currentType.getResolver() : MetadataSystem.instance();
+
+                primitiveType = resolver.lookupType("java/lang/String");
             }
             else if (value instanceof Number) {
                 if (value instanceof Byte) {

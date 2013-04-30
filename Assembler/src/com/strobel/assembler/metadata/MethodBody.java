@@ -21,25 +21,27 @@ import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.StackMapFrame;
 import com.strobel.core.Freezable;
+import com.strobel.core.VerifyArgument;
 
 import java.util.Collections;
 import java.util.List;
 
 public final class MethodBody extends Freezable {
+    private final MethodDefinition _method;
     private final InstructionCollection _instructions;
     private final VariableDefinitionCollection _variables;
     private final Collection<ExceptionHandler> _exceptionHandlers;
 
     private List<StackMapFrame> _stackMapFrames;
-    private MethodReference _method;
     private ParameterDefinition _thisParameter;
     private int _maxStackSize;
     private int _maxLocals;
     private int _codeSize;
 
-    public MethodBody(final TypeReference declaringType) {
+    public MethodBody(final MethodDefinition methodDefinition) {
+        _method = VerifyArgument.notNull(methodDefinition, "methodDefinition");
         _instructions = new InstructionCollection();
-        _variables = new VariableDefinitionCollection(declaringType);
+        _variables = new VariableDefinitionCollection(methodDefinition);
         _exceptionHandlers = new Collection<>();
     }
 
@@ -66,14 +68,7 @@ public final class MethodBody extends Freezable {
         _stackMapFrames = stackMapFrames;
     }
 
-    public final MethodReference getMethod() {
-        if (_method != null && !_method.isDefinition()) {
-            final MethodDefinition definition = _method.resolve();
-
-            if (definition != null) {
-                _method = definition;
-            }
-        }
+    public final MethodDefinition getMethod() {
         return _method;
     }
 
@@ -95,10 +90,6 @@ public final class MethodBody extends Freezable {
 
     public final int getMaxLocals() {
         return _maxLocals;
-    }
-
-    final void setMethod(final MethodReference method) {
-        _method = method;
     }
 
     final void setThisParameter(final ParameterDefinition thisParameter) {

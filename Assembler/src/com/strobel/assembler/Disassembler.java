@@ -17,19 +17,15 @@
 package com.strobel.assembler;
 
 import com.sampullara.cli.Args;
-import com.strobel.assembler.metadata.Buffer;
-import com.strobel.assembler.metadata.ClassFileReader;
-import com.strobel.assembler.metadata.ClasspathTypeLoader;
-import com.strobel.assembler.metadata.MetadataParser;
-import com.strobel.assembler.metadata.MetadataSystem;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypePrinter;
-import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.AnsiTextOutput;
+import com.strobel.decompiler.Decompiler;
+import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.PlainTextOutput;
+import com.strobel.decompiler.languages.Languages;
 
+import java.io.StringWriter;
 import java.util.List;
 
 public final class Disassembler {
@@ -37,46 +33,12 @@ public final class Disassembler {
         disassemble(internalName, output, new DisassemblerOptions());
     }
 
-    public static void disassemble(final String internalName, final ITextOutput output, final DisassemblerOptions options) {
-        VerifyArgument.notNull(internalName, "internalName");
+    public static void disassemble(final String typeNameOrPath, final ITextOutput output, final DisassemblerOptions options) {
+        VerifyArgument.notNull(typeNameOrPath, "typeNameOrPath");
         VerifyArgument.notNull(options, "options");
 
-        final MetadataSystem metadataSystem = MetadataSystem.instance();
-        final TypeReference type = metadataSystem.lookupType(internalName);
-        final TypeDefinition resolvedType;
 
-        if (type == null || (resolvedType = type.resolve()) == null) {
-            System.err.printf("ERROR: Could not resolve class '%s'.\n", internalName);
-            return;
-        }
-
-        final ClasspathTypeLoader loader = new ClasspathTypeLoader();
-        final Buffer buffer = new Buffer(0);
-
-        if (!loader.tryLoadType(type.getInternalName(), buffer)) {
-            System.err.printf("ERROR: Could not resolve class '%s'.\n", internalName);
-            return;
-        }
-
-        final ClassFileReader reader = ClassFileReader.readClass(
-            ClassFileReader.OPTION_PROCESS_CODE |
-            ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
-            resolvedType.getResolver(),
-            buffer
-        );
-
-        final MetadataParser parser = reader.getParser();
-
-        parser.pushGenericContext(resolvedType);
-
-        try {
-            final TypePrinter typePrinter = new TypePrinter(output, options);
-            reader.accept(typePrinter);
-        }
-        finally {
-            parser.popGenericContext();
-        }
-        System.out.print(output.toString());
+        Decompiler.decompile(typeNameOrPath, output);
     }
 
     public static void main(final String[] args) {
@@ -88,16 +50,25 @@ public final class Disassembler {
             return;
         }
 
-        final PlainTextOutput output = new AnsiTextOutput();
+        final StringWriter writer = new StringWriter();
+        final PlainTextOutput output = new AnsiTextOutput(writer);
+        final DecompilerSettings settings = new DecompilerSettings();
 
         output.setIndentToken("  ");
 
+        settings.setLanguage(Languages.bytecode());
+        settings.setTypeLoader(new InputTypeLoader());
+        settings.setShowNestedTypes(options.getPrintNestedTypes());
+
         if (typeNames.isEmpty()) {
-            disassemble("com/strobel/assembler/Disassembler", output, options);
+            Decompiler.decompile("com/strobel/assembler/Disassembler", output, settings);
+            System.out.println(writer.toString());
         }
         else {
             for (final String typeName : typeNames) {
-                disassemble(typeName, output, options);
+                Decompiler.decompile(typeName, output, settings);
+                System.out.println(writer.toString());
+                writer.getBuffer().setLength(0);
             }
         }
     }

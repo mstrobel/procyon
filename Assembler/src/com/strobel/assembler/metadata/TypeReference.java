@@ -27,7 +27,7 @@ import com.strobel.util.ContractUtils;
 import java.util.Collections;
 import java.util.List;
 
-public abstract class TypeReference extends MemberReference implements IGenericParameterProvider {
+public abstract class TypeReference extends MemberReference implements IGenericParameterProvider, IGenericContext {
     static {
         RuntimeHelpers.ensureClassInitialized(PrimitiveTypes.class);
     }
@@ -41,12 +41,19 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     @Override
     public boolean containsGenericParameters() {
-        if (this instanceof IGenericInstance) {
-            final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
-
-            for (int i = 0, n = typeArguments.size(); i < n; i++) {
-                if (typeArguments.get(i).containsGenericParameters()) {
+        if (isGenericType()) {
+            if (isGenericDefinition()) {
+                if (hasGenericParameters()) {
                     return true;
+                }
+            }
+            else if (this instanceof IGenericInstance) {
+                final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
+
+                for (int i = 0, n = typeArguments.size(); i < n; i++) {
+                    if (typeArguments.get(i).containsGenericParameters()) {
+                        return true;
+                    }
                 }
             }
         }
@@ -170,7 +177,8 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     public boolean isBoundedType() {
         return this.isGenericParameter() ||
                this.isWildcardType() ||
-               this instanceof ICapturedType;
+               this instanceof ICapturedType ||
+               this instanceof CompoundTypeReference;
     }
 
     public boolean isUnbounded() {
@@ -252,6 +260,23 @@ public abstract class TypeReference extends MemberReference implements IGenericP
             throw ContractUtils.unreachable();
         }
         throw ContractUtils.unsupported();
+    }
+
+    @Override
+    public GenericParameter findTypeVariable(final String name) {
+        for (final GenericParameter genericParameter : getGenericParameters()) {
+            if (StringUtilities.equals(genericParameter.getName(), name)) {
+                return genericParameter;
+            }
+        }
+
+        final TypeReference declaringType = getDeclaringType();
+
+        if (declaringType != null) {
+            return declaringType.findTypeVariable(name);
+        }
+
+        return null;
     }
 
     // </editor-fold>
@@ -369,8 +394,6 @@ public abstract class TypeReference extends MemberReference implements IGenericP
                 }
                 s.append('>');
             }
-        }
-        if (this instanceof IGenericInstance) {
         }
 
         return s;

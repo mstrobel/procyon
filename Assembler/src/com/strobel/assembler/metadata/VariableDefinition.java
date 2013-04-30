@@ -16,6 +16,8 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.core.VerifyArgument;
+
 /**
  * User: Mike Strobel
  * Date: 1/6/13
@@ -23,25 +25,27 @@ package com.strobel.assembler.metadata;
  */
 public final class VariableDefinition extends VariableReference {
     private final int _slot;
+    private final MethodDefinition _declaringMethod;
 
     private int _scopeStart;
     private int _scopeEnd;
     private boolean _isTypeKnown;
     private boolean _fromMetadata;
-    private TypeReference _declaringType;
 
-    public VariableDefinition(final int slot, final String name, final TypeReference variableType) {
-        super(name, variableType);
+    public VariableDefinition(final int slot, final String name, final MethodDefinition declaringMethod) {
+        super(name, VerifyArgument.notNull(declaringMethod, "declaringMethod").getDeclaringType());
+        _declaringMethod = declaringMethod;
         _slot = slot;
+    }
+
+    public VariableDefinition(final int slot, final String name, final MethodDefinition declaringMethod, final TypeReference variableType) {
+        this(slot, name, declaringMethod);
+        setVariableType(variableType);
     }
 
     @Override
     public final TypeReference getDeclaringType() {
-        return _declaringType;
-    }
-
-    final void setDeclaringType(final TypeReference declaringType) {
-        _declaringType = declaringType;
+        return _declaringMethod.getDeclaringType();
     }
 
     public final int getSlot() {

@@ -27,11 +27,13 @@ public final class Languages {
     private final static Language JAVA;
     private final static Language BYTECODE_AST_UNOPTIMIZED;
     private final static Language BYTECODE_AST;
+    private final static Language BYTECODE;
 
     static {
         final List<BytecodeAstLanguage> bytecodeAstLanguages = BytecodeAstLanguage.getDebugLanguages();
 
         JAVA = new JavaLanguage();
+        BYTECODE = new BytecodeLanguage();
         BYTECODE_AST_UNOPTIMIZED = bytecodeAstLanguages.get(0);
         BYTECODE_AST = new BytecodeAstLanguage();
 
@@ -57,6 +59,10 @@ public final class Languages {
 
     public static Language java() {
         return JAVA;
+    }
+
+    public static Language bytecode() {
+        return BYTECODE;
     }
 
     public static Language bytecodeAst() {

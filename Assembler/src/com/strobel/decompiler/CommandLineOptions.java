@@ -43,8 +43,14 @@ public class CommandLineOptions {
     @Parameter(names = { "-b", "--bytecode-ast" }, description = "Output Bytecode AST instead of Java.")
     private boolean _bytecodeAst;
 
+    @Parameter(names = { "-r", "--raw-bytecode" }, description = "Output Raw Bytecode instead of Java.")
+    private boolean _rawBytecode;
+
     @Parameter(names = { "-u", "--unoptimized" }, description = "Show unoptimized code (only in combination with -b).")
     private boolean _unoptimized;
+
+    @Parameter(names = { "-n", "--show-nested" }, description = "Show nested types.")
+    private boolean _showNestedTypes;
 
     public final List<String> getClassNames() {
         return _classNames;
@@ -54,8 +60,20 @@ public class CommandLineOptions {
         return _bytecodeAst;
     }
 
+    public final boolean isRawBytecode() {
+        return _rawBytecode;
+    }
+
     public final boolean getFlattenSwitchBlocks() {
         return _flattenSwitchBlocks;
+    }
+
+    public final boolean getShowNestedTypes() {
+        return _showNestedTypes;
+    }
+
+    public final void setShowNestedTypes(final boolean showNestedTypes) {
+        _showNestedTypes = showNestedTypes;
     }
 
     public final void setFlattenSwitchBlocks(final boolean flattenSwitchBlocks) {
@@ -68,6 +86,10 @@ public class CommandLineOptions {
 
     public final void setForceExplicitImports(final boolean forceExplicitImports) {
         _forceExplicitImports = forceExplicitImports;
+    }
+
+    public final void setRawBytecode(final boolean rawBytecode) {
+        _rawBytecode = rawBytecode;
     }
 
     public final void setBytecodeAst(final boolean bytecodeAst) {

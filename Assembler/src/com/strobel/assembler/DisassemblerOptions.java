@@ -23,6 +23,7 @@ public final class DisassemblerOptions {
     private boolean _printUsage;
     private boolean _printLineNumbers;
     private boolean _printFields;
+    private boolean _printNestedTypes;
 
     public boolean getPrintLineNumbers() {
         return _printLineNumbers;
@@ -31,6 +32,15 @@ public final class DisassemblerOptions {
     @Argument(value = "l", description = "Include instruction line numbers (if available).")
     public void setPrintLineNumbers(final boolean printLineNumbers) {
         _printLineNumbers = printLineNumbers;
+    }
+
+    public boolean getPrintNestedTypes() {
+        return _printNestedTypes;
+    }
+
+    @Argument(value = "n", description = "Include nested types.")
+    public void setPrintNestedTypes(final boolean printNestedTypes) {
+        _printNestedTypes = printNestedTypes;
     }
 
     public boolean getPrintFields() {

@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.core.StringUtilities;
 import com.strobel.util.ContractUtils;
 
 import java.util.Collections;
@@ -27,7 +28,8 @@ import java.util.List;
  * Time: 2:29 PM
  */
 public abstract class MethodReference extends MemberReference implements IMethodSignature,
-                                                                         IGenericParameterProvider {
+                                                                         IGenericParameterProvider,
+                                                                         IGenericContext{
     protected final static String CONSTRUCTOR_NAME = "<init>";
     protected final static String STATIC_INITIALIZER_NAME = "<clinit>";
 
@@ -107,6 +109,23 @@ public abstract class MethodReference extends MemberReference implements IMethod
 
     public List<GenericParameter> getGenericParameters() {
         return Collections.emptyList();
+    }
+
+    @Override
+    public GenericParameter findTypeVariable(final String name) {
+        for (final GenericParameter genericParameter : getGenericParameters()) {
+            if (StringUtilities.equals(genericParameter.getName(), name)) {
+                return genericParameter;
+            }
+        }
+
+        final TypeReference declaringType = getDeclaringType();
+
+        if (declaringType != null) {
+            return declaringType.findTypeVariable(name);
+        }
+
+        return null;
     }
 
     // </editor-fold>

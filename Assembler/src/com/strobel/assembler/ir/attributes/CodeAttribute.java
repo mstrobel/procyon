@@ -30,6 +30,7 @@ public final class CodeAttribute extends SourceAttribute {
     private final int _maxStack;
     private final int _maxLocals;
     private final int _codeSize;
+    private final int _codeOffset;
     private final Buffer _code;
     private final List<ExceptionTableEntry> _exceptionTableEntriesView;
     private final List<SourceAttribute> _attributesView;
@@ -50,6 +51,7 @@ public final class CodeAttribute extends SourceAttribute {
         VerifyArgument.notNull(exceptionTableEntries, "exceptionTableEntries");
         VerifyArgument.notNull(attributes, "attributes");
 
+        _codeOffset = 0;
         _maxStack = maxStack;
         _maxLocals = maxLocals;
         _codeSize = codeSize;
@@ -71,6 +73,7 @@ public final class CodeAttribute extends SourceAttribute {
 
     public CodeAttribute(
         final int size,
+        final int codeOffset,
         final int codeSize,
         final int maxStack,
         final int maxLocals,
@@ -82,6 +85,7 @@ public final class CodeAttribute extends SourceAttribute {
 
         _maxStack = maxStack;
         _maxLocals = maxLocals;
+        _codeOffset = codeOffset;
         _codeSize = codeSize;
         _code = null;
         _attributesView = ArrayUtilities.asUnmodifiableList(attributes.clone());
@@ -114,5 +118,9 @@ public final class CodeAttribute extends SourceAttribute {
 
     public List<SourceAttribute> getAttributes() {
         return _attributesView;
+    }
+
+    public int getCodeOffset() {
+        return _codeOffset;
     }
 }

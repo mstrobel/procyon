@@ -47,34 +47,31 @@ import java.util.Map;
 import java.util.Set;
 
 public class MethodReader {
+    private final MethodDefinition _methodDefinition;
     private final CodeAttribute _code;
     private final IMetadataScope _scope;
     private final MethodBody _methodBody;
     private final TypeReference _declaringType;
-    private final IMethodSignature _signature;
     private final int _modifiers;
 
-    public MethodReader(
-        final TypeReference declaringType,
-        final IMethodSignature signature,
-        final int modifiers,
-        final CodeAttribute code,
-        final IMetadataScope scope) {
-
-        _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
-        _signature = VerifyArgument.notNull(signature, "signature");
-        _modifiers = modifiers;
-        _code = VerifyArgument.notNull(code, "code");
+    public MethodReader(final MethodDefinition methodDefinition, final IMetadataScope scope) {
+        _methodDefinition = VerifyArgument.notNull(methodDefinition, "methodDefinition");
         _scope = VerifyArgument.notNull(scope, "scope");
-        _methodBody = new MethodBody(declaringType);
+        _declaringType = methodDefinition.getDeclaringType();
+        _modifiers = methodDefinition.getModifiers();
+        _code = SourceAttribute.find(AttributeNames.Code, methodDefinition.getSourceAttributes());
+        _methodBody = new MethodBody(methodDefinition);
         _methodBody.setCodeSize(_code.getCode().size());
         _methodBody.setMaxStackSize(_code.getMaxStack());
         _methodBody.setMaxLocals(_code.getMaxLocals());
     }
 
     @SuppressWarnings("ConstantConditions")
-    public MethodBody accept(final MethodVisitor methodVisitor) {
+    public MethodBody readBody() {
         final Buffer b = _code.getCode();
+
+        b.position(0);
+
         final InstructionCollection body = _methodBody.getInstructions();
         final VariableDefinitionCollection variables = _methodBody.getVariables();
 
@@ -89,12 +86,13 @@ public class MethodReader {
         );
 
         final boolean hasThis = !Modifier.isStatic(_modifiers);
-        final List<ParameterDefinition> parameters = _signature.getParameters();
+        final List<ParameterDefinition> parameters = _methodDefinition.getParameters();
 
         if (hasThis) {
             final VariableDefinition thisVariable = new VariableDefinition(
                 0,
                 "this",
+                _methodDefinition,
                 _declaringType
             );
 
@@ -115,70 +113,17 @@ public class MethodReader {
             variable.setScopeStart(0);
             variable.setScopeEnd(_code.getCodeSize());
             variable.setTypeKnown(true);
+            variable.setName(parameter.getName());
             variable.setFromMetadata(true);
             variable.setVariableType(parameter.getParameterType());
         }
 
         if (localVariableTable != null) {
-            final List<LocalVariableTableEntry> entries = localVariableTable.getEntries();
-
-            for (final LocalVariableTableEntry entry : entries) {
-                final int slot = entry.getIndex();
-                final int scopeStart = entry.getScopeOffset();
-                final int scopeEnd = scopeStart + entry.getScopeLength();
-
-                VariableDefinition variable = variables.tryFind(slot, scopeStart);
-
-                if (variable == null) {
-                    variable = new VariableDefinition(
-                        slot,
-                        entry.getName(),
-                        entry.getType()
-                    );
-
-                    variables.add(variable);
-                }
-                else if (!StringUtilities.isNullOrEmpty(entry.getName())) {
-                    variable.setName(entry.getName());
-                    variable.setVariableType(entry.getType());
-                }
-
-                variable.setTypeKnown(true);
-                variable.setFromMetadata(true);
-                variable.setScopeStart(scopeStart);
-                variable.setScopeEnd(scopeEnd);
-            }
+            processLocalVariableTable(variables, localVariableTable, parameters);
         }
 
         if (localVariableTypeTable != null) {
-            final List<LocalVariableTableEntry> entries = localVariableTypeTable.getEntries();
-
-            for (final LocalVariableTableEntry entry : entries) {
-                final int slot = entry.getIndex();
-                final int scopeStart = entry.getScopeOffset();
-                final int scopeEnd = scopeStart + entry.getScopeLength();
-
-                VariableDefinition variable = variables.tryFind(slot, scopeStart);
-
-                if (variable == null) {
-                    variable = new VariableDefinition(
-                        slot,
-                        entry.getName(),
-                        entry.getType()
-                    );
-
-                    variables.add(variable);
-                }
-                else if (!StringUtilities.isNullOrEmpty(entry.getName())) {
-                    variable.setName(entry.getName());
-                }
-
-                variable.setVariableType(entry.getType());
-                variable.setTypeKnown(true);
-                variable.setFromMetadata(true);
-                variable.setScopeStart(scopeStart);
-                variable.setScopeEnd(scopeEnd);
-            }
+            processLocalVariableTable(variables, localVariableTypeTable, parameters);
         }
 
         variables.mergeVariables();
@@ -575,6 +520,55 @@ public class MethodReader {
         return _methodBody;
     }
 
+    private void processLocalVariableTable(
+        final VariableDefinitionCollection variables,
+        final LocalVariableTableAttribute table,
+        final List<ParameterDefinition> parameters) {
+
+        for (final LocalVariableTableEntry entry : table.getEntries()) {
+            final int slot = entry.getIndex();
+            final int scopeStart = entry.getScopeOffset();
+            final int scopeEnd = scopeStart + entry.getScopeLength();
+
+            VariableDefinition variable = variables.tryFind(slot, scopeStart);
+
+            if (variable == null) {
+                variable = new VariableDefinition(
+                    slot,
+                    entry.getName(),
+                    _methodDefinition,
+                    entry.getType()
+                );
+
+                variables.add(variable);
+            }
+            else if (!StringUtilities.isNullOrEmpty(entry.getName())) {
+                variable.setName(entry.getName());
+            }
+
+            variable.setVariableType(entry.getType());
+            variable.setTypeKnown(true);
+            variable.setFromMetadata(true);
+            variable.setScopeStart(scopeStart);
+            variable.setScopeEnd(scopeEnd);
+
+            if (entry.getScopeOffset() == 0) {
+                ParameterDefinition parameter = null;
+
+                for (int j = 0; j < parameters.size(); j++) {
+                    if (parameters.get(j).getSlot() == entry.getIndex()) {
+                        parameter = parameters.get(j);
+                        break;
+                    }
+                }
+
+                if (parameter != null && !parameter.hasName()) {
+                    parameter.setName(entry.getName());
+                }
+            }
+        }
+    }
+
     // <editor-fold defaultstate="collapsed" desc="Exception Handler Info">
 
     @SuppressWarnings("ConstantConditions")
@@ -624,7 +618,8 @@ public class MethodReader {
         for (int i = 0; i < entries.size(); i++) {
             int minOffset = Integer.MAX_VALUE;
 
-            HandlerWithRange entry = entries.get(i);
+            final HandlerWithRange entry = entries.get(i);
+
             ControlFlowNode tryEnd = null;
 
             for (int j = 0; j < nodes.size(); j++) {
@@ -638,20 +633,6 @@ public class MethodReader {
 
                     if (end.getOpCode() == OpCode.GOTO && end.getNext() == firstHandlerInstruction) {
                         tryEnd = nodeLookup.get(end);
-
-/*
-                        entry = new HandlerWithRange(
-                            new ExceptionTableEntry(
-                                entry.entry.getStartOffset(),
-                                end.getEndOffset(),
-                                entry.entry.getHandlerOffset(),
-                                entry.entry.getCatchType()
-                            ),
-                            entry.range
-                        );
-
-                        entries.set(i, entry);
-*/
                     }
                     else if (previousInstruction != null) {
                         tryEnd = nodeLookup.get(previousInstruction);

@@ -1,5 +1,5 @@
 /*
- * ClassReader.java
+ * IClassSignature.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -16,9 +16,11 @@
 
 package com.strobel.assembler.metadata;
 
-/**
- * @author Mike Strobel
- */
-public interface ClassReader {
-    void accept(final TypeVisitor visitor);
+import java.util.List;
+
+public interface IClassSignature extends IGenericParameterProvider {
+    public TypeReference getBaseType();
+    public List<TypeReference> getExplicitInterfaces();
+    public boolean hasGenericParameters();
+    public List<GenericParameter> getGenericParameters();
 }

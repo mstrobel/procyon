@@ -17,6 +17,9 @@
 package com.strobel.decompiler;
 
 import com.beust.jcommander.JCommander;
+import com.strobel.assembler.InputTypeLoader;
+import com.strobel.assembler.metadata.ClasspathTypeLoader;
+import com.strobel.assembler.metadata.ITypeLoader;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -35,7 +38,8 @@ public final class Decompiler {
         VerifyArgument.notNull(internalName, "internalName");
         VerifyArgument.notNull(settings, "settings");
 
-        final MetadataSystem metadataSystem = MetadataSystem.instance();
+        final ITypeLoader typeLoader = settings.getTypeLoader() != null ? settings.getTypeLoader() : new ClasspathTypeLoader();
+        final MetadataSystem metadataSystem = new MetadataSystem(typeLoader);
         final TypeReference type = metadataSystem.lookupType(internalName);
         final TypeDefinition resolvedType;
 
@@ -85,8 +89,14 @@ public final class Decompiler {
         settings.setFlattenSwitchBlocks(options.getFlattenSwitchBlocks());
         settings.setForceExplicitImports(options.getForceExplicitImports());
         settings.setShowSyntheticMembers(options.getShowSyntheticMembers());
-        
-        if (options.isBytecodeAst()) {
+        settings.setShowNestedTypes(options.getShowNestedTypes());
+        settings.setTypeLoader(new InputTypeLoader());
+
+        if (options.isRawBytecode()) {
+            settings.setLanguage(Languages.bytecode());
+            printer.setIndentToken("  ");
+        }
+        else if (options.isBytecodeAst()) {
             settings.setLanguage(options.isUnoptimized() ? Languages.bytecodeAstUnoptimized()
                                                          : Languages.bytecodeAst());
         }

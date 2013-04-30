@@ -37,6 +37,7 @@ public class DeclareVariablesTransform implements IAstTransform {
     }
 
     @Override
+    @SuppressWarnings("ConstantConditions")
     public void run(final AstNode node) {
         run(node, null);
 
@@ -127,7 +128,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
     private AnalysisResult analyze(final VariableToDeclare v, final AstNode scope) {
         final BlockStatement block = v.getBlock();
-        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(block);
+        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, block);
 
         if (v.getInsertionPoint() != null) {
             final Statement parentStatement = v.getInsertionPoint();
@@ -184,7 +185,7 @@ public class DeclareVariablesTransform implements IAstTransform {
             }
 
             if (analysis == null) {
-                analysis = new DefiniteAssignmentAnalysis(block, new JavaResolver());
+                analysis = new DefiniteAssignmentAnalysis(block, new JavaResolver(context));
             }
 
             for (final VariableDeclarationStatement declaration : variables) {
@@ -285,10 +286,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         for (final Statement statement : block.getStatements()) {
             if (usesVariable(statement, variableName)) {
                 if (declarationPoint.get() != null) {
-                    if (canRedeclareVariable(statement, variableName)) {
-                        return true;
-                    }
-                    return false;
+                    return canRedeclareVariable(statement, variableName);
                 }
 
                 declarationPoint.set(statement);

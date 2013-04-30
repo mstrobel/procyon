@@ -18,6 +18,7 @@ package com.strobel.decompiler.ast;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.FieldReference;
+import com.strobel.assembler.metadata.IMetadataResolver;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeReference;
@@ -1099,11 +1100,6 @@ public final class AstOptimizer {
     }
 
     private final static class TransformArrayInitializersOptimization extends AbstractExpressionOptimization {
-        private final static Object DEFAULT_VALUE_INTEGER = 0;
-        private final static Object DEFAULT_VALUE_LONG = 0L;
-        private final static Object DEFAULT_VALUE_FLOAT = 0f;
-        private final static Object DEFAULT_VALUE_DOUBLE = 0d;
-
         protected TransformArrayInitializersOptimization(final DecompilerContext context, final Block method) {
             super(context, method);
         }
@@ -1721,12 +1717,12 @@ public final class AstOptimizer {
         protected final Map<Label, BasicBlock> labelToBasicBlock = new IdentityHashMap<>();
 
         protected final DecompilerContext context;
-        protected final MetadataSystem metadataSystem;
+        protected final IMetadataResolver resolver;
         protected final Block method;
 
         protected AbstractBasicBlockOptimization(final DecompilerContext context, final Block method) {
             this.context = VerifyArgument.notNull(context, "context");
-            this.metadataSystem = MetadataSystem.instance();
+            this.resolver = context.getCurrentType().getResolver();
             this.method = VerifyArgument.notNull(method, "method");
 
             for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {

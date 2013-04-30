@@ -205,6 +205,7 @@ public class AnsiTextOutput extends PlainTextOutput {
         writeAnsi(text, colorizedText);
     }
 
+    @SuppressWarnings("ConstantConditions")
     private String colorizeType(final String text, final TypeReference type) {
         final String packageName = type.getPackageName();
         final TypeDefinition resolvedType = type.resolve();
@@ -265,12 +266,14 @@ public class AnsiTextOutput extends PlainTextOutput {
 
             sb.append(DELIMITER.colorize(String.valueOf(delimiter)));
 
-            final String[] typeParts = s.substring(packagePrefix.length()).split("\\$");
+            final String typeName = s.substring(packagePrefix.length());
+            final String[] typeParts = typeName.split("\\$|\\.");
             final Ansi typeColor = resolvedType != null && resolvedType.isAnnotation() ? ATTRIBUTE : TYPE;
+            final boolean dollar = typeName.indexOf('$') >= 0;
 
             for (int i = 0; i < typeParts.length; i++) {
                 if (i != 0) {
-                    sb.append(DELIMITER.colorize("$"));
+                    sb.append(DELIMITER.colorize(dollar ? "$" : "."));
                 }
 
                 sb.append(typeColor.colorize(typeParts[i]));

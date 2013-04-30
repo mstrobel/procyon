@@ -297,7 +297,7 @@ public class MethodPrinter implements MethodVisitor {
                             isFinally = false;
                         }
                         else {
-                            catchType = MetadataSystem.instance().lookupType("java/lang/Throwable");
+                            catchType = getResolver(_body).lookupType("java/lang/Throwable");
                             isFinally = true;
                         }
 
@@ -356,6 +356,24 @@ public class MethodPrinter implements MethodVisitor {
         }
     }
 
+    private static IMetadataResolver getResolver(final MethodBody body) {
+        final MethodReference method = body.getMethod();
+
+        if (method != null) {
+            final MethodDefinition resolvedMethod = method.resolve();
+
+            if (resolvedMethod != null) {
+                final TypeDefinition declaringType = resolvedMethod.getDeclaringType();
+
+                if (declaringType != null) {
+                    return declaringType.getResolver();
+                }
+            }
+        }
+
+        return MetadataSystem.instance();
+    }
+
     @Override
     public void visitFrame(final Frame frame) {
     }
@@ -372,6 +390,7 @@ public class MethodPrinter implements MethodVisitor {
     }
 
     @Override
+    @SuppressWarnings("ConstantConditions")
     public void visitAttribute(final SourceAttribute attribute) {
         switch (attribute.getName()) {
             case AttributeNames.Exceptions: {
@@ -645,9 +664,6 @@ public class MethodPrinter implements MethodVisitor {
                     if (variable.hasName() && variable.isFromMetadata()) {
                         _output.writeComment(" /* %s */", variable.getName());
                     }
-                    else {
-                        _output.writeLiteral(slot);
-                    }
                 }
             }
 
@@ -660,6 +676,7 @@ public class MethodPrinter implements MethodVisitor {
             if (variable == null && op.isStore()) {
                 variable = _body.getVariables().tryFind(slot, offset + op.getSize() + op.getOperandType().getBaseSize());
             }
+
             return variable;
         }
 

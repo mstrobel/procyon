@@ -16,15 +16,7 @@
 
 package com.strobel.assembler.ir;
 
-import com.strobel.assembler.metadata.IMetadataResolver;
-import com.strobel.assembler.metadata.MetadataSystem;
-import com.strobel.assembler.metadata.MethodBody;
-import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.SwitchInfo;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
-import com.strobel.assembler.metadata.VariableDefinition;
-import com.strobel.assembler.metadata.VariableDefinitionCollection;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
 
@@ -38,6 +30,24 @@ import java.util.Map;
 import java.util.Set;
 
 public final class StackMapAnalyzer {
+    private static IMetadataResolver getResolver(final MethodBody body) {
+        final MethodReference method = body.getMethod();
+
+        if (method != null) {
+            final MethodDefinition resolvedMethod = method.resolve();
+
+            if (resolvedMethod != null) {
+                final TypeDefinition declaringType = resolvedMethod.getDeclaringType();
+
+                if (declaringType != null) {
+                    return declaringType.getResolver();
+                }
+            }
+        }
+
+        return MetadataSystem.instance();
+    }
+
     @SuppressWarnings("ConstantConditions")
     public static List<StackMapFrame> computeStackMapTable(final MethodBody body) {
         VerifyArgument.notNull(body, "body");
@@ -56,24 +66,7 @@ public final class StackMapAnalyzer {
         final Map<Instruction, Frame> frames = new IdentityHashMap<>();
         final Set<Instruction> branchTargets = new LinkedHashSet<>();
 
-        final IMetadataResolver resolver;
-
-        if (body.getMethod() != null &&
-            body.getMethod().getDeclaringType() != null) {
-
-            final TypeDefinition declaringType = body.getMethod().getDeclaringType().resolve();
-
-            if (declaringType != null) {
-                resolver = declaringType.getResolver();
-            }
-            else {
-                resolver = MetadataSystem.instance();
-            }
-        }
-        else {
-            resolver = MetadataSystem.instance();
-        }
-
+        final IMetadataResolver resolver = getResolver(body);
         final TypeReference throwableType = resolver.lookupType("java/lang/Throwable");
 
         for (final ExceptionHandler handler : exceptionHandlers) {
@@ -325,7 +318,7 @@ public final class StackMapAnalyzer {
         final Frame oldFrame = frames.get(instruction);
 
         if (oldFrame != null) {
-            assert oldFrame.getStackValues().size() == outputFrame.getStackValues().size() || true;
+            assert oldFrame.getStackValues().size() == outputFrame.getStackValues().size();
 
             final Frame mergedFrame = Frame.merge(inputFrame, outputFrame, oldFrame, initializations);
             frames.put(instruction, mergedFrame);

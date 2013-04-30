@@ -27,11 +27,20 @@ public class DecompilerSettings {
     private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
     private boolean _forceExplicitImports;
     private boolean _flattenSwitchBlocks;
+    private boolean _showNestedTypes;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
     private String _outputFileHeaderText;
 
     public DecompilerSettings() {
+    }
+
+    public final boolean getShowNestedTypes() {
+        return _showNestedTypes;
+    }
+
+    public final void setShowNestedTypes(final boolean showNestedTypes) {
+        _showNestedTypes = showNestedTypes;
     }
 
     public final boolean getFlattenSwitchBlocks() {

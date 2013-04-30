@@ -21,7 +21,7 @@
     </artifact>
   </component>
   <component name="CompilerConfiguration">
-    <option name="DEFAULT_COMPILER" value="Javac" />
+    <option name="DEFAULT_COMPILER" value="Eclipse" />
     <resourceExtensions />
     <wildcardResourcePatterns>
       <entry name="?*.properties" />
@@ -445,6 +445,7 @@
         <w>postincrement</w>
         <w>predicate's</w>
         <w>printf</w>
+        <w>reifier</w>
         <w>santhosh</w>
         <w>solaris</w>
         <w>throughs</w>
@@ -666,7 +667,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.assembler.Disassembler" />
       <option name="VM_PARAMETERS" value="-ea -Dcom/strobel/expressions/f__Lambda[0x0058] -Djava/util/Collections$SynchronizedCollection" />
-      <option name="PROGRAM_PARAMETERS" value="com/barclays/avt/concurrent/Task" />
+      <option name="PROGRAM_PARAMETERS" value="java.util.Collections" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />

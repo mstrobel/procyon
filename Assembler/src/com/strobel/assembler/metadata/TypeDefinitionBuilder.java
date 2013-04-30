@@ -19,12 +19,11 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.ir.attributes.AttributeNames;
-import com.strobel.assembler.ir.attributes.SourceAttribute;
-import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.assembler.ir.attributes.InnerClassEntry;
 import com.strobel.assembler.ir.attributes.InnerClassesAttribute;
+import com.strobel.assembler.ir.attributes.SourceAttribute;
+import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.Comparer;
-import com.strobel.core.MutableInteger;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 
@@ -88,35 +87,11 @@ public class TypeDefinitionBuilder implements TypeVisitor {
         final Collection<TypeReference> explicitInterfaces = _typeDefinition.getExplicitInterfacesInternal();
 
         if (genericSignature != null) {
-            final MutableInteger position = new MutableInteger(0);
+            final IClassSignature classSignature = _parser.parseClassSignature(genericSignature);
 
-            if (genericSignature.startsWith("<")) {
-                _parser.parseGenericParameters(_typeDefinition.getGenericParametersInternal(), genericSignature, position);
-
-                for (final GenericParameter genericParameter : _typeDefinition.getGenericParametersInternal()) {
-                    genericParameter.setDeclaringType(_typeDefinition);
-                    _resolverFrame.addTypeVariable(genericParameter);
-                }
-            }
-
-            _genericContextCount = pushGenericContexts();
-
-            if (position.getValue() < genericSignature.length()) {
-                baseType = _parser.parseTypeSignature(genericSignature, position);
-
-                if (position.getValue() < genericSignature.length()) {
-                    while (position.getValue() < genericSignature.length()) {
-                        explicitInterfaces.add(_parser.parseTypeSignature(genericSignature, position));
-                    }
-                }
-            }
-            else {
-                baseType = baseTypeName != null ? _parser.parseTypeDescriptor(baseTypeName) : null;
-
-                for (final String interfaceName : interfaceNames) {
-                    explicitInterfaces.add(_parser.parseTypeDescriptor(interfaceName));
-                }
-            }
+            baseType = classSignature.getBaseType();
+            explicitInterfaces.addAll(classSignature.getExplicitInterfaces());
+            _typeDefinition.getGenericParametersInternal().addAll(classSignature.getGenericParameters());
         }
         else {
             baseType = baseTypeName != null ? _parser.parseTypeDescriptor(baseTypeName) : null;
@@ -339,7 +314,7 @@ public class TypeDefinitionBuilder implements TypeVisitor {
         }
 
         @Override
-        public TypeReference findTypeVariable(final String name) {
+        public GenericParameter findTypeVariable(final String name) {
             final GenericParameter typeVariable = typeVariables.get(name);
 
             if (typeVariable != null) {

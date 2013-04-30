@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.analysis.ControlFlowEdge;
 import com.strobel.decompiler.languages.java.analysis.ControlFlowEdgeType;
 import com.strobel.decompiler.languages.java.analysis.ControlFlowGraphBuilder;
@@ -55,8 +56,8 @@ public class DefiniteAssignmentAnalysis {
     private int analyzedRangeStart;
     private int analyzedRangeEnd;
 
-    public DefiniteAssignmentAnalysis(final Statement rootStatement) {
-        this(rootStatement, new JavaResolver());
+    public DefiniteAssignmentAnalysis(final DecompilerContext context, final Statement rootStatement) {
+        this(rootStatement, new JavaResolver(context));
     }
 
     public DefiniteAssignmentAnalysis(final Statement rootStatement, final Function<AstNode, ResolveResult> resolver) {
