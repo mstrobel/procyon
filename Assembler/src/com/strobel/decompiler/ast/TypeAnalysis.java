@@ -49,13 +49,13 @@ public final class TypeAnalysis {
     );
 
     private DecompilerContext _context;
-    private IMetadataResolver _resolver;
+    private CoreMetadataFactory _factory;
 
     public static void run(final DecompilerContext context, final Block method) {
         final TypeAnalysis ta = new TypeAnalysis();
 
         ta._context = context;
-        ta._resolver = context.getCurrentType().getResolver();
+        ta._factory = CoreMetadataFactory.make(context.getCurrentType(), context.getCurrentMethod());
         ta.createDependencyGraph(method);
         ta.identifySingleLoadVariables();
         ta.runInference();
@@ -705,10 +705,10 @@ public final class TypeAnalysis {
                 }
 
                 if (operand instanceof TypeReference) {
-                    return _resolver.lookupType("java/lang/Class");
+                    return _factory.makeNamedType("java.lang.Class");
                 }
 
-                return _resolver.lookupType("java/lang/String");
+                return _factory.makeNamedType("java.lang.String");
             }
 
             case NewArray:

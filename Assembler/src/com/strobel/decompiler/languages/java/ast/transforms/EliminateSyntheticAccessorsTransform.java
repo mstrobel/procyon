@@ -20,7 +20,6 @@ import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
@@ -28,23 +27,17 @@ import com.strobel.decompiler.languages.java.ast.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
-import static com.strobel.core.CollectionUtilities.getOrDefault;
 
 public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor<Void> {
     private final List<AstNode> _nodesToRemove;
-    private final Set<ParameterDefinition> _parametersToRemove;
     private final Map<String, MethodDeclaration> _accessMethodDeclarations;
 
     public EliminateSyntheticAccessorsTransform(final DecompilerContext context) {
         super(context);
 
         _nodesToRemove = new ArrayList<>();
-        _parametersToRemove = new HashSet<>();
         _accessMethodDeclarations = new HashMap<>();
     }
 
@@ -84,26 +77,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
 
             if (reference instanceof MethodReference) {
                 final MethodReference method = (MethodReference) reference;
-                final MethodDefinition resolvedMethod = method.resolve();
-
-                if (resolvedMethod != null && resolvedMethod.isConstructor()) {
-                    final TypeDefinition declaringType = resolvedMethod.getDeclaringType();
-
-                    if (declaringType.isInnerClass() || declaringType.isAnonymous()) {
-                        for (final ParameterDefinition p : resolvedMethod.getParameters()) {
-                            if (_parametersToRemove.contains(p)) {
-                                final int parameterIndex = p.getPosition();
-                                final Expression argumentToRemove = getOrDefault(arguments, parameterIndex);
-
-                                if (argumentToRemove != null) {
-                                    _nodesToRemove.add(argumentToRemove);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                final String key = makeMethodKey(resolvedMethod != null ? resolvedMethod : method);
+                final String key = makeMethodKey(method);
                 final MethodDeclaration declaration = _accessMethodDeclarations.get(key);
 
                 if (declaration != null) {

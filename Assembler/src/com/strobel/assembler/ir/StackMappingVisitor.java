@@ -363,28 +363,10 @@ public class StackMappingVisitor implements MethodVisitor {
         }
     }
 
-    private static IMetadataResolver getResolver(final MethodBody body) {
-        final MethodReference method = body.getMethod();
-
-        if (method != null) {
-            final MethodDefinition resolvedMethod = method.resolve();
-
-            if (resolvedMethod != null) {
-                final TypeDefinition declaringType = resolvedMethod.getDeclaringType();
-
-                if (declaringType != null) {
-                    return declaringType.getResolver();
-                }
-            }
-        }
-
-        return MetadataSystem.instance();
-    }
-
     private final class InstructionAnalyzer implements InstructionVisitor {
         private final InstructionVisitor _innerVisitor;
         private final MethodBody _body;
-        private final IMetadataResolver _resolver;
+        private final CoreMetadataFactory _factory;
 
         private boolean _afterExecute;
 
@@ -400,7 +382,7 @@ public class StackMappingVisitor implements MethodVisitor {
                 set(0, FrameValue.UNINITIALIZED_THIS);
             }
 
-            _resolver = getResolver(_body);
+            _factory = CoreMetadataFactory.make(_body.getMethod().getDeclaringType(), _body.getMethod());
         }
 
         @Override
@@ -797,10 +779,10 @@ public class StackMappingVisitor implements MethodVisitor {
                         case LDC_W: {
                             final Object op = instruction.getOperand(0);
                             if (op instanceof String) {
-                                push(_resolver.lookupType("java/lang/String"));
+                                push(_factory.makeNamedType("java.lang.String"));
                             }
                             else if (op instanceof TypeReference) {
-                                push(_resolver.lookupType("java/lang/Class"));
+                                push(_factory.makeNamedType("java.lang.Class"));
                             }
                             else {
                                 if (op instanceof Long) {

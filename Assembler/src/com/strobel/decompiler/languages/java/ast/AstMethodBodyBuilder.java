@@ -784,7 +784,6 @@ public class AstMethodBodyBuilder {
         final List<Expression> arguments) {
 
         final MethodReference methodReference = (MethodReference) byteCode.getOperand();
-        final MethodDefinition methodDefinition = methodReference.resolve();
 
         final boolean hasThis = byteCode.getCode() == AstCode.InvokeVirtual ||
                                 byteCode.getCode() == AstCode.InvokeInterface ||
@@ -792,8 +791,7 @@ public class AstMethodBodyBuilder {
 
         Expression target;
 
-        final TypeReference declaringType = methodDefinition != null ? methodDefinition.getDeclaringType()
-                                                                     : methodReference.getDeclaringType();
+        final TypeReference declaringType = methodReference.getDeclaringType();
 
         if (hasThis) {
             target = arguments.remove(0);
@@ -820,7 +818,7 @@ public class AstMethodBodyBuilder {
         }
         else if (methodReference.isConstructor()) {
             final ObjectCreationExpression creation;
-            final TypeDefinition resolvedType = declaringType.resolve();
+            final TypeDefinition resolvedType = declaringType.isNested() ? declaringType.resolve() : null;
 
             if (resolvedType != null && resolvedType.isAnonymous()) {
                 final AstType declaredType;
@@ -881,48 +879,46 @@ public class AstMethodBodyBuilder {
     @SuppressWarnings("UnusedParameters")
     private List<Expression> adjustArgumentsForMethodCall(final MethodReference method, final List<Expression> arguments) {
         if (!arguments.isEmpty() && method.isConstructor()) {
-            final TypeDefinition declaringType = method.getDeclaringType().resolve();
+            final TypeReference declaringType = method.getDeclaringType();
 
-            if (declaringType != null) {
-                if (declaringType.isLocalClass()) {
-/*
-                    return arguments.subList(
-                        _context.getSettings().getShowSyntheticMembers() ? 0 : 1,
-                        arguments.size()
-                    );
-*/
-                    return arguments;
-                }
+            if (declaringType.isNested()) {
+                final TypeDefinition resolvedType = declaringType.resolve();
 
-                if (declaringType.isInnerClass()) {
-                    final MethodDefinition resolvedMethod = method.resolve();
+                if (resolvedType != null) {
+                    if (resolvedType.isLocalClass()) {
+                        return arguments;
+                    }
 
-                    if (resolvedMethod != null &&
-                        resolvedMethod.isSynthetic() &&
-                        (resolvedMethod.getFlags() & Flags.AccessFlags) == 0) {
+                    if (resolvedType.isInnerClass()) {
+                        final MethodDefinition resolvedMethod = method.resolve();
 
-                        final List<ParameterDefinition> parameters = resolvedMethod.getParameters();
+                        if (resolvedMethod != null &&
+                            resolvedMethod.isSynthetic() &&
+                            (resolvedMethod.getFlags() & Flags.AccessFlags) == 0) {
 
-                        int start = 0;
-                        int end = arguments.size();
+                            final List<ParameterDefinition> parameters = resolvedMethod.getParameters();
 
-                        for (int i = parameters.size() - 1; i >= 0; i--) {
-                            final TypeReference parameterType = parameters.get(i).getParameterType();
-                            final TypeDefinition resolvedParameterType = parameterType.resolve();
+                            int start = 0;
+                            int end = arguments.size();
 
-                            if (resolvedParameterType != null && resolvedParameterType.isAnonymous()) {
-                                --end;
+                            for (int i = parameters.size() - 1; i >= 0; i--) {
+                                final TypeReference parameterType = parameters.get(i).getParameterType();
+                                final TypeDefinition resolvedParameterType = parameterType.resolve();
+
+                                if (resolvedParameterType != null && resolvedParameterType.isAnonymous()) {
+                                    --end;
+                                }
+                                else {
+                                    break;
+                                }
                             }
-                            else {
-                                break;
+
+                            if (!resolvedType.isStatic() && !_context.getSettings().getShowSyntheticMembers()) {
+                                ++start;
                             }
-                        }
 
-                        if (!declaringType.isStatic() && !_context.getSettings().getShowSyntheticMembers()) {
-                            ++start;
+                            return arguments.subList(start, end);
                         }
-
-                        return arguments.subList(start, end);
                     }
                 }
             }

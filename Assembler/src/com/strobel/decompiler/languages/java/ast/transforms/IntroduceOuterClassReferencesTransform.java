@@ -64,19 +64,22 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
 
             if (reference instanceof MethodReference) {
                 final MethodReference method = (MethodReference) reference;
-                final MethodDefinition resolvedMethod = method.resolve();
 
-                if (resolvedMethod != null && resolvedMethod.isConstructor()) {
-                    final TypeDefinition declaringType = resolvedMethod.getDeclaringType();
+                if (method.isConstructor()) {
+                    final MethodDefinition resolvedMethod = method.resolve();
 
-                    if (declaringType.isInnerClass() || declaringType.isLocalClass()) {
-                        for (final ParameterDefinition p : resolvedMethod.getParameters()) {
-                            if (_parametersToRemove.contains(p)) {
-                                final int parameterIndex = p.getPosition();
-                                final Expression argumentToRemove = getOrDefault(arguments, parameterIndex);
+                    if (resolvedMethod != null) {
+                        final TypeDefinition declaringType = resolvedMethod.getDeclaringType();
 
-                                if (argumentToRemove != null) {
-                                    _nodesToRemove.add(argumentToRemove);
+                        if (declaringType.isInnerClass() || declaringType.isLocalClass()) {
+                            for (final ParameterDefinition p : resolvedMethod.getParameters()) {
+                                if (_parametersToRemove.contains(p)) {
+                                    final int parameterIndex = p.getPosition();
+                                    final Expression argumentToRemove = getOrDefault(arguments, parameterIndex);
+
+                                    if (argumentToRemove != null) {
+                                        _nodesToRemove.add(argumentToRemove);
+                                    }
                                 }
                             }
                         }
@@ -135,7 +138,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
         final TypeReference outerTypeReference = field.getFieldType();
         final TypeDefinition resolvedOuterType = outerTypeReference.resolve();
 
-        if (resolvedOuterType != null && resolvedOuterType.isLocalClass()) {
+        if (resolvedOuterType != null && resolvedOuterType.isAnonymous()) {
             if (resolvedOuterType.getExplicitInterfaces().isEmpty()) {
                 outerType = new SimpleType(resolvedOuterType.getBaseType().getSimpleName());
             }
@@ -221,7 +224,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
                                 if (parameterToRemove != null) {
                                     _nodesToRemove.add(parameterToRemove);
                                 }
-                            };
+                            }
 
                             if (node.getParent() instanceof ExpressionStatement) {
                                 _nodesToRemove.add(node.getParent());

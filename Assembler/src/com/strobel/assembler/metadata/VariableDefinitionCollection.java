@@ -34,32 +34,6 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
         _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
     }
 
-/*
-    @Override
-    protected void afterAdd(final int index, final VariableDefinition d, final boolean appended) {
-        d.setDeclaringMethod(_declaringMethod);
-    }
-
-    @Override
-    protected void beforeSet(final int index, final VariableDefinition d) {
-        final VariableDefinition current = get(index);
-        current.setDeclaringMethod(null);
-        d.setDeclaringMethod(_declaringMethod);
-    }
-
-    @Override
-    protected void afterRemove(final int index, final VariableDefinition d) {
-        d.setDeclaringMethod(null);
-    }
-
-    @Override
-    protected void beforeClear() {
-        for (int i = 0; i < size(); i++) {
-            get(i).setDeclaringMethod(null);
-        }
-    }
-*/
-
     public int slotCount() {
         int count = 0;
 
@@ -378,40 +352,4 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
         return false;
     }
-
-    /*
-    @Override
-    protected void afterAdd(final int index, final VariableDefinition v, final boolean appended) {
-        v.setIndex(index);
-
-        if (!appended) {
-            for (int i = index + 1; i < size(); i++) {
-                get(i).setIndex(i + 1);
-            }
-        }
-    }
-
-    @Override
-    protected void beforeSet(final int index, final VariableDefinition v) {
-        final VariableDefinition current = get(index);
-
-        current.setIndex(-1);
-
-        v.setIndex(index);
-    }
-
-    @Override
-    protected void afterRemove(final int index, final VariableDefinition v) {
-        v.setIndex(-1);
-
-        for (int i = index; i < size(); i++) {
-            get(i).setIndex(i);
-        }
-    }
-
-    @Override
-    protected void beforeClear() {
-        super.beforeClear();
-    }
-*/
 }

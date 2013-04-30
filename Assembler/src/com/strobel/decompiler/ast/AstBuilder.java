@@ -692,6 +692,8 @@ public final class AstBuilder {
         final StrongBox<AstCode> codeBox = new StrongBox<>();
         final StrongBox<Object> operandBox = new StrongBox<>();
 
+        final CoreMetadataFactory factory = CoreMetadataFactory.make(_context.getCurrentType(), _context.getCurrentMethod());
+
         for (final Instruction instruction : instructions) {
             final OpCode opCode = instruction.getOpCode();
 
@@ -792,7 +794,7 @@ public final class AstBuilder {
             final TypeReference catchType;
 
             if (handler.isFinally()) {
-                catchType = _context.getCurrentType().getResolver().lookupType("java/lang/Throwable");
+                catchType = factory.makeNamedType("java.lang.Throwable");
             }
             else {
                 catchType = handler.getCatchType();
