@@ -161,6 +161,7 @@ public class AstMethodBodyBuilder {
 
         for (final ParameterDefinition p : unmatchedParameters) {
             final Variable v = new Variable();
+            v.setName(p.getName());
             v.setOriginalParameter(p);
             v.setType(p.getParameterType());
             orderedParameters.add(v);
