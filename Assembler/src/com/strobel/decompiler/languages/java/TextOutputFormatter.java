@@ -196,8 +196,6 @@ public class TextOutputFormatter implements IOutputFormatter {
 
         switch (style) {
             case EndOfLine:
-                space();
-                break;
             case EndOfLineWithoutSpace:
                 break;
             case NextLine:
@@ -218,10 +216,7 @@ public class TextOutputFormatter implements IOutputFormatter {
 
         output.write("{");
 
-        if (style == BraceStyle.BannerStyle) {
-            space();
-        }
-        else {
+        if (style != BraceStyle.BannerStyle) {
             output.writeLine();
         }
 
@@ -230,10 +225,6 @@ public class TextOutputFormatter implements IOutputFormatter {
 
     @Override
     public void closeBrace(final BraceStyle style) {
-        if (style == BraceStyle.BannerStyle) {
-            space();
-        }
-
         output.unindent();
         output.write('}');
 

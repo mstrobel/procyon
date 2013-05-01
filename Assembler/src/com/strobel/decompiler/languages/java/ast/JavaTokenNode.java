@@ -34,6 +34,10 @@ public class JavaTokenNode extends AstNode {
         return _startLocation;
     }
 
+    public void setStartLocation(final TextLocation startLocation) {
+        _startLocation = startLocation;
+    }
+
     public TextLocation getEndLocation() {
         return new TextLocation(_startLocation.line(), _startLocation.column() + getTokenLength());
     }

@@ -24,8 +24,8 @@ import com.strobel.decompiler.patterns.Match;
 public final class ThisReferenceExpression extends Expression {
     private final static String THIS_TEXT = "this";
 
-    private final TextLocation _startLocation;
-    private final TextLocation _endLocation;
+    private TextLocation _startLocation;
+    private TextLocation _endLocation;
 
     public ThisReferenceExpression() {
         this(TextLocation.EMPTY);
@@ -37,13 +37,18 @@ public final class ThisReferenceExpression extends Expression {
     }
 
     @Override
-    public TextLocation getStartLocation() {
+    public final TextLocation getStartLocation() {
         return _startLocation;
     }
 
     @Override
-    public TextLocation getEndLocation() {
+    public final TextLocation getEndLocation() {
         return _endLocation;
+    }
+
+    public final void setStartLocation(final TextLocation startLocation) {
+        _startLocation = VerifyArgument.notNull(startLocation, "startLocation");
+        _endLocation = new TextLocation(startLocation.line(), startLocation.column() + THIS_TEXT.length());
     }
 
     @Override

@@ -118,9 +118,16 @@ public class PlainTextOutput implements ITextOutput {
                 return;
             }
 
+            boolean newLineSeen = false;
+
             for (int i = 0; i < length; i++) {
                 if (text.charAt(i) == '\n') {
                     line++;
+                    column = 0;
+                    newLineSeen = true;
+                }
+                else if (newLineSeen) {
+                    column++;
                 }
             }
         }

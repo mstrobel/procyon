@@ -24,8 +24,8 @@ import com.strobel.decompiler.patterns.Match;
 public final class NullReferenceExpression extends Expression {
     private final static String NULL_TEXT = "null";
 
-    private final TextLocation _startLocation;
-    private final TextLocation _endLocation;
+    private TextLocation _startLocation;
+    private TextLocation _endLocation;
 
     public NullReferenceExpression() {
         this(TextLocation.EMPTY);
@@ -44,6 +44,11 @@ public final class NullReferenceExpression extends Expression {
     @Override
     public TextLocation getEndLocation() {
         return _endLocation;
+    }
+
+    public void setStartLocation(final TextLocation startLocation) {
+        _startLocation = VerifyArgument.notNull(startLocation, "startLocation");
+        _endLocation = new TextLocation(startLocation.line(), startLocation.column() + NULL_TEXT.length());
     }
 
     @Override

@@ -13,6 +13,8 @@
 
 package com.strobel.core;
 
+import com.strobel.util.ContractUtils;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -126,6 +128,22 @@ public final class CollectionUtilities {
             return !((Collection) collection).isEmpty();
         }
         return collection != null && collection.iterator().hasNext();
+    }
+
+    public static <T> Iterable<T> skip(final Iterable<T> collection, final int count) {
+        return new SkipIterator<>(collection, count);
+    }
+    
+    public static <T> Iterable<T> skipWhile(final Iterable<T> collection, final Predicate<? super T> filter) {
+        return new SkipIterator<>(collection, filter);
+    }
+
+    public static <T> Iterable<T> take(final Iterable<T> collection, final int count) {
+        return new TakeIterator<>(collection, count);
+    }
+    
+    public static <T> Iterable<T> takeWhile(final Iterable<T> collection, final Predicate<? super T> filter) {
+        return new TakeIterator<>(collection, filter);
     }
 
     public static <T> boolean any(final Iterable<T> collection, final Predicate<? super T> predicate) {
@@ -322,5 +340,202 @@ public final class CollectionUtilities {
                    sequenceDeepEquals((List<?>) first, (List<?>) second);
         }
         return Comparer.deepEquals(first, second);
+    }
+
+    private abstract static class AbstractIterator<T> implements Iterable<T>, Iterator<T> {
+        final static int STATE_UNINITIALIZED = 0;
+        final static int STATE_NEED_NEXT = 1;
+        final static int STATE_HAS_NEXT = 2;
+        final static int STATE_FINISHED = 3;
+
+        long threadId;
+        int state;
+        T next;
+
+        AbstractIterator() {
+            super();
+            threadId = Thread.currentThread().getId();
+        }
+
+        protected abstract AbstractIterator<T> clone();
+
+        @Override
+        public abstract boolean hasNext();
+
+        @Override
+        public T next() {
+            if (!hasNext()) {
+                throw new IllegalStateException();
+            }
+            state = STATE_NEED_NEXT;
+            return next;
+        }
+
+        @Override
+        public Iterator<T> iterator() {
+            if (threadId == Thread.currentThread().getId() && state == STATE_UNINITIALIZED) {
+                state = STATE_NEED_NEXT;
+                return this;
+            }
+            final AbstractIterator<T> duplicate = clone();
+            duplicate.state = STATE_NEED_NEXT;
+            return duplicate;
+        }
+
+        @Override
+        public final void remove() {
+            throw ContractUtils.unsupported();
+        }
+    }
+
+    private final static class SkipIterator<T> extends AbstractIterator<T> {
+        private final static int STATE_NEED_SKIP = 4;
+
+        final Iterable<T> source;
+        final int skipCount;
+        final Predicate<? super T> skipFilter;
+
+        int skipsRemaining;
+        Iterator<T> iterator;
+
+        SkipIterator(final Iterable<T> source, final int skipCount) {
+            this.source = VerifyArgument.notNull(source, "source");
+            this.skipCount = skipCount;
+            this.skipFilter = null;
+            this.skipsRemaining = skipCount;
+        }
+
+        SkipIterator(final Iterable<T> source, final Predicate<? super T> skipFilter) {
+            this.source = VerifyArgument.notNull(source, "source");
+            this.skipCount = 0;
+            this.skipFilter = VerifyArgument.notNull(skipFilter, "skipFilter");
+        }
+
+        @Override
+        protected SkipIterator<T> clone() {
+            if (skipFilter != null) {
+                return new SkipIterator<>(source, skipFilter);
+            }
+            return new SkipIterator<>(source, skipCount);
+        }
+
+        @Override
+        public boolean hasNext() {
+            switch (state) {
+                case STATE_NEED_SKIP:
+                    iterator = source.iterator();
+                    if (skipFilter != null) {
+                        while (iterator.hasNext()) {
+                            final T current = iterator.next();
+                            if (!skipFilter.test(current)) {
+                                state = STATE_HAS_NEXT;
+                                next = current;
+                                return true;
+                            }
+                        }
+                    }
+                    else {
+                        while (iterator.hasNext() && skipsRemaining > 0) {
+                            iterator.next();
+                            --skipsRemaining;
+                        }
+                    }
+                    state = STATE_NEED_NEXT;
+                    // goto case STATE_NEED_NEXT
+
+                case STATE_NEED_NEXT:
+                    if (iterator.hasNext()) {
+                        state = STATE_HAS_NEXT;
+                        next = iterator.next();
+                        return true;
+                    }
+                    state = STATE_FINISHED;
+                    // goto case STATE_FINISHED
+
+                case STATE_FINISHED:
+                    return false;
+
+                case STATE_HAS_NEXT:
+                    return true;
+            }
+
+            return false;
+        }
+
+        @Override
+        public Iterator<T> iterator() {
+            if (threadId == Thread.currentThread().getId() && state == STATE_UNINITIALIZED) {
+                state = STATE_NEED_SKIP;
+                return this;
+            }
+            final SkipIterator<T> duplicate = clone();
+            duplicate.state = STATE_NEED_SKIP;
+            return duplicate;
+        }
+    }
+
+    private final static class TakeIterator<T> extends AbstractIterator<T> {
+        final Iterable<T> source;
+        final int takeCount;
+        final Predicate<? super T> takeFilter;
+
+        Iterator<T> iterator;
+        int takesRemaining;
+
+        TakeIterator(final Iterable<T> source, final int takeCount) {
+            this.source = VerifyArgument.notNull(source, "source");
+            this.takeCount = takeCount;
+            this.takeFilter = null;
+            this.takesRemaining = takeCount;
+        }
+
+        TakeIterator(final Iterable<T> source, final Predicate<? super T> takeFilter) {
+            this.source = VerifyArgument.notNull(source, "source");
+            this.takeCount = Integer.MAX_VALUE;
+            this.takeFilter = VerifyArgument.notNull(takeFilter, "takeFilter");
+            this.takesRemaining = Integer.MAX_VALUE;
+        }
+
+        TakeIterator(final Iterable<T> source, final int takeCount, final Predicate<? super T> takeFilter) {
+            this.source = VerifyArgument.notNull(source, "source");
+            this.takeCount = takeCount;
+            this.takeFilter = takeFilter;
+            this.takesRemaining = takeCount;
+        }
+
+        @Override
+        protected TakeIterator<T> clone() {
+            return new TakeIterator<>(source, takeCount, takeFilter);
+        }
+
+        @Override
+        public boolean hasNext() {
+            switch (state) {
+                case STATE_NEED_NEXT:
+                    if (takesRemaining-- > 0) {
+                        if (iterator == null) {
+                            iterator = source.iterator();
+                        }
+                        if (iterator.hasNext()) {
+                            final T current = iterator.next();
+                            if (takeFilter == null || takeFilter.test(current)) {
+                                state = STATE_HAS_NEXT;
+                                next = current;
+                                return true;
+                            }
+                        }
+                    }
+                    state = STATE_FINISHED;
+                    // goto case STATE_FINISHED
+
+                case STATE_FINISHED:
+                    return false;
+
+                case STATE_HAS_NEXT:
+                    return true;
+            }
+
+            return false;
+        }
     }
 }

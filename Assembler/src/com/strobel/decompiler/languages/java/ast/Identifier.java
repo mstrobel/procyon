@@ -23,8 +23,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class Identifier extends AstNode {
-    private final TextLocation _startLocation;
-
+    private TextLocation _startLocation;
     private String _name;
 
     private Identifier() {
@@ -48,6 +47,10 @@ public class Identifier extends AstNode {
     @Override
     public TextLocation getStartLocation() {
         return _startLocation;
+    }
+
+    public void setStartLocation(final TextLocation startLocation) {
+        _startLocation = startLocation;
     }
 
     @Override

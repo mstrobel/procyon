@@ -20,12 +20,10 @@ import com.strobel.assembler.metadata.DynamicCallSite;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class LambdaTransform extends ContextTrackingVisitor<Void> {
@@ -84,18 +82,18 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
         }
 
         final BlockStatement body = (BlockStatement) declaration.getBody().clone();
-        final List<ParameterDefinition> parameters = method.getParameters();
+        final AstNodeCollection<ParameterDeclaration> parameters = declaration.getParameters();
         final Map<String, String> renamedVariables = new HashMap<>();
         final AstNodeCollection<Expression> closureArguments = methodGroup.getClosureArguments();
 
         Expression a = closureArguments.firstOrNullObject();
 
-        for (int i = 0, n = parameters.size();
-             i < n && a != null && !a.isNull();
-             i++, a = (Expression) a.getNextSibling()) {
+        for (ParameterDeclaration p = parameters.firstOrNullObject();
+             p != null && !p.isNull() && a != null && !a.isNull();
+             p = (ParameterDeclaration) p.getNextSibling(), a = (Expression) a.getNextSibling()) {
 
             if (a instanceof IdentifierExpression) {
-                renamedVariables.put(parameters.get(i).getName(), ((IdentifierExpression) a).getIdentifier());
+                renamedVariables.put(p.getName(), ((IdentifierExpression) a).getIdentifier());
             }
         }
 

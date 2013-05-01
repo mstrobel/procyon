@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
+import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
@@ -27,7 +28,7 @@ public class PrimitiveExpression extends Expression {
     public final static Object ANY_VALUE = new Object();
     public final static String ANY_STRING = Pattern.ANY_STRING;
 
-    private final TextLocation _startLocation;
+    private TextLocation _startLocation;
     private TextLocation _endLocation;
 
     private String _literalValue;
@@ -67,6 +68,11 @@ public class PrimitiveExpression extends Expression {
             _endLocation = new TextLocation(_startLocation.line(), _startLocation.column() + _literalValue.length());
         }
         return _endLocation;
+    }
+
+    public final void setStartLocation(final TextLocation startLocation) {
+        _startLocation = VerifyArgument.notNull(startLocation, "startLocation");
+        _endLocation = null;
     }
 
     public final String getLiteralValue() {

@@ -23,6 +23,7 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.ITextOutput;
+import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 import com.strobel.util.ContractUtils;
@@ -172,6 +173,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     void openBrace(final BraceStyle style) {
         writeSpecialsUpToRole(Roles.LEFT_BRACE);
+        space(
+            (style == BraceStyle.EndOfLine || style == BraceStyle.BannerStyle) &&
+            lastWritten != LastWritten.Whitespace
+        );
         formatter.openBrace(style);
         lastWritten = LastWritten.Other;
     }
@@ -343,7 +348,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
     }
 
-    private void writeCommaSeparatedListInParenthesis(final Iterable<? extends AstNode> list, final boolean spaceWithin) {
+    private void writeCommaSeparatedListInParenthesis(
+        final Iterable<? extends AstNode> list,
+        final boolean spaceWithin) {
+
         leftParenthesis();
         if (any(list)) {
             space(spaceWithin);
@@ -709,6 +717,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     @Override
     public Void visitJavaTokenNode(final JavaTokenNode node, final Void _) {
+        node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         if (node instanceof JavaModifierToken) {
             final JavaModifierToken modifierToken = (JavaModifierToken) node;
             startNode(modifierToken);
@@ -740,6 +749,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     @Override
     public Void visitIdentifier(final Identifier node, final Void _) {
+        node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
         writeIdentifier(node.getName());
         endNode(node);
@@ -748,6 +758,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     @Override
     public Void visitNullReferenceExpression(final NullReferenceExpression node, final Void _) {
+        node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
         writeKeyword("null", node.getRole());
         endNode(node);
@@ -756,6 +767,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     @Override
     public Void visitThisReferenceExpression(final ThisReferenceExpression node, final Void _) {
+        node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
         writeKeyword("this", node.getRole());
         endNode(node);
@@ -764,6 +776,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     @Override
     public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void _) {
+        node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
         writeKeyword("super", node.getRole());
         endNode(node);
@@ -787,6 +800,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         final BraceStyle style;
         final BraceEnforcement braceEnforcement;
         final AstNode parent = node.getParent();
+        final AstNodeCollection<Statement> statements = node.getStatements();
 
         if (parent instanceof ConstructorDeclaration) {
             style = policy.ConstructorBraceStyle;
@@ -797,21 +811,26 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             braceEnforcement = BraceEnforcement.AddBraces;
         }
         else {
-            style = policy.StatementBraceStyle;
-
-            if (parent instanceof IfElseStatement) {
-                braceEnforcement = policy.IfElseBraceEnforcement;
-            }
-            else if (parent instanceof WhileStatement) {
-                braceEnforcement = policy.WhileBraceEnforcement;
+            if (policy.StatementBraceStyle == BraceStyle.EndOfLine && statements.isEmpty()) {
+                style = BraceStyle.BannerStyle;
+                braceEnforcement = BraceEnforcement.AddBraces;
             }
             else {
-                braceEnforcement = BraceEnforcement.AddBraces;
+                style = policy.StatementBraceStyle;
+
+                if (parent instanceof IfElseStatement) {
+                    braceEnforcement = policy.IfElseBraceEnforcement;
+                }
+                else if (parent instanceof WhileStatement) {
+                    braceEnforcement = policy.WhileBraceEnforcement;
+                }
+                else {
+                    braceEnforcement = BraceEnforcement.AddBraces;
+                }
             }
         }
 
         final boolean addBraces;
-        final AstNodeCollection<Statement> statements = node.getStatements();
 
         switch (braceEnforcement) {
             case RemoveBraces:
@@ -1574,6 +1593,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     @Override
     public Void visitPrimitiveExpression(final PrimitiveExpression node, final Void _) {
+        node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
         if (!StringUtilities.isNullOrEmpty(node.getLiteralValue())) {
             formatter.writeLiteral(node.getLiteralValue());
@@ -1829,6 +1849,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         for (final AstNode node : elements) {
             if (isFirst) {
+                if (style == BraceStyle.BannerStyle) {
+                    space();
+                }
                 isFirst = false;
             }
             else {
@@ -1845,6 +1868,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         if (wrapElements) {
             newLine();
+        }
+        else if (!isFirst && style == BraceStyle.BannerStyle) {
+            space();
         }
 
         closeBrace(style);
@@ -1904,7 +1930,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         startNode(node);
         node.getTarget().acceptVisitor(this, _);
         writeToken(MethodGroupExpression.DOUBLE_COLON_ROLE);
-        writeIdentifier(node.getMethodName());
+
+        if (isKeyword(node.getMethodName())) {
+            writeKeyword(node.getMethodName());
+        }
+        else {
+            writeIdentifier(node.getMethodName());
+        }
+
         endNode(node);
         return null;
     }
@@ -1977,7 +2010,11 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         space();
         writeToken(LambdaExpression.ARROW_ROLE);
-        space();
+
+        if (!(node.getBody() instanceof BlockStatement)) {
+            space();
+        }
+
         node.getBody().acceptVisitor(this, _);
         endNode(node);
 

@@ -24,8 +24,8 @@ import com.strobel.decompiler.patterns.Match;
 public final class SuperReferenceExpression extends Expression {
     private final static String SUPER_TEXT = "super";
 
-    private final TextLocation _startLocation;
-    private final TextLocation _endLocation;
+    private TextLocation _startLocation;
+    private TextLocation _endLocation;
 
     public SuperReferenceExpression() {
         this(TextLocation.EMPTY);
@@ -44,6 +44,11 @@ public final class SuperReferenceExpression extends Expression {
     @Override
     public TextLocation getEndLocation() {
         return _endLocation;
+    }
+
+    public void setStartLocation(final TextLocation startLocation) {
+        _startLocation = VerifyArgument.notNull(startLocation, "startLocation");
+        _endLocation = new TextLocation(startLocation.line(), startLocation.column() + SUPER_TEXT.length());
     }
 
     @Override

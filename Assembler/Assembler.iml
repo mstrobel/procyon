@@ -11,6 +11,17 @@
     <orderEntry type="module" module-name="Expressions" exported="" />
     <orderEntry type="library" name="com.beust:jcommander:1.30" level="project" />
     <orderEntry type="library" scope="TEST" name="junit-4.5" level="project" />
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://W:/Kotlintest/lib/kotlin-runtime.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://W:/Kotlintest/lib/kotlin-runtime.jar!/src" />
+        </SOURCES>
+      </library>
+    </orderEntry>
   </component>
   <component name="POM File Configuration" pomFile="" />
 </module>

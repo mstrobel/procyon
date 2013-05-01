@@ -19,6 +19,7 @@ package com.strobel.decompiler.languages.java.ast;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.Comparer;
 import com.strobel.core.ExceptionUtilities;
+import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
@@ -30,6 +31,7 @@ import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -131,6 +133,7 @@ public class AstMethodBodyBuilder {
 
         AstOptimizer.optimize(_context, method);
 
+        final Set<ParameterDefinition> unmatchedParameters = new LinkedHashSet<>(_method.getParameters());
         final Set<Variable> methodParameters = new LinkedHashSet<>();
         final Set<Variable> localVariables = new LinkedHashSet<>();
 
@@ -146,12 +149,36 @@ public class AstMethodBodyBuilder {
 
                 if (variable.isParameter()) {
                     methodParameters.add(variable);
+                    unmatchedParameters.remove(variable.getOriginalParameter());
                 }
                 else {
                     localVariables.add(variable);
                 }
             }
         }
+
+        final List<Variable> orderedParameters = new ArrayList<>();
+
+        for (final ParameterDefinition p : unmatchedParameters) {
+            final Variable v = new Variable();
+            v.setOriginalParameter(p);
+            v.setType(p.getParameterType());
+            orderedParameters.add(v);
+        }
+
+        for (final Variable parameter : methodParameters) {
+            orderedParameters.add(parameter);
+        }
+
+        Collections.sort(
+            orderedParameters,
+            new Comparator<Variable>() {
+                @Override
+                public int compare(final Variable p1, final Variable p2) {
+                    return Integer.compare(p1.getOriginalParameter().getSlot(), p2.getOriginalParameter().getSlot());
+                }
+            }
+        );
 
         final List<CatchBlock> catchBlocks = method.getSelfAndChildrenRecursive(
             CatchBlock.class
@@ -165,7 +192,23 @@ public class AstMethodBodyBuilder {
             }
         }
 
-        NameVariables.assignNamesToVariables(_context, methodParameters, localVariables, method);
+        NameVariables.assignNamesToVariables(_context, orderedParameters, localVariables, method);
+
+        for (final Variable p : orderedParameters) {
+            final ParameterDeclaration declaration = firstOrDefault(
+                parameters,
+                new Predicate<ParameterDeclaration>() {
+                    @Override
+                    public boolean test(final ParameterDeclaration pd) {
+                        return pd.getUserData(Keys.PARAMETER_DEFINITION) == p.getOriginalParameter();
+                    }
+                }
+            );
+
+            if (declaration != null) {
+                declaration.setName(p.getName());
+            }
+        }
 
         final BlockStatement astBlock = transformBlock(method);
 
@@ -538,7 +581,7 @@ public class AstMethodBodyBuilder {
                     final MethodHandle targetMethodHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
                     final MethodReference targetMethod = targetMethodHandle.getMethod();
                     final TypeReference declaringType = targetMethod.getDeclaringType();
-                    final String methodName = targetMethod.getName();
+                    final String methodName = targetMethod.isConstructor() ? "new" : targetMethod.getName();
 
                     final boolean hasInstanceArgument;
 
@@ -546,8 +589,6 @@ public class AstMethodBodyBuilder {
                         case GetField:
                         case PutField:
                         case InvokeVirtual:
-                        case InvokeSpecial:
-                        case NewInvokeSpecial:
                         case InvokeInterface:
                             assert arg1 != null;
                             hasInstanceArgument = true;

@@ -48,9 +48,9 @@ import java.util.Map;
 import static com.strobel.core.CollectionUtilities.getOrDefault;
 
 public class NameVariables {
-    private final static char MAX_LOOP_VARIABLE_NAME = 'n';
+    private final static char MAX_LOOP_VARIABLE_NAME = 'm';
     private final static String[] METHOD_PREFIXES = { "get", "is", "are", "to", "as" };
-    private final static String[] METHOD_SUFFIXES = { "At", "For", "From" };
+    private final static String[] METHOD_SUFFIXES = { "At", "For", "From", "Of" };
     private final static Map<String, String> BUILT_IN_TYPE_NAMES;
 
     static {
@@ -60,20 +60,22 @@ public class NameVariables {
         builtInTypeNames.put("java/lang/Boolean", "b");
         builtInTypeNames.put(BuiltinTypes.Byte.getInternalName(), "b");
         builtInTypeNames.put("java/lang/Byte", "b");
-        builtInTypeNames.put(BuiltinTypes.Short.getInternalName(), "num");
-        builtInTypeNames.put("java/lang/Short", "num");
-        builtInTypeNames.put(BuiltinTypes.Integer.getInternalName(), "num");
-        builtInTypeNames.put("java/lang/Integer", "num");
-        builtInTypeNames.put(BuiltinTypes.Long.getInternalName(), "num");
-        builtInTypeNames.put("java/lang/Long", "num");
-        builtInTypeNames.put(BuiltinTypes.Float.getInternalName(), "num");
-        builtInTypeNames.put("java/lang/Float", "num");
-        builtInTypeNames.put(BuiltinTypes.Double.getInternalName(), "num");
-        builtInTypeNames.put("java/lang/Double", "num");
+        builtInTypeNames.put(BuiltinTypes.Short.getInternalName(), "n");
+        builtInTypeNames.put("java/lang/Short", "n");
+        builtInTypeNames.put(BuiltinTypes.Integer.getInternalName(), "n");
+        builtInTypeNames.put("java/lang/Integer", "n");
+        builtInTypeNames.put(BuiltinTypes.Long.getInternalName(), "n");
+        builtInTypeNames.put("java/lang/Long", "n");
+        builtInTypeNames.put(BuiltinTypes.Float.getInternalName(), "n");
+        builtInTypeNames.put("java/lang/Float", "n");
+        builtInTypeNames.put(BuiltinTypes.Double.getInternalName(), "n");
+        builtInTypeNames.put("java/lang/Double", "n");
         builtInTypeNames.put(BuiltinTypes.Character.getInternalName(), "c");
         builtInTypeNames.put("java/lang/Character", "c");
-        builtInTypeNames.put("java/lang/Object", "obj");
+        builtInTypeNames.put("java/lang/Object", "o");
         builtInTypeNames.put("java/lang/String", "s");
+        builtInTypeNames.put("java/lang/StringBuilder", "sb");
+        builtInTypeNames.put("java/lang/StringBuffer", "sb");
         builtInTypeNames.put("java/lang/Class", "clazz");
 
         BUILT_IN_TYPE_NAMES = Collections.unmodifiableMap(builtInTypeNames);
@@ -170,7 +172,7 @@ public class NameVariables {
         }
 
         for (final Variable p : parameters) {
-            if (StringUtilities.isNullOrEmpty(p.getName())) {
+            if (!p.getOriginalParameter().hasName()) {
                 p.setName(nv.generateNameForVariable(p, methodBody));
             }
         }
