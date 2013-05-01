@@ -185,7 +185,7 @@ public class EnumRewriterTransform implements IAstTransform {
                     switch (method.getName()) {
                         case "values": {
                             if (method.getParameters().isEmpty() &&
-                                currentType.makeArrayType().equals(method.getReturnType().resolve())) {
+                                MetadataResolver.areEquivalent(currentType.makeArrayType(), method.getReturnType())) {
 
                                 node.remove();
                             }

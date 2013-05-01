@@ -106,8 +106,9 @@ public final class ArrayType extends TypeReference {
     public final TypeDefinition resolve() {
         final TypeDefinition resolvedElementType = _elementType.resolve();
 
-        if (resolvedElementType != null && !resolvedElementType.equals(_elementType))
+        if (resolvedElementType != null) {
             return resolvedElementType;
+        }
 
         return super.resolve();
     }
