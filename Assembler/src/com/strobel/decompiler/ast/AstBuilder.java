@@ -60,6 +60,7 @@ public final class AstBuilder {
         }
 
         builder.analyzeHandlers();
+        builder.pruneInnerClassInitChainSecurityChecks();
 
         final List<ByteCode> byteCode = builder.performStackAnalysis();
 
@@ -67,6 +68,65 @@ public final class AstBuilder {
         final List<Node> ast = builder.convertToAst(byteCode, new LinkedHashSet<>(builder._exceptionHandlers));
 
         return ast;
+    }
+
+    private void pruneInnerClassInitChainSecurityChecks() {
+        //
+        // TODO: Try to find a less "ad hoc" solution; update jump targets, exception handlers.
+        //
+
+        boolean changed = false;
+
+        if (_instructions.size() < 4) {
+            return;
+        }
+
+        int max = _instructions.size() - 3;
+
+        for (int i = 0; i < max; i++) {
+            final Instruction i1 = _instructions.get(i);
+
+            if (i1.getOpCode() != OpCode.INVOKESPECIAL) {
+                continue;
+            }
+
+            final Instruction i2 = _instructions.get(i + 1);
+
+            if (i2.getOpCode() != OpCode.DUP) {
+                continue;
+            }
+
+            final Instruction i3 = _instructions.get(i + 2);
+
+            if (i3.getOpCode() != OpCode.INVOKEVIRTUAL) {
+                continue;
+            }
+
+            final Instruction i4 = _instructions.get(i + 3);
+
+            if (i4.getOpCode() != OpCode.POP) {
+                continue;
+            }
+
+            final MethodReference method = i3.getOperand(0);
+
+            if (method != null &&
+                BuiltinTypes.Object.equals(method.getDeclaringType()) &&
+                StringUtilities.equals(method.getName(), "getClass") &&
+                method.getParameters().isEmpty()) {
+
+                _instructions.remove(i + 3);
+                _instructions.remove(i + 2);
+                _instructions.remove(i + 1);
+
+                max -= 3;
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            _instructions.recomputeOffsets();
+        }
     }
 
     private static List<ExceptionHandler> remapHandlers(final List<ExceptionHandler> handlers, final InstructionCollection instructions) {

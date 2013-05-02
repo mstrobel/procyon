@@ -49,6 +49,14 @@ public class ObjectCreationExpression extends Expression {
         }
     }
 
+    public final Expression getTarget() {
+        return getChildByRole(Roles.TARGET_EXPRESSION);
+    }
+
+    public final void setTarget(final Expression value) {
+        setChildByRole(Roles.TARGET_EXPRESSION, value);
+    }
+
     public final AstNodeCollection<Expression> getArguments() {
         return getChildrenByRole(Roles.ARGUMENT);
     }

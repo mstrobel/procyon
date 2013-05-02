@@ -1879,6 +1879,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitObjectCreationExpression(final ObjectCreationExpression node, final Void _) {
         startNode(node);
+
+        final Expression target = node.getTarget();
+
+        if (target != null && !target.isNull()) {
+            target.acceptVisitor(this, _);
+            writeToken(Roles.DOT);
+        }
+
         writeKeyword(ObjectCreationExpression.NEW_KEYWORD_ROLE);
         node.getType().acceptVisitor(this, _);
         space(policy.SpaceBeforeMethodCallParentheses);
