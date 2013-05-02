@@ -769,6 +769,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public Void visitThisReferenceExpression(final ThisReferenceExpression node, final Void _) {
         node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
+
+        final Expression target = node.getTarget();
+
+        if (target != null && !target.isNull()) {
+            target.acceptVisitor(this, _);
+            writeToken(Roles.DOT);
+        }
+
         writeKeyword("this", node.getRole());
         endNode(node);
         return null;
@@ -778,6 +786,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void _) {
         node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
+
+        final Expression target = node.getTarget();
+
+        if (target != null && !target.isNull()) {
+            target.acceptVisitor(this, _);
+            writeToken(Roles.DOT);
+        }
+
         writeKeyword("super", node.getRole());
         endNode(node);
         return null;
@@ -1898,6 +1914,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitAnonymousObjectCreationExpression(final AnonymousObjectCreationExpression node, final Void _) {
         startNode(node);
+
+        final Expression target = node.getTarget();
+
+        if (target != null && !target.isNull()) {
+            target.acceptVisitor(this, _);
+            writeToken(Roles.DOT);
+        }
+
         writeKeyword(ObjectCreationExpression.NEW_KEYWORD_ROLE);
         node.getType().acceptVisitor(this, _);
         space(policy.SpaceBeforeMethodCallParentheses);
@@ -2026,16 +2050,6 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         node.getBody().acceptVisitor(this, _);
         endNode(node);
 
-        return null;
-    }
-
-    @Override
-    public Void visitOuterTypeReferenceExpression(final OuterTypeReferenceExpression node, final Void _) {
-        startNode(node);
-        node.getOuterType().acceptVisitor(this, _);
-        writeToken(Roles.DOT);
-        writeKeyword(OuterTypeReferenceExpression.THIS_KEYWORD_ROLE);
-        endNode(node);
         return null;
     }
 

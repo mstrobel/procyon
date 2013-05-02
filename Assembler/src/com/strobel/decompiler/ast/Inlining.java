@@ -448,6 +448,7 @@ final class Inlining {
 
     // <editor-fold defaultstate="collapsed" desc="Copy Propagation">
 
+    @SuppressWarnings("ConstantConditions")
     final void copyPropagation() {
         for (final Block block : _method.getSelfAndChildrenRecursive(Block.class)) {
             final List<Node> body = block.getBody();

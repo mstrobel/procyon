@@ -836,6 +836,7 @@
         <w>supertype</w>
         <w>tableswitch</w>
         <w>tmpdir</w>
+        <w>uninlined</w>
         <w>unreachability</w>
         <w>variable's</w>
       </words>
@@ -915,8 +916,8 @@
         </pattern>
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.decompiler.Decompiler" />
-      <option name="VM_PARAMETERS" value="-ea -Dcom/strobel/decompiler/DecompilerTests -Dcom/strobel/assembler/ir/OpCode -Dcom/intellij/ide/ClassloaderUtil" />
-      <option name="PROGRAM_PARAMETERS" value="$PROJECT_DIR$/out/test/Assembler/com/strobel/decompiler/Evil.class" />
+      <option name="VM_PARAMETERS" value="-ea -Dsvn/com.strobel/out/test/Assembler/com/strobel/decompiler/InnerClassMadness.class -Dcom/strobel/decompiler/DecompilerTests -Dcom/strobel/assembler/ir/OpCode -Dcom/intellij/ide/ClassloaderUtil" />
+      <option name="PROGRAM_PARAMETERS" value="-n $PROJECT_DIR$/out/test/Assembler/com/strobel/decompiler/InnerClassMadness.class" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />

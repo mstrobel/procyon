@@ -661,7 +661,9 @@ public class AstMethodBodyBuilder {
                     _localVariablesToDefine.add(variableOperand);
                 }
                 if (variableOperand.isParameter() && variableOperand.getOriginalParameter().getPosition() < 0) {
-                    return new ThisReferenceExpression();
+                    final ThisReferenceExpression self = new ThisReferenceExpression();
+                    self.putUserData(Keys.TYPE_REFERENCE, _context.getCurrentType());
+                    return self;
                 }
                 final IdentifierExpression name = new IdentifierExpression(variableOperand.getName());
                 name.putUserData(Keys.VARIABLE, variableOperand);
@@ -856,6 +858,7 @@ public class AstMethodBodyBuilder {
         if (target instanceof ThisReferenceExpression) {
             if (!isVirtual && !declaringType.isEquivalentTo(_method.getDeclaringType())) {
                 target = new SuperReferenceExpression();
+                target.putUserData(Keys.TYPE_REFERENCE, declaringType);
             }
         }
         else if (methodReference.isConstructor()) {

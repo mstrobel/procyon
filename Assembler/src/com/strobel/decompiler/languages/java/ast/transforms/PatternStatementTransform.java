@@ -905,6 +905,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
         if (collection instanceof SuperReferenceExpression) {
             final ThisReferenceExpression self = new ThisReferenceExpression();
+            self.putUserData(Keys.TYPE_REFERENCE, collection.getUserData(Keys.TYPE_REFERENCE));
             self.putUserData(Keys.VARIABLE, collection.getUserData(Keys.VARIABLE));
             forEach.setInExpression(self);
         }

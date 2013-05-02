@@ -3,6 +3,7 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MemberReference;
+import com.strobel.assembler.metadata.MetadataResolver;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
@@ -98,7 +99,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
     }
 
     private boolean tryIntroduceOuterClassReference(final MemberReferenceExpression node, final boolean hasThisOnLeft) {
-        if (!hasThisOnLeft || !context.getCurrentType().isInnerClass() || context.getCurrentType().isStatic()) {
+        if (!hasThisOnLeft || !context.getCurrentType().isInnerClass()) {
             return false;
         }
 
@@ -109,15 +110,14 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
         }
 
         final String memberName = node.getMemberName();
-
-        if (!StringUtilities.startsWith(memberName, "this$")) {
-            return false;
-        }
-
         final MemberReference reference = node.getUserData(Keys.MEMBER_REFERENCE);
 
-        if (!(reference instanceof FieldReference)) {
-            return false;
+        if (context.getCurrentType().isStatic() ||
+            node.getParent() instanceof AssignmentExpression && node.getRole() == AssignmentExpression.LEFT_ROLE ||
+            !(reference instanceof FieldReference) ||
+            !StringUtilities.startsWith(memberName, "this$")) {
+
+            return tryInsertOuterClassReference(node, reference);
         }
 
         final FieldReference field = (FieldReference) reference;
@@ -157,9 +157,50 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
 
         outerType.putUserData(Keys.TYPE_REFERENCE, outerTypeReference);
 
-        final OuterTypeReferenceExpression replacement = new OuterTypeReferenceExpression(outerType);
+        final ThisReferenceExpression replacement = new ThisReferenceExpression();
+
+        replacement.setTarget(new TypeReferenceExpression(outerType));
+        replacement.putUserData(Keys.TYPE_REFERENCE, outerTypeReference);
 
         node.replaceWith(replacement);
+
+        return true;
+    }
+
+    private boolean tryInsertOuterClassReference(final MemberReferenceExpression node, final MemberReference reference) {
+        if (node == null || reference == null || !(node.getTarget() instanceof ThisReferenceExpression)) {
+            return false;
+        }
+
+        final ThisReferenceExpression left = (ThisReferenceExpression) node.getTarget();
+        final TypeReference declaringType = reference.getDeclaringType();
+
+        if (!left.getTarget().isNull() ||
+            MetadataResolver.areEquivalent(context.getCurrentType(), declaringType) ||
+            !isContextWithinTypeInstance(declaringType)) {
+
+            return false;
+        }
+
+        final TypeDefinition resolvedType = declaringType.resolve();
+        final TypeReference declaredType;
+
+        if (resolvedType != null && resolvedType.isAnonymous()) {
+            if (resolvedType.getExplicitInterfaces().isEmpty()) {
+                declaredType = resolvedType.getBaseType();
+            }
+            else {
+                declaredType = resolvedType.getExplicitInterfaces().get(0);
+            }
+        }
+        else {
+            declaredType = declaringType;
+        }
+
+        final SimpleType outerType = new SimpleType(declaredType.getSimpleName());
+
+        outerType.putUserData(Keys.TYPE_REFERENCE, declaredType);
+        left.setTarget(new TypeReferenceExpression(outerType));
 
         return true;
     }
@@ -230,11 +271,14 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
                                 _nodesToRemove.add(node.getParent());
                             }
                             else {
-                                right.replaceWith(
-                                    new OuterTypeReferenceExpression(
-                                        new SimpleType(resolvedField.getFieldType().getSimpleName())
-                                    )
-                                );
+                                final TypeReference fieldType = resolvedField.getFieldType();
+                                final ThisReferenceExpression replacement = new ThisReferenceExpression();
+                                final SimpleType type = new SimpleType(fieldType.getSimpleName());
+
+                                type.putUserData(Keys.TYPE_REFERENCE, fieldType);
+                                replacement.putUserData(Keys.TYPE_REFERENCE, fieldType);
+                                replacement.setTarget(new TypeReferenceExpression(type));
+                                right.replaceWith(replacement);
                             }
                         }
                     }
@@ -243,6 +287,72 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
 
             return null;
         }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Helper Methods">
+
+    private static boolean isEnclosedBy(final TypeReference innerType, final TypeReference outerType) {
+        if (innerType == null) {
+            return false;
+        }
+
+        for (TypeReference current = innerType.getDeclaringType();
+             current != null;
+             current = current.getDeclaringType()) {
+
+            if (MetadataResolver.areEquivalent(current, outerType)) {
+                return true;
+            }
+        }
+
+        final TypeDefinition resolvedInnerType = innerType.resolve();
+
+        if (resolvedInnerType != null) {
+            return isEnclosedBy(resolvedInnerType.getBaseType(), outerType);
+        }
+
+        return false;
+    }
+
+    private boolean isContextWithinTypeInstance(final TypeReference type) {
+        final MethodReference method = context.getCurrentMethod();
+
+        if (method != null) {
+            final MethodDefinition resolvedMethod = method.resolve();
+
+            if (resolvedMethod != null && resolvedMethod.isStatic()) {
+                return false;
+            }
+        }
+
+        final TypeReference scope = context.getCurrentType();
+
+        for (TypeReference current = scope;
+             current != null;
+             current = current.getDeclaringType()) {
+
+            if (MetadataResolver.areEquivalent(current, type)) {
+                return true;
+            }
+
+            final TypeDefinition resolved = current.resolve();
+
+            if (resolved != null && resolved.isLocalClass()) {
+                final MethodReference declaringMethod = resolved.getDeclaringMethod();
+
+                if (declaringMethod != null) {
+                    final MethodDefinition resolvedDeclaringMethod = declaringMethod.resolve();
+
+                    if (resolvedDeclaringMethod != null && resolvedDeclaringMethod.isStatic()) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     // </editor-fold>

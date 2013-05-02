@@ -54,7 +54,7 @@ public class RewriteLocalClassesTransform extends ContextTrackingVisitor<Void> {
             final List<ObjectCreationExpression> instantiations = _instantiations.get(localType);
 
             LocalClassHelper.replaceClosureMembers(
-                context.getSettings(),
+                context,
                 declaration,
                 instantiations != null ? instantiations : Collections.<ObjectCreationExpression>emptyList()
             );

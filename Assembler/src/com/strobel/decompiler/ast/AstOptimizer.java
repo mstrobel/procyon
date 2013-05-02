@@ -19,8 +19,10 @@ package com.strobel.decompiler.ast;
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.IMetadataResolver;
+import com.strobel.assembler.metadata.MetadataResolver;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.assembler.metadata.VariableDefinition;
 import com.strobel.core.BooleanBox;
@@ -106,6 +108,12 @@ public final class AstOptimizer {
 
             do {
                 modified = false;
+
+                if (abortBeforeStep == AstOptimizationStep.RemoveInnerClassInitSecurityChecks) {
+                    return;
+                }
+
+                modified |= runOptimization(block, new RemoveInnerClassInitSecurityChecksOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.SimplifyShortCircuit) {
                     continue;
@@ -524,6 +532,91 @@ public final class AstOptimizer {
 
             body.set(i, new Expression(AstCode.IfTrue, e.getOperand(), newExpression));
             newExpression.getRanges().addAll(e.getRanges());
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="RemoveInnerClassInitSecurityChecks Step">
+
+    private final static class RemoveInnerClassInitSecurityChecksOptimization extends AbstractExpressionOptimization {
+        protected RemoveInnerClassInitSecurityChecksOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public boolean run(final List<Node> body, final Expression head, final int position) {
+            final StrongBox<Expression> getClassArgument = new StrongBox<>();
+            final StrongBox<Variable> getClassArgumentVariable = new StrongBox<>();
+            final StrongBox<Variable> constructorTargetVariable = new StrongBox<>();
+            final StrongBox<Variable> constructorArgumentVariable = new StrongBox<>();
+            final StrongBox<MethodReference> constructor = new StrongBox<>();
+            final StrongBox<MethodReference> getClassMethod = new StrongBox<>();
+            final List<Expression> arguments = new ArrayList<>();
+
+            if (position > 0) {
+                final Node previous = body.get(position - 1);
+
+                arguments.clear();
+
+                if (matchGetArguments(head, AstCode.InvokeSpecial, constructor, arguments) &&
+                    arguments.size() > 1 &&
+                    matchGetOperand(arguments.get(0), AstCode.Load, constructorTargetVariable) &&
+                    matchGetOperand(arguments.get(1), AstCode.Load, constructorArgumentVariable) &&
+                    matchGetArgument(previous, AstCode.InvokeVirtual, getClassMethod, getClassArgument) &&
+                    isGetClassMethod(getClassMethod.get()) &&
+                    matchGetOperand(getClassArgument.get(), AstCode.Load, getClassArgumentVariable) &&
+                    getClassArgumentVariable.get() == constructorArgumentVariable.get()) {
+
+                    final TypeReference constructorTargetType = constructorTargetVariable.get().getType();
+                    final TypeReference constructorArgumentType = constructorArgumentVariable.get().getType();
+
+                    if (constructorTargetType != null && constructorArgumentType != null) {
+                        final TypeDefinition resolvedConstructorTargetType = constructorTargetType.resolve();
+                        final TypeDefinition resolvedConstructorArgumentType = constructorArgumentType.resolve();
+
+                        if (resolvedConstructorTargetType != null &&
+                            resolvedConstructorArgumentType != null &&
+                            resolvedConstructorTargetType.isNested() &&
+                            !resolvedConstructorTargetType.isStatic() &&
+                            isEnclosedBy(resolvedConstructorTargetType, resolvedConstructorArgumentType)) {
+
+                            body.remove(position - 1);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private static boolean isGetClassMethod(final MethodReference method) {
+            return method.getParameters().isEmpty() &&
+                   StringUtilities.equals(method.getName(), "getClass");
+        }
+
+        private static boolean isEnclosedBy(final TypeReference innerType, final TypeReference outerType) {
+            if (innerType == null) {
+                return false;
+            }
+
+            for (TypeReference current = innerType.getDeclaringType();
+                 current != null;
+                 current = current.getDeclaringType()) {
+
+                if (MetadataResolver.areEquivalent(current, outerType)) {
+                    return true;
+                }
+            }
+
+            final TypeDefinition resolvedInnerType = innerType.resolve();
+
+            if (resolvedInnerType != null) {
+                return isEnclosedBy(resolvedInnerType.getBaseType(), outerType);
+            }
+
+            return false;
         }
     }
 

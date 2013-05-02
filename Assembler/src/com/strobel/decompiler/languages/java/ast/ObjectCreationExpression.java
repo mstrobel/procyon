@@ -92,6 +92,7 @@ public class ObjectCreationExpression extends Expression {
             final ObjectCreationExpression otherExpression = (ObjectCreationExpression) other;
 
             return !otherExpression.isNull() &&
+                   getTarget().matches(otherExpression.getTarget(), match) &&
                    getType().matches(otherExpression.getType(), match) &&
                    getArguments().matches(otherExpression.getArguments(), match);
         }

@@ -18,6 +18,7 @@ package com.strobel.decompiler.ast;
 
 public enum AstOptimizationStep {
     RemoveRedundantCode,
+    RemoveInnerClassInitSecurityChecks,
     ReduceBranchInstructionSet,
     InlineVariables,
     CopyPropagation,

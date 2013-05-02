@@ -707,6 +707,11 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         @Override
+        public Boolean visitTypeDeclaration(final TypeDeclaration node, final Void data) {
+            return null;
+        }
+
+        @Override
         public Boolean visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void _) {
             final Expression operand = node.getExpression();
 

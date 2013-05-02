@@ -269,7 +269,20 @@ public final class AstBuilder {
         else if (packageDeclaration != null &&
                  StringUtilities.equals(packageDeclaration.getName(), type.getPackageName())) {
 
-            name = type.getSimpleName();
+            String unqualifiedName = type.getSimpleName();
+            TypeReference current = type;
+
+            while (current.isNested()) {
+                current = current.getDeclaringType();
+
+                if (isContextWithinType(current)) {
+                    break;
+                }
+
+                unqualifiedName = current.getSimpleName() + "." + unqualifiedName;
+            }
+
+            name = unqualifiedName;
         }
         else {
             final TypeReference typeToImport;
@@ -331,6 +344,21 @@ public final class AstBuilder {
         }
 
         return astType;
+    }
+
+    private boolean isContextWithinType(final TypeReference type) {
+        final TypeReference scope = _context.getCurrentType();
+
+        for (TypeReference current = scope;
+             current != null;
+             current = current.getDeclaringType()) {
+
+            if (MetadataResolver.areEquivalent(current, type)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private TypeDeclaration createTypeCore(final TypeDefinition type) {
@@ -647,9 +675,12 @@ public final class AstBuilder {
         _compileUnit.acceptVisitor(new JavaOutputVisitor(output, _context.getSettings().getFormattingOptions()), null);
     }
 
-    public static boolean isMemberHidden(final IMemberDefinition member, final DecompilerSettings settings) {
-        if (member.isSynthetic() && !settings.getShowSyntheticMembers())
-            return true;
+    public static boolean isMemberHidden(final IMemberDefinition member, final DecompilerContext context) {
+        final DecompilerSettings settings = context.getSettings();
+
+        if (member.isSynthetic() && !settings.getShowSyntheticMembers()) {
+            return !context.getForcedVisibleMembers().contains(member);
+        }
 
         if (member instanceof TypeReference &&
             ((TypeReference) member).isNested() &&
@@ -657,10 +688,32 @@ public final class AstBuilder {
 
             final TypeDefinition resolvedType = ((TypeReference) member).resolve();
 
-            return resolvedType == null || !resolvedType.isLocalClass();
+            if (resolvedType == null) {
+                return true;
+            }
+
+            return findLocalType(resolvedType) == null;
         }
 
         return false;
+    }
+
+    private static TypeReference findLocalType(final TypeReference type) {
+        if (type != null) {
+            final TypeDefinition resolvedType = type.resolve();
+
+            if (resolvedType != null && resolvedType.isLocalClass()) {
+                return resolvedType;
+            }
+
+            final TypeReference declaringType = type.getDeclaringType();
+
+            if (declaringType != null) {
+                return findLocalType(declaringType);
+            }
+        }
+
+        return null;
     }
 
     public Annotation createAnnotation(final CustomAnnotation annotation) {
@@ -713,11 +766,11 @@ public final class AstBuilder {
             }
 
             case Class: {
-                return new ClassOfExpression(convertType(((ClassAnnotationElement)element).getClassType()));
+                return new ClassOfExpression(convertType(((ClassAnnotationElement) element).getClassType()));
             }
 
             case Annotation: {
-                return createAnnotation(((AnnotationAnnotationElement)element).getAnnotation());
+                return createAnnotation(((AnnotationAnnotationElement) element).getAnnotation());
             }
         }
 

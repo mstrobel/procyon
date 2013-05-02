@@ -495,7 +495,7 @@ public class MethodReader {
                 VariableDefinition actualVariable = variables.tryFind(currentVariable.getSlot(), effectiveOffset);
 
                 if (actualVariable == null && code.isStore()) {
-                    actualVariable = variables.tryFind(
+                    actualVariable = variables.find(
                         currentVariable.getSlot(),
                         effectiveOffset + code.getSize() + code.getOperandType().getBaseSize()
                     );

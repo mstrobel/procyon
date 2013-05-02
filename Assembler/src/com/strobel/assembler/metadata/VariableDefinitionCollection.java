@@ -49,19 +49,22 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
     }
 
     public VariableDefinition tryFind(final int slot, final int instructionOffset) {
+        VariableDefinition result = null;
+
         for (int i = 0; i < size(); i++) {
             final VariableDefinition variable = get(i);
 
             if (variable.getSlot() == slot &&
                 (instructionOffset < 0 ||
                  variable.getScopeStart() <= instructionOffset &&
-                 (variable.getScopeEnd() < 0 || variable.getScopeEnd() > instructionOffset))) {
+                 (variable.getScopeEnd() < 0 || variable.getScopeEnd() > instructionOffset)) &&
+                (result == null || variable.getScopeStart() > result.getScopeStart())) {
 
-                return variable;
+                result = variable;
             }
         }
 
-        return null;
+        return result;
     }
 
     public VariableDefinition find(final int slot) {
@@ -199,6 +202,7 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
         add(variable);
 
+        updateScopes(-1);
         return variable;
     }
 

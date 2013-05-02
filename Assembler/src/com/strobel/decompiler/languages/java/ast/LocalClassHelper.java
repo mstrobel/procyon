@@ -19,22 +19,16 @@ import java.util.Map;
 import static com.strobel.core.CollectionUtilities.getOrDefault;
 
 public final class LocalClassHelper {
-    public static void replaceClosureMembers(
-        final DecompilerSettings settings,
-        final AnonymousObjectCreationExpression node) {
-
-        replaceClosureMembers(
-            settings,
-            node.getTypeDeclaration(),
-            Collections.singletonList(node)
-        );
+    public static void replaceClosureMembers(final DecompilerContext context, final AnonymousObjectCreationExpression node) {
+        replaceClosureMembers(context, node.getTypeDeclaration(), Collections.singletonList(node));
     }
 
     public static void replaceClosureMembers(
-        final DecompilerSettings settings,
+        final DecompilerContext context,
         final TypeDeclaration declaration,
         final List<? extends ObjectCreationExpression> instantiations) {
 
+        final DecompilerSettings settings = VerifyArgument.notNull(context, "context").getSettings();
         final TypeDeclaration root = VerifyArgument.notNull(declaration, "declaration");
         final Map<String, Expression> initializers = new HashMap<>();
         final Map<String, Expression> replacements = new HashMap<>();
@@ -49,8 +43,8 @@ public final class LocalClassHelper {
             originalArguments = new ArrayList<>(instantiations.get(0).getArguments());
         }
 
-        new PhaseOneVisitor(new DecompilerContext(settings), originalArguments, replacements, initializers, parametersToRemove, nodesToRemove).run(root);
-        new PhaseTwoVisitor(new DecompilerContext(settings), replacements, initializers).run(root);
+        new PhaseOneVisitor(context, originalArguments, replacements, initializers, parametersToRemove, nodesToRemove).run(root);
+        new PhaseTwoVisitor(context, replacements, initializers).run(root);
 
         for (final ObjectCreationExpression instantiation : instantiations) {
             for (final ParameterDefinition p : parametersToRemove) {
@@ -196,7 +190,16 @@ public final class LocalClassHelper {
                                 }
 
                                 _parametersToRemove.add(parameter);
-                                _replacements.put(member.getFullName(), argument);
+
+                                final String fullName = member.getFullName();
+
+                                if (!hasSideEffects(argument)) {
+                                    _replacements.put(fullName, argument);
+                                }
+                                else {
+                                    context.getForcedVisibleMembers().add(resolvedField);
+                                    _initializers.put(fullName, argument);
+                                }
 
                                 if (node.getParent() instanceof ExpressionStatement) {
                                     _nodesToRemove.add(node.getParent());
@@ -295,6 +298,20 @@ public final class LocalClassHelper {
                 }
             }
         }
+    }
+
+    private static boolean hasSideEffects(final Expression e) {
+        if (e instanceof IdentifierExpression ||
+            e instanceof PrimitiveExpression ||
+            e instanceof ThisReferenceExpression ||
+            e instanceof SuperReferenceExpression ||
+            e instanceof NullReferenceExpression ||
+            e instanceof ClassOfExpression) {
+
+            return false;
+        }
+
+        return true;
     }
 
     private final static class PhaseTwoVisitor extends ContextTrackingVisitor<Void> {

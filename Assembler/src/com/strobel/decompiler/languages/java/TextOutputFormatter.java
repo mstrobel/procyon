@@ -92,6 +92,13 @@ public class TextOutputFormatter implements IOutputFormatter {
             return;
         }
 
+        reference = getCurrentLocalReference();
+
+        if (reference != null) {
+            output.writeReference(identifier, reference, true);
+            return;
+        }
+
         reference = getCurrentMemberReference();
 
         if (reference != null) {
@@ -117,13 +124,6 @@ public class TextOutputFormatter implements IOutputFormatter {
 
         if (definition != null) {
             output.writeDefinition(identifier, definition);
-            return;
-        }
-
-        reference = getCurrentLocalReference();
-
-        if (reference != null) {
-            output.writeReference(identifier, reference, true);
             return;
         }
 

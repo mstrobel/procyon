@@ -46,6 +46,14 @@ public final class ThisReferenceExpression extends Expression {
         return _endLocation;
     }
 
+    public final Expression getTarget() {
+        return getChildByRole(Roles.TARGET_EXPRESSION);
+    }
+
+    public final void setTarget(final Expression value) {
+        setChildByRole(Roles.TARGET_EXPRESSION, value);
+    }
+
     public final void setStartLocation(final TextLocation startLocation) {
         _startLocation = VerifyArgument.notNull(startLocation, "startLocation");
         _endLocation = new TextLocation(startLocation.line(), startLocation.column() + THIS_TEXT.length());
@@ -58,6 +66,7 @@ public final class ThisReferenceExpression extends Expression {
 
     @Override
     public boolean matches(final INode other, final Match match) {
-        return other instanceof ThisReferenceExpression;
+        return other instanceof ThisReferenceExpression &&
+               getTarget().matches(((ThisReferenceExpression) other).getTarget(), match);
     }
 }

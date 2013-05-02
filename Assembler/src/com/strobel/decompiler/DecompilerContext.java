@@ -17,6 +17,7 @@
 package com.strobel.decompiler;
 
 import com.strobel.assembler.Collection;
+import com.strobel.assembler.metadata.IMemberDefinition;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.componentmodel.UserDataStoreBase;
@@ -26,6 +27,7 @@ import java.util.List;
 
 public final class DecompilerContext extends UserDataStoreBase {
     private final List<String> _reservedVariableNames = new Collection<>();
+    private final List<IMemberDefinition> _forcedVisibleMembers = new Collection<>();
     private DecompilerSettings _settings = new DecompilerSettings();
     private BooleanBox _isCanceled;
     private TypeDefinition _currentType;
@@ -72,5 +74,9 @@ public final class DecompilerContext extends UserDataStoreBase {
 
     public List<String> getReservedVariableNames() {
         return _reservedVariableNames;
+    }
+
+    public List<IMemberDefinition> getForcedVisibleMembers() {
+        return _forcedVisibleMembers;
     }
 }

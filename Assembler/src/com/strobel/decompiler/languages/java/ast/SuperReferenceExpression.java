@@ -46,6 +46,14 @@ public final class SuperReferenceExpression extends Expression {
         return _endLocation;
     }
 
+    public final Expression getTarget() {
+        return getChildByRole(Roles.TARGET_EXPRESSION);
+    }
+
+    public final void setTarget(final Expression value) {
+        setChildByRole(Roles.TARGET_EXPRESSION, value);
+    }
+
     public void setStartLocation(final TextLocation startLocation) {
         _startLocation = VerifyArgument.notNull(startLocation, "startLocation");
         _endLocation = new TextLocation(startLocation.line(), startLocation.column() + SUPER_TEXT.length());
@@ -58,6 +66,7 @@ public final class SuperReferenceExpression extends Expression {
 
     @Override
     public boolean matches(final INode other, final Match match) {
-        return other instanceof SuperReferenceExpression;
+        return other instanceof SuperReferenceExpression &&
+               getTarget().matches(((SuperReferenceExpression) other).getTarget(), match);
     }
 }
