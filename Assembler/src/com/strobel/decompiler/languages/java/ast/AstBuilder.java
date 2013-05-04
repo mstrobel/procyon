@@ -381,7 +381,7 @@ public final class AstBuilder {
 
         _typeDeclarations.put(type.getInternalName(), astType);
 
-        long flags = type.getFlags() & (Flags.ClassFlags | Flags.STATIC | Flags.FINAL);
+        long flags = type.getFlags() & (Flags.AccessFlags | Flags.ClassFlags | Flags.STATIC | Flags.FINAL);
 
         if (type.isInterface()) {
             flags &= ~Flags.ABSTRACT;

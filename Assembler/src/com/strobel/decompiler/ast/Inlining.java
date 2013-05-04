@@ -413,7 +413,9 @@ final class Inlining {
                 return true;
             }
 
-            if (count(loadCounts, variable.get()) == 0) {
+            if (count(loadCounts, variable.get()) == 0 &&
+                variable.get().isGenerated()) {
+
                 //
                 // The variable is never loaded.
                 //
@@ -425,8 +427,7 @@ final class Inlining {
                     return true;
                 }
 
-                if (canBeExpressionStatement(inlinedExpression.get()) &&
-                    variable.get().isGenerated()) {
+                if (canBeExpressionStatement(inlinedExpression.get())) {
                     //
                     // Assign the ranges of the Store instruction.
                     //

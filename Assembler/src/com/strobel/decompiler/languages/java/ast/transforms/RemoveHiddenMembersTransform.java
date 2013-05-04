@@ -19,15 +19,13 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.core.Predicate;
+import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
-import com.strobel.decompiler.languages.java.ast.AstBuilder;
-import com.strobel.decompiler.languages.java.ast.CompilationUnit;
-import com.strobel.decompiler.languages.java.ast.ConstructorDeclaration;
-import com.strobel.decompiler.languages.java.ast.ContextTrackingVisitor;
-import com.strobel.decompiler.languages.java.ast.FieldDeclaration;
-import com.strobel.decompiler.languages.java.ast.Keys;
-import com.strobel.decompiler.languages.java.ast.MethodDeclaration;
-import com.strobel.decompiler.languages.java.ast.TypeDeclaration;
+import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.patterns.INode;
+
+import static com.strobel.core.CollectionUtilities.any;
 
 public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
     public RemoveHiddenMembersTransform(final DecompilerContext context) {
@@ -81,13 +79,57 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
         return super.visitMethodDeclaration(node, _);
     }
 
+    private final static INode DEFAULT_CONSTRUCTOR_BODY;
+
+    static {
+        DEFAULT_CONSTRUCTOR_BODY = new BlockStatement(
+            new ExpressionStatement(
+                new InvocationExpression(
+                    new SuperReferenceExpression()
+                )
+            )
+        );
+    }
+
     @Override
     public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
         final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
-        if (method != null && AstBuilder.isMemberHidden(method, context)) {
-            node.remove();
-            return null;
+        if (method != null) {
+            if (AstBuilder.isMemberHidden(method, context)) {
+                node.remove();
+                return null;
+            }
+
+            if (!context.getSettings().getShowSyntheticMembers() &&
+                node.getParameters().isEmpty() &&
+                DEFAULT_CONSTRUCTOR_BODY.matches(node.getBody())) {
+
+                //
+                // Remove redundant default constructors.
+                //
+
+                final TypeDefinition declaringType = method.getDeclaringType();
+
+                if (declaringType != null) {
+                    final boolean hasOtherConstructors = any(
+                        declaringType.getDeclaredMethods(),
+                        new Predicate<MethodDefinition>() {
+                            @Override
+                            public boolean test(final MethodDefinition m) {
+                                return m.isConstructor() &&
+                                       !m.isSynthetic() &&
+                                       !StringUtilities.equals(m.getErasedSignature(), method.getErasedSignature());
+                            }
+                        }
+                    );
+
+                    if (!hasOtherConstructors) {
+                        node.remove();
+                        return null;
+                    }
+                }
+            }
         }
 
         return super.visitConstructorDeclaration(node, _);

@@ -105,6 +105,14 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
     }
 
+    public void copyUserDataFrom(final AstNode source) {
+        VerifyArgument.notNull(source, "source");
+
+        for (final Key<?> key : Keys.ALL_KEYS) {
+            copyKey(source, this, key);
+        }
+    }
+
     private static <T> void copyKey(final AstNode source, final AstNode target, final Key<T> key) {
         target._dataStore.putUserDataIfAbsent(key, source._dataStore.getUserData(key));
     }

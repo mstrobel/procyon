@@ -24,7 +24,6 @@ public final class TransformationPipeline {
     @SuppressWarnings("UnusedParameters")
     public static IAstTransform[] createPipeline(final DecompilerContext context) {
         return new IAstTransform[] {
-            new RewriteInnerClassConstructorChainsTransform(context),
             new EnumRewriterTransform(context),
             new EnumSwitchRewriterTransform(context),
             new EclipseEnumSwitchRewriterTransform(context),
@@ -41,6 +40,7 @@ public final class TransformationPipeline {
             new EliminateSyntheticAccessorsTransform(context),
             new RewriteLocalClassesTransform(context),
             new IntroduceOuterClassReferencesTransform(context),
+            new RewriteInnerClassConstructorCalls(context),
             new FlattenElseIfStatementsTransform(context),
             new FlattenSwitchBlocksTransform(context),
             new RemoveHiddenMembersTransform(context)

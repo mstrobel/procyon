@@ -626,6 +626,7 @@ public final class ClassFileReader extends MetadataReader {
                 !declaredTypes.contains(resolvedInnerType)) {
 
                 declaredTypes.add(resolvedInnerType);
+                resolvedInnerType.setFlags(resolvedInnerType.getFlags() | entry.getAccessFlags());
             }
         }
     }

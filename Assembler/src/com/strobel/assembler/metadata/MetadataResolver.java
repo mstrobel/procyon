@@ -352,7 +352,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
 
         // TODO: Check scope.
 
-        return areEquivalent(a.getDeclaringType(), b.getDeclaringType());
+        return true; //areEquivalent(a.getDeclaringType(), b.getDeclaringType());
     }
 
     static boolean areParametersEquivalent(final List<ParameterDefinition> a, final List<ParameterDefinition> b) {

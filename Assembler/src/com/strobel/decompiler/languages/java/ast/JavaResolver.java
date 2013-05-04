@@ -83,12 +83,18 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
 
         @Override
         public ResolveResult visitThisReferenceExpression(final ThisReferenceExpression node, final Void data) {
-            return resolveType(node.getUserData(Keys.TYPE_REFERENCE));
+            if (node.getTarget().isNull()) {
+                return resolveType(node.getUserData(Keys.TYPE_REFERENCE));
+            }
+            return node.getTarget().acceptVisitor(this, data);
         }
 
         @Override
         public ResolveResult visitSuperReferenceExpression(final SuperReferenceExpression node, final Void data) {
-            return super.visitSuperReferenceExpression(node, data);
+            if (node.getTarget().isNull()) {
+                return resolveType(node.getUserData(Keys.TYPE_REFERENCE));
+            }
+            return node.getTarget().acceptVisitor(this, data);
         }
 
         @Override
@@ -131,11 +137,11 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         @Override
         public ResolveResult visitInvocationExpression(final InvocationExpression node, final Void _) {
             final ResolveResult result = resolveTypeFromMember(node.getUserData(Keys.MEMBER_REFERENCE));
-            
+
             if (result != null) {
                 return result;
             }
-            
+
             return node.getTarget().acceptVisitor(this, _);
         }
 
@@ -254,11 +260,11 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
 
         return null;
     }
-    
+
     private final static ResolveResult resolveType(final TypeReference type) {
         return type == null ? null : new ResolveResult(type);
     }
-    
+
     private final static ResolveResult resolveTypeFromMember(final MemberReference member) {
         if (member == null) {
             return null;

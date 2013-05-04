@@ -22,20 +22,13 @@ import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
-import com.strobel.decompiler.languages.java.ast.ContextTrackingVisitor;
-import com.strobel.decompiler.languages.java.ast.Expression;
-import com.strobel.decompiler.languages.java.ast.InvocationExpression;
-import com.strobel.decompiler.languages.java.ast.JavaResolver;
-import com.strobel.decompiler.languages.java.ast.Keys;
-import com.strobel.decompiler.languages.java.ast.ObjectCreationExpression;
-import com.strobel.decompiler.languages.java.ast.SimpleType;
-import com.strobel.decompiler.languages.java.ast.SuperReferenceExpression;
+import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.semantics.ResolveResult;
 
-public class RewriteInnerClassConstructorChainsTransform extends ContextTrackingVisitor<Void> {
+public class RewriteInnerClassConstructorCalls extends ContextTrackingVisitor<Void> {
     private final JavaResolver _resolver;
 
-    public RewriteInnerClassConstructorChainsTransform(final DecompilerContext context) {
+    public RewriteInnerClassConstructorCalls(final DecompilerContext context) {
         super(context);
         _resolver = new JavaResolver(context);
     }
@@ -44,8 +37,10 @@ public class RewriteInnerClassConstructorChainsTransform extends ContextTracking
     public Void visitObjectCreationExpression(final ObjectCreationExpression node, final Void data) {
         super.visitObjectCreationExpression(node, data);
 
-        if (!node.getArguments().isEmpty()) {
-            final Expression firstArgument = node.getArguments().firstOrNullObject();
+        final AstNodeCollection<Expression> arguments = node.getArguments();
+
+        if (!arguments.isEmpty()) {
+            final Expression firstArgument = arguments.firstOrNullObject();
             final ResolveResult resolvedArgument = _resolver.apply(firstArgument);
 
             if (resolvedArgument != null) {
@@ -58,16 +53,28 @@ public class RewriteInnerClassConstructorChainsTransform extends ContextTracking
                     if (resolvedCreatedType != null &&
                         resolvedCreatedType.isInnerClass() &&
                         !resolvedCreatedType.isStatic() &&
-                        isEnclosedBy(resolvedCreatedType, argumentType) &&
-                        !isContextWithinTypeInstance(argumentType)) {
+                        isEnclosedBy(resolvedCreatedType, argumentType)) {
 
-                        firstArgument.remove();
-                        node.setTarget(firstArgument);
+                        if (isContextWithinTypeInstance(argumentType) &&
+                            firstArgument instanceof ThisReferenceExpression) {
 
-                        final SimpleType type = new SimpleType(resolvedCreatedType.getSimpleName());
+                            final MethodReference constructor = (MethodReference) node.getUserData(Keys.MEMBER_REFERENCE);
 
-                        type.putUserData(Keys.TYPE_REFERENCE, resolvedCreatedType);
-                        node.getType().replaceWith(type);
+                            if (constructor != null &&
+                                arguments.size() == constructor.getParameters().size()) {
+
+                                firstArgument.remove();
+                            }
+                        }
+                        else {
+                            firstArgument.remove();
+                            node.setTarget(firstArgument);
+
+                            final SimpleType type = new SimpleType(resolvedCreatedType.getSimpleName());
+
+                            type.putUserData(Keys.TYPE_REFERENCE, resolvedCreatedType);
+                            node.getType().replaceWith(type);
+                        }
                     }
                 }
             }
@@ -100,7 +107,10 @@ public class RewriteInnerClassConstructorChainsTransform extends ContextTracking
                             isEnclosedBy(context.getCurrentType(), argumentType)) {
 
                             firstArgument.remove();
-                            node.setTarget(firstArgument);
+
+                            if (!(firstArgument instanceof ThisReferenceExpression)) {
+                                node.setTarget(firstArgument);
+                            }
                         }
                     }
                 }
