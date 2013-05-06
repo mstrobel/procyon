@@ -33,7 +33,6 @@ public abstract class DecompilerTest {
     protected final static int OPTION_INCLUDE_NESTED = 0x0001;
     protected final static int OPTION_FLATTEN_SWITCH_BLOCKS = 0x0002;
     protected final static int OPTION_INCLUDE_SYNTHETIC = 0x0004;
-    protected final static int OPTION_ = 0x0008;
 
     protected final static Pattern WHITESPACE;
 

@@ -15,6 +15,9 @@ package com.strobel.decompiler;
 
 import org.junit.Test;
 
+import java.util.Iterator;
+
+@SuppressWarnings("UnusedDeclaration")
 public class InnerClassTests extends DecompilerTest {
     private class T {
         void test() {
@@ -56,6 +59,68 @@ public class InnerClassTests extends DecompilerTest {
                     b.super(a);
                 }
             }
+        }
+    }
+
+    private static class A {
+        private boolean x;
+
+        public Iterable<String> test(final boolean z) {
+            return new Iterable<String>() {
+                private final boolean y = z;
+
+                @Override
+                public Iterator<String> iterator() {
+                    return new Iterator<String>() {
+                        @Override
+                        public boolean hasNext() {
+                            return x && y;
+                        }
+
+                        @Override
+                        public String next() {
+                            return null;
+                        }
+
+                        @Override
+                        public void remove() {
+                        }
+                    };
+                }
+            };
+        }
+    }
+
+    private static class B {
+        private boolean x;
+
+        public Iterable<String> test(final boolean z) {
+            final class MethodScopedIterable implements Iterable<String> {
+                private final boolean y = z;
+
+                @Override
+                public Iterator<String> iterator() {
+                    return new Iterator<String>() {
+                        @Override
+                        public boolean hasNext() {
+                            return B.this.x && MethodScopedIterable.this.y;
+                        }
+
+                        @Override
+                        public String next() {
+                            return null;
+                        }
+
+                        @Override
+                        public void remove() {
+                        }
+                    };
+                }
+            }
+
+            System.out.println(new MethodScopedIterable());
+
+            return new MethodScopedIterable();
         }
     }
 
@@ -134,5 +199,62 @@ public class InnerClassTests extends DecompilerTest {
             "    }\n" +
             "}"
         );
+    }
+
+    @Test
+    public void testAnonymousLocalClassCreation() {
+        verifyOutput(
+            A.class,
+            defaultSettings(),
+            "private static class A {\n" +
+            "    private boolean x;\n" +
+            "    public Iterable<String> test(boolean z) {\n" +
+            "        return new Iterable<String>() {\n" +
+            "            private final boolean y = z;\n" +
+            "            public Iterator<String> iterator() {\n" +
+            "                return new Iterator<String>() {\n" +
+            "                    public boolean hasNext() {\n" +
+            "                        return A.this.x && Iterable.this.y;\n" +
+            "                    }\n" +
+            "                    public String next() {\n" +
+            "                        return null;\n" +
+            "                    }\n" +
+            "                    public void remove() {\n" +
+            "                    }\n" +
+            "                };\n" +
+            "            }\n" +
+            "        };\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testNamedLocalClassCreation() {
+        verifyOutput(
+            B.class,
+            createSettings(OPTION_INCLUDE_NESTED),
+            "private static class B {\n" +
+            "    private boolean x;\n" +
+            "    public Iterable<String> test(boolean z) {\n" +
+            "        final class MethodScopedIterable implements Iterable<String> {\n" +
+            "            private final boolean y = z;\n" +
+            "            public Iterator<String> iterator() {\n" +
+            "                return new Iterator<String>() {\n" +
+            "                    public boolean hasNext() {\n" +
+            "                        return B.this.x && MethodScopedIterable.this.y;\n" +
+            "                    }\n" +
+            "                    public String next() {\n" +
+            "                        return null;\n" +
+            "                    }\n" +
+            "                    public void remove() {\n" +
+            "                    }\n" +
+            "                };\n" +
+            "            }\n" +
+            "        }\n" +
+            "        System.out.println(new MethodScopedIterable());\n" +
+            "        return new MethodScopedIterable();\n" +
+            "    }\n" +
+            "}\n");
     }
 }

@@ -429,6 +429,7 @@ public final class ClassFileReader extends MetadataReader {
                 visitAttributes();
                 visitFields();
                 defineMethods();
+                checkEnclosingMethodAttributes();
                 populateAnonymousInnerTypes();
             }
             finally {
@@ -442,6 +443,57 @@ public final class ClassFileReader extends MetadataReader {
         }
 
         return _typeDefinition;
+    }
+
+    private void checkEnclosingMethodAttributes() {
+        final InnerClassesAttribute innerClasses = SourceAttribute.find(AttributeNames.InnerClasses, _attributes);
+
+        if (innerClasses == null) {
+            return;
+        }
+
+        for (final InnerClassEntry entry : innerClasses.getEntries()) {
+            final String outerClassName = entry.getOuterClassName();
+            final String innerClassName = entry.getInnerClassName();
+
+            if (outerClassName != null) {
+                continue;
+            }
+
+            if (!StringUtilities.startsWith(innerClassName, _internalName + "$")) {
+                continue;
+            }
+
+            final TypeReference innerType = _parser.parseTypeDescriptor(innerClassName);
+            final TypeDefinition resolvedInnerType = innerType.resolve();
+
+            if (resolvedInnerType != null && resolvedInnerType.getDeclaringMethod() == null) {
+                final EnclosingMethodAttribute enclosingMethodAttribute = SourceAttribute.find(
+                    AttributeNames.EnclosingMethod,
+                    resolvedInnerType.getSourceAttributes()
+                );
+
+                MethodReference method;
+
+                if (enclosingMethodAttribute != null &&
+                    (method = enclosingMethodAttribute.getEnclosingMethod()) != null) {
+
+                    final MethodDefinition resolvedMethod = method.resolve();
+
+                    if (resolvedMethod != null) {
+                        method = resolvedMethod;
+
+                        final AnonymousLocalTypeCollection enclosedTypes = resolvedMethod.getDeclaredTypesInternal();
+
+                        if (!enclosedTypes.contains(_typeDefinition)) {
+                            enclosedTypes.add(_typeDefinition);
+                        }
+                    }
+
+                    resolvedInnerType.setDeclaringMethod(method);
+                }
+            }
+        }
     }
 
     private void populateMemberInfo() {
