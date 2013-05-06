@@ -152,7 +152,7 @@ public class LoopTests extends DecompilerTest {
     }
 
     @Test
-    public void testForWithArray() {
+    public void testForWithList() {
         verifyOutput(
             E.class,
             defaultSettings(),
@@ -168,7 +168,7 @@ public class LoopTests extends DecompilerTest {
     }
 
     @Test
-    public void testForWithList() {
+    public void testForWithArray() {
         verifyOutput(
             F.class,
             defaultSettings(),
