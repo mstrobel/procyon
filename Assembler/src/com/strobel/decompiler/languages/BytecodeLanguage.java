@@ -161,7 +161,7 @@ public class BytecodeLanguage extends Language {
                 if (SourceAttribute.find(AttributeNames.Signature, type.getSourceAttributes()) != null) {
                     output.writeAttribute("Signature");
                     output.write(": ");
-                    DecompilerHelpers.writeType(output, type, NameSyntax.SIGNATURE, true);
+                    DecompilerHelpers.writeGenericSignature(output, type);
                     output.writeLine();
                 }
             }

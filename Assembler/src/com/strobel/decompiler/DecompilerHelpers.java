@@ -686,7 +686,7 @@ public final class DecompilerHelpers {
             final TypeReference extendsBound = type.getExtendsBound();
             final TypeDefinition resolvedBound = extendsBound.resolve();
 
-            writer.write(type.getName());
+            writer.writeDefinition(type.getName(), type);
 
             if (resolvedBound != null && resolvedBound.isInterface()) {
                 writer.writeDelimiter(":");
