@@ -1,14 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <module type="JAVA_MODULE" version="4">
-  <component name="FacetManager">
-    <facet type="scala" name="Scala">
-      <configuration>
-        <option name="compileOrder" value="JavaThenScala" />
-        <option name="compilerLibraryLevel" value="Project" />
-        <option name="compilerLibraryName" value="scala" />
-      </configuration>
-    </facet>
-  </component>
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
     <content url="file://$MODULE_DIR$">
@@ -31,7 +22,6 @@
         </SOURCES>
       </library>
     </orderEntry>
-    <orderEntry type="library" name="scala" level="project" />
   </component>
   <component name="POM File Configuration" pomFile="" />
 </module>

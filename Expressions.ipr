@@ -982,14 +982,6 @@
       <JAVADOC />
       <SOURCES />
     </library>
-    <library name="scala">
-      <CLASSES>
-        <root url="file://$PROJECT_DIR$/../scala-2.10.1/lib" />
-      </CLASSES>
-      <JAVADOC />
-      <SOURCES />
-      <jarDirectory url="file://$PROJECT_DIR$/../scala-2.10.1/lib" recursive="false" />
-    </library>
   </component>
 </project>
 
