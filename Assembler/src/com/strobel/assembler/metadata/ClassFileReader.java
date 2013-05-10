@@ -425,12 +425,12 @@ public final class ClassFileReader extends MetadataReader {
             try {
                 populateDeclaringType();
                 populateBaseTypes();
-                populateNamedInnerTypes();
                 visitAttributes();
                 visitFields();
                 defineMethods();
-                checkEnclosingMethodAttributes();
+                populateNamedInnerTypes();
                 populateAnonymousInnerTypes();
+                checkEnclosingMethodAttributes();
             }
             finally {
                 if (declaringMethod != null) {
@@ -468,10 +468,19 @@ public final class ClassFileReader extends MetadataReader {
             final TypeDefinition resolvedInnerType = innerType.resolve();
 
             if (resolvedInnerType != null && resolvedInnerType.getDeclaringMethod() == null) {
-                final EnclosingMethodAttribute enclosingMethodAttribute = SourceAttribute.find(
+                final EnclosingMethodAttribute enclosingMethodAttribute;
+
+                final SourceAttribute rawEnclosingMethodAttribute = SourceAttribute.find(
                     AttributeNames.EnclosingMethod,
                     resolvedInnerType.getSourceAttributes()
                 );
+
+                if (rawEnclosingMethodAttribute instanceof EnclosingMethodAttribute) {
+                    enclosingMethodAttribute = (EnclosingMethodAttribute) rawEnclosingMethodAttribute;
+                }
+                else {
+                    enclosingMethodAttribute = null;
+                }
 
                 MethodReference method;
 
@@ -1092,7 +1101,7 @@ public final class ClassFileReader extends MetadataReader {
 
             final String typeName = _constantPool.lookupConstant(token);
 
-            return _parser.parseTypeSignature(typeName);
+            return _parser.parseTypeDescriptor(typeName);
         }
 
         @Override

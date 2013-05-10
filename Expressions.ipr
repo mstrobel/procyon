@@ -103,6 +103,9 @@
   <component name="GradleSettings">
     <option name="gradleHome" value="C:/dev/gradle-1.0" />
   </component>
+  <component name="HighlightingAdvisor">
+    <option name="SUGGEST_TYPE_AWARE_HIGHLIGHTING" value="false" />
+  </component>
   <component name="IdProvider" IDEtalkID="DA74CFE9236B2783DD29DCAE0534673D" />
   <component name="InspectionProjectProfileManager">
     <profiles>
@@ -917,7 +920,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.decompiler.Decompiler" />
       <option name="VM_PARAMETERS" value="-ea -Dsvn/com.strobel/out/test/Assembler/com/strobel/decompiler/InnerClassMadness.class -Dcom/strobel/decompiler/DecompilerTests -Dcom/strobel/assembler/ir/OpCode -Dcom/intellij/ide/ClassloaderUtil" />
-      <option name="PROGRAM_PARAMETERS" value="-n $PROJECT_DIR$/out/test/Assembler/com/strobel/decompiler/EnhancedTryTests.class" />
+      <option name="PROGRAM_PARAMETERS" value="-n $PROJECT_DIR$/out/test/Assembler/com/strobel/decompiler/ScalaTest.class" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />
@@ -978,6 +981,14 @@
       </CLASSES>
       <JAVADOC />
       <SOURCES />
+    </library>
+    <library name="scala">
+      <CLASSES>
+        <root url="file://$PROJECT_DIR$/../scala-2.10.1/lib" />
+      </CLASSES>
+      <JAVADOC />
+      <SOURCES />
+      <jarDirectory url="file://$PROJECT_DIR$/../scala-2.10.1/lib" recursive="false" />
     </library>
   </component>
 </project>

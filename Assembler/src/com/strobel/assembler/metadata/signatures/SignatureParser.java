@@ -31,9 +31,10 @@ import java.util.Collection;
 import java.util.List;
 
 public final class SignatureParser {
-    private static final TypeArgument[] EMPTY_TYPE_ARGUMENTS = new TypeArgument[0];
-    private static final char EOI = ':';
-    private static final boolean DEBUG = false;
+    private final static boolean DEBUG = Boolean.getBoolean("DEBUG");
+    private final static TypeArgument[] EMPTY_TYPE_ARGUMENTS = new TypeArgument[0];
+    private final static char EOI = ':';
+
     private char[] input; // the input signature
     private int index = 0; // index into the input
 
