@@ -198,6 +198,9 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         for (AstNode child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child instanceof TypeDeclaration) {
+                continue;
+            }
             run(child, analysis);
         }
     }
@@ -465,7 +468,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                     }
                 }
                 else if (statement instanceof ExpressionStatement &&
-                    ((ExpressionStatement) statement).getExpression() instanceof AssignmentExpression) {
+                         ((ExpressionStatement) statement).getExpression() instanceof AssignmentExpression) {
 
                     final AssignmentExpression assignment = (AssignmentExpression) ((ExpressionStatement) statement).getExpression();
                     final Expression left = assignment.getLeft();

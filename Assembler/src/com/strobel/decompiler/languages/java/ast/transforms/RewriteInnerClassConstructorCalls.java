@@ -34,6 +34,7 @@ public class RewriteInnerClassConstructorCalls extends ContextTrackingVisitor<Vo
     }
 
     @Override
+    @SuppressWarnings("ConstantConditions")
     public Void visitObjectCreationExpression(final ObjectCreationExpression node, final Void data) {
         super.visitObjectCreationExpression(node, data);
 
@@ -84,6 +85,7 @@ public class RewriteInnerClassConstructorCalls extends ContextTrackingVisitor<Vo
     }
 
     @Override
+    @SuppressWarnings("ConstantConditions")
     public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void data) {
         super.visitSuperReferenceExpression(node, data);
 
@@ -136,11 +138,8 @@ public class RewriteInnerClassConstructorCalls extends ContextTrackingVisitor<Vo
 
         final TypeDefinition resolvedInnerType = innerType.resolve();
 
-        if (resolvedInnerType != null) {
-            return isEnclosedBy(resolvedInnerType.getBaseType(), outerType);
-        }
-
-        return false;
+        return resolvedInnerType != null &&
+               isEnclosedBy(resolvedInnerType.getBaseType(), outerType);
     }
 
     private boolean isContextWithinTypeInstance(final TypeReference type) {

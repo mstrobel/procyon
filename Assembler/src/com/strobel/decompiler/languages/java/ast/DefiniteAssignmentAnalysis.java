@@ -393,6 +393,11 @@ public class DefiniteAssignmentAnalysis {
         }
 
         @Override
+        public DefiniteAssignmentStatus visitTypeDeclaration(final TypeDeclaration node, final DefiniteAssignmentStatus data) {
+            return data;
+        }
+
+        @Override
         public DefiniteAssignmentStatus visitVariableInitializer(final VariableInitializer node, final DefiniteAssignmentStatus data) {
             if (node.getInitializer().isNull()) {
                 return data;
