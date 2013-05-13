@@ -22,5 +22,6 @@ public enum EntityType {
     ENUM_VALUE,
     FIELD,
     METHOD,
-    CONSTRUCTOR
+    CONSTRUCTOR,
+    PARAMETER
 }

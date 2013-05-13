@@ -17,6 +17,7 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
@@ -27,7 +28,11 @@ import com.strobel.decompiler.languages.java.ast.*;
 
 import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @SuppressWarnings("ProtectedField")
 public class DeclareVariablesTransform implements IAstTransform {
@@ -196,6 +201,31 @@ public class DeclareVariablesTransform implements IAstTransform {
                 final Variable variable = declaration.getUserData(Keys.VARIABLE);
 
                 declareVariableInBlock(analysis, block, declaration.getType(), variableName, variable, true);
+            }
+        }
+
+        if (node instanceof MethodDeclaration) {
+            final Set<ParameterDefinition> unassignedParameters = new HashSet<>();
+            final AstNodeCollection<ParameterDeclaration> parameters = ((MethodDeclaration) node).getParameters();
+            final Map<ParameterDefinition, ParameterDeclaration> declarationMap = new HashMap<>();
+
+            for (final ParameterDeclaration parameter : parameters) {
+                final ParameterDefinition definition = parameter.getUserData(Keys.PARAMETER_DEFINITION);
+
+                if (definition != null) {
+                    unassignedParameters.add(definition);
+                    declarationMap.put(definition, parameter);
+                }
+            }
+
+            node.acceptVisitor(new ParameterAssignmentVisitor(unassignedParameters), null);
+
+            for (final ParameterDefinition definition : unassignedParameters) {
+                final ParameterDeclaration declaration = declarationMap.get(definition);
+
+                if (declaration != null && !declaration.hasModifier(Modifier.FINAL)) {
+                    declaration.addChild(new JavaModifierToken(Modifier.FINAL), EntityDeclaration.MODIFIER_ROLE);
+                }
             }
         }
 
@@ -653,6 +683,10 @@ public class DeclareVariablesTransform implements IAstTransform {
             _variableName = VerifyArgument.notNull(variableName, "variableName");
         }
 
+        final boolean isAssigned() {
+            return _assignmentCount > 0 && !_abort;
+        }
+
         final boolean isSingleAssignment() {
             return _assignmentCount < 2 && !_abort;
         }
@@ -755,6 +789,77 @@ public class DeclareVariablesTransform implements IAstTransform {
 
                         ++_assignmentCount;
                     }
+                    break;
+                }
+            }
+
+            return super.visitUnaryOperatorExpression(node, _);
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="ParameterAssignmentVisitor Class">
+
+    private final class ParameterAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
+        private final Set<ParameterDefinition> _unassignedParameters;
+        private final Map<String, ParameterDefinition> _parametersByName;
+
+        ParameterAssignmentVisitor(final Set<ParameterDefinition> unassignedParameters) {
+            _unassignedParameters = unassignedParameters;
+            _parametersByName = new HashMap<>();
+
+            for (final ParameterDefinition p : unassignedParameters) {
+                _parametersByName.put(p.getName(), p);
+            }
+        }
+
+        @Override
+        protected Boolean visitChildren(final AstNode node, final Void data) {
+            return super.visitChildren(node, data);
+        }
+
+        @Override
+        public Boolean visitAssignmentExpression(final AssignmentExpression node, final Void _) {
+            final Expression left = node.getLeft();
+
+            ParameterDefinition parameter = left.getUserData(Keys.PARAMETER_DEFINITION);
+
+            if (parameter == null && left instanceof IdentifierExpression) {
+                parameter = _parametersByName.get(((IdentifierExpression) left).getIdentifier());
+            }
+
+            if (parameter != null) {
+                _unassignedParameters.remove(parameter);
+            }
+
+            return super.visitAssignmentExpression(node, _);
+        }
+
+        @Override
+        public Boolean visitTypeDeclaration(final TypeDeclaration node, final Void data) {
+            return null;
+        }
+
+        @Override
+        public Boolean visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void _) {
+            final Expression operand = node.getExpression();
+
+            switch (node.getOperator()) {
+                case INCREMENT:
+                case DECREMENT:
+                case POST_INCREMENT:
+                case POST_DECREMENT: {
+                    ParameterDefinition parameter = operand.getUserData(Keys.PARAMETER_DEFINITION);
+
+                    if (parameter == null && operand instanceof IdentifierExpression) {
+                        parameter = _parametersByName.get(((IdentifierExpression) operand).getIdentifier());
+                    }
+
+                    if (parameter != null) {
+                        _unassignedParameters.remove(parameter);
+                    }
+
                     break;
                 }
             }

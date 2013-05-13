@@ -41,7 +41,7 @@ public class ModifierTests extends DecompilerTest {
             "    protected byte b;\n" +
             "    float f;\n" +
             "    private transient volatile double d;\n" +
-            "    public static final synchronized strictfp void m(String... args) {\n" +
+            "    public static final synchronized strictfp void m(final String... args) {\n" +
             "        for (char c = ' '; c < 'd'; c = (char)(c + '\\u0001')) {\n" +
             "            System.out.println(c + \" \" + c);\n" +
             "        }\n" +

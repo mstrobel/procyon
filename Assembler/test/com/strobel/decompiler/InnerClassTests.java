@@ -208,7 +208,7 @@ public class InnerClassTests extends DecompilerTest {
             defaultSettings(),
             "private static class A {\n" +
             "    private boolean x;\n" +
-            "    public Iterable<String> test(boolean z) {\n" +
+            "    public Iterable<String> test(final boolean z) {\n" +
             "        return new Iterable<String>() {\n" +
             "            private final boolean y = z;\n" +
             "            public Iterator<String> iterator() {\n" +
@@ -236,7 +236,7 @@ public class InnerClassTests extends DecompilerTest {
             createSettings(OPTION_INCLUDE_NESTED),
             "private static class B {\n" +
             "    private boolean x;\n" +
-            "    public Iterable<String> test(boolean z) {\n" +
+            "    public Iterable<String> test(final boolean z) {\n" +
             "        final class MethodScopedIterable implements Iterable<String> {\n" +
             "            private final boolean y = z;\n" +
             "            public Iterator<String> iterator() {\n" +

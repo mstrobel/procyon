@@ -16,11 +16,12 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.decompiler.languages.EntityType;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.Role;
 
-public class ParameterDeclaration extends AstNode {
+public class ParameterDeclaration extends EntityDeclaration {
     public final static Role<Annotation> ANNOTATION_ROLE = EntityDeclaration.ANNOTATION_ROLE;
 
     public ParameterDeclaration() {
@@ -31,25 +32,25 @@ public class ParameterDeclaration extends AstNode {
         setType(type);
     }
 
-    public final AstNodeCollection<Annotation> getAnnotations() {
-        return getChildrenByRole(ANNOTATION_ROLE);
-    }
-
-    public final String getName() {
-        return getChildByRole(Roles.IDENTIFIER).getName();
-    }
-
-    public final void setName(final String value) {
-        setChildByRole(Roles.IDENTIFIER, Identifier.create(value));
-    }
-
-    public final Identifier getNameToken() {
-        return getChildByRole(Roles.IDENTIFIER);
-    }
-
-    public final void setNameToken(final Identifier value) {
-        setChildByRole(Roles.IDENTIFIER, value);
-    }
+//    public final AstNodeCollection<Annotation> getAnnotations() {
+//        return getChildrenByRole(ANNOTATION_ROLE);
+//    }
+//
+//    public final String getName() {
+//        return getChildByRole(Roles.IDENTIFIER).getName();
+//    }
+//
+//    public final void setName(final String value) {
+//        setChildByRole(Roles.IDENTIFIER, Identifier.create(value));
+//    }
+//
+//    public final Identifier getNameToken() {
+//        return getChildByRole(Roles.IDENTIFIER);
+//    }
+//
+//    public final void setNameToken(final Identifier value) {
+//        setChildByRole(Roles.IDENTIFIER, value);
+//    }
 
     public final AstType getType() {
         return getChildByRole(Roles.TYPE);
@@ -65,6 +66,11 @@ public class ParameterDeclaration extends AstNode {
     }
 
     @Override
+    public EntityType getEntityType() {
+        return EntityType.PARAMETER;
+    }
+
+    @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
         return visitor.visitParameterDeclaration(this, data);
     }
@@ -75,6 +81,7 @@ public class ParameterDeclaration extends AstNode {
             final ParameterDeclaration otherDeclaration = (ParameterDeclaration) other;
 
             return !otherDeclaration.isNull() &&
+                   getModifiers().matches(otherDeclaration.getModifiers(), match) &&
                    matchString(getName(), otherDeclaration.getName()) &&
                    getAnnotations().matches(otherDeclaration.getAnnotations(), match) &&
                    getType().matches(otherDeclaration.getType(), match);

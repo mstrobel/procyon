@@ -30,7 +30,7 @@ public class OperatorTests extends DecompilerTest {
             A.class,
             defaultSettings(),
             "private static class A {\n" +
-            "    public String test(String s, char c, byte b, float f, Date d) {\n" +
+            "    public String test(final String s, final char c, final byte b, final float f, final Date d) {\n" +
             "        return b + \":\" + c + \":\" + s + \":\" + f + \":\" + d;\n" +
             "    }\n" +
             "}\n"

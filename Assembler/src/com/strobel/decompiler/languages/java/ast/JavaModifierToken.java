@@ -34,6 +34,10 @@ public class JavaModifierToken extends JavaTokenNode {
 
     private Modifier _modifier;
 
+    public JavaModifierToken(final Modifier modifier) {
+        this(TextLocation.EMPTY, modifier);
+    }
+
     public JavaModifierToken(final TextLocation startLocation, final Modifier modifier) {
         super(startLocation);
         _modifier = modifier;

@@ -85,7 +85,7 @@ public class SwitchTests extends DecompilerTest {
             A.class,
             createSettings(OPTION_FLATTEN_SWITCH_BLOCKS),
             "private static class A {\n" +
-            "    public void test(int i) {\n" +
+            "    public void test(final int i) {\n" +
             "        switch (i) {\n" +
             "            case -1:\n" +
             "                System.out.print(\"-1\");\n" +
@@ -119,7 +119,7 @@ public class SwitchTests extends DecompilerTest {
             B.class,
             createSettings(OPTION_FLATTEN_SWITCH_BLOCKS),
             "private static class B {\n" +
-            "    public void test(int i) {\n" +
+            "    public void test(final int i) {\n" +
             "        switch (i) {\n" +
             "            case -3:\n" +
             "            case -2:\n" +
@@ -144,7 +144,7 @@ public class SwitchTests extends DecompilerTest {
             C.class,
             createSettings(OPTION_FLATTEN_SWITCH_BLOCKS),
             "private static class C {\n" +
-            "    public void test(String s) {\n" +
+            "    public void test(final String s) {\n" +
             "        final String lowerCase = s.toLowerCase();\n" +
             "        switch (lowerCase) {\n" +
             "            case \"1\":\n" +
@@ -172,7 +172,7 @@ public class SwitchTests extends DecompilerTest {
             SwitchTests$D.class,
             createSettings(OPTION_FLATTEN_SWITCH_BLOCKS),
             "final class SwitchTests$D {\n" +
-            "    public void test(Color color) {\n" +
+            "    public void test(final Color color) {\n" +
             "        switch (color) {\n" +
             "            case BLUE:\n" +
             "                System.out.println(\"blue\");\n" +
