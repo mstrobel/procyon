@@ -16,8 +16,11 @@
 
 package com.strobel.decompiler.languages.java;
 
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.MetadataResolver;
 import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ArrayUtilities;
@@ -1584,8 +1587,36 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         startNode(node);
         node.getBaseType().acceptVisitor(this, _);
 
-        for (final ArraySpecifier specifier : node.getArraySpecifiers()) {
-            specifier.acceptVisitor(this, _);
+        boolean isVarArgs = false;
+
+        if (node.getParent() instanceof ParameterDeclaration) {
+            final ParameterDefinition parameter = node.getParent().getUserData(Keys.PARAMETER_DEFINITION);
+
+            if (parameter.getPosition() == parameter.getMethod().getParameters().size() - 1 &&
+                parameter.getParameterType().isArray() &&
+                parameter.getMethod() instanceof MethodReference) {
+
+                final MethodReference method = (MethodReference) parameter.getMethod();
+                final MethodDefinition resolvedMethod = method.resolve();
+
+                if (resolvedMethod != null && Flags.testAny(resolvedMethod.getFlags(), Flags.ACC_VARARGS | Flags.VARARGS)) {
+                    isVarArgs = true;
+                }
+            }
+        }
+
+        final AstNodeCollection<ArraySpecifier> arraySpecifiers = node.getArraySpecifiers();
+        final int arraySpecifierCount = arraySpecifiers.size();
+
+        int i = 0;
+
+        for (final ArraySpecifier specifier : arraySpecifiers) {
+            if (isVarArgs && ++i == arraySpecifierCount) {
+                writeToken(Roles.VARARGS);
+            }
+            else {
+                specifier.acceptVisitor(this, _);
+            }
         }
 
         endNode(node);

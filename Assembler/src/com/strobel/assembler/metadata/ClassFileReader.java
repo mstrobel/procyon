@@ -892,8 +892,14 @@ public final class ClassFileReader extends MetadataReader {
                         }
                     }
 
-                    if (Flags.testAny(_typeDefinition.getFlags(), Flags.ANONYMOUS) && "<init>".equals(method.name)) {
-                        methodDefinition.setFlags(methodDefinition.getFlags() | Flags.ANONCONSTR | Flags.SYNTHETIC);
+                    if ("<init>".equals(method.name)) {
+                        if (Flags.testAny(_typeDefinition.getFlags(), Flags.ANONYMOUS)) {
+                            methodDefinition.setFlags(methodDefinition.getFlags() | Flags.ANONCONSTR | Flags.SYNTHETIC);
+                        }
+
+                        if (Flags.testAny(method.accessFlags, Flags.STRICTFP)) {
+                            _typeDefinition.setFlags(_typeDefinition.getFlags() | Flags.STRICTFP);
+                        }
                     }
 
                     readMethodBody(method, methodDefinition);

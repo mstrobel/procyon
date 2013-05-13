@@ -16,6 +16,8 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
@@ -199,9 +201,25 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         for (AstNode child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
             if (child instanceof TypeDeclaration) {
+                final TypeDefinition currentType = context.getCurrentType();
+                final MethodDefinition currentMethod = context.getCurrentMethod();
+
+                context.setCurrentType(null);
+                context.setCurrentMethod(null);
+
+                try {
+                    new DeclareVariablesTransform(context).run(child);
+                }
+                finally {
+                    context.setCurrentType(currentType);
+                    context.setCurrentMethod(currentMethod);
+                }
+
                 continue;
             }
-            run(child, analysis);
+            else {
+                run(child, analysis);
+            }
         }
     }
 

@@ -70,6 +70,7 @@ public final class Roles {
     public final static TokenRole DOUBLE_COLON = new TokenRole("::");
     public final static TokenRole ASSIGN = new TokenRole("=", TokenRole.FLAG_OPERATOR);
     public final static TokenRole PIPE = new TokenRole("|", TokenRole.FLAG_OPERATOR);
+    public final static TokenRole VARARGS = new TokenRole("...");
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // KEYWORD TOKENS                                                                                                     //
