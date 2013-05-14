@@ -45,6 +45,9 @@ public final class MetadataHelper {
         }
 
         if (rank1 != 0 && (elementType1.isPrimitive() || elementType2.isPrimitive())) {
+            if (elementType1.isPrimitive() && elementType2.isPrimitive()) {
+                return doNumericPromotion(elementType1, elementType2);
+            }
             return BuiltinTypes.Object;
         }
 
@@ -67,19 +70,46 @@ public final class MetadataHelper {
         return result;
     }
 
-    private static TypeReference findCommonSuperTypeCore(final TypeReference type1, final TypeReference type2) {
-        final TypeDefinition c = type1.resolve();
-        final TypeDefinition d = type2.resolve();
+    private static TypeReference doNumericPromotion(final TypeReference leftType, final TypeReference rightType) {
+        final SimpleType left = leftType.getSimpleType();
+        final SimpleType right = rightType.getSimpleType();
 
-        if (isAssignableFrom(c, d)) {
+        if (left == right) {
+            return leftType;
+        }
+
+        if (left == SimpleType.Double || right == SimpleType.Double) {
+            return BuiltinTypes.Double;
+        }
+
+        if (left == SimpleType.Float || right == SimpleType.Float) {
+            return BuiltinTypes.Float;
+        }
+
+        if (left == SimpleType.Long || right == SimpleType.Long) {
+            return BuiltinTypes.Long;
+        }
+
+        if (left.isNumeric() && left != SimpleType.Boolean || right.isNumeric() && right != SimpleType.Boolean) {
+            return BuiltinTypes.Integer;
+        }
+
+        return leftType;
+    }
+
+    private static TypeReference findCommonSuperTypeCore(final TypeReference type1, final TypeReference type2) {
+        if (isAssignableFrom(type1, type2)) {
             return type1;
         }
 
-        if (isAssignableFrom(d, c)) {
+        if (isAssignableFrom(type2, type1)) {
             return type2;
         }
 
-        if (c.isInterface() || d.isInterface()) {
+        final TypeDefinition c = type1.resolve();
+        final TypeDefinition d = type2.resolve();
+
+        if (c == null || d == null || c.isInterface() || d.isInterface()) {
             return BuiltinTypes.Object;
         }
 

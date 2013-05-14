@@ -26,6 +26,7 @@ import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.Comparer;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.ast.Variable;
@@ -176,7 +177,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                     continue;
                 }
                 else {
-                    final TypeReference commonSuperType = MetadataHelper.findCommonSuperType(result.getType(), childResult.getType());
+                    final TypeReference commonSuperType = doBinaryPromotion(result, childResult);
 
                     if (commonSuperType != null) {
                         result = new ResolveResult(commonSuperType);
@@ -188,6 +189,29 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
             }
 
             return null;
+        }
+
+        private TypeReference doBinaryPromotion(final ResolveResult left, final ResolveResult right) {
+            final TypeReference leftType = left.getType();
+            final TypeReference rightType = right.getType();
+
+            if (leftType == null) {
+                return rightType;
+            }
+
+            if (rightType == null) {
+                return leftType;
+            }
+
+            if (StringUtilities.equals(leftType.getInternalName(), "java/lang/String")) {
+                return leftType;
+            }
+
+            if (StringUtilities.equals(rightType.getInternalName(), "java/lang/String")) {
+                return rightType;
+            }
+
+            return MetadataHelper.findCommonSuperType(leftType, rightType);
         }
 
         @Override
