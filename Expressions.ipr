@@ -920,7 +920,7 @@
       </extension>
       <option name="MAIN_CLASS_NAME" value="com.strobel.decompiler.Decompiler" />
       <option name="VM_PARAMETERS" value="-ea -Dsvn/com.strobel/out/test/Assembler/com/strobel/decompiler/InnerClassMadness.class -Dcom/strobel/decompiler/DecompilerTests -Dcom/strobel/assembler/ir/OpCode -Dcom/intellij/ide/ClassloaderUtil" />
-      <option name="PROGRAM_PARAMETERS" value="-n com.lehman.eqd.marketdata.consumer.TypedSpotMarketDataProxy" />
+      <option name="PROGRAM_PARAMETERS" value="-n $USER_HOME$/Downloads/Primes/Primes.class" />
       <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
       <option name="ALTERNATIVE_JRE_PATH" value="" />
@@ -978,13 +978,6 @@
     <library name="junit-4.5">
       <CLASSES>
         <root url="jar://$PROJECT_DIR$/lib/junit-4.5.jar!/" />
-      </CLASSES>
-      <JAVADOC />
-      <SOURCES />
-    </library>
-    <library name="lib">
-      <CLASSES>
-        <root url="jar://W:/amm/lib/MarketData.jar!/" />
       </CLASSES>
       <JAVADOC />
       <SOURCES />

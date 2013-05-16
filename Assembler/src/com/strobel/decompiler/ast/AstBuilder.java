@@ -1363,7 +1363,7 @@ public final class AstBuilder {
             case Dup2:
                 return ArrayUtilities.append(
                     oldStack,
-                    new StackSlot(stackMapper.getStackValue(0), oldStack[oldStack.length - 2].definitions),
+                    new StackSlot(stackMapper.getStackValue(1), oldStack[oldStack.length - 2].definitions),
                     new StackSlot(stackMapper.getStackValue(0), oldStack[oldStack.length - 1].definitions)
                 );
 
