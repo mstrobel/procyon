@@ -1107,7 +1107,7 @@ public final class ClassFileReader extends MetadataReader {
 
             final String typeName = _constantPool.lookupConstant(token);
 
-            return _parser.parseTypeDescriptor(typeName);
+            return _parser.parseTypeSignature(typeName);
         }
 
         @Override
