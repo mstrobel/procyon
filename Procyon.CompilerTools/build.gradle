@@ -1,0 +1,6 @@
+subname = 'compilertools'
+
+dependencies {
+    compile project(':Procyon.Core')
+    testCompile project(':Procyon.Reflection')
+}
