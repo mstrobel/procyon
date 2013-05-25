@@ -3,7 +3,7 @@
 Overview
 --------
 
-What is `com.strobel`?  It's a suite of reflection and code generation capabilities based on some of my favorite .NET APIs.  Much of the work I do these days involves runtime code generation, both on the Microsoft .NET and Java platforms.  On the .NET side, APIs such as LINQ/DLR expression trees eliminate the need to concern oneself with individual IL instructions and instead focus on composing code in terms of higher-level constructs.  Unfortunately, the Java frameworks I have found relating to code generation are painfully cumbersome to use and generally require emitting low-level bytecode instructions.  This project is the culmination of many weekends spent trying to develop a better way to compose JVM code at runtime.  It's not finished yet, but it's far enough along that I'm ready to unveil it.
+What is **Procyon**?  It's a suite of reflection and code generation capabilities based on some of my favorite .NET APIs.  Much of the work I do these days involves runtime code generation, both on the Microsoft .NET and Java platforms.  On the .NET side, APIs such as LINQ/DLR expression trees eliminate the need to concern oneself with individual IL instructions and instead focus on composing code in terms of higher-level constructs.  Unfortunately, the Java frameworks I have found relating to code generation are painfully cumbersome to use and generally require emitting low-level bytecode instructions.  This project is the culmination of many weekends spent trying to develop a better way to compose JVM code at runtime.  It's not finished yet, but it's far enough along that I'm ready to unveil it.
 
 There are essentially three layers to this project:
 
