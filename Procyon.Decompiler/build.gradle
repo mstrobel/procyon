@@ -1,0 +1,25 @@
+subname = 'decompiler'
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'eu.appsatori:gradle-fatjar-plugin:0.2-rc1'
+    }
+}
+
+apply plugin: 'fatjar'
+
+fatJar {
+    manifest {
+        attributes 'Title': archivesBaseName, 'Manifest-Version': '1.0', 'Version': version, 'Main-Class' : 'com.strobel.decompiler.DecompilerDriver'
+    }
+}
+
+dependencies {
+    compile 'com.beust:jcommander:1.30'
+    compile project(':Procyon.Core')
+    compile project(':Procyon.CompilerTools')
+}
