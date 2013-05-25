@@ -1,0 +1,28 @@
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+subname = ''
+
+allprojects {
+    apply plugin: 'java'
+    apply plugin: 'idea'
+
+    version "1.0-SNAPSHOT"
+
+    group 'procyon'
+    sourceCompatibility = 1.7    // JDK version
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        testCompile 'junit:junit:4.11'
+    }
+}
+
+subprojects {
+    archivesBaseName = 'procyon-' + it.name.split("\\.")[1].toLowerCase()
+}
+
+archivesBaseName = 'procyon'
