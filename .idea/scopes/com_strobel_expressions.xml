@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="com.strobel.expressions" pattern="src:com.strobel.expressions..*" />
+</component>

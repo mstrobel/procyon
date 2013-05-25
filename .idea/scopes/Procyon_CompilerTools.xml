@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="Procyon.CompilerTools" pattern="src[Procyon.CompilerTools]:*..*" />
+</component>
