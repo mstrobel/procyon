@@ -7,6 +7,7 @@
       <module fileurl="file://$PROJECT_DIR$/Procyon.Decompiler/Procyon.Decompiler.iml" filepath="$PROJECT_DIR$/Procyon.Decompiler/Procyon.Decompiler.iml" />
       <module fileurl="file://$PROJECT_DIR$/Procyon.Expressions/Procyon.Expressions.iml" filepath="$PROJECT_DIR$/Procyon.Expressions/Procyon.Expressions.iml" />
       <module fileurl="file://$PROJECT_DIR$/Procyon.Reflection/Procyon.Reflection.iml" filepath="$PROJECT_DIR$/Procyon.Reflection/Procyon.Reflection.iml" />
+      <module fileurl="file://$PROJECT_DIR$/procyon.iml" filepath="$PROJECT_DIR$/procyon.iml" />
     </modules>
   </component>
 </project>
