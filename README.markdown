@@ -1,4 +1,4 @@
-# NEW: [Java Decompiler](https://bitbucket.org/mstrobel/com.strobel/wiki/Java%20Decompiler)
+# NEW: [Java Decompiler](https://bitbucket.org/mstrobel/procyon/wiki/Java%20Decompiler)
 
 Overview
 --------
