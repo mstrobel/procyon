@@ -1,18 +1,18 @@
-![](logo.png)
+![](https://bitbucket.org/mstrobel/procyon/raw/912f088b9f008a46249107f9b08549008403bbb0/logo.png)
 
 *Procyon* is a suite of Java metaprogramming tools focused on code generation and analysis.  It includes the following libraries:
 
-  1. [Core Framework](#procyon-core)
-  2. [Reflection Framework](#procyon-reflection)
-  3. [Expressions Framework](#procyon-expressions)
-  4. [Compiler Toolset (Experimental)](#procyon-compilertools)
-  5. [Decompiler Front-End (Experimental)](#procyon-decompiler)
+  1. Core Framework
+  2. Reflection Framework
+  3. Expressions Framework
+  4. Compiler Toolset (Experimental)
+  5. Decompiler Front-End (Experimental)
 
-### <a id="#procyon-core"></a>Core Framework
+### Core Framework
 
 The `procyon-core` framework contains common support classes used by the other Procyon APIs.  Its facilities include string manipulation, collection extensions, filesystem/path utilities, freezable objects and collections, attached data stores, and some runtime type helpers.
 
-### <a id="#procyon-reflection"></a>Reflection Framework
+### Reflection Framework
 The `procyon-reflection` framework provides a rich reflection and code generation API with full support for generics, wildcards, and other high-level Java type concepts.  It is based on .NET's `System.Reflection` and `System.Reflection.Emit` APIs and is meant to address many of the shortcomings of the core Java reflection API, which offers rather limited and cumbersome support for generic type inspection.  Its code generation facilities include a `TypeBuilder`, `MethodBuilder`, and a bytecode emitter.
 
 #### Example
@@ -38,7 +38,7 @@ The `procyon-reflection` framework provides a rich reflection and code generatio
     [K, V]
     [java.lang.String, java.lang.Integer]
 
-### <a id="#procyon-expressions"></a>Expressions Framework
+### Expressions Framework
 
 The `procyon-expressions` framework provides a more natural form of code generation.
 Rather than requiring bytecode to be emitted directly, as with `procyon-reflection`
@@ -79,7 +79,7 @@ minus the dynamic callsite support (and with more relaxed rules regarding type c
     Got item: four
     Got item: five
 
-### <a id="#procyon-compilertools"></a>Compiler Toolset
+### Compiler Toolset
 
 The `procyon-compilertools` project is a work in progress that includes:
 
@@ -88,7 +88,7 @@ The `procyon-compilertools` project is a work in progress that includes:
 
 The Compiler Toolset is still early in development and subject to change.
 
-### <a id="#procyon-decompiler"></a>Decompiler Front-End
+### Decompiler Front-End
 
 `procyon-decompiler` is a standalone front-end for the Java decompiler included in
 `procyon-compilertools`.  All dependencies are embedded in the JAR for easy redistribution.
