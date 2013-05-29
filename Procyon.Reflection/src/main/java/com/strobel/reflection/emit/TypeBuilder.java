@@ -13,6 +13,7 @@
 
 package com.strobel.reflection.emit;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.compilerservices.CallerResolver;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ExceptionUtilities;
@@ -556,12 +557,14 @@ public final class TypeBuilder<T> extends Type<T> {
         return _generatedType.getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         verifyCreated();
         return _generatedType.getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         verifyCreated();

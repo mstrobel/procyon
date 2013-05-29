@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.VerifyArgument;
 
 import java.lang.annotation.Annotation;
@@ -239,11 +240,13 @@ final class ErasedType<T> extends Type<T> {
         return (T)_originalType.getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return _originalType.getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return _originalType.getDeclaredAnnotations();

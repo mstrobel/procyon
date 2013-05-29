@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 
@@ -151,11 +152,13 @@ final class PrimitiveType<T> extends Type<T> {
         return _class.getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return _class.getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return _class.getDeclaredAnnotations();

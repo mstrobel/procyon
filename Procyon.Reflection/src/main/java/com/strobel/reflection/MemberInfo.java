@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.StringComparator;
 
 import java.lang.annotation.Annotation;
@@ -84,11 +85,13 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
         return null;
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return EMPTY_ANNOTATIONS;
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return EMPTY_ANNOTATIONS;

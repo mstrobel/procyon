@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
 
@@ -252,11 +253,13 @@ class GenericParameter<T> extends Type<T> {
         return null;
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return new Annotation[0];
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return new Annotation[0];

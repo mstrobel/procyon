@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.collections.ImmutableList;
 import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
@@ -1348,11 +1349,13 @@ final class RuntimeType<T> extends Type<T> {
         return _basedOn.getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return _basedOn.getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return _basedOn.getDeclaredAnnotations();

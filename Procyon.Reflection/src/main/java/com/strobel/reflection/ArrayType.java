@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.VerifyArgument;
 
 import javax.lang.model.type.TypeKind;
@@ -102,11 +103,13 @@ public class ArrayType<T> extends Type<T> {
         return null;
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return new Annotation[0];
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return new Annotation[0];

@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.VerifyArgument;
 
 import java.lang.annotation.Annotation;
@@ -191,11 +192,13 @@ final class GenericType<T> extends Type<T> {
         return (T)_genericTypeDefinition.getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return _genericTypeDefinition.getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return _genericTypeDefinition.getDeclaredAnnotations();

@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.collections.ListBuffer;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Comparer;
@@ -514,11 +515,13 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return getErasedClass().getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return getErasedClass().getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return getErasedClass().getDeclaredAnnotations();
@@ -1095,12 +1098,12 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
     }
 
-    public final Type<? extends T> makeGenericType(final TypeList typeArguments) {
+    public final <U extends T> Type<U> makeGenericType(final TypeList typeArguments) {
         VerifyArgument.noNullElements(typeArguments, "typeArguments");
         return makeGenericTypeCore(typeArguments);
     }
 
-    public final <U> Type<U> makeGenericType(final Type<?>... typeArguments) {
+    public final <U extends T> Type<U> makeGenericType(final Type<?>... typeArguments) {
         return makeGenericTypeCore(
             list(
                 VerifyArgument.noNullElements(typeArguments, "typeArguments")
@@ -1554,7 +1557,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         if (actualClass.isAnonymousClass()) {
             final Class<?>[] interfaces = actualClass.getInterfaces();
 
-            if (interfaces != null && interfaces.length != 0) {
+            if (!ArrayUtilities.isNullOrEmpty(interfaces)) {
                 return of(interfaces[0]);
             }
 

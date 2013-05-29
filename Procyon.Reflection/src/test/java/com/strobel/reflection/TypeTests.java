@@ -16,7 +16,9 @@ package com.strobel.reflection;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 
@@ -217,4 +219,22 @@ public final class TypeTests {
     private static class D extends C {}
 
     private static class E<K extends B & I, V> {}
+
+    public static void main(String[] args) {
+        final Type<Map> map = Type.of(Map.class);
+        final Type<?> rawMap = map.getErasedType();
+        final Type<Map<String, Integer>> boundMap = map.makeGenericType(Types.String, Types.Integer);
+
+        System.out.println(map.getDeclaredMethods().get(1));
+        System.out.println(rawMap.getDeclaredMethods().get(1));
+        System.out.println(boundMap.getDeclaredMethods().get(1));
+
+        System.out.println(boundMap.getGenericTypeParameters());
+        System.out.println(boundMap.getTypeArguments());
+
+        final Type<Collection[]> fieldsArrayReturnType = Type.of(Collection.class)
+                                                             .makeGenericType(Types.Enum.getErasedType())
+                                                             .makeArrayType();
+
+    }
 }
