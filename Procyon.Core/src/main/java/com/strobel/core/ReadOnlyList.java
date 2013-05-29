@@ -13,6 +13,7 @@
 
 package com.strobel.core;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.util.EmptyArrayCache;
 
 import java.lang.reflect.Array;
@@ -115,11 +116,13 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
         return indexOf(o) != -1;
     }
 
+    @NotNull
     @Override
     public final Iterator<T> iterator() {
         return new ReadOnlyCollectionIterator();
     }
 
+    @NotNull
     @Override
     @SuppressWarnings("unchecked")
     public final T[] toArray() {
@@ -129,9 +132,10 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
         return (T[])Arrays.copyOfRange(_elements, _offset, _offset + _length, _elements.getClass());
     }
 
+    @NotNull
     @Override
     @SuppressWarnings({"unchecked", "SuspiciousSystemArraycopy"})
-    public final <T> T[] toArray(final T[] a) {
+    public final <T> T[] toArray(@NotNull final T[] a) {
         final int length = _length;
 
         if (a.length < length) {
@@ -158,7 +162,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     }
 
     @Override
-    public final boolean containsAll(final Collection<?> c) {
+    public final boolean containsAll(@NotNull final Collection<?> c) {
         for (final Object o : c) {
             if (!contains(o)) {
                 return false;
@@ -168,22 +172,22 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     }
 
     @Override
-    public final boolean addAll(final Collection<? extends T> c) {
+    public final boolean addAll(@NotNull final Collection<? extends T> c) {
         throw Error.unmodifiableCollection();
     }
 
     @Override
-    public final boolean addAll(final int index, final Collection<? extends T> c) {
+    public final boolean addAll(final int index, @NotNull final Collection<? extends T> c) {
         throw Error.unmodifiableCollection();
     }
 
     @Override
-    public final boolean removeAll(final Collection<?> c) {
+    public final boolean removeAll(@NotNull final Collection<?> c) {
         throw Error.unmodifiableCollection();
     }
 
     @Override
-    public final boolean retainAll(final Collection<?> c) {
+    public final boolean retainAll(@NotNull final Collection<?> c) {
         throw Error.unmodifiableCollection();
     }
 
@@ -296,10 +300,37 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     }
 
     @Override
+    public String toString() {
+        final Iterator<T> it = iterator();
+
+        if (!it.hasNext()) {
+            return "[]";
+        }
+
+        final StringBuilder sb = new StringBuilder();
+
+        sb.append('[');
+
+        for (; ; ) {
+            final T e = it.next();
+
+            sb.append(e == this ? "(this Collection)" : e);
+
+            if (!it.hasNext()) {
+                return sb.append(']').toString();
+            }
+
+            sb.append(',').append(' ');
+        }
+    }
+
+    @NotNull
+    @Override
     public final ListIterator<T> listIterator() {
         return new ReadOnlyCollectionIterator();
     }
 
+    @NotNull
     @Override
     public final ListIterator<T> listIterator(final int index) {
         return new ReadOnlyCollectionIterator(index);
@@ -317,6 +348,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
         }
     }
 
+    @NotNull
     @Override
     public ReadOnlyList<T> subList(final int fromIndex, final int toIndex) {
         subListRangeCheck(fromIndex, toIndex, size());
@@ -382,7 +414,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
         }
 
         @Override
-        public final void add(final T T) {
+        public final void add(@NotNull final T T) {
             throw Error.unmodifiableCollection();
         }
     }

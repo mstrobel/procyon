@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
@@ -49,6 +50,7 @@ public class MemberList<T extends MemberInfo> extends ReadOnlyList<T> {
         _memberType = VerifyArgument.notNull(memberType, "memberType");
     }
 
+    @NotNull
     @Override
     public MemberList<T> subList(final int fromIndex, final int toIndex) {
         subListRangeCheck(fromIndex, toIndex, size());

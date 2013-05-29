@@ -13,6 +13,8 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
+
 import java.util.List;
 
 /**
@@ -38,6 +40,7 @@ public final class FieldList extends MemberList<FieldInfo> {
         super(FieldInfo.class, elements, offset, length);
     }
 
+    @NotNull
     @Override
     public FieldList subList(final int fromIndex, final int toIndex) {
         subListRangeCheck(fromIndex, toIndex, size());

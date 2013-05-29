@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.VerifyArgument;
 
 import java.util.ArrayList;
@@ -64,6 +65,7 @@ public final class MethodList extends MemberList<MethodInfo> {
         super(MethodInfo.class, elements, offset, length);
     }
 
+    @NotNull
     @Override
     public MethodList subList(final int fromIndex, final int toIndex) {
         subListRangeCheck(fromIndex, toIndex, size());

@@ -538,7 +538,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public final MemberList getMember(final String name) {
-        return getMember(name, DefaultLookup, EnumSet.noneOf(MemberType.class));
+        return getMember(name, DefaultLookup, EnumSet.allOf(MemberType.class));
     }
 
     public final MemberList getMember(final String name, final MemberType memberType, final MemberType... memberTypes) {
@@ -1100,7 +1100,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return makeGenericTypeCore(typeArguments);
     }
 
-    public final Type<T> makeGenericType(final Type<?>... typeArguments) {
+    public final <U> Type<U> makeGenericType(final Type<?>... typeArguments) {
         return makeGenericTypeCore(
             list(
                 VerifyArgument.noNullElements(typeArguments, "typeArguments")

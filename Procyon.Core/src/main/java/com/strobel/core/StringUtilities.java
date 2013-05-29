@@ -147,14 +147,14 @@ public final class StringUtilities {
         return join(null, values);
     }
 
-    public static String join(final String separator, final Iterable<String> values) {
+    public static String join(final String separator, final Iterable<?> values) {
         VerifyArgument.notNull(values, "values");
 
         final StringBuilder sb = new StringBuilder();
 
         boolean appendSeparator = false;
 
-        for (final String value : values) {
+        for (final Object value : values) {
             if (value == null) {
                 continue;
             }

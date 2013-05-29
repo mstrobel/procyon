@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.HashUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.TypeUtils;
@@ -80,6 +81,7 @@ public class TypeList extends MemberList<Type<?>> {
         super((Class<Type<?>>) (Class)Type.class, elements, offset, length);
     }
 
+    @NotNull
     @Override
     public TypeList subList(final int fromIndex, final int toIndex) {
         subListRangeCheck(fromIndex, toIndex, size());

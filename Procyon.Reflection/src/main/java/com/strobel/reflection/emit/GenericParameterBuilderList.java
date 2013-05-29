@@ -13,6 +13,7 @@
 
 package com.strobel.reflection.emit;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.reflection.MemberList;
 
 import java.util.List;
@@ -40,6 +41,7 @@ public final class GenericParameterBuilderList extends MemberList<GenericParamet
         super(GenericParameterBuilder.class, elements, offset, length);
     }
 
+    @NotNull
     @Override
     public GenericParameterBuilderList subList(final int fromIndex, final int toIndex) {
         subListRangeCheck(fromIndex, toIndex, size());

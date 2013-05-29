@@ -13,6 +13,8 @@
 
 package com.strobel.core;
 
+import com.strobel.annotations.NotNull;
+
 import java.util.ListIterator;
 import java.util.RandomAccess;
 
@@ -31,9 +33,14 @@ public interface IReadOnlyList<T> extends Iterable<T>, RandomAccess {
 
     T get(int index);
 
+    @NotNull
     T[] toArray();
+    @NotNull
     <T> T[] toArray(T[] a);
 
+    @NotNull
     ListIterator<T> listIterator();
+
+    @NotNull
     ListIterator<T> listIterator(int index);
 }
