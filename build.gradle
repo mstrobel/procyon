@@ -19,6 +19,10 @@ allprojects {
     dependencies {
         testCompile 'junit:junit:4.11'
     }
+
+    jar {
+        from sourceSets.main.allSource
+    }
 }
 
 subprojects {
