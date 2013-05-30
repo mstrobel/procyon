@@ -1728,7 +1728,11 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return UnboundedWildcard;
     }
 
-    public static CompoundType<?> makeCompoundType(final TypeList bounds) {
+    public static <T> Type<T[]> makeArrayType(final Type<T> elementType) {
+        return new ArrayType<>(elementType);
+    }
+
+    public static Type<?> makeCompoundType(final TypeList bounds) {
         VerifyArgument.notEmpty(bounds, "bounds");
         VerifyArgument.noNullElements(bounds, "bounds");
 
@@ -1747,14 +1751,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return makeCompoundType(baseType, interfaces);
     }
 
-    public static CompoundType<?> makeCompoundType(final Type<?> baseType, final TypeList interfaces) {
+    public static Type<?> makeCompoundType(final Type<?> baseType, final TypeList interfaces) {
         VerifyArgument.notNull(baseType, "baseType");
         VerifyArgument.noNullElements(interfaces, "interfaces");
 
         return makeCompoundTypeCore(baseType, interfaces);
     }
 
-    private static <T> CompoundType<T> makeCompoundTypeCore(final Type<T> baseType, final TypeList interfaces) {
+    private static <T> Type<T> makeCompoundTypeCore(final Type<T> baseType, final TypeList interfaces) {
         if (baseType.isGenericParameter()) {
             throw Error.compoundTypeMayNotHaveGenericParameterBound();
         }

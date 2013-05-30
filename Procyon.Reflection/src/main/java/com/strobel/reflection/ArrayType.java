@@ -23,7 +23,7 @@ import java.lang.reflect.Array;
 /**
  * @author strobelm
  */
-public class ArrayType<T> extends Type<T> {
+final class ArrayType<T> extends Type<T> {
     private final Type<?> _elementType;
     private final Class<T> _erasedClass;
     private final FieldList _fields = FieldList.empty();

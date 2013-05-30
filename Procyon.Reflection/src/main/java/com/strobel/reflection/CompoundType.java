@@ -23,7 +23,7 @@ import java.util.Comparator;
 /**
  * @author Mike Strobel
  */
-public final class CompoundType<T> extends Type<T> {
+final class CompoundType<T> extends Type<T> {
     private final TypeList _interfaces;
     private final Type<T> _baseType;
 
