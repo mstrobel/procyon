@@ -5,6 +5,7 @@ import com.strobel.assembler.InputTypeLoader;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.languages.BytecodeLanguage;
 import com.strobel.decompiler.languages.Languages;
@@ -81,8 +82,7 @@ public class DecompilerDriver {
             }
         }
         catch (Throwable t) {
-            t.printStackTrace();
-            System.err.println(t.getMessage());
+            System.err.println(ExceptionUtilities.getMessage(t));
             System.exit(-1);
             return;
         }
