@@ -43,11 +43,13 @@ public class PlainTextOutput implements ITextOutput {
         _writer = VerifyArgument.notNull(writer, "writer");
     }
 
+    @Override
     public final String getIndentToken() {
         final String indentToken = _indentToken;
         return indentToken != null ? indentToken : StringUtilities.EMPTY;
     }
 
+    @Override
     public final void setIndentToken(final String indentToken) {
         _indentToken = indentToken;
     }

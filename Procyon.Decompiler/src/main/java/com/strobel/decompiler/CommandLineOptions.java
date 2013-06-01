@@ -49,6 +49,9 @@ public class CommandLineOptions {
     @Parameter(names = { "-n", "--show-nested" }, description = "Decompile nested types along with their enclosing type.")
     private boolean _showNestedTypes;
 
+    @Parameter(names = { "-o", "--output-directory" }, description = "Write decompiled results to specified directory instead of stdout.")
+    private String _outputDirectory;
+
     public final List<String> getClassNames() {
         return _classNames;
     }
@@ -115,5 +118,13 @@ public class CommandLineOptions {
 
     public final void setPrintUsage(final boolean printUsage) {
         _printUsage = printUsage;
+    }
+
+    public final String getOutputDirectory() {
+        return _outputDirectory;
+    }
+
+    public final void setOutputDirectory(final String outputDirectory) {
+        _outputDirectory = outputDirectory;
     }
 }

@@ -40,9 +40,7 @@ import java.util.Locale;
 import java.util.concurrent.Callable;
 
 import static com.strobel.expressions.Expression.*;
-import static junit.framework.Assert.*;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 /**
  * @author Mike Strobel
@@ -109,7 +107,7 @@ public final class CompilerTests extends AbstractExpressionTest {
 
     @Test
     public void testGenericMethodCall() throws Exception {
-        final LambdaExpression listRetriever = lambda(
+        final LambdaExpression<?> listRetriever = lambda(
             Type.of(IListRetriever.class).makeGenericType(Types.String),
             call(
                 Type.of(Collections.class),
@@ -135,7 +133,7 @@ public final class CompilerTests extends AbstractExpressionTest {
     public void testBridgeMethodGeneration() throws Exception {
         final ParameterExpression arg = parameter(Types.String);
 
-        final LambdaExpression listRetriever = lambda(
+        final LambdaExpression<?> listRetriever = lambda(
             Type.of(INeedsBridgeMethod.class).makeGenericType(Types.String),
             arg,
             arg
@@ -737,13 +735,13 @@ public final class CompilerTests extends AbstractExpressionTest {
             fail("AssertionError should have been caught.");
         }
     }
-    
+
     @Test
     public void testTryFinally() throws Exception {
         final MutableInteger counter = new MutableInteger(0);
         final Expression counterConstant = constant(counter);
         final ParameterExpression shouldThrow = parameter(PrimitiveTypes.Boolean);
-        
+
         final LambdaExpression<ShouldThrowDelegate> lambda = lambda(
             Type.of(ShouldThrowDelegate.class),
             tryFinally(
@@ -985,7 +983,7 @@ public final class CompilerTests extends AbstractExpressionTest {
         final Type<?> callable = Type.of(Callable.class).makeGenericType(Types.Object);
 
         final Object expectedResult = this;
-        
+
         final LambdaExpression<Callable<Object>> outer = lambda(
             callable,
             call(
@@ -1004,7 +1002,7 @@ public final class CompilerTests extends AbstractExpressionTest {
         System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
         final Object result = delegate.call();
-        
+
         System.out.println(result);
 
         assertSame(expectedResult, result);
@@ -1018,7 +1016,7 @@ public final class CompilerTests extends AbstractExpressionTest {
         final ParameterExpression temp = variable(PrimitiveTypes.Integer);
         final ParameterExpression innerTemp = variable(PrimitiveTypes.Integer);
 
-        final LambdaExpression outer = lambda(
+        final LambdaExpression<?> outer = lambda(
             block(
                 new ParameterExpression[] { temp },
                 assign(temp, constant(42)),
@@ -1072,7 +1070,7 @@ public final class CompilerTests extends AbstractExpressionTest {
         System.out.println();
         System.out.println(outer);
 
-        final Callable<NeedsTwoCtorArgs> delegate = outer.compile();
+        final Callable<?> delegate = outer.compile();
 
         System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 

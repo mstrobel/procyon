@@ -59,4 +59,6 @@ public interface ITextOutput {
 
     void markFoldStart(final String collapsedText, final boolean defaultCollapsed);
     void markFoldEnd();
+    String getIndentToken();
+    void setIndentToken(String indentToken);
 }

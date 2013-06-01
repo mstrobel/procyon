@@ -31,6 +31,7 @@ public class DecompilerSettings {
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
     private String _outputFileHeaderText;
+    private String _outputDirectory;
 
     public DecompilerSettings() {
     }
@@ -105,5 +106,13 @@ public class DecompilerSettings {
 
     public final void setAlwaysGenerateExceptionVariableForCatchBlocks(final boolean value) {
         _alwaysGenerateExceptionVariableForCatchBlocks = value;
+    }
+
+    public final String getOutputDirectory() {
+        return _outputDirectory;
+    }
+
+    public final void setOutputDirectory(final String outputDirectory) {
+        _outputDirectory = outputDirectory;
     }
 }
