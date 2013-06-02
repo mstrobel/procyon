@@ -37,7 +37,8 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
         int count = 0;
 
         for (int i = 0; i < size(); i++) {
-            count += get(i).getSize();
+            final VariableDefinition v = get(i);
+            count = Math.max(v.getSlot() + v.getSize(), count);
         }
 
         return count;
