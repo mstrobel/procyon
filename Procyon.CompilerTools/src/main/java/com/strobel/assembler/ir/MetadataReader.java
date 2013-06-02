@@ -352,6 +352,9 @@ public abstract class MetadataReader {
                 else if (buffer.size() < attribute.getLength()) {
                     buffer.reset(attribute.getLength());
                 }
+                else {
+                    buffer.position(0);
+                }
 
                 final BlobAttribute blobAttribute = (BlobAttribute) attribute;
 

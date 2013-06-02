@@ -372,7 +372,7 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
     }
 
     public boolean isNested() {
-        return getDeclaringType() != null;
+        return isInnerClass() || isLocalClass();
     }
 
     public boolean isArray() {

@@ -2,6 +2,8 @@ package com.strobel.decompiler;
 
 import com.beust.jcommander.JCommander;
 import com.strobel.assembler.InputTypeLoader;
+import com.strobel.assembler.metadata.CompositeTypeLoader;
+import com.strobel.assembler.metadata.JarTypeLoader;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -13,12 +15,16 @@ import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 import com.strobel.io.PathHelper;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 public class DecompilerDriver {
     public static void main(final String[] args) {
@@ -33,12 +39,17 @@ public class DecompilerDriver {
             typeNames = options.getClassNames();
         }
         catch (Throwable t) {
-            System.err.println(t.getMessage());
+            System.err.println(ExceptionUtilities.getMessage(t));
             System.exit(-1);
             return;
         }
 
-        if (options.getPrintUsage() || typeNames.isEmpty()) {
+        final String jarFile = options.getJarFile();
+        final boolean decompileJar = !StringUtilities.isNullOrWhitespace(jarFile);
+
+        if (options.getPrintUsage() ||
+            typeNames.isEmpty() && !decompileJar) {
+
             jCommander.usage();
             return;
         }
@@ -66,7 +77,6 @@ public class DecompilerDriver {
             );
         }
 
-        final MetadataSystem metadataSystem = new MetadataSystem(settings.getTypeLoader());
         final DecompilationOptions decompilationOptions = new DecompilationOptions();
 
         decompilationOptions.setSettings(settings);
@@ -76,27 +86,78 @@ public class DecompilerDriver {
             settings.setFormattingOptions(JavaFormattingOptions.createDefault());
         }
 
-        try {
-            for (final String typeName : typeNames) {
-                decompileType(metadataSystem, typeName, decompilationOptions);
+        if (decompileJar) {
+            try {
+                decompileJar(jarFile, decompilationOptions);
+            }
+            catch (Throwable t) {
+                System.err.println(ExceptionUtilities.getMessage(t));
+                System.exit(-1);
             }
         }
-        catch (Throwable t) {
-            System.err.println(ExceptionUtilities.getMessage(t));
-            System.exit(-1);
-            return;
+        else {
+            final MetadataSystem metadataSystem = new MetadataSystem(settings.getTypeLoader());
+
+            for (final String typeName : typeNames) {
+                try {
+                    decompileType(metadataSystem, typeName, decompilationOptions, true);
+                }
+                catch (Throwable t) {
+                    System.err.println(String.format("[%s] %s", typeName, ExceptionUtilities.getMessage(t)));
+                }
+            }
+        }
+    }
+
+    private static void decompileJar(
+        final String jarFilePath,
+        final DecompilationOptions decompilationOptions) throws IOException {
+
+        final File jarFile = new File(jarFilePath);
+
+        if (!jarFile.exists()) {
+            throw new FileNotFoundException("File not found: " + jarFilePath);
         }
 
-        System.out.flush();
+        final DecompilerSettings settings = decompilationOptions.getSettings();
+        final JarFile jar = new JarFile(jarFile);
+        final Enumeration<JarEntry> entries = jar.entries();
+
+        settings.setTypeLoader(
+            new CompositeTypeLoader(
+                new JarTypeLoader(jar),
+                settings.getTypeLoader()
+            )
+        );
+
+        final MetadataSystem metadataSystem = new MetadataSystem(settings.getTypeLoader());
+
+        while (entries.hasMoreElements()) {
+            final JarEntry entry = entries.nextElement();
+            final String name = entry.getName();
+
+            if (!name.endsWith(".class")) {
+                continue;
+            }
+
+            final String internalName = StringUtilities.removeRight(name, ".class");
+
+            try {
+                decompileType(metadataSystem, internalName, decompilationOptions, !settings.getShowNestedTypes());
+            }
+            catch (Throwable t) {
+                System.err.println(String.format("[%s] %s", internalName, ExceptionUtilities.getMessage(t)));
+            }
+        }
     }
 
     private static void decompileType(
         final MetadataSystem metadataSystem,
         final String typeName,
-        final DecompilationOptions options) throws IOException {
+        final DecompilationOptions options,
+        final boolean includeNested) throws IOException {
 
         final DecompilerSettings settings = options.getSettings();
-
         final TypeReference type = metadataSystem.lookupType(typeName);
         final TypeDefinition resolvedType;
 
@@ -105,13 +166,23 @@ public class DecompilerDriver {
             return;
         }
 
+        if (type.isNested() && !includeNested) {
+            return;
+        }
+
         final Writer writer = createWriter(resolvedType, settings);
 
-        final PlainTextOutput output = writer instanceof FileWriter ? new PlainTextOutput(writer)
-                                                                    : new AnsiTextOutput(writer);
+        final boolean writeToFile = writer instanceof FileWriter;
+
+        final PlainTextOutput output = writeToFile ? new PlainTextOutput(writer)
+                                                   : new AnsiTextOutput(writer);
 
         if (settings.getLanguage() instanceof BytecodeLanguage) {
             output.setIndentToken("  ");
+        }
+
+        if (writeToFile) {
+            System.out.printf("Decompiling %s...\n", typeName);
         }
 
         settings.getLanguage().decompileType(resolvedType, output, options);
