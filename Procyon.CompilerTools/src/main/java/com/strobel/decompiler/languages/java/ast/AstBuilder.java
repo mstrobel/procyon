@@ -261,16 +261,19 @@ public final class AstBuilder {
         final String name;
         final PackageDeclaration packageDeclaration = _compileUnit.getPackage();
 
+        final TypeDefinition resolvedType = type.resolve();
+        final TypeReference nameSource = resolvedType != null ? resolvedType : type;
+
         if (options == null || options.getIncludePackage()) {
-            final String packageName = type.getPackageName();
-            name = StringUtilities.isNullOrEmpty(packageName) ? type.getSimpleName()
-                                                              : packageName + "." + type.getSimpleName();
+            final String packageName = nameSource.getPackageName();
+            name = StringUtilities.isNullOrEmpty(packageName) ? nameSource.getSimpleName()
+                                                              : packageName + "." + nameSource.getSimpleName();
         }
         else if (packageDeclaration != null &&
-                 StringUtilities.equals(packageDeclaration.getName(), type.getPackageName())) {
+                 StringUtilities.equals(packageDeclaration.getName(), nameSource.getPackageName())) {
 
-            String unqualifiedName = type.getSimpleName();
-            TypeReference current = type;
+            String unqualifiedName = nameSource.getSimpleName();
+            TypeReference current = nameSource;
 
             while (current.isNested()) {
                 current = current.getDeclaringType();
@@ -289,9 +292,9 @@ public final class AstBuilder {
 
             String unqualifiedName;
 
-            if (type.isNested()) {
-                unqualifiedName = type.getSimpleName();
-                TypeReference current = type;
+            if (nameSource.isNested()) {
+                unqualifiedName = nameSource.getSimpleName();
+                TypeReference current = nameSource;
 
                 while (current.isNested()) {
                     current = current.getDeclaringType();
@@ -301,8 +304,8 @@ public final class AstBuilder {
                 typeToImport = current;
             }
             else {
-                typeToImport = type;
-                unqualifiedName = type.getSimpleName();
+                typeToImport = nameSource;
+                unqualifiedName = nameSource.getSimpleName();
             }
 
             if (!_typeDeclarations.containsKey(typeToImport.getInternalName())) {
@@ -325,22 +328,22 @@ public final class AstBuilder {
                     name = unqualifiedName;
                 }
                 else {
-                    final String packageName = type.getPackageName();
-                    name = StringUtilities.isNullOrEmpty(packageName) ? type.getSimpleName()
-                                                                      : packageName + "." + type.getSimpleName();
+                    final String packageName = nameSource.getPackageName();
+                    name = StringUtilities.isNullOrEmpty(packageName) ? nameSource.getSimpleName()
+                                                                      : packageName + "." + nameSource.getSimpleName();
                 }
             }
             else {
-                name = type.getSimpleName();
+                name = nameSource.getSimpleName();
             }
         }
 
         final SimpleType astType = new SimpleType(name);
 
-        astType.putUserData(Keys.TYPE_REFERENCE, type);
+        astType.putUserData(Keys.TYPE_REFERENCE, nameSource);
 
-        if (type.isGenericType() && includeTypeParameterDefinitions) {
-            addTypeArguments(type, astType);
+        if (nameSource.isGenericType() && includeTypeParameterDefinitions) {
+            addTypeArguments(nameSource, astType);
         }
 
         return astType;

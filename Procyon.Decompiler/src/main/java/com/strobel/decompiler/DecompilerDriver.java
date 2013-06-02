@@ -103,7 +103,7 @@ public class DecompilerDriver {
                     decompileType(metadataSystem, typeName, decompilationOptions, true);
                 }
                 catch (Throwable t) {
-                    System.err.println(String.format("[%s] %s", typeName, ExceptionUtilities.getMessage(t)));
+                    t.printStackTrace();
                 }
             }
         }
@@ -146,7 +146,7 @@ public class DecompilerDriver {
                 decompileType(metadataSystem, internalName, decompilationOptions, !settings.getShowNestedTypes());
             }
             catch (Throwable t) {
-                System.err.println(String.format("[%s] %s", internalName, ExceptionUtilities.getMessage(t)));
+                t.printStackTrace();
             }
         }
     }
