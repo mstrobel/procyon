@@ -693,11 +693,8 @@ public final class AstBuilder {
 
             final TypeDefinition resolvedType = ((TypeReference) member).resolve();
 
-            if (resolvedType == null) {
-                return true;
-            }
-
-            return findLocalType(resolvedType) == null;
+            return resolvedType == null ||
+                   findLocalType(resolvedType) == null;
         }
 
         return false;

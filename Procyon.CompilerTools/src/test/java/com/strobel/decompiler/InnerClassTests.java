@@ -17,7 +17,7 @@ import org.junit.Test;
 
 import java.util.Iterator;
 
-@SuppressWarnings("UnusedDeclaration")
+@SuppressWarnings({ "UnusedDeclaration", "UnnecessaryLocalVariable" })
 public class InnerClassTests extends DecompilerTest {
     private class T {
         void test() {
@@ -172,7 +172,7 @@ public class InnerClassTests extends DecompilerTest {
             defaultSettings(),
             "public class B extends A\n" +
             "{\n" +
-            "    public B(A a) {\n" +
+            "    public B(final A a) {\n" +
             "        a.super();\n" +
             "    }\n" +
             "}"
@@ -183,7 +183,7 @@ public class InnerClassTests extends DecompilerTest {
             defaultSettings(),
             "public class C extends B\n" +
             "{\n" +
-            "    public C(A a) {\n" +
+            "    public C(final A a) {\n" +
             "        a.super(a);\n" +
             "    }\n" +
             "}"
@@ -194,7 +194,7 @@ public class InnerClassTests extends DecompilerTest {
             defaultSettings(),
             "public class D extends B.C\n" +
             "{\n" +
-            "    public D(A a, B b) {\n" +
+            "    public D(final A a, final B b) {\n" +
             "        b.super(a);\n" +
             "    }\n" +
             "}"

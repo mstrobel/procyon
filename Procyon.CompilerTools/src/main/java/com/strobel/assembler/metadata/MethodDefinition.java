@@ -638,6 +638,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
 
                 assert magic == ClassFileReader.MAGIC;
 
+                //noinspection ConstantConditions
                 if (magic != ClassFileReader.MAGIC) {
                     _flags |= Flags.LOAD_BODY_FAILED;
                     return true;

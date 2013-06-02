@@ -170,9 +170,11 @@ public abstract class MetadataReader {
                 for (int i = 0; i < entries.length; i++) {
                     final int scopeOffset = buffer.readUnsignedShort();
                     final int scopeLength = buffer.readUnsignedShort();
-                    final String variableName = scope.lookupConstant(buffer.readUnsignedShort());
-                    final String descriptor = scope.lookupConstant(buffer.readUnsignedShort());
+                    final int nameToken = buffer.readUnsignedShort();
+                    final int typeToken = buffer.readUnsignedShort();
                     final int variableIndex = buffer.readUnsignedShort();
+                    final String variableName = scope.lookupConstant(nameToken);
+                    final String descriptor = scope.lookupConstant(typeToken);
 
                     entries[i] = new LocalVariableTableEntry(
                         variableIndex,

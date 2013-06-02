@@ -207,7 +207,9 @@ public final class SignatureParser {
 
         switch (c) {
             case ';':
-            case '/': {
+            case '/':
+            case '.':
+            case '$': {
                 return SimpleClassTypeSignature.make(id, dollar, new TypeArgument[0]);
             }
 

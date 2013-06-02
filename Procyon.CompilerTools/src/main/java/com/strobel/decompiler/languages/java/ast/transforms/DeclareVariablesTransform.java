@@ -204,9 +204,11 @@ public class DeclareVariablesTransform implements IAstTransform {
             }
         }
 
-        if (node instanceof MethodDeclaration) {
+        if (node instanceof MethodDeclaration ||
+            node instanceof ConstructorDeclaration) {
+
             final Set<ParameterDefinition> unassignedParameters = new HashSet<>();
-            final AstNodeCollection<ParameterDeclaration> parameters = ((MethodDeclaration) node).getParameters();
+            final AstNodeCollection<ParameterDeclaration> parameters = node.getChildrenByRole(Roles.PARAMETER);
             final Map<ParameterDefinition, ParameterDeclaration> declarationMap = new HashMap<>();
 
             for (final ParameterDeclaration parameter : parameters) {
@@ -244,8 +246,6 @@ public class DeclareVariablesTransform implements IAstTransform {
                     context.setCurrentType(currentType);
                     context.setCurrentMethod(currentMethod);
                 }
-
-                continue;
             }
             else {
                 run(child, analysis);

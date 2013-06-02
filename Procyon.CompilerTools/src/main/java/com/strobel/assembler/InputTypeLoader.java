@@ -88,11 +88,11 @@ public class InputTypeLoader implements ITypeLoader {
     }
 
     private boolean tryLoadTypeFromName(final String internalName, final Buffer buffer) {
-        if (_defaultTypeLoader.tryLoadType(internalName, buffer)) {
+        if (tryLoadFromKnownLocation(internalName, buffer)) {
             return true;
         }
 
-        if (tryLoadFromKnownLocation(internalName, buffer)) {
+        if (_defaultTypeLoader.tryLoadType(internalName, buffer)) {
             return true;
         }
 
