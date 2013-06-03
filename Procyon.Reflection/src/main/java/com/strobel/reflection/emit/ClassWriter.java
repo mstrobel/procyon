@@ -18,6 +18,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.Flags;
 import com.strobel.reflection.MemberInfo;
+import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.MethodList;
 import com.strobel.reflection.PrimitiveTypes;
@@ -33,6 +34,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import static com.strobel.reflection.Flags.*;
@@ -155,7 +157,8 @@ final class ClassWriter {
 
         attributeCount += writeFlagAttributes(flags);
         attributeCount += writeJavaAnnotations(t.getCustomAnnotations());
-//        attributeCount += writeEnclosingMethodAttribute(t);
+        attributeCount += writeEnclosingMethodAttribute(t);
+        attributeCount += writeInnerTypes();
 
         _poolBuffer.putInt(JAVA_MAGIC);
         _poolBuffer.putShort(CompilationTarget.JDK1_5.minorVersion);
@@ -163,22 +166,80 @@ final class ClassWriter {
 
         t.constantPool.write(_poolBuffer);
 
-/*
-        final TypeList nestedTypes = t.getNestedTypes(BindingFlags.AllDeclared);
-
-        if (!nestedTypes.isEmpty()) {
-            writeInnerTypes();
-            attributeCount++;
-        }
-*/
-
         endAttributes(attributeCountIndex, attributeCount);
 
         _poolBuffer.putByteArray(_dataBuffer.getData(), 0, _dataBuffer.getLength());
     }
 
-    private void writeInnerTypes() {
-        // TODO: Write inner types.
+    private int writeEnclosingMethodAttribute(final TypeBuilder<?> t) {
+        final MethodBase method = t.getDeclaringMethod();
+
+        if (method == null) {
+            return 0;
+        }
+
+        final int enclosingMethodStart = writeAttribute("EnclosingMethod");
+        final Type declaringType = method.getDeclaringType();
+
+        _dataBuffer.putShort(declaringType != null ? t.getTypeToken(declaringType) : 0);
+        _dataBuffer.putShort(t.getMethodToken(method));
+
+        endAttribute(enclosingMethodStart);
+
+        return 1;
+    }
+
+    private int writeInnerTypes() {
+        final HashSet<Type<?>> innerTypeSet = _typeBuilder.constantPool.referencedInnerTypes;
+
+        if (innerTypeSet.isEmpty()) {
+            return 0;
+        }
+
+        final Type<?>[] innerTypes = innerTypeSet.toArray(new Type<?>[innerTypeSet.size()]);
+        final int innerClassesStart = writeAttribute("InnerClasses");
+
+        _dataBuffer.putShort(innerTypes.length);
+
+        for (final Type<?> type : innerTypes) {
+            writeInnerTypeInfo(type);
+        }
+
+        endAttribute(innerClassesStart);
+
+        return 1;
+    }
+
+    private void writeInnerTypeInfo(final Type<?> type) {
+        final Type declaringType = type.getDeclaringType();
+        final MethodBase declaringMethod = type.getDeclaringMethod();
+
+        _dataBuffer.putShort(_typeBuilder.getTypeToken(type));
+
+        if (declaringType != null) {
+            _dataBuffer.putShort(_typeBuilder.getTypeToken(declaringType));
+        }
+        else if (declaringMethod != null) {
+            final Type methodDeclaringType = declaringMethod.getDeclaringType();
+
+            if (methodDeclaringType != null) {
+                _dataBuffer.putShort(_typeBuilder.getTypeToken(methodDeclaringType));
+            }
+            else {
+                _dataBuffer.putShort(0);
+            }
+        }
+
+        final String shortName = type.getShortName();
+
+        if (StringUtilities.isNullOrWhitespace(shortName)) {
+            _dataBuffer.putShort(0);
+        }
+        else {
+            _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(shortName));
+        }
+
+        _dataBuffer.putShort(type.getModifiers() & Flags.MemberClassFlags);
     }
 
     private void writeFields() {
@@ -208,29 +269,29 @@ final class ClassWriter {
 
             switch (constantType.getKind()) {
                 case BOOLEAN:
-                    _dataBuffer.putShort(t.getConstantToken((Boolean)constantValue ? 1 : 0));
+                    _dataBuffer.putShort(t.getConstantToken((Boolean) constantValue ? 1 : 0));
                     break;
 
                 case BYTE:
                 case SHORT:
                 case INT:
-                    _dataBuffer.putShort(t.getConstantToken(((Number)constantValue).intValue()));
+                    _dataBuffer.putShort(t.getConstantToken(((Number) constantValue).intValue()));
                     break;
 
                 case LONG:
-                    _dataBuffer.putShort(t.getConstantToken(((Number)constantValue).longValue()));
+                    _dataBuffer.putShort(t.getConstantToken(((Number) constantValue).longValue()));
                     break;
 
                 case CHAR:
-                    _dataBuffer.putShort(t.getConstantToken((int)((Character)constantValue).charValue()));
+                    _dataBuffer.putShort(t.getConstantToken((int) ((Character) constantValue).charValue()));
                     break;
 
                 case FLOAT:
-                    _dataBuffer.putShort(t.getConstantToken(((Number)constantValue).floatValue()));
+                    _dataBuffer.putShort(t.getConstantToken(((Number) constantValue).floatValue()));
                     break;
 
                 case DOUBLE:
-                    _dataBuffer.putShort(t.getConstantToken(((Number)constantValue).doubleValue()));
+                    _dataBuffer.putShort(t.getConstantToken(((Number) constantValue).doubleValue()));
                     break;
 
                 default:
@@ -550,19 +611,19 @@ final class ClassWriter {
 
         switch (member.getMemberType()) {
             case Field:
-                final FieldBuilder field = (FieldBuilder)member;
+                final FieldBuilder field = (FieldBuilder) member;
                 signature = field.getFieldType().getSignature();
                 annotations = field.getCustomAnnotations();
                 break;
 
             case Method:
-                final MethodBuilder method = (MethodBuilder)member;
+                final MethodBuilder method = (MethodBuilder) member;
                 signature = method.getSignature();
                 annotations = method.getCustomAnnotations();
                 break;
 
             case Constructor:
-                final ConstructorBuilder constructor = (ConstructorBuilder)member;
+                final ConstructorBuilder constructor = (ConstructorBuilder) member;
                 signature = constructor.getSignature();
                 annotations = constructor.getCustomAnnotations();
                 break;
@@ -570,7 +631,7 @@ final class ClassWriter {
             default:
                 signature = member.getSignature();
                 if (member instanceof TypeBuilder<?>) {
-                    annotations = ((TypeBuilder<?>)member).getCustomAnnotations();
+                    annotations = ((TypeBuilder<?>) member).getCustomAnnotations();
                 }
                 else {
                     annotations = ReadOnlyList.emptyList();
@@ -749,34 +810,34 @@ final class ClassWriter {
         switch (valueType.getKind()) {
             case BOOLEAN:
                 _dataBuffer.putByte(valueType.getErasedSignature().charAt(0));
-                _dataBuffer.putShort(_typeBuilder.getConstantToken((Boolean)value ? 1 : 0));
+                _dataBuffer.putShort(_typeBuilder.getConstantToken((Boolean) value ? 1 : 0));
                 break;
 
             case BYTE:
             case SHORT:
             case INT:
                 _dataBuffer.putByte(valueType.getErasedSignature().charAt(0));
-                _dataBuffer.putShort(_typeBuilder.getConstantToken(((Number)value).intValue()));
+                _dataBuffer.putShort(_typeBuilder.getConstantToken(((Number) value).intValue()));
                 break;
 
             case LONG:
                 _dataBuffer.putByte(valueType.getErasedSignature().charAt(0));
-                _dataBuffer.putShort(_typeBuilder.getConstantToken(((Number)value).longValue()));
+                _dataBuffer.putShort(_typeBuilder.getConstantToken(((Number) value).longValue()));
                 break;
 
             case CHAR:
                 _dataBuffer.putByte(valueType.getErasedSignature().charAt(0));
-                _dataBuffer.putShort(_typeBuilder.getConstantToken(((Character)value).charValue()));
+                _dataBuffer.putShort(_typeBuilder.getConstantToken(((Character) value).charValue()));
                 break;
 
             case FLOAT:
                 _dataBuffer.putByte(valueType.getErasedSignature().charAt(0));
-                _dataBuffer.putShort(_typeBuilder.getConstantToken(((Number)value).floatValue()));
+                _dataBuffer.putShort(_typeBuilder.getConstantToken(((Number) value).floatValue()));
                 break;
 
             case DOUBLE:
                 _dataBuffer.putByte(valueType.getErasedSignature().charAt(0));
-                _dataBuffer.putShort(_typeBuilder.getConstantToken(((Number)value).doubleValue()));
+                _dataBuffer.putShort(_typeBuilder.getConstantToken(((Number) value).doubleValue()));
                 break;
 
             case ARRAY:
@@ -799,17 +860,17 @@ final class ClassWriter {
                     _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(value.toString()));
                 }
                 else if (valueType == Types.Class) {
-                    final Type<?> type = Type.of((Class<?>)value);
+                    final Type<?> type = Type.of((Class<?>) value);
                     _dataBuffer.putByte('c');
                     _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(type.getSignature()));
                 }
                 else if (Type.of(Type.class).isAssignableFrom(valueType)) {
                     _dataBuffer.putByte('c');
-                    _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(((Type<?>)value).getSignature()));
+                    _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(((Type<?>) value).getSignature()));
                 }
                 else {
                     _dataBuffer.putByte('@');
-                    writeAnnotation((AnnotationBuilder<? extends Annotation>)value);
+                    writeAnnotation((AnnotationBuilder<? extends Annotation>) value);
                 }
                 break;
         }
@@ -877,17 +938,17 @@ final class ClassWriter {
     void putChar(final CodeStream buf, final int op, final int x) {
         buf.ensureCapacity(op + 2);
         final byte[] data = buf.getData();
-        data[op] = (byte)((x >> 8) & 0xFF);
-        data[op + 1] = (byte)((x) & 0xFF);
+        data[op] = (byte) ((x >> 8) & 0xFF);
+        data[op + 1] = (byte) ((x) & 0xFF);
     }
 
     void putInt(final CodeStream buf, final int adr, final int x) {
         buf.ensureCapacity(adr + 4);
         final byte[] data = buf.getData();
-        data[adr] = (byte)((x >> 24) & 0xFF);
-        data[adr + 1] = (byte)((x >> 16) & 0xFF);
-        data[adr + 2] = (byte)((x >> 8) & 0xFF);
-        data[adr + 3] = (byte)((x) & 0xFF);
+        data[adr] = (byte) ((x >> 24) & 0xFF);
+        data[adr + 1] = (byte) ((x >> 16) & 0xFF);
+        data[adr + 2] = (byte) ((x >> 8) & 0xFF);
+        data[adr + 3] = (byte) ((x) & 0xFF);
     }
 
     // </editor-fold>

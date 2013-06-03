@@ -121,7 +121,7 @@ final class TypeBuilderInstantiation extends Type {
     }
 
     @Override
-    public MethodInfo getDeclaringMethod() {
+    public MethodBase getDeclaringMethod() {
         return _definition.getDeclaringMethod();
     }
 

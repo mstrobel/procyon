@@ -53,13 +53,13 @@ final class Resolver {
         private final ArrayList<Type<?>> _typeArguments = new ArrayList<>();
 
         public Frame(final java.lang.reflect.Type typeElement, final Frame previous) {
-            GenericsFactory reflectionFactory = null;
+            final GenericsFactory reflectionFactory;
 
             if (typeElement instanceof Class<?>) {
                 reflectionFactory = CoreReflectionFactory.make(null, ClassScope.make((Class) typeElement));
             }
-            else if (previous != null && previous._reflectionFactory != null) {
-                reflectionFactory = previous._reflectionFactory;
+            else {
+                throw new IllegalArgumentException("Type must be a Class.");
             }
 
             _typeElement = VerifyArgument.notNull(typeElement, "typeElement");
@@ -68,11 +68,6 @@ final class Resolver {
             _methods = previous != null ? previous._methods : new Stack<ReflectedMethod>();
             _type = new ReflectedType<>((Class<?>) typeElement);
             _elementTypeMap.put(typeElement, _type);
-
-            if (reflectionFactory == null) {
-                reflectionFactory = CoreReflectionFactory.make(null, null);
-            }
-
             _reflectionFactory = reflectionFactory;
         }
 
@@ -441,6 +436,7 @@ final class Resolver {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private Type<?> visitClass(final Class<?> c, final Frame frame) {
         final Method declaringMethod;
         final Constructor<?> declaringConstructor;
@@ -791,6 +787,7 @@ final class Resolver {
         return declaringType;
     }
 
+    @SuppressWarnings("ConstantConditions")
     private Type<?> visitMethod(final Method m, final Frame frame) {
         java.lang.reflect.Type[] parameterTypes = m.getGenericParameterTypes();
         java.lang.reflect.Type[] thrownTypes = m.getGenericExceptionTypes();
@@ -1194,6 +1191,11 @@ class ReflectedType<T> extends Type<T> {
                 }
             }
         }
+    }
+
+    @Override
+    public MethodBase getDeclaringMethod() {
+        return _declaringMethod;
     }
 
     @Override

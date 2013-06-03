@@ -426,7 +426,7 @@ class TypeBinder extends TypeMapper<TypeBindings> {
             if (type.getDeclaringMethod() != null) {
                 return new GenericParameter(
                     type.getFullName(),
-                    type.getDeclaringMethod(),
+                    (MethodInfo) type.getDeclaringMethod(),
                     newUpperBound,
                     type.getGenericParameterPosition()
                 );

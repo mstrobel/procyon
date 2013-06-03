@@ -87,7 +87,12 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 
     public boolean isNested() {
-        return getDeclaringType() != null;
+        return getDeclaringType() != null ||
+               getDeclaringMethod() != null;
+    }
+
+    public boolean isLocalClass() {
+        return getDeclaringMethod() != null;
     }
 
     public boolean isVisible() {
@@ -214,7 +219,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         throw Error.typeCannotBeInstantiated(this);
     }
 
-    public MethodInfo getDeclaringMethod() {
+    public MethodBase getDeclaringMethod() {
         return null;
     }
 
@@ -411,8 +416,8 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             else if (otherDeclaringType != null)
                 return false;
 
-            final MethodInfo declaringMethod = this.getDeclaringMethod();
-            final MethodInfo otherDeclaringMethod = other.getDeclaringMethod();
+            final MethodInfo declaringMethod = (MethodInfo) this.getDeclaringMethod();
+            final MethodInfo otherDeclaringMethod = (MethodInfo) other.getDeclaringMethod();
             final boolean hasDeclaringMethod = declaringMethod != null;
             final boolean otherHasDeclaringMethod = otherDeclaringMethod != null;
 
@@ -1198,6 +1203,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     protected String getClassSimpleName() {
         return getErasedClass().getSimpleName();
+    }
+
+    public String getShortName() {
+        return getClassSimpleName();
     }
 
     public String getFullName() {

@@ -15,6 +15,7 @@ package com.strobel.reflection.emit;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.compilerservices.CallerResolver;
+import com.strobel.compilerservices.RuntimeHelpers;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.Pair;
@@ -286,6 +287,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     final void verifyNotGeneric() {
+        //noinspection ConstantConditions
         if (isGenericType() && !isGenericTypeDefinition()) {
             throw new IllegalStateException();
         }
@@ -306,7 +308,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    public MethodInfo getDeclaringMethod() {
+    public MethodBase getDeclaringMethod() {
         return _declaringMethod;
     }
 
@@ -1104,7 +1106,7 @@ public final class TypeBuilder<T> extends Type<T> {
                 _protectionDomain
             );
 
-            getUnsafeInstance().ensureClassInitialized(_generatedClass);
+            RuntimeHelpers.ensureClassInitialized(_generatedClass);
 
             _generatedType = Type.of(_generatedClass);
         }

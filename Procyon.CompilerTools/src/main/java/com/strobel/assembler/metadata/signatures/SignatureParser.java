@@ -151,7 +151,6 @@ public final class SignatureParser {
                 case ';':
                 case '.':
                 case '/':
-                case '[':
                 case ':':
                 case '>':
                 case '<':
@@ -203,6 +202,7 @@ public final class SignatureParser {
 
     private SimpleClassTypeSignature parseSimpleClassTypeSignature(final boolean dollar) {
         final String id = parseIdentifier();
+        final int position = index;
         final char c = current();
 
         switch (c) {
@@ -218,7 +218,7 @@ public final class SignatureParser {
             }
 
             default: {
-                throw error("expected < or ; or /");
+                throw error(position + ": expected < or ; or /");
             }
         }
     }

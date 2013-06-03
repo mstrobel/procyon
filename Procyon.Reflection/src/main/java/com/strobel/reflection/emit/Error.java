@@ -18,7 +18,6 @@ import com.strobel.reflection.MemberInfo;
 import com.strobel.reflection.MethodBase;
 import com.strobel.reflection.Type;
 import com.strobel.util.ContractUtils;
-import sun.misc.Unsafe;
 
 import java.lang.annotation.Annotation;
 
@@ -272,9 +271,7 @@ final class Error {
     }
 
     public static RuntimeException couldNotLoadUnsafeClassInstance() {
-        return new IllegalStateException(
-            format("Could not load an instance of the %s class.", Unsafe.class.getName())
-        );
+        return new IllegalStateException("Could not load an instance of the sun.misc.Unsafe class.");
     }
 
     public static RuntimeException valueMustBeConstant() {

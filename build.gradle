@@ -20,13 +20,32 @@ allprojects {
         testCompile 'junit:junit:4.11'
     }
 
-//    jar {
-//        from sourceSets.main.allSource
-//    }
+    task sourcesJar(type: Jar, dependsOn: classes) {
+        classifier = 'sources'
+        from sourceSets.main.allSource
+    }
+
+    artifacts {
+        archives sourcesJar
+    }
+
+/*
+    compileJava {
+        options.compilerArgs << '-XDignore.symbol.file'
+        // This only works when forking and passing 'javac' as an executable
+        options.fork = true
+        options.forkOptions.executable = 'javac'
+    }
+*/
 }
 
 subprojects {
     archivesBaseName = 'procyon-' + it.name.split("\\.")[1].toLowerCase()
+    jar.enabled = true
+    sourcesJar.enabled = true
 }
+
+jar.enabled = false
+sourcesJar.enabled = false
 
 archivesBaseName = 'procyon'

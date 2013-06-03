@@ -179,7 +179,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
 
     @Override
     public MethodInfo getDeclaringMethod() {
-        return typeBuilder.getDeclaringMethod();
+        return (MethodInfo) typeBuilder.getDeclaringMethod();
     }
 
     @Override

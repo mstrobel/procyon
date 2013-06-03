@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 
 /**
  * @author strobelm
@@ -40,6 +42,8 @@ final class ConstantPool {
     private final Key _newKey = new Key();
 
     private int _size;
+
+    final HashSet<Type<?>> referencedInnerTypes = new LinkedHashSet<>();
 
     public void write(final CodeStream stream) {
         stream.putShort(_size + 1);
@@ -145,12 +149,37 @@ final class ConstantPool {
 
     public TypeInfo getTypeInfo(final Type<?> type) {
         final Utf8StringConstant name = getUtf8StringConstant(type.getInternalName());
+
+        if (type.isNested()) {
+            referencedInnerTypes.add(type);
+
+            final Type declaringType = type.getDeclaringType();
+            final MethodBase declaringMethod = type.getDeclaringMethod();
+            final String shortName = type.getShortName();
+
+            if (declaringType != null) {
+                getTypeInfo(declaringType);
+            }
+
+            if (declaringMethod != null) {
+                getMethodReference(declaringMethod);
+            }
+
+            if (!StringUtilities.isNullOrWhitespace(shortName)) {
+                getUtf8StringConstant(shortName);
+            }
+        }
+
         _lookupKey.set(Tag.TypeInfo, name.index);
+
         Entry entry = _entryMap.get(_lookupKey);
+
         if (entry == null) {
             entry = new TypeInfo(this, name.index);
         }
+
         _lookupKey.clear();
+
         return (TypeInfo)entry;
     }
 
