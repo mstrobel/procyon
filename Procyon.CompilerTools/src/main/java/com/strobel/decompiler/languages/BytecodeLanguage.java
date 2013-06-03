@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.ir.ErrorOperand;
 import com.strobel.assembler.ir.ExceptionHandler;
@@ -60,7 +61,7 @@ public class BytecodeLanguage extends Language {
         VerifyArgument.notNull(options, "options");
 
         if (type.isInterface()) {
-            if (type.isAnnotation()){
+            if (type.isAnnotation()) {
                 output.writeKeyword("@interface");
             }
             else {
@@ -115,6 +116,10 @@ public class BytecodeLanguage extends Language {
     }
 
     private void writeTypeAttribute(final ITextOutput output, final TypeDefinition type, final SourceAttribute attribute) {
+        if (attribute instanceof BlobAttribute) {
+            return;
+        }
+
         switch (attribute.getName()) {
             case AttributeNames.SourceFile: {
                 output.writeAttribute("SourceFile");
@@ -157,15 +162,97 @@ public class BytecodeLanguage extends Language {
                 break;
             }
 
-            case AttributeNames.Signature: {
-                if (SourceAttribute.find(AttributeNames.Signature, type.getSourceAttributes()) != null) {
-                    output.writeAttribute("Signature");
-                    output.write(": ");
-                    DecompilerHelpers.writeGenericSignature(output, type);
-                    output.writeLine();
+            case AttributeNames.InnerClasses: {
+                final InnerClassesAttribute innerClasses = (InnerClassesAttribute) attribute;
+                final List<InnerClassEntry> entries = innerClasses.getEntries();
+
+                output.writeAttribute("InnerClasses");
+                output.writeLine(": ");
+                output.indent();
+
+                try {
+                    for (final InnerClassEntry entry : entries) {
+                        writeInnerClassEntry(output, type, entry);
+                    }
+                }
+                finally {
+                    output.unindent();
                 }
             }
+
+            case AttributeNames.Signature: {
+                output.writeAttribute("Signature");
+                output.write(": ");
+                DecompilerHelpers.writeGenericSignature(output, type);
+                output.writeLine();
+            }
         }
+    }
+
+    private void writeInnerClassEntry(final ITextOutput output, final TypeDefinition type, final InnerClassEntry entry) {
+        final String shortName = entry.getShortName();
+        final String innerClassName = entry.getInnerClassName();
+        final String outerClassName = entry.getOuterClassName();
+        final EnumSet<Flags.Flag> flagsSet = Flags.asFlagSet(entry.getAccessFlags());
+
+        for (final Flags.Flag flag : flagsSet) {
+            output.writeKeyword(flag.toString());
+            output.write(' ');
+        }
+
+        final MetadataParser parser = new MetadataParser(type);
+
+        if (tryWriteType(output, parser, shortName, innerClassName)) {
+            output.writeDelimiter(" = ");
+        }
+
+        if (!tryWriteType(output, parser, innerClassName, innerClassName)) {
+            output.writeError("?");
+        }
+
+        if (!StringUtilities.isNullOrEmpty(outerClassName)) {
+            output.writeDelimiter(" of ");
+
+            if (!tryWriteType(output, parser, outerClassName, outerClassName)) {
+                output.writeError("?");
+            }
+        }
+
+        output.writeLine();
+    }
+
+    private boolean tryWriteType(
+        @NotNull final ITextOutput output,
+        @NotNull final MetadataParser parser,
+        final String text,
+        final String descriptor) {
+
+        if (StringUtilities.isNullOrEmpty(text)) {
+            return false;
+        }
+
+        if (StringUtilities.isNullOrEmpty(descriptor)) {
+            output.writeError(text);
+            return true;
+        }
+
+        try {
+            final TypeReference type = parser.parseTypeDescriptor(descriptor);
+            output.writeReference(text, type);
+            return true;
+        }
+        catch (Throwable ignored) {
+        }
+
+        try {
+            output.writeReference(text, new DummyTypeReference(descriptor));
+            return true;
+        }
+        catch (Throwable ignored) {
+        }
+
+        output.writeError(text);
+        return true;
     }
 
     private void writeTypeHeader(final ITextOutput output, final TypeDefinition type) {
@@ -649,6 +736,7 @@ public class BytecodeLanguage extends Language {
         }
     }
 
+    @SuppressWarnings({ "ConstantConditions", "UnusedParameters" })
     private void writeMethodEnd(final ITextOutput output, final MethodDefinition method, final DecompilationOptions options) {
         final MethodBody body = method.getBody();
 
@@ -1141,6 +1229,41 @@ public class BytecodeLanguage extends Language {
 
         @Override
         public void visitEnd() {
+        }
+    }
+
+    private static final class DummyTypeReference extends TypeReference {
+        private final String _descriptor;
+        private final String _fullName;
+        private final String _simpleName;
+
+        public DummyTypeReference(final String descriptor) {
+            _descriptor = VerifyArgument.notNull(descriptor, "descriptor");
+            _fullName = descriptor.replace('/', '.');
+
+            final int delimiterIndex = _fullName.lastIndexOf('.');
+
+            if (delimiterIndex < 0 || delimiterIndex == _fullName.length() - 1) {
+                _simpleName = _fullName;
+            }
+            else {
+                _simpleName = _fullName.substring(delimiterIndex + 1);
+            }
+        }
+
+        @Override
+        public final String getSimpleName() {
+            return _simpleName;
+        }
+
+        @Override
+        public final String getFullName() {
+            return _fullName;
+        }
+
+        @Override
+        public final String getInternalName() {
+            return _descriptor;
         }
     }
 }
