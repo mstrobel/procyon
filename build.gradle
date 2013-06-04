@@ -1,15 +1,18 @@
+apply plugin: 'java'
 apply plugin: 'maven'
-apply plugin: 'signing'
+apply plugin: 'idea'
 
 subname = ''
+archivesBaseName = 'procyon'
 
 allprojects {
     apply plugin: 'java'
     apply plugin: 'idea'
+    apply plugin: 'maven'
 
     version "1.0-SNAPSHOT"
 
-    group 'procyon'
+    group 'com.strobel'
     sourceCompatibility = 1.7    // JDK version
 
     repositories {
@@ -19,33 +22,112 @@ allprojects {
     dependencies {
         testCompile 'junit:junit:4.11'
     }
+}
+
+/*
+uploadArchives {
+    repositories.mavenDeployer {
+
+        beforeDeployment { MavenDeployment deployment ->
+            signing.signPom(deployment)
+        }
+
+        snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
+            authentication(userName: sonatypeUsername, password: sonatypePassword)
+        }
+
+        repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2") {
+            authentication(userName: sonatypeUsername, password: sonatypePassword)
+        }
+
+        pom {
+            groupId = project.group
+            version = project.version
+            artifactId = project.archivesBaseName
+
+            project {
+                name project.archivesBaseName
+                packaging 'jar'
+                description 'Procyon'
+                url 'https://bitbucket.org/mstrobel/procyon'
+
+                scm {
+                    url 'https://bitbucket.org/mstrobel/procyon'
+                    connection 'scm:hg:https://hg@bitbucket.org/mstrobel/procyon'
+                    developerConnection 'scm:hg:https://mstrobel@bitbucket.org/mstrobel/procyon'
+                }
+
+                issueManagement {
+                    system 'jira'
+                    url 'https://bitbucket.org/mstrobel/procyon/issues'
+                }
+
+                licenses {
+                    license {
+                        name 'The Apache Software License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        distribution 'repo'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'mstrobel'
+                        name 'Mike Strobel'
+                        roles {
+                            role 'owner'
+                            role 'packager'
+                            role 'developer'
+                        }
+                    }
+                }
+
+                dependencies {
+                    dependency {
+                        groupId 'junit'
+                        artifactId 'junit'
+                        version '4.11'
+                        scope 'test'
+                        optional = true
+                    }
+                }
+            }
+        }
+    }
+}
+*/
+
+subprojects {
+    apply plugin: 'signing'
+
+    archivesBaseName = 'procyon-' + it.name.split("\\.")[1].toLowerCase()
+
+    jar {
+        metaInf {
+            from 'License.txt'
+            from 'README.md'
+        }
+    }
+
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier = 'javadoc'
+        from 'build/docs/javadoc'
+    }
 
     task sourcesJar(type: Jar, dependsOn: classes) {
         classifier = 'sources'
         from sourceSets.main.allSource
     }
 
-    artifacts {
-        archives sourcesJar
+    if (project.name != "Procyon.Decompiler") {
+        artifacts {
+            archives jar
+            archives javadocJar
+            archives sourcesJar
+        }
+
+        signing {
+            sign configurations.archives
+        }
     }
-
-/*
-    compileJava {
-        options.compilerArgs << '-XDignore.symbol.file'
-        // This only works when forking and passing 'javac' as an executable
-        options.fork = true
-        options.forkOptions.executable = 'javac'
-    }
-*/
 }
-
-subprojects {
-    archivesBaseName = 'procyon-' + it.name.split("\\.")[1].toLowerCase()
-    jar.enabled = true
-    sourcesJar.enabled = true
-}
-
-jar.enabled = false
-sourcesJar.enabled = false
-
-archivesBaseName = 'procyon'

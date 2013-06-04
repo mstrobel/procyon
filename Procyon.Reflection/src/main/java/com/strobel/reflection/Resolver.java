@@ -17,12 +17,20 @@ import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
-import sun.reflect.generics.factory.CoreReflectionFactory;
-import sun.reflect.generics.factory.GenericsFactory;
-import sun.reflect.generics.scope.ClassScope;
 
-import java.lang.reflect.*;
-import java.util.*;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.GenericDeclaration;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.TypeVariable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Stack;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 /**
@@ -42,38 +50,24 @@ final class Resolver {
     }
 
     public final class Frame {
-
         private final ReflectedType<?>                  _type;
         private final java.lang.reflect.Type            _typeElement;
         private final Frame                             _previous;
         private final Map<java.lang.reflect.Type, Type> _elementTypeMap;
         private final Stack<ReflectedMethod>            _methods;
-        private final GenericsFactory                   _reflectionFactory;
 
         private final ArrayList<Type<?>> _typeArguments = new ArrayList<>();
 
         public Frame(final java.lang.reflect.Type typeElement, final Frame previous) {
-            final GenericsFactory reflectionFactory;
-
-            if (typeElement instanceof Class<?>) {
-                reflectionFactory = CoreReflectionFactory.make(null, ClassScope.make((Class) typeElement));
-            }
-            else {
-                throw new IllegalArgumentException("Type must be a Class.");
-            }
-
             _typeElement = VerifyArgument.notNull(typeElement, "typeElement");
             _previous = previous;
             _elementTypeMap = previous != null ? previous._elementTypeMap : new HashMap<java.lang.reflect.Type, Type>();
             _methods = previous != null ? previous._methods : new Stack<ReflectedMethod>();
             _type = new ReflectedType<>((Class<?>) typeElement);
             _elementTypeMap.put(typeElement, _type);
-            _reflectionFactory = reflectionFactory;
         }
 
         Frame(final ReflectedType<?> type, final Frame previous) {
-            GenericsFactory reflectionFactory = null;
-
             _type = VerifyArgument.notNull(type, "type");
             _typeElement = type;
             _previous = previous;
@@ -91,15 +85,8 @@ final class Resolver {
                     if (ownerFrame._type.findNestedType(_type.getErasedClass()) == null) {
                         ownerFrame._type.addNestedType(_type);
                     }
-                    reflectionFactory = ownerFrame._reflectionFactory;
                 }
             }
-
-            if (reflectionFactory == null) {
-                reflectionFactory = CoreReflectionFactory.make(null, ClassScope.make(type.getErasedClass()));
-            }
-
-            _reflectionFactory = reflectionFactory;
         }
 
         public Type<?> getResult() {
