@@ -1,4 +1,4 @@
-![](logo.png)
+![](https://bitbucket.org/mstrobel/procyon/wiki/logo.png)
 
 *Procyon* is a suite of Java metaprogramming tools focused on code generation and analysis.  It includes the following libraries:
 
