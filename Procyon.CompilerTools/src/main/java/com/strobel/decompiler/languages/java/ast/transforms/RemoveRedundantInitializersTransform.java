@@ -59,7 +59,7 @@ public class RemoveRedundantInitializersTransform extends ContextTrackingVisitor
                         }
                         else {
                             reference.remove();
-                            parent.replaceWith(reference);
+                            node.replaceWith(reference);
                         }
                     }
                 }
