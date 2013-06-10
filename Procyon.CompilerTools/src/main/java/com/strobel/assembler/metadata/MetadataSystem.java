@@ -76,18 +76,24 @@ public class MetadataSystem extends MetadataResolver {
 
         if (descriptor.length() == 1) {
             final int primitiveHash = descriptor.charAt(0) - 'B';
-            final TypeDefinition primitiveType = PRIMITIVE_TYPES_BY_DESCRIPTOR[primitiveHash];
 
-            if (primitiveType != null) {
-                return primitiveType;
+            if (primitiveHash >= 0 && primitiveHash < PRIMITIVE_TYPES_BY_DESCRIPTOR.length) {
+                final TypeDefinition primitiveType = PRIMITIVE_TYPES_BY_DESCRIPTOR[primitiveHash];
+
+                if (primitiveType != null) {
+                    return primitiveType;
+                }
             }
         }
         else {
             final int primitiveHash = hashPrimitiveName(descriptor);
-            final TypeDefinition primitiveType = PRIMITIVE_TYPES_BY_NAME[primitiveHash];
 
-            if (primitiveType != null && descriptor.equals(primitiveType.getName())) {
-                return primitiveType;
+            if (primitiveHash >= 0 && primitiveHash < PRIMITIVE_TYPES_BY_NAME.length) {
+                final TypeDefinition primitiveType = PRIMITIVE_TYPES_BY_NAME[primitiveHash];
+
+                if (primitiveType != null && descriptor.equals(primitiveType.getName())) {
+                    return primitiveType;
+                }
             }
         }
 
