@@ -2278,7 +2278,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             case '\t':
                 return "\\t";
             case '"':
-                return "\"";
+                return "\\\"";
 
             default:
                 if (ch >= 192 ||
