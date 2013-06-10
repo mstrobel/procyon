@@ -41,6 +41,7 @@ public final class TransformationPipeline {
             new RewriteLocalClassesTransform(context),
             new IntroduceOuterClassReferencesTransform(context),
             new RewriteInnerClassConstructorCalls(context),
+            new RemoveRedundantInitializersTransform(context),
             new FlattenElseIfStatementsTransform(context),
             new FlattenSwitchBlocksTransform(context),
             new RemoveHiddenMembersTransform(context)
