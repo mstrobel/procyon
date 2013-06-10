@@ -1,4 +1,4 @@
-![](https://bitbucket.org/mstrobel/procyon/raw/912f088b9f008a46249107f9b08549008403bbb0/logo.png)
+![](logo.png)
 
 *Procyon* is a suite of Java metaprogramming tools focused on code generation and analysis.  It includes the following libraries:
 
@@ -8,12 +8,16 @@
   4. Compiler Toolset (Experimental)
   5. Decompiler Front-End (Experimental)
 
+The Procyon libraries are available from **Maven Central** under group ID `org.bitbucket.mstrobel`.
+
 ### Core Framework
 
 The `procyon-core` framework contains common support classes used by the other Procyon APIs.  Its facilities include string manipulation, collection extensions, filesystem/path utilities, freezable objects and collections, attached data stores, and some runtime type helpers.
 
 ### Reflection Framework
 The `procyon-reflection` framework provides a rich reflection and code generation API with full support for generics, wildcards, and other high-level Java type concepts.  It is based on .NET's `System.Reflection` and `System.Reflection.Emit` APIs and is meant to address many of the shortcomings of the core Java reflection API, which offers rather limited and cumbersome support for generic type inspection.  Its code generation facilities include a `TypeBuilder`, `MethodBuilder`, and a bytecode emitter.
+
+For more information, see the [Reflection Framework](Reflection Framework) topic.
 
 #### Example
 
@@ -49,15 +53,31 @@ almost a direct port of `System.Linq.Expressions` from .NET's Dynamic Language R
 minus the dynamic callsite support (and with more relaxed rules regarding type conversions).
 
 #### Example
+    :::java    
+    //
+    // This lambda closes over a complex constant (a String array).
+    //
+    
+    final ConstantExpression items = constant(
+        new String[] { "one", "two", "three", "four", "five" }
+    );
 
-    :::java
+    //
+    // If written in Java, the constructed expression would look something like this:
+    // 
+    // () -> {
+    //     for (String item : <closure>items)
+    //         System.out.printf("Got item: %s\n", item);
+    // }
+    //
+
     final ParameterExpression item = variable(Types.String, "item");
-
+    
     final LambdaExpression<Runnable> runnable = lambda(
         Type.of(Runnable.class),
         forEach(
             item,
-            constant(new String[] { "one", "two", "three", "four", "five" }),
+            items,
             call(
                 field(null, Types.System.getField("out")),
                 "printf",
@@ -66,13 +86,18 @@ minus the dynamic callsite support (and with more relaxed rules regarding type c
             )
         )
     );
+    
+    System.out.println(runnable);
+    
+    final Runnable delegate = runnable.compile();
 
-    final Runnable callback = runnable.compile();
-
-    callback.run(); 
+    delegate.run();
 
 #### Output
-
+    :::text
+    () => for (String item : [one, two, three, four, five])
+        System.out.printf("Got item: %s\n", new Object[] { item })
+    
     Got item: one
     Got item: two
     Got item: three
@@ -92,5 +117,4 @@ The Compiler Toolset is still early in development and subject to change.
 
 `procyon-decompiler` is a standalone front-end for the Java decompiler included in
 `procyon-compilertools`.  All dependencies are embedded in the JAR for easy redistribution.
-For more information about the decompiler, see the [Java Decompiler](
-https://bitbucket.org/mstrobel/procyon/wiki/Java%20Decompiler) wiki page.
+For more information about the decompiler, see the [Java Decompiler](Java Decompiler) wiki page.
