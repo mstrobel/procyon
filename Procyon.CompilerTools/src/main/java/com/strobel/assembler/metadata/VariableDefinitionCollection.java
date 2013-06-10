@@ -177,7 +177,8 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
             final TypeReference sourceType = op.isStore() ? variableType : variable.getVariableType();
 
             if (variableType == BuiltinTypes.Object && !variable.getVariableType().getSimpleType().isPrimitive() ||
-                isTargetTypeCompatible(targetType, sourceType)) {
+                isTargetTypeCompatible(targetType, sourceType) ||
+                variable.isFromMetadata()) {
 
                 return variable;
             }
