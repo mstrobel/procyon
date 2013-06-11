@@ -13,6 +13,7 @@
 
 package com.strobel.decompiler;
 
+import com.strobel.annotations.NotNull;
 import org.junit.Test;
 
 import java.util.Iterator;
@@ -69,6 +70,7 @@ public class InnerClassTests extends DecompilerTest {
             return new Iterable<String>() {
                 private final boolean y = z;
 
+                @NotNull
                 @Override
                 public Iterator<String> iterator() {
                     return new Iterator<String>() {
@@ -98,6 +100,7 @@ public class InnerClassTests extends DecompilerTest {
             final class MethodScopedIterable implements Iterable<String> {
                 private final boolean y = z;
 
+                @NotNull
                 @Override
                 public Iterator<String> iterator() {
                     return new Iterator<String>() {
@@ -121,6 +124,29 @@ public class InnerClassTests extends DecompilerTest {
             System.out.println(new MethodScopedIterable());
 
             return new MethodScopedIterable();
+        }
+    }
+
+    private static class D {
+        final int k;
+
+        D(final int n) {
+            super();
+            this.k = n;
+        }
+
+        public static void test() {
+            final int j;
+
+            final int k1 = new D(2 + (j = 3)) {
+                int get() {
+                    return this.k + j;
+                }
+            }.get();
+
+            if (k1 != 8) {
+                throw new Error("k1 = " + k1);
+            }
         }
     }
 
@@ -211,6 +237,7 @@ public class InnerClassTests extends DecompilerTest {
             "    public Iterable<String> test(final boolean z) {\n" +
             "        return new Iterable<String>() {\n" +
             "            private final boolean y = z;\n" +
+            "            @NotNull\n" +
             "            public Iterator<String> iterator() {\n" +
             "                return new Iterator<String>() {\n" +
             "                    public boolean hasNext() {\n" +
@@ -239,6 +266,7 @@ public class InnerClassTests extends DecompilerTest {
             "    public Iterable<String> test(final boolean z) {\n" +
             "        final class MethodScopedIterable implements Iterable<String> {\n" +
             "            private final boolean y = z;\n" +
+            "            @NotNull\n" +
             "            public Iterator<String> iterator() {\n" +
             "                return new Iterator<String>() {\n" +
             "                    public boolean hasNext() {\n" +
@@ -254,6 +282,30 @@ public class InnerClassTests extends DecompilerTest {
             "        }\n" +
             "        System.out.println(new MethodScopedIterable());\n" +
             "        return new MethodScopedIterable();\n" +
+            "    }\n" +
+            "}\n");
+    }
+    @Test
+    public void testAnonymousClassWithAssignmentAsConstructorParameter() {
+        verifyOutput(
+            D.class,
+            createSettings(OPTION_INCLUDE_NESTED),
+            "private static class D {\n" +
+            "    final int k;\n" +
+            "    D(final int n) {\n" +
+            "        super();\n" +
+            "        this.k = n;\n" +
+            "    }\n" +
+            "    public static void test() {\n" +
+            "        final int j;\n" +
+            "        final int k1 = new D(2 + (j = 3)) {\n" +
+            "            int get() {\n" +
+            "                return this.k + j;\n" +
+            "            }\n" +
+            "        }.get();\n" +
+            "        if (k1 != 8) {\n" +
+            "            throw new Error(\"k1 = \" + k1);\n" +
+            "        }\n" +
             "    }\n" +
             "}\n");
     }
