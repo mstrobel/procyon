@@ -24,7 +24,17 @@ public class OperatorTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("UnusedDeclaration")
     private static class B {
+        public void test() {
+            String s = "";
+            s += "james";
+        }
+    }
+
+
+    @SuppressWarnings("UnusedAssignment")
+    private static class C {
         public void test() {
             int n = 0;
             System.out.println(n++);
@@ -45,11 +55,25 @@ public class OperatorTests extends DecompilerTest {
     }
 
     @Test
-    public void testPostIncrementTransform() {
+    public void testStringConcatenationToExistingString() {
         verifyOutput(
             B.class,
             defaultSettings(),
             "private static class B {\n" +
+            "    public void test() {\n" +
+            "        String s = \"\";\n" +
+            "        s = s + \"james\";\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testPostIncrementTransform() {
+        verifyOutput(
+            C.class,
+            defaultSettings(),
+            "private static class C {\n" +
             "    public void test() {\n" +
             "        int n = 0;\n" +
             "        System.out.println(n++);\n" +
