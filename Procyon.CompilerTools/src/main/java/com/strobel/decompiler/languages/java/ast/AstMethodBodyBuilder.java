@@ -757,7 +757,15 @@ public class AstMethodBodyBuilder {
 
             case NewArray: {
                 final ArrayCreationExpression arrayCreation = new ArrayCreationExpression();
-                arrayCreation.setType(operandType);
+
+                TypeReference elementType = operandType.getUserData(Keys.TYPE_REFERENCE);
+
+                while (elementType.isArray()) {
+                    arrayCreation.getAdditionalArraySpecifiers().add(new ArraySpecifier());
+                    elementType = elementType.getElementType();
+                }
+
+                arrayCreation.setType(_astBuilder.convertType(elementType));
                 arrayCreation.getDimensions().add(arg1);
                 return arrayCreation;
             }
