@@ -19,19 +19,40 @@ import java.util.Date;
 
 public class OperatorTests extends DecompilerTest {
     private static class A {
-        public String test(final String s, final char c, final byte b, final float f, final Date d) {
-            return b + ":" + c + ":" + s + ":" + f + ":" + d;
+        public String test(final String s, final char c, final byte b, final float n, final Date date) {
+            return b + ":" + c + ":" + s + ":" + n + ":" + date;
         }
     }
-    
+
+    private static class B {
+        public void test() {
+            int n = 0;
+            System.out.println(n++);
+        }
+    }
+
     @Test
     public void testStringConcatenation() {
         verifyOutput(
             A.class,
             defaultSettings(),
             "private static class A {\n" +
-            "    public String test(final String s, final char c, final byte b, final float f, final Date d) {\n" +
-            "        return b + \":\" + c + \":\" + s + \":\" + f + \":\" + d;\n" +
+            "    public String test(final String s, final char c, final byte b, final float n, final Date date) {\n" +
+            "        return b + \":\" + c + \":\" + s + \":\" + n + \":\" + date;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testPostIncrementTransform() {
+        verifyOutput(
+            B.class,
+            defaultSettings(),
+            "private static class B {\n" +
+            "    public void test() {\n" +
+            "        int n = 0;\n" +
+            "        System.out.println(n++);\n" +
             "    }\n" +
             "}\n"
         );

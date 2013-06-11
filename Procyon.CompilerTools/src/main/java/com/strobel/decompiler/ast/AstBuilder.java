@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.ast;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.flowanalysis.ControlFlowGraph;
 import com.strobel.assembler.flowanalysis.ControlFlowGraphBuilder;
 import com.strobel.assembler.flowanalysis.ControlFlowNode;
@@ -655,7 +656,7 @@ public final class AstBuilder {
 
             if (changed) {
                 if (first == null ||
-                    last == null  ||
+                    last == null ||
                     toRemove.contains(first) ||
                     toRemove.contains(last)) {
 
@@ -1555,7 +1556,7 @@ public final class AstBuilder {
                 }
 
                 variable.setOriginalVariable(variableDefinition);
-                variable.setGenerated(!variableDefinition.isFromMetadata());
+                variable.setGenerated(false);
 
                 final VariableInfo variableInfo = new VariableInfo(variable, definitions, references);
 
@@ -1618,7 +1619,7 @@ public final class AstBuilder {
                     }
 
                     variable.setOriginalVariable(variableDefinition);
-                    variable.setGenerated(!variableDefinition.isFromMetadata());
+                    variable.setGenerated(false);
 
                     final VariableInfo variableInfo = new VariableInfo(
                         variable,
@@ -1763,7 +1764,7 @@ public final class AstBuilder {
                 handlers,
                 new Comparator<ExceptionHandler>() {
                     @Override
-                    public int compare(final ExceptionHandler o1, final ExceptionHandler o2) {
+                    public int compare(@NotNull final ExceptionHandler o1, @NotNull final ExceptionHandler o2) {
                         return Integer.compare(
                             o1.getTryBlock().getFirstInstruction().getOffset(),
                             o2.getTryBlock().getFirstInstruction().getOffset()
