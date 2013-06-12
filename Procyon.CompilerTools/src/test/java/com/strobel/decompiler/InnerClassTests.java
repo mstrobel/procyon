@@ -127,6 +127,22 @@ public class InnerClassTests extends DecompilerTest {
         }
     }
 
+    private static class C {
+        public static void test() {
+            final C c = null;
+            c.new A(6);
+        }
+
+        class A {
+            int j;
+
+            A(final int j) {
+                super();
+                this.j = j;
+            }
+        }
+    }
+
     private static class D {
         final int k;
 
@@ -285,6 +301,27 @@ public class InnerClassTests extends DecompilerTest {
             "    }\n" +
             "}\n");
     }
+
+    @Test
+    public void testNullQualifiedInnerClassCreation() {
+        verifyOutput(
+            C.class,
+            createSettings(OPTION_INCLUDE_NESTED),
+            "private static class C {\n" +
+            "    public static void test() {\n" +
+            "        final C c = null;\n" +
+            "        c.new A(6);\n" +
+            "    }\n" +
+            "    class A {\n" +
+            "        int j;\n" +
+            "        A(final int j) {\n" +
+            "            super();\n" +
+            "            this.j = j;\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n");
+    }
+
     @Test
     public void testAnonymousClassWithAssignmentAsConstructorParameter() {
         verifyOutput(

@@ -65,17 +65,15 @@ public final class TypeAnalysis {
             e.setInferredType(null);
             e.setExpectedType(null);
 
-/*
             final Object operand = e.getOperand();
 
             if (operand instanceof Variable) {
                 final Variable variable = (Variable) operand;
 
-                if (variable.isGenerated()) {
+                if (shouldInferVariableType(variable)) {
                     variable.setType(null);
                 }
             }
-*/
         }
     }
 
@@ -318,7 +316,7 @@ public final class TypeAnalysis {
         }
     }
 
-    private boolean shouldInferVariableType(final Variable variable) {
+    private static boolean shouldInferVariableType(final Variable variable) {
         return variable.isGenerated() ||
                !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata();
     }
@@ -666,7 +664,7 @@ public final class TypeAnalysis {
             }
 
             case AConstNull: {
-                return BuiltinTypes.Object;
+                return null;
             }
 
             case LdC: {
