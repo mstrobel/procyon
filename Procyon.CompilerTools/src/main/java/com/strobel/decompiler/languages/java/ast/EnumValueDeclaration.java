@@ -30,6 +30,18 @@ public class EnumValueDeclaration extends EntityDeclaration {
         return EntityType.ENUM_VALUE;
     }
 
+    public final JavaTokenNode getLeftBraceToken() {
+        return getChildByRole(Roles.LEFT_BRACE);
+    }
+
+    public final AstNodeCollection<EntityDeclaration> getMembers() {
+        return getChildrenByRole(Roles.TYPE_MEMBER);
+    }
+
+    public final JavaTokenNode getRightBraceToken() {
+        return getChildByRole(Roles.RIGHT_BRACE);
+    }
+
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
         return visitor.visitEnumValueDeclaration(this, data);
@@ -43,7 +55,8 @@ public class EnumValueDeclaration extends EntityDeclaration {
             return !otherDeclaration.isNull() &&
                    matchString(getName(), otherDeclaration.getName()) &&
                    matchAnnotationsAndModifiers(otherDeclaration, match) &&
-                   getReturnType().matches(otherDeclaration.getReturnType(), match);
+                   getReturnType().matches(otherDeclaration.getReturnType(), match) &&
+                   getMembers().matches(getMembers(), match);
         }
 
         return false;

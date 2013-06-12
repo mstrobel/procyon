@@ -4,11 +4,15 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 public class EnumTests extends DecompilerTest {
-    private static enum A {
+    private enum A {
         X {
-            @Override
             public void f() {
-                System.out.println(name());
+                System.out.println(this.name().toLowerCase());
+            }
+        },
+        Y {
+            public void f() {
+                System.out.println("y");
             }
         };
 
@@ -16,16 +20,19 @@ public class EnumTests extends DecompilerTest {
     }
 
     @Test
-    @Ignore
     public void testEnumWithAnonymousClassValues() {
         verifyOutput(
             A.class,
             defaultSettings(),
-            "private static enum A {\n" +
+            "private enum A {\n" +
             "    X {\n" +
-            "        @Override\n" +
             "        public void f() {\n" +
-            "            System.out.println(name());\n" +
+            "            System.out.println(this.name().toLowerCase());\n" +
+            "        }\n" +
+            "    },\n" +
+            "    Y {\n" +
+            "        public void f() {\n" +
+            "            System.out.println(\"y\");\n" +
             "        }\n" +
             "    };\n" +
             "    public abstract void f();\n" +

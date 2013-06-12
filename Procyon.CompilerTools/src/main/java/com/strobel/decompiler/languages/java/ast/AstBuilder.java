@@ -460,7 +460,9 @@ public final class AstBuilder {
         for (final TypeDefinition nestedType : type.getDeclaredTypes()) {
             final TypeReference declaringType = nestedType.getDeclaringType();
 
-            if (!nestedType.isLocalClass() && type.isEquivalentTo(declaringType)) {
+            if (!nestedType.isLocalClass() &&
+                !(nestedType.isAnonymous() && nestedType.isEnum()) &&
+                type.isEquivalentTo(declaringType)) {
                 astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
             }
         }

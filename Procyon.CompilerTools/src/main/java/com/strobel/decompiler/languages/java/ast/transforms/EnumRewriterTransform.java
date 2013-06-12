@@ -253,6 +253,15 @@ public class EnumRewriterTransform implements IAstTransform {
                     enumDeclaration.getArguments().add(argument);
                 }
 
+                if (initializer instanceof AnonymousObjectCreationExpression) {
+                    final AnonymousObjectCreationExpression creation = (AnonymousObjectCreationExpression) initializer;
+
+                    for (final EntityDeclaration member: creation.getTypeDeclaration().getMembers()){
+                        member.remove();
+                        enumDeclaration.getMembers().add(member);
+                    }
+                }
+
                 field.replaceWith(enumDeclaration);
             }
 

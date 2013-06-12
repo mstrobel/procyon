@@ -1483,28 +1483,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 break;
         }
 
-//        for (final Constraint constraint : node.getConstraints()) {
-//            constraint.acceptVisitor(this, _);
-//        }
-
         openBrace(braceStyle);
 
-//        if (node.getClassType() == ClassType.ENUM) {
-//            boolean first = true;
-//            for (final EntityDeclaration member : node.getMembers()) {
-//                if (first) {
-//                    first = false;
-//                }
-//                else {
-//                    comma(member, true);
-//                    newLine();
-//                }
-//                member.acceptVisitor(this, _);
-//            }
-//            optionalComma();
-//            newLine();
-//        }
-//        else {
         boolean first = true;
         EntityDeclaration lastMember = null;
 
@@ -1529,7 +1509,6 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             member.acceptVisitor(this, _);
             lastMember = member;
         }
-//        }
 
         closeBrace(braceStyle);
 
@@ -2016,6 +1995,41 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         if (!arguments.isEmpty()) {
             writeCommaSeparatedListInParenthesis(arguments, policy.SpaceWithinEnumDeclarationParentheses);
+        }
+
+        final AstNodeCollection<EntityDeclaration> members = node.getMembers();
+
+        if (!members.isEmpty()) {
+            final BraceStyle braceStyle = policy.AnonymousClassBraceStyle;
+
+            openBrace(braceStyle);
+
+            boolean first = true;
+            EntityDeclaration lastMember = null;
+
+            for (final EntityDeclaration member : node.getMembers()) {
+                if (first) {
+                    first = false;
+                }
+                else {
+                    final int blankLines;
+
+                    if (member instanceof FieldDeclaration && lastMember instanceof FieldDeclaration) {
+                        blankLines = policy.BlankLinesBetweenFields;
+                    }
+                    else {
+                        blankLines = policy.BlankLinesBetweenMembers;
+                    }
+
+                    for (int i = 0; i < blankLines; i++) {
+                        formatter.newLine();
+                    }
+                }
+                member.acceptVisitor(this, _);
+                lastMember = member;
+            }
+
+            closeBrace(braceStyle);
         }
 
         boolean isLast = true;
