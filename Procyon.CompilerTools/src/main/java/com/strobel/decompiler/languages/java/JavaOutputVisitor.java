@@ -1356,13 +1356,18 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     @Override
     public Void visitParameterDeclaration(final ParameterDeclaration node, final Void _) {
+        final boolean hasType = !node.getType().isNull();
+
         startNode(node);
         writeAnnotations(node.getAnnotations(), false);
-        writeModifiers(node.getModifiers());
-        node.getType().acceptVisitor(this, _);
 
-        if (!node.getType().isNull() && !StringUtilities.isNullOrEmpty(node.getName())) {
-            space();
+        if (hasType) {
+            writeModifiers(node.getModifiers());
+            node.getType().acceptVisitor(this, _);
+
+            if (!StringUtilities.isNullOrEmpty(node.getName())) {
+                space();
+            }
         }
 
         if (!StringUtilities.isNullOrEmpty(node.getName())) {
