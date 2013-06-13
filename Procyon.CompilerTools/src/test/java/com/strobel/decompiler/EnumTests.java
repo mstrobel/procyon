@@ -1,6 +1,5 @@
 package com.strobel.decompiler;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class EnumTests extends DecompilerTest {

@@ -14,6 +14,7 @@
 package com.strobel.decompiler;
 
 import com.strobel.annotations.NotNull;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Iterator;
@@ -165,6 +166,13 @@ public class InnerClassTests extends DecompilerTest {
             }
         }
     }
+
+    interface E {
+        public final static I i = new I() {
+        };
+    }
+
+    interface I {}
 
     @Test
     public void testComplexInnerClassRelations() {
@@ -344,6 +352,18 @@ public class InnerClassTests extends DecompilerTest {
             "            throw new Error(\"k1 = \" + k1);\n" +
             "        }\n" +
             "    }\n" +
+            "}\n");
+    }
+
+    @Test
+    @Ignore
+    public void testAnonymousClassInInterface() {
+        verifyOutput(
+            E.class,
+            createSettings(OPTION_INCLUDE_NESTED),
+            "interface E {\n" +
+            "    public final static I i = new I() {\n" +
+            "    };\n" +
             "}\n");
     }
 }

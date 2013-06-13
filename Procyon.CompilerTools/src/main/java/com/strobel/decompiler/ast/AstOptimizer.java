@@ -1002,14 +1002,27 @@ public final class AstOptimizer {
                     //
                     // Create ternary expression.
                     //
+                    // Default behavior seems to be to invert the condition.  Try to reverse it.
+                    //
 
-                    newExpression = new Expression(
-                        AstCode.TernaryOp,
-                        null,
-                        condition.get(),
-                        trueExpression.get(),
-                        falseExpression.get()
-                    );
+                    if (simplifyLogicalNotArgument(condition.get())) {
+                        newExpression = new Expression(
+                            AstCode.TernaryOp,
+                            null,
+                            condition.get(),
+                            falseExpression.get(),
+                            trueExpression.get()
+                        );
+                    }
+                    else {
+                        newExpression = new Expression(
+                            AstCode.TernaryOp,
+                            null,
+                            condition.get(),
+                            trueExpression.get(),
+                            falseExpression.get()
+                        );
+                    }
                 }
 
                 final List<Node> headBody = head.getBody();
