@@ -52,7 +52,7 @@ public class CommandLineOptions {
     @Parameter(names = { "-o", "--output-directory" }, description = "Write decompiled results to specified directory instead of stdout.")
     private String _outputDirectory;
 
-    @Parameter(names = { "-jar", "--jar-file" }, description = "Decompile all classes in the specified jar file.")
+    @Parameter(names = { "-jar", "--jar-file" }, description = "Decompile all classes in the specified jar file (enables -n, disables -s).")
     private String _jarFile;
 
     public final List<String> getClassNames() {

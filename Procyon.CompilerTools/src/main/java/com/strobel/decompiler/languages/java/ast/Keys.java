@@ -42,6 +42,7 @@ public final class Keys {
     public final static Key<TypeDefinition> TYPE_DEFINITION = Key.create("TypeDefinition");
     public final static Key<TypeReference> TYPE_REFERENCE = Key.create("TypeReference");
     public final static Key<DynamicCallSite> DYNAMIC_CALL_SITE = Key.create("DynamicCallSite");
+    public final static Key<AstBuilder> AST_BUILDER = Key.create("AstBuilder");
 
     public final static List<Key<?>> ALL_KEYS = ArrayUtilities.asUnmodifiableList(
         VARIABLE,

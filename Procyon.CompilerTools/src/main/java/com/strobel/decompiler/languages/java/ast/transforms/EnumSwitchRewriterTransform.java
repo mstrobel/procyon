@@ -142,6 +142,20 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
 
                 if (info == null) {
                     _switchMaps.put(enclosingTypeName, info = new SwitchMapInfo(enclosingTypeName));
+
+                    final TypeDefinition resolvedType = enclosingType.resolve();
+
+                    if (resolvedType != null) {
+                        AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+                        if (astBuilder == null) {
+                            astBuilder = new AstBuilder(context);
+                        }
+
+                        final TypeDeclaration declaration = astBuilder.createType(resolvedType);
+
+                        declaration.acceptVisitor(this, data);
+                    }
                 }
 
                 List<SwitchStatement> switches = info.switches.get(mapName);
@@ -219,6 +233,14 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
 
                     if (info == null) {
                         _switchMaps.put(enclosingType, info = new SwitchMapInfo(enclosingType));
+
+                        AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+                        if (astBuilder == null) {
+                            astBuilder = new AstBuilder(context);
+                        }
+
+                        info.enclosingTypeDeclaration = astBuilder.createType(currentType);
                     }
 
                     final PrimitiveExpression value = (PrimitiveExpression) right;

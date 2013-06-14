@@ -123,6 +123,9 @@ public class DecompilerDriver {
         final JarFile jar = new JarFile(jarFile);
         final Enumeration<JarEntry> entries = jar.entries();
 
+        settings.setShowNestedTypes(true);
+        settings.setShowSyntheticMembers(false);
+
         settings.setTypeLoader(
             new CompositeTypeLoader(
                 new JarTypeLoader(jar),
@@ -143,7 +146,7 @@ public class DecompilerDriver {
             final String internalName = StringUtilities.removeRight(name, ".class");
 
             try {
-                decompileType(metadataSystem, internalName, decompilationOptions, !settings.getShowNestedTypes());
+                decompileType(metadataSystem, internalName, decompilationOptions, false);
             }
             catch (Throwable t) {
                 t.printStackTrace();
@@ -166,7 +169,7 @@ public class DecompilerDriver {
             return;
         }
 
-        if (type.isNested() && !includeNested) {
+        if (!includeNested && (resolvedType.isNested() || resolvedType.isAnonymous() || resolvedType.isSynthetic())) {
             return;
         }
 

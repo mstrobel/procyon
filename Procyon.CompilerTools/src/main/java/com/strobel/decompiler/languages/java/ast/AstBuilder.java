@@ -77,6 +77,10 @@ public final class AstBuilder {
 
         _packagePlaceholder = new TextNode();
         _compileUnit.addChild(_packagePlaceholder, Roles.TEXT);
+
+        if (_context.getUserData(Keys.AST_BUILDER) == null) {
+            _context.putUserData(Keys.AST_BUILDER, this);
+        }
     }
 
     final DecompilerContext getContext() {
@@ -384,13 +388,13 @@ public final class AstBuilder {
 
         _typeDeclarations.put(type.getInternalName(), astType);
 
-        long flags = type.getFlags() & (Flags.AccessFlags | Flags.ClassFlags | Flags.STATIC | Flags.FINAL);
+        long flags = type.getFlags();
 
-        if (type.isInterface()) {
-            flags &= ~Flags.ABSTRACT;
-        }
-        else if (type.isEnum()) {
+        if (type.isInterface() || type.isEnum()) {
             flags &= Flags.AccessFlags;
+        }
+        else {
+            flags &= (Flags.AccessFlags | Flags.ClassFlags | Flags.STATIC | Flags.FINAL);
         }
 
         EntityDeclaration.setModifiers(
@@ -461,9 +465,14 @@ public final class AstBuilder {
             final TypeReference declaringType = nestedType.getDeclaringType();
 
             if (!nestedType.isLocalClass() &&
-                !(nestedType.isAnonymous() && nestedType.isEnum()) &&
                 type.isEquivalentTo(declaringType)) {
-                astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
+
+                if (nestedType.isAnonymous()) {
+                    _typeDeclarations.put(type.getInternalName(), astType);
+                }
+                else {
+                    astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
+                }
             }
         }
     }
@@ -518,7 +527,7 @@ public final class AstBuilder {
             }
         }
 
-        if (!method.getDeclaringType().isInterface()) {
+        if (!method.getDeclaringType().isInterface() || method.isTypeInitializer()) {
             astMethod.setBody(createMethodBody(method, astMethod.getParameters()));
         }
 
@@ -696,7 +705,7 @@ public final class AstBuilder {
             final TypeDefinition resolvedType = ((TypeReference) member).resolve();
 
             return resolvedType == null ||
-                   findLocalType(resolvedType) == null;
+                   !resolvedType.isAnonymous() && findLocalType(resolvedType) == null;
         }
 
         return false;

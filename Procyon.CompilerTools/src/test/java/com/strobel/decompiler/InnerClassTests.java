@@ -167,12 +167,18 @@ public class InnerClassTests extends DecompilerTest {
         }
     }
 
-    interface E {
-        public final static I i = new I() {
-        };
+    static interface E {
+        public static final I i = new I() {};
     }
 
-    interface I {}
+    static interface I {}
+
+    private static class F {
+        public static void test() {
+            final Object i = new Error() {};
+            System.out.println(i.getClass().isAnonymousClass());
+        }
+    }
 
     @Test
     public void testComplexInnerClassRelations() {
@@ -360,10 +366,23 @@ public class InnerClassTests extends DecompilerTest {
     public void testAnonymousClassInInterface() {
         verifyOutput(
             E.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "interface E {\n" +
-            "    public final static I i = new I() {\n" +
+            "    public static final I i = new I() {\n" +
             "    };\n" +
+            "}\n");
+    }
+    @Test
+    @Ignore
+    public void testEmptyAnonymousClass() {
+        verifyOutput(
+            F.class,
+            defaultSettings(),
+            "private static class F {\n" +
+            "    public static void test() {\n" +
+            "        final Object i = new Error() { };\n" +
+            "        System.out.println(i.getClass().isAnonymousClass());\n" +
+            "    }\n" +
             "}\n");
     }
 }

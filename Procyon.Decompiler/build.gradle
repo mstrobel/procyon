@@ -15,6 +15,8 @@ jar.enabled = false
 apply plugin: 'fatjar'
 
 fatJar {
+//    from rootProject.allprojects.collect({ it.sourceSets.main.allSource })
+
     manifest {
         attributes 'Title': archivesBaseName, 'Manifest-Version': '1.0', 'Version': version, 'Main-Class' : 'com.strobel.decompiler.DecompilerDriver'
     }
