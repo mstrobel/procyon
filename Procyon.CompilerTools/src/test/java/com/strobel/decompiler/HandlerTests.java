@@ -3,6 +3,7 @@ package com.strobel.decompiler;
 import org.junit.Ignore;
 import org.junit.Test;
 
+@SuppressWarnings({ "UnnecessaryReturnStatement", "ThrowFromFinallyBlock", "EmptyCatchBlock" })
 public class HandlerTests extends DecompilerTest {
     private static class A {
         void test() {
@@ -10,7 +11,6 @@ public class HandlerTests extends DecompilerTest {
                 throw new Exception();
             }
             catch (Exception e) {
-                return;
             }
             finally {
                 try {
@@ -52,9 +52,7 @@ public class HandlerTests extends DecompilerTest {
             "        try {\n" +
             "            throw new Exception();\n" +
             "        }\n" +
-            "        catch (Exception e) {\n" +
-            "            return;\n" +
-            "        }\n" +
+            "        catch (Exception e) {}\n" +
             "        finally {\n" +
             "            try {\n" +
             "                throw new Exception();\n" +
@@ -78,8 +76,7 @@ public class HandlerTests extends DecompilerTest {
             "        try {\n" +
             "            throw new Exception();\n" +
             "        }\n" +
-            "        catch (Exception e) {\n" +
-            "        }\n" +
+            "        catch (Exception e) {}\n" +
             "        finally {\n" +
             "            try {\n" +
             "                int k = 0;\n" +

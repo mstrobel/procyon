@@ -1467,6 +1467,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         final BraceStyle braceStyle;
+        final AstNodeCollection<EntityDeclaration> members = node.getMembers();
 
         switch (node.getClassType()) {
             case ENUM:
@@ -1480,7 +1481,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 break;
             default:
                 if (type != null && type.isAnonymous()) {
-                    braceStyle = policy.AnonymousClassBraceStyle;
+                    braceStyle = members.isEmpty() ? BraceStyle.BannerStyle :  policy.AnonymousClassBraceStyle;
                 }
                 else {
                     braceStyle = policy.ClassBraceStyle;
@@ -1493,7 +1494,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         boolean first = true;
         EntityDeclaration lastMember = null;
 
-        for (final EntityDeclaration member : node.getMembers()) {
+        for (final EntityDeclaration member : members) {
             if (first) {
                 first = false;
             }

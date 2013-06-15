@@ -52,9 +52,11 @@ public class NameVariables {
     private final static String[] METHOD_PREFIXES = { "get", "is", "are", "to", "as" };
     private final static String[] METHOD_SUFFIXES = { "At", "For", "From", "Of" };
     private final static Map<String, String> BUILT_IN_TYPE_NAMES;
+    private final static Map<String, String> METHOD_NAME_MAPPINGS;
 
     static {
         final Map<String, String> builtInTypeNames = new LinkedHashMap<>();
+        final Map<String, String> methodNameMappings = new LinkedHashMap<>();
 
         builtInTypeNames.put(BuiltinTypes.Boolean.getInternalName(), "b");
         builtInTypeNames.put("java/lang/Boolean", "b");
@@ -79,6 +81,10 @@ public class NameVariables {
         builtInTypeNames.put("java/lang/Class", "clazz");
 
         BUILT_IN_TYPE_NAMES = Collections.unmodifiableMap(builtInTypeNames);
+
+        methodNameMappings.put("get", "value");
+
+        METHOD_NAME_MAPPINGS = methodNameMappings;
     }
 
     private final ArrayList<String> _fieldNamesInCurrentType;
@@ -430,6 +436,12 @@ public class NameVariables {
                     final String methodName = method.getName();
 
                     String name = methodName;
+
+                    final String mappedMethodName = METHOD_NAME_MAPPINGS.get(methodName);
+
+                    if (mappedMethodName != null) {
+                        return cleanUpVariableName(mappedMethodName);
+                    }
 
                     for (final String prefix : METHOD_PREFIXES) {
                         if (methodName.length() > prefix.length() &&

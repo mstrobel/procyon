@@ -579,7 +579,8 @@ public final class AstOptimizer {
                             resolvedConstructorArgumentType != null &&
                             resolvedConstructorTargetType.isNested() &&
                             !resolvedConstructorTargetType.isStatic() &&
-                            isEnclosedBy(resolvedConstructorTargetType, resolvedConstructorArgumentType)) {
+                            (!resolvedConstructorArgumentType.isNested() ||
+                             isEnclosedBy(resolvedConstructorTargetType, resolvedConstructorArgumentType))) {
 
                             body.remove(position - 1);
                             return true;
@@ -612,11 +613,8 @@ public final class AstOptimizer {
 
             final TypeDefinition resolvedInnerType = innerType.resolve();
 
-            if (resolvedInnerType != null) {
-                return isEnclosedBy(resolvedInnerType.getBaseType(), outerType);
-            }
-
-            return false;
+            return resolvedInnerType != null &&
+                   isEnclosedBy(resolvedInnerType.getBaseType(), outerType);
         }
     }
 

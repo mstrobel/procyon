@@ -17,6 +17,8 @@ import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 
@@ -24,6 +26,20 @@ import java.util.List;
  * @author Mike Strobel
  */
 public final class CollectionUtilities {
+    public static <T> List<T> toList(final Enumeration<T> collection) {
+        if (!collection.hasMoreElements()) {
+            return Collections.emptyList();
+        }
+
+        final ArrayList<T> list = new ArrayList<>();
+
+        while (collection.hasMoreElements()) {
+            list.add(collection.nextElement());
+        }
+
+        return list;
+    }
+
     public static <T> List<T> toList(final Iterable<T> collection) {
         final ArrayList<T> list = new ArrayList<>();
 
@@ -357,6 +373,7 @@ public final class CollectionUtilities {
             threadId = Thread.currentThread().getId();
         }
 
+        @SuppressWarnings("CloneDoesntDeclareCloneNotSupportedException")
         protected abstract AbstractIterator<T> clone();
 
         @Override
@@ -412,6 +429,7 @@ public final class CollectionUtilities {
         }
 
         @Override
+        @SuppressWarnings("CloneDoesntCallSuperClone")
         protected SkipIterator<T> clone() {
             if (skipFilter != null) {
                 return new SkipIterator<>(source, skipFilter);
@@ -504,6 +522,7 @@ public final class CollectionUtilities {
         }
 
         @Override
+        @SuppressWarnings("CloneDoesntCallSuperClone")
         protected TakeIterator<T> clone() {
             return new TakeIterator<>(source, takeCount, takeFilter);
         }

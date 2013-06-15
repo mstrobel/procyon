@@ -14,7 +14,6 @@
 package com.strobel.decompiler;
 
 import com.strobel.annotations.NotNull;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Iterator;
@@ -67,9 +66,9 @@ public class InnerClassTests extends DecompilerTest {
     private static class A {
         private boolean x;
 
-        public Iterable<String> test(final boolean z) {
+        public Iterable<String> test(final boolean b) {
             return new Iterable<String>() {
-                private final boolean y = z;
+                private final boolean y = b;
 
                 @NotNull
                 @Override
@@ -97,9 +96,9 @@ public class InnerClassTests extends DecompilerTest {
     private static class B {
         private boolean x;
 
-        public Iterable<String> test(final boolean z) {
+        public Iterable<String> test(final boolean b) {
             final class MethodScopedIterable implements Iterable<String> {
-                private final boolean y = z;
+                private final boolean y = b;
 
                 @NotNull
                 @Override
@@ -147,22 +146,22 @@ public class InnerClassTests extends DecompilerTest {
     private static class D {
         final int k;
 
-        D(final int n) {
+        D(final int k) {
             super();
-            this.k = n;
+            this.k = k;
         }
 
         public static void test() {
-            final int j;
+            final int n;
 
-            final int k1 = new D(2 + (j = 3)) {
+            final int value = new D(2 + (n = 3)) {
                 int get() {
-                    return this.k + j;
+                    return this.k + n;
                 }
             }.get();
 
-            if (k1 != 8) {
-                throw new Error("k1 = " + k1);
+            if (value != 8) {
+                throw new Error("value = " + value);
             }
         }
     }
@@ -175,8 +174,8 @@ public class InnerClassTests extends DecompilerTest {
 
     private static class F {
         public static void test() {
-            final Object i = new Error() {};
-            System.out.println(i.getClass().isAnonymousClass());
+            final Object o = new Error() {};
+            System.out.println(o.getClass().isAnonymousClass());
         }
     }
 
@@ -264,9 +263,9 @@ public class InnerClassTests extends DecompilerTest {
             defaultSettings(),
             "private static class A {\n" +
             "    private boolean x;\n" +
-            "    public Iterable<String> test(final boolean z) {\n" +
+            "    public Iterable<String> test(final boolean b) {\n" +
             "        return new Iterable<String>() {\n" +
-            "            private final boolean y = z;\n" +
+            "            private final boolean y = b;\n" +
             "            @NotNull\n" +
             "            public Iterator<String> iterator() {\n" +
             "                return new Iterator<String>() {\n" +
@@ -293,9 +292,9 @@ public class InnerClassTests extends DecompilerTest {
             createSettings(OPTION_INCLUDE_NESTED),
             "private static class B {\n" +
             "    private boolean x;\n" +
-            "    public Iterable<String> test(final boolean z) {\n" +
+            "    public Iterable<String> test(final boolean b) {\n" +
             "        final class MethodScopedIterable implements Iterable<String> {\n" +
-            "            private final boolean y = z;\n" +
+            "            private final boolean y = b;\n" +
             "            @NotNull\n" +
             "            public Iterator<String> iterator() {\n" +
             "                return new Iterator<String>() {\n" +
@@ -343,45 +342,44 @@ public class InnerClassTests extends DecompilerTest {
             createSettings(OPTION_INCLUDE_NESTED),
             "private static class D {\n" +
             "    final int k;\n" +
-            "    D(final int n) {\n" +
+            "    D(final int k) {\n" +
             "        super();\n" +
-            "        this.k = n;\n" +
+            "        this.k = k;\n" +
             "    }\n" +
             "    public static void test() {\n" +
-            "        final int j;\n" +
-            "        final int k1 = new D(2 + (j = 3)) {\n" +
+            "        final int n;\n" +
+            "        final int value = new D(2 + (n = 3)) {\n" +
             "            int get() {\n" +
-            "                return this.k + j;\n" +
+            "                return this.k + n;\n" +
             "            }\n" +
             "        }.get();\n" +
-            "        if (k1 != 8) {\n" +
-            "            throw new Error(\"k1 = \" + k1);\n" +
+            "        if (value != 8) {\n" +
+            "            throw new Error(\"value = \" + value);\n" +
             "        }\n" +
             "    }\n" +
             "}\n");
     }
 
     @Test
-    @Ignore
     public void testAnonymousClassInInterface() {
         verifyOutput(
             E.class,
             defaultSettings(),
             "interface E {\n" +
-            "    public static final I i = new I() {\n" +
-            "    };\n" +
+            "    public static final I i = new I() {};\n" +
             "}\n");
+
     }
+
     @Test
-    @Ignore
     public void testEmptyAnonymousClass() {
         verifyOutput(
             F.class,
             defaultSettings(),
             "private static class F {\n" +
             "    public static void test() {\n" +
-            "        final Object i = new Error() { };\n" +
-            "        System.out.println(i.getClass().isAnonymousClass());\n" +
+            "        final Object o = new Error() {};\n" +
+            "        System.out.println(o.getClass().isAnonymousClass());\n" +
             "    }\n" +
             "}\n");
     }

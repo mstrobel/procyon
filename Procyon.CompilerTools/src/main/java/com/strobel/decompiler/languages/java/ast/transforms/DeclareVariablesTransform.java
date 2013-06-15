@@ -823,6 +823,13 @@ public class DeclareVariablesTransform implements IAstTransform {
         public Boolean visitAssignmentExpression(final AssignmentExpression node, final Void _) {
             final Expression left = node.getLeft();
 
+            Variable variable = left.getUserData(Keys.VARIABLE);
+
+            if (variable != null && variable.isParameter()) {
+                _unassignedParameters.remove(variable.getOriginalParameter());
+                return super.visitAssignmentExpression(node, _);
+            }
+
             ParameterDefinition parameter = left.getUserData(Keys.PARAMETER_DEFINITION);
 
             if (parameter == null && left instanceof IdentifierExpression) {
