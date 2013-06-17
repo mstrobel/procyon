@@ -233,10 +233,12 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
         public Void visitAssignmentExpression(final AssignmentExpression node, final Void _) {
             super.visitAssignmentExpression(node, _);
 
+            final TypeDefinition currentType = context.getCurrentType();
+
             if (context.getSettings().getShowSyntheticMembers() ||
                 context.getCurrentMethod() == null ||
                 !context.getCurrentMethod().isConstructor() ||
-                !context.getCurrentType().isInnerClass() && !context.getCurrentType().isLocalClass()) {
+                !currentType.isInnerClass() && !currentType.isLocalClass()) {
 
                 return null;
             }
@@ -262,7 +264,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
 
                         if (resolvedField != null &&
                             resolvedField.isSynthetic() &&
-                            resolvedField.getName().startsWith("this$")) {
+                            MetadataResolver.areEquivalent(resolvedField.getFieldType(), currentType.getDeclaringType())) {
 
                             final ParameterDefinition parameter = variable.getOriginalParameter();
 

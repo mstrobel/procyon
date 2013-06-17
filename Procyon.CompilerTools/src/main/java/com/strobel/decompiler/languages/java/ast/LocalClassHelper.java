@@ -7,7 +7,6 @@ import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
-import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ast.Variable;
 
 import java.util.ArrayList;
@@ -28,7 +27,8 @@ public final class LocalClassHelper {
         final TypeDeclaration declaration,
         final List<? extends ObjectCreationExpression> instantiations) {
 
-        final DecompilerSettings settings = VerifyArgument.notNull(context, "context").getSettings();
+        VerifyArgument.notNull(context, "context");
+
         final TypeDeclaration root = VerifyArgument.notNull(declaration, "declaration");
         final Map<String, Expression> initializers = new HashMap<>();
         final Map<String, Expression> replacements = new HashMap<>();

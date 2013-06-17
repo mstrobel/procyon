@@ -399,7 +399,7 @@ public final class AstBuilder {
 
         EntityDeclaration.setModifiers(
             astType,
-            Flags.asModifierSet(flags)
+            Flags.asModifierSet(scrubAccessModifiers(flags))
         );
 
         astType.setName(type.getSimpleName());
@@ -447,6 +447,24 @@ public final class AstBuilder {
         return astType;
     }
 
+    private long scrubAccessModifiers(final long flags) {
+        long result = flags & ~Flags.AccessFlags;
+
+        if ((flags & Flags.PRIVATE) != 0) {
+            return result | Flags.PRIVATE;
+        }
+
+        if ((flags & Flags.PROTECTED) != 0) {
+            return result | Flags.PROTECTED;
+        }
+
+        if ((flags & Flags.PUBLIC) != 0) {
+            return result | Flags.PUBLIC;
+        }
+
+        return result;
+    }
+
     private void addTypeMembers(final TypeDeclaration astType, final TypeDefinition type) {
         for (final FieldDefinition field : type.getDeclaredFields()) {
             astType.addChild(createField(field), Roles.TYPE_MEMBER);
@@ -486,7 +504,10 @@ public final class AstBuilder {
         astField.putUserData(Keys.FIELD_DEFINITION, field);
         astField.putUserData(Keys.MEMBER_REFERENCE, field);
 
-        EntityDeclaration.setModifiers(astField, Flags.asModifierSet(field.getFlags() & Flags.VarFlags));
+        EntityDeclaration.setModifiers(
+            astField,
+            Flags.asModifierSet(scrubAccessModifiers(field.getFlags() & Flags.VarFlags))
+        );
 
         if (field.hasConstantValue()) {
             initializer.setInitializer(new PrimitiveExpression(field.getConstantValue()));
@@ -509,7 +530,7 @@ public final class AstBuilder {
             modifiers = Collections.emptySet();
         }
         else {
-            modifiers = Flags.asModifierSet(method.getFlags() & Flags.MethodFlags);
+            modifiers = Flags.asModifierSet(scrubAccessModifiers(method.getFlags() & Flags.MethodFlags));
         }
 
         EntityDeclaration.setModifiers(astMethod, modifiers);
@@ -558,7 +579,9 @@ public final class AstBuilder {
     private ConstructorDeclaration createConstructor(final MethodDefinition method) {
         final ConstructorDeclaration astMethod = new ConstructorDeclaration();
 
-        EntityDeclaration.setModifiers(astMethod, Flags.asModifierSet(method.getFlags() & Flags.ConstructorFlags));
+        EntityDeclaration.setModifiers(
+            astMethod,
+            Flags.asModifierSet(scrubAccessModifiers(method.getFlags() & Flags.ConstructorFlags)));
 
         astMethod.setName(method.getDeclaringType().getName());
         astMethod.getParameters().addAll(createParameters(method.getParameters()));
