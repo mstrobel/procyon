@@ -34,7 +34,8 @@ import java.util.Map;
 
 public class InputTypeLoader implements ITypeLoader {
     private final ITypeLoader _defaultTypeLoader;
-    private final Map<String, List<File>> _knownLocations;
+    private final Map<String, List<File>> _packageLocations;
+    private final Map<String, File> _knownFiles;
 
     public InputTypeLoader() {
         this(new ClasspathTypeLoader());
@@ -42,7 +43,8 @@ public class InputTypeLoader implements ITypeLoader {
 
     public InputTypeLoader(final ITypeLoader defaultTypeLoader) {
         _defaultTypeLoader = VerifyArgument.notNull(defaultTypeLoader, "defaultTypeLoader");
-        _knownLocations = new LinkedHashMap<>();
+        _packageLocations = new LinkedHashMap<>();
+        _knownFiles = new LinkedHashMap<>();
     }
 
     @Override
@@ -104,11 +106,21 @@ public class InputTypeLoader implements ITypeLoader {
 
         final int lastSeparatorIndex = filePath.lastIndexOf(File.separatorChar);
 
-        return lastSeparatorIndex >= 0 &&
-               tryLoadFile(internalName, filePath.substring(lastSeparatorIndex + 1), buffer);
+        if (lastSeparatorIndex >= 0 &&
+            tryLoadFile(internalName, filePath.substring(lastSeparatorIndex + 1), buffer)) {
+            return true;
+        }
+
+        return false;
     }
 
     private boolean tryLoadFromKnownLocation(final String internalName, final Buffer buffer) {
+        final File knownFile = _knownFiles.get(internalName);
+
+        if (knownFile != null && tryLoadFile(knownFile, buffer)) {
+            return true;
+        }
+
         final int packageEnd = internalName.lastIndexOf('/');
 
         final String className;
@@ -123,93 +135,94 @@ public class InputTypeLoader implements ITypeLoader {
             className = internalName.substring(packageEnd + 1);
         }
 
-        final List<File> directories = _knownLocations.get(packageName);
+        final List<File> directories = _packageLocations.get(packageName);
 
-        if (directories == null) {
-            return false;
-        }
-
-        for (final File directory : directories) {
-            if (tryLoadFile(internalName, new File(directory, className + ".class").getAbsolutePath(), buffer)) {
-                return true;
+        if (directories != null) {
+            for (final File directory : directories) {
+                if (tryLoadFile(internalName, new File(directory, className + ".class").getAbsolutePath(), buffer)) {
+                    return true;
+                }
             }
         }
 
         return false;
     }
 
-    private boolean tryLoadFile(final String internalName, final String typeNameOrPath, final Buffer buffer) {
-        try {
-            final File file = new File(typeNameOrPath);
+    private boolean tryLoadFile(final File file, final Buffer buffer) {
+        if (!file.exists() || file.isDirectory()) {
+            return false;
+        }
 
-            if (!file.exists() || file.isDirectory()) {
-                return false;
-            }
+        try (final FileInputStream in = new FileInputStream(file)) {
+            int remainingBytes = in.available();
 
-            try (final FileInputStream in = new FileInputStream(file)) {
-                int remainingBytes = in.available();
+            buffer.position(0);
+            buffer.reset(remainingBytes);
 
-                buffer.position(0);
-                buffer.reset(remainingBytes);
+            while (remainingBytes > 0) {
+                final int bytesRead = in.read(buffer.array(), buffer.position(), remainingBytes);
 
-                while (remainingBytes > 0) {
-                    final int bytesRead = in.read(buffer.array(), buffer.position(), remainingBytes);
-
-                    if (bytesRead < 0) {
-                        break;
-                    }
-
-                    remainingBytes -= bytesRead;
-                    buffer.advance(bytesRead);
+                if (bytesRead < 0) {
+                    break;
                 }
 
-                buffer.position(0);
-
-                final String name = internalName != null ? internalName : getInternalNameFromClassFile(buffer);
-
-                final boolean result = internalName == null ||
-                                       typeNameOrPath.endsWith(name.replace('/', File.separatorChar) + ".class") ||
-                                       verifyClassName(buffer, name);
-
-                if (result) {
-                    final int packageEnd = name.lastIndexOf('/');
-                    final String packageName;
-
-                    if (packageEnd < 0 || packageEnd >= name.length()) {
-                        packageName = StringUtilities.EMPTY;
-                    }
-                    else {
-                        packageName = name.substring(0, packageEnd);
-                    }
-
-                    List<File> directories = _knownLocations.get(packageName);
-
-                    if (directories == null) {
-                        _knownLocations.put(packageName, directories = new ArrayList<>());
-                    }
-
-                    final File directory = file.getParentFile();
-
-                    if (!directories.contains(directory)) {
-                        directories.add(directory);
-                    }
-                }
-
-                return result;
+                remainingBytes -= bytesRead;
+                buffer.advance(bytesRead);
             }
+
+            buffer.position(0);
+            return true;
         }
         catch (IOException e) {
             return false;
         }
     }
+    private boolean tryLoadFile(final String internalName, final String typeNameOrPath, final Buffer buffer) {
+        final File file = new File(typeNameOrPath);
 
-    private static boolean verifyClassName(final Buffer b, final String internalName) {
-        try {
-            return StringUtilities.equals(getInternalNameFromClassFile(b), internalName);
-        }
-        catch (Throwable t) {
+        if (!tryLoadFile(file, buffer)) {
             return false;
         }
+
+        final String actualName = getInternalNameFromClassFile(buffer);
+        final String name = internalName != null ? internalName : actualName;
+        final boolean nameMatches = StringUtilities.equals(actualName, internalName);
+        final boolean pathMatchesName = typeNameOrPath.endsWith(name.replace('/', File.separatorChar) + ".class");
+
+        final boolean result = internalName == null ||
+                               pathMatchesName ||
+                               nameMatches;
+
+        if (result) {
+            final int packageEnd = name.lastIndexOf('/');
+            final String packageName;
+
+            if (packageEnd < 0 || packageEnd >= name.length()) {
+                packageName = StringUtilities.EMPTY;
+            }
+            else {
+                packageName = name.substring(0, packageEnd);
+            }
+
+            List<File> directories = _packageLocations.get(packageName);
+
+            if (directories == null) {
+                _packageLocations.put(packageName, directories = new ArrayList<>());
+            }
+
+            final File directory = file.getParentFile();
+
+            if (!directories.contains(directory)) {
+                directories.add(directory);
+            }
+
+            _knownFiles.put(actualName, file);
+        }
+        else {
+            buffer.reset(0);
+        }
+
+        return result;
     }
 
     private static String getInternalNameFromClassFile(final Buffer b) {

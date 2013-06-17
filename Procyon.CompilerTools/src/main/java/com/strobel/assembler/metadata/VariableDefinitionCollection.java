@@ -216,19 +216,20 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
             for (int i = 0; i < size(); i++) {
                 final VariableDefinition variable = get(i);
 
-                for (int j = 0; j < size(); j++) {
-                    if (i == j) {
-                        continue;
-                    }
+                if (variable.getScopeEnd() < 0) {
+                    for (int j = 0; j < size(); j++) {
+                        if (i == j) {
+                            continue;
+                        }
 
-                    final VariableDefinition other = get(j);
+                        final VariableDefinition other = get(j);
 
-                    if (variable.getSlot() == other.getSlot() &&
-                        variable.getScopeEnd() < 0 &&
-                        variable.getScopeStart() < other.getScopeStart()) {
+                        if (variable.getSlot() == other.getSlot() &&
+                            variable.getScopeStart() < other.getScopeStart()) {
 
-                        variable.setScopeEnd(other.getScopeStart());
-                        modified = true;
+                            variable.setScopeEnd(other.getScopeStart());
+                            modified = true;
+                        }
                     }
                 }
             }
@@ -254,6 +255,12 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
             new Comparator<VariableDefinition>() {
                 @Override
                 public int compare(final VariableDefinition o1, final VariableDefinition o2) {
+                    final int slotComparison = Integer.compare(o1.getSlot(), o2.getSlot());
+
+                    if (slotComparison != 0) {
+                        return slotComparison;
+                    }
+
                     return Integer.compare(o1.getScopeStart(), o2.getScopeStart());
                 }
             }
@@ -274,6 +281,9 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
                     else {
                         break;
                     }
+                }
+                else {
+                    break;
                 }
             }
 

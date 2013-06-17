@@ -2048,7 +2048,8 @@ public final class AstBuilder {
         // Convert stack-based bytecode to bytecode AST.
         //
         for (final ByteCode byteCode : body) {
-            final Range codeRange = new Range(byteCode.offset, byteCode.endOffset);
+            final Instruction originalInstruction = _originalInstructionMap.get(byteCode.instruction);
+            final Range codeRange = new Range(originalInstruction.getOffset(), originalInstruction.getEndOffset());
 
             if (byteCode.stackBefore == null) {
                 //

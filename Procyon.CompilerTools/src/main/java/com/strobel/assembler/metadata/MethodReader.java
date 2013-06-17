@@ -502,7 +502,20 @@ public class MethodReader {
                 }
 
                 if (actualVariable != currentVariable) {
-                    instruction.setOperand(actualVariable);
+                    if (instruction.getOperandCount() > 1) {
+                        final Object[] operands = new Object[instruction.getOperandCount()];
+
+                        operands[0] = actualVariable;
+
+                        for (int j = 1; j < operands.length; j++) {
+                            operands[j] = instruction.getOperand(j);
+                        }
+
+                        instruction.setOperand(operands);
+                    }
+                    else {
+                        instruction.setOperand(actualVariable);
+                    }
                 }
             }
 

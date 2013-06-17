@@ -319,13 +319,13 @@ public final class ControlFlowGraphBuilder {
                 assert end.getOpCode() == OpCode.GOTO ||
                        end.getOpCode() == OpCode.GOTO_W;
 
+                final ControlFlowNode handler = findInnermostFinallyHandlerNode(end.getEndOffset());
+
                 final ControlFlowEdge edge = node.getOutgoing().get(0);
                 final ControlFlowNode target = edge.getTarget();
 
                 target.getIncoming().remove(edge);
                 node.getOutgoing().clear();
-
-                final ControlFlowNode handler = findInnermostExceptionHandlerNode(end.getEndOffset());
 
                 if (handler.getNodeType() == ControlFlowNodeType.ExceptionalExit) {
                     createEdge(node, handler, JumpType.Normal);
@@ -414,6 +414,22 @@ public final class ControlFlowGraphBuilder {
         throw new IllegalStateException("Could not find node for exception handler!");
     }
 
+    private ControlFlowNode findInnermostFinallyHandlerNode(final int offset) {
+        final ExceptionHandler handler = findInnermostFinallyHandler(offset);
+
+        if (handler == null) {
+            return _exceptionalExit;
+        }
+
+        for (final ControlFlowNode node : _nodes) {
+            if (node.getExceptionHandler() == handler && node.getCopyFrom() == null) {
+                return node;
+            }
+        }
+
+        throw new IllegalStateException("Could not find node for exception handler!");
+    }
+
     private int getInstructionIndex(final Instruction instruction) {
         final int index = Arrays.binarySearch(_offsets, instruction.getOffset());
         assert index >= 0;
@@ -422,6 +438,24 @@ public final class ControlFlowGraphBuilder {
 
     private ExceptionHandler findInnermostExceptionHandler(final int offsetInTryBlock) {
         for (final ExceptionHandler handler : _exceptionHandlers) {
+            final ExceptionBlock tryBlock = handler.getTryBlock();
+
+            if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
+                offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset()) {
+
+                return handler;
+            }
+        }
+
+        return null;
+    }
+
+    private ExceptionHandler findInnermostFinallyHandler(final int offsetInTryBlock) {
+        for (final ExceptionHandler handler : _exceptionHandlers) {
+            if (!handler.isFinally()) {
+                continue;
+            }
+
             final ExceptionBlock tryBlock = handler.getTryBlock();
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&

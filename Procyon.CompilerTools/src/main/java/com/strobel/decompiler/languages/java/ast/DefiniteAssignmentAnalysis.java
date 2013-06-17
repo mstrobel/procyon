@@ -505,16 +505,14 @@ public class DefiniteAssignmentAnalysis {
                 final DefiniteAssignmentStatus afterLeft = node.getLeft().acceptVisitor(this, data);
                 final DefiniteAssignmentStatus beforeRight;
 
-                switch (afterLeft) {
-                    case ASSIGNED_AFTER_TRUE_EXPRESSION:
-                        beforeRight = DefiniteAssignmentStatus.DEFINITELY_ASSIGNED;
-                        break;
-                    case ASSIGNED_AFTER_FALSE_EXPRESSION:
-                        beforeRight = DefiniteAssignmentStatus.POTENTIALLY_ASSIGNED;
-                        break;
-                    default:
-                        beforeRight = afterLeft;
-                        break;
+                if (afterLeft == DefiniteAssignmentStatus.ASSIGNED_AFTER_TRUE_EXPRESSION) {
+                    beforeRight = DefiniteAssignmentStatus.DEFINITELY_ASSIGNED;
+                }
+                else if (afterLeft == DefiniteAssignmentStatus.ASSIGNED_AFTER_FALSE_EXPRESSION) {
+                    beforeRight = DefiniteAssignmentStatus.POTENTIALLY_ASSIGNED;
+                }
+                else {
+                    beforeRight = afterLeft;
                 }
 
                 final DefiniteAssignmentStatus afterRight = node.getRight().acceptVisitor(this, beforeRight);
@@ -561,16 +559,14 @@ public class DefiniteAssignmentAnalysis {
                 final DefiniteAssignmentStatus afterLeft = node.getLeft().acceptVisitor(this, data);
                 final DefiniteAssignmentStatus beforeRight;
 
-                switch (afterLeft) {
-                    case ASSIGNED_AFTER_TRUE_EXPRESSION:
-                        beforeRight = DefiniteAssignmentStatus.POTENTIALLY_ASSIGNED;
-                        break;
-                    case ASSIGNED_AFTER_FALSE_EXPRESSION:
-                        beforeRight = DefiniteAssignmentStatus.DEFINITELY_ASSIGNED;
-                        break;
-                    default:
-                        beforeRight = afterLeft;
-                        break;
+                if (afterLeft == DefiniteAssignmentStatus.ASSIGNED_AFTER_TRUE_EXPRESSION) {
+                    beforeRight = DefiniteAssignmentStatus.POTENTIALLY_ASSIGNED;
+                }
+                else if (afterLeft == DefiniteAssignmentStatus.ASSIGNED_AFTER_FALSE_EXPRESSION) {
+                    beforeRight = DefiniteAssignmentStatus.DEFINITELY_ASSIGNED;
+                }
+                else {
+                    beforeRight = afterLeft;
                 }
 
                 final DefiniteAssignmentStatus afterRight = node.getRight().acceptVisitor(this, beforeRight);
@@ -608,15 +604,14 @@ public class DefiniteAssignmentAnalysis {
             if (node.getOperator() == UnaryOperatorType.NOT) {
                 final DefiniteAssignmentStatus status = node.getExpression().acceptVisitor(this, data);
 
-                switch (status) {
-                    case ASSIGNED_AFTER_FALSE_EXPRESSION:
-                        return DefiniteAssignmentStatus.ASSIGNED_AFTER_TRUE_EXPRESSION;
-
-                    case ASSIGNED_AFTER_TRUE_EXPRESSION:
-                        return DefiniteAssignmentStatus.ASSIGNED_AFTER_FALSE_EXPRESSION;
-
-                    default:
-                        return status;
+                if (status == DefiniteAssignmentStatus.ASSIGNED_AFTER_FALSE_EXPRESSION) {
+                    return DefiniteAssignmentStatus.ASSIGNED_AFTER_TRUE_EXPRESSION;
+                }
+                else if (status == DefiniteAssignmentStatus.ASSIGNED_AFTER_TRUE_EXPRESSION) {
+                    return DefiniteAssignmentStatus.ASSIGNED_AFTER_FALSE_EXPRESSION;
+                }
+                else {
+                    return status;
                 }
             }
 
