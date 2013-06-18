@@ -193,7 +193,7 @@ public class BytecodeLanguage extends Language {
         final String shortName = entry.getShortName();
         final String innerClassName = entry.getInnerClassName();
         final String outerClassName = entry.getOuterClassName();
-        final EnumSet<Flags.Flag> flagsSet = Flags.asFlagSet(entry.getAccessFlags());
+        final EnumSet<Flags.Flag> flagsSet = Flags.asFlagSet(entry.getAccessFlags(), Flags.Kind.InnerClass);
 
         for (final Flags.Flag flag : flagsSet) {
             output.writeKeyword(flag.toString());
@@ -268,7 +268,11 @@ public class BytecodeLanguage extends Language {
 
         final long flags = type.getFlags();
         final List<String> flagStrings = new ArrayList<>();
-        final EnumSet<Flags.Flag> flagsSet = Flags.asFlagSet(flags & (Flags.ClassFlags | ~Flags.StandardFlags));
+
+        final EnumSet<Flags.Flag> flagsSet = Flags.asFlagSet(
+            flags,
+            type.isInnerClass() ? Flags.Kind.InnerClass : Flags.Kind.Class
+        );
 
         for (final Flags.Flag flag : flagsSet) {
             flagStrings.add(flag.name());
@@ -293,7 +297,7 @@ public class BytecodeLanguage extends Language {
     @Override
     public void decompileField(final FieldDefinition field, final ITextOutput output, final DecompilationOptions options) {
         final long flags = field.getFlags();
-        final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(flags & Flags.VarFlags & ~Flags.ENUM);
+        final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(flags & Flags.VarFlags & ~Flags.ENUM, Flags.Kind.Field);
         final List<String> flagStrings = new ArrayList<>();
 
         for (final Flags.Flag flag : flagSet) {
@@ -316,7 +320,7 @@ public class BytecodeLanguage extends Language {
 
         flagStrings.clear();
 
-        for (final Flags.Flag flag : Flags.asFlagSet(flags & (Flags.VarFlags | ~Flags.StandardFlags))) {
+        for (final Flags.Flag flag : Flags.asFlagSet(flags & (Flags.VarFlags | ~Flags.StandardFlags), Flags.Kind.Field)) {
             flagStrings.add(flag.name());
         }
 
@@ -386,7 +390,7 @@ public class BytecodeLanguage extends Language {
 
     private void writeMethodHeader(final ITextOutput output, final MethodDefinition method) {
         final String name = method.getName();
-        final long flags = Flags.fromStandardFlags(method.getFlags());
+        final long flags = Flags.fromStandardFlags(method.getFlags(), Flags.Kind.Method);
         final List<String> flagStrings = new ArrayList<>();
 
         if ("<clinit>".equals(name)) {
@@ -394,7 +398,7 @@ public class BytecodeLanguage extends Language {
             output.write(" {}");
         }
         else {
-            final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(flags & Flags.MethodFlags);
+            final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(flags & Flags.MethodFlags, Flags.Kind.Method);
 
             for (final Flags.Flag flag : flagSet) {
                 flagStrings.add(flag.toString());
@@ -439,7 +443,7 @@ public class BytecodeLanguage extends Language {
 
                 final ParameterDefinition parameter = parameters.get(i);
 
-                if (Flags.testAny(flags, Flags.ACC_VARARGS) && i == parameters.size() - 1) {
+                if (Flags.testAny(flags, Flags.ACC_VARARGS | Flags.VARARGS) && i == parameters.size() - 1) {
                     DecompilerHelpers.writeType(output, parameter.getParameterType().getUnderlyingType(), NameSyntax.TYPE_NAME, false);
                     output.writeDelimiter("...");
                 }
@@ -481,7 +485,7 @@ public class BytecodeLanguage extends Language {
 
         flagStrings.clear();
 
-        for (final Flags.Flag flag : Flags.asFlagSet(flags & (Flags.MethodFlags | ~Flags.StandardFlags))) {
+        for (final Flags.Flag flag : Flags.asFlagSet(flags & (Flags.MethodFlags | ~Flags.StandardFlags), Flags.Kind.Method)) {
             flagStrings.add(flag.name());
         }
 

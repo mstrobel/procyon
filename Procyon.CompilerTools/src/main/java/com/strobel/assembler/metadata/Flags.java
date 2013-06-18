@@ -29,7 +29,6 @@ import java.util.Set;
  */
 @SuppressWarnings("PointlessBitwiseExpression")
 public class Flags {
-
     private Flags() {
         throw ContractUtils.unreachable();
     }
@@ -39,8 +38,19 @@ public class Flags {
         String sep = "";
         for (final Flag s : asFlagSet(flags)) {
             buf.append(sep);
-            buf.append(s);
-            sep = " ";
+            buf.append(s.name());
+            sep = ", ";
+        }
+        return buf.toString();
+    }
+
+    public static String toString(final long flags, final Kind kind) {
+        final StringBuilder buf = new StringBuilder();
+        String sep = "";
+        for (final Flag s : asFlagSet(flags, kind)) {
+            buf.append(sep);
+            buf.append(s.name());
+            sep = ", ";
         }
         return buf.toString();
     }
@@ -72,6 +82,110 @@ public class Flags {
         }
         if ((mask & TRANSIENT) != 0) {
             flags.add(Flag.TRANSIENT);
+        }
+        if ((mask & NATIVE) != 0) {
+            flags.add(Flag.NATIVE);
+        }
+        if ((mask & INTERFACE) != 0) {
+            flags.add(Flag.INTERFACE);
+        }
+        if ((mask & ABSTRACT) != 0) {
+            flags.add(Flag.ABSTRACT);
+        }
+        if ((mask & DEFAULT) != 0) {
+            flags.add(Flag.DEFAULT);
+        }
+        if ((mask & STRICTFP) != 0) {
+            flags.add(Flag.STRICTFP);
+        }
+        if ((mask & SUPER) != 0) {
+            flags.add(Flag.SUPER);
+        }
+        if ((mask & BRIDGE) != 0) {
+            flags.add(Flag.BRIDGE);
+        }
+        if ((mask & SYNTHETIC) != 0) {
+            flags.add(Flag.SYNTHETIC);
+        }
+        if ((mask & DEPRECATED) != 0) {
+            flags.add(Flag.DEPRECATED);
+        }
+        if ((mask & HASINIT) != 0) {
+            flags.add(Flag.HASINIT);
+        }
+        if ((mask & ENUM) != 0) {
+            flags.add(Flag.ENUM);
+        }
+        if ((mask & MANDATED) != 0) {
+            flags.add(Flag.MANDATED);
+        }
+        if ((mask & IPROXY) != 0) {
+            flags.add(Flag.IPROXY);
+        }
+        if ((mask & NOOUTERTHIS) != 0) {
+            flags.add(Flag.NOOUTERTHIS);
+        }
+        if ((mask & EXISTS) != 0) {
+            flags.add(Flag.EXISTS);
+        }
+        if ((mask & COMPOUND) != 0) {
+            flags.add(Flag.COMPOUND);
+        }
+        if ((mask & CLASS_SEEN) != 0) {
+            flags.add(Flag.CLASS_SEEN);
+        }
+        if ((mask & SOURCE_SEEN) != 0) {
+            flags.add(Flag.SOURCE_SEEN);
+        }
+        if ((mask & LOCKED) != 0) {
+            flags.add(Flag.LOCKED);
+        }
+        if ((mask & UNATTRIBUTED) != 0) {
+            flags.add(Flag.UNATTRIBUTED);
+        }
+        if ((mask & ANONCONSTR) != 0) {
+            flags.add(Flag.ANONCONSTR);
+        }
+        if ((mask & ACYCLIC) != 0) {
+            flags.add(Flag.ACYCLIC);
+        }
+        if ((mask & PARAMETER) != 0) {
+            flags.add(Flag.PARAMETER);
+        }
+        if ((mask & VARARGS) != 0) {
+            flags.add(Flag.VARARGS);
+        }
+
+        return flags;
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    public static EnumSet<Flag> asFlagSet(final long mask, final Kind kind) {
+        final EnumSet<Flag> flags = EnumSet.noneOf(Flag.class);
+
+        if ((mask & PUBLIC) != 0) {
+            flags.add(Flag.PUBLIC);
+        }
+        if ((mask & PRIVATE) != 0) {
+            flags.add(Flag.PRIVATE);
+        }
+        if ((mask & PROTECTED) != 0) {
+            flags.add(Flag.PROTECTED);
+        }
+        if ((mask & STATIC) != 0) {
+            flags.add(Flag.STATIC);
+        }
+        if ((mask & FINAL) != 0) {
+            flags.add(Flag.FINAL);
+        }
+        if ((mask & SYNCHRONIZED) != 0) {
+            flags.add(kind == Kind.Class || kind == Kind.InnerClass ? Flag.SUPER : Flag.SYNCHRONIZED);
+        }
+        if ((mask & VOLATILE) != 0) {
+            flags.add(kind == Kind.Method ? Flag.BRIDGE : Flag.VOLATILE);
+        }
+        if ((mask & TRANSIENT) != 0) {
+            flags.add(kind == Kind.Method ? Flag.VARARGS : Flag.TRANSIENT);
         }
         if ((mask & NATIVE) != 0) {
             flags.add(Flag.NATIVE);
@@ -143,7 +257,15 @@ public class Flags {
         return flags;
     }
 
-    /* Standard Java flags.
+    public static enum Kind {
+        Class,
+        InnerClass,
+        Field,
+        Method
+    }
+
+    /*
+     * Standard Java flags.
      */
     public static final int PUBLIC       = 1 << 0;
     public static final int PRIVATE      = 1 << 1;
@@ -172,6 +294,11 @@ public class Flags {
      */
     public static final int ENUM = 1 << 14;
 
+    /**
+     * Added in SE8, represents constructs implicitly declared in source.
+     */
+    public static final int MANDATED = 1 << 15;
+
     public static final int StandardFlags = 0x0fff;
     public static final int ModifierFlags = StandardFlags & ~INTERFACE;
 
@@ -182,7 +309,6 @@ public class Flags {
     public static final int ACC_SUPER     = 0x0020;
     public static final int ACC_BRIDGE    = 0x0040;
     public static final int ACC_VARARGS   = 0x0080;
-    public static final int ACC_SYNTHETIC = 0x1000;
 
     /*****************************************
      * Internal compiler flags (no bits in the lower 16).
@@ -332,19 +458,24 @@ public class Flags {
     public static final long CLASH = 1L << 42;
 
     /**
+     * Flag that marks either a default method or an interface containing default methods.
+     */
+    public static final long DEFAULT = 1L<<43;
+
+    /**
      * Flag that marks anonymous inner classes.
      */
-    public static final long ANONYMOUS = 1L << 43;
+    public static final long ANONYMOUS = 1L << 44;
 
     /**
      * Mirror of ACC_SUPER.
      */
-    public static final long SUPER = 1L << 44;
+    public static final long SUPER = 1L << 45;
 
     /**
      * Indicates whether an unsuccessful attempt has been made to load a method's body.
      */
-    public static final long LOAD_BODY_FAILED = 1L << 45;
+    public static final long LOAD_BODY_FAILED = 1L << 46;
 
     /**
      * Modifier masks.
@@ -475,23 +606,19 @@ public class Flags {
         return (symbol.getModifiers() & ENUM) != 0;
     }
 
-    public static long fromStandardFlags(final long accessFlags) {
+    public static long fromStandardFlags(final long accessFlags, final Kind kind) {
         long flags = accessFlags;
 
         if (testAny(accessFlags, ACC_SUPER)) {
-            flags |= SUPER;
+            flags |= (kind == Kind.Class || kind == Kind.InnerClass ? SUPER : SYNCHRONIZED);
         }
 
         if (testAny(accessFlags, ACC_BRIDGE)) {
-            flags |= BRIDGE;
-        }
-
-        if (testAny(accessFlags, ACC_SYNTHETIC)) {
-            flags |= SYNTHETIC;
+            flags |= (kind == Kind.Field ? VOLATILE : BRIDGE);
         }
 
         if (testAny(accessFlags, ACC_VARARGS)) {
-            flags |= VARARGS;
+            flags |= (kind == Kind.Field ? TRANSIENT : VARARGS);
         }
 
         return flags;
@@ -509,6 +636,7 @@ public class Flags {
         NATIVE("native"),
         INTERFACE("interface"),
         ABSTRACT("abstract"),
+        DEFAULT("default"),
         STRICTFP("strictfp"),
         SUPER("super"),
         BRIDGE("bridge"),
@@ -516,6 +644,7 @@ public class Flags {
         DEPRECATED("deprecated"),
         HASINIT("hasinit"),
         ENUM("enum"),
+        MANDATED("mandated"),
         IPROXY("iproxy"),
         NOOUTERTHIS("noouterthis"),
         EXISTS("exists"),

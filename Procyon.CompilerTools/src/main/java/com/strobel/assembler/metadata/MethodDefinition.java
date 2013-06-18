@@ -186,11 +186,11 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     }
 
     public final boolean isBridgeMethod() {
-        return Flags.testAny(getFlags(), Flags.ACC_BRIDGE);
+        return Flags.testAny(getFlags(), Flags.ACC_BRIDGE | Flags.BRIDGE);
     }
 
     public final boolean isVarArgs() {
-        return Flags.testAny(getFlags(), Flags.ACC_VARARGS);
+        return Flags.testAny(getFlags(), Flags.ACC_VARARGS | Flags.VARARGS);
     }
 
     // </editor-fold>

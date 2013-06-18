@@ -602,7 +602,9 @@ public final class ClassFileReader extends MetadataReader {
                     _typeDefinition.setSimpleName(shortName);
                 }
 
-                _typeDefinition.setFlags(_typeDefinition.getFlags() | entry.getAccessFlags());
+                _typeDefinition.setFlags(
+                    (_typeDefinition.getFlags() & ~Flags.AccessFlags) | entry.getAccessFlags()
+                );
 
                 outerType = _parser.parseTypeDescriptor(outerClassName);
                 resolvedOuterType = outerType.resolve();

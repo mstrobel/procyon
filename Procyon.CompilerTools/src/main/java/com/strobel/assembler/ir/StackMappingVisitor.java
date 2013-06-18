@@ -481,7 +481,7 @@ public class StackMappingVisitor implements MethodVisitor {
 
                 push(value);
 
-                if (variable.getVariableType().getSimpleType().isDoubleWord()) {
+                if (code.getStackChange() == 2) {
                     push(get(variable.getSlot() + 1));
                 }
             }
