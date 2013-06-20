@@ -150,6 +150,7 @@ public final class AstOptimizer {
                     continue;
                 }
 
+                modified |= new Inlining(context, method).inlineAllInBlock(block);
                 modified |= runOptimization(block, new TransformArrayInitializersOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.IntroducePostIncrement) {
