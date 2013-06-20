@@ -17,7 +17,7 @@ The `procyon-core` framework contains common support classes used by the other P
 ### Reflection Framework
 The `procyon-reflection` framework provides a rich reflection and code generation API with full support for generics, wildcards, and other high-level Java type concepts.  It is based on .NET's `System.Reflection` and `System.Reflection.Emit` APIs and is meant to address many of the shortcomings of the core Java reflection API, which offers rather limited and cumbersome support for generic type inspection.  Its code generation facilities include a `TypeBuilder`, `MethodBuilder`, and a bytecode emitter.
 
-For more information, see the [Reflection Framework](Reflection Framework) topic.
+For more information, see the [Reflection Framework](https://bitbucket.org/mstrobel/procyon/wiki/Reflection%20Framework) topic.
 
 #### Example
 
@@ -117,4 +117,4 @@ The Compiler Toolset is still early in development and subject to change.
 
 `procyon-decompiler` is a standalone front-end for the Java decompiler included in
 `procyon-compilertools`.  All dependencies are embedded in the JAR for easy redistribution.
-For more information about the decompiler, see the [Java Decompiler](Java Decompiler) wiki page.
+For more information about the decompiler, see the [Java Decompiler](https://bitbucket.org/mstrobel/procyon/wiki/Java%20Decompiler) wiki page.
