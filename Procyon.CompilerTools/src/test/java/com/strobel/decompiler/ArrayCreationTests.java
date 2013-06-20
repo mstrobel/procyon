@@ -40,6 +40,12 @@ public class ArrayCreationTests extends DecompilerTest {
         }
     }
 
+    private static class E {
+        public int[][][][] test() {
+            return new int[3][4][5][];
+        }
+    }
+
     @Test
     public void testSimpleArrayCreation() {
         verifyOutput(
@@ -87,6 +93,19 @@ public class ArrayCreationTests extends DecompilerTest {
             "private static class D {\n" +
             "    public int[][] test() {\n" +
             "        return new int[10][];\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testMultiDimensionalArrayCreationWithPartialDimensions() {
+        verifyOutput(
+            E.class,
+            defaultSettings(),
+            "private static class E {\n" +
+            "    public int[][][][] test() {\n" +
+            "        return new int[3][4][5][];\n" +
             "    }\n" +
             "}\n"
         );

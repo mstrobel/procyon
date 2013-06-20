@@ -455,6 +455,7 @@ public class AstMethodBodyBuilder {
 
             case LdC: {
                 if (operand instanceof TypeReference) {
+                    operandType.getChildrenByRole(Roles.TYPE_ARGUMENT).clear();
                     return new ClassOfExpression(operandType);
                 }
 
@@ -638,9 +639,11 @@ public class AstMethodBodyBuilder {
             case MultiANewArray: {
                 final ArrayCreationExpression arrayCreation = new ArrayCreationExpression();
 
+                int rank = 0;
                 AstType elementType = operandType;
 
                 while (elementType instanceof ComposedType) {
+                    rank += ((ComposedType) elementType).getArraySpecifiers().size();
                     elementType = ((ComposedType) elementType).getBaseType();
                 }
 
@@ -648,6 +651,11 @@ public class AstMethodBodyBuilder {
 
                 for (int i = 0; i < arguments.size(); i++) {
                     arrayCreation.getDimensions().add(arguments.get(i));
+                    --rank;
+                }
+
+                for (int i = 0; i < rank; i++) {
+                    arrayCreation.getAdditionalArraySpecifiers().add(new ArraySpecifier());
                 }
 
                 return arrayCreation;
