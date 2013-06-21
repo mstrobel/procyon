@@ -641,6 +641,82 @@ public class BytecodeLanguage extends Language {
                 break;
             }
 
+            case AttributeNames.MethodParameters: {
+                final MethodParametersAttribute parameters = (MethodParametersAttribute) attribute;
+                final List<MethodParameterEntry> entries = parameters.getEntries();
+
+                int longestName = "Name".length();
+                int longestFlags = "Flags".length();
+
+                for (final MethodParameterEntry entry : entries) {
+                    final String name = entry.getName();
+                    final String flags = Flags.toString(entry.getFlags());
+
+                    if (name != null && name.length() > longestName) {
+                        longestName = name.length();
+                    }
+
+                    if (flags != null && flags.length() > longestFlags) {
+                        longestFlags = flags.length();
+                    }
+                }
+
+                output.indent();
+
+                try {
+                    output.writeAttribute(attribute.getName());
+                    output.writeLine(":");
+
+                    output.indent();
+
+                    try {
+                        output.write("%1$-" + longestName + "s  %2$-" + longestFlags + "s  ", "Name", "Flags");
+                        output.writeLine();
+
+                        output.write(
+                            "%1$-" + longestName + "s  %2$-" + longestFlags + "s",
+                            StringUtilities.repeat('-', longestName),
+                            StringUtilities.repeat('-', longestFlags)
+                        );
+
+                        output.writeLine();
+
+                        for (int i = 0; i < entries.size(); i++) {
+                            final MethodParameterEntry entry = entries.get(i);
+                            final List<ParameterDefinition> parameterDefinitions = method.getParameters();
+
+                            output.writeReference(
+                                String.format("%1$-" + longestName + "s  ", entry.getName()),
+                                i < parameterDefinitions.size() ? parameterDefinitions.get(i) : null
+                            );
+
+                            final EnumSet<Flags.Flag> flags = Flags.asFlagSet(entry.getFlags());
+
+                            boolean firstFlag = true;
+
+                            for (final Flags.Flag flag : flags) {
+                                if (!firstFlag) {
+                                    output.writeDelimiter(", ");
+                                }
+
+                                output.writeKeyword(flag.toString());
+                                firstFlag = false;
+                            }
+
+                            output.writeLine();
+                        }
+                    }
+                    finally {
+                        output.unindent();
+                    }
+                }
+                finally {
+                    output.unindent();
+                }
+
+                break;
+            }
+
             case AttributeNames.Signature: {
                 output.indent();
 

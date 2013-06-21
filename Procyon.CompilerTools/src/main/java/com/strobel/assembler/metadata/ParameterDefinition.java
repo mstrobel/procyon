@@ -78,6 +78,14 @@ public final class ParameterDefinition extends ParameterReference implements IAn
         _method = method;
     }
 
+    public final boolean isFinal() {
+        return Flags.testAny(_flags, Flags.FINAL);
+    }
+
+    public final boolean isMandated() {
+        return Flags.testAny(_flags, Flags.MANDATED);
+    }
+
     public final boolean isSynthetic() {
         return Flags.testAny(_flags, Flags.SYNTHETIC);
     }

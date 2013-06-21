@@ -40,6 +40,7 @@ public final class AttributeNames {
     public static final String RuntimeVisibleParameterAnnotations = "RuntimeVisibleParameterAnnotations";
     public static final String RuntimeInvisibleParameterAnnotations = "RuntimeInvisibleParameterAnnotations";
     public static final String AnnotationDefault = "AnnotationDefault";
+    public static final String MethodParameters = "MethodParameters";
 
     private AttributeNames() {
         throw ContractUtils.unreachable();

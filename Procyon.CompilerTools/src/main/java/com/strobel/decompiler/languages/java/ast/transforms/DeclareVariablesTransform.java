@@ -240,6 +240,12 @@ public class DeclareVariablesTransform implements IAstTransform {
                 context.setCurrentMethod(null);
 
                 try {
+                    final TypeDefinition type = child.getUserData(Keys.TYPE_DEFINITION);
+
+                    if (type != null && type.isInterface()) {
+                        continue;
+                    }
+
                     new DeclareVariablesTransform(context).run(child);
                 }
                 finally {

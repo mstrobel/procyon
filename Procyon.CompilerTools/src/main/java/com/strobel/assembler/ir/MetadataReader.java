@@ -20,6 +20,7 @@ import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.*;
 import com.strobel.assembler.metadata.annotations.AnnotationElement;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
+import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
 
 import java.util.List;
@@ -273,6 +274,33 @@ public abstract class MetadataReader {
                 }
 
                 return new BootstrapMethodsAttribute(methods);
+            }
+
+            case AttributeNames.MethodParameters: {
+                final int methodParameterCount = buffer.readUnsignedByte();
+                final int computedCount = (length - 1) / 4;
+                final MethodParameterEntry[] entries = new MethodParameterEntry[methodParameterCount];
+
+                for (int i = 0; i < entries.length; i++) {
+                    final int nameIndex;
+                    final int flags;
+
+                    if (i < computedCount) {
+                        nameIndex = buffer.readUnsignedShort();
+                        flags = buffer.readUnsignedShort();
+                    }
+                    else {
+                        nameIndex = 0;
+                        flags = 0;
+                    }
+
+                    entries[i] = new MethodParameterEntry(
+                        nameIndex != 0 ? getScope().<String>lookupConstant(nameIndex) : null,
+                        flags
+                    );
+                }
+
+                return new MethodParametersAttribute(ArrayUtilities.asUnmodifiableList(entries));
             }
 
             default: {

@@ -305,6 +305,11 @@ public final class ClassFileReader extends MetadataReader {
                     continue;
                 }
 
+                case AttributeNames.MethodParameters: {
+                    attributes[i] = readAttributeCore(name, buffer, buffer.position(), length);
+                    continue;
+                }
+
                 case AttributeNames.InnerClasses: {
                     attributes[i] = readAttributeCore(name, buffer, buffer.position(), length);
                     continue;
@@ -867,9 +872,26 @@ public final class ClassFileReader extends MetadataReader {
                         ++slot;
                     }
 
-                    for (final ParameterDefinition parameter : methodDefinition.getParameters()) {
+                    final MethodParametersAttribute methodParameters = SourceAttribute.find(AttributeNames.MethodParameters, method.attributes);
+                    final List<MethodParameterEntry> parameterEntries = methodParameters != null ? methodParameters.getEntries() : null;
+                    final List<ParameterDefinition> parametersList = methodDefinition.getParameters();
+
+                    for (int i = 0; i < parametersList.size(); i++) {
+                        final ParameterDefinition parameter = parametersList.get(i);
+
                         parameter.setSlot(slot);
                         slot += parameter.getSize();
+
+                        if (parameterEntries != null && i < parameterEntries.size()) {
+                            final MethodParameterEntry entry = parameterEntries.get(i);
+                            final String parameterName = entry.getName();
+
+                            if (!StringUtilities.isNullOrWhitespace(parameterName)) {
+                                parameter.setName(parameterName);
+                            }
+
+                            parameter.setFlags(entry.getFlags());
+                        }
                     }
 
                     inflateAttributes(method.attributes);

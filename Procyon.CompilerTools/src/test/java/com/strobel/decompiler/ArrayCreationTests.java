@@ -46,6 +46,19 @@ public class ArrayCreationTests extends DecompilerTest {
         }
     }
 
+    private static class F {
+        public void test() {
+            final Object[] a = { null, null, new Object() };
+            final int[] b = { 1, 2, 3 };
+            final int[][] c = { { 1, 2, 3 }, { 4, 5, 6 } };
+            final int[][][] d = { { { 1, 2, 3, 4 }, { 1, 2, 3, 4 } } };
+            final byte[] e = { 100 };
+            final double[][][] g = new double[3][4][5];
+            final byte[][][][] h = new byte[3][4][5][6];
+            final byte[][][][] i = new byte[3][4][5][];
+        }
+    }
+
     @Test
     public void testSimpleArrayCreation() {
         verifyOutput(
@@ -106,6 +119,26 @@ public class ArrayCreationTests extends DecompilerTest {
             "private static class E {\n" +
             "    public int[][][][] test() {\n" +
             "        return new int[3][4][5][];\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testArrayVariableInitializers() {
+        verifyOutput(
+            F.class,
+            defaultSettings(),
+            "private static class F {\n" +
+            "    public void test() {\n" +
+            "        final Object[] a = { null, null, new Object() };\n" +
+            "        final int[] b = { 1, 2, 3 };\n" +
+            "        final int[][] c = { { 1, 2, 3 }, { 4, 5, 6 } };\n" +
+            "        final int[][][] d = { { { 1, 2, 3, 4 }, { 1, 2, 3, 4 } } };\n" +
+            "        final byte[] e = { 100 };\n" +
+            "        final double[][][] g = new double[3][4][5];\n" +
+            "        final byte[][][][] h = new byte[3][4][5][6];\n" +
+            "        final byte[][][][] i = new byte[3][4][5][];\n" +
             "    }\n" +
             "}\n"
         );

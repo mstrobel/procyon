@@ -187,6 +187,10 @@ public final class AstBuilder {
             }
 
             declarations.add(d);
+
+            if (p.isFinal()) {
+                EntityDeclaration.addModifier(d, Modifier.FINAL);
+            }
         }
 
         return Collections.unmodifiableList(declarations);

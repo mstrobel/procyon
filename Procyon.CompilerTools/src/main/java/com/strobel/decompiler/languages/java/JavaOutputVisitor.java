@@ -17,7 +17,6 @@
 package com.strobel.decompiler.languages.java;
 
 import com.strobel.assembler.metadata.Flags;
-import com.strobel.assembler.metadata.MetadataResolver;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
@@ -1481,7 +1480,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 break;
             default:
                 if (type != null && type.isAnonymous()) {
-                    braceStyle = members.isEmpty() ? BraceStyle.BannerStyle :  policy.AnonymousClassBraceStyle;
+                    braceStyle = members.isEmpty() ? BraceStyle.BannerStyle : policy.AnonymousClassBraceStyle;
                 }
                 else {
                     braceStyle = policy.ClassBraceStyle;
@@ -2119,21 +2118,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         if (node.getDimensions().isEmpty() &&
             node.getAdditionalArraySpecifiers().isEmpty() &&
             node.getType() != null &&
-            node.getParent() instanceof ArrayInitializerExpression &&
-            node.getParent().getParent() instanceof ArrayCreationExpression) {
+            (node.getParent() instanceof ArrayInitializerExpression ||
+             node.getParent() instanceof VariableInitializer)) {
 
-            final AstType outerAstType = ((ArrayCreationExpression) node.getParent().getParent()).getType();
-            final TypeReference outerType = outerAstType.getUserData(Keys.TYPE_REFERENCE);
-            final TypeReference innerType = node.getType().getUserData(Keys.TYPE_REFERENCE);
-
-            if (outerType != null &&
-                innerType != null &&
-                outerType.isArray() &&
-                innerType.isArray() &&
-                MetadataResolver.areEquivalent(outerType.getElementType(), innerType)) {
-
-                needType = false;
-            }
+            needType = false;
         }
 
         if (needType) {
