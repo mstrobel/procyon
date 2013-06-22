@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static java.lang.String.format;
+
 /**
  * @author Mike Strobel
  */
@@ -521,6 +523,76 @@ public final class StringUtilities {
         }
 
         return count;
+    }
+
+    public static String escape(final char ch) {
+        switch (ch) {
+            case '\\':
+                return "\\\\";
+            case '\0':
+                return "\\0";
+            case '\b':
+                return "\\b";
+            case '\f':
+                return "\\f";
+            case '\n':
+                return "\\n";
+            case '\r':
+                return "\\r";
+            case '\t':
+                return "\\t";
+            case '"':
+                return "\\\"";
+
+            default:
+                if (ch >= 192 ||
+                    Character.isISOControl(ch) ||
+                    Character.isSurrogate(ch) ||
+                    Character.isWhitespace(ch) && ch != ' ') {
+
+                    return format("\\u%1$04x", (int) ch);
+                }
+                else {
+                    return String.valueOf(ch);
+                }
+        }
+    }
+
+    public static String escape(final char ch, final boolean quote) {
+        if (quote) {
+            switch (ch) {
+                case '\\':
+                    return "'\\\\'";
+                case '\0':
+                    return "'\\0'";
+                case '\b':
+                    return "'\\b'";
+                case '\f':
+                    return "'\\f'";
+                case '\n':
+                    return "'\\n'";
+                case '\r':
+                    return "'\\r'";
+                case '\t':
+                    return "'\\t'";
+                case '"':
+                    return "'\\\"'";
+
+                default:
+                    if (ch >= 192 ||
+                        Character.isISOControl(ch) ||
+                        Character.isSurrogate(ch) ||
+                        Character.isWhitespace(ch) && ch != ' ') {
+
+                        return format("'\\u%1$04x'", (int) ch);
+                    }
+                    else {
+                        return "'" + ch + "'";
+                    }
+            }
+        }
+
+        return escape(ch);
     }
 
     public static String escape(final String value) {

@@ -166,6 +166,12 @@ public abstract class Expression {
         return visitor.visit(reduceAndCheck());
     }
 
+    public final String getDebugView() {
+        final StringBuilder sb = new StringBuilder();
+        DebugViewWriter.writeTo(this, sb);
+        return sb.toString();
+    }
+
     @Override
     public String toString() {
         return ExpressionStringBuilder.expressionToString(this);
