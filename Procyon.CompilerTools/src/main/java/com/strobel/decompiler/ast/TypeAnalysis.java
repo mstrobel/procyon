@@ -212,6 +212,7 @@ public final class TypeAnalysis {
         boolean ignoreSingleLoadDependencies = false;
         boolean assignVariableTypesBasedOnPartialInformation = false;
 
+    outer:
         while (numberOfExpressionsAlreadyInferred < _allExpressions.size()) {
             final int oldCount = numberOfExpressionsAlreadyInferred;
 
@@ -324,6 +325,7 @@ public final class TypeAnalysis {
     private void runInference(final Expression expression) {
         final List<Expression> arguments = expression.getArguments();
 
+        Variable changedVariable = null;
         boolean anyArgumentIsMissingExpectedType = false;
 
         for (final Expression argument : arguments) {
@@ -348,6 +350,7 @@ public final class TypeAnalysis {
                     shouldInferVariableType(variable)) {
 
                     variable.setType(BuiltinTypes.Boolean);
+                    changedVariable = variable;
                 }
             }
         }
@@ -364,6 +367,7 @@ public final class TypeAnalysis {
                     _singleLoadVariables.contains(variable)) {
 
                     variable.setType(BuiltinTypes.Character);
+                    changedVariable = variable;
                 }
             }
         }
@@ -371,6 +375,24 @@ public final class TypeAnalysis {
         for (final Expression argument : arguments) {
             if (argument.getCode() != AstCode.Store) {
                 runInference(argument);
+            }
+        }
+
+        if (changedVariable != null) {
+            final List<ExpressionToInfer> assignments = assignmentExpressions.get(changedVariable);
+
+            for (final ExpressionToInfer e : _allExpressions) {
+                if (e.expression != expression &&
+                    e.dependencies.contains(changedVariable) || assignments.contains(e)) {
+
+                    for (final Expression c : e.expression.getSelfAndChildrenRecursive(Expression.class)) {
+                        c.setExpectedType(null);
+                        c.setInferredType(null);
+                    }
+
+                    e.done = false;
+                    runInference(e.expression);
+                }
             }
         }
     }
@@ -607,6 +629,10 @@ public final class TypeAnalysis {
             case Xor:
             case Div:
             case Rem: {
+                if (forceInferChildren) {
+                    inferTypeForExpression(arguments.get(0), expectedType);
+                    inferTypeForExpression(arguments.get(1), expectedType);
+                }
                 return inferBinaryArguments(arguments.get(0), arguments.get(1), expectedType, false, null, null);
             }
 
