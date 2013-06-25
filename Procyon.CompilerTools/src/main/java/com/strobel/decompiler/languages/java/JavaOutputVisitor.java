@@ -30,7 +30,6 @@ import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 import com.strobel.util.ContractUtils;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Stack;
@@ -40,14 +39,6 @@ import static java.lang.String.format;
 
 @SuppressWarnings("ConstantConditions")
 public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
-    private final static DecimalFormat DECIMAL_FORMAT;
-
-    static {
-        final DecimalFormat f = new DecimalFormat("#");
-        f.setMaximumFractionDigits(Integer.MAX_VALUE);
-        DECIMAL_FORMAT = f;
-    }
-
     final IOutputFormatter formatter;
     final JavaFormattingOptions policy;
     final Stack<AstNode> containerStack = new Stack<>();
@@ -1697,7 +1688,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 }
                 return;
             }
-            formatter.writeLiteral(DECIMAL_FORMAT.format(f) + "f");
+            formatter.writeLiteral(Float.toString(f) + "f");
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Double) {
@@ -1717,7 +1708,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 return;
             }
 
-            String number = DECIMAL_FORMAT.format(d).toString();
+            String number = Double.toString(d);
 
             if (number.indexOf('.') < 0 && number.indexOf('E') < 0) {
                 number += "d";

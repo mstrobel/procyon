@@ -28,13 +28,13 @@ public class TypeInferenceTests extends DecompilerTest {
     private static class B {
         @SuppressWarnings("LocalCanBeFinal")
         public strictfp void test() {
-            double n = 9007199254740992d;
+            double n = 9.007199254740992E15;
             double n2 = n * n;
-            double n3 = 9007199254740991d;
+            double n3 = 9.007199254740991E15;
             double n4 = n2 % n3;
 
             System.out.println(n4);
-            System.out.println(n4 == 1d);
+            System.out.println(n4 == 1.0);
             System.out.println(n4 * 2.7182818459);
         }
     }
@@ -72,12 +72,12 @@ public class TypeInferenceTests extends DecompilerTest {
             defaultSettings(),
             "private static class B {\n" +
             "    public strictfp void test() {\n" +
-            "        final double n = 9007199254740992d;\n" +
+            "        final double n = 9.007199254740992E15;\n" +
             "        final double n2 = n * n;\n" +
-            "        final double n3 = 9007199254740991d;\n" +
+            "        final double n3 = 9.007199254740991E15;\n" +
             "        final double n4 = n2 % n3;\n" +
             "        System.out.println(n4);\n" +
-            "        System.out.println(n4 == 1d);\n" +
+            "        System.out.println(n4 == 1.0);\n" +
             "        System.out.println(n4 * 2.7182818459);\n" +
             "    }\n" +
             "}\n"

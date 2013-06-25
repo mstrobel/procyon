@@ -29,21 +29,12 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
-import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Stack;
 
 import static java.lang.String.format;
 
 public final class DecompilerHelpers {
-    private final static DecimalFormat DECIMAL_FORMAT;
-
-    static {
-        final DecimalFormat f = new DecimalFormat("#");
-        f.setMaximumFractionDigits(Integer.MAX_VALUE);
-        DECIMAL_FORMAT = f;
-    }
-
     public static void writeType(final ITextOutput writer, final TypeReference type) {
         writeType(writer, type, NameSyntax.SIGNATURE);
     }
@@ -789,7 +780,7 @@ public final class DecompilerHelpers {
                 }
                 return;
             }
-            output.writeLiteral(DECIMAL_FORMAT.format(f) + "f");
+            output.writeLiteral(Float.toString(f) + "f");
         }
         else if (value instanceof Double) {
             final double d = (Double) value;
@@ -809,7 +800,7 @@ public final class DecompilerHelpers {
                 return;
             }
 
-            String number = DECIMAL_FORMAT.format(d);
+            String number = Double.toString(d);
 
             if (number.indexOf('.') < 0 && number.indexOf('E') < 0) {
                 number += "d";
