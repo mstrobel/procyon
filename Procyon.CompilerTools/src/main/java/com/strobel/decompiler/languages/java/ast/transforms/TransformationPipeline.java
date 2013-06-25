@@ -33,7 +33,7 @@ public final class TransformationPipeline {
             new StringSwitchRewriterTransform(context),
             new EclipseStringSwitchRewriterTransform(context),
             new CollapseImportsTransform(context),
-            new PushNegationTransform(context),
+            new SimplifyBooleanExpressionsTransform(context),
             new LambdaTransform(context),
             new RemoveImplicitBoxingTransform(context),
             new IntroduceStringConcatenationTransform(context),

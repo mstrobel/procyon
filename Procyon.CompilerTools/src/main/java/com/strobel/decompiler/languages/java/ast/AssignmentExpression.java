@@ -136,7 +136,7 @@ public class AssignmentExpression extends Expression {
         throw new IllegalArgumentException("Invalid value for AssignmentOperatorType");
     }
 
-    public static BinaryOperatorType getCorrespondingAssignmentOperator(final AssignmentOperatorType operator) {
+    public static BinaryOperatorType getCorrespondingBinaryOperator(final AssignmentOperatorType operator) {
         switch (operator) {
             case ASSIGN:
                 return null;
@@ -164,9 +164,40 @@ public class AssignmentExpression extends Expression {
                 return BinaryOperatorType.EXCLUSIVE_OR;
             case ANY:
                 return BinaryOperatorType.ANY;
+            default:
+                return null;
         }
-
-        throw new IllegalArgumentException("Invalid value for AssignmentOperatorType");
+    }
+    
+    public static AssignmentOperatorType getCorrespondingAssignmentOperator(final BinaryOperatorType operator) {
+        switch (operator) {
+            case ADD:
+                return AssignmentOperatorType.ADD;
+            case SUBTRACT:
+                return AssignmentOperatorType.SUBTRACT;
+            case MULTIPLY:
+                return AssignmentOperatorType.MULTIPLY;
+            case DIVIDE:
+                return AssignmentOperatorType.DIVIDE;
+            case MODULUS:
+                return AssignmentOperatorType.MODULUS;
+            case SHIFT_LEFT:
+                return AssignmentOperatorType.SHIFT_LEFT;
+            case SHIFT_RIGHT:
+                return AssignmentOperatorType.SHIFT_RIGHT;
+            case UNSIGNED_SHIFT_RIGHT:
+                return AssignmentOperatorType.UNSIGNED_SHIFT_RIGHT;
+            case BITWISE_AND:
+                return AssignmentOperatorType.BITWISE_AND;
+            case BITWISE_OR:
+                return AssignmentOperatorType.BITWISE_OR;
+            case EXCLUSIVE_OR:
+                return AssignmentOperatorType.EXCLUSIVE_OR;
+            case ANY:
+                return AssignmentOperatorType.ANY;
+            default:
+                return null;
+        }
     }
 }
 
