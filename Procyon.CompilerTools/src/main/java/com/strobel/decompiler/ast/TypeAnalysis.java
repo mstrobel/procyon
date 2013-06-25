@@ -70,7 +70,7 @@ public final class TypeAnalysis {
             if (operand instanceof Variable) {
                 final Variable variable = (Variable) operand;
 
-                if (shouldInferVariableType(variable)) {
+                if (shouldResetVariableType(variable)) {
                     variable.setType(null);
                 }
             }
@@ -297,7 +297,7 @@ public final class TypeAnalysis {
                                                                     : inferredType.getExtendsBound();
                     }
 
-                    if (shouldInferVariableType(variable)) {
+                    if (shouldInferVariableType(variable) && inferredType != null) {
                         variable.setType(inferredType);
                     }
 
@@ -320,6 +320,11 @@ public final class TypeAnalysis {
     private static boolean shouldInferVariableType(final Variable variable) {
         return variable.isGenerated() ||
                !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata();
+    }
+
+    private static boolean shouldResetVariableType(final Variable variable) {
+        return variable.isGenerated() ||
+               !variable.isParameter() && !variable.getOriginalVariable().isTypeKnown();
     }
 
     private void runInference(final Expression expression) {
@@ -488,7 +493,7 @@ public final class TypeAnalysis {
                                                                     : inferredType.getExtendsBound();
                     }
 
-                    if (shouldInferVariableType(v)) {
+                    if (shouldInferVariableType(v) && inferredType != null) {
                         v.setType(inferredType);
                     }
                 }
