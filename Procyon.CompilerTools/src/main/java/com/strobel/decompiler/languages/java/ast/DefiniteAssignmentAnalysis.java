@@ -388,6 +388,11 @@ public class DefiniteAssignmentAnalysis {
         }
 
         @Override
+        public DefiniteAssignmentStatus visitLabeledStatement(final LabeledStatement node, final DefiniteAssignmentStatus data) {
+            return node.getStatement().acceptVisitor(this, data);
+        }
+
+        @Override
         public DefiniteAssignmentStatus visitBlockStatement(final BlockStatement node, final DefiniteAssignmentStatus data) {
             return data;
         }
