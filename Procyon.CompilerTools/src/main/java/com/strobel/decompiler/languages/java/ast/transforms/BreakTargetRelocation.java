@@ -213,8 +213,8 @@ public final class BreakTargetRelocation implements IAstTransform {
             return;
         }
 
-        final AstNode insertBefore = orderedNodes.getLast().getNextSibling();
-        final AstNode insertAfter = orderedNodes.getFirst().getPreviousSibling();
+        AstNode insertBefore = orderedNodes.getLast().getNextSibling();
+        AstNode insertAfter = orderedNodes.getFirst().getPreviousSibling();
 
         final BlockStatement newBlock = new BlockStatement();
         final AstNodeCollection<Statement> blockStatements = newBlock.getStatements();
@@ -226,17 +226,19 @@ public final class BreakTargetRelocation implements IAstTransform {
 
         label.remove();
 
+        final LabeledStatement labeledStatement = new LabeledStatement(label.getLabel());
+
+        labeledStatement.setStatement(newBlock);
+
         if (insertBefore != null) {
-            parent.insertChildBefore(insertBefore, label, BlockStatement.STATEMENT_ROLE);
+            parent.insertChildBefore(insertBefore, labeledStatement, BlockStatement.STATEMENT_ROLE);
         }
         else if (insertAfter != null) {
-            parent.insertChildAfter(insertAfter, label, BlockStatement.STATEMENT_ROLE);
+            parent.insertChildAfter(insertAfter, labeledStatement, BlockStatement.STATEMENT_ROLE);
         }
         else {
-            parent.getStatements().add(label);
+            parent.getStatements().add(labeledStatement);
         }
-
-        parent.insertChildAfter(label, newBlock, BlockStatement.STATEMENT_ROLE);
 
         for (final GotoStatement gotoStatement : labelInfo.gotoStatements) {
             final BreakStatement breakStatement = new BreakStatement();

@@ -38,6 +38,7 @@ public interface IAstVisitor<T, R> {
     R visitEmptyStatement(EmptyStatement emptyStatement, T data);
     R visitIfElseStatement(IfElseStatement ifElseStatement, T data);
     R visitLabelStatement(LabelStatement labelStatement, T data);
+    R visitLabeledStatement(LabeledStatement labeledStatement, T data);
     R visitReturnStatement(ReturnStatement returnStatement, T data);
     R visitSwitchStatement(SwitchStatement switchStatement, T data);
     R visitSwitchSection(SwitchSection switchSection, T data);

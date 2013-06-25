@@ -1024,6 +1024,17 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    public Void visitLabeledStatement(final LabeledStatement node, final Void _) {
+        startNode(node);
+        writeIdentifier(node.getLabel(), Roles.LABEL);
+        writeToken(Roles.COLON);
+        node.getStatement().acceptVisitor(this, _);
+        newLine();
+        endNode(node);
+        return null;
+    }
+
+    @Override
     public Void visitReturnStatement(final ReturnStatement node, final Void _) {
         startNode(node);
         writeKeyword(ReturnStatement.RETURN_KEYWORD_ROLE);

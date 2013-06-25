@@ -328,6 +328,14 @@ public class ControlFlowGraphBuilder {
         }
 
         @Override
+        public ControlFlowNode visitLabeledStatement(final LabeledStatement node, final ControlFlowNode data) {
+            final ControlFlowNode end = createConnectedEndNode(node, data);
+            labels.put(node.getLabel(), end);
+            connect(end, node.getStatement().acceptVisitor(this, data));
+            return end;
+        }
+
+        @Override
         public ControlFlowNode visitVariableDeclaration(final VariableDeclarationStatement node, final ControlFlowNode data) {
             return createConnectedEndNode(node, data);
         }
