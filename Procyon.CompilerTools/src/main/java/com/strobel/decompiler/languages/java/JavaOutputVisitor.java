@@ -2302,6 +2302,37 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
     }
 
+    public static String escapeUnicode(final String s) {
+        StringBuilder sb = null;
+
+        for (int i = 0, n = s.length(); i < n; i++) {
+            final char ch = s.charAt(i);
+
+            if (ch >= 192 ||
+                Character.isISOControl(ch) ||
+                Character.isSurrogate(ch) ||
+                Character.isWhitespace(ch) && ch != ' ') {
+
+                if (sb == null) {
+                    sb = new StringBuilder(Math.max(16, s.length()));
+
+                    if (i > 0) {
+                        sb.append(s, 0, i);
+                    }
+                }
+
+                sb.append(format("\\u%1$04x", (int) ch));
+            }
+            else {
+                if (sb != null) {
+                    sb.append(ch);
+                }
+            }
+        }
+
+        return sb != null ? sb.toString() : s;
+    }
+
     public static String convertString(final String s) {
         return convertString(s, false);
     }

@@ -181,4 +181,50 @@ public final class MetadataHelper {
 
         return false;
     }
+
+    public static boolean isPrimitiveBoxType(final TypeReference type) {
+        VerifyArgument.notNull(type, "type");
+
+        switch (type.getInternalName()) {
+            case "java/lang/Void":
+            case "java/lang/Boolean":
+            case "java/lang/Byte":
+            case "java/lang/Character":
+            case "java/lang/Short":
+            case "java/lang/Integer":
+            case "java/lang/Long":
+            case "java/lang/Float":
+            case "java/lang/Double":
+                return true;
+
+            default:
+                return false;
+        }
+    }
+    public static TypeReference getUnderlyingPrimitiveTypeOrSelf(final TypeReference type) {
+        VerifyArgument.notNull(type, "type");
+
+        switch (type.getInternalName()) {
+            case "java/lang/Void":
+                return BuiltinTypes.Void;
+            case "java/lang/Boolean":
+                return BuiltinTypes.Boolean;
+            case "java/lang/Byte":
+                return BuiltinTypes.Byte;
+            case "java/lang/Character":
+                return BuiltinTypes.Character;
+            case "java/lang/Short":
+                return BuiltinTypes.Short;
+            case "java/lang/Integer":
+                return BuiltinTypes.Integer;
+            case "java/lang/Long":
+                return BuiltinTypes.Long;
+            case "java/lang/Float":
+                return BuiltinTypes.Float;
+            case "java/lang/Double":
+                return BuiltinTypes.Double;
+            default:
+                return type;
+        }
+    }
 }

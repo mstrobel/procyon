@@ -30,6 +30,7 @@ import com.strobel.assembler.metadata.VariableReference;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.ast.AstCode;
 import com.strobel.decompiler.ast.Variable;
+import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 import com.strobel.io.Ansi;
 
 import java.io.Writer;
@@ -121,8 +122,10 @@ public class AnsiTextOutput extends PlainTextOutput {
 
     @Override
     public void writeDefinition(final String text, final Object definition, final boolean isLocal) {
-        if (text == null) {
-            super.write(text);
+        final String escapedText = JavaOutputVisitor.escapeUnicode(text);
+
+        if (escapedText == null) {
+            super.write(escapedText);
             return;
         }
 
@@ -132,43 +135,45 @@ public class AnsiTextOutput extends PlainTextOutput {
             definition instanceof OpCode ||
             definition instanceof AstCode) {
 
-            colorizedText = INSTRUCTION.colorize(text);
+            colorizedText = INSTRUCTION.colorize(escapedText);
         }
         else if (definition instanceof TypeReference) {
-            colorizedText = colorizeType(text, (TypeReference) definition);
+            colorizedText = colorizeType(escapedText, (TypeReference) definition);
         }
         else if (definition instanceof MethodReference ||
                  definition instanceof IMethodSignature) {
-            colorizedText = METHOD.colorize(text);
+            colorizedText = METHOD.colorize(escapedText);
         }
         else if (definition instanceof FieldReference) {
-            colorizedText = FIELD.colorize(text);
+            colorizedText = FIELD.colorize(escapedText);
         }
         else if (definition instanceof VariableReference ||
                  definition instanceof ParameterReference ||
                  definition instanceof Variable) {
 
-            colorizedText = LOCAL.colorize(text);
+            colorizedText = LOCAL.colorize(escapedText);
         }
         else if (definition instanceof PackageReference) {
-            colorizedText = colorizePackage(text);
+            colorizedText = colorizePackage(escapedText);
         }
         else if (definition instanceof Label ||
                  definition instanceof com.strobel.decompiler.ast.Label) {
 
-            colorizedText = LABEL.colorize(text);
+            colorizedText = LABEL.colorize(escapedText);
         }
         else {
-            colorizedText = text;
+            colorizedText = escapedText;
         }
 
-        writeAnsi(text, colorizedText);
+        writeAnsi(escapedText, colorizedText);
     }
 
     @Override
     public void writeReference(final String text, final Object reference, final boolean isLocal) {
-        if (text == null) {
-            super.write(text);
+        final String escapedText = JavaOutputVisitor.escapeUnicode(text);
+
+        if (escapedText == null) {
+            super.write(escapedText);
             return;
         }
 
@@ -178,41 +183,45 @@ public class AnsiTextOutput extends PlainTextOutput {
             reference instanceof OpCode ||
             reference instanceof AstCode) {
 
-            colorizedText = INSTRUCTION.colorize(text);
+            colorizedText = INSTRUCTION.colorize(escapedText);
         }
         else if (reference instanceof TypeReference) {
-            colorizedText = colorizeType(text, (TypeReference) reference);
+            colorizedText = colorizeType(escapedText, (TypeReference) reference);
         }
         else if (reference instanceof MethodReference ||
                  reference instanceof IMethodSignature) {
-            colorizedText = METHOD.colorize(text);
+            colorizedText = METHOD.colorize(escapedText);
         }
         else if (reference instanceof FieldReference) {
-            colorizedText = FIELD.colorize(text);
+            colorizedText = FIELD.colorize(escapedText);
         }
         else if (reference instanceof VariableReference ||
                  reference instanceof ParameterReference ||
                  reference instanceof Variable) {
 
-            colorizedText = LOCAL.colorize(text);
+            colorizedText = LOCAL.colorize(escapedText);
         }
         else if (reference instanceof PackageReference) {
-            colorizedText = colorizePackage(text);
+            colorizedText = colorizePackage(escapedText);
         }
         else if (reference instanceof Label ||
                  reference instanceof com.strobel.decompiler.ast.Label) {
 
-            colorizedText = LABEL.colorize(text);
+            colorizedText = LABEL.colorize(escapedText);
         }
         else {
-            colorizedText = text;
+            colorizedText = escapedText;
         }
 
-        writeAnsi(text, colorizedText);
+        writeAnsi(escapedText, colorizedText);
     }
 
     @SuppressWarnings("ConstantConditions")
     private String colorizeType(final String text, final TypeReference type) {
+        if (type.isPrimitive()) {
+            return KEYWORD.colorize(text);
+        }
+
         final String packageName = type.getPackageName();
         final TypeDefinition resolvedType = type.resolve();
 

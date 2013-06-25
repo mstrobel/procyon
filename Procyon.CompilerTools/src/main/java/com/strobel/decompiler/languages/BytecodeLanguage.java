@@ -35,6 +35,7 @@ import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.NameSyntax;
 import com.strobel.decompiler.PlainTextOutput;
+import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -357,9 +358,26 @@ public class BytecodeLanguage extends Language {
         switch (attribute.getName()) {
             case AttributeNames.ConstantValue: {
                 final Object constantValue = ((ConstantValueAttribute) attribute).getValue();
+
                 output.indent();
                 output.writeAttribute("ConstantValue");
                 output.write(": ");
+
+                if (constantValue != null) {
+                    final String typeDescriptor = constantValue.getClass().getName().replace('.', '/');
+                    final TypeReference valueType = field.getDeclaringType().getResolver().lookupType(typeDescriptor);
+
+                    if (valueType != null) {
+                        DecompilerHelpers.writeType(
+                            output,
+                            MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(valueType),
+                            NameSyntax.TYPE_NAME
+                        );
+
+                        output.write(' ');
+                    }
+                }
+
                 DecompilerHelpers.writeOperand(output, constantValue);
                 output.writeLine();
                 output.unindent();
@@ -699,7 +717,7 @@ public class BytecodeLanguage extends Language {
                                     output.writeDelimiter(", ");
                                 }
 
-                                output.writeKeyword(flag.toString());
+                                output.writeLiteral(flag.name());
                                 firstFlag = false;
                             }
 
@@ -1064,7 +1082,7 @@ public class BytecodeLanguage extends Language {
                     assert variable != null;
 
                     if (variable.hasName() && variable.isFromMetadata()) {
-                        _output.writeComment(" /* %s */", variable.getName());
+                        _output.writeComment(" /* %s */", JavaOutputVisitor.escapeUnicode(variable.getName()));
                     }
                 }
             }

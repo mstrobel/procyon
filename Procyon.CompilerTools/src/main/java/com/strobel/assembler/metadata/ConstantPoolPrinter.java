@@ -79,7 +79,7 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
     public void visitTypeInfo(final ConstantPool.TypeInfoEntry info) {
         _output.writeDelimiter("#");
         _output.writeLiteral(format("%1$-14d", info.nameIndex));
-        _output.writeComment(format("//  %1$s", info.getName()));
+        _output.writeComment(format("//  %1$s", JavaOutputVisitor.escapeUnicode(info.getName())));
     }
 
     @Override
@@ -105,9 +105,9 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s.%2$s:%3$s",
-                info.getClassName(),
-                nameAndTypeInfo.getName(),
-                nameAndTypeInfo.getType()
+                JavaOutputVisitor.escapeUnicode(info.getClassName()),
+                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getName()),
+                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getType())
             )
         );
     }
@@ -140,9 +140,9 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s.%2$s:%3$s",
-                info.getClassName(),
-                nameAndTypeInfo.getName(),
-                nameAndTypeInfo.getType()
+                JavaOutputVisitor.escapeUnicode(info.getClassName()),
+                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getName()),
+                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getType())
             )
         );
     }
@@ -167,8 +167,8 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s:%2$s",
-                nameAndTypeInfo.getName(),
-                nameAndTypeInfo.getType()
+                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getName()),
+                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getType())
             )
         );
     }
@@ -195,8 +195,8 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s:%2$s",
-                info.getName(),
-                info.getType()
+                JavaOutputVisitor.escapeUnicode(info.getName()),
+                JavaOutputVisitor.escapeUnicode(info.getType())
             )
         );
     }
@@ -219,9 +219,9 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s.%2$s:%3$s",
-                info.getClassName(),
-                nameAndTypeInfo.getName(),
-                nameAndTypeInfo.getType()
+                JavaOutputVisitor.escapeUnicode(info.getClassName()),
+                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getName()),
+                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getType())
             )
         );
     }
@@ -247,9 +247,9 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s.%2$s:%3$s",
-                reference.getClassName(),
-                nameAndTypeInfo.getName(),
-                nameAndTypeInfo.getType()
+                JavaOutputVisitor.escapeUnicode(reference.getClassName()),
+                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getName()),
+                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getType())
             )
         );
     }

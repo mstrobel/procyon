@@ -18,6 +18,7 @@ package com.strobel.decompiler;
 
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -226,7 +227,7 @@ public class PlainTextOutput implements ITextOutput {
 
     @Override
     public void writeDefinition(final String text, final Object definition, final boolean isLocal) {
-        write(text);
+        write(JavaOutputVisitor.escapeUnicode(text));
     }
 
     @Override
@@ -236,7 +237,7 @@ public class PlainTextOutput implements ITextOutput {
 
     @Override
     public void writeReference(final String text, final Object reference, final boolean isLocal) {
-        write(text);
+        write(JavaOutputVisitor.escapeUnicode(text));
     }
 
     @Override

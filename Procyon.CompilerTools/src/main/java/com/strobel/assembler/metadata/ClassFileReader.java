@@ -554,9 +554,9 @@ public final class ClassFileReader extends MetadataReader {
                 attributes = EmptyArrayCache.fromElementType(SourceAttribute.class);
             }
 
-            final MethodInfo field = new MethodInfo(accessFlags, name, descriptor, attributes);
+            final MethodInfo method = new MethodInfo(accessFlags, name, descriptor, attributes);
 
-            _methods.add(field);
+            _methods.add(method);
         }
 
         final int typeAttributeCount = _buffer.readUnsignedShort();
@@ -802,6 +802,10 @@ public final class ClassFileReader extends MetadataReader {
 
             if (SourceAttribute.find(AttributeNames.Deprecated, field.attributes) != null) {
                 fieldDefinition.setFlags(fieldDefinition.getFlags() | Flags.DEPRECATED);
+            }
+
+            for (final SourceAttribute attribute : field.attributes) {
+                fieldDefinition.getSourceAttributesInternal().add(attribute);
             }
 
             if (shouldProcessAnnotations()) {
