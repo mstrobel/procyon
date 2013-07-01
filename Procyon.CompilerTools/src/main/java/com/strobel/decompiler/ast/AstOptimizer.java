@@ -103,6 +103,8 @@ public final class AstOptimizer {
 
         TypeAnalysis.run(context, method);
 
+        boolean done = false;
+
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             boolean modified;
 
@@ -110,69 +112,83 @@ public final class AstOptimizer {
                 modified = false;
 
                 if (abortBeforeStep == AstOptimizationStep.RemoveInnerClassInitSecurityChecks) {
-                    return;
+                    done = true;
+                    break;
                 }
 
                 modified |= runOptimization(block, new RemoveInnerClassInitSecurityChecksOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.SimplifyShortCircuit) {
-                    continue;
+                    done = true;
+                    break;
                 }
 
                 modified |= runOptimization(block, new SimplifyShortCircuitOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.JoinBasicBlocks) {
-                    continue;
-                }
-
-                modified |= runOptimization(block, new JoinBasicBlocksOptimization(context, method));
-
                 if (abortBeforeStep == AstOptimizationStep.SimplifyTernaryOperator) {
-                    continue;
+                    done = true;
+                    break;
                 }
 
                 modified |= runOptimization(block, new SimplifyTernaryOperatorOptimization(context, method));
                 modified |= runOptimization(block, new SimplifyTernaryOperatorRoundTwoOptimization(context, method));
 
+                if (abortBeforeStep == AstOptimizationStep.JoinBasicBlocks) {
+                    done = true;
+                    break;
+                }
+
+                modified |= runOptimization(block, new JoinBasicBlocksOptimization(context, method));
+
                 if (abortBeforeStep == AstOptimizationStep.SimplifyLogicalNot) {
-                    continue;
+                    done = true;
+                    break;
                 }
 
                 modified |= runOptimization(block, new SimplifyLogicalNotOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.TransformObjectInitializers) {
-                    continue;
+                    done = true;
+                    break;
                 }
 
                 modified |= runOptimization(block, new TransformObjectInitializersOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.TransformArrayInitializers) {
-                    continue;
+                    done = true;
+                    break;
                 }
 
                 modified |= new Inlining(context, method).inlineAllInBlock(block);
                 modified |= runOptimization(block, new TransformArrayInitializersOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.IntroducePostIncrement) {
-                    continue;
+                    done = true;
+                    break;
                 }
 
                 modified |= runOptimization(block, new IntroducePostIncrementOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.MakeAssignmentExpressions) {
-                    continue;
+                    done = true;
+                    break;
                 }
 
                 modified |= runOptimization(block, new MakeAssignmentExpressionsOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.InlineVariables2) {
-                    continue;
+                    done = true;
+                    break;
                 }
 
                 modified |= new Inlining(context, method).inlineAllInBlock(block);
                 new Inlining(context, method).copyPropagation();
             }
             while (modified);
+        }
+
+        if (done) {
+            return;
         }
 
         if (abortBeforeStep == AstOptimizationStep.FindLoops) {

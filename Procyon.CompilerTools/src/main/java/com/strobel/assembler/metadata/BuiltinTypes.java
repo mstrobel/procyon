@@ -33,6 +33,7 @@ public final class BuiltinTypes {
     public final static TypeDefinition Void;
     public final static TypeDefinition Object;
     public final static TypeDefinition Bottom;
+    public final static TypeDefinition Null;
 
     static {
         Boolean = new PrimitiveType(JvmType.Boolean);
@@ -44,7 +45,8 @@ public final class BuiltinTypes {
         Float = new PrimitiveType(JvmType.Float);
         Double = new PrimitiveType(JvmType.Double);
         Void = new PrimitiveType(JvmType.Void);
-        Bottom = null;
+        Bottom = BottomType.INSTANCE;
+        Null = NullType.INSTANCE;
 
         final Buffer buffer = new Buffer();
         final ITypeLoader typeLoader = new ClasspathTypeLoader();

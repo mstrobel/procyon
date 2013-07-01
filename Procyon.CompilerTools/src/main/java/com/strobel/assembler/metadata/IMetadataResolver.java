@@ -22,6 +22,36 @@ package com.strobel.assembler.metadata;
  * Time: 5:07 PM
  */
 public interface IMetadataResolver {
+    public final static IMetadataResolver EMPTY = new IMetadataResolver() {
+        @Override
+        public void pushFrame(final IResolverFrame frame) {
+        }
+
+        @Override
+        public void popFrame() {
+        }
+
+        @Override
+        public TypeReference lookupType(final String descriptor) {
+            return null;
+        }
+
+        @Override
+        public TypeDefinition resolve(final TypeReference type) {
+            return null;
+        }
+
+        @Override
+        public FieldDefinition resolve(final FieldReference field) {
+            return null;
+        }
+
+        @Override
+        public MethodDefinition resolve(final MethodReference method) {
+            return null;
+        }
+    };
+
     public void pushFrame(final IResolverFrame frame);
     public void popFrame();
 
