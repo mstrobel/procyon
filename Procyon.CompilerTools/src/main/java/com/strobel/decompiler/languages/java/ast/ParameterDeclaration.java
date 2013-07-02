@@ -81,9 +81,8 @@ public class ParameterDeclaration extends EntityDeclaration {
             final ParameterDeclaration otherDeclaration = (ParameterDeclaration) other;
 
             return !otherDeclaration.isNull() &&
-                   getModifiers().matches(otherDeclaration.getModifiers(), match) &&
+                   matchAnnotationsAndModifiers(otherDeclaration, match) &&
                    matchString(getName(), otherDeclaration.getName()) &&
-                   getAnnotations().matches(otherDeclaration.getAnnotations(), match) &&
                    getType().matches(otherDeclaration.getType(), match);
         }
 

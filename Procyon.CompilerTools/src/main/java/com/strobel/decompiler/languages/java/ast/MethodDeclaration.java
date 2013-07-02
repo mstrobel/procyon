@@ -95,6 +95,7 @@ public class MethodDeclaration extends EntityDeclaration {
                    matchAnnotationsAndModifiers(otherDeclaration, match) &&
                    getPrivateImplementationType().matches(otherDeclaration.getPrivateImplementationType(), match) &&
                    getTypeParameters().matches(otherDeclaration.getTypeParameters(), match) &&
+                   getReturnType().matches(otherDeclaration.getReturnType(), match) &&
                    getParameters().matches(otherDeclaration.getParameters(), match) &&
                    getBody().matches(otherDeclaration.getBody(), match);
         }

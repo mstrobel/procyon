@@ -16,29 +16,33 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
-import com.strobel.assembler.metadata.MemberReference;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.core.StringUtilities;
+import com.strobel.assembler.metadata.*;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.patterns.*;
 
+import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import static com.strobel.core.CollectionUtilities.getOrDefault;
 
 public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor<Void> {
     private final List<AstNode> _nodesToRemove;
     private final Map<String, MethodDeclaration> _accessMethodDeclarations;
+    private final Set<String> _visitedTypes;
 
     public EliminateSyntheticAccessorsTransform(final DecompilerContext context) {
         super(context);
 
         _nodesToRemove = new ArrayList<>();
         _accessMethodDeclarations = new HashMap<>();
+        _visitedTypes = new HashSet<>();
     }
 
     @Override
@@ -66,7 +70,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         final Expression target = node.getTarget();
         final AstNodeCollection<Expression> arguments = node.getArguments();
 
-        if (target instanceof MemberReferenceExpression && arguments.size() == 1) {
+        if (target instanceof MemberReferenceExpression && arguments.size() <= 2) {
             final MemberReferenceExpression memberReference = (MemberReferenceExpression) target;
 
             MemberReference reference = memberReference.getUserData(Keys.MEMBER_REFERENCE);
@@ -77,23 +81,83 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
 
             if (reference instanceof MethodReference) {
                 final MethodReference method = (MethodReference) reference;
+                final TypeReference declaringType = method.getDeclaringType();
+
+                if (!MetadataResolver.areEquivalent(context.getCurrentType(), declaringType) &&
+                    !MetadataHelper.isEnclosedBy(context.getCurrentType(), declaringType) &&
+                    !_visitedTypes.contains(declaringType.getInternalName())) {
+
+                    final MethodDefinition resolvedMethod = method.resolve();
+
+                    if (resolvedMethod != null &&
+                        resolvedMethod.isSynthetic()) {
+                        final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+                        if (astBuilder != null) {
+                            final TypeDeclaration ownerTypeDeclaration = astBuilder.createType(resolvedMethod.getDeclaringType());
+
+                            ownerTypeDeclaration.acceptVisitor(new PhaseOneVisitor(), data);
+                        }
+                    }
+                }
+
                 final String key = makeMethodKey(method);
                 final MethodDeclaration declaration = _accessMethodDeclarations.get(key);
 
                 if (declaration != null) {
                     final MethodDefinition definition = declaration.getUserData(Keys.METHOD_DEFINITION);
+                    final List<ParameterDefinition> parameters = definition != null ? definition.getParameters() : null;
 
-                    if (definition != null && definition.getParameters().size() == 1) {
-                        final AstNode inlinedBody = InliningHelper.inlineMethod(
-                            declaration,
-                            Collections.singletonMap(
-                                definition.getParameters().get(0),
-                                arguments.firstOrNullObject()
-                            )
-                        );
+                    if (definition != null && parameters.size() == arguments.size()) {
+                        final Map<ParameterDefinition, AstNode> parameterMap = new IdentityHashMap<>();
+
+                        int i = 0;
+
+                        for (final Expression argument : arguments) {
+                            parameterMap.put(parameters.get(i++), argument);
+                        }
+
+                        final AstNode inlinedBody = InliningHelper.inlineMethod(declaration, parameterMap);
 
                         if (inlinedBody instanceof Expression) {
                             node.replaceWith(inlinedBody);
+                        }
+                        else if (inlinedBody instanceof BlockStatement) {
+                            final BlockStatement block = (BlockStatement) inlinedBody;
+
+                            if (block.getStatements().size() == 2) {
+                                final Statement setStatement = block.getStatements().firstOrNullObject();
+
+                                if (setStatement instanceof ExpressionStatement) {
+                                    final Expression expression = ((ExpressionStatement) setStatement).getExpression();
+
+                                    if (expression instanceof AssignmentExpression) {
+                                        expression.remove();
+                                        node.replaceWith(expression);
+                                    }
+                                }
+                            }
+                            else if (block.getStatements().size() == 3) {
+                                final Statement tempAssignment = block.getStatements().firstOrNullObject();
+                                final Statement setStatement = getOrDefault(block.getStatements(), 1);
+
+                                if (tempAssignment instanceof VariableDeclarationStatement &&
+                                    setStatement instanceof ExpressionStatement) {
+
+                                    final Expression expression = ((ExpressionStatement) setStatement).getExpression();
+
+                                    if (expression instanceof AssignmentExpression) {
+                                        final VariableDeclarationStatement tempVariable = (VariableDeclarationStatement) tempAssignment;
+                                        final Expression initializer = tempVariable.getVariables().firstOrNullObject().getInitializer();
+                                        final AssignmentExpression assignment = (AssignmentExpression) expression;
+
+                                        initializer.remove();
+                                        assignment.setRight(initializer);
+                                        expression.remove();
+                                        node.replaceWith(expression);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -105,31 +169,141 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
 
     // <editor-fold defaultstate="collapsed" desc="PhaseOneVisitor Class">
 
+    private final static MethodDeclaration SYNTHETIC_GET_ACCESSOR;
+    private final static MethodDeclaration SYNTHETIC_SET_ACCESSOR;
+    private final static MethodDeclaration SYNTHETIC_SET_ACCESSOR_ALT;
+
+    static {
+        final MethodDeclaration getAccessor = new MethodDeclaration();
+        final MethodDeclaration setAccessor = new MethodDeclaration();
+
+        getAccessor.setName(Pattern.ANY_STRING);
+        getAccessor.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
+        getAccessor.setReturnType(new AnyNode("returnType").toType());
+
+        setAccessor.setName(Pattern.ANY_STRING);
+        setAccessor.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
+        setAccessor.setReturnType(new AnyNode("returnType").toType());
+
+        final ParameterDeclaration getParameter = new ParameterDeclaration(
+            Pattern.ANY_STRING,
+            new AnyNode("targetType").toType()
+        );
+
+        getParameter.setAnyModifiers(true);
+        getAccessor.getParameters().add(getParameter);
+
+        final ParameterDeclaration setParameter1 = new ParameterDeclaration(
+            Pattern.ANY_STRING,
+            new AnyNode("targetType").toType()
+        );
+
+        final ParameterDeclaration setParameter2 = new ParameterDeclaration(
+            Pattern.ANY_STRING,
+            new BackReference("returnType").toType()
+        );
+
+        setParameter1.setAnyModifiers(true);
+        setParameter2.setAnyModifiers(true);
+
+        setAccessor.getParameters().add(setParameter1);
+        setAccessor.getParameters().add(setParameter2);
+
+        getAccessor.setBody(
+            new BlockStatement(
+                new ReturnStatement(
+                    new MemberReferenceTypeNode(
+                        new MemberReferenceExpression(
+                            new ParameterReferenceNode(0).toExpression(),
+                            Pattern.ANY_STRING
+                        ),
+                        FieldReference.class
+                    ).toExpression()
+                )
+            )
+        );
+
+        final MethodDeclaration altSetAccessor = (MethodDeclaration) setAccessor.clone();
+
+        setAccessor.setBody(
+            new BlockStatement(
+                new ExpressionStatement(
+                    new AssignmentExpression(
+                        new MemberReferenceTypeNode(
+                            new MemberReferenceExpression(
+                                new ParameterReferenceNode(0).toExpression(),
+                                Pattern.ANY_STRING
+                            ),
+                            FieldReference.class
+                        ).toExpression(),
+                        new ParameterReferenceNode(1, "value").toExpression()
+                    )
+                ),
+                new ReturnStatement(new BackReference("value").toExpression())
+            )
+        );
+
+        final VariableDeclarationStatement tempVariable = new VariableDeclarationStatement(
+            new AnyNode().toType(),
+            Pattern.ANY_STRING,
+            new NamedNode("value", new SubtreeMatch(new ParameterReferenceNode(1))).toExpression()
+        );
+
+        tempVariable.addModifier(Modifier.FINAL);
+
+        altSetAccessor.setBody(
+            new BlockStatement(
+                new NamedNode("tempVariable", tempVariable).toStatement(),
+                new ExpressionStatement(
+                    new AssignmentExpression(
+                        new MemberReferenceTypeNode(
+                            new MemberReferenceExpression(
+                                new ParameterReferenceNode(0).toExpression(),
+                                Pattern.ANY_STRING
+                            ),
+                            FieldReference.class
+                        ).toExpression(),
+                        new DeclaredVariableBackReference("tempVariable").toExpression()
+                    )
+                ),
+                new ReturnStatement(new DeclaredVariableBackReference("tempVariable").toExpression())
+            )
+        );
+
+        SYNTHETIC_GET_ACCESSOR = getAccessor;
+        SYNTHETIC_SET_ACCESSOR = setAccessor;
+        SYNTHETIC_SET_ACCESSOR_ALT = altSetAccessor;
+    }
+
     private class PhaseOneVisitor extends ContextTrackingVisitor<Void> {
         private PhaseOneVisitor() {
             super(EliminateSyntheticAccessorsTransform.this.context);
         }
 
         @Override
+        public Void visitTypeDeclaration(final TypeDeclaration node, final Void _) {
+            final TypeDefinition type = node.getUserData(Keys.TYPE_DEFINITION);
+
+            if (type != null) {
+                if (!_visitedTypes.add(type.getInternalName())) {
+                    return null;
+                }
+            }
+
+            return super.visitTypeDeclaration(node, _);
+        }
+
+        @Override
         public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
             final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
-            if (method != null &&
-                method.isSynthetic() &&
-                StringUtilities.startsWith(method.getName(), "access$") &&
-                node.getBody().getStatements().size() == 1) {
+            if (method != null) {
+                if (method.isSynthetic() && method.isStatic()) {
+                    if (SYNTHETIC_GET_ACCESSOR.matches(node) ||
+                        SYNTHETIC_SET_ACCESSOR.matches(node) ||
+                        SYNTHETIC_SET_ACCESSOR_ALT.matches(node)) {
 
-                final Statement firstStatement = node.getBody().getStatements().firstOrNullObject();
-
-                if (firstStatement instanceof ReturnStatement &&
-                    ((ReturnStatement) firstStatement).getExpression() instanceof MemberReferenceExpression) {
-
-                    if (method.isSynthetic() && method.isStatic()) {
-                        final List<ParameterDefinition> p = method.getParameters();
-
-                        if (p.size() == 1) {
-                            _accessMethodDeclarations.put(makeMethodKey(method), node);
-                        }
+                        _accessMethodDeclarations.put(makeMethodKey(method), node);
                     }
                 }
             }

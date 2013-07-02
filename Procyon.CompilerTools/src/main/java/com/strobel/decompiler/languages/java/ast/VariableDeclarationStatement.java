@@ -28,6 +28,8 @@ import java.util.List;
 public class VariableDeclarationStatement extends Statement {
     public final static Role<JavaModifierToken> MODIFIER_ROLE = EntityDeclaration.MODIFIER_ROLE;
 
+    private boolean _anyModifiers;
+
     public VariableDeclarationStatement() {
     }
 
@@ -38,6 +40,21 @@ public class VariableDeclarationStatement extends Statement {
     public VariableDeclarationStatement(final AstType type, final String name, final Expression initializer) {
         setType(type);
         getVariables().add(new VariableInitializer(name, initializer));
+    }
+
+    /**
+     * Gets the "any" modifiers flag used during pattern matching.
+     */
+    public final boolean isAnyModifiers() {
+        return _anyModifiers;
+    }
+
+    /**
+     * Sets the "any" modifiers flag used during pattern matching.
+     */
+    public final void setAnyModifiers(final boolean value) {
+        verifyNotFrozen();
+        _anyModifiers = value;
     }
 
     public final List<Modifier> getModifiers() {
@@ -95,7 +112,9 @@ public class VariableDeclarationStatement extends Statement {
 
             return !other.isNull() &&
                    getType().matches(otherDeclaration.getType(), match) &&
-                   getChildrenByRole(MODIFIER_ROLE).matches(otherDeclaration.getChildrenByRole(MODIFIER_ROLE), match) &&
+                   (isAnyModifiers() ||
+                    otherDeclaration.isAnyModifiers() ||
+                    getChildrenByRole(MODIFIER_ROLE).matches(otherDeclaration.getChildrenByRole(MODIFIER_ROLE), match)) &&
                    getVariables().matches(otherDeclaration.getVariables(), match);
         }
 

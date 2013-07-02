@@ -179,6 +179,21 @@ public class InnerClassTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("SuspiciousNameCombination")
+    private static class G {
+        private int x;
+
+        public class A {
+            private int y;
+
+            public A(final int y) {
+                super();
+                this.y = y + 1 + G.this.x;
+                G.this.x += this.y;
+            }
+        }
+    }
+
     @Test
     public void testComplexInnerClassRelations() {
         //
@@ -312,7 +327,8 @@ public class InnerClassTests extends DecompilerTest {
             "        System.out.println(new MethodScopedIterable());\n" +
             "        return new MethodScopedIterable();\n" +
             "    }\n" +
-            "}\n");
+            "}\n"
+        );
     }
 
     @Test
@@ -332,7 +348,8 @@ public class InnerClassTests extends DecompilerTest {
             "            this.j = j;\n" +
             "        }\n" +
             "    }\n" +
-            "}\n");
+            "}\n"
+        );
     }
 
     @Test
@@ -357,7 +374,8 @@ public class InnerClassTests extends DecompilerTest {
             "            throw new Error(\"value = \" + value);\n" +
             "        }\n" +
             "    }\n" +
-            "}\n");
+            "}\n"
+        );
     }
 
     @Test
@@ -367,8 +385,8 @@ public class InnerClassTests extends DecompilerTest {
             defaultSettings(),
             "interface E {\n" +
             "    public static final I i = new I() {};\n" +
-            "}\n");
-
+            "}\n"
+        );
     }
 
     @Test
@@ -381,6 +399,26 @@ public class InnerClassTests extends DecompilerTest {
             "        final Object o = new Error() {};\n" +
             "        System.out.println(o.getClass().isAnonymousClass());\n" +
             "    }\n" +
-            "}\n");
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testInnerClassSetsOuterClassField() {
+        verifyOutput(
+            G.class,
+            createSettings(OPTION_INCLUDE_NESTED),
+            "private static class G {\n" +
+            "    private int x;\n" +
+            "    public class A {\n" +
+            "        private int y;\n" +
+            "        public A(final int y) {\n" +
+            "            super();\n" +
+            "            this.y = y + 1 + G.this.x;\n" +
+            "            G.this.x += this.y;\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
     }
 }

@@ -19,6 +19,26 @@ package com.strobel.assembler.metadata;
 import com.strobel.core.VerifyArgument;
 
 public final class MetadataHelper {
+    public static boolean isEnclosedBy(final TypeReference innerType, final TypeReference outerType) {
+        if (innerType == null) {
+            return false;
+        }
+
+        for (TypeReference current = innerType.getDeclaringType();
+             current != null;
+             current = current.getDeclaringType()) {
+
+            if (MetadataResolver.areEquivalent(current, outerType)) {
+                return true;
+            }
+        }
+
+        final TypeDefinition resolvedInnerType = innerType.resolve();
+
+        return resolvedInnerType != null &&
+               isEnclosedBy(resolvedInnerType.getBaseType(), outerType);
+    }
+
     public static TypeReference findCommonSuperType(final TypeReference type1, final TypeReference type2) {
         VerifyArgument.notNull(type1, "type1");
         VerifyArgument.notNull(type2, "type2");
