@@ -75,6 +75,11 @@ public final class GenericParameter extends TypeDefinition {
     }
 
     @Override
+    public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitGenericParameter(this, parameter);
+    }
+
+    @Override
     public boolean isGenericParameter() {
         return true;
     }

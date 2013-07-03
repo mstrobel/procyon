@@ -15,10 +15,11 @@ package com.strobel.componentmodel;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.annotations.Nullable;
+import com.strobel.core.ExceptionUtilities;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-public class UserDataStoreBase implements UserDataStore {
+public class UserDataStoreBase implements UserDataStore, Cloneable {
     public static final Key<FrugalKeyMap> COPYABLE_USER_MAP_KEY = Key.create("COPYABLE_USER_MAP_KEY");
 
     private final static AtomicReferenceFieldUpdater<UserDataStoreBase, FrugalKeyMap> UPDATER =
@@ -103,6 +104,16 @@ public class UserDataStoreBase implements UserDataStore {
             if (newMap == oldMap || UPDATER.compareAndSet(this, oldMap, newMap)) {
                 return true;
             }
+        }
+    }
+
+    @Override
+    public final UserDataStoreBase clone() {
+        try {
+            return (UserDataStoreBase) super.clone();
+        }
+        catch (CloneNotSupportedException e) {
+            throw ExceptionUtilities.asRuntimeException(e);
         }
     }
 }

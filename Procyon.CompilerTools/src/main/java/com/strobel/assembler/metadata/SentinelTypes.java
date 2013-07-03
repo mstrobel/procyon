@@ -20,6 +20,11 @@ final class BottomType extends TypeDefinition {
     public String getInternalName() {
         return getSimpleName();
     }
+
+    @Override
+    public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitBottomType(this, parameter);
+    }
 }
 
 final class NullType extends TypeDefinition {
@@ -41,5 +46,10 @@ final class NullType extends TypeDefinition {
     @Override
     public String getInternalName() {
         return getSimpleName();
+    }
+
+    @Override
+    public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitNullType(this, parameter);
     }
 }

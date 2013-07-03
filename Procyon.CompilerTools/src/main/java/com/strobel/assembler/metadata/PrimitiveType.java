@@ -37,6 +37,11 @@ public final class PrimitiveType extends TypeDefinition {
     }
 
     @Override
+    public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitPrimitiveType(this, parameter);
+    }
+
+    @Override
     public String getSimpleName() {
         return _jvmType.getPrimitiveName();
     }

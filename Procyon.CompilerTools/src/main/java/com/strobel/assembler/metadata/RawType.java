@@ -57,4 +57,9 @@ public final class RawType extends TypeReference {
     public TypeReference getUnderlyingType() {
         return _genericTypeDefinition;
     }
+
+    @Override
+    public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitRawType(this, parameter);
+    }
 }

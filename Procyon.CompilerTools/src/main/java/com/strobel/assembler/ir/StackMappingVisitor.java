@@ -130,7 +130,7 @@ public class StackMappingVisitor implements MethodVisitor {
         if (_locals != null) {
             _locals.clear();
             _stack.clear();
-            _initializations.clear();
+//            _initializations.clear();
         }
         else {
             _locals = new ArrayList<>();
@@ -973,7 +973,10 @@ public class StackMappingVisitor implements MethodVisitor {
                                 typeReference = ((MethodReference) signature).getDeclaringType();
                             }
                             else {
-                                typeReference = (TypeReference) _temp.peek().getParameter();
+                                final Object parameter = _temp.peek().getParameter();
+
+                                typeReference = parameter instanceof Instruction ? _initializations.get(parameter)
+                                                                                 : (TypeReference) parameter;
                             }
 
                             final TypeReference targetType = substituteTypeArguments(

@@ -1363,5 +1363,10 @@ public class BytecodeLanguage extends Language {
         public final String getInternalName() {
             return _descriptor;
         }
+
+        @Override
+        public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+            return visitor.visitClassType(this, parameter);
+        }
     }
 }

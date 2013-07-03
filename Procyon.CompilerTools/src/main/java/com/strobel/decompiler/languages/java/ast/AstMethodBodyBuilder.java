@@ -592,6 +592,7 @@ public class AstMethodBodyBuilder {
                         case PutField:
                         case InvokeVirtual:
                         case InvokeInterface:
+                        case InvokeSpecial:
                             assert arg1 != null;
                             hasInstanceArgument = true;
                             break;

@@ -96,6 +96,8 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return null;
     }
 
+    public abstract <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter);
+
     @Override
     public int hashCode() {
         return getInternalName().hashCode();
@@ -121,33 +123,26 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     }
 
     public TypeReference makeGenericType(final List<TypeReference> typeArguments) {
-        VerifyArgument.notEmpty(typeArguments, "typeArguments");
-        VerifyArgument.noNullElements(typeArguments, "typeArguments");
+        VerifyArgument.notNull(typeArguments, "typeArguments");
+
+        return makeGenericType(
+            typeArguments.toArray(new TypeReference[typeArguments.size()])
+        );
+    }
+
+    public TypeReference makeGenericType(final TypeReference... typeArguments) {
+        VerifyArgument.noNullElementsAndNotEmpty(typeArguments, "typeArguments");
 
         if (isGenericDefinition()) {
             return new ParameterizedType(
                 this,
-                ArrayUtilities.asUnmodifiableList(typeArguments.toArray(new TypeReference[typeArguments.size()]))
+                ArrayUtilities.asUnmodifiableList(typeArguments)
             );
         }
 
         if (this instanceof IGenericInstance) {
             return new ParameterizedType(
                 (TypeReference) ((IGenericInstance) this).getGenericDefinition(),
-                ArrayUtilities.asUnmodifiableList(typeArguments.toArray(new TypeReference[typeArguments.size()]))
-            );
-        }
-
-        throw Error.notGenericType(this);
-    }
-
-    public TypeReference makeGenericType(final TypeReference... typeArguments) {
-        VerifyArgument.notEmpty(typeArguments, "typeArguments");
-        VerifyArgument.noNullElements(typeArguments, "typeArguments");
-
-        if (isGenericDefinition()) {
-            return new ParameterizedType(
-                this,
                 ArrayUtilities.asUnmodifiableList(typeArguments)
             );
         }

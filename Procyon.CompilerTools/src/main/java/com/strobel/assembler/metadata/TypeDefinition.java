@@ -160,6 +160,11 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         return _internalName;
     }
 
+    @Override
+    public <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitClassType(this, parameter);
+    }
+
     public final MethodReference getDeclaringMethod() {
         return _declaringMethod;
     }

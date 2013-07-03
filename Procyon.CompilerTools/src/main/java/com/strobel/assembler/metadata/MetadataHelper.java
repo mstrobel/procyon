@@ -134,16 +134,30 @@ public final class MetadataHelper {
 
         TypeDefinition current = c;
 
-        do {
+        while (current != null) {
+            for (final TypeReference interfaceType : current.getExplicitInterfaces()) {
+                if (isAssignableFrom(interfaceType, d)) {
+                    return interfaceType;
+                }
+            }
+
             final TypeReference baseType = current.getBaseType();
 
-            if (baseType == null || (current = baseType.resolve()) == null) {
-                return BuiltinTypes.Object;
+            if (baseType != null) {
+                current = baseType.resolve();
+            }
+            else {
+                current = null;
+            }
+
+            if (current != null) {
+                if (isAssignableFrom(current, d)) {
+                    return current;
+                }
             }
         }
-        while (!isAssignableFrom(current, d));
 
-        return current;
+        return BuiltinTypes.Object;
     }
 
     public static boolean isAssignableFrom(final TypeReference target, final TypeReference source) {
@@ -185,6 +199,8 @@ public final class MetadataHelper {
 
         TypeReference current = type;
 
+        final TypeDefinition resolvedBaseType = baseType.resolve();
+
         while (current != null) {
             if (MetadataResolver.areEquivalent(current, baseType)) {
                 return true;
@@ -194,6 +210,14 @@ public final class MetadataHelper {
 
             if (resolved == null) {
                 return false;
+            }
+
+            if (resolvedBaseType != null && resolvedBaseType.isInterface()) {
+                for (final TypeReference interfaceType : resolved.getExplicitInterfaces()) {
+                    if (MetadataResolver.areEquivalent(interfaceType, resolvedBaseType)) {
+                        return true;
+                    }
+                }
             }
 
             current = resolved.getBaseType();

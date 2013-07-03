@@ -68,6 +68,11 @@ public final class WildcardType extends TypeReference {
     }
 
     @Override
+    public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitWildcard(this, parameter);
+    }
+
+    @Override
     public boolean isWildcardType() {
         return true;
     }

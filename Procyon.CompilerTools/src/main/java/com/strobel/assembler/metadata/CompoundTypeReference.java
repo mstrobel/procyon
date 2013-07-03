@@ -76,6 +76,11 @@ public final class CompoundTypeReference extends TypeReference {
     }
 
     @Override
+    public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitCompoundType(this, parameter);
+    }
+
+    @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
         final TypeReference baseType = _baseType;
         final List<TypeReference> interfaces = _interfaces;

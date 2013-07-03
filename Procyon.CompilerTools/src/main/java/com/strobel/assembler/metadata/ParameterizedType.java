@@ -67,6 +67,14 @@ final class ParameterizedType extends TypeReference implements IGenericInstance 
 
     @Override
     public List<GenericParameter> getGenericParameters() {
+        if (!_genericDefinition.isGenericDefinition()) {
+            final TypeDefinition resolvedDefinition = _genericDefinition.resolve();
+
+            if (resolvedDefinition != null) {
+                return resolvedDefinition.getGenericParameters();
+            }
+        }
+
         return _genericDefinition.getGenericParameters();
     }
 
@@ -88,6 +96,11 @@ final class ParameterizedType extends TypeReference implements IGenericInstance 
     @Override
     public TypeReference getUnderlyingType() {
         return _genericDefinition;
+    }
+
+    @Override
+    public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitParameterizedType(this, parameter);
     }
 
     @Override

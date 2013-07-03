@@ -71,6 +71,11 @@ public final class ArrayType extends TypeReference {
     }
 
     @Override
+    public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitArrayType(this, parameter);
+    }
+
+    @Override
     public final TypeReference getUnderlyingType() {
         return _elementType;
     }

@@ -219,12 +219,13 @@ public final class TypeAnalysis {
             for (final ExpressionToInfer e : _allExpressions) {
                 if (!e.done &&
                     trueForAll(
-                        e.dependencies, new Predicate<Variable>() {
-                        @Override
-                        public boolean test(final Variable v) {
-                            return v.getType() != null || _singleLoadVariables.contains(v);
+                        e.dependencies,
+                        new Predicate<Variable>() {
+                            @Override
+                            public boolean test(final Variable v) {
+                                return v.getType() != null || _singleLoadVariables.contains(v);
+                            }
                         }
-                    }
                     ) &&
                     (e.dependsOnSingleLoad == null || e.dependsOnSingleLoad.getType() != null || ignoreSingleLoadDependencies)) {
 
@@ -260,70 +261,91 @@ public final class TypeAnalysis {
             //
             // Infer types for variables.
             //
-            for (final Variable variable : assignmentExpressions.keySet()) {
-                final List<ExpressionToInfer> expressionsToInfer = assignmentExpressions.get(variable);
+            inferTypesForVariables(assignVariableTypesBasedOnPartialInformation);
+        }
+    }
 
-                if (variable.getType() == null &&
-                    (assignVariableTypesBasedOnPartialInformation ? anyDone(expressionsToInfer) : allDone(expressionsToInfer))) {
+    private void inferTypesForVariables(final boolean assignVariableTypesBasedOnPartialInformation) {
+        for (final Variable variable : assignmentExpressions.keySet()) {
+            final List<ExpressionToInfer> expressionsToInfer = assignmentExpressions.get(variable);
 
-                    TypeReference inferredType = null;
+            if (variable.getType() == null &&
+                (assignVariableTypesBasedOnPartialInformation ? anyDone(expressionsToInfer) : allDone(expressionsToInfer))) {
 
-                    for (final ExpressionToInfer e : expressionsToInfer) {
-                        final List<Expression> arguments = e.expression.getArguments();
+                TypeReference inferredType = null;
 
-                        assert e.expression.getCode() == AstCode.Store &&
-                               arguments.size() == 1;
+                for (final ExpressionToInfer e : expressionsToInfer) {
+                    final List<Expression> arguments = e.expression.getArguments();
 
-                        final Expression assignedValue = arguments.get(0);
+                    assert e.expression.getCode() == AstCode.Store &&
+                           arguments.size() == 1;
 
-                        if (assignedValue.getInferredType() != null) {
-                            if (inferredType == null) {
-                                inferredType = assignedValue.getInferredType();
-                            }
-                            else {
-                                //
-                                // Pick the common base type.
-                                //
-                                inferredType = typeWithMoreInformation(inferredType, assignedValue.getInferredType());
-                            }
+                    final Expression assignedValue = arguments.get(0);
+
+                    if (assignedValue.getInferredType() != null) {
+                        if (inferredType == null) {
+                            inferredType = assignedValue.getInferredType();
+                        }
+                        else {
+                            //
+                            // Pick the common base type.
+                            //
+                            inferredType = typeWithMoreInformation(inferredType, assignedValue.getInferredType());
                         }
                     }
+                }
 
-                    if (inferredType == null) {
-                        inferredType = BuiltinTypes.Object;
-                    }
-                    else if (inferredType.isWildcardType()) {
-                        inferredType = inferredType.hasSuperBound() ? inferredType.getSuperBound()
-                                                                    : inferredType.getExtendsBound();
-                    }
+                if (inferredType == null) {
+                    inferredType = BuiltinTypes.Object;
+                }
+                else if (inferredType.isWildcardType()) {
+                    inferredType = inferredType.hasSuperBound() ? inferredType.getSuperBound()
+                                                                : inferredType.getExtendsBound();
+                }
 
-                    if (shouldInferVariableType(variable) && inferredType != null) {
-                        variable.setType(inferredType);
-                    }
+                if (shouldInferVariableType(variable) && inferredType != null) {
+                    variable.setType(inferredType);
 
                     //
-                    // Assign inferred types to all the assignments (in case they used different inferred types).
+                    // Assign inferred types to all dependent expressions (in case they used  different inferred types).
                     //
-                    for (final ExpressionToInfer e : expressionsToInfer) {
-                        e.expression.setInferredType(inferredType);
+                    for (final ExpressionToInfer e : _allExpressions) {
+                        if (e.dependencies.contains(variable) || expressionsToInfer.contains(e)) {
+                            for (final Expression c : e.expression.getSelfAndChildrenRecursive(Expression.class)) {
+                                c.setExpectedType(null);
+                                c.setInferredType(null);
+                            }
 
-                        //
-                        // Re-infer if the expected type has changed.
-                        //
-                        inferTypeForExpression(e.expression.getArguments().get(0), inferredType);
+                            runInference(e.expression);
+                        }
                     }
                 }
+
+//                //
+//                // Assign inferred types to all the assignments (in case they used different inferred types).
+//                //
+//                for (final ExpressionToInfer e : expressionsToInfer) {
+//                    e.expression.setInferredType(inferredType);
+//
+//                    //
+//                    // Re-infer if the expected type has changed.
+//                    //
+//                    inferTypeForExpression(e.expression.getArguments().get(0), inferredType);
+//                }
             }
         }
     }
 
     private static boolean shouldInferVariableType(final Variable variable) {
         return variable.isGenerated() ||
-               !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata();
+               variable.getType() == null/* ||
+               !variable.isParameter() && variable.getType() == BuiltinTypes.Integer ||
+               !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata()*/;
     }
 
     private static boolean shouldResetVariableType(final Variable variable) {
         return variable.isGenerated() ||
+               !variable.isParameter() && variable.getType() == BuiltinTypes.Integer ||
                !variable.isParameter() && !variable.getOriginalVariable().isTypeKnown();
     }
 
@@ -388,7 +410,7 @@ public final class TypeAnalysis {
 
             for (final ExpressionToInfer e : _allExpressions) {
                 if (e.expression != expression &&
-                    e.dependencies.contains(changedVariable) || assignments.contains(e)) {
+                    (e.dependencies.contains(changedVariable) || assignments.contains(e))) {
 
                     for (final Expression c : e.expression.getSelfAndChildrenRecursive(Expression.class)) {
                         c.setExpectedType(null);
@@ -477,14 +499,21 @@ public final class TypeAnalysis {
 
                 if (forceInferChildren) {
                     inferTypeForExpression(arguments.get(0), v.getType());
+
+                    final TypeReference inferredType = arguments.get(0).getInferredType();
+
+                    if (inferredType != null) {
+                        return inferredType;
+                    }
                 }
 
-                return v.getType();
+                return inferTypeForVariable(v, expectedType);
             }
 
             case Load: {
                 final Variable v = (Variable) operand;
 
+/*
                 if (v.getType() == null && _singleLoadVariables.contains(v)) {
                     TypeReference inferredType = expectedType;
 
@@ -497,8 +526,9 @@ public final class TypeAnalysis {
                         v.setType(inferredType);
                     }
                 }
+*/
 
-                return v.getType();
+                return inferTypeForVariable(v, expectedType);
             }
 
             case InvokeVirtual:
@@ -617,8 +647,7 @@ public final class TypeAnalysis {
             }
 
             case PostIncrement: {
-                inferTypeForExpression(arguments.get(0), null);
-                return null;
+                return inferTypeForExpression(arguments.get(0), null);
             }
 
             case Not:
@@ -766,6 +795,12 @@ public final class TypeAnalysis {
                     for (int i = 0; i < arguments.size() && i < parameters.size(); i++) {
                         inferTypeForExpression(arguments.get(i), parameters.get(i).getParameterType());
                     }
+                }
+
+                if (expectedType != null &&
+                    MetadataHelper.isAssignableFrom(expectedType, constructor.getDeclaringType())) {
+
+                    return expectedType;
                 }
 
                 return constructor.getDeclaringType();
@@ -921,6 +956,21 @@ public final class TypeAnalysis {
 
             case CheckCast:
             case Unbox: {
+                if (expectedType != null) {
+                    final TypeReference inferredType = substituteTypeArguments(expectedType, (TypeReference) operand);
+
+                    if (forceInferChildren) {
+                        inferTypeForExpression(
+                            arguments.get(0),
+                            inferredType != null ? inferredType
+                                                 : (TypeReference) operand
+                        );
+                    }
+
+                    if (inferredType != null) {
+                        expression.setOperand(inferredType);
+                    }
+                }
                 return (TypeReference) operand;
             }
 
@@ -1077,6 +1127,21 @@ public final class TypeAnalysis {
         }
     }
 
+    private TypeReference inferTypeForVariable(final Variable v, final TypeReference expectedType) {
+        final TypeReference variableType = v.getType();
+
+        if (variableType != null) {
+            return variableType;
+        }
+
+        if (v.isGenerated()) {
+            return expectedType;
+        }
+
+        return v.isParameter() ? v.getOriginalParameter().getParameterType()
+                               : v.getOriginalVariable().getVariableType();
+    }
+
     private TypeReference numericPromotion(final TypeReference type) {
         if (type == null) {
             return null;
@@ -1157,9 +1222,10 @@ public final class TypeAnalysis {
             return leftPreferred;
         }
 
-        //
-        // TODO: Calculate this case;
-        //
+        if (leftPreferred != null && rightPreferred != null) {
+            return MetadataHelper.findCommonSuperType(leftPreferred, rightPreferred);
+        }
+
         return leftPreferred;
     }
 

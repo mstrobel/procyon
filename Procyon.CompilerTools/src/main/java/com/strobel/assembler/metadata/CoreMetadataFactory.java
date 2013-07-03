@@ -540,6 +540,11 @@ public class CoreMetadataFactory implements MetadataFactory {
         }
 
         @Override
+        public <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+            return visitor.visitClassType(this, parameter);
+        }
+
+        @Override
         public TypeReference getDeclaringType() {
             return _declaringType;
         }
@@ -622,6 +627,11 @@ public class CoreMetadataFactory implements MetadataFactory {
         }
 
         @Override
+        public <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
+            return visitor.visitParameterizedType(this, parameter);
+        }
+
+        @Override
         public String getName() {
             return _genericDefinition.getName();
         }
@@ -663,6 +673,14 @@ public class CoreMetadataFactory implements MetadataFactory {
 
         @Override
         public List<GenericParameter> getGenericParameters() {
+            if (!_genericDefinition.isGenericDefinition()) {
+                final TypeDefinition resolvedDefinition = _genericDefinition.resolve();
+
+                if (resolvedDefinition != null) {
+                    return resolvedDefinition.getGenericParameters();
+                }
+            }
+
             return _genericDefinition.getGenericParameters();
         }
 

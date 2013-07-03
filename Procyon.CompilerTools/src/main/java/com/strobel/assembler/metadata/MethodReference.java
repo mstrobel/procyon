@@ -29,7 +29,7 @@ import java.util.List;
  */
 public abstract class MethodReference extends MemberReference implements IMethodSignature,
                                                                          IGenericParameterProvider,
-                                                                         IGenericContext{
+                                                                         IGenericContext {
     protected final static String CONSTRUCTOR_NAME = "<init>";
     protected final static String STATIC_INITIALIZER_NAME = "<clinit>";
 
