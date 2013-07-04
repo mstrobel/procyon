@@ -21,6 +21,7 @@ import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -61,9 +62,7 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
             "java/lang/Double.valueOf:(D)Ljava/lang/Double;"
         };
 
-        for (final String boxMethod : boxMethods) {
-            BOX_METHODS.add(boxMethod);
-        }
+        Collections.addAll(BOX_METHODS, boxMethods);
 
         for (final String unboxMethod : unboxMethods) {
             UNBOX_METHODS.add("java/lang/Number." + unboxMethod);
@@ -99,6 +98,7 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         if (parent instanceof BinaryOperatorExpression) {
             final BinaryOperatorExpression binary = (BinaryOperatorExpression) parent;
 
+            //noinspection RedundantIfStatement
             if (binary.getLeft() instanceof NullReferenceExpression ||
                 binary.getRight() instanceof NullReferenceExpression) {
 

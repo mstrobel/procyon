@@ -174,6 +174,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                          childResult.isCompileTimeConstant() &&
                          Comparer.equals(result.getConstantValue(), childResult.getConstantValue())) {
 
+                    //noinspection UnnecessaryContinue
                     continue;
                 }
                 else {
@@ -221,7 +222,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
 
             final TypeReference primitiveType;
 
-            if (literalValue != null || value instanceof String) {
+            if (value instanceof String || value == null && literalValue != null) {
                 final TypeDefinition currentType = context.getCurrentType();
                 final IMetadataResolver resolver = currentType != null ? currentType.getResolver() : MetadataSystem.instance();
 
@@ -271,7 +272,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         }
     }
 
-    private final static ResolveResult resolveTypeFromVariable(final Variable variable) {
+    private static ResolveResult resolveTypeFromVariable(final Variable variable) {
         if (variable == null) {
             return null;
         }
@@ -285,11 +286,11 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         return null;
     }
 
-    private final static ResolveResult resolveType(final TypeReference type) {
+    private static ResolveResult resolveType(final TypeReference type) {
         return type == null ? null : new ResolveResult(type);
     }
 
-    private final static ResolveResult resolveTypeFromMember(final MemberReference member) {
+    private static ResolveResult resolveTypeFromMember(final MemberReference member) {
         if (member == null) {
             return null;
         }

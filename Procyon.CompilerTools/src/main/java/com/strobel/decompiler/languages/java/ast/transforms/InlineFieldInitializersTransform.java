@@ -23,7 +23,7 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
     private final Map<String, FieldDeclaration> _fieldDeclarations;
     private final Map<String, AssignmentExpression> _initializers;
 
-    private MethodDefinition _currentStaticInitializer;
+    private MethodDefinition _currentInitializerMethod;
 
     public InlineFieldInitializersTransform(final DecompilerContext context) {
         super(context);
@@ -81,38 +81,64 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
     }
 
     @Override
+    public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
+        final MethodDefinition oldInitializer = _currentInitializerMethod;
+        final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
+
+        if (method != null &&
+            method.isConstructor() &&
+            method.isSynthetic()) {
+
+            _currentInitializerMethod = method;
+        }
+        else {
+            _currentInitializerMethod = null;
+        }
+
+        try {
+            return super.visitConstructorDeclaration(node, _);
+        }
+        finally {
+            _currentInitializerMethod = oldInitializer;
+        }
+    }
+
+    @Override
     public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
-        final MethodDefinition oldInitializer = _currentStaticInitializer;
+        final MethodDefinition oldInitializer = _currentInitializerMethod;
         final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
         if (method != null &&
             method.isTypeInitializer() &&
             method.getDeclaringType().isInterface()) {
 
-            _currentStaticInitializer = method;
+            _currentInitializerMethod = method;
         }
         else {
-            _currentStaticInitializer = null;
+            _currentInitializerMethod = null;
         }
 
         try {
             return super.visitMethodDeclaration(node, _);
         }
         finally {
-            _currentStaticInitializer = oldInitializer;
+            _currentInitializerMethod = oldInitializer;
         }
     }
 
-    private final static INode STATIC_FIELD_ASSIGNMENT;
+    private final static INode FIELD_ASSIGNMENT;
 
     static {
-        STATIC_FIELD_ASSIGNMENT = new Choice(
+        FIELD_ASSIGNMENT = new Choice(
             new AssignmentExpression(
                 new MemberReferenceTypeNode(
                     "target",
                     new Choice(
                         new MemberReferenceExpression(
-                            new TypedNode(AstType.class).toExpression(),
+                            new Choice(
+                                new TypedNode(AstType.class),
+                                new TypedNode(ThisReferenceExpression.class)
+                            ).toExpression(),
                             Pattern.ANY_STRING
                         ),
                         new IdentifierExpression(Pattern.ANY_STRING)
@@ -129,11 +155,11 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
     public Void visitAssignmentExpression(final AssignmentExpression node, final Void data) {
         super.visitAssignmentExpression(node, data);
 
-        if (_currentStaticInitializer == null) {
+        if (_currentInitializerMethod == null) {
             return null;
         }
 
-        final Match match = STATIC_FIELD_ASSIGNMENT.match(node);
+        final Match match = FIELD_ASSIGNMENT.match(node);
 
         if (match.success()) {
             final Expression target = (Expression) firstOrDefault(match.get("target"));

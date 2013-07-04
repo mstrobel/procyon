@@ -194,6 +194,25 @@ public class InnerClassTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("UnnecessaryBoxing")
+    private static class H {
+        private static final Runnable runnable;
+
+        public static void test() {
+            H.runnable.run();
+        }
+
+        static {
+            runnable = new Runnable() {
+                private final Integer mCount = new Integer(2);
+
+                public void run() {
+                    System.out.println("Runnable: mCount = " + this.mCount);
+                }
+            };
+        }
+    }
+
     @Test
     public void testComplexInnerClassRelations() {
         //
@@ -417,6 +436,28 @@ public class InnerClassTests extends DecompilerTest {
             "            this.y = y + 1 + G.this.x;\n" +
             "            G.this.x += this.y;\n" +
             "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testInnerClassSyntheticConstructorInitializersInlined() {
+        verifyOutput(
+            H.class,
+            createSettings(OPTION_INCLUDE_NESTED),
+            "private static class H {\n" +
+            "    private static final Runnable runnable;\n" +
+            "    public static void test() {\n" +
+            "        H.runnable.run();\n" +
+            "    }\n" +
+            "    static {\n" +
+            "        runnable = new Runnable() {\n" +
+            "            private final Integer mCount = new Integer(2);\n" +
+            "            public void run() {\n" +
+            "                System.out.println(\"Runnable: mCount = \" + this.mCount);\n" +
+            "            }\n" +
+            "        };\n" +
             "    }\n" +
             "}\n"
         );
