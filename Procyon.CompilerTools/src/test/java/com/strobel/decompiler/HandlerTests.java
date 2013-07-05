@@ -3,9 +3,58 @@ package com.strobel.decompiler;
 import org.junit.Ignore;
 import org.junit.Test;
 
-@SuppressWarnings({ "UnnecessaryReturnStatement", "ThrowFromFinallyBlock", "EmptyCatchBlock" })
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.List;
+
+@SuppressWarnings({
+                      "UnnecessaryReturnStatement",
+                      "ThrowFromFinallyBlock",
+                      "EmptyCatchBlock",
+                      "UnusedParameters",
+                      "UnusedAssignment",
+                      "UnusedDeclaration"
+                  })
 public class HandlerTests extends DecompilerTest {
     private static class A {
+        public static <X> List<X> f(final X x) throws IllegalStateException {
+            throw new IllegalStateException();
+        }
+
+        public static <X> List<X> g(final X x) throws IOException {
+            throw new IOException();
+        }
+    }
+
+    private static class B {
+        private static void rethrow(final Throwable t) throws Throwable {
+            throw t;
+        }
+
+        static void test(final int a, final int b) {
+            try {
+                try {
+                    throw new UnsupportedOperationException();
+                }
+                catch (RuntimeException e) {
+                    rethrow(e);
+                    return;
+                }
+            }
+            catch (UnsupportedOperationException e) {
+                System.out.println("unchecked");
+                return;
+            }
+            catch (Throwable e) {
+                System.out.println("checked");
+                return;
+            }
+        }
+    }
+
+    private static class C {
         void test() {
             try {
                 throw new Exception();
@@ -22,8 +71,7 @@ public class HandlerTests extends DecompilerTest {
         }
     }
 
-    @SuppressWarnings("UnusedAssignment")
-    private static class B {
+    private static class D {
         void test() {
             try {
                 throw new Exception();
@@ -41,13 +89,78 @@ public class HandlerTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("LocalCanBeFinal")
+    private static class E {
+        void test(final String[] path) {
+            try {
+                final File file = new File(path[0]);
+                final FileInputStream fileInputStream = new FileInputStream(file);
+            }
+            catch (FileNotFoundException e) {
+                System.out.println("File Not found");
+                for (String s : path) {
+                    System.out.println(s);
+                }
+            }
+        }
+    }
+
     @Test
-    @Ignore
-    public void testSimpleNestedHandlerInFinally() throws Throwable {
+    public void testThrowsSignatures() throws Throwable {
         verifyOutput(
             A.class,
             defaultSettings(),
             "private static class A {\n" +
+            "    public static <X> List<X> f(final X x) throws IllegalStateException {\n" +
+            "        throw new IllegalStateException();\n" +
+            "    }\n" +
+            "    public static <X> List<X> g(final X x) throws IOException {\n" +
+            "        throw new IOException();\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testMultipleCatchHandlers() throws Throwable {
+        verifyOutput(
+            B.class,
+            defaultSettings(),
+            "private static class B {\n" +
+            "    private static void rethrow(final Throwable t) throws Throwable {\n" +
+            "        throw t;\n" +
+            "    }\n" +
+            "\n" +
+            "    static void test(final int a, final int b) {\n" +
+            "        try {\n" +
+            "            try {\n" +
+            "                throw new UnsupportedOperationException();\n" +
+            "            }\n" +
+            "            catch (RuntimeException e) {\n" +
+            "                rethrow(e);\n" +
+            "                return;\n" +
+            "            }\n" +
+            "        }\n" +
+            "        catch (UnsupportedOperationException e) {\n" +
+            "            System.out.println(\"unchecked\");\n" +
+            "            return;\n" +
+            "        }\n" +
+            "        catch (Throwable e) {\n" +
+            "            System.out.println(\"checked\");\n" +
+            "            return;\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    @Ignore
+    public void testSimpleNestedHandlerInFinally() throws Throwable {
+        verifyOutput(
+            C.class,
+            defaultSettings(),
+            "private static class C {\n" +
             "    void test() {\n" +
             "        try {\n" +
             "            throw new Exception();\n" +
@@ -69,9 +182,9 @@ public class HandlerTests extends DecompilerTest {
     @Ignore
     public void testEmptyCatchWithinFinally() throws Throwable {
         verifyOutput(
-            B.class,
+            D.class,
             defaultSettings(),
-            "private static class B {\n" +
+            "private static class D {\n" +
             "    void test() {\n" +
             "        try {\n" +
             "            throw new Exception();\n" +
@@ -83,6 +196,28 @@ public class HandlerTests extends DecompilerTest {
             "                k = 1 / k;\n" +
             "            }\n" +
             "            catch (Exception e) {\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testLoopInCatchClause() throws Throwable {
+        verifyOutput(
+            E.class,
+            defaultSettings(),
+            "private static class E {\n" +
+            "    void test(final String[] path) {\n" +
+            "        try {\n" +
+            "            final File file = new File(path[0]);\n" +
+            "            final FileInputStream fileInputStream = new FileInputStream(file);\n" +
+            "        }\n" +
+            "        catch (FileNotFoundException e) {\n" +
+            "            System.out.println(\"File Not found\");\n" +
+            "            for (String s : path) {\n" +
+            "                System.out.println(s);\n" +
             "            }\n" +
             "        }\n" +
             "    }\n" +

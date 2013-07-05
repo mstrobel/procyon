@@ -14,6 +14,7 @@
 package com.strobel.decompiler;
 
 import com.strobel.annotations.NotNull;
+import com.strobel.functions.Function;
 import org.junit.Test;
 
 import java.util.Iterator;
@@ -210,6 +211,19 @@ public class InnerClassTests extends DecompilerTest {
                     System.out.println("Runnable: mCount = " + this.mCount);
                 }
             };
+        }
+    }
+
+    private static class J {
+        Integer f(final int x, final Function<Integer, Integer> h) {
+            return h.apply(x);
+        }
+
+        private static final class F implements Function<Integer, Integer> {
+            @Override
+            public Integer apply(final Integer x) {
+                return x * 3;
+            }
         }
     }
 
@@ -458,6 +472,24 @@ public class InnerClassTests extends DecompilerTest {
             "                System.out.println(\"Runnable: mCount = \" + this.mCount);\n" +
             "            }\n" +
             "        };\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testInnerClassSyntheticPrivateBridge() {
+        verifyOutput(
+            J.class,
+            createSettings(OPTION_INCLUDE_NESTED),
+            "private static class J {\n" +
+            "    Integer f(final int x, final Function<Integer, Integer> h) {\n" +
+            "        return (Integer)h.apply(Integer.valueOf(x));\n" +
+            "    }\n" +
+            "    private static final class F implements Function<Integer, Integer> {\n" +
+            "        public Integer apply(final Integer x) {\n" +
+            "            return x * 3;\n" +
+            "        }\n" +
             "    }\n" +
             "}\n"
         );

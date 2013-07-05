@@ -13,6 +13,7 @@
 
 package com.strobel.reflection.emit;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.FieldInfo;
@@ -107,12 +108,14 @@ public final class FieldBuilder extends FieldInfo {
         return generatedField.getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         _typeBuilder.verifyCreated();
         return generatedField.getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         _typeBuilder.verifyCreated();

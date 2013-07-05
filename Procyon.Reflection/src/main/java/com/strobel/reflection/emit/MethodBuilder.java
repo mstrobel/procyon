@@ -13,6 +13,7 @@
 
 package com.strobel.reflection.emit;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.*;
@@ -242,12 +243,14 @@ public final class MethodBuilder extends MethodInfo {
         return generatedMethod.getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         _declaringType.verifyCreated();
         return generatedMethod.getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         _declaringType.verifyCreated();

@@ -326,6 +326,11 @@ public class Flags {
     public static final long CLASH = 1L << 42;
 
     /**
+     * Flag that marks either a default method or an interface containing default methods.
+     */
+    public static final long DEFAULT = 1L<<43;
+
+    /**
      * Modifier masks.
      */
     public static final int
@@ -390,6 +395,22 @@ public class Flags {
         return modifiers;
     }
 
+    public static boolean testAny(final int value, final int flags) {
+        return (value & flags) != 0;
+    }
+
+    public static boolean testAll(final int value, final int flags) {
+        return (value & flags) == flags;
+    }
+
+    public static boolean testAny(final long value, final long flags) {
+        return (value & flags) != 0;
+    }
+
+    public static boolean testAll(final long value, final long flags) {
+        return (value & flags) == flags;
+    }
+
     // Cache of modifier sets.
     private static final Map<Long, Set<Modifier>> modifierSets =
         new java.util.concurrent.ConcurrentHashMap<>(64);
@@ -410,12 +431,15 @@ public class Flags {
         NATIVE("native"),
         INTERFACE("interface"),
         ABSTRACT("abstract"),
+        DEFAULT("default"),
         STRICTFP("strictfp"),
+        SUPER("super"),
         BRIDGE("bridge"),
         SYNTHETIC("synthetic"),
         DEPRECATED("deprecated"),
         HASINIT("hasinit"),
         ENUM("enum"),
+        MANDATED("mandated"),
         IPROXY("iproxy"),
         NOOUTERTHIS("noouterthis"),
         EXISTS("exists"),

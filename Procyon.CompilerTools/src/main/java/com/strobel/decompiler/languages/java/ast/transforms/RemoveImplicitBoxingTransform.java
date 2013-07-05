@@ -84,6 +84,8 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
     @Override
     public Void visitInvocationExpression(final InvocationExpression node, final Void data) {
+        super.visitInvocationExpression(node, data);
+
         if (node.getArguments().size() == 1 &&
             node.getTarget() instanceof MemberReferenceExpression &&
             isValidPrimitiveParent(node.getParent())) {
@@ -91,7 +93,7 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
             removeBoxing(node);
         }
 
-        return super.visitInvocationExpression(node, data);
+        return null;
     }
 
     private boolean isValidPrimitiveParent(final AstNode parent) {
@@ -121,17 +123,21 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
     @Override
     public Void visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void data) {
+        super.visitUnaryOperatorExpression(node, data);
+
         unbox(node.getExpression());
 
-        return super.visitUnaryOperatorExpression(node, data);
+        return null;
     }
 
     @Override
     public Void visitBinaryOperatorExpression(final BinaryOperatorExpression node, final Void data) {
+        super.visitBinaryOperatorExpression(node, data);
+
         unbox(node.getLeft());
         unbox(node.getRight());
 
-        return super.visitBinaryOperatorExpression(node, data);
+        return null;
     }
 
     private void unbox(final Expression e) {

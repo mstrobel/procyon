@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
@@ -31,6 +32,17 @@ public abstract class MethodInfo extends MethodBase {
 
     public final boolean isAbstract() {
         return Modifier.isAbstract(getModifiers());
+    }
+
+    public final boolean isDefault() {
+        if (isAbstract()) {
+            return false;
+        }
+
+        final Type declaringType = getDeclaringType();
+
+        return declaringType != null &&
+               declaringType.isInterface();
     }
 
     public abstract Type<?> getReturnType();
@@ -56,11 +68,13 @@ public abstract class MethodInfo extends MethodBase {
         return getRawMethod().getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return getRawMethod().getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return getRawMethod().getDeclaredAnnotations();
@@ -166,7 +180,7 @@ public abstract class MethodInfo extends MethodBase {
             if (i != 0) {
                 s.append(", ");
             }
-            
+
             Type parameterType = p.getParameterType();
 
             while (parameterType.isWildcardType()) {
@@ -466,7 +480,7 @@ public abstract class MethodInfo extends MethodBase {
 
             assert !members.isEmpty();
 
-            _erasedMethodDefinition = ((MethodInfo)members.get(0)).getErasedMethodDefinition();
+            _erasedMethodDefinition = ((MethodInfo) members.get(0)).getErasedMethodDefinition();
 
             return _erasedMethodDefinition;
         }
@@ -593,7 +607,7 @@ class ReflectedMethod extends MethodInfo {
             final Type p = bindings.getGenericParameter(i);
 
             if (p instanceof GenericParameter<?>) {
-                final GenericParameter<?> gp = (GenericParameter<?>)p;
+                final GenericParameter<?> gp = (GenericParameter<?>) p;
                 final TypeVariable<?> typeVariable = gp.getRawTypeVariable();
 
                 if (typeVariable.getGenericDeclaration() == rawMethod) {
@@ -691,11 +705,13 @@ class ReflectedMethod extends MethodInfo {
         return _rawMethod.getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return _rawMethod.getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return _rawMethod.getDeclaredAnnotations();

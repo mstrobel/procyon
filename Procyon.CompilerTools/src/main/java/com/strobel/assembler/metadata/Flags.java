@@ -95,6 +95,9 @@ public class Flags {
         if ((mask & DEFAULT) != 0) {
             flags.add(Flag.DEFAULT);
         }
+        if ((mask & DEFAULT) != 0) {
+            flags.add(Flag.DEFAULT);
+        }
         if ((mask & STRICTFP) != 0) {
             flags.add(Flag.STRICTFP);
         }
@@ -195,6 +198,9 @@ public class Flags {
         }
         if ((mask & ABSTRACT) != 0) {
             flags.add(Flag.ABSTRACT);
+        }
+        if ((mask & DEFAULT) != 0) {
+            flags.add(Flag.DEFAULT);
         }
         if ((mask & STRICTFP) != 0) {
             flags.add(Flag.STRICTFP);

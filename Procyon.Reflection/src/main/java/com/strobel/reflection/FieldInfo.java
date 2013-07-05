@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.VerifyArgument;
 
 import javax.lang.model.element.Modifier;
@@ -40,11 +41,13 @@ public abstract class FieldInfo extends MemberInfo {
         return getRawField().getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return getRawField().getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return getRawField().getDeclaredAnnotations();

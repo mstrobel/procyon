@@ -177,7 +177,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeSpecialsUpToRole(Roles.LEFT_BRACE);
         space(
             (style == BraceStyle.EndOfLine || style == BraceStyle.BannerStyle) &&
-            lastWritten != LastWritten.Whitespace
+            lastWritten != LastWritten.Whitespace && lastWritten != LastWritten.LeftParenthesis
         );
         formatter.openBrace(style);
         lastWritten = LastWritten.Other;
@@ -266,6 +266,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 break;
             case "/":
                 lastWritten = LastWritten.Division;
+                break;
+            case "(":
+                lastWritten = LastWritten.LeftParenthesis;
                 break;
             default:
                 lastWritten = LastWritten.Other;
@@ -1274,9 +1277,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
         startNode(node);
         writeAnnotations(node.getAnnotations(), true);
-        writeModifiers(node.getModifiers());
 
         final MethodDefinition definition = node.getUserData(Keys.METHOD_DEFINITION);
+
+        if (definition != null && definition.isDefault()) {
+            writeKeyword(Roles.DEFAULT_KEYWORD);
+        }
+
+        writeModifiers(node.getModifiers());
 
         if (definition == null || !definition.isTypeInitializer()) {
             final AstNodeCollection<TypeParameterDeclaration> typeParameters = node.getTypeParameters();
@@ -2379,7 +2387,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         Ampersand,
         QuestionMark,
         Division,
-        Operator
+        Operator,
+        LeftParenthesis
     }
 
     // </editor-fold>

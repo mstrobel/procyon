@@ -637,7 +637,11 @@ final class RuntimeTypeCache<T> {
 
                     assert (method.getReturnType() != Type.NullType);
 
-                    assert Modifier.isAbstract(methodModifiers);
+                    //
+                    // JDK8 Breaking Change: default methods not marked ABSTRACT
+                    //
+
+                    //assert Flags.testAny(methodModifiers, Flags.ABSTRACT);
                     assert !Modifier.isFinal(methodModifiers);
 
                     final boolean isPublic = Modifier.isPublic(methodModifiers);
@@ -980,10 +984,9 @@ final class RuntimeMethodInfo extends MethodInfo {
         final Type<?> actualReturnType;
 
         if (TypeBinder.GET_CLASS_METHOD.equals(rawMethod)) {
-            actualReturnType = Types.Class
-                               .makeGenericType(
-                                   Type.makeExtendsWildcard(reflectedTypeCache.getRuntimeType()/*.getErasedType()*/)
-                               );
+            actualReturnType = Types.Class.makeGenericType(
+                Type.makeExtendsWildcard(reflectedTypeCache.getRuntimeType()/*.getErasedType()*/)
+            );
         }
         else {
             actualReturnType = VerifyArgument.notNull(returnType, "returnType");
@@ -1053,11 +1056,13 @@ final class RuntimeMethodInfo extends MethodInfo {
         return _rawMethod.isAnnotationPresent(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return _rawMethod.getDeclaredAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return _rawMethod.getAnnotations();
@@ -1148,11 +1153,13 @@ final class RuntimeFieldInfo extends FieldInfo {
         return _rawField.getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return _rawField.getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return _rawField.getDeclaredAnnotations();

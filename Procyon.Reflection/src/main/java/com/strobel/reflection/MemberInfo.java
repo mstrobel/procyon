@@ -15,6 +15,7 @@ package com.strobel.reflection;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.core.StringComparator;
+import com.strobel.util.EmptyArrayCache;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
@@ -96,7 +97,20 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
     public Annotation[] getDeclaredAnnotations() {
         return EMPTY_ANNOTATIONS;
     }
-    
+
+    @SuppressWarnings("UnusedParameters")
+    public <T extends Annotation> T getDeclaredAnnotation(final Class<T> annotationClass) {
+        return null;
+    }
+
+    public <T extends Annotation> T[] getAnnotationsByType(final Class<T> annotationClass) {
+        return EmptyArrayCache.fromElementType(annotationClass);
+    }
+
+    public <T extends Annotation> T[] getDeclaredAnnotationsByType(final Class<T> annotationClass) {
+        return EmptyArrayCache.fromElementType(annotationClass);
+    }
+
     public boolean isEquivalentTo(final MemberInfo other) {
         return other == this ||
                other != null && other.getDeclaringType() == getDeclaringType() &&

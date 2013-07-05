@@ -13,6 +13,7 @@
 
 package com.strobel.reflection;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.VerifyArgument;
 
 import java.lang.annotation.Annotation;
@@ -38,11 +39,13 @@ public abstract class ConstructorInfo extends MethodBase {
         return getRawConstructor().getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return getRawConstructor().getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return getRawConstructor().getDeclaredAnnotations();

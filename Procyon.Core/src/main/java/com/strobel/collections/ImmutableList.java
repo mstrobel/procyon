@@ -13,6 +13,7 @@
 
 package com.strobel.collections;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.StringUtilities;
 
 import java.lang.reflect.Array;
@@ -30,10 +31,10 @@ import java.util.NoSuchElementException;
  * lists via ListBuffers.  List is the main container class in
  * GJC. Most data structures and algorithms in GJC use lists rather
  * than arrays.
- * <p/>
+ * <p></p>
  * <p>Lists are always trailed by a sentinel element, whose head and tail
  * are both null.
- * <p/>
+ * <p></p>
  * <p><b>This is NOT part of any supported API.
  * If you write code that depends on this, you do so at your own risk.
  * This code and its internal interfaces are subject to change or
@@ -273,9 +274,10 @@ public class ImmutableList<A> extends AbstractCollection<A> implements java.util
      * Copy successive elements of this list into given vector until
      * list is exhausted or end of vector is reached.
      */
+    @NotNull
     @Override
     @SuppressWarnings("unchecked")
-    public <T> T[] toArray(final T[] vec) {
+    public <T> T[] toArray(@NotNull final T[] vec) {
         int i = 0;
         ImmutableList<A> l = this;
         while (l.nonEmpty() && i < vec.length) {
@@ -293,6 +295,7 @@ public class ImmutableList<A> extends AbstractCollection<A> implements java.util
         return toArray((T[])Array.newInstance(vec.getClass().getComponentType(), size()));
     }
 
+    @NotNull
     public Object[] toArray() {
         return toArray(new Object[size()]);
     }
@@ -448,6 +451,7 @@ public class ImmutableList<A> extends AbstractCollection<A> implements java.util
         return (Iterator<A>)EMPTY_ITERATOR;
     }
 
+    @NotNull
     @Override
     public Iterator<A> iterator() {
         if (tail == null) {
@@ -498,7 +502,7 @@ public class ImmutableList<A> extends AbstractCollection<A> implements java.util
         return l.head;
     }
 
-    public boolean addAll(final int index, final Collection<? extends A> c) {
+    public boolean addAll(final int index, @NotNull final Collection<? extends A> c) {
         if (c.isEmpty()) {
             return false;
         }
@@ -538,14 +542,17 @@ public class ImmutableList<A> extends AbstractCollection<A> implements java.util
         return last;
     }
 
+    @NotNull
     public ListIterator<A> listIterator() {
         return Collections.unmodifiableList(new ArrayList<>(this)).listIterator();
     }
 
+    @NotNull
     public ListIterator<A> listIterator(final int index) {
         return Collections.unmodifiableList(new ArrayList<>(this)).listIterator(index);
     }
 
+    @NotNull
     public java.util.List<A> subList(final int fromIndex, final int toIndex) {
         if (fromIndex < 0 || toIndex > size() || fromIndex > toIndex) {
             throw new IllegalArgumentException();

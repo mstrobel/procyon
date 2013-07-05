@@ -452,7 +452,7 @@ public final class AstBuilder {
     }
 
     private long scrubAccessModifiers(final long flags) {
-        long result = flags & ~Flags.AccessFlags;
+        final long result = flags & ~Flags.AccessFlags;
 
         if ((flags & Flags.PRIVATE) != 0) {
             return result | Flags.PRIVATE;
@@ -552,7 +552,7 @@ public final class AstBuilder {
             }
         }
 
-        if (!method.getDeclaringType().isInterface() || method.isTypeInitializer()) {
+        if (!method.getDeclaringType().isInterface() || method.isTypeInitializer() || method.isDefault()) {
             astMethod.setBody(createMethodBody(method, astMethod.getParameters()));
         }
 

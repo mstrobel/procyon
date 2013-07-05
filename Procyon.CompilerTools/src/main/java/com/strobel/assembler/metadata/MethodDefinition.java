@@ -185,6 +185,10 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
         return Flags.testAny(getFlags(), Flags.ABSTRACT);
     }
 
+    public final boolean isDefault() {
+        return Flags.testAny(getFlags(), Flags.DEFAULT);
+    }
+
     public final boolean isBridgeMethod() {
         return Flags.testAny(getFlags(), Flags.ACC_BRIDGE | Flags.BRIDGE);
     }

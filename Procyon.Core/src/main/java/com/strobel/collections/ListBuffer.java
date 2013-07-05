@@ -13,6 +13,8 @@
 
 package com.strobel.collections;
 
+import com.strobel.annotations.NotNull;
+
 import java.util.AbstractQueue;
 import java.util.Collection;
 import java.util.Iterator;
@@ -21,7 +23,7 @@ import java.util.NoSuchElementException;
 /**
  * A class for constructing lists by appending elements. Modelled after
  * java.lang.StringBuffer.
- * <p/>
+ * <p></p>
  * <p><b>This is NOT part of any supported API.
  * If you write code that depends on this, you do so at your own risk.
  * This code and its internal interfaces are subject to change or
@@ -187,11 +189,13 @@ public class ListBuffer<A> extends AbstractQueue<A> {
     /**
      * Convert buffer to an array
      */
+    @NotNull
     @SuppressWarnings("SuspiciousToArrayCall")
     public <T> T[] toArray(final T[] vec) {
         return elements.toArray(vec);
     }
 
+    @NotNull
     public Object[] toArray() {
         return toArray(new Object[size()]);
     }
@@ -218,6 +222,7 @@ public class ListBuffer<A> extends AbstractQueue<A> {
     /**
      * An enumeration of all elements in this buffer.
      */
+    @NotNull
     public Iterator<A> iterator() {
         return new Iterator<A>() {
             ImmutableList<A> elements = ListBuffer.this.elements;

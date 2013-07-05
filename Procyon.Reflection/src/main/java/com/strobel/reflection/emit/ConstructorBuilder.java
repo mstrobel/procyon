@@ -13,6 +13,7 @@
 
 package com.strobel.reflection.emit;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.reflection.*;
 
@@ -169,11 +170,13 @@ public final class ConstructorBuilder extends ConstructorInfo {
         return _methodBuilder.getAnnotation(annotationClass);
     }
 
+    @NotNull
     @Override
     public Annotation[] getAnnotations() {
         return _methodBuilder.getAnnotations();
     }
 
+    @NotNull
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return _methodBuilder.getDeclaredAnnotations();

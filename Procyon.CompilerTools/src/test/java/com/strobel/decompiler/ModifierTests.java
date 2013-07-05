@@ -16,7 +16,7 @@ package com.strobel.decompiler;
 import org.junit.Test;
 
 public class ModifierTests extends DecompilerTest {
-    @SuppressWarnings("UnusedParameters")
+    @SuppressWarnings({ "UnusedParameters", "FinalStaticMethod", "UnusedDeclaration" })
     strictfp static abstract class A {
         public static final int i = 0;
         protected byte b;

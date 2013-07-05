@@ -20,10 +20,10 @@ import com.strobel.core.OS;
 import java.io.PrintStream;
 
 /**
- * Ansi coloring support is provided by this class. <p> To print "hello ansi world" in bold with blue foreground and white background: <preΩ> Ansi ansi = new
+ * Ansi coloring support is provided by this class. <p> To print "hello ansi world" in bold with blue foreground and white background: <pre> Ansi ansi = new
  * Ansi(Ansi.Attribute.BRIGHT, Ansi.Color.BLUE, Ansi.Color.WHITE); ansi.{@link #out(String) out}("hello ansi world") </pre>
  *
- * same can be done as below: <preΩ> String msg = ansi.{@link #colorize(String) colorize}("hello ansi world"); // msg is original string wrapped with ansi
+ * same can be done as below: <pre> String msg = ansi.{@link #colorize(String) colorize}("hello ansi world"); // msg is original string wrapped with ansi
  * control sequences System.out.println(msg); </pre>
  *
  * <b>Ansi Support:</b> <p> Ansi might not be supported on all systems. Ansi is mostly supported by all unix operating systems. <br><br> {@link Ansi#SUPPORTED}
@@ -309,7 +309,7 @@ public class Ansi {
     }
 
     /**
-     * Wraps given <code>message</message> with special ansi control sequences and returns it
+     * Wraps given <code>message</code> with special ansi control sequences and returns it
      */
     public String colorize(final String message) {
         if (SUPPORTED) {

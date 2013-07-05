@@ -76,6 +76,7 @@ public final class Roles {
     // KEYWORD TOKENS                                                                                                     //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    public final static TokenRole DEFAULT_KEYWORD = new TokenRole("default", TokenRole.FLAG_KEYWORD);
     public final static TokenRole PACKAGE_KEYWORD = new TokenRole("package", TokenRole.FLAG_KEYWORD);
     public final static TokenRole ENUM_KEYWORD = new TokenRole("enum", TokenRole.FLAG_KEYWORD);
     public final static TokenRole INTERFACE_KEYWORD = new TokenRole("interface", TokenRole.FLAG_KEYWORD);

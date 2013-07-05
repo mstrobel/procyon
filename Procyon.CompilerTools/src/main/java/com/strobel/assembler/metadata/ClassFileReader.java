@@ -36,7 +36,7 @@ import java.util.List;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings("ConstantConditions")
+@SuppressWarnings({ "ConstantConditions", "PointlessBitwiseExpression", "UnnecessaryContinue" })
 public final class ClassFileReader extends MetadataReader {
     public final static int OPTION_PROCESS_ANNOTATIONS = 1 << 0;
     public final static int OPTION_PROCESS_CODE = 1 << 1;
@@ -566,9 +566,7 @@ public final class ClassFileReader extends MetadataReader {
 
             readAttributesPhaseOne(_buffer, typeAttributes);
 
-            for (final SourceAttribute typeAttribute : typeAttributes) {
-                _attributes.add(typeAttribute);
-            }
+            Collections.addAll(_attributes, typeAttributes);
         }
     }
 
@@ -843,6 +841,10 @@ public final class ClassFileReader extends MetadataReader {
                 methodDefinition.setName(method.name);
                 methodDefinition.setFlags(method.accessFlags);
                 methodDefinition.setDeclaringType(_typeDefinition);
+
+                if (_typeDefinition.isInterface() && !Flags.testAny(method.accessFlags, Flags.ABSTRACT)) {
+                    methodDefinition.setFlags(methodDefinition.getFlags() | Flags.DEFAULT);
+                }
 
                 _typeDefinition.getDeclaredMethodsInternal().add(methodDefinition);
                 _parser.pushGenericContext(methodDefinition);
