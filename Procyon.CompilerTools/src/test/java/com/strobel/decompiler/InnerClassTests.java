@@ -484,7 +484,7 @@ public class InnerClassTests extends DecompilerTest {
             createSettings(OPTION_INCLUDE_NESTED),
             "private static class J {\n" +
             "    Integer f(final int x, final Function<Integer, Integer> h) {\n" +
-            "        return (Integer)h.apply(Integer.valueOf(x));\n" +
+            "        return (Integer)h.apply(x);\n" +
             "    }\n" +
             "    private static final class F implements Function<Integer, Integer> {\n" +
             "        public Integer apply(final Integer x) {\n" +

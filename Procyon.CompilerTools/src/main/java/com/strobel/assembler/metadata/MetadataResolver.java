@@ -288,7 +288,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
         }
 
         if (a.isArray()) {
-            return areEquivalent(a.getUnderlyingType(), b.getUnderlyingType());
+            return areEquivalent(a.getElementType(), b.getElementType());
         }
 
         if (!StringUtilities.equals(a.getInternalName(), b.getInternalName())) {
@@ -332,7 +332,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
 
         if (b.isGenericType()) {
             if (!a.isGenericType()) {
-                return false;
+                return b.isGenericDefinition();
             }
 
             if (a.isGenericDefinition() != b.isGenericDefinition()) {

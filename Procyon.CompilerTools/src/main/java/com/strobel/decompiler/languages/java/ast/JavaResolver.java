@@ -16,15 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
-import com.strobel.assembler.metadata.BuiltinTypes;
-import com.strobel.assembler.metadata.FieldReference;
-import com.strobel.assembler.metadata.IMetadataResolver;
-import com.strobel.assembler.metadata.MemberReference;
-import com.strobel.assembler.metadata.MetadataHelper;
-import com.strobel.assembler.metadata.MetadataSystem;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
@@ -215,6 +207,29 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
             return MetadataHelper.findCommonSuperType(leftType, rightType);
         }
 
+        private TypeReference doBinaryPromotionStrict(final ResolveResult left, final ResolveResult right) {
+            if (left == null || right == null) {
+                return null;
+            }
+
+            final TypeReference leftType = left.getType();
+            final TypeReference rightType = right.getType();
+
+            if (leftType == null || rightType == null) {
+                return null;
+            }
+
+            if (StringUtilities.equals(leftType.getInternalName(), "java/lang/String")) {
+                return leftType;
+            }
+
+            if (StringUtilities.equals(rightType.getInternalName(), "java/lang/String")) {
+                return rightType;
+            }
+
+            return MetadataHelper.findCommonSuperType(leftType, rightType);
+        }
+
         @Override
         public ResolveResult visitPrimitiveExpression(final PrimitiveExpression node, final Void _) {
             final String literalValue = node.getLiteralValue();
@@ -270,6 +285,233 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                 literalValue != null ? literalValue : value
             );
         }
+
+        @Override
+        public ResolveResult visitClassOfExpression(final ClassOfExpression node, final Void data) {
+            final TypeReference type = node.getType().getUserData(Keys.TYPE_REFERENCE);
+
+            if (type == null) {
+                return null;
+            }
+
+            if (BuiltinTypes.Class.isGenericType()) {
+                return new ResolveResult(BuiltinTypes.Class.makeGenericType(type));
+            }
+
+            return new ResolveResult(BuiltinTypes.Class);
+        }
+
+        @Override
+        public ResolveResult visitCastExpression(final CastExpression node, final Void data) {
+            final ResolveResult childResult = node.getExpression().acceptVisitor(this, data);
+            final ResolveResult typeResult = resolveType(node.getType());
+
+            if (typeResult == null) {
+                return childResult;
+            }
+
+            final TypeReference resolvedType = typeResult.getType();
+
+            if (resolvedType != null) {
+                if (resolvedType.isPrimitive() &&
+                    childResult != null &&
+                    childResult.isCompileTimeConstant()) {
+
+                    return new PrimitiveResolveResult(
+                        resolvedType,
+                        JavaPrimitiveCast.cast(resolvedType.getSimpleType(), childResult.getConstantValue())
+                    );
+                }
+
+                return new ResolveResult(resolvedType);
+            }
+
+            return childResult;
+        }
+
+        @Override
+        public ResolveResult visitNullReferenceExpression(final NullReferenceExpression node, final Void data) {
+            return new ResolveResult(BuiltinTypes.Null);
+        }
+
+        @Override
+        public ResolveResult visitBinaryOperatorExpression(final BinaryOperatorExpression node, final Void data) {
+            final ResolveResult leftResult = node.getLeft().acceptVisitor(this, data);
+            final ResolveResult rightResult = node.getRight().acceptVisitor(this, data);
+
+            if (leftResult == null || rightResult == null) {
+                return null;
+            }
+
+            final TypeReference leftType = leftResult.getType();
+            final TypeReference rightType = rightResult.getType();
+
+            if (leftType == null || rightType == null) {
+                return null;
+            }
+
+            final TypeReference operandType = doBinaryPromotionStrict(leftResult, rightResult);
+
+            if (operandType == null) {
+                return null;
+            }
+
+            final TypeReference resultType;
+
+            switch (node.getOperator()) {
+                case LOGICAL_AND:
+                case LOGICAL_OR:
+                case GREATER_THAN:
+                case GREATER_THAN_OR_EQUAL:
+                case EQUALITY:
+                case INEQUALITY:
+                case LESS_THAN:
+                case LESS_THAN_OR_EQUAL:
+                    resultType = BuiltinTypes.Boolean;
+                    break;
+
+                default:
+                    resultType = operandType;
+                    break;
+            }
+
+            if (leftResult.isCompileTimeConstant() && rightResult.isCompileTimeConstant()) {
+                if (operandType.isPrimitive()) {
+                    final Object result = BinaryOperations.doBinary(
+                        node.getOperator(),
+                        operandType.getSimpleType(),
+                        leftResult.getConstantValue(),
+                        rightResult.getConstantValue()
+                    );
+
+                    if (result != null) {
+                        return new PrimitiveResolveResult(resultType, result);
+                    }
+                }
+            }
+
+            return new ResolveResult(resultType);
+        }
+
+        @Override
+        public ResolveResult visitInstanceOfExpression(final InstanceOfExpression node, final Void data) {
+            final ResolveResult childResult = node.getExpression().acceptVisitor(this, data);
+
+            if (childResult == null) {
+                return new ResolveResult(BuiltinTypes.Boolean);
+            }
+
+            final TypeReference childType = childResult.getType();
+            final ResolveResult typeResult = resolveType(node.getType());
+
+            if (childType == null || typeResult == null || typeResult.getType() == null) {
+                return new ResolveResult(BuiltinTypes.Boolean);
+            }
+
+            return new PrimitiveResolveResult(
+                BuiltinTypes.Boolean,
+                MetadataHelper.isSubType(typeResult.getType(), childType)
+            );
+        }
+
+        @Override
+        public ResolveResult visitIndexerExpression(final IndexerExpression node, final Void data) {
+            final ResolveResult childResult = node.getTarget().acceptVisitor(this, data);
+
+            if (childResult == null || childResult.getType() == null || !childResult.getType().isArray()) {
+                return null;
+            }
+
+            final TypeReference elementType = childResult.getType().getElementType();
+
+            if (elementType == null) {
+                return null;
+            }
+
+            return new ResolveResult(elementType);
+        }
+
+        @Override
+        public ResolveResult visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void data) {
+            final ResolveResult childResult = node.getExpression().acceptVisitor(this, data);
+
+            if (childResult == null || childResult.getType() == null) {
+                return null;
+            }
+
+            if (childResult.isCompileTimeConstant()) {
+                final Object resultValue = UnaryOperations.doUnary(node.getOperator(), childResult.getConstantValue());
+
+                if (resultValue != null) {
+                    return new PrimitiveResolveResult(childResult.getType(), resultValue);
+                }
+            }
+
+            return new ResolveResult(childResult.getType());
+        }
+
+        @Override
+        public ResolveResult visitConditionalExpression(final ConditionalExpression node, final Void data) {
+            final ResolveResult conditionResult = node.getCondition().acceptVisitor(this, data);
+
+            if (conditionResult != null &&
+                conditionResult.isCompileTimeConstant()) {
+
+                if (Boolean.TRUE.equals(conditionResult.getConstantValue())) {
+                    return node.getTrueExpression().acceptVisitor(this, data);
+                }
+
+                if (Boolean.FALSE.equals(conditionResult.getConstantValue())) {
+                    return node.getFalseExpression().acceptVisitor(this, data);
+                }
+            }
+
+            final TypeReference resultType = doBinaryPromotionStrict(
+                node.getTrueExpression().acceptVisitor(this, data),
+                node.getFalseExpression().acceptVisitor(this, data)
+            );
+
+            if (resultType != null) {
+                return new ResolveResult(resultType);
+            }
+
+            return null;
+        }
+
+        @Override
+        public ResolveResult visitArrayCreationExpression(final ArrayCreationExpression node, final Void data) {
+            final TypeReference elementType = node.getType().toTypeReference();
+
+            if (elementType == null) {
+                return null;
+            }
+
+            final int rank = node.getDimensions().size() + node.getAdditionalArraySpecifiers().size();
+
+            TypeReference arrayType = elementType;
+
+            for (int i = 0; i < rank; i++) {
+                arrayType = arrayType.makeArrayType();
+            }
+
+            return new ResolveResult(arrayType);
+        }
+
+        @Override
+        public ResolveResult visitAssignmentExpression(final AssignmentExpression node, final Void data) {
+            final ResolveResult leftResult = node.getLeft().acceptVisitor(this, data);
+
+            if (leftResult != null && leftResult.getType() != null) {
+                return new ResolveResult(leftResult.getType());
+            }
+
+            return null;
+        }
+
+        @Override
+        public ResolveResult visitParenthesizedExpression(final ParenthesizedExpression node, final Void data) {
+            return node.getExpression().acceptVisitor(this, data);
+        }
     }
 
     private static ResolveResult resolveTypeFromVariable(final Variable variable) {
@@ -284,6 +526,14 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         }
 
         return null;
+    }
+
+    private static ResolveResult resolveType(final AstType type) {
+        if (type == null || type.isNull()) {
+            return null;
+        }
+
+        return resolveType(type.getUserData(Keys.TYPE_REFERENCE));
     }
 
     private static ResolveResult resolveType(final TypeReference type) {
@@ -328,6 +578,650 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         @Override
         public Object getConstantValue() {
             return _value;
+        }
+    }
+
+    private final static class BinaryOperations {
+        static Object doBinary(final BinaryOperatorType operator, final JvmType type, final Object left, final Object right) {
+            switch (operator) {
+                case BITWISE_AND:
+                    return and(type, left, right);
+                case BITWISE_OR:
+                    return or(type, left, right);
+                case EXCLUSIVE_OR:
+                    return xor(type, left, right);
+
+                case LOGICAL_AND:
+                    return andAlso(left, right);
+                case LOGICAL_OR:
+                    return orElse(left, right);
+
+                case GREATER_THAN:
+                    return greaterThan(type, left, right);
+                case GREATER_THAN_OR_EQUAL:
+                    return greaterThanOrEqual(type, left, right);
+                case EQUALITY:
+                    return equal(type, left, right);
+                case INEQUALITY:
+                    return notEqual(type, left, right);
+                case LESS_THAN:
+                    return lessThan(type, left, right);
+                case LESS_THAN_OR_EQUAL:
+                    return lessThanOrEqual(type, left, right);
+
+                case ADD:
+                    return add(type, left, right);
+                case SUBTRACT:
+                    return subtract(type, left, right);
+                case MULTIPLY:
+                    return multiply(type, left, right);
+                case DIVIDE:
+                    return divide(type, left, right);
+                case MODULUS:
+                    return remainder(type, left, right);
+
+                case SHIFT_LEFT:
+                    return leftShift(type, left, right);
+                case SHIFT_RIGHT:
+                    return rightShift(type, left, right);
+                case UNSIGNED_SHIFT_RIGHT:
+                    return unsignedRightShift(type, left, right);
+
+                default:
+                    return null;
+            }
+        }
+
+        private static Object add(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                        return (byte) (((Number) left).intValue() + ((Number) right).intValue());
+                    case Character:
+                        return (char) ((Number) left).intValue() + ((Number) right).intValue();
+                    case Short:
+                        return (short) ((Number) left).intValue() + ((Number) right).intValue();
+                    case Integer:
+                        return ((Number) left).intValue() + ((Number) right).intValue();
+                    case Long:
+                        return ((Number) left).longValue() + ((Number) right).longValue();
+                    case Float:
+                        return ((Number) left).floatValue() + ((Number) right).floatValue();
+                    case Double:
+                        return ((Number) left).doubleValue() + ((Number) right).doubleValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Object subtract(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                        return (byte) (((Number) left).intValue() - ((Number) right).intValue());
+                    case Character:
+                        return (char) ((Number) left).intValue() - ((Number) right).intValue();
+                    case Short:
+                        return (short) ((Number) left).intValue() - ((Number) right).intValue();
+                    case Integer:
+                        return ((Number) left).intValue() - ((Number) right).intValue();
+                    case Long:
+                        return ((Number) left).longValue() - ((Number) right).longValue();
+                    case Float:
+                        return ((Number) left).floatValue() - ((Number) right).floatValue();
+                    case Double:
+                        return ((Number) left).doubleValue() - ((Number) right).doubleValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Object multiply(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                        return (byte) (((Number) left).intValue() * ((Number) right).intValue());
+                    case Character:
+                        return (char) ((Number) left).intValue() * ((Number) right).intValue();
+                    case Short:
+                        return (short) ((Number) left).intValue() * ((Number) right).intValue();
+                    case Integer:
+                        return ((Number) left).intValue() * ((Number) right).intValue();
+                    case Long:
+                        return ((Number) left).longValue() * ((Number) right).longValue();
+                    case Float:
+                        return ((Number) left).floatValue() * ((Number) right).floatValue();
+                    case Double:
+                        return ((Number) left).doubleValue() * ((Number) right).doubleValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Object divide(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                        return (byte) (((Number) left).intValue() / ((Number) right).intValue());
+                    case Character:
+                        return (char) ((Number) left).intValue() / ((Number) right).intValue();
+                    case Short:
+                        return (short) ((Number) left).intValue() / ((Number) right).intValue();
+                    case Integer:
+                        return ((Number) left).intValue() / ((Number) right).intValue();
+                    case Long:
+                        return ((Number) left).longValue() / ((Number) right).longValue();
+                    case Float:
+                        return ((Number) left).floatValue() / ((Number) right).floatValue();
+                    case Double:
+                        return ((Number) left).doubleValue() / ((Number) right).doubleValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Object remainder(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                        return (byte) (((Number) left).intValue() % ((Number) right).intValue());
+                    case Character:
+                        return (char) ((Number) left).intValue() % ((Number) right).intValue();
+                    case Short:
+                        return (short) ((Number) left).intValue() % ((Number) right).intValue();
+                    case Integer:
+                        return ((Number) left).intValue() % ((Number) right).intValue();
+                    case Long:
+                        return ((Number) left).longValue() % ((Number) right).longValue();
+                    case Float:
+                        return ((Number) left).floatValue() % ((Number) right).floatValue();
+                    case Double:
+                        return ((Number) left).doubleValue() % ((Number) right).doubleValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Object and(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                        return (byte) (((Number) left).intValue() & ((Number) right).intValue());
+                    case Character:
+                        return (char) ((Number) left).intValue() & ((Number) right).intValue();
+                    case Short:
+                        return (short) ((Number) left).intValue() & ((Number) right).intValue();
+                    case Integer:
+                        return ((Number) left).intValue() & ((Number) right).intValue();
+                    case Long:
+                        return ((Number) left).longValue() & ((Number) right).longValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Object or(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                        return (byte) (((Number) left).intValue() | ((Number) right).intValue());
+                    case Character:
+                        return (char) ((Number) left).intValue() | ((Number) right).intValue();
+                    case Short:
+                        return (short) ((Number) left).intValue() | ((Number) right).intValue();
+                    case Integer:
+                        return ((Number) left).intValue() | ((Number) right).intValue();
+                    case Long:
+                        return ((Number) left).longValue() | ((Number) right).longValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Object xor(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                        return (byte) (((Number) left).intValue() ^ ((Number) right).intValue());
+                    case Character:
+                        return (char) ((Number) left).intValue() ^ ((Number) right).intValue();
+                    case Short:
+                        return (short) ((Number) left).intValue() ^ ((Number) right).intValue();
+                    case Integer:
+                        return ((Number) left).intValue() ^ ((Number) right).intValue();
+                    case Long:
+                        return ((Number) left).longValue() ^ ((Number) right).longValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Object leftShift(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                        return (byte) (((Number) left).intValue() << ((Number) right).intValue());
+                    case Character:
+                        return (char) ((Number) left).intValue() << ((Number) right).intValue();
+                    case Short:
+                        return (short) ((Number) left).intValue() << ((Number) right).intValue();
+                    case Integer:
+                        return ((Number) left).intValue() << ((Number) right).intValue();
+                    case Long:
+                        return ((Number) left).longValue() << ((Number) right).longValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Object rightShift(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                        return (byte) (((Number) left).intValue() >> ((Number) right).intValue());
+                    case Character:
+                        return (char) ((Number) left).intValue() >> ((Number) right).intValue();
+                    case Short:
+                        return (short) ((Number) left).intValue() >> ((Number) right).intValue();
+                    case Integer:
+                        return ((Number) left).intValue() >> ((Number) right).intValue();
+                    case Long:
+                        return ((Number) left).longValue() >> ((Number) right).longValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Object unsignedRightShift(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                        return (byte) (((Number) left).intValue() >>> ((Number) right).intValue());
+                    case Character:
+                        return (char) ((Number) left).intValue() >>> ((Number) right).intValue();
+                    case Short:
+                        return (short) ((Number) left).intValue() >>> ((Number) right).intValue();
+                    case Integer:
+                        return ((Number) left).intValue() >>> ((Number) right).intValue();
+                    case Long:
+                        return ((Number) left).longValue() >>> ((Number) right).longValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Object andAlso(final Object left, final Object right) {
+            return Boolean.TRUE.equals(asBoolean(left)) &&
+                   Boolean.TRUE.equals(asBoolean(right));
+        }
+
+        private static Object orElse(final Object left, final Object right) {
+            return Boolean.TRUE.equals(asBoolean(left)) ||
+                   Boolean.TRUE.equals(asBoolean(right));
+        }
+
+        private static Boolean asBoolean(final Object o) {
+            if (o instanceof Boolean) {
+                return (Boolean) o;
+            }
+            else if (o instanceof Number) {
+                final Number n = (Number) o;
+
+                if (o instanceof Float) {
+                    return n.floatValue() != 0f;
+                }
+                else if (o instanceof Double) {
+                    return n.doubleValue() != 0f;
+                }
+                else {
+                    return n.longValue() != 0L;
+                }
+            }
+
+            return null;
+        }
+
+        private static Boolean lessThan(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                    case Character:
+                    case Short:
+                    case Integer:
+                    case Long:
+                        return ((Number) left).longValue() < ((Number) right).longValue();
+                    case Float:
+                        return ((Number) left).floatValue() < ((Number) right).floatValue();
+                    case Double:
+                        return ((Number) left).doubleValue() < ((Number) right).doubleValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Boolean lessThanOrEqual(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                    case Character:
+                    case Short:
+                    case Integer:
+                    case Long:
+                        return ((Number) left).longValue() <= ((Number) right).longValue();
+                    case Float:
+                        return ((Number) left).floatValue() <= ((Number) right).floatValue();
+                    case Double:
+                        return ((Number) left).doubleValue() <= ((Number) right).doubleValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Boolean greaterThan(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                    case Character:
+                    case Short:
+                    case Integer:
+                    case Long:
+                        return ((Number) left).longValue() > ((Number) right).longValue();
+                    case Float:
+                        return ((Number) left).floatValue() > ((Number) right).floatValue();
+                    case Double:
+                        return ((Number) left).doubleValue() > ((Number) right).doubleValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Boolean greaterThanOrEqual(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                    case Character:
+                    case Short:
+                    case Integer:
+                    case Long:
+                        return ((Number) left).longValue() >= ((Number) right).longValue();
+                    case Float:
+                        return ((Number) left).floatValue() >= ((Number) right).floatValue();
+                    case Double:
+                        return ((Number) left).doubleValue() >= ((Number) right).doubleValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Boolean equal(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                    case Character:
+                    case Short:
+                    case Integer:
+                    case Long:
+                        return ((Number) left).longValue() == ((Number) right).longValue();
+                    case Float:
+                        return ((Number) left).floatValue() == ((Number) right).floatValue();
+                    case Double:
+                        return ((Number) left).doubleValue() == ((Number) right).doubleValue();
+                }
+            }
+
+            return null;
+        }
+
+        private static Boolean notEqual(final JvmType type, final Object left, final Object right) {
+            if (left instanceof Number && right instanceof Number) {
+                switch (type) {
+                    case Byte:
+                    case Character:
+                    case Short:
+                    case Integer:
+                    case Long:
+                        return ((Number) left).longValue() != ((Number) right).longValue();
+                    case Float:
+                        return ((Number) left).floatValue() != ((Number) right).floatValue();
+                    case Double:
+                        return ((Number) left).doubleValue() != ((Number) right).doubleValue();
+                }
+            }
+
+            return null;
+        }
+    }
+
+    private final static class UnaryOperations {
+        static Object doUnary(final UnaryOperatorType operator, final Object operand) {
+            switch (operator) {
+                case NOT:
+                    return isFalse(operand);
+                case BITWISE_NOT:
+                    return not(operand);
+                case MINUS:
+                    return minus(operand);
+                case PLUS:
+                    return plus(operand);
+                case INCREMENT:
+                    return preIncrement(operand);
+                case DECREMENT:
+                    return preDecrement(operand);
+                case POST_INCREMENT:
+                    return postIncrement(operand);
+                case POST_DECREMENT:
+                    return postDecrement(operand);
+            }
+
+            return null;
+        }
+
+        private static Object isFalse(final Object operand) {
+            if (Boolean.TRUE.equals(operand)) {
+                return Boolean.FALSE;
+            }
+
+            if (Boolean.FALSE.equals(operand)) {
+                return Boolean.TRUE;
+            }
+
+            if (operand instanceof Number) {
+                final Number n = (Number) operand;
+
+                if (n instanceof Float) {
+                    return n.floatValue() != 0f;
+                }
+
+                if (n instanceof Double) {
+                    return n.doubleValue() != 0d;
+                }
+
+                return n.longValue() != 0L;
+            }
+
+            return null;
+        }
+
+        private static Object not(final Object operand) {
+            if (operand instanceof Number) {
+                final Number n = (Number) operand;
+
+                if (n instanceof Byte) {
+                    return ~n.byteValue();
+                }
+
+                if (n instanceof Short) {
+                    return ~n.shortValue();
+                }
+
+                if (n instanceof Integer) {
+                    return ~n.intValue();
+                }
+
+                if (n instanceof Long) {
+                    return ~n.longValue();
+                }
+            }
+            else if (operand instanceof Character) {
+                return ~((Character) operand);
+            }
+
+            return null;
+        }
+
+        private static Object minus(final Object operand) {
+            if (operand instanceof Number) {
+                final Number n = (Number) operand;
+
+                if (n instanceof Byte) {
+                    return -n.byteValue();
+                }
+
+                if (n instanceof Short) {
+                    return -n.shortValue();
+                }
+
+                if (n instanceof Integer) {
+                    return -n.intValue();
+                }
+
+                if (n instanceof Long) {
+                    return -n.longValue();
+                }
+            }
+            else if (operand instanceof Character) {
+                return -((Character) operand);
+            }
+
+            return null;
+        }
+
+        private static Object plus(final Object operand) {
+            if (operand instanceof Number) {
+                final Number n = (Number) operand;
+
+                if (n instanceof Byte) {
+                    return +n.byteValue();
+                }
+
+                if (n instanceof Short) {
+                    return +n.shortValue();
+                }
+
+                if (n instanceof Integer) {
+                    return +n.intValue();
+                }
+
+                if (n instanceof Long) {
+                    return +n.longValue();
+                }
+            }
+            else if (operand instanceof Character) {
+                return +((Character) operand);
+            }
+
+            return null;
+        }
+
+        private static Object preIncrement(final Object operand) {
+            if (operand instanceof Number) {
+                final Number n = (Number) operand;
+
+                if (n instanceof Byte) {
+                    byte b = n.byteValue();
+                    return ++b;
+                }
+
+                if (n instanceof Short) {
+                    short s = n.shortValue();
+                    return ++s;
+                }
+
+                if (n instanceof Integer) {
+                    int i = n.intValue();
+                    return ++i;
+                }
+
+                if (n instanceof Long) {
+                    long l = n.longValue();
+                    return ++l;
+                }
+            }
+            else if (operand instanceof Character) {
+                char c = ((Character) operand);
+                return ++c;
+            }
+
+            return null;
+        }
+
+        private static Object preDecrement(final Object operand) {
+            if (operand instanceof Number) {
+                final Number n = (Number) operand;
+
+                if (n instanceof Byte) {
+                    byte b = n.byteValue();
+                    return --b;
+                }
+
+                if (n instanceof Short) {
+                    short s = n.shortValue();
+                    return --s;
+                }
+
+                if (n instanceof Integer) {
+                    int i = n.intValue();
+                    return --i;
+                }
+
+                if (n instanceof Long) {
+                    long l = n.longValue();
+                    return --l;
+                }
+            }
+            else if (operand instanceof Character) {
+                char c = ((Character) operand);
+                return --c;
+            }
+
+            return null;
+        }
+
+        private static Object postIncrement(final Object operand) {
+            if (operand instanceof Number) {
+                return operand;
+            }
+            else if (operand instanceof Character) {
+                return operand;
+            }
+
+            return null;
+        }
+
+        private static Object postDecrement(final Object operand) {
+            if (operand instanceof Number) {
+                return operand;
+            }
+            else if (operand instanceof Character) {
+                return operand;
+            }
+
+            return null;
         }
     }
 }

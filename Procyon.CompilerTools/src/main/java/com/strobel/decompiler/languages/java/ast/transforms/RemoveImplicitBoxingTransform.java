@@ -88,15 +88,18 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
         if (node.getArguments().size() == 1 &&
             node.getTarget() instanceof MemberReferenceExpression &&
-            isValidPrimitiveParent(node.getParent())) {
+            isValidPrimitiveParent(node, node.getParent())) {
 
             removeBoxing(node);
+        }
+        else {
+            unbox(node);
         }
 
         return null;
     }
 
-    private boolean isValidPrimitiveParent(final AstNode parent) {
+    private boolean isValidPrimitiveParent(final AstNode node, final AstNode parent) {
         if (parent instanceof BinaryOperatorExpression) {
             final BinaryOperatorExpression binary = (BinaryOperatorExpression) parent;
 
@@ -111,11 +114,8 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         }
 
         return !(
-            parent instanceof MemberReferenceExpression ||
+            parent.getChildByRole(Roles.TARGET_EXPRESSION) == node ||
             parent instanceof ClassOfExpression ||
-            parent instanceof MethodGroupExpression ||
-            parent instanceof InvocationExpression ||
-            parent instanceof IndexerExpression ||
             parent instanceof SynchronizedStatement ||
             parent instanceof ThrowStatement
         );
@@ -180,7 +180,9 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         final String key = reference.getFullName() + ":" + reference.getSignature();
 
         if (BOX_METHODS.contains(key)) {
-            final Expression underlyingValue = node.getArguments().firstOrNullObject();
+            final AstNodeCollection<Expression> arguments = node.getArguments();
+            final Expression underlyingValue = arguments.firstOrNullObject();
+
             underlyingValue.remove();
             node.replaceWith(underlyingValue);
         }

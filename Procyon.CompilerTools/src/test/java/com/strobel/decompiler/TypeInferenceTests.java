@@ -1,6 +1,10 @@
 package com.strobel.decompiler;
 
+import com.strobel.util.EmptyArrayCache;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class TypeInferenceTests extends DecompilerTest {
     private static class A {
@@ -36,6 +40,24 @@ public class TypeInferenceTests extends DecompilerTest {
             System.out.println(n4);
             System.out.println(n4 == 1.0);
             System.out.println(n4 * 2.7182818459);
+        }
+    }
+
+    private interface C {
+        public static final Integer[] EMPTY_ARRAY = EmptyArrayCache.fromElementType(Integer.class);
+    }
+
+    private interface D {
+        public static final List<Integer> EMPTY_ARRAY = Arrays.asList(1, 2, 3, 4, 5);
+    }
+
+    private static class E {
+        Integer[] f(final Integer[] array) {
+            return array;
+        }
+
+        public void test() {
+            this.f(new Integer[0]);
         }
     }
 
@@ -79,6 +101,44 @@ public class TypeInferenceTests extends DecompilerTest {
             "        System.out.println(n4);\n" +
             "        System.out.println(n4 == 1.0);\n" +
             "        System.out.println(n4 * 2.7182818459);\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testClassArgument() throws Throwable {
+        verifyOutput(
+            C.class,
+            defaultSettings(),
+            "private interface C {\n" +
+            "    public static final Integer[] EMPTY_ARRAY = (Integer[])EmptyArrayCache.fromElementType(Integer.class);\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testGenericArrayArgument() throws Throwable {
+        verifyOutput(
+            D.class,
+            defaultSettings(),
+            "private interface D {\n" +
+            "    public static final List<Integer> EMPTY_ARRAY = Arrays.asList(new Integer[] { 1, 2, 3, 4, 5 });\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testMatchingArrayArgument() throws Throwable {
+        verifyOutput(
+            E.class,
+            defaultSettings(),
+            "private static class E {\n" +
+            "    Integer[] f(final Integer[] array) {\n" +
+            "        return array;\n" +
+            "    }\n" +
+            "    public void test() {\n" +
+            "        this.f(new Integer[0]);\n" +
             "    }\n" +
             "}\n"
         );

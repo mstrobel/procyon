@@ -75,6 +75,12 @@ public final class GenericParameter extends TypeDefinition {
     }
 
     @Override
+    public TypeReference getUnderlyingType() {
+        final TypeReference extendsBound = getExtendsBound();
+        return extendsBound != null ? extendsBound : BuiltinTypes.Object;
+    }
+
+    @Override
     public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
         return visitor.visitGenericParameter(this, parameter);
     }

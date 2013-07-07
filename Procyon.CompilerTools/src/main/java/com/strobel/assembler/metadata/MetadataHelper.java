@@ -164,32 +164,44 @@ public final class MetadataHelper {
         VerifyArgument.notNull(source, "source");
         VerifyArgument.notNull(target, "target");
 
+        if (target == source) {
+            return true;
+        }
+
+        if (target.isArray()) {
+            return source.isArray() &&
+                   isAssignableFrom(target.getElementType(), source.getElementType());
+        }
+
         if (target.isPrimitive()) {
-            final JvmType targetJvmType = target.getSimpleType();
-            final JvmType sourceJvmType = source.getSimpleType();
-
-            if (targetJvmType == sourceJvmType) {
-                return true;
-            }
-
-            if (sourceJvmType == JvmType.Boolean) {
+            if (source == BuiltinTypes.Null) {
                 return false;
             }
 
-            if (targetJvmType.isIntegral()) {
-                return sourceJvmType.isIntegral() &&
-                       sourceJvmType.bitWidth() <= targetJvmType.bitWidth();
-            }
+            final JvmType targetJvmType = target.getSimpleType();
+            final JvmType sourceJvmType = source.getSimpleType();
 
-            if (targetJvmType.isFloating()) {
-                return sourceJvmType.isFloating() &&
-                       sourceJvmType.bitWidth() <= targetJvmType.bitWidth();
-            }
+            switch (targetJvmType) {
+                case Boolean:
+                case Character:
+                    return targetJvmType == sourceJvmType;
 
-            return false;
+                case Float:
+                case Double:
+                    return sourceJvmType.isFloating() &&
+                           sourceJvmType.bitWidth() <= targetJvmType.bitWidth();
+
+                case Byte:
+                case Short:
+                case Integer:
+                case Long:
+                    return sourceJvmType.isIntegral() &&
+                           sourceJvmType.bitWidth() <= targetJvmType.bitWidth();
+            }
         }
 
-        return BuiltinTypes.Object.equals(target) ||
+        return source == BuiltinTypes.Null ||
+               BuiltinTypes.Object.equals(target) ||
                isSubType(source, target);
     }
 

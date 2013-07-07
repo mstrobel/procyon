@@ -27,6 +27,7 @@ import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.PlainTextOutput;
 import com.strobel.decompiler.ast.*;
 import com.strobel.decompiler.ast.Label;
+import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
@@ -791,10 +792,20 @@ public class AstMethodBodyBuilder {
                 return transformCall(false, byteCode, arguments);
 
             case InitArray: {
-                final ArrayCreationExpression arrayInitialization = new ArrayCreationExpression();
-                arrayInitialization.setType(operandType);
-                arrayInitialization.setInitializer(new ArrayInitializerExpression(arguments));
-                return arrayInitialization;
+                final ArrayCreationExpression arrayCreation = new ArrayCreationExpression();
+
+                TypeReference elementType = operandType.getUserData(Keys.TYPE_REFERENCE);
+
+                while (elementType.isArray()) {
+                    arrayCreation.getAdditionalArraySpecifiers().add(new ArraySpecifier());
+                    elementType = elementType.getElementType();
+                }
+
+                arrayCreation.setType(_astBuilder.convertType(elementType));
+                arrayCreation.setInitializer(new ArrayInitializerExpression(arguments));
+
+                return arrayCreation;
+
             }
 
             case Wrap:
@@ -979,16 +990,60 @@ public class AstMethodBodyBuilder {
                                 ++start;
                             }
 
-                            return arguments.subList(start, end);
+                            return adjustArgumentsForMethodCall(
+                                method.getParameters().subList(start, end),
+                                arguments.subList(start, end)
+                            );
                         }
                     }
                 }
             }
         }
-        //
-        // TODO: Convert arguments.
-        //
+
+        return adjustArgumentsForMethodCall(method.getParameters(), arguments);
+    }
+
+    private List<Expression> adjustArgumentsForMethodCall(final List<ParameterDefinition> parameters, final List<Expression> arguments) {
+        assert parameters.size() == arguments.size();
+
+        final JavaResolver resolver = new JavaResolver(_context);
+
+        for (int i = 0, n = arguments.size(); i < n; i++) {
+            final Expression argument = arguments.get(i);
+            final ResolveResult resolvedArgument = resolver.apply(argument);
+
+            if (resolvedArgument == null) {
+                continue;
+            }
+
+            final TypeReference argumentType = resolvedArgument.getType();
+            final ParameterDefinition parameter = parameters.get(i);
+            final TypeReference parameterType = parameter.getParameterType();
+
+            if (isCastRequired(parameterType, argumentType)) {
+                arguments.set(
+                    i,
+                    new CastExpression(
+                        _astBuilder.convertType(parameterType),
+                        argument
+                    )
+                );
+            }
+        }
+
         return arguments;
+    }
+
+    private boolean isCastRequired(final TypeReference targetType, final TypeReference sourceType) {
+        if (targetType == null || sourceType == null) {
+            return false;
+        }
+
+        if (targetType.isPrimitive()) {
+            return sourceType.getSimpleType() != targetType.getSimpleType();
+        }
+
+        return !MetadataHelper.isAssignableFrom(targetType, sourceType);
     }
 
     private static Expression inlineAssembly(final com.strobel.decompiler.ast.Expression byteCode, final List<Expression> arguments) {

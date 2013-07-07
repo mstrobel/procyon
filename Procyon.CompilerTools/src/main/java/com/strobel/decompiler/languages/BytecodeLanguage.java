@@ -462,7 +462,7 @@ public class BytecodeLanguage extends Language {
                 final ParameterDefinition parameter = parameters.get(i);
 
                 if (Flags.testAny(flags, Flags.ACC_VARARGS | Flags.VARARGS) && i == parameters.size() - 1) {
-                    DecompilerHelpers.writeType(output, parameter.getParameterType().getUnderlyingType(), NameSyntax.TYPE_NAME, false);
+                    DecompilerHelpers.writeType(output, parameter.getParameterType().getElementType(), NameSyntax.TYPE_NAME, false);
                     output.writeDelimiter("...");
                 }
                 else {

@@ -27,14 +27,14 @@ import com.strobel.io.PathHelper;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Stack;
 
 public class InputTypeLoader implements ITypeLoader {
     private final ITypeLoader _defaultTypeLoader;
-    private final Map<String, List<File>> _packageLocations;
+    private final Map<String, LinkedHashSet<File>> _packageLocations;
     private final Map<String, File> _knownFiles;
 
     public InputTypeLoader() {
@@ -106,12 +106,8 @@ public class InputTypeLoader implements ITypeLoader {
 
         final int lastSeparatorIndex = filePath.lastIndexOf(File.separatorChar);
 
-        if (lastSeparatorIndex >= 0 &&
-            tryLoadFile(internalName, filePath.substring(lastSeparatorIndex + 1), buffer)) {
-            return true;
-        }
-
-        return false;
+        return lastSeparatorIndex >= 0 &&
+               tryLoadFile(internalName, filePath.substring(lastSeparatorIndex + 1), buffer);
     }
 
     private boolean tryLoadFromKnownLocation(final String internalName, final Buffer buffer) {
@@ -135,7 +131,7 @@ public class InputTypeLoader implements ITypeLoader {
             className = internalName.substring(packageEnd + 1);
         }
 
-        final List<File> directories = _packageLocations.get(packageName);
+        final LinkedHashSet<File> directories = _packageLocations.get(packageName);
 
         if (directories != null) {
             for (final File directory : directories) {
@@ -177,6 +173,7 @@ public class InputTypeLoader implements ITypeLoader {
             return false;
         }
     }
+
     private boolean tryLoadFile(final String internalName, final String typeNameOrPath, final Buffer buffer) {
         final File file = new File(typeNameOrPath);
 
@@ -204,17 +201,7 @@ public class InputTypeLoader implements ITypeLoader {
                 packageName = name.substring(0, packageEnd);
             }
 
-            List<File> directories = _packageLocations.get(packageName);
-
-            if (directories == null) {
-                _packageLocations.put(packageName, directories = new ArrayList<>());
-            }
-
-            final File directory = file.getParentFile();
-
-            if (!directories.contains(directory)) {
-                directories.add(directory);
-            }
+            registerKnownPath(packageName, file.getParentFile(), pathMatchesName);
 
             _knownFiles.put(actualName, file);
         }
@@ -223,6 +210,79 @@ public class InputTypeLoader implements ITypeLoader {
         }
 
         return result;
+    }
+
+    private void registerKnownPath(final String packageName, final File directory, final boolean recursive) {
+        if (directory == null || !directory.exists()) {
+            return;
+        }
+
+        LinkedHashSet<File> directories = _packageLocations.get(packageName);
+
+        if (directories == null) {
+            _packageLocations.put(packageName, directories = new LinkedHashSet<>());
+        }
+
+        directories.add(directory);
+
+        if (!recursive) {
+            return;
+        }
+
+        try {
+            final String directoryPath = StringUtilities.removeRight(
+                directory.getCanonicalPath(),
+                new char[] { PathHelper.DirectorySeparator, PathHelper.AlternateDirectorySeparator }
+            ).replace('\\', '/');
+
+            final int delimiterIndex = packageName.indexOf('/');
+            final String rootPackage = delimiterIndex < 0 ? packageName : packageName.substring(0, delimiterIndex);
+
+            if (directoryPath.endsWith(packageName)) {
+                final String pathLeft = StringUtilities.removeRight(directoryPath, packageName);
+                final File rootDirectory = new File(PathHelper.combine(pathLeft, rootPackage));
+
+                if (rootDirectory.exists()) {
+                    final Stack<File> stack = new Stack<>();
+
+                    stack.add(rootDirectory);
+
+                    while (!stack.isEmpty()) {
+                        final File currentDirectory = stack.pop();
+
+                        final String currentPath = StringUtilities.removeRight(
+                            currentDirectory.getCanonicalPath(),
+                            new char[] { PathHelper.DirectorySeparator, PathHelper.AlternateDirectorySeparator }
+                        ).replace('\\', '/');
+
+                        final String currentPackage = StringUtilities.removeLeft(currentPath, pathLeft);
+
+                        //noinspection StringEquality
+                        if (currentPackage != currentPath) {
+                            directories = _packageLocations.get(currentPackage);
+
+                            if (directories == null) {
+                                _packageLocations.put(currentPackage, directories = new LinkedHashSet<>());
+                            }
+
+                            directories.add(currentDirectory);
+                        }
+
+                        final File[] files = currentDirectory.listFiles();
+
+                        if (files != null) {
+                            for (final File file : files) {
+                                if (file.isDirectory()) {
+                                    stack.push(file);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (IOException ignored) {
+        }
     }
 
     private static String getInternalNameFromClassFile(final Buffer b) {

@@ -1512,7 +1512,7 @@ public final class AstOptimizer {
             }
 
             final Expression add = storeCode == AstCode.Inc ? nextExpression : nextExpression.getArguments().get(0);
-            final StrongBox<Integer> incrementAmount = new StrongBox<>();
+            final StrongBox<Number> incrementAmount = new StrongBox<>();
             final AstCode incrementCode = getIncrementCode(add, incrementAmount);
 
             if (incrementCode == AstCode.Nop || !(match(add, AstCode.Inc) || match(add.getArguments().get(0), AstCode.Load))) {
@@ -1545,7 +1545,7 @@ public final class AstOptimizer {
             return null;
         }
 
-        private AstCode getIncrementCode(final Expression add, final StrongBox<Integer> incrementAmount) {
+        private AstCode getIncrementCode(final Expression add, final StrongBox<Number> incrementAmount) {
             final AstCode incrementCode;
             final Expression amountArgument;
             final boolean decrement;
@@ -1577,11 +1577,15 @@ public final class AstOptimizer {
                 }
             }
 
-            if (matchGetOperand(amountArgument, AstCode.LdC, incrementAmount)) {
-                if (incrementAmount.get() == 1 || incrementAmount.get() == -1) {
-                    if (decrement) {
-                        incrementAmount.set(-incrementAmount.get());
-                    }
+            if (matchGetOperand(amountArgument, AstCode.LdC, incrementAmount) &&
+                !(incrementAmount.get() instanceof Float ||
+                  incrementAmount.get() instanceof Double)) {
+
+                if (incrementAmount.get().longValue() == 1L || incrementAmount.get().longValue() == -1L) {
+                    incrementAmount.set(
+                        decrement ? -incrementAmount.get().intValue()
+                                  : incrementAmount.get().intValue()
+                    );
                     return incrementCode;
                 }
             }

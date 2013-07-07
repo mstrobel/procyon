@@ -76,7 +76,7 @@ public class OperatorTests extends DecompilerTest {
             defaultSettings(),
             "private static class A {\n" +
             "    public String test(final String s, final char c, final byte b, final float n, final Date date) {\n" +
-            "        return b + \":\" + c + \":\" + s + \":\" + n + \":\" + date;\n" +
+            "        return (int)b + \":\" + c + \":\" + s + \":\" + n + \":\" + date;\n" +
             "    }\n" +
             "}\n"
         );

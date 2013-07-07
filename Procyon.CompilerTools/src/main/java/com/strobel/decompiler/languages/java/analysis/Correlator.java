@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+@SuppressWarnings("ConstantConditions")
 public final class Correlator {
     public static boolean areCorrelated(final Expression readExpression, final Statement writeStatement) {
         final Set<IMetadataTypeMember> readMembers = new LinkedHashSet<>();
@@ -109,6 +110,7 @@ public final class Correlator {
                     members.add(member);
                 }
 
+                //noinspection UnnecessaryContinue
                 continue;
             }
         }

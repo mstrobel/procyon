@@ -77,7 +77,7 @@ public final class ArrayType extends TypeReference {
 
     @Override
     public final TypeReference getUnderlyingType() {
-        return _elementType;
+        return _elementType.getUnderlyingType();
     }
 
     @Override

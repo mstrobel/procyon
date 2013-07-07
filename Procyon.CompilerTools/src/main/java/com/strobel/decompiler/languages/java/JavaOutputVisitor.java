@@ -2135,7 +2135,6 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         boolean needType = true;
 
         if (node.getDimensions().isEmpty() &&
-            node.getAdditionalArraySpecifiers().isEmpty() &&
             node.getType() != null &&
             (node.getParent() instanceof ArrayInitializerExpression ||
              node.getParent() instanceof VariableInitializer)) {

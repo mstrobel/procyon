@@ -34,6 +34,7 @@ public final class BuiltinTypes {
     public final static TypeDefinition Object;
     public final static TypeDefinition Bottom;
     public final static TypeDefinition Null;
+    public final static TypeDefinition Class;
 
     static {
         Boolean = new PrimitiveType(JvmType.Boolean);
@@ -58,6 +59,14 @@ public final class BuiltinTypes {
         final MetadataSystem metadataSystem = MetadataSystem.instance();
 
         Object = ClassFileReader.readClass(metadataSystem, buffer);
+
+        buffer.reset();
+
+        if (!typeLoader.tryLoadType("java/lang/Class", buffer)) {
+            throw Error.couldNotLoadClassType();
+        }
+
+        Class = ClassFileReader.readClass(metadataSystem, buffer);
     }
 
     public static TypeDefinition fromPrimitiveTypeCode(final int code) {

@@ -20,6 +20,7 @@ import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MemberReference;
+import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MetadataResolver;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -1192,7 +1193,10 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
         final TypeReference typeReference = type.getType().getUserData(Keys.TYPE_REFERENCE);
 
-        if (typeReference != null && MetadataResolver.areEquivalent(context.getCurrentType(), typeReference)) {
+        if (typeReference != null &&
+            (MetadataResolver.areEquivalent(context.getCurrentType(), typeReference) ||
+             MetadataHelper.isEnclosedBy(context.getCurrentType(), typeReference))) {
+
             parent.remove();
 
             if (staticInitializer.getBody().getStatements().isEmpty()) {
