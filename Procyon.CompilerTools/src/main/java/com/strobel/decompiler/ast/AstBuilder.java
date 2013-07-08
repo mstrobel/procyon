@@ -30,6 +30,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.InstructionHelper;
 
+import java.io.File;
 import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
@@ -247,6 +248,16 @@ public final class AstBuilder {
 
         cfg.computeDominance();
         cfg.computeDominanceFrontier();
+
+        cfg.export(
+            new File(
+                format(
+                    "w:/dump/%s_%s.gv",
+                    _body.getMethod().getDeclaringType().getFullName().replace('$', '.'),
+                    _body.getMethod().getName().replace('<', '_').replace('>', '_')
+                )
+            )
+        );
 
         for (int i = 0; i < exceptionHandlers.size(); i++) {
             final ExceptionHandler handler = exceptionHandlers.get(i);

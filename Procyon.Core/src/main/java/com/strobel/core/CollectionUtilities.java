@@ -13,6 +13,7 @@
 
 package com.strobel.core;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
@@ -109,6 +110,39 @@ public final class CollectionUtilities {
         }
 
         return last;
+    }
+
+    public static <T> int firstIndexWhere(final Iterable<T> collection, final Predicate<T> predicate) {
+        VerifyArgument.notNull(collection, "collection");
+        VerifyArgument.notNull(predicate, "predicate");
+
+        int index = 0;
+
+        for (final T item : VerifyArgument.notNull(collection, "collection")) {
+            if (predicate.test(item)) {
+                return index;
+            }
+            ++index;
+        }
+
+        return -1;
+    }
+
+    public static <T> int lastIndexWhere(final Iterable<T> collection, final Predicate<T> predicate) {
+        VerifyArgument.notNull(collection, "collection");
+        VerifyArgument.notNull(predicate, "predicate");
+
+        int index = 0;
+        int lastMatch = -1;
+
+        for (final T item : VerifyArgument.notNull(collection, "collection")) {
+            if (predicate.test(item)) {
+                lastMatch = index;
+            }
+            ++index;
+        }
+
+        return lastMatch;
     }
 
     public static <T> T lastOrDefault(final Iterable<T> collection, final Predicate<T> predicate) {
@@ -388,6 +422,7 @@ public final class CollectionUtilities {
             return next;
         }
 
+        @NotNull
         @Override
         public Iterator<T> iterator() {
             if (threadId == Thread.currentThread().getId() && state == STATE_UNINITIALIZED) {
@@ -480,6 +515,7 @@ public final class CollectionUtilities {
             return false;
         }
 
+        @NotNull
         @Override
         public Iterator<T> iterator() {
             if (threadId == Thread.currentThread().getId() && state == STATE_UNINITIALIZED) {

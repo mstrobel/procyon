@@ -140,7 +140,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
         TypeDefinition type = declaringType;
 
         while (type != null) {
-            final FieldDefinition field = getField(declaringType.getDeclaredFields(), reference);
+            final FieldDefinition field = getField(type.getDeclaredFields(), reference);
 
             if (field != null) {
                 return field;

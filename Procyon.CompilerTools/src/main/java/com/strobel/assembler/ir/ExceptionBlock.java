@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.ir;
 
+import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Range;
 
@@ -46,5 +47,28 @@ public final class ExceptionBlock {
         return range != null &&
                range.getStart() >= getFirstInstruction().getOffset() &&
                range.getEnd() <= getLastInstruction().getEndOffset();
+    }
+
+    @Override
+    public final boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+
+        if (o instanceof ExceptionBlock) {
+            final ExceptionBlock block = (ExceptionBlock) o;
+
+            return Comparer.equals(_firstInstruction, block._firstInstruction) &&
+                   Comparer.equals(_lastInstruction, block._lastInstruction);
+        }
+
+        return false;
+    }
+
+    @Override
+    public final int hashCode() {
+        int result = _firstInstruction != null ? _firstInstruction.hashCode() : 0;
+        result = 31 * result + (_lastInstruction != null ? _lastInstruction.hashCode() : 0);
+        return result;
     }
 }

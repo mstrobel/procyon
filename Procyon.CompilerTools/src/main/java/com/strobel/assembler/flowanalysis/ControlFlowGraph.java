@@ -18,10 +18,16 @@ package com.strobel.assembler.flowanalysis;
 
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.BooleanBox;
+import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.PlainTextOutput;
 import com.strobel.functions.Block;
 import com.strobel.functions.Function;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -186,5 +192,96 @@ public final class ControlFlowGraph {
         }
 
         throw new IllegalStateException("No common dominator found!");
+    }
+
+    public final void export(final File path) {
+        final PlainTextOutput output = new PlainTextOutput();
+
+        output.writeLine("digraph g {");
+        output.indent();
+
+        final Set<ControlFlowEdge> edges = new LinkedHashSet<>();
+
+        for (final ControlFlowNode node : _nodes) {
+            output.writeLine("\"%s\" [", nodeName(node));
+            output.indent();
+
+            output.writeLine(
+                "label = \"<f0> %s\"",
+                node.toString()
+                    .replace("\"", "\\\"")
+                    .replace("|", "\\|")
+                    .replace("{", "\\{")
+                    .replace("}", "\\}")
+                    .replace("<", "\\<")
+                    .replace(">", "\\>")
+            );
+
+            output.writeLine("shape = \"record\"");
+
+            output.unindent();
+            output.writeLine("];");
+
+            edges.addAll(node.getIncoming());
+            edges.addAll(node.getOutgoing());
+
+            final ControlFlowNode endFinallyNode = node.getEndFinallyNode();
+
+            if (endFinallyNode != null) {
+                output.writeLine("\"%s\" [", nodeName(endFinallyNode));
+                output.indent();
+
+                output.writeLine(
+                    "label = \"<f0> %s\"",
+                    endFinallyNode.toString()
+                                  .replace("\"", "\\\"")
+                                  .replace("|", "\\|")
+                                  .replace("{", "\\{")
+                                  .replace("}", "\\}")
+                                  .replace("<", "\\<")
+                                  .replace(">", "\\>")
+                );
+
+                output.writeLine("shape = \"record\"");
+
+                output.unindent();
+                output.writeLine("];");
+
+                edges.addAll(endFinallyNode.getIncoming());
+                edges.addAll(endFinallyNode.getOutgoing());
+                edges.add(new ControlFlowEdge(node, endFinallyNode, JumpType.EndFinally));
+            }
+        }
+
+        for (final ControlFlowEdge edge : edges) {
+            final ControlFlowNode from = edge.getSource();
+            final ControlFlowNode to = edge.getTarget();
+
+            output.writeLine("\"%s\":f0 -> \"%s\":f0 [", nodeName(from), nodeName(to));
+            output.indent();
+            output.writeLine("label = \"%s\"", edge.getType());
+            output.unindent();
+            output.writeLine("];");
+        }
+
+        output.unindent();
+        output.writeLine("}");
+
+        try (final OutputStreamWriter out = new FileWriter(path)) {
+            out.write(output.toString());
+        }
+        catch (IOException e) {
+            throw ExceptionUtilities.asRuntimeException(e);
+        }
+    }
+
+    private static String nodeName(final ControlFlowNode node) {
+        String name = "node" + node.getBlockIndex();
+
+        if (node.getNodeType() == ControlFlowNodeType.EndFinally) {
+            name += "_ef";
+        }
+
+        return name;
     }
 }

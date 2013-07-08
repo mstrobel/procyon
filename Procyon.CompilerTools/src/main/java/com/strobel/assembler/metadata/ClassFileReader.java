@@ -379,75 +379,84 @@ public final class ClassFileReader extends MetadataReader {
     // <editor-fold defaultstate="collapsed" desc="ClassReader Implementation">
 
     final TypeDefinition readClass() {
-        _resolver.pushFrame(_resolverFrame);
+        _parser.pushGenericContext(_typeDefinition);
 
         try {
-            populateMemberInfo();
-
-            SourceAttribute enclosingMethod = SourceAttribute.find(AttributeNames.EnclosingMethod, _attributes);
-
-            final MethodReference declaringMethod;
-
-            //noinspection UnusedDeclaration
-            try /*(final AutoCloseable ignored = _parser.suppressTypeResolution())*/ {
-                if (enclosingMethod instanceof BlobAttribute) {
-                    enclosingMethod = inflateAttribute(enclosingMethod);
-                }
-
-                if (enclosingMethod instanceof EnclosingMethodAttribute) {
-                    MethodReference method = ((EnclosingMethodAttribute) enclosingMethod).getEnclosingMethod();
-
-                    if (method != null) {
-                        final MethodDefinition resolvedMethod = method.resolve();
-
-                        if (resolvedMethod != null) {
-                            method = resolvedMethod;
-
-                            final AnonymousLocalTypeCollection enclosedTypes = resolvedMethod.getDeclaredTypesInternal();
-
-                            if (!enclosedTypes.contains(_typeDefinition)) {
-                                enclosedTypes.add(_typeDefinition);
-                            }
-                        }
-
-                        _typeDefinition.setDeclaringMethod(method);
-                    }
-
-                    declaringMethod = method;
-                }
-                else {
-                    declaringMethod = null;
-                }
-            }
-            catch (Exception e) {
-                throw new UndeclaredThrowableException(e);
-            }
-
-            if (declaringMethod != null) {
-                _parser.pushGenericContext(declaringMethod);
-            }
+            _resolver.pushFrame(_resolverFrame);
 
             try {
-                populateDeclaringType();
-                populateBaseTypes();
-                visitAttributes();
-                visitFields();
-                defineMethods();
-                populateNamedInnerTypes();
-                populateAnonymousInnerTypes();
-                checkEnclosingMethodAttributes();
-            }
-            finally {
+                populateMemberInfo();
+
+                SourceAttribute enclosingMethod = SourceAttribute.find(AttributeNames.EnclosingMethod, _attributes);
+
+                final MethodReference declaringMethod;
+
+                //noinspection UnusedDeclaration
+                try /*(final AutoCloseable ignored = _parser.suppressTypeResolution())*/ {
+                    if (enclosingMethod instanceof BlobAttribute) {
+                        enclosingMethod = inflateAttribute(enclosingMethod);
+                    }
+
+                    if (enclosingMethod instanceof EnclosingMethodAttribute) {
+                        MethodReference method = ((EnclosingMethodAttribute) enclosingMethod).getEnclosingMethod();
+
+                        if (method != null) {
+                            final MethodDefinition resolvedMethod = method.resolve();
+
+                            if (resolvedMethod != null) {
+                                method = resolvedMethod;
+
+                                final AnonymousLocalTypeCollection enclosedTypes = resolvedMethod.getDeclaredTypesInternal();
+
+                                if (!enclosedTypes.contains(_typeDefinition)) {
+                                    enclosedTypes.add(_typeDefinition);
+                                }
+                            }
+
+                            _typeDefinition.setDeclaringMethod(method);
+                        }
+
+                        declaringMethod = method;
+                    }
+                    else {
+                        declaringMethod = null;
+                    }
+                }
+                catch (Exception e) {
+                    throw new UndeclaredThrowableException(e);
+                }
+
                 if (declaringMethod != null) {
                     _parser.popGenericContext();
+                    _parser.pushGenericContext(declaringMethod);
+                    _parser.pushGenericContext(_typeDefinition);
+                }
+
+                try {
+                    populateDeclaringType();
+                    populateBaseTypes();
+                    visitAttributes();
+                    visitFields();
+                    defineMethods();
+                    populateNamedInnerTypes();
+                    populateAnonymousInnerTypes();
+                    checkEnclosingMethodAttributes();
+                }
+                finally {
+                    if (declaringMethod != null) {
+                        _parser.popGenericContext();
+                    }
                 }
             }
+            finally {
+                _resolver.popFrame();
+            }
+
+            return _typeDefinition;
         }
         finally {
-            _resolver.popFrame();
+            _parser.popGenericContext();
         }
-
-        return _typeDefinition;
     }
 
     private void checkEnclosingMethodAttributes() {

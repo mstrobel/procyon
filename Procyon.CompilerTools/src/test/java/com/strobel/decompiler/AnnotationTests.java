@@ -24,7 +24,7 @@ public class AnnotationTests extends DecompilerTest {
     private @interface C {
         public static final int x = 3;
         public static final int y = 3;
-        public static final Map<String, Integer> z = new HashMap();
+        public static final Map<String, Integer> z = new HashMap<String, Integer>();
 
         String value() default "wibble";
 
@@ -75,7 +75,7 @@ public class AnnotationTests extends DecompilerTest {
             "private @interface C {\n" +
             "    public static final int x = 3;\n" +
             "    public static final int y = 3;\n" +
-            "    public static final Map<String, Integer> z = new HashMap();\n" +
+            "    public static final Map<String, Integer> z = new HashMap<String, Integer>();\n" +
             "    String value() default \"wibble\";\n" +
             "    public static class A\n" +
             "    {\n" +

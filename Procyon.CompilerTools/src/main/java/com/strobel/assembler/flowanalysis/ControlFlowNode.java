@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.flowanalysis;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.ExceptionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
@@ -73,8 +74,8 @@ public final class ControlFlowNode {
 
     public ControlFlowNode(final int blockIndex, final ExceptionHandler exceptionHandler, final ControlFlowNode endFinallyNode) {
         _blockIndex = blockIndex;
-        _nodeType = endFinallyNode != null ? ControlFlowNodeType.FinallyHandler : ControlFlowNodeType.CatchHandler;
         _exceptionHandler = VerifyArgument.notNull(exceptionHandler, "exceptionHandler");
+        _nodeType = exceptionHandler.isFinally() ? ControlFlowNodeType.FinallyHandler : ControlFlowNodeType.CatchHandler;
         _endFinallyNode = endFinallyNode;
 
         final ExceptionBlock handlerBlock = exceptionHandler.getHandlerBlock();
@@ -208,6 +209,7 @@ public final class ControlFlowNode {
 
     public final Iterable<ControlFlowNode> getPredecessors() {
         return new Iterable<ControlFlowNode>() {
+            @NotNull
             @Override
             public final Iterator<ControlFlowNode> iterator() {
                 return new PredecessorIterator();
@@ -217,6 +219,7 @@ public final class ControlFlowNode {
 
     public final Iterable<ControlFlowNode> getSuccessors() {
         return new Iterable<ControlFlowNode>() {
+            @NotNull
             @Override
             public final Iterator<ControlFlowNode> iterator() {
                 return new SuccessorIterator();
@@ -226,6 +229,7 @@ public final class ControlFlowNode {
 
     public final Iterable<Instruction> getInstructions() {
         return new Iterable<Instruction>() {
+            @NotNull
             @Override
             public final Iterator<Instruction> iterator() {
                 return new InstructionIterator();
@@ -327,6 +331,7 @@ public final class ControlFlowNode {
                 StringUtilities.join(
                     ", ",
                     new Iterable<String>() {
+                        @NotNull
                         @Override
                         public Iterator<String> iterator() {
                             return new Iterator<String>() {

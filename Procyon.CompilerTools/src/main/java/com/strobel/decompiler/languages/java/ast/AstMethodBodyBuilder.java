@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.Comparer;
 import com.strobel.core.ExceptionUtilities;
@@ -176,7 +177,7 @@ public class AstMethodBodyBuilder {
             orderedParameters,
             new Comparator<Variable>() {
                 @Override
-                public int compare(final Variable p1, final Variable p2) {
+                public int compare(@NotNull final Variable p1, @NotNull final Variable p2) {
                     return Integer.compare(p1.getOriginalParameter().getSlot(), p2.getOriginalParameter().getSlot());
                 }
             }
@@ -815,7 +816,7 @@ public class AstMethodBodyBuilder {
                 return new ConditionalExpression(arg1, arg2, arg3);
 
             case LoopOrSwitchBreak:
-                return label != null ? new BreakStatement(label.getName()) : new BreakStatement();
+                return label != null ? new GotoStatement(label.getName()) : new BreakStatement();
 
             case LoopContinue:
                 return label != null ? new ContinueStatement(label.getName()) : new ContinueStatement();
@@ -891,22 +892,50 @@ public class AstMethodBodyBuilder {
         }
         else if (methodReference.isConstructor()) {
             final ObjectCreationExpression creation;
-            final TypeDefinition resolvedType = declaringType.isNested() ? declaringType.resolve() : null;
+            final TypeDefinition resolvedType = declaringType.resolve();
 
-            if (resolvedType != null && resolvedType.isAnonymous()) {
+            if (resolvedType != null) {
                 final AstType declaredType;
 
-                if (resolvedType.getExplicitInterfaces().isEmpty()) {
-                    declaredType = _astBuilder.convertType(resolvedType.getBaseType());
+                TypeReference instantiatedType;
+
+                if (resolvedType.isAnonymous()) {
+                    if (resolvedType.getExplicitInterfaces().isEmpty()) {
+                        instantiatedType = resolvedType.getBaseType();
+                    }
+                    else {
+                        instantiatedType = resolvedType.getExplicitInterfaces().get(0);
+                    }
                 }
                 else {
-                    declaredType = _astBuilder.convertType(resolvedType.getExplicitInterfaces().get(0));
+                    instantiatedType = resolvedType;
                 }
 
-                creation = new AnonymousObjectCreationExpression(
-                    _astBuilder.createType(resolvedType).clone(),
-                    declaredType
-                );
+                final List<TypeReference> typeArguments = byteCode.getUserData(AstKeys.TYPE_ARGUMENTS);
+
+                if (typeArguments != null &&
+                    resolvedType.isGenericDefinition() &&
+                    typeArguments.size() == resolvedType.getGenericParameters().size()) {
+
+                    instantiatedType = instantiatedType.makeGenericType(typeArguments);
+                }
+
+                if (instantiatedType.isGenericDefinition()) {
+                    declaredType = _astBuilder.convertType(instantiatedType, new ConvertTypeOptions(false, false));
+                }
+                else {
+                    declaredType = _astBuilder.convertType(instantiatedType);
+                }
+
+                if (resolvedType.isAnonymous()) {
+                    creation = new AnonymousObjectCreationExpression(
+                        _astBuilder.createType(resolvedType).clone(),
+                        declaredType
+                    );
+                }
+                else {
+                    creation = new ObjectCreationExpression(declaredType);
+                }
             }
             else {
                 final ConvertTypeOptions options = new ConvertTypeOptions();

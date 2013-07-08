@@ -163,7 +163,7 @@ public final class WildcardType extends TypeReference {
             return _bound.appendSimpleDescription(sb);
         }
 
-        if (_bound == BuiltinTypes.Object) {
+        if (_bound == null || _bound == BuiltinTypes.Object) {
             return sb.append("?");
         }
 

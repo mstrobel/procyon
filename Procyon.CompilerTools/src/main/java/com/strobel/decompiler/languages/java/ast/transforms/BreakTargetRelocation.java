@@ -16,18 +16,16 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Stack;
+import java.util.*;
 
-public final class BreakTargetRelocation implements IAstTransform {
+public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
+    public BreakTargetRelocation(final DecompilerContext context) {
+        super(context);
+    }
+
     private final static class LabelInfo {
         final String name;
         final List<GotoStatement> gotoStatements = new ArrayList<>();
@@ -48,12 +46,14 @@ public final class BreakTargetRelocation implements IAstTransform {
     }
 
     @Override
-    public void run(final AstNode compilationUnit) {
+    public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
+        super.visitMethodDeclaration(node, _);
+
         final Map<String, LabelInfo> labels = new LinkedHashMap<>();
 
-        for (final AstNode node : compilationUnit.getDescendantsAndSelf()) {
-            if (node instanceof LabelStatement) {
-                final LabelStatement label = (LabelStatement) node;
+        for (final AstNode n : node.getDescendantsAndSelf()) {
+            if (n instanceof LabelStatement) {
+                final LabelStatement label = (LabelStatement) n;
                 final LabelInfo labelInfo = labels.get(label.getLabel());
 
                 if (labelInfo == null) {
@@ -65,8 +65,8 @@ public final class BreakTargetRelocation implements IAstTransform {
                     labelInfo.labelIsLast = true;
                 }
             }
-            else if (node instanceof GotoStatement) {
-                final GotoStatement gotoStatement = (GotoStatement) node;
+            else if (n instanceof GotoStatement) {
+                final GotoStatement gotoStatement = (GotoStatement) n;
 
                 LabelInfo labelInfo = labels.get(gotoStatement.getLabel());
 
@@ -84,6 +84,8 @@ public final class BreakTargetRelocation implements IAstTransform {
         for (final LabelInfo labelInfo : labels.values()) {
             run(labelInfo);
         }
+
+        return null;
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -213,8 +215,8 @@ public final class BreakTargetRelocation implements IAstTransform {
             return;
         }
 
-        AstNode insertBefore = orderedNodes.getLast().getNextSibling();
-        AstNode insertAfter = orderedNodes.getFirst().getPreviousSibling();
+        final AstNode insertBefore = orderedNodes.getLast().getNextSibling();
+        final AstNode insertAfter = orderedNodes.getFirst().getPreviousSibling();
 
         final BlockStatement newBlock = new BlockStatement();
         final AstNodeCollection<Statement> blockStatements = newBlock.getStatements();

@@ -16,11 +16,16 @@
 
 package com.strobel.decompiler.ast;
 
+import com.strobel.annotations.NotNull;
+import com.strobel.annotations.Nullable;
 import com.strobel.assembler.Collection;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.componentmodel.Key;
+import com.strobel.componentmodel.UserDataStore;
+import com.strobel.componentmodel.UserDataStoreBase;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Comparer;
 import com.strobel.core.VerifyArgument;
@@ -34,7 +39,7 @@ import java.util.List;
 
 import static com.strobel.decompiler.DecompilerHelpers.writeType;
 
-public final class Expression extends Node implements Cloneable {
+public final class Expression extends Node implements Cloneable, UserDataStore {
     public static final Object ANY_OPERAND = new Object();
 
     private final Collection<Expression> _arguments = new Collection<>();
@@ -53,6 +58,7 @@ public final class Expression extends Node implements Cloneable {
     private Object _operand;
     private TypeReference _expectedType;
     private TypeReference _inferredType;
+    private UserDataStoreBase _userData;
 
     public Expression(final AstCode code, final Object operand, final List<Expression> arguments) {
         _code = VerifyArgument.notNull(code, "code");
@@ -266,11 +272,44 @@ public final class Expression extends Node implements Cloneable {
         clone._expectedType = _expectedType;
         clone._inferredType = _inferredType;
         clone._operand = _operand;
+        clone._userData = _userData != null ? _userData.clone() : null;
 
         for (final Expression argument : _arguments) {
             clone._arguments.add(argument.clone());
         }
 
         return clone;
+    }
+
+    @Override
+    public <T> T getUserData(@NotNull final Key<T> key) {
+        if (_userData == null) {
+            return null;
+        }
+        return _userData.getUserData(key);
+    }
+
+    @Override
+    public <T> void putUserData(@NotNull final Key<T> key, @Nullable final T value) {
+        if (_userData == null) {
+            _userData = new UserDataStoreBase();
+        }
+        _userData.putUserData(key, value);
+    }
+
+    @Override
+    public <T> T putUserDataIfAbsent(@NotNull final Key<T> key, @Nullable final T value) {
+        if (_userData == null) {
+            _userData = new UserDataStoreBase();
+        }
+        return _userData.putUserDataIfAbsent(key, value);
+    }
+
+    @Override
+    public <T> boolean replace(@NotNull final Key<T> key, @Nullable final T oldValue, @Nullable final T newValue) {
+        if (_userData == null) {
+            _userData = new UserDataStoreBase();
+        }
+        return _userData.replace(key, oldValue, newValue);
     }
 }

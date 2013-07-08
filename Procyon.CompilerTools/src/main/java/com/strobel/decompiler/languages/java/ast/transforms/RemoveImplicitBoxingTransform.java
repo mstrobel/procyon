@@ -17,9 +17,13 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.MemberReference;
+import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.NumericConversionType;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.semantics.ResolveResult;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -78,8 +82,11 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         UNBOX_METHODS.add("java/lang/Boolean.booleanValue:()Z");
     }
 
+    private final JavaResolver _resolver;
+
     public RemoveImplicitBoxingTransform(final DecompilerContext context) {
         super(context);
+        _resolver = new JavaResolver(context);
     }
 
     @Override
@@ -87,19 +94,22 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         super.visitInvocationExpression(node, data);
 
         if (node.getArguments().size() == 1 &&
-            node.getTarget() instanceof MemberReferenceExpression &&
-            isValidPrimitiveParent(node, node.getParent())) {
+            node.getTarget() instanceof MemberReferenceExpression) {
 
             removeBoxing(node);
         }
         else {
-            unbox(node);
+            removeUnboxing(node);
         }
 
         return null;
     }
 
-    private boolean isValidPrimitiveParent(final AstNode node, final AstNode parent) {
+    private boolean isValidPrimitiveParent(final InvocationExpression node, final AstNode parent) {
+        if (parent == null || parent.isNull()) {
+            return false;
+        }
+
         if (parent instanceof BinaryOperatorExpression) {
             final BinaryOperatorExpression binary = (BinaryOperatorExpression) parent;
 
@@ -114,42 +124,19 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         }
 
         return !(
-            parent.getChildByRole(Roles.TARGET_EXPRESSION) == node ||
+            node.getRole() == Roles.TARGET_EXPRESSION ||
             parent instanceof ClassOfExpression ||
             parent instanceof SynchronizedStatement ||
             parent instanceof ThrowStatement
         );
     }
 
-    @Override
-    public Void visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void data) {
-        super.visitUnaryOperatorExpression(node, data);
-
-        unbox(node.getExpression());
-
-        return null;
-    }
-
-    @Override
-    public Void visitBinaryOperatorExpression(final BinaryOperatorExpression node, final Void data) {
-        super.visitBinaryOperatorExpression(node, data);
-
-        unbox(node.getLeft());
-        unbox(node.getRight());
-
-        return null;
-    }
-
-    private void unbox(final Expression e) {
+    private void removeUnboxing(final InvocationExpression e) {
         if (e == null || e.isNull()) {
             return;
         }
 
-        if (!(e instanceof InvocationExpression)) {
-            return;
-        }
-
-        final Expression target = ((InvocationExpression) e).getTarget();
+        final Expression target = e.getTarget();
 
         if (!(target instanceof MemberReferenceExpression)) {
             return;
@@ -163,14 +150,141 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
         final String key = reference.getFullName() + ":" + reference.getSignature();
 
-        if (UNBOX_METHODS.contains(key)) {
-            final Expression boxedValue = ((MemberReferenceExpression) target).getTarget();
+        if (!UNBOX_METHODS.contains(key)) {
+            return;
+        }
+
+        final AstNode parent = e.getParent();
+
+        if (e.getRole() == Roles.ARGUMENT) {
+            removeUnboxingForArgument(e);
+            return;
+        }
+
+        if (parent instanceof CastExpression) {
+            removeUnboxingForCast(
+                e,
+                (MemberReferenceExpression) target,
+                (CastExpression) parent
+            );
+            return;
+        }
+
+        final Expression boxedValue = ((MemberReferenceExpression) target).getTarget();
+        boxedValue.remove();
+        e.replaceWith(boxedValue);
+    }
+
+    private void removeUnboxingForArgument(final InvocationExpression e) {
+        final AstNode parent = e.getParent();
+
+        final MemberReference unboxMethod = e.getUserData(Keys.MEMBER_REFERENCE);
+        final MemberReference outerBoxMethod = parent.getUserData(Keys.MEMBER_REFERENCE);
+
+        if (!(unboxMethod instanceof MethodReference && outerBoxMethod instanceof MethodReference)) {
+            return;
+        }
+
+        final String unboxMethodKey = unboxMethod.getFullName() + ":" + unboxMethod.getSignature();
+        final String boxMethodKey = outerBoxMethod.getFullName() + ":" + outerBoxMethod.getSignature();
+
+        if (!UNBOX_METHODS.contains(unboxMethodKey)) {
+            return;
+        }
+
+        final Expression boxedValue = ((MemberReferenceExpression) e.getTarget()).getTarget();
+
+        if (!BOX_METHODS.contains(boxMethodKey)) {
             boxedValue.remove();
             e.replaceWith(boxedValue);
+            return;
+        }
+
+        final ResolveResult boxedValueResult = _resolver.apply(boxedValue);
+
+        if (boxedValueResult == null || boxedValueResult.getType() == null) {
+            return;
+        }
+
+        final TypeReference targetType = ((MethodReference) outerBoxMethod).getReturnType();
+        final TypeReference sourceType = boxedValueResult.getType();
+
+        switch (MetadataHelper.getNumericConversionType(targetType, sourceType)) {
+            case IDENTITY:
+            case IMPLICIT: {
+                boxedValue.remove();
+                parent.replaceWith(boxedValue);
+                break;
+            }
+
+            case EXPLICIT_TO_UNBOXED: {
+                final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+                if (astBuilder == null) {
+                    return;
+                }
+
+                boxedValue.remove();
+
+                final TypeReference castType = ((MethodReference) outerBoxMethod).getParameters().get(0).getParameterType();
+                final CastExpression cast = new CastExpression(astBuilder.convertType(castType), boxedValue);
+
+                parent.replaceWith(cast);
+
+                break;
+            }
+
+            default: {
+                return;
+            }
+        }
+    }
+
+    private void removeUnboxingForCast(
+        final InvocationExpression e,
+        final MemberReferenceExpression target,
+        final CastExpression parent) {
+
+        final TypeReference targetType = parent.getType().toTypeReference();
+
+        if (targetType == null || !targetType.isPrimitive()) {
+            return;
+        }
+
+        final Expression boxedValue = target.getTarget();
+        final ResolveResult boxedValueResult = _resolver.apply(boxedValue);
+
+        if (boxedValueResult == null || boxedValueResult.getType() == null) {
+            return;
+        }
+
+        final TypeReference sourceType = boxedValueResult.getType();
+        final NumericConversionType conversionType = MetadataHelper.getNumericConversionType(targetType, sourceType);
+
+        switch (conversionType) {
+            case IMPLICIT: {
+                boxedValue.remove();
+                parent.replaceWith(boxedValue);
+                return;
+            }
+
+            case EXPLICIT:
+            case EXPLICIT_TO_UNBOXED: {
+                boxedValue.remove();
+                e.replaceWith(boxedValue);
+                return;
+            }
+
+            default:
+                return;
         }
     }
 
     private void removeBoxing(final InvocationExpression node) {
+        if (!isValidPrimitiveParent(node, node.getParent())) {
+            return;
+        }
+
         final MemberReference reference = node.getUserData(Keys.MEMBER_REFERENCE);
 
         if (!(reference instanceof MethodReference)) {
@@ -179,12 +293,53 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
         final String key = reference.getFullName() + ":" + reference.getSignature();
 
-        if (BOX_METHODS.contains(key)) {
-            final AstNodeCollection<Expression> arguments = node.getArguments();
-            final Expression underlyingValue = arguments.firstOrNullObject();
+        if (!BOX_METHODS.contains(key)) {
+            return;
+        }
 
-            underlyingValue.remove();
-            node.replaceWith(underlyingValue);
+        final AstNodeCollection<Expression> arguments = node.getArguments();
+        final Expression underlyingValue = arguments.firstOrNullObject();
+        final ResolveResult valueResult = _resolver.apply(underlyingValue);
+
+        if (valueResult == null || valueResult.getType() == null) {
+            return;
+        }
+
+        final TypeReference sourceType = valueResult.getType();
+        final TypeReference targetType = ((MethodReference) reference).getReturnType();
+
+        final NumericConversionType conversionType = MetadataHelper.getNumericConversionType(targetType, sourceType);
+
+        switch (conversionType) {
+            case IMPLICIT: {
+                underlyingValue.remove();
+                node.replaceWith(underlyingValue);
+                break;
+            }
+
+            case EXPLICIT:
+            case EXPLICIT_TO_UNBOXED: {
+                final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+                if (astBuilder == null) {
+                    return;
+                }
+
+                final TypeReference castType;
+
+                if (conversionType == NumericConversionType.EXPLICIT_TO_UNBOXED) {
+                    castType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(targetType);
+                }
+                else {
+                    castType = targetType;
+                }
+
+                underlyingValue.remove();
+                node.replaceWith(new CastExpression(astBuilder.convertType(castType), underlyingValue));
+
+                break;
+            }
         }
     }
 }
+

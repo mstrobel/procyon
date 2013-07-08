@@ -24,7 +24,7 @@ public class ModifierTests extends DecompilerTest {
         private transient volatile double d;
 
         public static final synchronized strictfp void m(final String... args) {
-            for (char c = '\0'; c < '\u0080'; c = (char)(c + '\u0001')) {
+            for (char c = '\0'; c < '\u0080'; c++) {
                 System.out.println("ascii " + (int)c + " character " + c);
             }
         }
@@ -42,7 +42,7 @@ public class ModifierTests extends DecompilerTest {
             "    float f;\n" +
             "    private transient volatile double d;\n" +
             "    public static final synchronized strictfp void m(final String... args) {\n" +
-            "        for (char c = '\\0'; c < '\\u0080'; c = (char)(c + '\\u0001')) {\n" +
+            "        for (char c = '\\0'; c < '\\u0080'; c++) {\n" +
             "            System.out.println(\"ascii \" + (int)c + \" character \" + c);\n" +
             "        }\n" +
             "    }\n" +

@@ -212,12 +212,15 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                 return null;
             }
 
-            final TypeReference leftType = left.getType();
-            final TypeReference rightType = right.getType();
+            TypeReference leftType = left.getType();
+            TypeReference rightType = right.getType();
 
             if (leftType == null || rightType == null) {
                 return null;
             }
+
+            leftType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(leftType);
+            rightType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(rightType);
 
             if (StringUtilities.equals(leftType.getInternalName(), "java/lang/String")) {
                 return leftType;
@@ -282,7 +285,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
 
             return new PrimitiveResolveResult(
                 primitiveType,
-                literalValue != null ? literalValue : value
+                value != null ? value : literalValue
             );
         }
 

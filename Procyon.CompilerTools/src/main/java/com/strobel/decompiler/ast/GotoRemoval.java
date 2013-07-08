@@ -16,20 +16,13 @@
 
 package com.strobel.decompiler.ast;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.util.ContractUtils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
@@ -148,20 +141,30 @@ final class GotoRemoval {
         visitedNodes.add(gotoExpression);
 
         int loopDepth = 0;
+        int switchDepth = 0;
         Node breakBlock = null;
 
         for (final Node parent : getParents(gotoExpression)) {
             if (parent instanceof Loop) {
                 ++loopDepth;
+
                 if (target == exit(parent, visitedNodes)) {
                     breakBlock = parent;
                     break;
                 }
             }
-            else if (parent instanceof Switch &&
-                     target == exit(parent, visitedNodes)) {
-                breakBlock = parent;
-                break;
+            else if (parent instanceof Switch) {
+                ++switchDepth;
+
+                final Node nextNode = nextSibling.get(parent);
+
+                if (nextNode!= null &&
+                    nextNode != NULL_NODE &&
+                    nextNode == gotoExpression.getOperand()) {
+
+                    breakBlock = parent;
+                    break;
+                }
             }
         }
 
@@ -170,7 +173,7 @@ final class GotoRemoval {
 
         if (breakBlock != null) {
             gotoExpression.setCode(AstCode.LoopOrSwitchBreak);
-            gotoExpression.setOperand(loopDepth > 1 ? gotoExpression.getOperand() : null);
+            gotoExpression.setOperand((loopDepth + switchDepth) > 1 ? gotoExpression.getOperand() : null);
             return true;
         }
 
@@ -247,6 +250,7 @@ final class GotoRemoval {
 
     private <T extends Node> Iterable<T> getParents(final Node node, final Class<T> parentType) {
         return new Iterable<T>() {
+            @NotNull
             @Override
             public final Iterator<T> iterator() {
                 return new Iterator<T>() {
@@ -563,7 +567,10 @@ final class GotoRemoval {
                 for (int i = 0; i < caseBlocks.size(); i++) {
                     final List<Node> body = caseBlocks.get(i).getBody();
 
-                    if (body.size() == 1 && match(firstOrDefault(body), AstCode.LoopOrSwitchBreak)) {
+                    if (body.size() == 1 &&
+                        matchGetOperand(firstOrDefault(body), AstCode.LoopOrSwitchBreak, target) &&
+                        target.get() == null) {
+
                         caseBlocks.remove(i--);
                     }
                 }

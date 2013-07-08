@@ -130,7 +130,6 @@ public class HandlerTests extends DecompilerTest {
             "    private static void rethrow(final Throwable t) throws Throwable {\n" +
             "        throw t;\n" +
             "    }\n" +
-            "\n" +
             "    static void test(final int a, final int b) {\n" +
             "        try {\n" +
             "            try {\n" +

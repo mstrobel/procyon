@@ -38,17 +38,20 @@ public interface IMetadataResolver {
 
         @Override
         public TypeDefinition resolve(final TypeReference type) {
-            return null;
+            return type instanceof TypeDefinition ? (TypeDefinition) type
+                                                  : null;
         }
 
         @Override
         public FieldDefinition resolve(final FieldReference field) {
-            return null;
+            return field instanceof FieldDefinition ? (FieldDefinition) field
+                                                    : null;
         }
 
         @Override
         public MethodDefinition resolve(final MethodReference method) {
-            return null;
+            return method instanceof MethodDefinition ? (MethodDefinition) method
+                                                      : null;
         }
     };
 

@@ -20,6 +20,14 @@ public final class ConvertTypeOptions {
     private boolean _includePackage/* = true*/;
     private boolean _includeTypeParameterDefinitions = true;
 
+    public ConvertTypeOptions() {
+    }
+
+    public ConvertTypeOptions(final boolean includePackage, final boolean includeTypeParameterDefinitions) {
+        _includePackage = includePackage;
+        _includeTypeParameterDefinitions = includeTypeParameterDefinitions;
+    }
+
     public boolean getIncludePackage() {
         return _includePackage;
     }

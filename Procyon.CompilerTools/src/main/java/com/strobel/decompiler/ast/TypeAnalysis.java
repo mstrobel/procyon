@@ -604,7 +604,7 @@ public final class TypeAnalysis {
                 if (forceInferChildren) {
                     inferTypeForExpression(
                         arguments.get(0),
-                        ((FieldReference) operand).getDeclaringType()
+                        getFieldType((FieldReference) operand)
                     );
                 }
 
@@ -788,6 +788,9 @@ public final class TypeAnalysis {
 
             case InitObject: {
                 final MethodReference constructor = (MethodReference) operand;
+                final TypeReference type = constructor.getDeclaringType();
+                final TypeReference inferredType = expectedType != null ? MetadataHelper.asSubType(type, expectedType)
+                                                                        : type;
 
                 if (forceInferChildren) {
                     final List<ParameterDefinition> parameters = constructor.getParameters();
@@ -797,13 +800,18 @@ public final class TypeAnalysis {
                     }
                 }
 
-                if (expectedType != null &&
-                    MetadataHelper.isAssignableFrom(expectedType, constructor.getDeclaringType())) {
+                if (inferredType != null) {
+                    if (inferredType instanceof IGenericInstance) {
+                        expression.putUserData(
+                            AstKeys.TYPE_ARGUMENTS,
+                            ((IGenericInstance) inferredType).getTypeArguments()
+                        );
+                    }
 
-                    return expectedType;
+                    return inferredType;
                 }
 
-                return constructor.getDeclaringType();
+                return type;
             }
 
             case InitArray: {
@@ -1259,6 +1267,14 @@ public final class TypeAnalysis {
     }
 
     static TypeReference getFieldType(final FieldReference field) {
+        final FieldDefinition resolvedField = field.resolve();
+
+        if (resolvedField != null) {
+            final FieldReference asMember = MetadataHelper.asMemberOf(resolvedField, field.getDeclaringType());
+
+            return asMember.getFieldType();
+        }
+
         return substituteTypeArguments(field.getFieldType(), field);
     }
 

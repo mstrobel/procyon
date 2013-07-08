@@ -3,8 +3,10 @@ package com.strobel.decompiler;
 import com.strobel.util.EmptyArrayCache;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class TypeInferenceTests extends DecompilerTest {
     private static class A {
@@ -58,6 +60,19 @@ public class TypeInferenceTests extends DecompilerTest {
 
         public void test() {
             this.f(new Integer[0]);
+        }
+    }
+
+    @SuppressWarnings({ "Convert2Diamond", "LocalCanBeFinal" })
+    private static class F {
+        public static <T> List<T> safeCopyOf(final Iterable<T> iterable) {
+            final ArrayList<T> list = new ArrayList<T>();
+
+            for (T element : iterable) {
+                list.add(Objects.requireNonNull(element));
+            }
+
+            return list;
         }
     }
 
@@ -139,6 +154,22 @@ public class TypeInferenceTests extends DecompilerTest {
             "    }\n" +
             "    public void test() {\n" +
             "        this.f(new Integer[0]);\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+    @Test
+    public void testTypeArgumentsWithLocalTypeVariable() throws Throwable {
+        verifyOutput(
+            F.class,
+            defaultSettings(),
+            "private static class F {\n" +
+            "    public static <T> List<T> safeCopyOf(final Iterable<T> iterable) {\n" +
+            "        final ArrayList<T> list = new ArrayList<T>();\n" +
+            "        for (T element : iterable) {\n" +
+            "            list.add(Objects.requireNonNull(element));\n" +
+            "        }\n" +
+            "        return list;\n" +
             "    }\n" +
             "}\n"
         );

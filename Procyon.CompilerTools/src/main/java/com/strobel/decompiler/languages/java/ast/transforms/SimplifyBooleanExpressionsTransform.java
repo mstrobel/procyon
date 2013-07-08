@@ -16,8 +16,11 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.MetadataResolver;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
 public class SimplifyBooleanExpressionsTransform extends ContextTrackingVisitor<AstNode> implements IAstTransform {
@@ -37,8 +40,11 @@ public class SimplifyBooleanExpressionsTransform extends ContextTrackingVisitor<
         }
     };
 
+    private final JavaResolver _resolver;
+
     public SimplifyBooleanExpressionsTransform(final DecompilerContext context) {
         super(context);
+        _resolver = new JavaResolver(context);
     }
 
     private final static PrimitiveExpression TRUE_CONSTANT = new PrimitiveExpression(true);
@@ -201,43 +207,145 @@ public class SimplifyBooleanExpressionsTransform extends ContextTrackingVisitor<
             final Expression left = node.getLeft();
             final Expression right = node.getRight();
 
-            if (right instanceof BinaryOperatorExpression) {
-                final BinaryOperatorExpression binary = (BinaryOperatorExpression) right;
-                final Expression innerLeft = binary.getLeft();
-                final Expression innerRight = binary.getRight();
+            if (right instanceof CastExpression) {
+                //
+                // T t; t = (T)(t + n) => t += n
+                //
 
-                if (innerLeft.matches(left)) {
-                    final BinaryOperatorType binaryOp = binary.getOperator();
-                    final AssignmentOperatorType assignOp = AssignmentExpression.getCorrespondingAssignmentOperator(binaryOp);
+                final CastExpression castExpression = (CastExpression) right;
+                final TypeReference castType = castExpression.getType().toTypeReference();
+                final Expression castedValue = castExpression.getExpression();
 
-                    if (assignOp != null) {
-                        innerRight.remove();
-                        right.replaceWith(innerRight);
-                        node.setOperator(assignOp);
+                if (castType != null &&
+                    castType.isPrimitive() &&
+                    castedValue instanceof BinaryOperatorExpression) {
+
+                    final ResolveResult leftResult = _resolver.apply(left);
+
+                    if (leftResult != null &&
+                        MetadataResolver.areEquivalent(castType, leftResult.getType()) &&
+                        tryRewriteBinaryAsAssignment(node, left, castedValue)) {
+
+                        final Expression newValue = castExpression.getExpression();
+
+                        newValue.remove();
+                        right.replaceWith(newValue);
                     }
                 }
-                else if (innerRight.matches(left)) {
-                    final BinaryOperatorType binaryOp = binary.getOperator();
-                    final AssignmentOperatorType assignOp = AssignmentExpression.getCorrespondingAssignmentOperator(binaryOp);
+            }
 
-                    if (assignOp != null) {
-                        switch (assignOp) {
-                            case ADD:
-                            case MULTIPLY:
-                            case BITWISE_AND:
-                            case BITWISE_OR:
-                            case EXCLUSIVE_OR: {
-                                innerLeft.remove();
-                                right.replaceWith(innerLeft);
-                                node.setOperator(assignOp);
-                                break;
-                            }
+            tryRewriteBinaryAsAssignment(node, left, right);
+        }
+
+        return super.visitAssignmentExpression(node, data);
+    }
+
+    private boolean tryRewriteBinaryAsAssignment(final AssignmentExpression node, final Expression left, final Expression right) {
+        if (right instanceof BinaryOperatorExpression) {
+            final BinaryOperatorExpression binary = (BinaryOperatorExpression) right;
+            final Expression innerLeft = binary.getLeft();
+            final Expression innerRight = binary.getRight();
+
+            if (innerLeft.matches(left)) {
+                final BinaryOperatorType binaryOp = binary.getOperator();
+                final AssignmentOperatorType assignOp = AssignmentExpression.getCorrespondingAssignmentOperator(binaryOp);
+
+                if (assignOp != null) {
+                    innerRight.remove();
+                    right.replaceWith(innerRight);
+                    node.setOperator(assignOp);
+
+                    //
+                    // t = t (op) n => t (op)= n
+                    //
+
+                    return tryRewriteBinaryAsAssignment(node, left, innerRight) || true;
+                }
+            }
+            else if (innerRight.matches(left)) {
+                final BinaryOperatorType binaryOp = binary.getOperator();
+                final AssignmentOperatorType assignOp = AssignmentExpression.getCorrespondingAssignmentOperator(binaryOp);
+
+                if (assignOp != null) {
+                    switch (assignOp) {
+                        case ADD:
+                        case MULTIPLY:
+                        case BITWISE_AND:
+                        case BITWISE_OR:
+                        case EXCLUSIVE_OR: {
+                            //
+                            // t = n (op) t => t (op)= n
+                            //
+
+                            innerLeft.remove();
+                            right.replaceWith(innerLeft);
+                            node.setOperator(assignOp);
+                            return true;
                         }
                     }
                 }
             }
         }
 
-        return super.visitAssignmentExpression(node, data);
+        if (tryRewriteBinaryAsUnary(node, left, right)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean tryRewriteBinaryAsUnary(final AssignmentExpression node, final Expression left, final Expression right) {
+        if (right instanceof PrimitiveExpression &&
+            (node.getOperator() == AssignmentOperatorType.ADD ||
+             node.getOperator() == AssignmentOperatorType.SUBTRACT)) {
+
+            final Object value = ((PrimitiveExpression) right).getValue();
+
+            long delta = 0L;
+
+            if (value instanceof Number) {
+                final Number n = (Number) value;
+
+                if (value instanceof Float || value instanceof Double) {
+                    final double d = n.doubleValue();
+
+                    if (d == 1d || Math.abs(d) == 1d) {
+                        delta = (long) d;
+                    }
+                }
+                else {
+                    delta = n.longValue();
+                }
+            }
+            else if (value instanceof Character) {
+                delta = ((Character) value).charValue();
+            }
+
+            if (delta == 1L || delta == -1L) {
+                final UnaryOperatorType unaryOp;
+
+                if (node.getParent() instanceof ExpressionStatement) {
+                    //
+                    // t += 1; => t++;
+                    //
+                    unaryOp = delta == 1L ? UnaryOperatorType.POST_INCREMENT
+                                          : UnaryOperatorType.POST_DECREMENT;
+                }
+                else {
+                    //
+                    // (t += 1) => ++t
+                    //
+                    unaryOp = delta == 1L ? UnaryOperatorType.INCREMENT
+                                          : UnaryOperatorType.DECREMENT;
+                }
+
+                left.remove();
+                node.replaceWith(new UnaryOperatorExpression(unaryOp, left));
+
+                return true;
+            }
+        }
+
+        return false;
     }
 }
