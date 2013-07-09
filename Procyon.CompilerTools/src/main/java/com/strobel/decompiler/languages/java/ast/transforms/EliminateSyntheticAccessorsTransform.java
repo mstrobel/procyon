@@ -172,6 +172,9 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
     private final static MethodDeclaration SYNTHETIC_GET_ACCESSOR;
     private final static MethodDeclaration SYNTHETIC_SET_ACCESSOR;
     private final static MethodDeclaration SYNTHETIC_SET_ACCESSOR_ALT;
+    private final static MethodDeclaration SYNTHETIC_STATIC_GET_ACCESSOR;
+    private final static MethodDeclaration SYNTHETIC_STATIC_SET_ACCESSOR;
+    private final static MethodDeclaration SYNTHETIC_STATIC_SET_ACCESSOR_ALT;
 
     static {
         final MethodDeclaration getAccessor = new MethodDeclaration();
@@ -226,21 +229,39 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         final MethodDeclaration altSetAccessor = (MethodDeclaration) setAccessor.clone();
 
         setAccessor.setBody(
-            new BlockStatement(
-                new ExpressionStatement(
-                    new AssignmentExpression(
-                        new MemberReferenceTypeNode(
-                            new MemberReferenceExpression(
-                                new ParameterReferenceNode(0).toExpression(),
-                                Pattern.ANY_STRING
-                            ),
-                            FieldReference.class
-                        ).toExpression(),
-                        new ParameterReferenceNode(1, "value").toExpression()
-                    )
+            new Choice(
+                new BlockStatement(
+                    new ExpressionStatement(
+                        new AssignmentExpression(
+                            new MemberReferenceTypeNode(
+                                new MemberReferenceExpression(
+                                    new ParameterReferenceNode(0).toExpression(),
+                                    Pattern.ANY_STRING
+                                ),
+                                FieldReference.class
+                            ).toExpression(),
+                            AssignmentOperatorType.ANY,
+                            new ParameterReferenceNode(1, "value").toExpression()
+                        )
+                    ),
+                    new ReturnStatement(new BackReference("value").toExpression())
                 ),
-                new ReturnStatement(new BackReference("value").toExpression())
-            )
+                new BlockStatement(
+                    new ReturnStatement(
+                        new AssignmentExpression(
+                            new MemberReferenceTypeNode(
+                                new MemberReferenceExpression(
+                                    new ParameterReferenceNode(0).toExpression(),
+                                    Pattern.ANY_STRING
+                                ),
+                                FieldReference.class
+                            ).toExpression(),
+                            AssignmentOperatorType.ANY,
+                            new ParameterReferenceNode(1, "value").toExpression()
+                        )
+                    )
+                )
+            ).toBlockStatement()
         );
 
         final VariableDeclarationStatement tempVariable = new VariableDeclarationStatement(
@@ -263,6 +284,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                             ),
                             FieldReference.class
                         ).toExpression(),
+                        AssignmentOperatorType.ANY,
                         new DeclaredVariableBackReference("tempVariable").toExpression()
                     )
                 ),
@@ -273,6 +295,90 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         SYNTHETIC_GET_ACCESSOR = getAccessor;
         SYNTHETIC_SET_ACCESSOR = setAccessor;
         SYNTHETIC_SET_ACCESSOR_ALT = altSetAccessor;
+
+        final MethodDeclaration staticGetAccessor = (MethodDeclaration) getAccessor.clone();
+        final MethodDeclaration staticSetAccessor = (MethodDeclaration) setAccessor.clone();
+        final MethodDeclaration altStaticSetAccessor = (MethodDeclaration) altSetAccessor.clone();
+
+        staticGetAccessor.getParameters().clear();
+
+        staticGetAccessor.setBody(
+            new BlockStatement(
+                new ReturnStatement(
+                    new MemberReferenceTypeNode(
+                        new MemberReferenceExpression(
+                            new TypedNode(TypeReferenceExpression.class).toExpression(),
+                            Pattern.ANY_STRING
+                        ),
+                        FieldReference.class
+                    ).toExpression()
+                )
+            )
+        );
+
+        staticSetAccessor.getParameters().firstOrNullObject().remove();
+
+        staticSetAccessor.setBody(
+            new Choice(
+                new BlockStatement(
+                    new ExpressionStatement(
+                        new AssignmentExpression(
+                            new MemberReferenceTypeNode(
+                                new MemberReferenceExpression(
+                                    new TypedNode(TypeReferenceExpression.class).toExpression(),
+                                    Pattern.ANY_STRING
+                                ),
+                                FieldReference.class
+                            ).toExpression(),
+                            AssignmentOperatorType.ANY,
+                            new NamedNode("value", new SubtreeMatch(new ParameterReferenceNode(0))).toExpression()
+                        )
+                    ),
+                    new ReturnStatement(new BackReference("value").toExpression())
+                ),
+                new BlockStatement(
+                    new ReturnStatement(
+                        new AssignmentExpression(
+                            new MemberReferenceTypeNode(
+                                new MemberReferenceExpression(
+                                    new TypedNode(TypeReferenceExpression.class).toExpression(),
+                                    Pattern.ANY_STRING
+                                ),
+                                FieldReference.class
+                            ).toExpression(),
+                            AssignmentOperatorType.ANY,
+                            new NamedNode("value", new SubtreeMatch(new ParameterReferenceNode(0))).toExpression()
+                        )
+                    )
+                )
+            ).toBlockStatement()
+        );
+
+        altStaticSetAccessor.getParameters().firstOrNullObject().remove();
+
+        altStaticSetAccessor.setBody(
+            new BlockStatement(
+                new NamedNode("tempVariable", tempVariable).toStatement(),
+                new ExpressionStatement(
+                    new AssignmentExpression(
+                        new MemberReferenceTypeNode(
+                            new MemberReferenceExpression(
+                                new TypedNode(TypeReferenceExpression.class).toExpression(),
+                                Pattern.ANY_STRING
+                            ),
+                            FieldReference.class
+                        ).toExpression(),
+                        AssignmentOperatorType.ANY,
+                        new DeclaredVariableBackReference("tempVariable").toExpression()
+                    )
+                ),
+                new ReturnStatement(new DeclaredVariableBackReference("tempVariable").toExpression())
+            )
+        );
+
+        SYNTHETIC_STATIC_GET_ACCESSOR = staticGetAccessor;
+        SYNTHETIC_STATIC_SET_ACCESSOR = staticSetAccessor;
+        SYNTHETIC_STATIC_SET_ACCESSOR_ALT = altStaticSetAccessor;
     }
 
     private class PhaseOneVisitor extends ContextTrackingVisitor<Void> {
@@ -311,7 +417,10 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         private boolean tryMatchAccessor(final MethodDeclaration node) {
             if (SYNTHETIC_GET_ACCESSOR.matches(node) ||
                 SYNTHETIC_SET_ACCESSOR.matches(node) ||
-                SYNTHETIC_SET_ACCESSOR_ALT.matches(node)) {
+                SYNTHETIC_SET_ACCESSOR_ALT.matches(node) ||
+                SYNTHETIC_STATIC_GET_ACCESSOR.matches(node) ||
+                SYNTHETIC_STATIC_SET_ACCESSOR.matches(node) ||
+                SYNTHETIC_STATIC_SET_ACCESSOR_ALT.matches(node)) {
 
                 return true;
             }

@@ -96,7 +96,9 @@ public class BinaryOperatorExpression extends Expression {
             final BinaryOperatorExpression otherExpression = (BinaryOperatorExpression) other;
 
             return !otherExpression.isNull() &&
-                   (_operator == BinaryOperatorType.ANY || otherExpression._operator == _operator) &&
+                   (otherExpression._operator == _operator ||
+                    _operator == BinaryOperatorType.ANY ||
+                    otherExpression._operator == BinaryOperatorType.ANY) &&
                    getLeft().matches(otherExpression.getLeft(), match) &&
                    getRight().matches(otherExpression.getRight(), match);
         }

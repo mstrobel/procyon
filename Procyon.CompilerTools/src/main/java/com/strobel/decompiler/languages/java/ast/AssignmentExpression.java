@@ -95,7 +95,9 @@ public class AssignmentExpression extends Expression {
             final AssignmentExpression otherExpression = (AssignmentExpression) other;
 
             return !otherExpression.isNull() &&
-                   (_operator == AssignmentOperatorType.ANY || otherExpression._operator == _operator) &&
+                   (otherExpression._operator == _operator ||
+                    _operator == AssignmentOperatorType.ANY ||
+                    otherExpression._operator == AssignmentOperatorType.ANY) &&
                    getLeft().matches(otherExpression.getLeft(), match) &&
                    getRight().matches(otherExpression.getRight(), match);
         }
@@ -168,7 +170,7 @@ public class AssignmentExpression extends Expression {
                 return null;
         }
     }
-    
+
     public static AssignmentOperatorType getCorrespondingAssignmentOperator(final BinaryOperatorType operator) {
         switch (operator) {
             case ADD:

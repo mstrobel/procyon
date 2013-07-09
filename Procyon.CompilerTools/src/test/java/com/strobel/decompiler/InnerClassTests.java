@@ -182,15 +182,17 @@ public class InnerClassTests extends DecompilerTest {
 
     @SuppressWarnings("SuspiciousNameCombination")
     private static class G {
-        private int x;
+        private static int x;
+        private int y;
 
         public class A {
-            private int y;
+            private int z;
 
-            public A(final int y) {
+            public A(final int z) {
                 super();
-                this.y = y + 1 + G.this.x;
-                G.this.x += this.y;
+                G.x += this.z * G.this.y;
+                this.z = z + 1 + G.this.y;
+                G.this.y += this.z * G.x;
             }
         }
     }
@@ -462,16 +464,18 @@ public class InnerClassTests extends DecompilerTest {
             G.class,
             createSettings(OPTION_INCLUDE_NESTED),
             "private static class G {\n" +
-            "    private int x;\n" +
+            "    private static int x;\n" +
+            "    private int y;\n" +
             "    public class A {\n" +
-            "        private int y;\n" +
-            "        public A(final int y) {\n" +
+            "        private int z;\n" +
+            "        public A(final int z) {\n" +
             "            super();\n" +
-            "            this.y = y + 1 + G.this.x;\n" +
-            "            G.this.x += this.y;\n" +
+            "            G.x += this.z * G.this.y;\n" +
+            "            this.z = z + 1 + G.this.y;\n" +
+            "            G.this.y += this.z * G.x;\n" +
             "        }\n" +
             "    }\n" +
-            "}\n"
+            "}"
         );
     }
 

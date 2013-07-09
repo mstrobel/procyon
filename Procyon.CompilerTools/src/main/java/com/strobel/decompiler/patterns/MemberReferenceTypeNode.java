@@ -22,6 +22,18 @@ public final class MemberReferenceTypeNode extends Pattern {
         _referenceType = VerifyArgument.notNull(referenceType, "referenceType");
     }
 
+    public final String getGroupName() {
+        return _groupName;
+    }
+
+    public final Class<? extends MemberReference> getReferenceType() {
+        return _referenceType;
+    }
+
+    public final INode getTarget() {
+        return _target;
+    }
+
     @Override
     public boolean matches(final INode other, final Match match) {
         if (other instanceof AstNode) {

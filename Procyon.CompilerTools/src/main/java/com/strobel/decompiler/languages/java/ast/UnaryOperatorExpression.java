@@ -71,7 +71,9 @@ public class UnaryOperatorExpression extends Expression {
             final UnaryOperatorExpression otherOperator = (UnaryOperatorExpression) other;
 
             return !otherOperator.isNull() &&
-                   (_operator == UnaryOperatorType.ANY || _operator == otherOperator._operator) &&
+                   (otherOperator._operator == _operator ||
+                    _operator == UnaryOperatorType.ANY ||
+                    otherOperator._operator == UnaryOperatorType.ANY) &&
                    getExpression().matches(otherOperator.getExpression(), match);
         }
 

@@ -54,7 +54,7 @@ public class InputTypeLoader implements ITypeLoader {
 
         final boolean hasExtension = StringUtilities.endsWithIgnoreCase(typeNameOrPath, ".class");
 
-        if (hasExtension && tryLoadFile(null, typeNameOrPath, buffer)) {
+        if (hasExtension && tryLoadFile(null, typeNameOrPath, buffer, true)) {
             return true;
         }
 
@@ -100,14 +100,14 @@ public class InputTypeLoader implements ITypeLoader {
 
         final String filePath = internalName.replace('/', File.separatorChar) + ".class";
 
-        if (tryLoadFile(internalName, filePath, buffer)) {
+        if (tryLoadFile(internalName, filePath, buffer, false)) {
             return true;
         }
 
         final int lastSeparatorIndex = filePath.lastIndexOf(File.separatorChar);
 
         return lastSeparatorIndex >= 0 &&
-               tryLoadFile(internalName, filePath.substring(lastSeparatorIndex + 1), buffer);
+               tryLoadFile(internalName, filePath.substring(lastSeparatorIndex + 1), buffer, true);
     }
 
     private boolean tryLoadFromKnownLocation(final String internalName, final Buffer buffer) {
@@ -135,7 +135,7 @@ public class InputTypeLoader implements ITypeLoader {
 
         if (directories != null) {
             for (final File directory : directories) {
-                if (tryLoadFile(internalName, new File(directory, className + ".class").getAbsolutePath(), buffer)) {
+                if (tryLoadFile(internalName, new File(directory, className + ".class").getAbsolutePath(), buffer, true)) {
                     return true;
                 }
             }
@@ -174,7 +174,7 @@ public class InputTypeLoader implements ITypeLoader {
         }
     }
 
-    private boolean tryLoadFile(final String internalName, final String typeNameOrPath, final Buffer buffer) {
+    private boolean tryLoadFile(final String internalName, final String typeNameOrPath, final Buffer buffer, final boolean trustName) {
         final File file = new File(typeNameOrPath);
 
         if (!tryLoadFile(file, buffer)) {
@@ -182,7 +182,14 @@ public class InputTypeLoader implements ITypeLoader {
         }
 
         final String actualName = getInternalNameFromClassFile(buffer);
-        final String name = internalName != null ? internalName : actualName;
+
+        final String name = trustName ? (internalName != null ? internalName : actualName)
+                                      : actualName;
+
+        if (name == null) {
+            return false;
+        }
+
         final boolean nameMatches = StringUtilities.equals(actualName, internalName);
         final boolean pathMatchesName = typeNameOrPath.endsWith(name.replace('/', File.separatorChar) + ".class");
 

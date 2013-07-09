@@ -600,9 +600,32 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         else if (childNode instanceof Repeat) {
             visitRepeat((Repeat) childNode);
         }
+        else if (childNode instanceof MemberReferenceTypeNode) {
+            visitMemberReferenceTypeNode((MemberReferenceTypeNode) childNode);
+        }
+        else if (childNode instanceof TypedNode) {
+            visitTypedNode((TypedNode) childNode);
+        }
+        else if (childNode instanceof ParameterReferenceNode) {
+            visitParameterReferenceNode((ParameterReferenceNode) childNode);
+        }
         else {
             writePrimitiveValue(childNode);
         }
+    }
+
+    private void visitTypedNode(final TypedNode node) {
+        writeKeyword("anyOf");
+        leftParenthesis();
+        writeIdentifier(node.getNodeType().getSimpleName());
+        rightParenthesis();
+    }
+
+    private void visitParameterReferenceNode(final ParameterReferenceNode node) {
+        writeKeyword("parameterAt");
+        leftParenthesis();
+        writePrimitiveValue(node.getParameterPosition());
+        rightParenthesis();
     }
 
     private void visitIdentifierExpressionBackReference(final IdentifierExpressionBackReference node) {
@@ -630,6 +653,16 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         formatter.unindent();
+        rightParenthesis();
+    }
+
+    private void visitMemberReferenceTypeNode(final MemberReferenceTypeNode node) {
+        writeKeyword("memberReference");
+        writeToken(Roles.LEFT_BRACKET);
+        writeIdentifier(node.getReferenceType().getSimpleName());
+        writeToken(Roles.RIGHT_BRACKET);
+        leftParenthesis();
+        visitNodeInPattern(node.getTarget());
         rightParenthesis();
     }
 
@@ -866,32 +899,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             openBrace(style);
         }
 
-//        Class<? extends AstNode> lastStatementType = null;
-
         for (final AstNode statement : statements) {
-//            final Class<? extends AstNode> statementType;
-//
-//            if (statement instanceof ExpressionStatement) {
-//                statementType = ((ExpressionStatement) statement).getExpression().getClass();
-//
-//                if (lastStatementType != null && lastStatementType != statementType) {
-//                    newLine();
-//                }
-//            }
-//            else {
-//                statementType = statement.getClass();
-//
-//                if (lastStatementType != null &&
-//                    !(statementType == VariableDeclarationStatement.class &&
-//                      lastStatementType == VariableDeclarationStatement.class)) {
-//
-//                    newLine();
-//                }
-//            }
-
             statement.acceptVisitor(this, null);
-
-//            lastStatementType = statementType;
         }
 
         if (addBraces) {

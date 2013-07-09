@@ -18,6 +18,14 @@ public final class ParameterReferenceNode extends Pattern {
         _groupName = groupName;
     }
 
+    public final String getGroupName() {
+        return _groupName;
+    }
+
+    public final int getParameterPosition() {
+        return _parameterPosition;
+    }
+
     @Override
     public boolean matches(final INode other, final Match match) {
         if (other instanceof IdentifierExpression) {
