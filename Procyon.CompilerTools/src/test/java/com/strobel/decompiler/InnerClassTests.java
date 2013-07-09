@@ -227,6 +227,26 @@ public class InnerClassTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("UnusedParameters")
+    private static class K {
+        private static int f(final int x) {
+            return x / 2;
+        }
+
+        private void g(final int x) {
+            f(x * 2);
+        }
+
+        Object h() {
+            return new Object() {
+                void j() {
+                    f(16);
+                    K.this.g(8);
+                }
+            };
+        }
+    }
+
     @Test
     public void testComplexInnerClassRelations() {
         //
@@ -490,6 +510,30 @@ public class InnerClassTests extends DecompilerTest {
             "        public Integer apply(final Integer x) {\n" +
             "            return x * 3;\n" +
             "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testInnerClassSyntheticCallWrappers() {
+        verifyOutput(
+            K.class,
+            createSettings(OPTION_INCLUDE_NESTED),
+            "private static class K {\n" +
+            "    private static int f(final int x) {\n" +
+            "        return x / 2;\n" +
+            "    }\n" +
+            "    private void g(final int x) {\n" +
+            "        f(x * 2);\n" +
+            "    }\n" +
+            "    Object h() {\n" +
+            "        return new Object() {\n" +
+            "            void j() {\n" +
+            "                f(16);\n" +
+            "                K.this.g(8);\n" +
+            "            }\n" +
+            "        };\n" +
             "    }\n" +
             "}\n"
         );

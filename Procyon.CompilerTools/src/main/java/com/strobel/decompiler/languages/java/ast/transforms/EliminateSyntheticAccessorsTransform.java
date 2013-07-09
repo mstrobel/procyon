@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.strobel.core.CollectionUtilities.getOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 
 public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor<Void> {
     private final List<AstNode> _nodesToRemove;
@@ -299,16 +299,97 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
 
             if (method != null) {
                 if (method.isSynthetic() && method.isStatic()) {
-                    if (SYNTHETIC_GET_ACCESSOR.matches(node) ||
-                        SYNTHETIC_SET_ACCESSOR.matches(node) ||
-                        SYNTHETIC_SET_ACCESSOR_ALT.matches(node)) {
-
+                    if (tryMatchAccessor(node) || tryMatchCallWrapper(node)) {
                         _accessMethodDeclarations.put(makeMethodKey(method), node);
                     }
                 }
             }
 
             return super.visitMethodDeclaration(node, _);
+        }
+
+        private boolean tryMatchAccessor(final MethodDeclaration node) {
+            if (SYNTHETIC_GET_ACCESSOR.matches(node) ||
+                SYNTHETIC_SET_ACCESSOR.matches(node) ||
+                SYNTHETIC_SET_ACCESSOR_ALT.matches(node)) {
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private boolean tryMatchCallWrapper(final MethodDeclaration node) {
+            final AstNodeCollection<Statement> statements = node.getBody().getStatements();
+
+            if (!statements.hasSingleElement()) {
+                return false;
+            }
+
+            final Statement s = statements.firstOrNullObject();
+            final InvocationExpression invocation;
+
+            if (s instanceof ExpressionStatement) {
+                final ExpressionStatement e = (ExpressionStatement) s;
+
+                invocation = e.getExpression() instanceof InvocationExpression ? (InvocationExpression) e.getExpression()
+                                                                               : null;
+            }
+            else if (s instanceof ReturnStatement) {
+                final ReturnStatement r = (ReturnStatement) s;
+
+                invocation = r.getExpression() instanceof InvocationExpression ? (InvocationExpression) r.getExpression()
+                                                                               : null;
+            }
+            else {
+                invocation = null;
+            }
+
+            if (invocation == null) {
+                return false;
+            }
+
+            final MethodReference targetMethod = (MethodReference) invocation.getUserData(Keys.MEMBER_REFERENCE);
+            final MethodDefinition resolvedTarget = targetMethod != null ? targetMethod.resolve() : null;
+
+            if (resolvedTarget == null) {
+                return false;
+            }
+
+            final int parametersStart = resolvedTarget.isStatic() ? 0 : 1;
+            final List<ParameterDeclaration> parameterList = toList(node.getParameters());
+            final List<Expression> argumentList = toList(invocation.getArguments());
+
+            if (argumentList.size() != parameterList.size() - parametersStart) {
+                return false;
+            }
+
+            if (!resolvedTarget.isStatic()) {
+                if (!(invocation.getTarget() instanceof MemberReferenceExpression)) {
+                    return false;
+                }
+
+                final MemberReferenceExpression m = (MemberReferenceExpression) invocation.getTarget();
+                final Expression target = m.getTarget();
+
+                if (!target.matches(new IdentifierExpression(parameterList.get(0).getName()))) {
+                    return false;
+                }
+            }
+
+            int i, j;
+
+            for (i = parametersStart, j = 0;
+                 i < parameterList.size() && j < argumentList.size();
+                 i++, j++)
+
+            {
+                if (!argumentList.get(j).matches(new IdentifierExpression(parameterList.get(i).getName()))) {
+                    return false;
+                }
+            }
+
+            return i == j + parametersStart;
         }
     }
 
