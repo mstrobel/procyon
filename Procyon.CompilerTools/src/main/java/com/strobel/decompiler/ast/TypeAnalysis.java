@@ -106,7 +106,7 @@ public final class TypeAnalysis {
 
             findNestedAssignments(expression, expressionToInfer);
 
-            if (expression.getCode() == AstCode.Store &&
+            if ((expression.getCode() == AstCode.Store || expression.getCode() == AstCode.Inc) &&
                 ((Variable) expression.getOperand()).getType() == null) {
 
                 assignmentExpressions.get(expression.getOperand()).add(expressionToInfer);
@@ -130,6 +130,24 @@ public final class TypeAnalysis {
                 _allExpressions.add(expressionToInfer);
 
                 findNestedAssignments(argument, expressionToInfer);
+
+                final Variable variable = (Variable) argument.getOperand();
+
+                if (variable.getType() == null) {
+                    assignmentExpressions.get(variable).add(expressionToInfer);
+
+                    //
+                    // The instruction that consumes the Store result is handled as if it was reading the variable.
+                    //
+                    parent.dependencies.add(variable);
+                }
+            }
+            else if (argument.getCode() == AstCode.Inc) {
+                final ExpressionToInfer expressionToInfer = new ExpressionToInfer();
+
+                expressionToInfer.expression = argument;
+
+                _allExpressions.add(expressionToInfer);
 
                 final Variable variable = (Variable) argument.getOperand();
 
@@ -277,7 +295,7 @@ public final class TypeAnalysis {
                 for (final ExpressionToInfer e : expressionsToInfer) {
                     final List<Expression> arguments = e.expression.getArguments();
 
-                    assert e.expression.getCode() == AstCode.Store &&
+                    assert (e.expression.getCode() == AstCode.Store || e.expression.getCode() == AstCode.Inc) &&
                            arguments.size() == 1;
 
                     final Expression assignedValue = arguments.get(0);
@@ -373,7 +391,7 @@ public final class TypeAnalysis {
 
                 expression.setInferredType(BuiltinTypes.Boolean);
 
-                if (variable.getType().getSimpleType() == JvmType.Integer &&
+                if (variable.getType() == BuiltinTypes.Integer &&
                     shouldInferVariableType(variable)) {
 
                     variable.setType(BuiltinTypes.Boolean);
@@ -400,7 +418,7 @@ public final class TypeAnalysis {
         }
 
         for (final Expression argument : arguments) {
-            if (argument.getCode() != AstCode.Store) {
+            if (argument.getCode() != AstCode.Store && argument.getCode() != AstCode.Inc) {
                 runInference(argument);
             }
         }
@@ -417,7 +435,6 @@ public final class TypeAnalysis {
                         c.setInferredType(null);
                     }
 
-                    e.done = false;
                     runInference(e.expression);
                 }
             }
@@ -437,9 +454,9 @@ public final class TypeAnalysis {
             expression.setExpectedType(expectedType);
 
             //
-            // Store is a special case and never gets reevaluated.
+            // Store and Inc are special cases and never gets reevaluated.
             //
-            if (expression.getCode() != AstCode.Store) {
+            if (expression.getCode() != AstCode.Store && expression.getCode() != AstCode.Inc) {
                 actualForceInferChildren = true;
             }
         }

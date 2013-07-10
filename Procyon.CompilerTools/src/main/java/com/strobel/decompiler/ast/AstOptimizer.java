@@ -1426,12 +1426,14 @@ public final class AstOptimizer {
 
             assert body.get(position) == head;
 
-            final Expression newExpression = introducePostIncrementForInstanceFields(head);
+            if (position > 0) {
+                final Expression newExpression = introducePostIncrementForInstanceFields(head, body.get(position - 1));
 
-            if (newExpression != null) {
-                modified = true;
-                body.set(position, newExpression);
-                new Inlining(context, method).inlineIfPossible(body, new MutableInteger(position));
+                if (newExpression != null) {
+                    modified = true;
+                    body.remove(position);
+                    new Inlining(context, method).inlineIfPossible(body, new MutableInteger(position - 1));
+                }
             }
 
             return modified;
@@ -1541,8 +1543,96 @@ public final class AstOptimizer {
         }
 
         @SuppressWarnings("UnusedParameters")
-        private Expression introducePostIncrementForInstanceFields(final Expression e) {
-            return null;
+        private Expression introducePostIncrementForInstanceFields(final Expression e, final Node previous) {
+            //
+            // t = getfield(field, load(p)); putfield(field, load(p), add(load(t), ldc(1)))
+            //   => store(t, postincrement(1, load(field, load(p))))
+            //
+            // Also works for array elements:
+            //
+            // t = loadelement(T, load(p), load(i)); storeelement(T, load(p), load(i), add(load(t), ldc(1)))
+            //   => store(t, postincrement(1, loadelement(load(p), load(i))))
+            //
+
+            if (!(previous instanceof Expression)) {
+                return null;
+            }
+
+            final Expression p = (Expression) previous;
+            final StrongBox<Variable> t = new StrongBox<>();
+            final StrongBox<Expression> initialValue = new StrongBox<>();
+
+            if (!matchGetArgument(p, AstCode.Store, t, initialValue) ||
+                initialValue.get().getCode() != AstCode.GetField && initialValue.get().getCode() != AstCode.LoadElement) {
+
+                return null;
+            }
+
+            final AstCode code = e.getCode();
+            final Variable tempVariable = t.get();
+
+            if (code != AstCode.PutField && code != AstCode.StoreElement) {
+                return null;
+            }
+
+            //
+            // Test that all arguments except the last are load (1 arg for fields, 2 args for arrays).
+            //
+
+            final List<Expression> arguments = e.getArguments();
+
+            for (int i = 0, n = arguments.size() - 1; i < n; i++) {
+                if (arguments.get(i).getCode() != AstCode.Load) {
+                    return null;
+                }
+            }
+
+            final StrongBox<Number> incrementAmount = new StrongBox<>();
+            final Expression add = arguments.get(arguments.size() - 1);
+            final AstCode incrementCode = getIncrementCode(add, incrementAmount);
+
+            if (incrementCode == AstCode.Nop) {
+                return null;
+            }
+
+            final List<Expression> addArguments = add.getArguments();
+
+            if (!matchGetOperand(addArguments.get(0), AstCode.Load, t) || t.get() != tempVariable) {
+                return null;
+            }
+
+            if (e.getCode() == AstCode.PutField) {
+                if (initialValue.get().getCode() != AstCode.GetField) {
+                    return null;
+                }
+
+                //
+                // There might be two different FieldReference instances, so we compare the field's signatures:
+                //
+                final FieldReference getField = (FieldReference) initialValue.get().getOperand();
+                final FieldReference setField = (FieldReference) e.getOperand();
+
+                if (!StringUtilities.equals(getField.getFullName(), setField.getFullName())) {
+                    return null;
+                }
+            }
+            else if (initialValue.get().getCode() != AstCode.LoadElement) {
+                return null;
+            }
+
+            final List<Expression> initialValueArguments = initialValue.get().getArguments();
+
+            assert (arguments.size() - 1 == initialValueArguments.size());
+
+            for (int i = 0, n = initialValueArguments.size(); i < n; i++) {
+                if (!matchLoad(initialValueArguments.get(i), (Variable) arguments.get(i).getOperand())) {
+                    return null;
+                }
+            }
+
+            p.getArguments().set(0, new Expression(AstCode.PostIncrement, incrementAmount.get(), initialValue.get()));
+
+            return p;
         }
 
         private AstCode getIncrementCode(final Expression add, final StrongBox<Number> incrementAmount) {

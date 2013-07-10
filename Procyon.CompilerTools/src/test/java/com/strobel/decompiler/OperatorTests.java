@@ -69,6 +69,28 @@ public class OperatorTests extends DecompilerTest {
         }
     }
 
+    private static class G {
+        private int x;
+        private int[] a;
+
+        private G() {
+            super();
+            this.a = new int[] { 0 };
+        }
+
+        public int f() {
+            return this.x++;
+        }
+
+        public int g() {
+            return this.a[0]++;
+        }
+
+        public int h(int n) {
+            return n++ / n;
+        }
+    }
+
     @Test
     public void testStringConcatenation() {
         verifyOutput(
@@ -154,6 +176,31 @@ public class OperatorTests extends DecompilerTest {
             "private static class F {\n" +
             "    public void test(final int x) {\n" +
             "        System.out.println((x > 0) ? \"positive\" : ((x < 0) ? \"negative\" : \"zero\"));\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testPostIncrementOptimizations() {
+        verifyOutput(
+            G.class,
+            defaultSettings(),
+            "private static class G {\n" +
+            "    private int x;\n" +
+            "    private int[] a;\n" +
+            "    private G() {\n" +
+            "        super();\n" +
+            "        this.a = new int[] { 0 };\n" +
+            "    }\n" +
+            "    public int f() {\n" +
+            "        return this.x++;\n" +
+            "    }\n" +
+            "    public int g() {\n" +
+            "        return this.a[0]++;\n" +
+            "    }\n" +
+            "    public int h(int n) {\n" +
+            "        return n++ / n;\n" +
             "    }\n" +
             "}\n"
         );

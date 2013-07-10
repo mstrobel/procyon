@@ -16,6 +16,12 @@
 
 package com.strobel.decompiler.patterns;
 
+import com.strobel.functions.Function;
+import com.strobel.util.ContractUtils;
+
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
 public interface INode {
     boolean isNull();
     Role getRole();
@@ -26,4 +32,41 @@ public interface INode {
     boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo);
     Match match(INode other);
     boolean matches(INode other);
+
+    public final static Function<INode, Iterable<INode>> CHILD_ITERATOR = new Function<INode, Iterable<INode>>() {
+        @Override
+        public Iterable<INode> apply(final INode input) {
+            return new Iterable<INode>() {
+                @Override
+                public final Iterator<INode> iterator() {
+                    return new Iterator<INode>() {
+                        INode next = input.getFirstChild();
+
+                        @Override
+                        public final boolean hasNext() {
+                            return next != null;
+                        }
+
+                        @Override
+                        public final INode next() {
+                            final INode result = next;
+
+                            if (result == null) {
+                                throw new NoSuchElementException();
+                            }
+
+                            next = result.getNextSibling();
+
+                            return result;
+                        }
+
+                        @Override
+                        public final void remove() {
+                            throw ContractUtils.unsupported();
+                        }
+                    };
+                }
+            };
+        }
+    };
 }
