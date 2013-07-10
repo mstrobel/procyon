@@ -60,6 +60,12 @@ public class BoxingTests extends DecompilerTest {
         }
     }
 
+    private static class B {
+        boolean test(final Integer n) {
+            return Integer.valueOf(n.intValue()) != null;
+        }
+    }
+
     @Test
     public void testImplicitBoxingTranslation() throws Throwable {
         verifyOutput(
@@ -115,6 +121,19 @@ public class BoxingTests extends DecompilerTest {
             "        this.f(s);\n" +
             "    }\n" +
             "}"
+        );
+    }
+
+    @Test
+    public void testExceptionalUnboxingNotOmitted() throws Exception {
+        verifyOutput(
+           B.class,
+           defaultSettings(),
+           "private static class B {\n" +
+           "    boolean test(final Integer n) {\n" +
+           "        return Integer.valueOf(n) != null;\n" +
+           "    }\n" +
+           "}\n"
         );
     }
 }

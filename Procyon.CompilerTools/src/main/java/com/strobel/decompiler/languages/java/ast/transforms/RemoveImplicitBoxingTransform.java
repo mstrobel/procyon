@@ -194,11 +194,30 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
         final Expression boxedValue = ((MemberReferenceExpression) e.getTarget()).getTarget();
 
-        if (!BOX_METHODS.contains(boxMethodKey)) {
+        if (!BOX_METHODS.contains(boxMethodKey) ||
+            !(parent instanceof InvocationExpression &&
+              isValidPrimitiveParent((InvocationExpression) parent, parent.getParent()))) {
+
             boxedValue.remove();
             e.replaceWith(boxedValue);
             return;
         }
+
+        //
+        // If we have a situation where we're boxing an unboxed value, we do some additional
+        // analysis to make sure we end up with a concise but *legal* type conversion.
+        //
+        // For example, given `f(Double d)`, `g(Short s)`, and an Integer `i`:
+        //
+        // `f(Double.valueOf((double)i.intValue()))` can be simplified to `f((double)i)`
+        //
+        // ...but...
+        //
+        // `g(Short.valueOf((short)i.intValue()))` cannot be simplified to `g((short)i)`;
+        // it must be simplified to `g((short)i.intValue())`.  A boxed type `S` can only
+        // be cast to a primitive type `t` if there exists an implicit conversion from
+        // the underlying primitive type `s` to `t`.
+        //
 
         final ResolveResult boxedValueResult = _resolver.apply(boxedValue);
 
@@ -307,7 +326,6 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
         final TypeReference sourceType = valueResult.getType();
         final TypeReference targetType = ((MethodReference) reference).getReturnType();
-
         final NumericConversionType conversionType = MetadataHelper.getNumericConversionType(targetType, sourceType);
 
         switch (conversionType) {
