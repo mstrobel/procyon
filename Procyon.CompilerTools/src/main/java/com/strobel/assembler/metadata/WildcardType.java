@@ -90,9 +90,9 @@ public final class WildcardType extends TypeReference {
 
     @Override
     public boolean hasExtendsBound() {
-        return  !_hasSuperBound &&
-                _bound != null &&
-                !BuiltinTypes.Object.equals(_bound);
+        return !_hasSuperBound &&
+               _bound != null &&
+               !BuiltinTypes.Object.equals(_bound);
     }
 
     @Override
@@ -121,27 +121,29 @@ public final class WildcardType extends TypeReference {
 
     @Override
     public StringBuilder appendSignature(final StringBuilder sb) {
-        if (_hasSuperBound) {
+        if (isUnbounded()) {
+            return sb.append('*');
+        }
+
+        if (hasSuperBound()) {
             return _bound.appendSignature(sb.append('-'));
         }
-        if (_bound != BuiltinTypes.Object) {
-            return _bound.appendSignature(sb.append('+'));
-        }
-        return sb.append('*');
+
+        return _bound.appendSignature(sb.append('+'));
     }
 
     @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        if (_hasSuperBound) {
+        if (isUnbounded()) {
+            return sb.append("?");
+        }
+
+        if (hasSuperBound()) {
             sb.append("? super ");
             if (_bound.isGenericParameter()) {
                 return sb.append(_bound.getFullName());
             }
             return _bound.appendErasedDescription(sb);
-        }
-
-        if (_bound == BuiltinTypes.Object) {
-            return sb.append("?");
         }
 
         sb.append("? extends ");
@@ -155,16 +157,16 @@ public final class WildcardType extends TypeReference {
 
     @Override
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        if (_hasSuperBound) {
+        if (isUnbounded()) {
+            return sb.append("?");
+        }
+
+        if (hasSuperBound()) {
             sb.append("? super ");
             if (_bound.isGenericParameter() || _bound.isWildcardType()) {
                 return sb.append(_bound.getSimpleName());
             }
             return _bound.appendSimpleDescription(sb);
-        }
-
-        if (_bound == null || _bound == BuiltinTypes.Object) {
-            return sb.append("?");
         }
 
         sb.append("? extends ");
