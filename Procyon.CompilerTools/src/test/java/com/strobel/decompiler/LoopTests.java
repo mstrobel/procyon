@@ -87,6 +87,15 @@ public class LoopTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("LocalCanBeFinal")
+    private static class H {
+        public void test(final List<Integer> items) {
+            for (int item : items) {
+                System.out.println(item);
+            }
+        }
+    }
+
     @Test
     public void testEnhancedForInIterable() {
         verifyOutput(
@@ -199,6 +208,20 @@ public class LoopTests extends DecompilerTest {
             "            ++i;\n" +
             "        }\n" +
             "        while (i < items.length);\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+    @Test
+    public void testUnboxingEnhancedForLoop() {
+        verifyOutput(
+            H.class,
+            defaultSettings(),
+            "private static class H {\n" +
+            "    public void test(final List<Integer> items) {\n" +
+            "        for (int item : items) {\n" +
+            "            System.out.println(item);\n" +
+            "        }\n" +
             "    }\n" +
             "}\n"
         );
