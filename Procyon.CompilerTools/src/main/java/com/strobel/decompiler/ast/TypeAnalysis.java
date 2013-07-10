@@ -407,7 +407,7 @@ public final class TypeAnalysis {
 
                 expression.setInferredType(BuiltinTypes.Character);
 
-                if (variable.getType().getSimpleType() == JvmType.Integer &&
+                if (variable.getType() == BuiltinTypes.Integer &&
                     shouldInferVariableType(variable) &&
                     _singleLoadVariables.contains(variable)) {
 
