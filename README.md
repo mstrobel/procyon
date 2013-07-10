@@ -118,3 +118,10 @@ The Compiler Toolset is still early in development and subject to change.
 `procyon-decompiler` is a standalone front-end for the Java decompiler included in
 `procyon-compilertools`.  All dependencies are embedded in the JAR for easy redistribution.
 For more information about the decompiler, see the [Java Decompiler](https://bitbucket.org/mstrobel/procyon/wiki/Java%20Decompiler) wiki page.
+
+## Powered by Procyon
+
+Check out these third party products based on Procyon!  Are you using Procyon in one of your projects?  Contact me ([email](mailto:mike.strobel@gmail.com) / [twitter](https://twitter.com/mstrobel)) if you would like it listed here. 
+
+  - [SecureTeam Java Decompiler](http://www.secureteam.net/Java-Decompiler.aspx)   
+    A JavaFX-based decompiler front-end with fast and convenient code navigation.  Download it, or launch it directly from your browser.
