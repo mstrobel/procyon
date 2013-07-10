@@ -70,7 +70,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         final Expression target = node.getTarget();
         final AstNodeCollection<Expression> arguments = node.getArguments();
 
-        if (target instanceof MemberReferenceExpression && arguments.size() <= 2) {
+        if (target instanceof MemberReferenceExpression) {
             final MemberReferenceExpression memberReference = (MemberReferenceExpression) target;
 
             MemberReference reference = memberReference.getUserData(Keys.MEMBER_REFERENCE);
@@ -210,17 +210,19 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         setParameter2.setAnyModifiers(true);
 
         setAccessor.getParameters().add(setParameter1);
-        setAccessor.getParameters().add(setParameter2);
+        setAccessor.getParameters().add(new OptionalNode(setParameter2).toParameterDeclaration());
 
         getAccessor.setBody(
             new BlockStatement(
                 new ReturnStatement(
-                    new MemberReferenceTypeNode(
-                        new MemberReferenceExpression(
-                            new ParameterReferenceNode(0).toExpression(),
-                            Pattern.ANY_STRING
-                        ),
-                        FieldReference.class
+                    new SubtreeMatch(
+                        new MemberReferenceTypeNode(
+                            new MemberReferenceExpression(
+                                new ParameterReferenceNode(0).toExpression(),
+                                Pattern.ANY_STRING
+                            ),
+                            FieldReference.class
+                        )
                     ).toExpression()
                 )
             )
@@ -267,7 +269,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         final VariableDeclarationStatement tempVariable = new VariableDeclarationStatement(
             new AnyNode().toType(),
             Pattern.ANY_STRING,
-            new NamedNode("value", new SubtreeMatch(new ParameterReferenceNode(1))).toExpression()
+            new AnyNode("value").toExpression()
         );
 
         tempVariable.addModifier(Modifier.FINAL);
@@ -285,7 +287,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                             FieldReference.class
                         ).toExpression(),
                         AssignmentOperatorType.ANY,
-                        new DeclaredVariableBackReference("tempVariable").toExpression()
+                        new SubtreeMatch(new DeclaredVariableBackReference("tempVariable")).toExpression()
                     )
                 ),
                 new ReturnStatement(new DeclaredVariableBackReference("tempVariable").toExpression())
@@ -305,12 +307,14 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         staticGetAccessor.setBody(
             new BlockStatement(
                 new ReturnStatement(
-                    new MemberReferenceTypeNode(
-                        new MemberReferenceExpression(
-                            new TypedNode(TypeReferenceExpression.class).toExpression(),
-                            Pattern.ANY_STRING
-                        ),
-                        FieldReference.class
+                    new SubtreeMatch(
+                        new MemberReferenceTypeNode(
+                            new MemberReferenceExpression(
+                                new TypedNode(TypeReferenceExpression.class).toExpression(),
+                                Pattern.ANY_STRING
+                            ),
+                            FieldReference.class
+                        )
                     ).toExpression()
                 )
             )
@@ -369,7 +373,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                             FieldReference.class
                         ).toExpression(),
                         AssignmentOperatorType.ANY,
-                        new DeclaredVariableBackReference("tempVariable").toExpression()
+                        new SubtreeMatch(new DeclaredVariableBackReference("tempVariable")).toExpression()
                     )
                 ),
                 new ReturnStatement(new DeclaredVariableBackReference("tempVariable").toExpression())
