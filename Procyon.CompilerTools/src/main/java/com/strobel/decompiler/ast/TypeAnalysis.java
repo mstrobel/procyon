@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.strobel.core.CollectionUtilities.firstOrDefault;
 import static com.strobel.decompiler.ast.PatternMatching.matchGetOperand;
 
 public final class TypeAnalysis {
@@ -106,7 +107,7 @@ public final class TypeAnalysis {
 
             findNestedAssignments(expression, expressionToInfer);
 
-            if ((expression.getCode() == AstCode.Store || expression.getCode() == AstCode.Inc) &&
+            if (expression.getCode().isStore() &&
                 ((Variable) expression.getOperand()).getType() == null) {
 
                 assignmentExpressions.get(expression.getOperand()).add(expressionToInfer);
@@ -158,6 +159,30 @@ public final class TypeAnalysis {
                     // The instruction that consumes the Store result is handled as if it was reading the variable.
                     //
                     parent.dependencies.add(variable);
+                }
+            }
+            else if (argument.getCode() == AstCode.PreIncrement ||
+                     argument.getCode() == AstCode.PostIncrement) {
+
+                final ExpressionToInfer expressionToInfer = new ExpressionToInfer();
+
+                expressionToInfer.expression = argument;
+
+                _allExpressions.add(expressionToInfer);
+
+                final Expression load = firstOrDefault(argument.getArguments());
+                final StrongBox<Variable> variable = new StrongBox<>();
+
+                if (load != null &&
+                    matchGetOperand(load, AstCode.Load, variable) &&
+                    variable.get().getType() == null) {
+
+                    assignmentExpressions.get(variable.get()).add(expressionToInfer);
+
+                    //
+                    // The instruction that consumes the Store result is handled as if it was reading the variable.
+                    //
+                    parent.dependencies.add(variable.get());
                 }
             }
             else {
@@ -295,7 +320,7 @@ public final class TypeAnalysis {
                 for (final ExpressionToInfer e : expressionsToInfer) {
                     final List<Expression> arguments = e.expression.getArguments();
 
-                    assert (e.expression.getCode() == AstCode.Store || e.expression.getCode() == AstCode.Inc) &&
+                    assert e.expression.getCode().isStore() &&
                            arguments.size() == 1;
 
                     final Expression assignedValue = arguments.get(0);
@@ -418,7 +443,7 @@ public final class TypeAnalysis {
         }
 
         for (final Expression argument : arguments) {
-            if (argument.getCode() != AstCode.Store && argument.getCode() != AstCode.Inc) {
+            if (!argument.getCode().isStore()) {
                 runInference(argument);
             }
         }
@@ -456,7 +481,7 @@ public final class TypeAnalysis {
             //
             // Store and Inc are special cases and never gets reevaluated.
             //
-            if (expression.getCode() != AstCode.Store && expression.getCode() != AstCode.Inc) {
+            if (!expression.getCode().isStore()) {
                 actualForceInferChildren = true;
             }
         }
@@ -663,8 +688,21 @@ public final class TypeAnalysis {
                 return (TypeReference) operand;
             }
 
+            case PreIncrement:
             case PostIncrement: {
-                return inferTypeForExpression(arguments.get(0), null);
+                final TypeReference inferredType = inferTypeForExpression(arguments.get(0), null);
+
+                if (inferredType == null) {
+                    final Number n = (Number) operand;
+
+                    if (n instanceof Long) {
+                        return BuiltinTypes.Long;
+                    }
+
+                    return BuiltinTypes.Integer;
+                }
+
+                return inferredType;
             }
 
             case Not:
@@ -1133,7 +1171,7 @@ public final class TypeAnalysis {
             case __IInc:
             case __IIncW:
             case Inc: {
-                return null;
+                return inferTypeForVariable((Variable) operand, expectedType);
             }
 
             case Leave:

@@ -285,10 +285,11 @@ public enum AstCode {
 
     /**
      * <p> Expression with a single binary operator child.  Indicates that the binary operator will also assign the new value to its left-hand side. </p> <p>
-     * {@link #CompoundAssignment} must not be used for local variables, as inlining and other optimizations don't know that it modifies the variable. </p>
+     * {@code CompoundAssignment} must not be used for local variables, as inlining and other optimizations don't know that it modifies the variable. </p>
      */
     CompoundAssignment,
 
+    PreIncrement,
     PostIncrement,
 
     /**
@@ -313,6 +314,31 @@ public enum AstCode {
 
     public final String getName() {
         return StringUtilities.trimAndRemoveLeft(name().toLowerCase(), "__");
+    }
+
+    public final boolean isLoad() {
+        switch (this) {
+            case Load:
+            case PreIncrement:
+            case PostIncrement:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public final boolean isStore() {
+        switch (this) {
+            case Store:
+            case Inc:
+            case PreIncrement:
+            case PostIncrement:
+                return true;
+
+            default:
+                return false;
+        }
     }
 
     public final boolean isComparison() {

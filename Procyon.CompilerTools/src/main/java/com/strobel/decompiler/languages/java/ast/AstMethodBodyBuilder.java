@@ -824,12 +824,21 @@ public class AstMethodBodyBuilder {
             case CompoundAssignment:
                 throw ContractUtils.unreachable();
 
-            case PostIncrement:
+            case PreIncrement: {
+                final Integer incrementAmount = (Integer) operand;
+                if (incrementAmount < 0) {
+                    return new UnaryOperatorExpression(UnaryOperatorType.DECREMENT, arg1);
+                }
+                return new UnaryOperatorExpression(UnaryOperatorType.INCREMENT, arg1);
+            }
+
+            case PostIncrement: {
                 final Integer incrementAmount = (Integer) operand;
                 if (incrementAmount < 0) {
                     return new UnaryOperatorExpression(UnaryOperatorType.POST_DECREMENT, arg1);
                 }
                 return new UnaryOperatorExpression(UnaryOperatorType.POST_INCREMENT, arg1);
+            }
 
             case Box:
             case Unbox:

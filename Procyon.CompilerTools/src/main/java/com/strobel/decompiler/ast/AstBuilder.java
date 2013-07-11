@@ -2070,6 +2070,13 @@ public final class AstBuilder {
                 continue;
             }
 
+            //
+            // Include the instruction's label, if it has one.
+            //
+            if (byteCode.label != null) {
+                ast.add(byteCode.label);
+            }
+
             switch (byteCode.code) {
                 case Dup:
                 case DupX1:
@@ -2091,13 +2098,6 @@ public final class AstBuilder {
             }
 
             expression.getRanges().add(codeRange);
-
-            //
-            // Include the instruction's label, if it has one.
-            //
-            if (byteCode.label != null) {
-                ast.add(byteCode.label);
-            }
 
             //
             // Reference arguments using temporary variables.

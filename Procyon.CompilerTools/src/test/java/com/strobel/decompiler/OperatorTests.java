@@ -87,7 +87,7 @@ public class OperatorTests extends DecompilerTest {
         }
 
         public int h(int n) {
-            return n++ / n;
+            return (++this.x + this.a[n++]) / (this.a[++n] + ++this.a[n]);
         }
     }
 
@@ -200,7 +200,7 @@ public class OperatorTests extends DecompilerTest {
             "        return this.a[0]++;\n" +
             "    }\n" +
             "    public int h(int n) {\n" +
-            "        return n++ / n;\n" +
+            "        return (++this.x + this.a[n++]) / (this.a[++n] + ++this.a[n]);\n" +
             "    }\n" +
             "}\n"
         );

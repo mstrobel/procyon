@@ -205,9 +205,8 @@ public class LoopTests extends DecompilerTest {
             "        int i = 0;\n" +
             "        do {\n" +
             "            System.out.println(items[i]);\n" +
-            "            ++i;\n" +
             "        }\n" +
-            "        while (i < items.length);\n" +
+            "        while (++i < items.length);\n" +
             "    }\n" +
             "}\n"
         );

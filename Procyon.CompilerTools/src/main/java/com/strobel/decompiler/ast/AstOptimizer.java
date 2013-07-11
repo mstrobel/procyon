@@ -72,6 +72,10 @@ public final class AstOptimizer {
         }
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            introducePreIncrementOptimization(block);
+        }
+
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             reduceBranchInstructionSet(block);
         }
 
@@ -407,6 +411,299 @@ public final class AstOptimizer {
                 }
             }
         }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="IntroducePreIncrementOptimization Step">
+
+    private static void introducePreIncrementOptimization(final Block block) {
+        final List<Node> body = block.getBody();
+        final MutableInteger position = new MutableInteger();
+
+        for (; position.getValue() < body.size() - 1; position.increment()) {
+            if (introducePreIncrementForVariables(body, position) ||
+                introducePreIncrementForArrays(body, position) ||
+                introducePreIncrementForInstanceFields(body, position)) {
+
+                continue;
+            }
+        }
+    }
+
+    private static boolean introducePreIncrementForVariables(final List<Node> body, final MutableInteger position) {
+        final int i = position.getValue();
+
+        final Node node = body.get(i);
+        final Node next = body.get(i + 1);
+
+        final StrongBox<Variable> v = new StrongBox<>();
+        final StrongBox<Variable> v2 = new StrongBox<>();
+        final StrongBox<Expression> dExp = new StrongBox<>();
+        final StrongBox<Integer> d = new StrongBox<>();
+        final StrongBox<Expression> load = new StrongBox<>();
+
+        if (!(node instanceof Expression && next instanceof Expression)) {
+            return false;
+        }
+
+        final Expression e = (Expression) node;
+        final Expression n = (Expression) next;
+
+        if (matchGetArgument(e, AstCode.Inc, v, dExp) &&
+            matchGetOperand(dExp.get(), AstCode.LdC, Integer.class, d) &&
+            Math.abs(d.get()) == 1 &&
+            matchGetArgument(n, AstCode.Store, v2, load) && /* v2 is just scratch here */
+            matchGetOperand(load.get(), AstCode.Load, v2) &&
+            v2.get() == v.get()) {
+
+            n.getArguments().set(
+                0,
+                new Expression(AstCode.PreIncrement, d.get(), load.get())
+            );
+
+            body.remove(i);
+            position.decrement();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static boolean introducePreIncrementForArrays(final List<Node> body, final MutableInteger position) {
+        final int i = position.getValue();
+
+        if (i < 1 || i >= body.size() - 3) {
+            return false;
+        }
+
+        //
+        // +---------------------------+
+        // | n = ?                     |
+        // | t = loadelement(o, n)     |
+        // | u = ldc(1)                |
+        // | v = add(load(t), load(u)) |
+        // | storeelement(o, n, v)     |
+        // +---------------------------+
+        //   |
+        //   |    +-----------------------+
+        //   +--> | v = loadelement(a, n) |
+        //        +-----------------------+
+        //
+
+        if (!(body.get(i    ) instanceof Expression &&
+              body.get(i - 1) instanceof Expression &&
+              body.get(i + 1) instanceof Expression &&
+              body.get(i + 2) instanceof Expression &&
+              body.get(i + 3) instanceof Expression)) {
+
+            return false;
+        }
+
+        final Expression e0 = (Expression) body.get(i - 1);
+        final Expression e1 = (Expression) body.get(i);
+
+        final StrongBox<Variable> tVar = new StrongBox<>();
+        final StrongBox<Expression> tExp = new StrongBox<>();
+
+        if (!matchGetArgument(e0, AstCode.Store, tVar, tExp)) {
+            return false;
+        }
+
+        final Variable n = tVar.get();
+        final StrongBox<?> _ = new StrongBox<>();
+        final StrongBox<Variable> t = new StrongBox<>();
+        final List<Expression> a = new ArrayList<>();
+
+        if (!matchGetArgument(e1, AstCode.Store, t, tExp) ||
+            !matchGetArguments(tExp.get(), AstCode.LoadElement, a) ||
+            !matchGetOperand(a.get(0), AstCode.Load, _) ||
+            !matchGetOperand(a.get(1), AstCode.Load, tVar) ||
+            tVar.get() != n) {
+
+            return false;
+        }
+
+        final Variable o = (Variable) _.get();
+        final Expression e2 = (Expression) body.get(i + 1);
+        final StrongBox<Integer> amount = new StrongBox<>();
+
+        if (!matchGetArgument(e2, AstCode.Store, tVar, tExp) ||
+            !matchGetOperand(tExp.get(), AstCode.LdC, Integer.class, amount) ||
+            Math.abs(amount.get()) != 1) {
+
+            return false;
+        }
+
+        final Variable u = tVar.get();
+
+        //  v = add(load(t), load(u))
+        //  storeelement(o, n, v)
+
+        final Expression e3 = (Expression) body.get(i + 2);
+        final StrongBox<Variable> v = new StrongBox<>();
+
+        //
+        // In the unoptimized AST, generated variables named "stack_XXXX" are single-load.
+        //
+
+        if (!matchGetArgument(e3, AstCode.Store, v, tExp) ||
+            v.get().isGenerated() && StringUtilities.startsWith(v.get().getName(), "stack_") ||
+            !matchGetArguments(tExp.get(), AstCode.Add, a) ||
+            !matchGetOperand(a.get(0), AstCode.Load, tVar) ||
+            tVar.get() != t.get() ||
+            !matchGetOperand(a.get(1), AstCode.Load, tVar) ||
+            tVar.get() != u) {
+
+            return false;
+        }
+
+        final Expression e4 = (Expression) body.get(i + 3);
+
+        if (!matchGetArguments(e4, AstCode.StoreElement, a) ||
+            !matchGetOperand(a.get(0), AstCode.Load, tVar) ||
+            tVar.get() != o ||
+            !matchGetOperand(a.get(1), AstCode.Load, tVar) ||
+            tVar.get() != n ||
+            !matchGetOperand(a.get(2), AstCode.Load, tVar) ||
+            tVar.get() != v.get()) {
+
+            return false;
+        }
+
+        final Expression newExpression = new Expression(
+            AstCode.PreIncrement,
+            amount.get(),
+            e1.getArguments().get(0)
+        );
+
+        e3.getArguments().set(0, newExpression);
+
+        body.remove(i);
+        body.remove(i);
+        body.remove(i + 1);
+
+        position.decrement();
+
+        return true;
+    }
+
+    private static boolean introducePreIncrementForInstanceFields(final List<Node> body, final MutableInteger position) {
+        final int i = position.getValue();
+
+        if (i < 1 || i >= body.size() - 3) {
+            return false;
+        }
+
+        //
+        // +-------------------------------+
+        // | p = load(o)                   |
+        // | t = getfield(f, load(p))      |
+        // | u = ldc(1)                    |
+        // | v = add(load(t), load(u))     |
+        // | putfield(f, load(p), load(v)) |
+        // +-------------------------------+
+        //   |
+        //   |    +--------------------------------------------+
+        //   +--> | v = postincrement(1, getfield(_, load(p))) |
+        //        +--------------------------------------------+
+        //
+
+        if (!(body.get(i    ) instanceof Expression &&
+              body.get(i - 1) instanceof Expression &&
+              body.get(i + 1) instanceof Expression &&
+              body.get(i + 2) instanceof Expression &&
+              body.get(i + 3) instanceof Expression)) {
+
+            return false;
+        }
+
+        final Expression e0 = (Expression) body.get(i - 1);
+        final Expression e1 = (Expression) body.get(i);
+
+        final StrongBox<Variable> p = new StrongBox<>();
+        final StrongBox<Expression> tExp = new StrongBox<>();
+
+        if (!matchGetArgument(e0, AstCode.Store, p, tExp)) {
+            return false;
+        }
+
+        final StrongBox<Variable> t = new StrongBox<>();
+
+        final StrongBox<?> _ = new StrongBox<>();
+        final StrongBox<Variable> tVar = new StrongBox<>();
+
+        if (!matchGetArgument(e1, AstCode.Store, t, tExp) ||
+            !matchGetArgument(tExp.get(), AstCode.GetField, _, tExp) ||
+            !matchGetOperand(tExp.get(), AstCode.Load, tVar) ||
+            tVar.get() != p.get()) {
+
+            return false;
+        }
+
+        final FieldReference f = (FieldReference) _.get();
+        final Expression e2 = (Expression) body.get(i + 1);
+        final StrongBox<Integer> amount = new StrongBox<>();
+
+        if (!matchGetArgument(e2, AstCode.Store, tVar, tExp) ||
+            !matchGetOperand(tExp.get(), AstCode.LdC, Integer.class, amount) ||
+            Math.abs(amount.get()) != 1) {
+
+            return false;
+        }
+
+        final Variable u = tVar.get();
+
+        //  v = add(load(t), load(u))
+        //  putfield(field, load(p), load(v))] => postincrement(1, getfield(_, load(p)))
+
+        final Expression e3 = (Expression) body.get(i + 2);
+        final StrongBox<Variable> v = new StrongBox<>();
+        final List<Expression> a = new ArrayList<>();
+
+        //
+        // In the unoptimized AST, generated variables named "stack_XXXX" are single-load.
+        //
+
+        if (!matchGetArgument(e3, AstCode.Store, v, tExp) ||
+            v.get().isGenerated() && StringUtilities.startsWith(v.get().getName(), "stack_") ||
+            !matchGetArguments(tExp.get(), AstCode.Add, a) ||
+            !matchGetOperand(a.get(0), AstCode.Load, tVar) ||
+            tVar.get() != t.get() ||
+            !matchGetOperand(a.get(1), AstCode.Load, tVar) ||
+            tVar.get() != u) {
+
+            return false;
+        }
+
+        final Expression e4 = (Expression) body.get(i + 3);
+
+        if (!matchGetArguments(e4, AstCode.PutField, _, a) ||
+            !StringUtilities.equals(f.getFullName(), ((FieldReference)_.get()).getFullName()) ||
+            !matchGetOperand(a.get(0), AstCode.Load, tVar) ||
+            tVar.get() != p.get() ||
+            !matchGetOperand(a.get(1), AstCode.Load, tVar) ||
+            tVar.get() != v.get()) {
+
+            return false;
+        }
+
+        final Expression newExpression = new Expression(
+            AstCode.PreIncrement,
+            amount.get(),
+            e1.getArguments().get(0)
+        );
+
+        e3.getArguments().set(0, newExpression);
+
+        body.remove(i);
+        body.remove(i);
+        body.remove(i + 1);
+
+        position.decrement();
+
+        return true;
     }
 
     // </editor-fold>
