@@ -33,7 +33,7 @@ public final class PatternMatching {
                ((Expression) node).getCode() == code;
     }
 
-    public static <T> boolean matchGetOperand(final Node node, final AstCode code, final StrongBox<T> operand) {
+    public static <T> boolean matchGetOperand(final Node node, final AstCode code, final StrongBox<? super T> operand) {
         if (node instanceof Expression) {
             final Expression expression = (Expression) node;
 
@@ -49,7 +49,7 @@ public final class PatternMatching {
         return false;
     }
 
-    public static <T> boolean matchGetOperand(final Node node, final AstCode code, final Class<T> operandType, final StrongBox<T> operand) {
+    public static <T> boolean matchGetOperand(final Node node, final AstCode code, final Class<T> operandType, final StrongBox<? super T> operand) {
         if (node instanceof Expression) {
             final Expression expression = (Expression) node;
 
@@ -82,7 +82,7 @@ public final class PatternMatching {
         return false;
     }
 
-    public static <T> boolean matchGetArguments(final Node node, final AstCode code, final StrongBox<T> operand, final List<Expression> arguments) {
+    public static <T> boolean matchGetArguments(final Node node, final AstCode code, final StrongBox<? super T> operand, final List<Expression> arguments) {
         if (node instanceof Expression) {
             final Expression expression = (Expression) node;
 
@@ -114,7 +114,7 @@ public final class PatternMatching {
     public static <T> boolean matchGetArgument(
         final Node node,
         final AstCode code,
-        final StrongBox<T> operand,
+        final StrongBox<? super T> operand,
         final StrongBox<Expression> argument) {
 
         final ArrayList<Expression> arguments = new ArrayList<>(1);
@@ -131,7 +131,7 @@ public final class PatternMatching {
     public static <T> boolean matchGetArguments(
         final Node node,
         final AstCode code,
-        final StrongBox<T> operand,
+        final StrongBox<? super T> operand,
         final StrongBox<Expression> argument1,
         final StrongBox<Expression> argument2) {
 
@@ -151,7 +151,7 @@ public final class PatternMatching {
     public static <T> boolean matchSingle(
         final BasicBlock block,
         final AstCode code,
-        final StrongBox<T> operand,
+        final StrongBox<? super T> operand,
         final StrongBox<Expression> argument) {
 
         final List<Node> body = block.getBody();
@@ -171,7 +171,7 @@ public final class PatternMatching {
     public static <T> boolean matchSingleAndBreak(
         final BasicBlock block,
         final AstCode code,
-        final StrongBox<T> operand,
+        final StrongBox<? super T> operand,
         final StrongBox<Expression> argument,
         final StrongBox<Label> label) {
 
@@ -208,7 +208,7 @@ public final class PatternMatching {
     public static <T> boolean matchLast(
         final BasicBlock block,
         final AstCode code,
-        final StrongBox<T> operand) {
+        final StrongBox<? super T> operand) {
 
         final List<Node> body = block.getBody();
 
@@ -225,7 +225,7 @@ public final class PatternMatching {
     public static <T> boolean matchLast(
         final Block block,
         final AstCode code,
-        final StrongBox<T> operand) {
+        final StrongBox<? super T> operand) {
 
         final List<Node> body = block.getBody();
 
@@ -242,7 +242,7 @@ public final class PatternMatching {
     public static <T> boolean matchLast(
         final Block block,
         final AstCode code,
-        final StrongBox<T> operand,
+        final StrongBox<? super T> operand,
         final StrongBox<Expression> argument) {
 
         final List<Node> body = block.getBody();
@@ -261,7 +261,7 @@ public final class PatternMatching {
     public static <T> boolean matchLast(
         final BasicBlock block,
         final AstCode code,
-        final StrongBox<T> operand,
+        final StrongBox<? super T> operand,
         final StrongBox<Expression> argument) {
 
         final List<Node> body = block.getBody();
@@ -280,7 +280,7 @@ public final class PatternMatching {
     public static <T> boolean matchLastAndBreak(
         final BasicBlock block,
         final AstCode code,
-        final StrongBox<T> operand,
+        final StrongBox<? super T> operand,
         final StrongBox<Expression> argument,
         final StrongBox<Label> label) {
 

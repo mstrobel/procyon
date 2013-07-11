@@ -71,9 +71,7 @@ public final class AstOptimizer {
             return;
         }
 
-        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
-            introducePreIncrementOptimization(block);
-        }
+        introducePreIncrementOptimization(context, method);
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             reduceBranchInstructionSet(block);
@@ -417,16 +415,21 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="IntroducePreIncrementOptimization Step">
 
-    private static void introducePreIncrementOptimization(final Block block) {
-        final List<Node> body = block.getBody();
-        final MutableInteger position = new MutableInteger();
+    private static void introducePreIncrementOptimization(final DecompilerContext context, final Block method) {
+        final Inlining inlining = new Inlining(context, method);
 
-        for (; position.getValue() < body.size() - 1; position.increment()) {
-            if (introducePreIncrementForVariables(body, position) ||
-                introducePreIncrementForArrays(body, position) ||
-                introducePreIncrementForInstanceFields(body, position)) {
+        inlining.analyzeMethod();
 
-                continue;
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            final List<Node> body = block.getBody();
+            final MutableInteger position = new MutableInteger();
+
+            for (; position.getValue() < body.size() - 1; position.increment()) {
+                if (!introducePreIncrementForVariables(body, position) &&
+                    !introducePreIncrementForStaticFields(body, position, inlining)) {
+
+                    introducePreIncrementForInstanceFields(body, position, inlining);
+                }
             }
         }
     }
@@ -434,14 +437,16 @@ public final class AstOptimizer {
     private static boolean introducePreIncrementForVariables(final List<Node> body, final MutableInteger position) {
         final int i = position.getValue();
 
+        if (i >= body.size() - 1) {
+            return false;
+        }
+
         final Node node = body.get(i);
         final Node next = body.get(i + 1);
 
         final StrongBox<Variable> v = new StrongBox<>();
-        final StrongBox<Variable> v2 = new StrongBox<>();
-        final StrongBox<Expression> dExp = new StrongBox<>();
+        final StrongBox<Expression> t = new StrongBox<>();
         final StrongBox<Integer> d = new StrongBox<>();
-        final StrongBox<Expression> load = new StrongBox<>();
 
         if (!(node instanceof Expression && next instanceof Expression)) {
             return false;
@@ -450,16 +455,15 @@ public final class AstOptimizer {
         final Expression e = (Expression) node;
         final Expression n = (Expression) next;
 
-        if (matchGetArgument(e, AstCode.Inc, v, dExp) &&
-            matchGetOperand(dExp.get(), AstCode.LdC, Integer.class, d) &&
+        if (matchGetArgument(e, AstCode.Inc, v, t) &&
+            matchGetOperand(t.get(), AstCode.LdC, Integer.class, d) &&
             Math.abs(d.get()) == 1 &&
-            matchGetArgument(n, AstCode.Store, v2, load) && /* v2 is just scratch here */
-            matchGetOperand(load.get(), AstCode.Load, v2) &&
-            v2.get() == v.get()) {
+            match(n, AstCode.Store) &&
+            matchLoad(n.getArguments().get(0), v.get())) {
 
             n.getArguments().set(
                 0,
-                new Expression(AstCode.PreIncrement, d.get(), load.get())
+                new Expression(AstCode.PreIncrement, d.get(), n.getArguments().get(0))
             );
 
             body.remove(i);
@@ -471,13 +475,93 @@ public final class AstOptimizer {
         return false;
     }
 
-    private static boolean introducePreIncrementForArrays(final List<Node> body, final MutableInteger position) {
+    private static boolean introducePreIncrementForStaticFields(final List<Node> body, final MutableInteger position, final Inlining inlining) {
+        final int i = position.getValue();
+
+        if (i >= body.size() - 3) {
+            return false;
+        }
+
+        final Node n1 = body.get(i);
+        final Node n2 = body.get(i + 1);
+        final Node n3 = body.get(i + 2);
+        final Node n4 = body.get(i + 3);
+
+        final StrongBox<Object> tAny = new StrongBox<>();
+        final List<Expression> a = new ArrayList<>();
+
+        if (!matchGetArguments(n1, AstCode.Store, tAny, a)) {
+            return false;
+        }
+
+        final Variable t = (Variable) tAny.get();
+
+        if (!matchGetOperand(a.get(0), AstCode.GetStatic, tAny)) {
+            return false;
+        }
+
+        final Variable u;
+        final FieldReference f = (FieldReference) tAny.get();
+
+        if (!(matchGetArguments(n2, AstCode.Store, tAny, a) &&
+              (u = (Variable) tAny.get()) != null &&
+              matchGetOperand(a.get(0), AstCode.LdC, tAny) &&
+              tAny.get() instanceof Integer &&
+              Math.abs((int)tAny.get()) == 1)) {
+
+            return false;
+        }
+
+        final Variable v;
+        final int amount = (int) tAny.get();
+
+        if (matchGetArguments(n3, AstCode.Store, tAny, a) &&
+            inlining.loadCounts.get(v = (Variable)tAny.get()).getValue() > 1 &&
+            matchGetArguments(a.get(0), AstCode.Add, a) &&
+            matchLoad(a.get(0), t) &&
+            matchLoad(a.get(1), u) &&
+            matchGetArguments(n4, AstCode.PutStatic, tAny, a) &&
+            tAny.get() instanceof FieldReference &&
+            StringUtilities.equals(f.getFullName(), ((FieldReference)tAny.get()).getFullName()) &&
+            matchLoad(a.get(0), v)) {
+
+            ((Expression)n3).getArguments().set(
+                0,
+                new Expression(AstCode.PreIncrement, amount, ((Expression)n1).getArguments().get(0))
+            );
+
+            body.remove(i);
+            body.remove(i);
+            body.remove(i + 1);
+            position.decrement();
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static boolean introducePreIncrementForInstanceFields(final List<Node> body, final MutableInteger position, final Inlining inlining) {
         final int i = position.getValue();
 
         if (i < 1 || i >= body.size() - 3) {
             return false;
         }
 
+        //
+        // +-------------------------------+
+        // | n = load(o)                   |
+        // | t = getfield(f, load(n))      |
+        // | u = ldc(1)                    |
+        // | v = add(load(t), load(u))     |
+        // | putfield(f, load(n), load(v)) |
+        // +-------------------------------+
+        //   |
+        //   |    +--------------------------------------------+
+        //   +--> | v = postincrement(1, getfield(_, load(n))) |
+        //        +--------------------------------------------+
+        //
+        //   == OR ==
         //
         // +---------------------------+
         // | n = ?                     |
@@ -504,33 +588,33 @@ public final class AstOptimizer {
         final Expression e0 = (Expression) body.get(i - 1);
         final Expression e1 = (Expression) body.get(i);
 
+        final List<Expression> a = new ArrayList<>();
         final StrongBox<Variable> tVar = new StrongBox<>();
-        final StrongBox<Expression> tExp = new StrongBox<>();
 
-        if (!matchGetArgument(e0, AstCode.Store, tVar, tExp)) {
+        if (!matchGetArguments(e0, AstCode.Store, tVar, a)) {
             return false;
         }
 
         final Variable n = tVar.get();
-        final StrongBox<?> _ = new StrongBox<>();
-        final StrongBox<Variable> t = new StrongBox<>();
-        final List<Expression> a = new ArrayList<>();
+        final StrongBox<Object> _ = new StrongBox<>();
+        final boolean field;
 
-        if (!matchGetArgument(e1, AstCode.Store, t, tExp) ||
-            !matchGetArguments(tExp.get(), AstCode.LoadElement, a) ||
-            !matchGetOperand(a.get(0), AstCode.Load, _) ||
-            !matchGetOperand(a.get(1), AstCode.Load, tVar) ||
-            tVar.get() != n) {
+        if (!matchGetArguments(e1, AstCode.Store, tVar, a) ||
+            !((field = match(a.get(0), AstCode.GetField)) ? matchGetArguments(a.get(0), AstCode.GetField, _, a)
+                                                          : matchGetArguments(a.get(0), AstCode.LoadElement, a)) ||
+            !matchLoad(a.get(field ? 0 : 1), n)) {
 
             return false;
         }
 
-        final Variable o = (Variable) _.get();
+        final Variable t = tVar.get();
+        final Variable o = field ? null : (Variable) a.get(0).getOperand();
+        final FieldReference f = field ? (FieldReference) _.get() : null;
         final Expression e2 = (Expression) body.get(i + 1);
         final StrongBox<Integer> amount = new StrongBox<>();
 
-        if (!matchGetArgument(e2, AstCode.Store, tVar, tExp) ||
-            !matchGetOperand(tExp.get(), AstCode.LdC, Integer.class, amount) ||
+        if (!matchGetArguments(e2, AstCode.Store, tVar, a) ||
+            !matchGetOperand(a.get(0), AstCode.LdC, Integer.class, amount) ||
             Math.abs(amount.get()) != 1) {
 
             return false;
@@ -539,152 +623,28 @@ public final class AstOptimizer {
         final Variable u = tVar.get();
 
         //  v = add(load(t), load(u))
-        //  storeelement(o, n, v)
+        //  putfield(field, load(n), load(v))
 
         final Expression e3 = (Expression) body.get(i + 2);
-        final StrongBox<Variable> v = new StrongBox<>();
 
-        //
-        // In the unoptimized AST, generated variables named "stack_XXXX" are single-load.
-        //
-
-        if (!matchGetArgument(e3, AstCode.Store, v, tExp) ||
-            v.get().isGenerated() && StringUtilities.startsWith(v.get().getName(), "stack_") ||
-            !matchGetArguments(tExp.get(), AstCode.Add, a) ||
-            !matchGetOperand(a.get(0), AstCode.Load, tVar) ||
-            tVar.get() != t.get() ||
-            !matchGetOperand(a.get(1), AstCode.Load, tVar) ||
-            tVar.get() != u) {
+        if (!matchGetArguments(e3, AstCode.Store, tVar, a) ||
+            tVar.get().isGenerated() && inlining.loadCounts.get(tVar.get()).getValue() <= 1 ||
+            !matchGetArguments(a.get(0), AstCode.Add, a) ||
+            !matchLoad(a.get(0), t) ||
+            !matchLoad(a.get(1), u)) {
 
             return false;
         }
 
+        final Variable v = tVar.get();
         final Expression e4 = (Expression) body.get(i + 3);
 
-        if (!matchGetArguments(e4, AstCode.StoreElement, a) ||
-            !matchGetOperand(a.get(0), AstCode.Load, tVar) ||
-            tVar.get() != o ||
-            !matchGetOperand(a.get(1), AstCode.Load, tVar) ||
-            tVar.get() != n ||
-            !matchGetOperand(a.get(2), AstCode.Load, tVar) ||
-            tVar.get() != v.get()) {
-
-            return false;
-        }
-
-        final Expression newExpression = new Expression(
-            AstCode.PreIncrement,
-            amount.get(),
-            e1.getArguments().get(0)
-        );
-
-        e3.getArguments().set(0, newExpression);
-
-        body.remove(i);
-        body.remove(i);
-        body.remove(i + 1);
-
-        position.decrement();
-
-        return true;
-    }
-
-    private static boolean introducePreIncrementForInstanceFields(final List<Node> body, final MutableInteger position) {
-        final int i = position.getValue();
-
-        if (i < 1 || i >= body.size() - 3) {
-            return false;
-        }
-
-        //
-        // +-------------------------------+
-        // | p = load(o)                   |
-        // | t = getfield(f, load(p))      |
-        // | u = ldc(1)                    |
-        // | v = add(load(t), load(u))     |
-        // | putfield(f, load(p), load(v)) |
-        // +-------------------------------+
-        //   |
-        //   |    +--------------------------------------------+
-        //   +--> | v = postincrement(1, getfield(_, load(p))) |
-        //        +--------------------------------------------+
-        //
-
-        if (!(body.get(i    ) instanceof Expression &&
-              body.get(i - 1) instanceof Expression &&
-              body.get(i + 1) instanceof Expression &&
-              body.get(i + 2) instanceof Expression &&
-              body.get(i + 3) instanceof Expression)) {
-
-            return false;
-        }
-
-        final Expression e0 = (Expression) body.get(i - 1);
-        final Expression e1 = (Expression) body.get(i);
-
-        final StrongBox<Variable> p = new StrongBox<>();
-        final StrongBox<Expression> tExp = new StrongBox<>();
-
-        if (!matchGetArgument(e0, AstCode.Store, p, tExp)) {
-            return false;
-        }
-
-        final StrongBox<Variable> t = new StrongBox<>();
-
-        final StrongBox<?> _ = new StrongBox<>();
-        final StrongBox<Variable> tVar = new StrongBox<>();
-
-        if (!matchGetArgument(e1, AstCode.Store, t, tExp) ||
-            !matchGetArgument(tExp.get(), AstCode.GetField, _, tExp) ||
-            !matchGetOperand(tExp.get(), AstCode.Load, tVar) ||
-            tVar.get() != p.get()) {
-
-            return false;
-        }
-
-        final FieldReference f = (FieldReference) _.get();
-        final Expression e2 = (Expression) body.get(i + 1);
-        final StrongBox<Integer> amount = new StrongBox<>();
-
-        if (!matchGetArgument(e2, AstCode.Store, tVar, tExp) ||
-            !matchGetOperand(tExp.get(), AstCode.LdC, Integer.class, amount) ||
-            Math.abs(amount.get()) != 1) {
-
-            return false;
-        }
-
-        final Variable u = tVar.get();
-
-        //  v = add(load(t), load(u))
-        //  putfield(field, load(p), load(v))] => postincrement(1, getfield(_, load(p)))
-
-        final Expression e3 = (Expression) body.get(i + 2);
-        final StrongBox<Variable> v = new StrongBox<>();
-        final List<Expression> a = new ArrayList<>();
-
-        //
-        // In the unoptimized AST, generated variables named "stack_XXXX" are single-load.
-        //
-
-        if (!matchGetArgument(e3, AstCode.Store, v, tExp) ||
-            v.get().isGenerated() && StringUtilities.startsWith(v.get().getName(), "stack_") ||
-            !matchGetArguments(tExp.get(), AstCode.Add, a) ||
-            !matchGetOperand(a.get(0), AstCode.Load, tVar) ||
-            tVar.get() != t.get() ||
-            !matchGetOperand(a.get(1), AstCode.Load, tVar) ||
-            tVar.get() != u) {
-
-            return false;
-        }
-
-        final Expression e4 = (Expression) body.get(i + 3);
-
-        if (!matchGetArguments(e4, AstCode.PutField, _, a) ||
-            !StringUtilities.equals(f.getFullName(), ((FieldReference)_.get()).getFullName()) ||
-            !matchGetOperand(a.get(0), AstCode.Load, tVar) ||
-            tVar.get() != p.get() ||
-            !matchGetOperand(a.get(1), AstCode.Load, tVar) ||
-            tVar.get() != v.get()) {
+        if (!(field ? matchGetArguments(e4, AstCode.PutField, _, a)
+                    : matchGetArguments(e4, AstCode.StoreElement, a)) ||
+            !(field ? StringUtilities.equals(f.getFullName(), ((FieldReference) _.get()).getFullName())
+                    : matchLoad(a.get(0), o)) ||
+            !matchLoad(a.get(field ? 0 : 1), n) ||
+            !matchLoad(a.get(field ? 1 : 2), v)) {
 
             return false;
         }
