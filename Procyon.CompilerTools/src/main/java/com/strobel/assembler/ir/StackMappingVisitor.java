@@ -702,7 +702,7 @@ public class StackMappingVisitor implements MethodVisitor {
 
                                         if (next != null && next.getOpCode().isStore()) {
                                             final int slot = InstructionHelper.getLoadOrStoreSlot(next);
-                                            final VariableDefinition variable = _body.getVariables().find(slot);
+                                            final VariableDefinition variable = _body.getVariables().find(slot, next.getEndOffset());
 
                                             if (variable.isFromMetadata() &&
                                                 variable.getVariableType() instanceof IGenericInstance &&
@@ -997,7 +997,7 @@ public class StackMappingVisitor implements MethodVisitor {
 
                             final Instruction next = instruction.getNext();
                             final int slot = InstructionHelper.getLoadOrStoreSlot(next);
-                            final VariableDefinition variable = _body.getVariables().find(slot);
+                            final VariableDefinition variable = _body.getVariables().find(slot, next.getEndOffset() );
 
                             if (variable != null && variable.isFromMetadata()) {
                                 returnType = substituteTypeArguments(
