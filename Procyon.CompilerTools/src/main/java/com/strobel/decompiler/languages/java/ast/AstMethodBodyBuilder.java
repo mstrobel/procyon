@@ -219,9 +219,31 @@ public class AstMethodBodyBuilder {
 
         final AstNodeCollection<Statement> statements = astBlock.getStatements();
         final Statement insertionPoint = firstOrDefault(statements);
+        final ConvertTypeOptions noTypeArgsOptions = new ConvertTypeOptions(false, false);
 
         for (final Variable v : _localVariablesToDefine) {
-            final AstType type = _astBuilder.convertType(v.getType());
+            final AstType type;
+
+            TypeReference variableType = v.getType();
+
+            final TypeDefinition resolvedType = variableType.resolve();
+
+            if (resolvedType != null && resolvedType.isAnonymous()) {
+                if (resolvedType.getExplicitInterfaces().isEmpty()) {
+                    variableType = resolvedType.getBaseType();
+                }
+                else {
+                    variableType = resolvedType.getExplicitInterfaces().get(0);
+                }
+            }
+
+            if (variableType.isGenericType() && !variableType.isGenericDefinition()) {
+                type = _astBuilder.convertType(variableType);
+            }
+            else {
+                type = _astBuilder.convertType(variableType, noTypeArgsOptions);
+            }
+
             final VariableDeclarationStatement declaration = new VariableDeclarationStatement(type, v.getName());
 
             declaration.putUserData(Keys.VARIABLE, v);
@@ -980,9 +1002,22 @@ public class AstMethodBodyBuilder {
 
     @SuppressWarnings("UnusedParameters")
     private List<AstType> convertTypeArguments(final MethodReference methodReference) {
-        //
-        // TODO: Convert type arguments.
-        //
+        if (_context.getSettings().getForceExplicitTypeArguments() &&
+            methodReference instanceof IGenericInstance) {
+
+            final List<TypeReference> typeArguments = ((IGenericInstance) methodReference).getTypeArguments();
+
+            if (!typeArguments.isEmpty()){
+                final List<AstType> astTypeArguments = new ArrayList<>();
+
+                for (final TypeReference type : typeArguments) {
+                    astTypeArguments.add(_astBuilder.convertType(type));
+                }
+
+                return astTypeArguments;
+            }
+        }
+
         return Collections.emptyList();
     }
 

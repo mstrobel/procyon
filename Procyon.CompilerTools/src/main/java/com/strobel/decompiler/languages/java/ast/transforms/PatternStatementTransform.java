@@ -942,7 +942,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
     public final DoWhileStatement transformDoWhile(final WhileStatement loop) {
         final Match m = DO_WHILE_PATTERN.match(loop);
 
-        if (!m.success()) {
+        if (!m.success() || !canConvertWhileToDoWhile(loop)) {
             return null;
         }
 
@@ -1017,6 +1017,46 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         }
 
         return doWhile;
+    }
+
+    private boolean canConvertWhileToDoWhile(final WhileStatement loop) {
+        final List<ContinueStatement> continueStatements = new ArrayList<>();
+
+        for (final AstNode node : loop.getDescendantsAndSelf()) {
+            if (node instanceof ContinueStatement) {
+                continueStatements.add((ContinueStatement) node);
+            }
+        }
+
+        if (continueStatements.isEmpty()) {
+            return true;
+        }
+
+        for (final ContinueStatement cs : continueStatements) {
+            final String label = cs.getLabel();
+
+            if (StringUtilities.isNullOrEmpty(label)) {
+                return false;
+            }
+
+            final Statement previousStatement = loop.getPreviousStatement();
+
+            if (previousStatement instanceof LabelStatement) {
+                return !StringUtilities.equals(
+                    ((LabelStatement) previousStatement).getLabel(),
+                    label
+                );
+            }
+
+            if (loop.getParent() instanceof LabeledStatement) {
+                return !StringUtilities.equals(
+                    ((LabeledStatement) loop.getParent()).getLabel(),
+                    label
+                );
+            }
+        }
+
+        return true;
     }
 
     // </editor-fold>

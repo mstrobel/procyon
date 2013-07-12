@@ -27,6 +27,7 @@ import java.util.*;
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
+@SuppressWarnings("ConstantConditions")
 final class GotoRemoval {
     private final static Node NULL_NODE = new Node() {
         @Override
@@ -148,17 +149,32 @@ final class GotoRemoval {
             if (parent instanceof Loop) {
                 ++loopDepth;
 
-                if (target == exit(parent, visitedNodes)) {
+                final Node exit = exit(parent, visitedNodes);
+
+                if (target == exit) {
                     breakBlock = parent;
                     break;
                 }
+
+                if (exit instanceof TryCatchBlock) {
+                    final Node firstChild = firstOrDefault(exit.getChildren());
+
+                    if (firstChild != null) {
+                        visitedNodes.clear();
+                        if (enter(firstChild, visitedNodes) == target) {
+                            breakBlock = parent;
+                            break;
+                        }
+                    }
+                }
+
             }
             else if (parent instanceof Switch) {
                 ++switchDepth;
 
                 final Node nextNode = nextSibling.get(parent);
 
-                if (nextNode!= null &&
+                if (nextNode != null &&
                     nextNode != NULL_NODE &&
                     nextNode == gotoExpression.getOperand()) {
 
@@ -183,9 +199,24 @@ final class GotoRemoval {
         for (final Node parent : getParents(gotoExpression)) {
             if (parent instanceof Loop) {
                 ++loopDepth;
-                if (target == enter(parent, visitedNodes)) {
+
+                final Node enter = enter(parent, visitedNodes);
+
+                if (target == enter) {
                     continueBlock = (Loop) parent;
                     break;
+                }
+
+                if (enter instanceof TryCatchBlock) {
+                    final Node firstChild = firstOrDefault(enter.getChildren());
+
+                    if (firstChild != null) {
+                        visitedNodes.clear();
+                        if (enter(firstChild, visitedNodes) == target) {
+                            continueBlock = (Loop) parent;
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -236,7 +267,7 @@ final class GotoRemoval {
             gotoExpression.setCode(AstCode.Return);
             gotoExpression.setOperand(null);
             gotoExpression.getArguments().clear();
-            gotoExpression.getArguments().add(((Expression)target).getArguments().get(0).clone());
+            gotoExpression.getArguments().add(((Expression) target).getArguments().get(0).clone());
 
             return true;
         }
@@ -365,6 +396,15 @@ final class GotoRemoval {
                         for (final Node n : body) {
                             if (n instanceof Label) {
                                 if (n == target) {
+/*
+                                    final Node firstChild = firstOrDefault(targetTryBlock.getChildren());
+
+                                    if (firstChild != null) {
+                                        final Node result = enter(firstChild, visitedNodes);
+                                        return result;
+                                    }
+*/
+
                                     return targetTryBlock;
                                 }
                             }

@@ -37,12 +37,10 @@ public final class Languages {
         BYTECODE_AST_UNOPTIMIZED = bytecodeAstLanguages.get(0);
         BYTECODE_AST = new BytecodeAstLanguage();
 
-        final Language[] languages = new Language[bytecodeAstLanguages.size() + 1];
+        final Language[] languages = new Language[bytecodeAstLanguages.size()];
 
-        languages[0] = BYTECODE_AST_UNOPTIMIZED;
-
-        for (int i = 1; i < languages.length; i++) {
-            languages[i] = bytecodeAstLanguages.get(i - 1);
+        for (int i = 0; i < languages.length; i++) {
+            languages[i] = bytecodeAstLanguages.get(i);
         }
 
         ALL_LANGUAGES = ArrayUtilities.asUnmodifiableList(JAVA, BYTECODE_AST, BYTECODE_AST_UNOPTIMIZED);

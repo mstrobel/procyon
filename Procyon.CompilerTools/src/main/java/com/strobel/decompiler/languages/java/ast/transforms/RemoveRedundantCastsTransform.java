@@ -63,6 +63,62 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
             trySimplifyDoubleCast(node, value, (CastExpression) parent, sourceType, valueResult.getType());
             return;
         }
+
+        if (parent instanceof AssignmentExpression) {
+            trySimplifyCastForAssignment(node, value, (AssignmentExpression) parent, sourceType, valueResult.getType());
+            return;
+        }
+    }
+
+    private void trySimplifyCastForAssignment(
+        final CastExpression node,
+        final Expression value,
+        final AssignmentExpression parent,
+        final TypeReference castType,
+        final TypeReference valueType) {
+
+        if (node == parent.getLeft()) {
+            //
+            // Huh?  Shouldn't be possible, but lord knows who built this AST.
+            //
+            return;
+        }
+
+        final ResolveResult targetResult = _resolver.apply(parent.getLeft());
+
+        if (targetResult == null || targetResult.getType() == null) {
+            return;
+        }
+
+        if (parent.getOperator() == AssignmentOperatorType.ASSIGN) {
+            final TypeReference targetType = targetResult.getType();
+
+            final ConversionType valueToCast = MetadataHelper.getConversionType(castType, valueType);
+
+            if (valueToCast == ConversionType.IDENTITY) {
+                //
+                // T t; f((T)t) => f(t)
+                //
+                value.remove();
+                node.replaceWith(value);
+                return;
+            }
+
+            final ConversionType castToTarget = MetadataHelper.getConversionType(targetType, castType);
+
+            if (castToTarget != ConversionType.IDENTITY) {
+                return;
+            }
+
+            final ConversionType valueToTarget = MetadataHelper.getConversionType(targetType, valueType);
+
+            if (valueToTarget == ConversionType.IMPLICIT) {
+                value.remove();
+                node.replaceWith(value);
+            }
+
+            return;
+        }
     }
 
     private void tryRemoveCastForArgument(

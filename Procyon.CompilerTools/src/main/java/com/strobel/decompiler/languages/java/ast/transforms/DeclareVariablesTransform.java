@@ -383,7 +383,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         final String variableName,
         final boolean allowPassIntoLoops) {
 
-        if (!allowPassIntoLoops && isLoop(statement)) {
+        if (!allowPassIntoLoops && AstNode.isLoop(statement)) {
             return false;
         }
 
@@ -445,13 +445,6 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         return true;
-    }
-
-    private static boolean isLoop(final Statement statement) {
-        return statement instanceof ForStatement ||
-               statement instanceof ForEachStatement ||
-               statement instanceof WhileStatement ||
-               statement instanceof DoWhileStatement;
     }
 
     private static boolean usesVariable(final AstNode node, final String variableName) {
@@ -828,8 +821,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         @Override
         public Boolean visitAssignmentExpression(final AssignmentExpression node, final Void _) {
             final Expression left = node.getLeft();
-
-            Variable variable = left.getUserData(Keys.VARIABLE);
+            final Variable variable = left.getUserData(Keys.VARIABLE);
 
             if (variable != null && variable.isParameter()) {
                 _unassignedParameters.remove(variable.getOriginalParameter());

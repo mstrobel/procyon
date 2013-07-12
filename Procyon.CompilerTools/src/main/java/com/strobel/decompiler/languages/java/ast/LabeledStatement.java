@@ -11,6 +11,11 @@ public class LabeledStatement extends Statement {
         setLabel(name);
     }
 
+    public LabeledStatement(final String name, final Statement statement) {
+        setLabel(name);
+        setStatement(statement);
+    }
+
     public final String getLabel() {
         return getChildByRole(Roles.LABEL).getName();
     }

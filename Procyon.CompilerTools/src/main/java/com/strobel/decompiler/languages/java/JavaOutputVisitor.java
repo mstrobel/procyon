@@ -1037,9 +1037,22 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     @Override
     public Void visitLabeledStatement(final LabeledStatement node, final Void _) {
+        final boolean isLoop = AstNode.isLoop(node.getStatement());
+
         startNode(node);
+
+        if (isLoop) {
+            formatter.unindent();
+        }
+
         writeIdentifier(node.getLabel(), Roles.LABEL);
         writeToken(Roles.COLON);
+
+        if (isLoop) {
+            formatter.indent();
+            newLine();
+        }
+
         node.getStatement().acceptVisitor(this, _);
         newLine();
         endNode(node);

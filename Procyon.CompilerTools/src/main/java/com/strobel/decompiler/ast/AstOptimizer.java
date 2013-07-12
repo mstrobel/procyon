@@ -276,7 +276,7 @@ public final class AstOptimizer {
             return;
         }
 
-        TypeAnalysis.reset(method);
+        TypeAnalysis.reset(context, method);
         TypeAnalysis.run(context, method);
 
         if (abortBeforeStep == AstOptimizationStep.RemoveRedundantCode3) {

@@ -25,7 +25,7 @@ public final class TypeSubstitutionVisitor implements TypeMetadataVisitor<Map<Ty
         final TypeReference elementType = visit(t.getElementType(), map);
 
         if (elementType != null && elementType != t.getElementType()) {
-            return t.getElementType().makeArrayType();
+            return elementType.makeArrayType();
         }
 
         return t;

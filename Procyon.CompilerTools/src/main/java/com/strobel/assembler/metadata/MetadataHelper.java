@@ -556,9 +556,21 @@ public final class MetadataHelper {
     }
 
     @SuppressWarnings("ConstantConditions")
-    private static Map<TypeReference, TypeReference> getSubTypeMappings(final TypeReference type, final TypeReference baseType) {
+    public static Map<TypeReference, TypeReference> getSubTypeMappings(final TypeReference type, final TypeReference baseType) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(baseType, "baseType");
+
+        if (type.isArray() && baseType.isArray()) {
+            TypeReference elementType = type.getElementType();
+            TypeReference baseElementType = baseType.getElementType();
+
+            while (elementType.isArray() && baseElementType.isArray()) {
+                elementType = elementType.getElementType();
+                baseElementType = baseElementType.getElementType();
+            }
+
+            return getSubTypeMappings(elementType, baseElementType);
+        }
 
         TypeReference current = type;
 

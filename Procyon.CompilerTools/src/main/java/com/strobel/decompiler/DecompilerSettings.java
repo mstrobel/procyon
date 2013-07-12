@@ -26,6 +26,7 @@ public class DecompilerSettings {
     private boolean _showSyntheticMembers;
     private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
     private boolean _forceExplicitImports;
+    private boolean _forceExplicitTypeArguments;
     private boolean _flattenSwitchBlocks;
     private boolean _showNestedTypes;
     private JavaFormattingOptions _formattingOptions;
@@ -58,6 +59,14 @@ public class DecompilerSettings {
 
     public final void setForceExplicitImports(final boolean forceExplicitImports) {
         _forceExplicitImports = forceExplicitImports;
+    }
+
+    public final boolean getForceExplicitTypeArguments() {
+        return _forceExplicitTypeArguments;
+    }
+
+    public final void setForceExplicitTypeArguments(final boolean forceExplicitTypeArguments) {
+        _forceExplicitTypeArguments = forceExplicitTypeArguments;
     }
 
     public final String getOutputFileHeaderText() {

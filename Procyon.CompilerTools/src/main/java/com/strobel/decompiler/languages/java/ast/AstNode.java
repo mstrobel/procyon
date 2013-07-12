@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.componentmodel.Key;
 import com.strobel.componentmodel.UserDataStore;
 import com.strobel.componentmodel.UserDataStoreBase;
@@ -67,6 +68,20 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
     protected static boolean matchString(final String pattern, final String text) {
         return Pattern.matchString(pattern, text);
+    }
+
+    public static boolean isLoop(final AstNode statement) {
+        return statement instanceof ForStatement ||
+               statement instanceof ForEachStatement ||
+               statement instanceof WhileStatement ||
+               statement instanceof DoWhileStatement;
+    }
+
+    public static boolean isUnconditionalBranch(final AstNode statement) {
+        return statement instanceof GotoStatement ||
+               statement instanceof ReturnStatement ||
+               statement instanceof BreakStatement ||
+               statement instanceof ContinueStatement;
     }
 
     final void setRoleUnsafe(final Role<?> role) {
@@ -197,6 +212,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
     public final Iterable<AstNode> getChildren() {
         return new Iterable<AstNode>() {
+            @NotNull
             @Override
             public final Iterator<AstNode> iterator() {
                 return new Iterator<AstNode>() {
@@ -245,6 +261,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
     public final Iterable<AstNode> getAncestors() {
         return new Iterable<AstNode>() {
+            @NotNull
             @Override
             public final Iterator<AstNode> iterator() {
                 return new Iterator<AstNode>() {
@@ -279,6 +296,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
     public final Iterable<AstNode> getAncestorsAndSelf() {
         return new Iterable<AstNode>() {
+            @NotNull
             @Override
             public final Iterator<AstNode> iterator() {
                 return new Iterator<AstNode>() {

@@ -16,10 +16,13 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.core.Predicate;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.*;
+
+import static com.strobel.core.CollectionUtilities.*;
 
 public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
     public BreakTargetRelocation(final DecompilerContext context) {
@@ -115,7 +118,7 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
             label.getParent().getParent().getParent() == commonAncestor) {
 
             final GotoStatement s = labelInfo.gotoStatements.get(0);
-            
+
             if (s.getParent() instanceof BlockStatement &&
                 s.getParent().getParent() instanceof SwitchSection &&
                 s.getParent().getParent().getParent() == commonAncestor) {
@@ -226,31 +229,111 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
             blockStatements.add((Statement) node);
         }
 
+        final AssessForLoopResult loopData = assessForLoop(commonAncestor, paths, label, labelInfo.gotoStatements);
+        final boolean rewriteAsLoop = !loopData.continueStatements.isEmpty();
+
         label.remove();
 
-        final LabeledStatement labeledStatement = new LabeledStatement(label.getLabel());
+        final Statement insertedStatement;
 
-        labeledStatement.setStatement(newBlock);
+        if (rewriteAsLoop) {
+            final WhileStatement loop = new WhileStatement(new PrimitiveExpression(true));
 
-        if (insertBefore != null) {
-            parent.insertChildBefore(insertBefore, labeledStatement, BlockStatement.STATEMENT_ROLE);
-        }
-        else if (insertAfter != null) {
-            parent.insertChildAfter(insertAfter, labeledStatement, BlockStatement.STATEMENT_ROLE);
+            loop.setEmbeddedStatement(newBlock);
+
+            if (!AstNode.isUnconditionalBranch(lastOrDefault(newBlock.getStatements()))) {
+                newBlock.getStatements().add(new BreakStatement());
+            }
+
+            if (loopData.needsLabel) {
+                insertedStatement = new LabeledStatement(label.getLabel(), loop);
+            }
+            else {
+                insertedStatement = loop;
+            }
         }
         else {
-            parent.getStatements().add(labeledStatement);
+            insertedStatement = new LabeledStatement(label.getLabel(), newBlock);
+        }
+
+        if (insertBefore != null) {
+            parent.insertChildBefore(insertBefore, insertedStatement, BlockStatement.STATEMENT_ROLE);
+        }
+        else if (insertAfter != null) {
+            parent.insertChildAfter(insertAfter, insertedStatement, BlockStatement.STATEMENT_ROLE);
+        }
+        else {
+            parent.getStatements().add(insertedStatement);
         }
 
         for (final GotoStatement gotoStatement : labelInfo.gotoStatements) {
-            final BreakStatement breakStatement = new BreakStatement();
+            if (loopData.continueStatements.contains(gotoStatement)) {
+                final ContinueStatement continueStatement = new ContinueStatement();
 
-            breakStatement.putUserData(Keys.VARIABLE, gotoStatement.getUserData(Keys.VARIABLE));
-            breakStatement.putUserData(Keys.MEMBER_REFERENCE, gotoStatement.getUserData(Keys.MEMBER_REFERENCE));
-            breakStatement.setLabel(gotoStatement.getLabel());
+                if (loopData.needsLabel) {
+                    continueStatement.setLabel(gotoStatement.getLabel());
+                }
 
-            gotoStatement.replaceWith(breakStatement);
+                gotoStatement.replaceWith(continueStatement);
+            }
+            else {
+                final BreakStatement breakStatement = new BreakStatement();
+
+                breakStatement.setLabel(gotoStatement.getLabel());
+
+                gotoStatement.replaceWith(breakStatement);
+            }
         }
+    }
+
+    private final static class AssessForLoopResult {
+        final boolean needsLabel;
+        final Set<GotoStatement> continueStatements;
+
+        private AssessForLoopResult(final boolean needsLabel, final Set<GotoStatement> continueStatements) {
+            this.needsLabel = needsLabel;
+            this.continueStatements = continueStatements;
+        }
+    }
+
+    private AssessForLoopResult assessForLoop(
+        final AstNode commonAncestor,
+        final List<Stack<AstNode>> paths,
+        final LabelStatement label,
+        final List<GotoStatement> statements) {
+
+        final Set<GotoStatement> gotoStatements = new HashSet<>(statements);
+        final Set<GotoStatement> continueStatements = new HashSet<>();
+
+        boolean labelSeen = false;
+        boolean loopEncountered = false;
+
+        for (final Stack<AstNode> path : paths) {
+            loopEncountered = any(
+                path,
+                new Predicate<AstNode>() {
+                    @Override
+                    public boolean test(final AstNode node) {
+                        return AstNode.isLoop(node);
+                    }
+                }
+            );
+
+            if (loopEncountered) {
+                break;
+            }
+        }
+
+        for (final AstNode node : commonAncestor.getDescendantsAndSelf()) {
+            if (node == label) {
+                labelSeen = true;
+            }
+            else if (labelSeen && node instanceof GotoStatement && gotoStatements.contains(node)) {
+                continueStatements.add((GotoStatement) node);
+            }
+        }
+
+        return new AssessForLoopResult(loopEncountered, continueStatements);
     }
 
     private static boolean lookAhead(final AstNode start, final Set<AstNode> targets) {
