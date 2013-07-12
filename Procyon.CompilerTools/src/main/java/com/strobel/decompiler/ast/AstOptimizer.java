@@ -507,7 +507,7 @@ public final class AstOptimizer {
               (u = (Variable) tAny.get()) != null &&
               matchGetOperand(a.get(0), AstCode.LdC, tAny) &&
               tAny.get() instanceof Integer &&
-              Math.abs((int)tAny.get()) == 1)) {
+              Math.abs((int) tAny.get()) == 1)) {
 
             return false;
         }
@@ -516,18 +516,18 @@ public final class AstOptimizer {
         final int amount = (int) tAny.get();
 
         if (matchGetArguments(n3, AstCode.Store, tAny, a) &&
-            inlining.loadCounts.get(v = (Variable)tAny.get()).getValue() > 1 &&
+            inlining.loadCounts.get(v = (Variable) tAny.get()).getValue() > 1 &&
             matchGetArguments(a.get(0), AstCode.Add, a) &&
             matchLoad(a.get(0), t) &&
             matchLoad(a.get(1), u) &&
             matchGetArguments(n4, AstCode.PutStatic, tAny, a) &&
             tAny.get() instanceof FieldReference &&
-            StringUtilities.equals(f.getFullName(), ((FieldReference)tAny.get()).getFullName()) &&
+            StringUtilities.equals(f.getFullName(), ((FieldReference) tAny.get()).getFullName()) &&
             matchLoad(a.get(0), v)) {
 
-            ((Expression)n3).getArguments().set(
+            ((Expression) n3).getArguments().set(
                 0,
-                new Expression(AstCode.PreIncrement, amount, ((Expression)n1).getArguments().get(0))
+                new Expression(AstCode.PreIncrement, amount, ((Expression) n1).getArguments().get(0))
             );
 
             body.remove(i);
@@ -576,7 +576,7 @@ public final class AstOptimizer {
         //        +-----------------------+
         //
 
-        if (!(body.get(i    ) instanceof Expression &&
+        if (!(body.get(i) instanceof Expression &&
               body.get(i - 1) instanceof Expression &&
               body.get(i + 1) instanceof Expression &&
               body.get(i + 2) instanceof Expression &&
@@ -1485,8 +1485,15 @@ public final class AstOptimizer {
         @Override
         public boolean run(final List<Node> body, final Expression head, final int position) {
             final StrongBox<Variable> v = new StrongBox<>();
-            final StrongBox<Variable> v3 = new StrongBox<>();
             final StrongBox<Expression> newArray = new StrongBox<>();
+
+            if (matchGetArgument(head, AstCode.Store, v, newArray) &&
+                match(newArray.get(), AstCode.InitArray)) {
+
+                return tryRefineArrayInitialization(body, head, position);
+            }
+
+            final StrongBox<Variable> v3 = new StrongBox<>();
             final StrongBox<TypeReference> elementType = new StrongBox<>();
             final StrongBox<Expression> lengthExpression = new StrongBox<>();
             final StrongBox<Number> arrayLength = new StrongBox<>();
@@ -1556,6 +1563,41 @@ public final class AstOptimizer {
 
                     new Inlining(context, method).inlineIfPossible(body, new MutableInteger(position));
                     return true;
+                }
+            }
+
+            return false;
+        }
+
+        private boolean tryRefineArrayInitialization(final List<Node> body, final Expression head, final int position) {
+            final StrongBox<Variable> v = new StrongBox<>();
+            final List<Expression> a = new ArrayList<>();
+            final StrongBox<TypeReference> arrayType = new StrongBox<>();
+
+            if (matchGetArguments(head, AstCode.Store, v, a) &&
+                matchGetArguments(a.get(0), AstCode.InitArray, arrayType, a)) {
+
+                final Expression initArray = head.getArguments().get(0);
+                final List<Expression> initializers = initArray.getArguments();
+                final int actualArrayLength = initializers.size();
+                final StrongBox<Integer> arrayPosition = new StrongBox<>();
+
+                for (int j = position + 1; j < body.size(); j++) {
+                    final Node node = body.get(j);
+
+                    if (matchGetArguments(node, AstCode.StoreElement, a) &&
+                        matchLoad(a.get(0), v.get()) &&
+                        matchGetOperand(a.get(1), AstCode.LdC, Integer.class, arrayPosition) &&
+                        arrayPosition.get() >= 0 &&
+                        arrayPosition.get() < actualArrayLength &&
+                        match(initializers.get(arrayPosition.get()), AstCode.DefaultValue)) {
+
+                        initializers.set(arrayPosition.get(), a.get(2));
+                        body.remove(j--);
+                    }
+                    else {
+                        break;
+                    }
                 }
             }
 

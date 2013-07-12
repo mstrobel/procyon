@@ -579,6 +579,7 @@ final class Inlining {
             case Store:
             case StoreElement:
             case Inc:
+            case PreIncrement:
             case PostIncrement:
                 return true;
 
