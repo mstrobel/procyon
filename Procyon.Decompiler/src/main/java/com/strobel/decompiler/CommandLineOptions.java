@@ -31,6 +31,9 @@ public class CommandLineOptions {
     @Parameter(names = { "-ei", "--explicit-imports" }, description = "Force explicit type imports (never import '*').")
     private boolean _forceExplicitImports;
 
+    @Parameter(names = { "-eta", "--explicit-type-arguments" }, description = "Always print type arguments to generic methods.")
+    private boolean _forceExplicitTypeArguments;
+
     @Parameter(names = { "-fsb", "--flatten-switch-blocks" }, description = "Remove block statements around switch sections when possible.")
     private boolean _flattenSwitchBlocks;
 
@@ -89,6 +92,14 @@ public class CommandLineOptions {
 
     public final void setForceExplicitImports(final boolean forceExplicitImports) {
         _forceExplicitImports = forceExplicitImports;
+    }
+
+    public final boolean getForceExplicitTypeArguments() {
+        return _forceExplicitTypeArguments;
+    }
+
+    public final void setForceExplicitTypeArguments(final boolean forceExplicitTypeArguments) {
+        _forceExplicitTypeArguments = forceExplicitTypeArguments;
     }
 
     public final void setRawBytecode(final boolean rawBytecode) {
