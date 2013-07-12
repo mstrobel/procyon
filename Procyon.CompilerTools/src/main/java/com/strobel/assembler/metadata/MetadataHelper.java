@@ -17,14 +17,11 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.Predicate;
+import com.strobel.core.Predicates;
 import com.strobel.core.VerifyArgument;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public final class MetadataHelper {
     private final static Set<String> BOXED_TYPES;
@@ -89,17 +86,23 @@ public final class MetadataHelper {
 
         if (rank1 != 0 && (elementType1.isPrimitive() || elementType2.isPrimitive())) {
             if (elementType1.isPrimitive() && elementType2.isPrimitive()) {
-                return doNumericPromotion(elementType1, elementType2);
+                TypeReference promotedType = doNumericPromotion(elementType1, elementType2);
+
+                while (rank1-- > 0) {
+                    promotedType = promotedType.makeArrayType();
+                }
+
+                return promotedType;
             }
             return BuiltinTypes.Object;
         }
 
-        while (elementType1.isBoundedType()) {
+        while (!elementType1.isUnbounded()) {
             elementType1 = elementType1.hasSuperBound() ? elementType1.getSuperBound()
                                                         : elementType1.getExtendsBound();
         }
 
-        while (elementType2.isBoundedType()) {
+        while (!elementType2.isUnbounded()) {
             elementType2 = elementType2.hasSuperBound() ? elementType2.getSuperBound()
                                                         : elementType2.getExtendsBound();
         }
@@ -188,12 +191,34 @@ public final class MetadataHelper {
 //        return current;
     }
 
-    public static NumericConversionType getNumericConversionType(final TypeReference target, final TypeReference source) {
+    public static ConversionType getConversionType(final TypeReference target, final TypeReference source) {
+        VerifyArgument.notNull(source, "source");
+        VerifyArgument.notNull(target, "target");
+
+        final TypeReference underlyingTarget = getUnderlyingPrimitiveTypeOrSelf(target);
+        final TypeReference underlyingSource = getUnderlyingPrimitiveTypeOrSelf(source);
+
+        if (underlyingTarget.getSimpleType().isNumeric() && underlyingSource.getSimpleType().isNumeric()) {
+            return getNumericConversionType(target, source);
+        }
+
+        if (MetadataResolver.areEquivalent(target, source)) {
+            return ConversionType.IDENTITY;
+        }
+
+        if (isAssignableFrom(target, source)) {
+            return ConversionType.IMPLICIT;
+        }
+
+        return ConversionType.EXPLICIT;
+    }
+
+    public static ConversionType getNumericConversionType(final TypeReference target, final TypeReference source) {
         VerifyArgument.notNull(source, "source");
         VerifyArgument.notNull(target, "target");
 
         if (target == source && BOXED_TYPES.contains(target.getInternalName())) {
-            return NumericConversionType.IDENTITY;
+            return ConversionType.IDENTITY;
         }
 
         if (!source.isPrimitive()) {
@@ -222,17 +247,17 @@ public final class MetadataHelper {
                     unboxedSourceType = BuiltinTypes.Double;
                     break;
                 default:
-                    return NumericConversionType.NONE;
+                    return ConversionType.NONE;
             }
 
-            final NumericConversionType unboxedConversion = getNumericConversionType(target, unboxedSourceType);
+            final ConversionType unboxedConversion = getNumericConversionType(target, unboxedSourceType);
 
             switch (unboxedConversion) {
                 case IDENTITY:
                 case IMPLICIT:
-                    return NumericConversionType.IMPLICIT;
+                    return ConversionType.IMPLICIT;
                 case EXPLICIT:
-                    return NumericConversionType.NONE;
+                    return ConversionType.NONE;
                 default:
                     return unboxedConversion;
             }
@@ -264,18 +289,18 @@ public final class MetadataHelper {
                     unboxedTargetType = BuiltinTypes.Double;
                     break;
                 default:
-                    return NumericConversionType.NONE;
+                    return ConversionType.NONE;
             }
 
             switch (getNumericConversionType(unboxedTargetType, source)) {
                 case IDENTITY:
-                    return NumericConversionType.IMPLICIT;
+                    return ConversionType.IMPLICIT;
                 case IMPLICIT:
-                    return NumericConversionType.EXPLICIT_TO_UNBOXED;
+                    return ConversionType.EXPLICIT_TO_UNBOXED;
                 case EXPLICIT:
-                    return NumericConversionType.EXPLICIT;
+                    return ConversionType.EXPLICIT;
                 default:
-                    return NumericConversionType.NONE;
+                    return ConversionType.NONE;
             }
         }
 
@@ -283,20 +308,20 @@ public final class MetadataHelper {
         final JvmType sourceJvmType = source.getSimpleType();
 
         if (targetJvmType == sourceJvmType) {
-            return NumericConversionType.IDENTITY;
+            return ConversionType.IDENTITY;
         }
 
         if (sourceJvmType == JvmType.Boolean) {
-            return NumericConversionType.NONE;
+            return ConversionType.NONE;
         }
 
         switch (targetJvmType) {
             case Float:
             case Double:
                 if (sourceJvmType.bitWidth() <= targetJvmType.bitWidth()) {
-                    return NumericConversionType.IMPLICIT;
+                    return ConversionType.IMPLICIT;
                 }
-                return NumericConversionType.EXPLICIT;
+                return ConversionType.EXPLICIT;
 
             case Byte:
             case Short:
@@ -305,13 +330,13 @@ public final class MetadataHelper {
                 if (sourceJvmType.isIntegral() &&
                     sourceJvmType.bitWidth() <= targetJvmType.bitWidth()) {
 
-                    return NumericConversionType.IMPLICIT;
+                    return ConversionType.IMPLICIT;
                 }
 
-                return NumericConversionType.EXPLICIT;
+                return ConversionType.EXPLICIT;
         }
 
-        return NumericConversionType.NONE;
+        return ConversionType.NONE;
     }
 
     public static boolean hasImplicitNumericConversion(final TypeReference target, final TypeReference source) {
@@ -372,28 +397,40 @@ public final class MetadataHelper {
             }
 
             final JvmType targetJvmType = target.getSimpleType();
-            final JvmType sourceJvmType = source.getSimpleType();
+            final JvmType sourceJvmType = getUnderlyingPrimitiveTypeOrSelf(source).getSimpleType();
 
-            if (sourceJvmType == JvmType.Boolean) {
+            if (targetJvmType == JvmType.Boolean || targetJvmType == JvmType.Character) {
+                return targetJvmType == sourceJvmType;
+            }
+
+            switch (getNumericConversionType(target, source)) {
+                case IDENTITY:
+                case IMPLICIT:
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+
+        if (source.isPrimitive()) {
+            if (target == BuiltinTypes.Null) {
                 return false;
             }
 
-            switch (targetJvmType) {
-                case Boolean:
-                case Character:
-                    return targetJvmType == sourceJvmType;
+            final JvmType sourceJvmType = source.getSimpleType();
 
-                case Float:
-                case Double:
-                    return sourceJvmType.isFloating() &&
-                           sourceJvmType.bitWidth() <= targetJvmType.bitWidth();
+            if (sourceJvmType == JvmType.Boolean) {
+                return sourceJvmType == getUnderlyingPrimitiveTypeOrSelf(target).getSimpleType();
+            }
 
-                case Byte:
-                case Short:
-                case Integer:
-                case Long:
-                    return sourceJvmType.isIntegral() &&
-                           sourceJvmType.bitWidth() <= targetJvmType.bitWidth();
+            switch (getNumericConversionType(target, source)) {
+                case IDENTITY:
+                case IMPLICIT:
+                    return true;
+
+                default:
+                    return false;
             }
         }
 
@@ -541,7 +578,7 @@ public final class MetadataHelper {
 
         while (current != null) {
             final TypeDefinition resolved = current.resolve();
-            
+
             if (resolvedBaseType != null &&
                 resolvedBaseType.isGenericDefinition() &&
                 MetadataResolver.areEquivalent(resolved, resolvedBaseType)) {
@@ -748,5 +785,106 @@ public final class MetadataHelper {
 
         return resolvedType != null &&
                resolvedType.containsGenericParameters();
+    }
+
+    public static List<MethodReference> findMethods(final TypeReference type) {
+        return findMethods(type, Predicates.alwaysTrue());
+    }
+
+    public static List<MethodReference> findMethods(
+        final TypeReference type,
+        final Predicate<? super MethodReference> filter) {
+
+        VerifyArgument.notNull(type, "type");
+        VerifyArgument.notNull(filter, "filter");
+
+        final Set<String> descriptors = new HashSet<>();
+        final ArrayDeque<TypeReference> agenda = new ArrayDeque<>();
+
+        List<MethodReference> results = null;
+
+        agenda.addLast(type);
+        descriptors.add(type.getInternalName());
+
+        while (!agenda.isEmpty()) {
+            final TypeDefinition resolvedType = agenda.removeFirst().resolve();
+
+            if (resolvedType == null) {
+                break;
+            }
+
+            final TypeReference baseType = resolvedType.getBaseType();
+
+            if (baseType != null && descriptors.add(baseType.getInternalName())) {
+                agenda.addLast(baseType);
+            }
+
+            for (final TypeReference interfaceType : resolvedType.getExplicitInterfaces()) {
+                if (interfaceType != null && descriptors.add(interfaceType.getInternalName())) {
+                    agenda.addLast(interfaceType);
+                }
+            }
+
+            for (final MethodDefinition method : resolvedType.getDeclaredMethods()) {
+                if (filter.test(method)) {
+                    final String key = method.getName() + ":" + method.getErasedSignature();
+
+                    if (descriptors.add(key)) {
+                        if (results == null) {
+                            results = new ArrayList<>();
+                        }
+
+                        final MethodReference asMember = asMemberOf(method, type);
+
+                        results.add(asMember != null ? asMember : method);
+                    }
+                }
+            }
+        }
+
+        return results != null ? results
+                               : Collections.<MethodReference>emptyList();
+    }
+
+    public static boolean isOverloadCheckingRequired(final MethodReference method) {
+        final MethodDefinition resolved = method.resolve();
+        final boolean isVarArgs = resolved != null && resolved.isVarArgs();
+        final TypeReference declaringType = (resolved != null ? resolved : method).getDeclaringType();
+        final int parameterCount = (resolved != null ? resolved.getParameters() : method.getParameters()).size();
+
+        final List<MethodReference> methods = findMethods(
+            declaringType,
+            Predicates.and(
+                MetadataFilters.<MethodReference>matchName(method.getName()),
+                new Predicate<MethodReference>() {
+                    @Override
+                    public boolean test(final MethodReference m) {
+                        final List<ParameterDefinition> p = m.getParameters();
+
+                        final MethodDefinition r = m instanceof MethodDefinition ? (MethodDefinition) m
+                                                                                 : m.resolve();
+
+                        if (r != null && r.isBridgeMethod()) {
+                            return false;
+                        }
+
+                        if (isVarArgs) {
+                            if (r != null && r.isVarArgs()) {
+                                return true;
+                            }
+                            return p.size() >= parameterCount;
+                        }
+
+                        if (p.size() < parameterCount) {
+                            return r != null && r.isVarArgs();
+                        }
+
+                        return p.size() == parameterCount;
+                    }
+                }
+            )
+        );
+
+        return methods.size() > 1;
     }
 }

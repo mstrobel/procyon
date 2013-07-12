@@ -1,5 +1,6 @@
 package com.strobel.decompiler;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class BoxingTests extends DecompilerTest {
@@ -66,6 +67,31 @@ public class BoxingTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("UnusedParameters")
+    private static class C {
+        void test(final Object o) {
+        }
+
+        void test(final Integer i) {
+        }
+
+        void test(final int i) {
+        }
+
+        void t(final int x) {
+            test(Integer.valueOf(x));
+            test((Object)Integer.valueOf(x));
+            test(x);
+        }
+    }
+
+    private static class D {
+        boolean t(final Integer i, final int j) {
+            return (i == Integer.valueOf(j) && i == j);
+        }
+    }
+
+
     @Test
     public void testImplicitBoxingTranslation() throws Throwable {
         verifyOutput(
@@ -83,7 +109,7 @@ public class BoxingTests extends DecompilerTest {
             "    void b(final int i) {\n" +
             "        this.a(i);\n" +
             "        this.b(i);\n" +
-            "        this.c((double)i);\n" +
+            "        this.c(i);\n" +
             "        this.d((double)i);\n" +
             "        this.e((short)i);\n" +
             "        this.f((short)i);\n" +
@@ -114,8 +140,8 @@ public class BoxingTests extends DecompilerTest {
             "    }\n" +
             "    void f(final short s) {\n" +
             "        this.a((int)s);\n" +
-            "        this.b((int)s);\n" +
-            "        this.c((double)s);\n" +
+            "        this.b(s);\n" +
+            "        this.c(s);\n" +
             "        this.d((double)s);\n" +
             "        this.e(s);\n" +
             "        this.f(s);\n" +
@@ -132,6 +158,46 @@ public class BoxingTests extends DecompilerTest {
            "private static class B {\n" +
            "    boolean test(final Integer n) {\n" +
            "        return Integer.valueOf(n) != null;\n" +
+           "    }\n" +
+           "}\n"
+        );
+    }
+
+    @Test
+    @Ignore
+    public void testNoImproperCastRemoval() throws Exception {
+        verifyOutput(
+           C.class,
+           defaultSettings(),
+           "private static class C {\n" +
+           "    void test(final Object o) {\n" +
+           "    }\n" +
+           "    void test(final Integer i) {\n" +
+           "    }\n" +
+           "    void test(final int i) {\n" +
+           "    }\n" +
+           "    void t(final int x) {\n" +
+           "        test(Integer.valueOf(x));\n" +
+           "        test((Object)Integer.valueOf(x));\n" +
+           "        test(x);\n" +
+           "    }\n" +
+           "}\n"
+        );
+    }
+
+    @Test
+    public void testBoxedToBoxedBinaryComparison() throws Exception {
+        //
+        // If `j` is too big for the boxing cache, this will create a new object,
+        // in which case the first test may FAIL even though `i == j` (unless it's
+        // incorrectly decompiled to `i == j && i == j`).
+        //
+        verifyOutput(
+           D.class,
+           defaultSettings(),
+           "private static class D {\n" +
+           "    boolean t(final Integer i, final int j) {\n" +
+           "        return i == Integer.valueOf(j) && i == j;\n" +
            "    }\n" +
            "}\n"
         );

@@ -274,7 +274,35 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
 
     // <editor-fold defaultstate="collapsed" desc="Equivalence Tests">
 
+    /**
+     * Returns whether two type references refer to the same type.  Note that a parameterized type
+     * will not match its corresponding raw type (but a generic definition will match its raw type).
+     *
+     * @param a
+     *     The first type reference.
+     * @param b
+     *     The second type reference.
+     *
+     * @return {@code true} if two type references refer to the same type; otherwise, {@code false}.
+     */
     public static boolean areEquivalent(final TypeReference a, final TypeReference b) {
+        return areEquivalent(a, b, true);
+    }
+
+    /**
+     * Returns whether two type references refer to the same type.
+     *
+     * @param a
+     *     The first type reference.
+     * @param b
+     *     The second type reference.
+     * @param strict
+     *     If {@code true}, a parameterized type will not match its corresponding raw type (but a
+     *     generic definition will match its raw type).
+     *
+     * @return {@code true} if two type references refer to the same type; otherwise, {@code false}.
+     */
+    public static boolean areEquivalent(final TypeReference a, final TypeReference b, final boolean strict) {
         if (a == b) {
             return true;
         }
@@ -332,7 +360,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
 
         if (b.isGenericType()) {
             if (!a.isGenericType()) {
-                return b.isGenericDefinition();
+                return strict ? b.isGenericDefinition() : true;
             }
 
             if (a.isGenericDefinition() != b.isGenericDefinition()) {

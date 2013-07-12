@@ -522,7 +522,12 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
             return null;
         }
 
-        final TypeReference type = variable.getType();
+        TypeReference type = variable.getType();
+
+        if (type == null) {
+            type = variable.isParameter() ? variable.getOriginalParameter().getParameterType()
+                                          : variable.getOriginalVariable().getVariableType();
+        }
 
         if (type != null) {
             return new ResolveResult(type);

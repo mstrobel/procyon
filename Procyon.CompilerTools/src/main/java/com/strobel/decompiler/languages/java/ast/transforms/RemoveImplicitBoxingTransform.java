@@ -16,10 +16,10 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.ConversionType;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.NumericConversionType;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
@@ -120,7 +120,26 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
                 return false;
             }
 
-            return true;
+            final ResolveResult leftResult = _resolver.apply(binary.getLeft());
+            final ResolveResult rightResult = _resolver.apply(binary.getRight());
+
+            return leftResult != null &&
+                   rightResult != null &&
+                   leftResult.getType() != null &&
+                   rightResult.getType() != null &&
+                   (node == binary.getLeft() ? rightResult.getType().isPrimitive()
+                                             : leftResult.getType().isPrimitive());
+        }
+
+        //
+        // TODO: Remove the `if` below once overload resolution is written and integrated.
+        //
+        if (node.getRole() == Roles.ARGUMENT) {
+            final MethodReference method = (MethodReference) parent.getUserData(Keys.MEMBER_REFERENCE);
+
+            if (method == null || MetadataHelper.isOverloadCheckingRequired(method)) {
+                return false;
+            }
         }
 
         return !(
@@ -176,6 +195,10 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
     }
 
     private void removeUnboxingForArgument(final InvocationExpression e) {
+        //
+        // TODO: Use overload checking (once implemented).  As is, we may remove necessary casts.
+        //
+
         final AstNode parent = e.getParent();
 
         final MemberReference unboxMethod = e.getUserData(Keys.MEMBER_REFERENCE);
@@ -278,7 +301,7 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         }
 
         final TypeReference sourceType = boxedValueResult.getType();
-        final NumericConversionType conversionType = MetadataHelper.getNumericConversionType(targetType, sourceType);
+        final ConversionType conversionType = MetadataHelper.getNumericConversionType(targetType, sourceType);
 
         switch (conversionType) {
             case IMPLICIT: {
@@ -326,7 +349,7 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
         final TypeReference sourceType = valueResult.getType();
         final TypeReference targetType = ((MethodReference) reference).getReturnType();
-        final NumericConversionType conversionType = MetadataHelper.getNumericConversionType(targetType, sourceType);
+        final ConversionType conversionType = MetadataHelper.getNumericConversionType(targetType, sourceType);
 
         switch (conversionType) {
             case IMPLICIT: {
@@ -345,7 +368,7 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
                 final TypeReference castType;
 
-                if (conversionType == NumericConversionType.EXPLICIT_TO_UNBOXED) {
+                if (conversionType == ConversionType.EXPLICIT_TO_UNBOXED) {
                     castType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(targetType);
                 }
                 else {

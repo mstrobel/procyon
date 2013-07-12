@@ -86,6 +86,11 @@ public final class GenericParameter extends TypeDefinition {
     }
 
     @Override
+    public boolean isUnbounded() {
+        return !hasExtendsBound();
+    }
+
+    @Override
     public boolean isGenericParameter() {
         return true;
     }

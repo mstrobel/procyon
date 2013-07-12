@@ -806,7 +806,6 @@ public class AstMethodBodyBuilder {
                 arrayCreation.setInitializer(new ArrayInitializerExpression(arguments));
 
                 return arrayCreation;
-
             }
 
             case Wrap:
@@ -1028,7 +1027,7 @@ public class AstMethodBodyBuilder {
                                 ++start;
                             }
 
-                            return adjustArgumentsForMethodCall(
+                            return adjustArgumentsForMethodCallCore(
                                 method.getParameters().subList(start, end),
                                 arguments.subList(start, end)
                             );
@@ -1038,13 +1037,17 @@ public class AstMethodBodyBuilder {
             }
         }
 
-        return adjustArgumentsForMethodCall(method.getParameters(), arguments);
+        return adjustArgumentsForMethodCallCore(method.getParameters(), arguments);
     }
 
-    private List<Expression> adjustArgumentsForMethodCall(final List<ParameterDefinition> parameters, final List<Expression> arguments) {
+    private List<Expression> adjustArgumentsForMethodCallCore(
+        final List<ParameterDefinition> parameters,
+        final List<Expression> arguments) {
+
         assert parameters.size() == arguments.size();
 
         final JavaResolver resolver = new JavaResolver(_context);
+        final ConvertTypeOptions noTypeArgsOptions = new ConvertTypeOptions(false, false);
 
         for (int i = 0, n = arguments.size(); i < n; i++) {
             final Expression argument = arguments.get(i);
@@ -1054,15 +1057,19 @@ public class AstMethodBodyBuilder {
                 continue;
             }
 
-            final TypeReference argumentType = resolvedArgument.getType();
-            final ParameterDefinition parameter = parameters.get(i);
-            final TypeReference parameterType = parameter.getParameterType();
+            final ParameterDefinition p = parameters.get(i);
 
-            if (isCastRequired(parameterType, argumentType)) {
+            final TypeReference aType = resolvedArgument.getType();
+            final TypeReference pType = p.getParameterType();
+
+            if (isCastRequired(pType, aType, true)) {
+                final boolean noTypeArgs = !pType.isGenericType() || pType.isGenericDefinition();
+
                 arguments.set(
                     i,
                     new CastExpression(
-                        _astBuilder.convertType(parameterType),
+                        noTypeArgs ? _astBuilder.convertType(pType, noTypeArgsOptions)
+                                   : _astBuilder.convertType(pType),
                         argument
                     )
                 );
@@ -1072,13 +1079,17 @@ public class AstMethodBodyBuilder {
         return arguments;
     }
 
-    private boolean isCastRequired(final TypeReference targetType, final TypeReference sourceType) {
+    private boolean isCastRequired(final TypeReference targetType, final TypeReference sourceType, final boolean exactMatch) {
         if (targetType == null || sourceType == null) {
             return false;
         }
 
         if (targetType.isPrimitive()) {
             return sourceType.getSimpleType() != targetType.getSimpleType();
+        }
+
+        if (exactMatch) {
+            return !MetadataResolver.areEquivalent(targetType, sourceType, false);
         }
 
         return !MetadataHelper.isAssignableFrom(targetType, sourceType);

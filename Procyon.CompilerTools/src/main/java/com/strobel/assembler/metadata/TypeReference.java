@@ -170,9 +170,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     }
 
     public boolean isUnbounded() {
-        return isWildcardType() &&
-               BuiltinTypes.Object.equals(getExtendsBound()) &&
-               MetadataResolver.areEquivalent(BuiltinTypes.Bottom, getSuperBound());
+        return true;
     }
 
     public boolean hasExtendsBound() {

@@ -39,7 +39,7 @@ public final class Languages {
 
         final Language[] languages = new Language[bytecodeAstLanguages.size() + 1];
 
-        languages[0] = JAVA;
+        languages[0] = BYTECODE_AST_UNOPTIMIZED;
 
         for (int i = 1; i < languages.length; i++) {
             languages[i] = bytecodeAstLanguages.get(i - 1);

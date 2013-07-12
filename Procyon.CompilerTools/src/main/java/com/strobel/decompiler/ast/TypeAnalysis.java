@@ -108,7 +108,8 @@ public final class TypeAnalysis {
             findNestedAssignments(expression, expressionToInfer);
 
             if (expression.getCode().isStore() &&
-                ((Variable) expression.getOperand()).getType() == null) {
+                shouldInferVariableType((Variable) expression.getOperand())
+                /*((Variable) expression.getOperand()).getType() == null*/) {
 
                 assignmentExpressions.get(expression.getOperand()).add(expressionToInfer);
             }
@@ -134,7 +135,7 @@ public final class TypeAnalysis {
 
                 final Variable variable = (Variable) argument.getOperand();
 
-                if (variable.getType() == null) {
+                if (shouldInferVariableType(variable)) {
                     assignmentExpressions.get(variable).add(expressionToInfer);
 
                     //
@@ -152,7 +153,7 @@ public final class TypeAnalysis {
 
                 final Variable variable = (Variable) argument.getOperand();
 
-                if (variable.getType() == null) {
+                if (shouldInferVariableType(variable)) {
                     assignmentExpressions.get(variable).add(expressionToInfer);
 
                     //
@@ -175,7 +176,7 @@ public final class TypeAnalysis {
 
                 if (load != null &&
                     matchGetOperand(load, AstCode.Load, variable) &&
-                    variable.get().getType() == null) {
+                    shouldInferVariableType(variable.get())) {
 
                     assignmentExpressions.get(variable.get()).add(expressionToInfer);
 
@@ -189,7 +190,7 @@ public final class TypeAnalysis {
                 final StrongBox<Variable> variable = new StrongBox<>();
 
                 if (matchGetOperand(argument, AstCode.Load, variable) &&
-                    variable.get().getType() == null) {
+                    shouldInferVariableType(variable.get())) {
 
                     parent.dependencies.add(variable.get());
                 }
@@ -312,10 +313,10 @@ public final class TypeAnalysis {
         for (final Variable variable : assignmentExpressions.keySet()) {
             final List<ExpressionToInfer> expressionsToInfer = assignmentExpressions.get(variable);
 
-            if (variable.getType() == null &&
-                (assignVariableTypesBasedOnPartialInformation ? anyDone(expressionsToInfer) : allDone(expressionsToInfer))) {
+            if (assignVariableTypesBasedOnPartialInformation ? anyDone(expressionsToInfer)
+                                                             : allDone(expressionsToInfer)) {
 
-                TypeReference inferredType = null;
+                TypeReference inferredType = variable.getType();
 
                 for (final ExpressionToInfer e : expressionsToInfer) {
                     final List<Expression> arguments = e.expression.getArguments();
@@ -341,7 +342,7 @@ public final class TypeAnalysis {
                 if (inferredType == null) {
                     inferredType = BuiltinTypes.Object;
                 }
-                else if (inferredType.isWildcardType()) {
+                else if (!inferredType.isUnbounded()) {
                     inferredType = inferredType.hasSuperBound() ? inferredType.getSuperBound()
                                                                 : inferredType.getExtendsBound();
                 }
@@ -380,8 +381,8 @@ public final class TypeAnalysis {
     }
 
     private static boolean shouldInferVariableType(final Variable variable) {
-        return variable.isGenerated() ||
-               variable.getType() == null/* ||
+        return true/*variable.isGenerated() ||
+               variable.getType() == null*//* ||
                !variable.isParameter() && variable.getType() == BuiltinTypes.Integer ||
                !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata()*/;
     }
@@ -577,64 +578,52 @@ public final class TypeAnalysis {
             case InvokeSpecial:
             case InvokeStatic:
             case InvokeInterface: {
-                final MethodReference methodReference = (MethodReference) operand;
-                final List<ParameterDefinition> parameters = methodReference.getParameters();
+                final MethodReference method = (MethodReference) operand;
+                final List<ParameterDefinition> parameters = method.getParameters();
                 final boolean hasThis = code != AstCode.InvokeStatic && code != AstCode.InvokeDynamic;
+
+                MethodReference boundMethod = method;
 
                 if (forceInferChildren) {
                     if (hasThis) {
-                        final TypeReference targetType;
-
-                        inferTypeForExpression(
+                        final TypeReference targetType = inferTypeForExpression(
                             arguments.get(0),
-                            methodReference.getDeclaringType()
+                            method.getDeclaringType()
                         );
 
-                        targetType = arguments.get(0).getInferredType();
+                        final MethodDefinition r = method.resolve();
+                        final MethodReference m = targetType != null ? MetadataHelper.asMemberOf(r != null ? r : method, targetType)
+                                                                     : method;
 
-                        for (int i = 0; i < parameters.size(); i++) {
-                            inferTypeForExpression(
-                                arguments.get(i + 1),
-                                substituteTypeArguments(
-                                    substituteTypeArguments(parameters.get(i).getParameterType(), methodReference),
-                                    targetType
-                                )
-                            );
+                        if (m != null) {
+                            boundMethod = m;
+                            expression.setOperand(m);
+                        }
+
+                        final List<ParameterDefinition> p = m != null ? m.getParameters()
+                                                                      : method.getParameters();
+
+                        for (int i = 0; i < p.size(); i++) {
+                            inferTypeForExpression(arguments.get(i + 1), parameters.get(i).getParameterType());
                         }
                     }
                     else {
                         for (int i = 0; i < parameters.size(); i++) {
                             inferTypeForExpression(
                                 arguments.get(i),
-                                substituteTypeArguments(parameters.get(i).getParameterType(), methodReference)
+                                substituteTypeArguments(parameters.get(i).getParameterType(), method)
                             );
                         }
                     }
                 }
 
-                if (methodReference.isConstructor() && hasThis) {
-                    return methodReference.getDeclaringType();
-                }
-
                 if (hasThis) {
-                    inferTypeForExpression(
-                        arguments.get(0),
-                        methodReference.getDeclaringType()
-                    );
-
-                    return substituteTypeArguments(
-                        substituteTypeArguments(
-                            methodReference.getReturnType(),
-                            methodReference
-                        ),
-                        arguments.get(0).getInferredType()
-                    );
+                    if (method.isConstructor()) {
+                        return boundMethod.getDeclaringType();
+                    }
                 }
 
-                return substituteTypeArguments(
-                    methodReference.getReturnType(),
-                    methodReference
-                );
+                return boundMethod.getReturnType();
             }
 
             case InvokeDynamic: {

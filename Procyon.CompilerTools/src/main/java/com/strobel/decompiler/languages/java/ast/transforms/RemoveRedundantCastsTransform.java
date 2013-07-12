@@ -1,17 +1,15 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
-import com.strobel.assembler.metadata.MemberReference;
-import com.strobel.assembler.metadata.MetadataHelper;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.NumericConversionType;
-import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.Predicate;
+import com.strobel.core.Predicates;
+import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.Role;
 import com.strobel.decompiler.semantics.ResolveResult;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.strobel.core.CollectionUtilities.firstIndexWhere;
@@ -98,9 +96,9 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
             return;
         }
 
-        final NumericConversionType valueToCast = MetadataHelper.getNumericConversionType(castType, valueType);
+        final ConversionType valueToCast = MetadataHelper.getConversionType(castType, valueType);
 
-        if (valueToCast == NumericConversionType.IDENTITY) {
+        if (valueToCast == ConversionType.IDENTITY) {
             //
             // T t; f((T)t) => f(t)
             //
@@ -109,26 +107,83 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
             return;
         }
 
-/*
         final ParameterDefinition parameter = parameters.get(argumentPosition);
         final TypeReference targetType = parameter.getParameterType();
-        final NumericConversionType castToTarget = MetadataHelper.getNumericConversionType(targetType, castType);
+        final ConversionType castToTarget = MetadataHelper.getConversionType(targetType, castType);
 
-        if (castToTarget != NumericConversionType.IDENTITY) {
+        if (castToTarget != ConversionType.IDENTITY) {
             return;
         }
 
-        final NumericConversionType valueToTarget = MetadataHelper.getNumericConversionType(targetType, valueType);
+        final ConversionType valueToTarget = MetadataHelper.getConversionType(targetType, valueType);
 
-        if (valueToTarget == NumericConversionType.IMPLICIT) {
-            //
-            // Given f(U u) and an implicit conversion of T -> U: T t; f((T)t) => f(t)
-            //
-
-            value.remove();
-            node.replaceWith(value);
+        if (valueToTarget != ConversionType.IMPLICIT) {
+            return;
         }
-*/
+
+        int i = 0;
+        int argumentIndex = -1;
+
+        final List<TypeReference> argumentTypes = new ArrayList<>();
+
+        for (final Expression argument : arguments) {
+            if (argument == node) {
+                argumentIndex = i;
+            }
+
+            final ResolveResult argumentResult = _resolver.apply(argument);
+
+            if (argumentResult == null || argumentResult.getType() == null) {
+                return;
+            }
+
+            ++i;
+            argumentTypes.add(argumentResult.getType());
+        }
+
+        if (argumentIndex < 0) {
+            return;
+        }
+
+        final TypeReference declaringType = method.getDeclaringType();
+
+        final List<MethodReference> candidates = MetadataHelper.findMethods(
+            declaringType,
+            Predicates.and(
+                MetadataFilters.<MethodReference>matchName(method.getName()),
+                new Predicate<MethodReference>() {
+                    @Override
+                    public boolean test(final MethodReference m) {
+                        final MethodDefinition r = m.resolve();
+                        return r == null || !r.isBridgeMethod();
+                    }
+                }
+            )
+        );
+
+        final MethodBinder.BindResult c1 = MethodBinder.selectMethod(candidates, argumentTypes);
+
+        if (c1.isFailure() || c1.isAmbiguous()) {
+            return;
+        }
+
+        argumentTypes.set(argumentIndex, valueType);
+
+        final MethodBinder.BindResult c2 = MethodBinder.selectMethod(candidates, argumentTypes);
+
+        if (c2.isFailure() ||
+            c2.isAmbiguous() ||
+            !StringUtilities.equals(c2.getMethod().getSignature(), c1.getMethod().getSignature())) {
+
+            return;
+        }
+
+        //
+        // Given f(U u) and an implicit conversion of T -> U: T t; f((T)t) => f(t)
+        //
+
+        value.remove();
+        node.replaceWith(value);
     }
 
     private void trySimplifyDoubleCast(
@@ -144,11 +199,11 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
             return;
         }
 
-        final NumericConversionType valueToInner = MetadataHelper.getNumericConversionType(innerCastType, valueType);
-        final NumericConversionType outerToInner = MetadataHelper.getNumericConversionType(innerCastType, outerCastType);
+        final ConversionType valueToInner = MetadataHelper.getNumericConversionType(innerCastType, valueType);
+        final ConversionType outerToInner = MetadataHelper.getNumericConversionType(innerCastType, outerCastType);
 
-        if (outerToInner == NumericConversionType.IDENTITY) {
-            if (valueToInner == NumericConversionType.IDENTITY) {
+        if (outerToInner == ConversionType.IDENTITY) {
+            if (valueToInner == ConversionType.IDENTITY) {
                 //
                 // T t; (T)(T)t => t
                 //
@@ -165,18 +220,18 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
             return;
         }
 
-        if (outerToInner != NumericConversionType.IMPLICIT) {
+        if (outerToInner != ConversionType.IMPLICIT) {
             return;
         }
 
-        final NumericConversionType valueToOuter = MetadataHelper.getNumericConversionType(outerCastType, valueType);
+        final ConversionType valueToOuter = MetadataHelper.getNumericConversionType(outerCastType, valueType);
 
-        if (valueToOuter == NumericConversionType.NONE) {
+        if (valueToOuter == ConversionType.NONE) {
             return;
         }
 
         //
-        // IF V -> T is equivalent to U -> T (assumed if T -> U is an implicit/non-narrowing conversion):
+        // If V -> T is equivalent to U -> T (assumed if T -> U is an implicit/non-narrowing conversion):
         // V v; (T)(U)v => (T)v
         //
 

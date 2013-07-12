@@ -53,6 +53,23 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
     // <editor-fold defaultstate="collapsed" desc="Visitor Overrides">
 
     @Override
+    protected AstNode visitChildren(final AstNode node, final Void data) {
+        AstNode next;
+
+        for (AstNode child = node.getFirstChild(); child != null; child = next) {
+            next = child.getNextSibling();
+
+            final AstNode childResult = child.acceptVisitor(this, data);
+
+            if (childResult != null && childResult != child) {
+                next = childResult;
+            }
+        }
+
+        return null;
+    }
+
+    @Override
     public AstNode visitExpressionStatement(final ExpressionStatement node, final Void data) {
         final AstNode result = transformForEach(node);
 
@@ -83,9 +100,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             return doWhile;
         }
 
-        transformContinueOuter(node);
-
-        return super.visitWhileStatement(node, data);
+        return transformContinueOuter(node);
     }
 
     // </editor-fold>
@@ -714,7 +729,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
     static {
         GET_ITERATOR_PATTERN = new ExpressionStatement(
             new AssignmentExpression(
-                new NamedNode("left", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                new NamedNode("left", new AnyNode()).toExpression(),
                 new AnyNode("collection").toExpression().invoke("iterator")
             )
         );

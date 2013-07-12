@@ -158,6 +158,7 @@ public class TypeInferenceTests extends DecompilerTest {
             "}\n"
         );
     }
+
     @Test
     public void testTypeArgumentsWithLocalTypeVariable() throws Throwable {
         verifyOutput(

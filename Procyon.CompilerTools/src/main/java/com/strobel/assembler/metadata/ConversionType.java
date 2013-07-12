@@ -1,6 +1,6 @@
 package com.strobel.assembler.metadata;
 
-public enum NumericConversionType {
+public enum ConversionType {
     IDENTITY,
     IMPLICIT,
     EXPLICIT,

@@ -1845,6 +1845,10 @@ public final class AstBuilder {
                     tryAst.add(new Expression(AstCode.Leave, null));
                 }
 
+                if (ast.isEmpty() && !tryAst.isEmpty() && tryAst.get(0) instanceof Label) {
+                    ast.add(tryAst.remove(0));
+                }
+
                 tryBlock.getBody().addAll(tryAst);
                 tryCatchBlock.setTryBlock(tryBlock);
             }
