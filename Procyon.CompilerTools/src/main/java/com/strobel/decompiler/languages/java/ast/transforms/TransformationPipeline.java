@@ -48,7 +48,8 @@ public final class TransformationPipeline {
             new FlattenElseIfStatementsTransform(context),
             new FlattenSwitchBlocksTransform(context),
             new InlineFieldInitializersTransform(context),
-            new RemoveHiddenMembersTransform(context)
+            new RemoveHiddenMembersTransform(context),
+            new VarArgsTransform(context)
         };
     }
 

@@ -138,7 +138,7 @@ public class TypeInferenceTests extends DecompilerTest {
             D.class,
             defaultSettings(),
             "private interface D {\n" +
-            "    public static final List<Integer> EMPTY_ARRAY = Arrays.asList(new Integer[] { 1, 2, 3, 4, 5 });\n" +
+            "    public static final List<Integer> EMPTY_ARRAY = Arrays.asList(1, 2, 3, 4, 5);\n" +
             "}\n"
         );
     }

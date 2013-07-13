@@ -52,6 +52,16 @@ final class GenericMethodInstance extends MethodReference implements IGenericIns
     }
 
     @Override
+    public MethodDefinition resolve() {
+        return _genericDefinition.resolve();
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        return _genericDefinition.appendErasedSignature(sb);
+    }
+
+    @Override
     public final TypeReference getDeclaringType() {
         return _declaringType;
     }
