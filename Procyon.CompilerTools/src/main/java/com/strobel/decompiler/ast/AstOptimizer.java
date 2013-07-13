@@ -16,24 +16,8 @@
 
 package com.strobel.decompiler.ast;
 
-import com.strobel.assembler.metadata.BuiltinTypes;
-import com.strobel.assembler.metadata.FieldReference;
-import com.strobel.assembler.metadata.IMetadataResolver;
-import com.strobel.assembler.metadata.MetadataResolver;
-import com.strobel.assembler.metadata.MetadataSystem;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
-import com.strobel.assembler.metadata.VariableDefinition;
-import com.strobel.core.BooleanBox;
-import com.strobel.core.CollectionUtilities;
-import com.strobel.core.MutableInteger;
-import com.strobel.core.Predicate;
-import com.strobel.core.Predicates;
-import com.strobel.core.StringUtilities;
-import com.strobel.core.StrongBox;
-import com.strobel.core.VerifyArgument;
-import com.strobel.core.delegates.Func;
+import com.strobel.assembler.metadata.*;
+import com.strobel.core.*;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.functions.Function;
 import com.strobel.util.ContractUtils;
@@ -83,7 +67,9 @@ public final class AstOptimizer {
 
         final Inlining inliningPhase1 = new Inlining(context, method);
 
-        inliningPhase1.inlineAllVariables();
+        while (inliningPhase1.inlineAllVariables()) {
+            inliningPhase1.analyzeMethod();
+        }
 
         if (abortBeforeStep == AstOptimizationStep.CopyPropagation) {
             return;
@@ -2219,15 +2205,7 @@ public final class AstOptimizer {
 
     @SuppressWarnings("ProtectedField")
     private static abstract class AbstractBasicBlockOptimization implements BasicBlockOptimization {
-        protected final Map<Label, MutableInteger> labelGlobalRefCount = new DefaultMap<>(
-            new Func<MutableInteger>() {
-                @Override
-                public MutableInteger invoke() {
-                    return new MutableInteger(0);
-                }
-            }
-        );
-
+        protected final Map<Label, MutableInteger> labelGlobalRefCount = new DefaultMap<>(MutableInteger.SUPPLIER);
         protected final Map<Label, BasicBlock> labelToBasicBlock = new IdentityHashMap<>();
 
         protected final DecompilerContext context;

@@ -2,7 +2,9 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.core.VerifyArgument;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @SuppressWarnings("ConstantConditions")
 public final class MethodBinder {
@@ -39,7 +41,28 @@ public final class MethodBinder {
             return null;
         }
 
+        final int argumentCount = types.size();
         final MethodReference[] candidates = matches.toArray(new MethodReference[matches.size()]);
+
+        for (int i = 0; i < candidates.length; i++) {
+            final MethodReference candidate = candidates[i];
+
+            if (candidate.isGenericMethod()) {
+                final Map<TypeReference, TypeReference> mappings = new HashMap<>();
+                final List<ParameterDefinition> parameters = candidate.getParameters();
+
+                for (int j = 0, n = Math.min(argumentCount, parameters.size()); j < n; j++) {
+                    final ParameterDefinition p = parameters.get(j);
+                    final TypeReference pType = p.getParameterType();
+
+                    if (pType.containsGenericParameters()) {
+                        new AddMappingsForArgumentVisitor(types.get(j)).visit(pType, mappings);
+                    }
+                }
+
+                candidates[i] = TypeSubstitutionVisitor.instance().visitMethod(candidate, mappings);
+            }
+        }
 
         //
         // Find all the methods that can be described by the parameter types.
@@ -382,5 +405,104 @@ public final class MethodBinder {
         while (currentType != null);
 
         return depth;
+    }
+
+    private final static class AddMappingsForArgumentVisitor implements TypeMetadataVisitor<Map<TypeReference, TypeReference>, Void> {
+        private TypeReference argumentType;
+
+        AddMappingsForArgumentVisitor(final TypeReference argumentType) {
+            this.argumentType = VerifyArgument.notNull(argumentType, "argumentType");
+        }
+
+        public Void visit(final TypeReference t, final Map<TypeReference, TypeReference> map) {
+            final TypeReference a = argumentType;
+            t.accept(this, map);
+            argumentType = a;
+            return null;
+        }
+
+        @Override
+        public Void visitArrayType(final ArrayType t, final Map<TypeReference, TypeReference> map) {
+            final TypeReference a = argumentType;
+
+            if (a.isArray() && t.isArray()) {
+                argumentType = a.getElementType();
+                visit(t.getElementType(), map);
+            }
+
+            return null;
+        }
+
+        @Override
+        public Void visitGenericParameter(final GenericParameter t, final Map<TypeReference, TypeReference> map) {
+            if (MetadataResolver.areEquivalent(argumentType, t)) {
+                return null;
+            }
+
+            final TypeReference existingMapping = map.get(t);
+
+            if (existingMapping == null) {
+                map.put(t, argumentType);
+            }
+            else {
+                map.put(t, MetadataHelper.findCommonSuperType(existingMapping, argumentType));
+            }
+
+            return null;
+        }
+
+        @Override
+        public Void visitWildcard(final WildcardType t, final Map<TypeReference, TypeReference> map) {
+            return null;
+        }
+
+        @Override
+        public Void visitCompoundType(final CompoundTypeReference t, final Map<TypeReference, TypeReference> map) {
+            return null;
+        }
+
+        @Override
+        public Void visitParameterizedType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
+            final TypeReference s = MetadataHelper.asSubType(argumentType, t.getUnderlyingType());
+
+            if (s != null && s instanceof IGenericInstance) {
+                final List<TypeReference> tArgs = ((IGenericInstance) t).getTypeArguments();
+                final List<TypeReference> sArgs = ((IGenericInstance) s).getTypeArguments();
+
+                if (tArgs.size() == sArgs.size()) {
+                    for (int i = 0, n = tArgs.size(); i < n; i++) {
+                        argumentType = sArgs.get(i);
+                        visit(tArgs.get(i), map);
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        @Override
+        public Void visitPrimitiveType(final PrimitiveType t, final Map<TypeReference, TypeReference> map) {
+            return null;
+        }
+
+        @Override
+        public Void visitClassType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
+            return null;
+        }
+
+        @Override
+        public Void visitNullType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
+            return null;
+        }
+
+        @Override
+        public Void visitBottomType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
+            return null;
+        }
+
+        @Override
+        public Void visitRawType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
+            return null;
+        }
     }
 }

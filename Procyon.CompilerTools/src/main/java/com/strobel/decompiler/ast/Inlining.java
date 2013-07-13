@@ -20,7 +20,6 @@ import com.strobel.core.MutableInteger;
 import com.strobel.core.StrongBox;
 import com.strobel.decompiler.DecompilerContext;
 
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,12 +31,16 @@ final class Inlining {
     private final DecompilerContext _context;
     private final Block _method;
 
-    final Map<Variable, MutableInteger> loadCounts = new IdentityHashMap<>();
-    final Map<Variable, MutableInteger> storeCounts = new IdentityHashMap<>();
+    final Map<Variable, MutableInteger> loadCounts;
+    final Map<Variable, MutableInteger> storeCounts;
 
     public Inlining(final DecompilerContext context, final Block method) {
         _context = context;
         _method = method;
+
+        loadCounts = new DefaultMap<>(MutableInteger.SUPPLIER);
+        storeCounts = new DefaultMap<>(MutableInteger.SUPPLIER);
+
         analyzeMethod();
     }
 
@@ -147,7 +150,7 @@ final class Inlining {
                 inlineOneIfPossible(block.getBody(), i, false)) {
 
                 modified = true;
-                i = Math.max(0, i - 1);
+                i = 0;//Math.max(0, i - 1);
             }
             else {
                 i++;
@@ -414,7 +417,7 @@ final class Inlining {
             }
 
             if (count(loadCounts, variable.get()) == 0 &&
-                variable.get().isGenerated()) {
+                canInline(variable.get())) {
 
                 //
                 // The variable is never loaded.
@@ -443,6 +446,11 @@ final class Inlining {
         }
 
         return false;
+    }
+
+    private boolean canInline(final Variable variable) {
+        return variable.isGenerated() ||
+               !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata();
     }
 
     // </editor-fold>

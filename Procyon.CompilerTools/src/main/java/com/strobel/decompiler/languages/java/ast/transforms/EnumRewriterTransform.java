@@ -16,19 +16,14 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
-import com.strobel.assembler.metadata.FieldDefinition;
-import com.strobel.assembler.metadata.FieldReference;
-import com.strobel.assembler.metadata.MemberReference;
-import com.strobel.assembler.metadata.MetadataResolver;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.strobel.core.CollectionUtilities.first;
@@ -145,12 +140,14 @@ public class EnumRewriterTransform implements IAstTransform {
         @Override
         public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
             final TypeDefinition currentType = context.getCurrentType();
+            final MethodDefinition constructor = node.getUserData(Keys.METHOD_DEFINITION);
 
             if (currentType != null && currentType.isEnum()) {
-                final AstNodeCollection<ParameterDeclaration> parameters = node.getParameters();
+                final List<ParameterDefinition> pDefinitions = constructor.getParameters();
+                final AstNodeCollection<ParameterDeclaration> pDeclarations = node.getParameters();
 
-                for (int i = 0; i < 2 && !parameters.isEmpty(); i++) {
-                    parameters.firstOrNullObject().remove();
+                for (int i = 0; i < pDefinitions.size() && i < pDeclarations.size() && pDefinitions.get(i).isSynthetic(); i++) {
+                    pDeclarations.firstOrNullObject().remove();
                 }
 
                 final Statement firstStatement = node.getBody().getStatements().firstOrNullObject();
@@ -229,6 +226,9 @@ public class EnumRewriterTransform implements IAstTransform {
 
                 assert field != null && initializer != null;
 
+                final MethodReference constructor = (MethodReference) initializer.getUserData(Keys.MEMBER_REFERENCE);
+                final MethodDefinition resolvedConstructor = constructor.resolve();
+
                 final EnumValueDeclaration enumDeclaration = new EnumValueDeclaration();
                 final Statement initializerStatement = findStatement(initializer);
 
@@ -245,7 +245,7 @@ public class EnumRewriterTransform implements IAstTransform {
                 final AstNodeCollection<Expression> arguments = initializer.getArguments();
 
                 for (final Expression argument : arguments) {
-                    if (i++ < 2) {
+                    if (resolvedConstructor != null && resolvedConstructor.isSynthetic() && i++ < 2) {
                         continue;
                     }
 

@@ -17,6 +17,9 @@ public final class TypeSubstitutionVisitor implements TypeMetadataVisitor<Map<Ty
     }
 
     public TypeReference visit(final TypeReference t, final Map<TypeReference, TypeReference> map) {
+        if (map.isEmpty()) {
+            return t;
+        }
         return t.accept(this, map);
     }
 
@@ -50,6 +53,12 @@ public final class TypeSubstitutionVisitor implements TypeMetadataVisitor<Map<Ty
         }
 
         final TypeReference oldBound = t.hasExtendsBound() ? t.getExtendsBound() : t.getSuperBound();
+        final TypeReference mapping = map.get(oldBound);
+
+        if (MetadataResolver.areEquivalent(mapping, t)) {
+            return t;
+        }
+
         final TypeReference newBound = visit(oldBound, map);
 
         if (oldBound != newBound) {
@@ -170,12 +179,12 @@ public final class TypeSubstitutionVisitor implements TypeMetadataVisitor<Map<Ty
     }
 
     @Override
-    public TypeReference visitNullType(final NullType t, final Map<TypeReference, TypeReference> map) {
+    public TypeReference visitNullType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
         return t;
     }
 
     @Override
-    public TypeReference visitBottomType(final BottomType t, final Map<TypeReference, TypeReference> map) {
+    public TypeReference visitBottomType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
         return t;
     }
 
@@ -196,37 +205,38 @@ public final class TypeSubstitutionVisitor implements TypeMetadataVisitor<Map<Ty
 
         final List<TypeReference> oldTypeArguments;
         final List<TypeReference> newTypeArguments;
-        
+
         if (m instanceof IGenericInstance) {
             oldTypeArguments = ((IGenericInstance) m).getTypeArguments();
         }
         else if (m.isGenericDefinition()) {
-            oldTypeArguments = (List<TypeReference>)(Object) m.getGenericParameters();
+            oldTypeArguments = (List<TypeReference>) (Object) m.getGenericParameters();
         }
         else {
             oldTypeArguments = Collections.emptyList();
         }
-        
+
         newTypeArguments = visitTypes(oldTypeArguments, map);
 
         final TypeReference oldReturnType = m.getReturnType();
         final TypeReference newReturnType = visit(oldReturnType, map);
-        
+
         final List<ParameterDefinition> oldParameters = m.getParameters();
         final List<ParameterDefinition> newParameters = visitParameters(oldParameters, map);
-        
+
         if (newTypeArguments != oldTypeArguments ||
             newReturnType != oldReturnType ||
             newParameters != oldParameters) {
-            
+
             return new GenericMethodInstance(
+                visit(m.getDeclaringType(), map),
                 resolvedMethod != null ? resolvedMethod : m,
-                newReturnType, 
-                newParameters, 
+                newReturnType,
+                newParameters,
                 newTypeArguments
             );
         }
-        
+
         return m;
     }
 
@@ -264,7 +274,7 @@ public final class TypeSubstitutionVisitor implements TypeMetadataVisitor<Map<Ty
         if (parameters.isEmpty()) {
             return parameters;
         }
-        
+
         ParameterDefinition[] newParameters = null;
 
         boolean changed = false;

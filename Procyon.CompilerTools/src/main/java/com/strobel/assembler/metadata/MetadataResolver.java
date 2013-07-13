@@ -360,7 +360,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
 
         if (b.isGenericType()) {
             if (!a.isGenericType()) {
-                return strict ? b.isGenericDefinition() : true;
+                return !strict || b.isGenericDefinition();
             }
 
             if (a.isGenericDefinition() != b.isGenericDefinition()) {

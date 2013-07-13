@@ -219,11 +219,8 @@ public class AstMethodBodyBuilder {
 
         final AstNodeCollection<Statement> statements = astBlock.getStatements();
         final Statement insertionPoint = firstOrDefault(statements);
-        final ConvertTypeOptions noTypeArgsOptions = new ConvertTypeOptions(false, false);
 
         for (final Variable v : _localVariablesToDefine) {
-            final AstType type;
-
             TypeReference variableType = v.getType();
 
             final TypeDefinition resolvedType = variableType.resolve();
@@ -237,13 +234,7 @@ public class AstMethodBodyBuilder {
                 }
             }
 
-            if (variableType.isGenericType() && !variableType.isGenericDefinition()) {
-                type = _astBuilder.convertType(variableType);
-            }
-            else {
-                type = _astBuilder.convertType(variableType, noTypeArgsOptions);
-            }
-
+            final AstType type = _astBuilder.convertType(variableType);
             final VariableDeclarationStatement declaration = new VariableDeclarationStatement(type, v.getName());
 
             declaration.putUserData(Keys.VARIABLE, v);
@@ -800,6 +791,7 @@ public class AstMethodBodyBuilder {
 
                 arrayCreation.setType(_astBuilder.convertType(elementType));
                 arrayCreation.getDimensions().add(arg1);
+
                 return arrayCreation;
             }
 
@@ -910,7 +902,9 @@ public class AstMethodBodyBuilder {
         }
         else {
             final ConvertTypeOptions options = new ConvertTypeOptions();
+            options.setIncludeTypeArguments(false);
             options.setIncludeTypeParameterDefinitions(false);
+            options.setAllowWildcards(false);
             target = new TypeReferenceExpression(_astBuilder.convertType(declaringType, options));
         }
 
@@ -950,12 +944,7 @@ public class AstMethodBodyBuilder {
                     instantiatedType = instantiatedType.makeGenericType(typeArguments);
                 }
 
-                if (instantiatedType.isGenericDefinition()) {
-                    declaredType = _astBuilder.convertType(instantiatedType, new ConvertTypeOptions(false, false));
-                }
-                else {
-                    declaredType = _astBuilder.convertType(instantiatedType);
-                }
+                declaredType = _astBuilder.convertType(instantiatedType);
 
                 if (resolvedType.isAnonymous()) {
                     creation = new AnonymousObjectCreationExpression(
@@ -1007,7 +996,7 @@ public class AstMethodBodyBuilder {
 
             final List<TypeReference> typeArguments = ((IGenericInstance) methodReference).getTypeArguments();
 
-            if (!typeArguments.isEmpty()){
+            if (!typeArguments.isEmpty()) {
                 final List<AstType> astTypeArguments = new ArrayList<>();
 
                 for (final TypeReference type : typeArguments) {
@@ -1079,10 +1068,14 @@ public class AstMethodBodyBuilder {
         final List<ParameterDefinition> parameters,
         final List<Expression> arguments) {
 
-        assert parameters.size() == arguments.size();
+        final int parameterCount = parameters.size();
+
+        assert parameterCount == arguments.size();
 
         final JavaResolver resolver = new JavaResolver(_context);
-        final ConvertTypeOptions noTypeArgsOptions = new ConvertTypeOptions(false, false);
+        final ConvertTypeOptions options = new ConvertTypeOptions();
+
+        options.setAllowWildcards(false);
 
         for (int i = 0, n = arguments.size(); i < n; i++) {
             final Expression argument = arguments.get(i);
@@ -1098,20 +1091,32 @@ public class AstMethodBodyBuilder {
             final TypeReference pType = p.getParameterType();
 
             if (isCastRequired(pType, aType, true)) {
-                final boolean noTypeArgs = !pType.isGenericType() || pType.isGenericDefinition();
-
                 arguments.set(
                     i,
-                    new CastExpression(
-                        noTypeArgs ? _astBuilder.convertType(pType, noTypeArgsOptions)
-                                   : _astBuilder.convertType(pType),
-                        argument
-                    )
+                    new CastExpression(_astBuilder.convertType(pType, options), argument)
                 );
             }
         }
 
-        return arguments;
+        int first = 0, last = parameterCount - 1;
+
+        while (first < parameterCount && parameters.get(first).isSynthetic()) {
+            ++first;
+        }
+
+        while (last >= 0 && parameters.get(last).isSynthetic()) {
+            --last;
+        }
+
+        if (first >= parameterCount || last < 0) {
+            return Collections.emptyList();
+        }
+
+        if (first == 0 && last == parameterCount - 1) {
+            return arguments;
+        }
+
+        return arguments.subList(first, last + 1);
     }
 
     private boolean isCastRequired(final TypeReference targetType, final TypeReference sourceType, final boolean exactMatch) {

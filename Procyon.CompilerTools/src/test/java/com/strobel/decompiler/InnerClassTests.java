@@ -451,7 +451,7 @@ public class InnerClassTests extends DecompilerTest {
             defaultSettings(),
             "private static class F {\n" +
             "    public static void test() {\n" +
-            "        final Error o = new Error() {};\n" +
+            "        final Object o = new Error() {};\n" +
             "        System.out.println(o.getClass().isAnonymousClass());\n" +
             "    }\n" +
             "}\n"

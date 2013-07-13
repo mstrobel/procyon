@@ -13,10 +13,20 @@
 
 package com.strobel.core;
 
+import com.strobel.functions.Function;
+import com.strobel.functions.Supplier;
+
 /**
  * @author strobelm
  */
 public final class MutableInteger {
+    public final static Supplier<MutableInteger> SUPPLIER = new Supplier<MutableInteger>() {
+        @Override
+        public MutableInteger get() {
+            return new MutableInteger();
+        }
+    };
+
     private int _value;
 
     public MutableInteger() {}

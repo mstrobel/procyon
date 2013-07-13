@@ -666,7 +666,11 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
         itemDeclaration.remove();
 
-        final Statement previous = forEach.getPreviousStatement();
+        Statement previous = forEach.getPreviousStatement();
+
+        while (previous instanceof LabelStatement) {
+            previous = previous.getPreviousStatement();
+        }
 
         if (previous != null) {
             final Match m2 = ARRAY_INIT_PATTERN.match(previous);
@@ -794,7 +798,12 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             return null;
         }
 
-        final AstNode next = node.getNextSibling();
+        AstNode next = node.getNextSibling();
+
+        while (next instanceof LabelStatement) {
+            next = next.getNextSibling();
+        }
+
         final Match m2 = FOR_EACH_PATTERN.match(next);
 
         if (!m2.success()) {
@@ -859,7 +868,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         final BlockStatement body = new BlockStatement();
 
         forEach.setEmbeddedStatement(body);
-        ((BlockStatement) node.getParent()).getStatements().insertBefore(node, forEach);
+        ((BlockStatement) node.getParent()).getStatements().insertBefore(loop, forEach);
 
         node.remove();
         body.add(node);

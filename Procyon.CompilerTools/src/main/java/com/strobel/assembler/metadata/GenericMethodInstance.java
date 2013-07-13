@@ -10,12 +10,16 @@ final class GenericMethodInstance extends MethodReference implements IGenericIns
     private final List<ParameterDefinition> _parameters;
     private final List<TypeReference> _typeArguments;
 
+    private TypeReference _declaringType;
+
     GenericMethodInstance(
+        final TypeReference declaringType,
         final MethodReference definition,
         final TypeReference returnType,
         final List<ParameterDefinition> parameters,
         final List<TypeReference> typeArguments) {
 
+        _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _genericDefinition = VerifyArgument.notNull(definition, "definition");
         _returnType = VerifyArgument.notNull(returnType, "returnType");
         _parameters = VerifyArgument.notNull(parameters, "parameters");
@@ -49,7 +53,11 @@ final class GenericMethodInstance extends MethodReference implements IGenericIns
 
     @Override
     public final TypeReference getDeclaringType() {
-        return _genericDefinition.getDeclaringType();
+        return _declaringType;
+    }
+
+    final void setDeclaringType(final TypeReference declaringType) {
+        _declaringType = declaringType;
     }
 
     @Override

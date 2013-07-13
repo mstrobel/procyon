@@ -178,7 +178,9 @@ public final class AstBuilder {
         final List<ParameterDeclaration> declarations = new ArrayList<>();
 
         for (final ParameterDefinition p : parameters) {
-            final ParameterDeclaration d = new ParameterDeclaration(p.getName(), convertType(p.getParameterType()));
+            final TypeReference type = p.getParameterType();
+            final AstType astType = convertType(type);
+            final ParameterDeclaration d = new ParameterDeclaration(p.getName(), astType);
 
             d.putUserData(Keys.PARAMETER_DEFINITION, p);
 
@@ -218,6 +220,13 @@ public final class AstBuilder {
         }
 
         if (type.isWildcardType()) {
+            if (!options.getAllowWildcards()) {
+                if (type.hasExtendsBound()) {
+                    return convertType(type.getExtendsBound(), options);
+                }
+                return convertType(BuiltinTypes.Object, options);
+            }
+
             final WildcardType wildcardType = new WildcardType();
 
             if (type.hasExtendsBound()) {
@@ -231,10 +240,11 @@ public final class AstBuilder {
             return wildcardType;
         }
 
-        final boolean includeTypeParameterDefinitions = options == null ||
-                                                        options.getIncludeTypeParameterDefinitions();
+        final boolean includeTypeArguments = options == null || options.getIncludeTypeArguments();
+        final boolean includeTypeParameterDefinitions = options == null || options.getIncludeTypeParameterDefinitions();
+        final boolean allowWildcards = options == null || options.getAllowWildcards();
 
-        if (type instanceof IGenericInstance) {
+        if (type instanceof IGenericInstance && includeTypeArguments) {
             final AstType baseType;
             final IGenericInstance genericInstance = (IGenericInstance) type;
 
@@ -255,10 +265,21 @@ public final class AstBuilder {
                 }
             }
 
+            if (options != null) {
+                options.setAllowWildcards(true);
+            }
+
             final List<AstType> typeArguments = new ArrayList<>();
 
-            for (final TypeReference typeArgument : genericInstance.getTypeArguments()) {
-                typeArguments.add(convertType(typeArgument, typeIndex.increment(), options));
+            try {
+                for (final TypeReference typeArgument : genericInstance.getTypeArguments()) {
+                    typeArguments.add(convertType(typeArgument, typeIndex.increment(), options));
+                }
+            }
+            finally {
+                if (options != null) {
+                    options.setAllowWildcards(allowWildcards);
+                }
             }
 
             applyTypeArguments(baseType, typeArguments);
@@ -325,7 +346,16 @@ public final class AstBuilder {
                     importedType.putUserData(Keys.TYPE_REFERENCE, typeToImport);
 
                     if (!StringUtilities.startsWith(typeToImport.getFullName(), "java.lang.")) {
-                        _compileUnit.getImports().add(new ImportDeclaration(importedType));
+                        if (packageDeclaration != null) {
+                            _compileUnit.insertChildAfter(
+                                packageDeclaration,
+                                new ImportDeclaration(importedType),
+                                CompilationUnit.IMPORT_ROLE
+                            );
+                        }
+                        else {
+                            _compileUnit.getImports().add(new ImportDeclaration(importedType));
+                        }
                     }
 
                     _unqualifiedTypeNames.put(typeToImport.getSimpleName(), typeToImport.getFullName());
@@ -350,9 +380,11 @@ public final class AstBuilder {
 
         astType.putUserData(Keys.TYPE_REFERENCE, nameSource);
 
+/*
         if (nameSource.isGenericType() && includeTypeParameterDefinitions) {
             addTypeArguments(nameSource, astType);
         }
+*/
 
         return astType;
     }
@@ -585,7 +617,8 @@ public final class AstBuilder {
 
         EntityDeclaration.setModifiers(
             astMethod,
-            Flags.asModifierSet(scrubAccessModifiers(method.getFlags() & Flags.ConstructorFlags)));
+            Flags.asModifierSet(scrubAccessModifiers(method.getFlags() & Flags.ConstructorFlags))
+        );
 
         astMethod.setName(method.getDeclaringType().getName());
         astMethod.getParameters().addAll(createParameters(method.getParameters()));

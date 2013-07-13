@@ -29,6 +29,7 @@ public class DecompilerSettings {
     private boolean _forceExplicitTypeArguments;
     private boolean _flattenSwitchBlocks;
     private boolean _showNestedTypes;
+    private boolean _retainRedundantCasts;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
     private String _outputFileHeaderText;
@@ -123,5 +124,13 @@ public class DecompilerSettings {
 
     public final void setOutputDirectory(final String outputDirectory) {
         _outputDirectory = outputDirectory;
+    }
+
+    public boolean getRetainRedundantCasts() {
+        return _retainRedundantCasts;
+    }
+
+    public void setRetainRedundantCasts(final boolean retainRedundantCasts) {
+        _retainRedundantCasts = retainRedundantCasts;
     }
 }

@@ -52,6 +52,23 @@ public final class CompoundTypeReference extends TypeReference {
     }
 
     @Override
+    public boolean containsGenericParameters() {
+        final TypeReference baseType = getBaseType();
+
+        if (baseType != null && baseType.containsGenericParameters()) {
+            return true;
+        }
+
+        for (final TypeReference t : _interfaces) {
+            if (t.containsGenericParameters()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    @Override
     public String getName() {
         if (_baseType != null) {
             return _baseType.getName();

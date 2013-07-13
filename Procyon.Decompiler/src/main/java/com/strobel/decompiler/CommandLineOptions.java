@@ -34,6 +34,9 @@ public class CommandLineOptions {
     @Parameter(names = { "-eta", "--explicit-type-arguments" }, description = "Always print type arguments to generic methods.")
     private boolean _forceExplicitTypeArguments;
 
+    @Parameter(names = { "-ec", "--retain-explicit-casts" }, description = "Do not remove redundant explicit casts.")
+    private boolean _retainRedundantCasts;
+
     @Parameter(names = { "-fsb", "--flatten-switch-blocks" }, description = "Remove block statements around switch sections when possible.")
     private boolean _flattenSwitchBlocks;
 
@@ -100,6 +103,14 @@ public class CommandLineOptions {
 
     public final void setForceExplicitTypeArguments(final boolean forceExplicitTypeArguments) {
         _forceExplicitTypeArguments = forceExplicitTypeArguments;
+    }
+
+    public boolean getRetainRedundantCasts() {
+        return _retainRedundantCasts;
+    }
+
+    public void setRetainRedundantCasts(final boolean retainRedundantCasts) {
+        _retainRedundantCasts = retainRedundantCasts;
     }
 
     public final void setRawBytecode(final boolean rawBytecode) {

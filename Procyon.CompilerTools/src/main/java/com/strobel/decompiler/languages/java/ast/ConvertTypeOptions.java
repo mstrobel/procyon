@@ -18,7 +18,9 @@ package com.strobel.decompiler.languages.java.ast;
 
 public final class ConvertTypeOptions {
     private boolean _includePackage/* = true*/;
+    private boolean _includeTypeArguments = true;
     private boolean _includeTypeParameterDefinitions = true;
+    private boolean _allowWildcards = true;
 
     public ConvertTypeOptions() {
     }
@@ -42,5 +44,21 @@ public final class ConvertTypeOptions {
 
     public void setIncludeTypeParameterDefinitions(final boolean value) {
         _includeTypeParameterDefinitions = value;
+    }
+
+    public boolean getAllowWildcards() {
+        return _allowWildcards;
+    }
+
+    public void setAllowWildcards(final boolean allowWildcards) {
+        _allowWildcards = allowWildcards;
+    }
+
+    public boolean getIncludeTypeArguments() {
+        return _includeTypeArguments;
+    }
+
+    public void setIncludeTypeArguments(final boolean includeTypeArguments) {
+        _includeTypeArguments = includeTypeArguments;
     }
 }

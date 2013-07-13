@@ -59,6 +59,7 @@ public class DecompilerDriver {
         settings.setFlattenSwitchBlocks(options.getFlattenSwitchBlocks());
         settings.setForceExplicitImports(options.getForceExplicitImports());
         settings.setForceExplicitTypeArguments(options.getForceExplicitTypeArguments());
+        settings.setRetainRedundantCasts(options.getRetainRedundantCasts());
         settings.setShowSyntheticMembers(options.getShowSyntheticMembers());
         settings.setShowNestedTypes(options.getShowNestedTypes());
         settings.setOutputDirectory(options.getOutputDirectory());

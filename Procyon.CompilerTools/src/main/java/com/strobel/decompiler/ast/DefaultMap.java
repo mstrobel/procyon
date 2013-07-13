@@ -18,6 +18,7 @@ package com.strobel.decompiler.ast;
 
 import com.strobel.core.VerifyArgument;
 import com.strobel.core.delegates.Func;
+import com.strobel.functions.Supplier;
 
 import java.util.IdentityHashMap;
 
@@ -25,9 +26,9 @@ import java.util.IdentityHashMap;
  * @author mstrobel
  */
 final class DefaultMap<K, V> extends IdentityHashMap<K, V> {
-    private final Func<V> _defaultValueFactory;
+    private final Supplier<V> _defaultValueFactory;
 
-    DefaultMap(final Func<V> defaultValueFactory) {
+    DefaultMap(final Supplier<V> defaultValueFactory) {
         _defaultValueFactory = VerifyArgument.notNull(defaultValueFactory, "defaultValueFactory");
     }
 
@@ -37,7 +38,7 @@ final class DefaultMap<K, V> extends IdentityHashMap<K, V> {
         V value = super.get(key);
 
         if (value == null) {
-            put((K) key, value = _defaultValueFactory.invoke());
+            put((K) key, value = _defaultValueFactory.get());
         }
 
         return value;

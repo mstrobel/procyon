@@ -29,6 +29,7 @@ public final class TransformationPipeline {
             new EclipseEnumSwitchRewriterTransform(context),
             new AssertStatementTransform(context),
             new RemoveRedundantCastsTransform(context),
+            new InsertNecessaryCastsTransform(context),
             new RemoveImplicitBoxingTransform(context),
             new PatternStatementTransform(context),
             new BreakTargetRelocation(context),

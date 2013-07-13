@@ -50,6 +50,17 @@ public final class WildcardType extends TypeReference {
     // <editor-fold defaultstate="collapsed" desc="Type Attributes">
 
     @Override
+    public boolean containsGenericParameters() {
+        if (hasSuperBound()) {
+            return getSuperBound().containsGenericParameters();
+        }
+        if (hasExtendsBound()) {
+            return getExtendsBound().containsGenericParameters();
+        }
+        return false;
+    }
+
+    @Override
     public String getName() {
         if (_name == null) {
             _name = appendSimpleDescription(new StringBuilder()).toString();

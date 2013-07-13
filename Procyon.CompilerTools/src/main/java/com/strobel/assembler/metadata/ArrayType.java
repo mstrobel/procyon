@@ -35,6 +35,11 @@ public final class ArrayType extends TypeReference {
     }
 
     @Override
+    public boolean containsGenericParameters() {
+        return _elementType.containsGenericParameters();
+    }
+
+    @Override
     public String getPackageName() {
         return _elementType.getPackageName();
     }

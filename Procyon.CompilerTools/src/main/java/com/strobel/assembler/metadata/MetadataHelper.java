@@ -454,7 +454,7 @@ public final class MetadataHelper {
 
             if (resolvedBaseType != null && resolvedBaseType.isInterface()) {
                 for (final TypeReference interfaceType : getInterfaces(current)) {
-                    if (MetadataResolver.areEquivalent(interfaceType, resolvedBaseType)) {
+                    if (isSubType(interfaceType, resolvedBaseType)) {
                         return true;
                     }
                 }
@@ -648,7 +648,13 @@ public final class MetadataHelper {
 
         final Map<TypeReference, TypeReference> map = getSubTypeMappings(method.getDeclaringType(), baseType);
 
-        return TypeSubstitutionVisitor.instance().visitMethod(method, map);
+        final MethodReference asMember = TypeSubstitutionVisitor.instance().visitMethod(method, map);
+
+        if (asMember != method && asMember instanceof GenericMethodInstance) {
+            ((GenericMethodInstance) asMember).setDeclaringType(baseType);
+        }
+
+        return asMember;
     }
 
     public static FieldReference asMemberOf(final FieldReference field, final TypeReference baseType) {

@@ -23,6 +23,14 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
     }
 
     @Override
+    public void run(final AstNode compilationUnit) {
+        if (context.getSettings().getRetainRedundantCasts()) {
+            return;
+        }
+        super.run(compilationUnit);
+    }
+
+    @Override
     public Void visitCastExpression(final CastExpression node, final Void data) {
         super.visitCastExpression(node, data);
 
@@ -66,6 +74,14 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
 
         if (parent instanceof AssignmentExpression) {
             trySimplifyCastForAssignment(node, value, (AssignmentExpression) parent, sourceType, valueResult.getType());
+            return;
+        }
+
+        if (parent instanceof MemberReferenceExpression &&
+            MetadataResolver.areEquivalent(sourceType, valueResult.getType())) {
+
+            value.remove();
+            node.replaceWith(value);
             return;
         }
     }
@@ -148,7 +164,19 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
             }
         );
 
-        if (argumentPosition < 0 || argumentPosition >= parameters.size()) {
+        if (argumentPosition < 0) {
+            return;
+        }
+
+        int parameterPosition = 0;
+
+        while (parameterPosition < parameters.size() && parameters.get(parameterPosition).isSynthetic()) {
+            ++parameterPosition;
+        }
+
+        parameterPosition += argumentPosition;
+
+        if (parameterPosition < 0 || parameterPosition >= parameters.size()) {
             return;
         }
 
@@ -163,7 +191,7 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
             return;
         }
 
-        final ParameterDefinition parameter = parameters.get(argumentPosition);
+        final ParameterDefinition parameter = parameters.get(parameterPosition);
         final TypeReference targetType = parameter.getParameterType();
         final ConversionType castToTarget = MetadataHelper.getConversionType(targetType, castType);
 
@@ -177,28 +205,21 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
             return;
         }
 
-        int i = 0;
-        int argumentIndex = -1;
-
         final List<TypeReference> argumentTypes = new ArrayList<>();
+        final int syntheticParameters = parameterPosition - argumentPosition;
+
+        for (int j = 0; j < syntheticParameters; j++) {
+            argumentTypes.add(parameters.get(j).getParameterType());
+        }
 
         for (final Expression argument : arguments) {
-            if (argument == node) {
-                argumentIndex = i;
-            }
-
             final ResolveResult argumentResult = _resolver.apply(argument);
 
             if (argumentResult == null || argumentResult.getType() == null) {
                 return;
             }
 
-            ++i;
             argumentTypes.add(argumentResult.getType());
-        }
-
-        if (argumentIndex < 0) {
-            return;
         }
 
         final TypeReference declaringType = method.getDeclaringType();
@@ -223,7 +244,7 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
             return;
         }
 
-        argumentTypes.set(argumentIndex, valueType);
+        argumentTypes.set(parameterPosition, valueType);
 
         final MethodBinder.BindResult c2 = MethodBinder.selectMethod(candidates, argumentTypes);
 
