@@ -250,7 +250,7 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
 
         if (c2.isFailure() ||
             c2.isAmbiguous() ||
-            !StringUtilities.equals(c2.getMethod().getSignature(), c1.getMethod().getSignature())) {
+            !StringUtilities.equals(c2.getMethod().getErasedSignature(), c1.getMethod().getErasedSignature())) {
 
             return;
         }

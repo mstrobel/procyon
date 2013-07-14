@@ -24,7 +24,6 @@ import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
-import com.strobel.core.delegates.Func;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.functions.Supplier;
 import com.strobel.util.ContractUtils;
@@ -156,6 +155,7 @@ public final class TypeAnalysis {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private void findNestedAssignments(final Expression expression, final ExpressionToInfer parent) {
         for (final Expression argument : expression.getArguments()) {
             if (argument.getCode() == AstCode.Store) {
@@ -1788,7 +1788,7 @@ public final class TypeAnalysis {
 
         @Override
         public Void visitParameterizedType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
-            final TypeReference s = MetadataHelper.asSubType(argumentType.getUnderlyingType(), t);
+            final TypeReference s = MetadataHelper.asSubType(argumentType, t.getUnderlyingType());
 
             if (s != null && s instanceof IGenericInstance) {
                 final List<TypeReference> tArgs = ((IGenericInstance) t).getTypeArguments();
