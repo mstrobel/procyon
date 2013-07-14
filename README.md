@@ -6,7 +6,7 @@
   2. Reflection Framework
   3. Expressions Framework
   4. Compiler Toolset (Experimental)
-  5. Decompiler Front-End (Experimental)
+  5. [Java Decompiler](https://bitbucket.org/mstrobel/procyon/wiki/Java%20Decompiler) (Experimental)
 
 The Procyon libraries are available from **Maven Central** under group ID `org.bitbucket.mstrobel`.
 
