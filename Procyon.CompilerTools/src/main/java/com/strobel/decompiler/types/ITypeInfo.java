@@ -2,7 +2,7 @@ package com.strobel.decompiler.types;
 
 import com.strobel.collections.ImmutableList;
 
-public interface ITypeInfo {
+interface ITypeInfo {
     String getName();
     String getPackageName();
     String getFullName();

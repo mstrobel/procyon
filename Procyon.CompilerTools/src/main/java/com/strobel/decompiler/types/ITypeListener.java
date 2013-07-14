@@ -1,5 +1,5 @@
 package com.strobel.decompiler.types;
 
-public interface ITypeListener {
+interface ITypeListener {
     void onChanged();
 }
