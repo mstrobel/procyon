@@ -895,17 +895,24 @@ public class AstMethodBodyBuilder {
                 target = new CastExpression(_astBuilder.convertType(declaringType), target);
             }
         }
-        else if (byteCode.getCode() == AstCode.InvokeStatic &&
-                 declaringType.isEquivalentTo(_context.getCurrentType())) {
-
-            target = Expression.NULL;
-        }
         else {
-            final ConvertTypeOptions options = new ConvertTypeOptions();
-            options.setIncludeTypeArguments(false);
-            options.setIncludeTypeParameterDefinitions(false);
-            options.setAllowWildcards(false);
-            target = new TypeReferenceExpression(_astBuilder.convertType(declaringType, options));
+            final MethodDefinition resolvedMethod;
+
+            if (byteCode.getCode() == AstCode.InvokeStatic &&
+                declaringType.isEquivalentTo(_context.getCurrentType()) &&
+                (!_context.getSettings().getForceExplicitTypeArguments() ||
+                 (resolvedMethod = methodReference.resolve()) == null ||
+                 !resolvedMethod.isGenericMethod())) {
+
+                target = Expression.NULL;
+            }
+            else {
+                final ConvertTypeOptions options = new ConvertTypeOptions();
+                options.setIncludeTypeArguments(false);
+                options.setIncludeTypeParameterDefinitions(false);
+                options.setAllowWildcards(false);
+                target = new TypeReferenceExpression(_astBuilder.convertType(declaringType, options));
+            }
         }
 
         if (target instanceof ThisReferenceExpression) {

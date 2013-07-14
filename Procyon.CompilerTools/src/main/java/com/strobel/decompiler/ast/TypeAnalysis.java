@@ -373,7 +373,7 @@ public final class TypeAnalysis {
                 }
 
                 if (inferredType == null) {
-                    inferredType = variable.getType();
+                    inferredType = variable.getType() != null ? inferredType : BuiltinTypes.Object;
                 }
                 else if (!inferredType.isUnbounded()) {
                     inferredType = inferredType.hasSuperBound() ? inferredType.getSuperBound()
@@ -397,18 +397,6 @@ public final class TypeAnalysis {
                         }
                     }
                 }
-
-//                //
-//                // Assign inferred types to all the assignments (in case they used different inferred types).
-//                //
-//                for (final ExpressionToInfer e : expressionsToInfer) {
-//                    e.expression.setInferredType(inferredType);
-//
-//                    //
-//                    // Re-infer if the expected type has changed.
-//                    //
-//                    inferTypeForExpression(e.expression.getArguments().get(0), inferredType);
-//                }
             }
         }
     }
@@ -416,6 +404,7 @@ public final class TypeAnalysis {
     private boolean shouldInferVariableType(final Variable variable) {
         final VariableDefinition variableDefinition = variable.getOriginalVariable();
 
+        //noinspection RedundantIfStatement
         if (variableDefinition != null &&
             variableDefinition.isFromMetadata() &&
             (variableDefinition.getVariableType().isGenericType() ? _preserveMetadataGenericTypes
@@ -425,10 +414,6 @@ public final class TypeAnalysis {
         }
 
         return true;
-//        return variable.isGenerated() ||
-//               variable.getType() == null/* ||
-//               !variable.isParameter() && variable.getType() == BuiltinTypes.Integer ||
-//               !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata()*/;
     }
 
     private static boolean shouldResetVariableType(
@@ -438,6 +423,7 @@ public final class TypeAnalysis {
 
         final VariableDefinition variableDefinition = variable.getOriginalVariable();
 
+        //noinspection SimplifiableIfStatement
         if (variableDefinition != null &&
             variableDefinition.isFromMetadata() &&
             (variableDefinition.getVariableType().isGenericType() ? preserveGenericTypesFromMetadata
