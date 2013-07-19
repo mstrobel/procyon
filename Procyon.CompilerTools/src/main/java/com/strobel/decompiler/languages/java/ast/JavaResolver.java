@@ -44,12 +44,13 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
 
         @Override
         public ResolveResult visitObjectCreationExpression(final ObjectCreationExpression node, final Void _) {
+/*
             final ResolveResult result = resolveTypeFromMember(node.getUserData(Keys.MEMBER_REFERENCE));
 
             if (result != null) {
                 return result;
             }
-
+*/
             return node.getType().acceptVisitor(this, _);
         }
 

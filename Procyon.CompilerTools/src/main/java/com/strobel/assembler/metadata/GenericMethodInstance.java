@@ -52,6 +52,11 @@ final class GenericMethodInstance extends MethodReference implements IGenericIns
     }
 
     @Override
+    public boolean isGenericMethod() {
+        return hasTypeArguments();
+    }
+
+    @Override
     public MethodDefinition resolve() {
         return _genericDefinition.resolve();
     }

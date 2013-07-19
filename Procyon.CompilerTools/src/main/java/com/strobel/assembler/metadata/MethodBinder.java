@@ -407,7 +407,7 @@ public final class MethodBinder {
         return depth;
     }
 
-    private final static class AddMappingsForArgumentVisitor implements TypeMetadataVisitor<Map<TypeReference, TypeReference>, Void> {
+    private final static class AddMappingsForArgumentVisitor extends DefaultTypeVisitor<Map<TypeReference, TypeReference>, Void> {
         private TypeReference argumentType;
 
         AddMappingsForArgumentVisitor(final TypeReference argumentType) {

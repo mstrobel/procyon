@@ -1136,7 +1136,7 @@ public class AstMethodBodyBuilder {
         }
 
         if (exactMatch) {
-            return !MetadataResolver.areEquivalent(targetType, sourceType, false);
+            return !MetadataHelper.isSameType(targetType, sourceType, true);
         }
 
         return !MetadataHelper.isAssignableFrom(targetType, sourceType);

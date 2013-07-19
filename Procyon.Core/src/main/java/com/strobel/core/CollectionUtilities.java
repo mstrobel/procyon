@@ -78,6 +78,68 @@ public final class CollectionUtilities {
         return collection.get(index);
     }
 
+    public static <T> T single(final List<T> list) {
+        switch (VerifyArgument.notNull(list, "list").size()) {
+            case 0:
+                throw new IllegalArgumentException("Sequence contains no elements.");
+            case 1:
+                return list.get(0);
+            default:
+                throw new IllegalArgumentException("Sequence contains more than one element.");
+        }
+    }
+
+    public static <T> T singleOrDefault(final List<T> list) {
+        switch (VerifyArgument.notNull(list, "list").size()) {
+            case 0:
+                return null;
+            case 1:
+                return list.get(0);
+            default:
+                throw new IllegalArgumentException("Sequence contains more than one element.");
+        }
+    }
+
+    public static <T> T single(final Iterable<T> collection) {
+        if (collection instanceof List<?>) {
+            return single((List<T>) collection);
+        }
+
+        final Iterator<T> it = VerifyArgument.notNull(collection, "collection").iterator();
+
+        if (it.hasNext()) {
+            final T result = it.next();
+
+            if (it.hasNext()) {
+                throw new IllegalArgumentException("Sequence contains more than one element.");
+            }
+
+            return result;
+        }
+
+        throw new IllegalArgumentException("Sequence contains no elements.");
+    }
+
+    public static <T> T singleOrDefault(final Iterable<T> collection) {
+        if (collection instanceof List<?>) {
+            return singleOrDefault((List<T>) collection);
+        }
+
+        final Iterator<T> it = VerifyArgument.notNull(collection, "collection").iterator();
+
+        if (it.hasNext()) {
+            final T result = it.next();
+
+            if (it.hasNext()) {
+                throw new IllegalArgumentException("Sequence contains more than one element.");
+            }
+
+            return result;
+        }
+
+        return null;
+    }
+
     public static <T> T firstOrDefault(final Iterable<T> collection) {
         final Iterator<T> it = VerifyArgument.notNull(collection, "collection").iterator();
         return it.hasNext() ? it.next() : null;
@@ -183,7 +245,7 @@ public final class CollectionUtilities {
     public static <T> Iterable<T> skip(final Iterable<T> collection, final int count) {
         return new SkipIterator<>(collection, count);
     }
-    
+
     public static <T> Iterable<T> skipWhile(final Iterable<T> collection, final Predicate<? super T> filter) {
         return new SkipIterator<>(collection, filter);
     }
@@ -191,7 +253,7 @@ public final class CollectionUtilities {
     public static <T> Iterable<T> take(final Iterable<T> collection, final int count) {
         return new TakeIterator<>(collection, count);
     }
-    
+
     public static <T> Iterable<T> takeWhile(final Iterable<T> collection, final Predicate<? super T> filter) {
         return new TakeIterator<>(collection, filter);
     }

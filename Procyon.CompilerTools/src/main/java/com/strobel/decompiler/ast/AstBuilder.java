@@ -30,6 +30,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.InstructionHelper;
 
+import java.io.File;
 import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
@@ -61,6 +62,21 @@ public final class AstBuilder {
         }
 
         builder.analyzeHandlers();
+
+        final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(builder._instructions, builder._exceptionHandlers);
+
+        cfg.computeDominance();
+        cfg.computeDominanceFrontier();
+
+        cfg.export(
+            new File(
+                format(
+                    "w:/dump/%s_%s.gv",
+                    body.getMethod().getDeclaringType().getFullName().replace('$', '.'),
+                    body.getMethod().getName().replace('<', '_').replace('>', '_')
+                )
+            )
+        );
 
         final List<ByteCode> byteCode = builder.performStackAnalysis();
 
@@ -177,6 +193,112 @@ public final class AstBuilder {
             }
         }
 
+        closeTryHandlerGaps(instructions, exceptionHandlers);
+
+        final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, exceptionHandlers);
+
+        cfg.computeDominance();
+        cfg.computeDominanceFrontier();
+
+        for (int i = 0; i < exceptionHandlers.size(); i++) {
+            final ExceptionHandler handler = exceptionHandlers.get(i);
+            final HandlerInfo handlerInfo = new HandlerInfo(handler);
+
+            for (final ControlFlowNode node : cfg.getNodes()) {
+                if (node.getNodeType() == ControlFlowNodeType.Normal) {
+                    if (node.getStart().getOffset() >= handler.getTryBlock().getFirstInstruction().getOffset() &&
+                        node.getEnd().getOffset() <= handler.getTryBlock().getLastInstruction().getOffset()) {
+
+                        handlerInfo.tryNodes.add(node);
+                        handlerInfo.allNodes.add(node);
+                    }
+                    else if (node.getStart().getOffset() >= handler.getHandlerBlock().getFirstInstruction().getOffset() &&
+                             node.getEnd().getOffset() <= handler.getHandlerBlock().getLastInstruction().getOffset()) {
+
+                        handlerInfo.handlerNodes.add(node);
+                        handlerInfo.allNodes.add(node);
+                    }
+                }
+            }
+
+            handlers.put(handler, handlerInfo);
+        }
+
+        includeLeaveTryInstructions(handlers, exceptionHandlers, cfg);
+        analyzeHandlers(instructions, handlers);
+
+        return instructions;
+    }
+
+    private void includeLeaveTryInstructions(
+        final Map<ExceptionHandler, HandlerInfo> handlers,
+        final List<ExceptionHandler> exceptionHandlers,
+        final ControlFlowGraph cfg) {
+
+        final List<HandlerInfo> handlersCopy = toList(handlers.values());
+
+        for (int i = 0; i < exceptionHandlers.size(); i++) {
+            final ExceptionHandler handler = exceptionHandlers.get(i);
+            final HandlerInfo handlerInfo = handlers.get(handler);
+
+            //
+            // Look for trailing branch instructions between a try block and its handler and adjust the
+            // try block range to include them.
+            //
+
+            if (!handlerInfo.tryNodes.isEmpty() &&
+                !handlerInfo.handlerNodes.isEmpty()) {
+
+                final ControlFlowNode lastTryNode = handlerInfo.tryNodes.get(handlerInfo.tryNodes.size() - 1);
+                final HandlerInfo nearestHandler = findNearestHandler(handlerInfo, handlersCopy);
+                final ControlFlowNode lastCatchNode = nearestHandler.handlerNodes.get(nearestHandler.handlerNodes.size() - 1);
+
+                if (lastTryNode.getBlockIndex() < lastCatchNode.getBlockIndex() - 1) {
+                    final ControlFlowNode nodeAfterTry = cfg.getNodes().get(lastTryNode.getBlockIndex() + 1);
+
+                    if (nodeAfterTry != null &&
+                        nodeAfterTry.getNodeType() == ControlFlowNodeType.Normal &&
+                        nodeAfterTry.getStart() == nodeAfterTry.getEnd() &&
+                        nodeAfterTry.getEnd().getNext() == nearestHandler.handlerNodes.get(0).getStart() &&
+                        nodeAfterTry.getStart().getOpCode().isUnconditionalBranch()) {
+
+                        handlerInfo.tryNodes.add(nodeAfterTry);
+
+                        if (handler.isCatch()) {
+                            exceptionHandlers.set(
+                                i,
+                                ExceptionHandler.createCatch(
+                                    new ExceptionBlock(
+                                        handler.getTryBlock().getFirstInstruction(),
+                                        nodeAfterTry.getStart()
+                                    ),
+                                    handler.getHandlerBlock(),
+                                    handler.getCatchType()
+                                )
+                            );
+                        }
+                        else {
+                            exceptionHandlers.set(
+                                i,
+                                ExceptionHandler.createFinally(
+                                    new ExceptionBlock(
+                                        handler.getTryBlock().getFirstInstruction(),
+                                        nodeAfterTry.getStart()
+                                    ),
+                                    handler.getHandlerBlock()
+                                )
+                            );
+                        }
+
+                        handlers.remove(handler);
+                        handlers.put(exceptionHandlers.get(i), handlerInfo);
+                    }
+                }
+            }
+        }
+    }
+
+    private void closeTryHandlerGaps(final InstructionCollection instructions, final List<ExceptionHandler> exceptionHandlers) {
         //
         // Java does this retarded thing where a try block gets split along exit branches,
         // but with the split parts sharing the same handler.  We can't represent this in
@@ -242,113 +364,6 @@ public final class AstBuilder {
                 }
             }
         }
-
-        final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, exceptionHandlers);
-
-        cfg.computeDominance();
-        cfg.computeDominanceFrontier();
-
-/*
-        cfg.export(
-            new File(
-                format(
-                    "w:/dump/%s_%s.gv",
-                    _body.getMethod().getDeclaringType().getFullName().replace('$', '.'),
-                    _body.getMethod().getName().replace('<', '_').replace('>', '_')
-                )
-            )
-        );
-*/
-
-        for (int i = 0; i < exceptionHandlers.size(); i++) {
-            final ExceptionHandler handler = exceptionHandlers.get(i);
-            final HandlerInfo handlerInfo = new HandlerInfo(handler);
-
-            for (final ControlFlowNode node : cfg.getNodes()) {
-                if (node.getNodeType() == ControlFlowNodeType.Normal) {
-                    if (node.getStart().getOffset() >= handler.getTryBlock().getFirstInstruction().getOffset() &&
-                        node.getEnd().getOffset() <= handler.getTryBlock().getLastInstruction().getOffset()) {
-
-                        handlerInfo.tryNodes.add(node);
-                        handlerInfo.allNodes.add(node);
-                    }
-                    else if (node.getStart().getOffset() >= handler.getHandlerBlock().getFirstInstruction().getOffset() &&
-                             node.getEnd().getOffset() <= handler.getHandlerBlock().getLastInstruction().getOffset()) {
-
-                        handlerInfo.handlerNodes.add(node);
-                        handlerInfo.allNodes.add(node);
-                    }
-                }
-            }
-
-            handlers.put(handler, handlerInfo);
-        }
-
-        final List<HandlerInfo> handlersCopy = toList(handlers.values());
-
-        for (int i = 0; i < exceptionHandlers.size(); i++) {
-            final ExceptionHandler handler = exceptionHandlers.get(i);
-            final HandlerInfo handlerInfo = handlers.get(handler);
-
-            //
-            // Look for trailing branch instructions between a try block and its handler and adjust the
-            // try block range to include them.
-            //
-
-            if (!handlerInfo.tryNodes.isEmpty() &&
-                !handlerInfo.handlerNodes.isEmpty()) {
-
-                final ControlFlowNode lastTryNode = handlerInfo.tryNodes.get(handlerInfo.tryNodes.size() - 1);
-                final HandlerInfo nearestHandler = findNearestHandler(handlerInfo, handlersCopy);
-                final ControlFlowNode lastCatchNode = nearestHandler.handlerNodes.get(nearestHandler.handlerNodes.size() - 1);
-
-                if (lastTryNode.getBlockIndex() < lastCatchNode.getBlockIndex() - 1) {
-                    final ControlFlowNode nodeAfterTry = cfg.getNodes().get(lastTryNode.getBlockIndex() + 1);
-
-                    if (nodeAfterTry != null &&
-                        nodeAfterTry.getNodeType() == ControlFlowNodeType.Normal &&
-                        nodeAfterTry.getStart() == nodeAfterTry.getEnd() &&
-                        nodeAfterTry.getEnd().getNext() == nearestHandler.handlerNodes.get(0).getStart() &&
-                        nodeAfterTry.getStart().getOpCode().isUnconditionalBranch()) {
-
-                        handlerInfo.tryNodes.add(nodeAfterTry);
-
-                        if (handler.isCatch()) {
-                            exceptionHandlers.set(
-                                i,
-                                ExceptionHandler.createCatch(
-                                    new ExceptionBlock(
-                                        handler.getTryBlock().getFirstInstruction(),
-                                        nodeAfterTry.getStart()
-                                    ),
-                                    handler.getHandlerBlock(),
-                                    handler.getCatchType()
-                                )
-                            );
-                        }
-                        else {
-                            exceptionHandlers.set(
-                                i,
-                                ExceptionHandler.createFinally(
-                                    new ExceptionBlock(
-                                        handler.getTryBlock().getFirstInstruction(),
-                                        nodeAfterTry.getStart()
-                                    ),
-                                    handler.getHandlerBlock()
-                                )
-                            );
-                        }
-
-                        handlers.remove(handler);
-                        handlers.put(exceptionHandlers.get(i), handlerInfo);
-                    }
-                }
-            }
-        }
-
-        analyzeHandlers(instructions, handlers);
-
-        return instructions;
     }
 
     private HandlerInfo findNearestHandler(final HandlerInfo handler, final Collection<HandlerInfo> handlers) {
@@ -635,6 +650,13 @@ public final class AstBuilder {
                 }
             }
         }
+
+        final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, _exceptionHandlers);
+
+        cfg.computeDominance();
+        cfg.computeDominanceFrontier();
+
+        includeLeaveTryInstructions(handlers, _exceptionHandlers, cfg);
     }
 
     private void updateHandlersForRemovedInstruction(final Set<Instruction> toRemove, final Instruction instruction) {

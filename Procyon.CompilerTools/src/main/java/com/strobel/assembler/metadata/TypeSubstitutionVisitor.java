@@ -6,9 +6,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public final class TypeSubstitutionVisitor implements TypeMetadataVisitor<Map<TypeReference, TypeReference>, TypeReference>,
-                                                      MethodMetadataVisitor<Map<TypeReference, TypeReference>, MethodReference>,
-                                                      FieldMetadataVisitor<Map<TypeReference, TypeReference>, FieldReference> {
+public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeReference, TypeReference>, TypeReference>
+    implements MethodMetadataVisitor<Map<TypeReference, TypeReference>, MethodReference>,
+               FieldMetadataVisitor<Map<TypeReference, TypeReference>, FieldReference> {
 
     private final static TypeSubstitutionVisitor INSTANCE = new TypeSubstitutionVisitor();
 

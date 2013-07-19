@@ -49,6 +49,11 @@ public final class RawType extends TypeReference {
     }
 
     @Override
+    public String getPackageName() {
+        return _genericTypeDefinition.getPackageName();
+    }
+
+    @Override
     public String getName() {
         return _genericTypeDefinition.getName();
     }
@@ -61,5 +66,10 @@ public final class RawType extends TypeReference {
     @Override
     public final <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
         return visitor.visitRawType(this, parameter);
+    }
+
+    @Override
+    public TypeDefinition resolve() {
+        return getUnderlyingType().resolve();
     }
 }

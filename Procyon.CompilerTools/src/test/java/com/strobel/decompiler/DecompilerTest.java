@@ -33,6 +33,8 @@ public abstract class DecompilerTest {
     protected final static int OPTION_INCLUDE_NESTED = 0x0001;
     protected final static int OPTION_FLATTEN_SWITCH_BLOCKS = 0x0002;
     protected final static int OPTION_INCLUDE_SYNTHETIC = 0x0004;
+    protected final static int OPTION_RETAIN_CASTS = 0x0008;
+    protected final static int OPTION_EXPLICIT_TYPE_ARGUMENTS = 0x0010;
 
     protected final static Pattern WHITESPACE;
 
@@ -64,6 +66,14 @@ public abstract class DecompilerTest {
 
         if (testAny(options, OPTION_INCLUDE_SYNTHETIC)) {
             settings.setShowSyntheticMembers(true);
+        }
+
+        if (testAny(options, OPTION_RETAIN_CASTS)) {
+            settings.setRetainRedundantCasts(true);
+        }
+
+        if (testAny(options, OPTION_EXPLICIT_TYPE_ARGUMENTS)) {
+            settings.setForceExplicitTypeArguments(true);
         }
 
         return settings;

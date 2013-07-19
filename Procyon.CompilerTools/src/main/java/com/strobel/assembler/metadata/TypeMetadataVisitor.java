@@ -4,6 +4,7 @@ package com.strobel.assembler.metadata;
  * @author Mike Strobel
  */
 public interface TypeMetadataVisitor<P, R> {
+    R visitType(final TypeReference t, final P p);
     R visitArrayType(final ArrayType t, final P p);
     R visitGenericParameter(final GenericParameter t, final P p);
     R visitWildcard(final WildcardType t, final P p);

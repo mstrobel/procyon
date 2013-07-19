@@ -105,6 +105,38 @@ public class HandlerTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("LocalCanBeFinal")
+    private static class F {
+        private static boolean tryEnter(final Object o) {
+            return true;
+        }
+
+        private static void exit(final Object o) {
+        }
+
+        private static void doSomething() throws FileNotFoundException {
+        }
+
+        boolean test(final String[] path) {
+            final boolean lockAcquired = tryEnter(this);
+            boolean result;
+
+            try {
+                doSomething();
+                result = true;
+            }
+            catch (FileNotFoundException t) {
+                result = false;
+            }
+            finally {
+                if (lockAcquired) {
+                    exit(this);
+                }
+            }
+            return result;
+        }
+    }
+
     @Test
     public void testThrowsSignatures() throws Throwable {
         verifyOutput(
@@ -219,6 +251,42 @@ public class HandlerTests extends DecompilerTest {
             "                System.out.println(s);\n" +
             "            }\n" +
             "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+    @Test
+    public void testSimpleTryCatchFinallyControlFlow() throws Throwable {
+        verifyOutput(
+            F.class,
+            defaultSettings(),
+            "private static class F {\n" +
+            "    private static boolean tryEnter(final Object o) {\n" +
+            "        return true;\n" +
+            "    }\n" +
+            "    private static void exit(final Object o) {\n" +
+            "    }\n" +
+            "    private static void doSomething() throws FileNotFoundException {\n" +
+            "    }\n" +
+            "    boolean test(final String[] path) {\n" +
+            "        final boolean lockAcquired = tryEnter(this);\n" +
+            "        boolean result;\n" +
+            "        try {\n" +
+            "            doSomething();\n" +
+            "            result = true;\n" +
+            "        }\n" +
+            "        catch (FileNotFoundException t) {\n" +
+            "            result = false;\n" +
+            "            if (lockAcquired) {\n" +
+            "                exit(this);\n" +
+            "            }\n" +
+            "        }\n" +
+            "        finally {\n" +
+            "            if (lockAcquired) {\n" +
+            "                exit(this);\n" +
+            "            }\n" +
+            "        }\n" +
+            "        return result;\n" +
             "    }\n" +
             "}\n"
         );
