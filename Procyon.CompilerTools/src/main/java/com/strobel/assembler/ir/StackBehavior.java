@@ -56,6 +56,7 @@ public enum StackBehavior {
     PushR4,
     PushR8,
     PushA,
+    PushAddress,
     VarPop,
     VarPush,
 }

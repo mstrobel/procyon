@@ -1071,6 +1071,14 @@ public final class AstBuilder {
                     }
                 }
             }
+            else if (byteCode.code == AstCode.Ret || byteCode.code == AstCode.__RetW) {
+                final VariableDefinition temp = (VariableDefinition) byteCode.operand;
+                final FrameValue address = stackMapper.getLocalValue(temp.getSlot());
+                final Instruction targetInstruction = (Instruction) address.getParameter();
+                final ByteCode target = byteCodeMap.get(targetInstruction);
+
+                branchTargets.add(target);
+            }
 
             //
             // Apply the state to successors.

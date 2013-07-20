@@ -3,7 +3,9 @@ package com.strobel.decompiler;
 import com.beust.jcommander.JCommander;
 import com.strobel.assembler.InputTypeLoader;
 import com.strobel.assembler.metadata.CompositeTypeLoader;
+import com.strobel.assembler.metadata.IMetadataResolver;
 import com.strobel.assembler.metadata.JarTypeLoader;
+import com.strobel.assembler.metadata.MetadataParser;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -162,8 +164,23 @@ public class DecompilerDriver {
         final DecompilationOptions options,
         final boolean includeNested) throws IOException {
 
+        final TypeReference type;
         final DecompilerSettings settings = options.getSettings();
-        final TypeReference type = metadataSystem.lookupType(typeName);
+
+        if (typeName.length() == 1) {
+            //
+            // Hack to get around classes whose descriptors clash with primitive types.
+            //
+
+            final MetadataParser parser = new MetadataParser(IMetadataResolver.EMPTY);
+            final TypeReference reference = parser.parseTypeDescriptor(typeName);
+
+            type = metadataSystem.resolve(reference);
+        }
+        else {
+            type = metadataSystem.lookupType(typeName);
+        }
+
         final TypeDefinition resolvedType;
 
         if (type == null || (resolvedType = type.resolve()) == null) {

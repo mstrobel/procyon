@@ -470,7 +470,7 @@ public final class MetadataHelper {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(baseType, "baseType");
 
-        return IS_SUBTYPE_VISITOR.visit(type, baseType);
+        return isSubType(type, baseType, true);
     }
 
     public static boolean isPrimitiveBoxType(final TypeReference type) {
@@ -543,7 +543,17 @@ public final class MetadataHelper {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(baseType, "baseType");
 
-        return substituteGenericArguments(type, getSubTypeMappings(type, baseType));
+        TypeReference effectiveBaseType = type;
+
+        if (type instanceof RawType) {
+            effectiveBaseType = type.getUnderlyingType();
+        }
+        else if (isRawType(type)) {
+            final TypeDefinition resolvedType = type.resolve();
+            effectiveBaseType = resolvedType != null ? resolvedType : type;
+        }
+
+        return AS_SUBTYPE_VISITOR.visit(baseType, effectiveBaseType);
     }
 
     public static TypeReference asSuper(final TypeReference t, final TypeReference s) {
@@ -1290,8 +1300,11 @@ public final class MetadataHelper {
     private final static TypeMapper<Void> UPPER_BOUND_VISITOR = new TypeMapper<Void>() {
         @Override
         public TypeReference visitType(final TypeReference t, final Void ignored) {
-            return t.isUnbounded() || t.hasSuperBound() ? BuiltinTypes.Object
-                                                        : visit(t.getExtendsBound());
+            if (t.isWildcardType() || t.isGenericParameter() || t instanceof ICapturedType) {
+                return t.isUnbounded() || t.hasSuperBound() ? BuiltinTypes.Object
+                                                            : visit(t.getExtendsBound());
+            }
+            return t;
         }
     };
 
@@ -2075,6 +2088,107 @@ public final class MetadataHelper {
                 return Collections.emptyList();
             }
         };
+
+    private final static TypeMapper<TypeReference> AS_SUBTYPE_VISITOR = new TypeMapper<TypeReference>() {
+        @Override
+        public TypeReference visitClassType(final TypeReference t, final TypeReference s) {
+            if (isSameType(t, s)) {
+                return t;
+            }
+
+            final TypeReference base = asSuper(s, t);
+
+            if (base == null) {
+                return null;
+            }
+
+            final Map<TypeReference, TypeReference> mappings = adapt(base, t);
+            final TypeReference result = substituteGenericArguments(s, mappings);
+
+            if (!isSubType(result, t)) {
+                return null;
+            }
+
+            final List<? extends TypeReference> tTypeArguments = getTypeArguments(t);
+            final List<? extends TypeReference> sTypeArguments = getTypeArguments(s);
+            final List<? extends TypeReference> resultTypeArguments = getTypeArguments(result);
+
+            List<TypeReference> openGenericParameters = null;
+
+            for (final TypeReference a : sTypeArguments) {
+                if (a.isGenericParameter() &&
+                    resultTypeArguments.contains(a) &&
+                    !tTypeArguments.contains(a)) {
+
+                    if (openGenericParameters == null) {
+                        openGenericParameters = new ArrayList<>();
+                    }
+
+                    openGenericParameters.add(a);
+                }
+            }
+
+            if (openGenericParameters != null) {
+                if (isRawType(t)) {
+                    //
+                    // The subtype of a raw type is raw.
+                    //
+                    return eraseRecursive(result);
+                }
+                else {
+                    final Map<TypeReference, TypeReference> unboundMappings = new HashMap<>();
+
+                    for (final TypeReference p : openGenericParameters) {
+                        unboundMappings.put(p, WildcardType.unbounded());
+                    }
+
+                    return substituteGenericArguments(result, unboundMappings);
+                }
+            }
+
+            return result;
+        }
+/*
+        @Override
+        public Type visitClassType(ClassType t, Symbol sym) {
+            if (t.tsym == sym)
+                return t;
+            Type base = asSuper(sym.type, t.tsym);
+            if (base == null)
+                return null;
+            ListBuffer<Type> from = new ListBuffer<Type>();
+            ListBuffer<Type> to = new ListBuffer<Type>();
+            try {
+                adapt(base, t, from, to);
+            } catch (AdaptFailure ex) {
+                return null;
+            }
+            Type res = subst(sym.type, from.toList(), to.toList());
+            if (!isSubtype(res, t))
+                return null;
+            ListBuffer<Type> openVars = new ListBuffer<Type>();
+            for (List<Type> l = sym.type.allparams();
+                 l.nonEmpty(); l = l.tail)
+                if (res.contains(l.head) && !t.contains(l.head))
+                    openVars.append(l.head);
+            if (openVars.nonEmpty()) {
+                if (t.isRaw()) {
+                    // The subtype of a raw type is raw
+                    res = erasure(res);
+                } else {
+                    // Unbound type arguments default to ?
+                    List<Type> opens = openVars.toList();
+                    ListBuffer<Type> qs = new ListBuffer<Type>();
+                    for (List<Type> iter = opens; iter.nonEmpty(); iter = iter.tail) {
+                        qs.append(new WildcardType(syms.objectType, BoundKind.UNBOUND, syms.boundClass, (TypeVar) iter.head.unannotatedType()));
+                    }
+                    res = subst(res, opens, qs.toList());
+                }
+            }
+            return res;
+        }
+*/
+    };
 
     // </editor-fold>
 }

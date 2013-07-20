@@ -35,8 +35,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.strobel.core.CollectionUtilities.*;
-import static com.strobel.decompiler.ast.PatternMatching.*;
+import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.decompiler.ast.PatternMatching.matchGetOperand;
 
 public final class TypeAnalysis {
     private final List<ExpressionToInfer> _allExpressions = new ArrayList<>();
@@ -501,7 +501,7 @@ public final class TypeAnalysis {
         for (final Expression argument : arguments) {
             if (!argument.getCode().isStore()) {
                 runInference(argument);
-        }
+            }
         }
 
         if (changedVariable != null) {
@@ -601,10 +601,10 @@ public final class TypeAnalysis {
                     //
                     // NOTE: Do not use 'expectedType' here!
                     //
-                    inferTypeForExpression(expression.getArguments().get(0), inferTypeForVariable(v, expectedType));
+                    inferTypeForExpression(expression.getArguments().get(0), v.getType());
                 }
 
-                return inferTypeForVariable(v, expectedType);
+                return v.getType();
             }
 
             case Load: {
@@ -614,7 +614,7 @@ public final class TypeAnalysis {
                     v.setType(expectedType);
                 }
 
-                return inferTypeForVariable(v, expectedType);
+                return v.getType();
             }
 
             case InvokeDynamic: {
@@ -910,6 +910,10 @@ public final class TypeAnalysis {
 
                 final TypeReference type = numericPromotion(inferTypeForExpression(arguments.get(0), null));
 
+                if (type == null) {
+                    return null;
+                }
+
                 TypeReference expectedInputType = null;
 
                 switch (type.getSimpleType()) {
@@ -1027,16 +1031,16 @@ public final class TypeAnalysis {
             }
 
             case InitObject: {
-                final MethodReference constructor = (MethodReference) operand;
+                final MethodReference instanceCtor = (MethodReference) operand;
+                final MethodReference resolvedCtor = instanceCtor instanceof IGenericInstance ? instanceCtor.resolve() : instanceCtor;
+                final MethodReference constructor = resolvedCtor != null ? resolvedCtor : instanceCtor;
                 final TypeReference type = constructor.getDeclaringType();
+
                 final TypeReference inferredType;
 
                 if (expectedType != null) {
-                    inferredType = MetadataHelper.asSubType(
-                        type instanceof IGenericInstance ? (TypeReference) ((IGenericInstance) type).getGenericDefinition()
-                                                         : type,
-                        expectedType
-                    );
+                    final TypeReference asSubType = MetadataHelper.asSubType(type, expectedType);
+                    inferredType = asSubType != null ? asSubType : type;
                 }
                 else {
                     inferredType = type;
@@ -1362,6 +1366,11 @@ public final class TypeAnalysis {
                     inferTypeForExpression(arguments.get(0), returnType);
                 }
                 return returnType;
+            }
+
+            case Jsr:
+            case Ret: {
+                return null;
             }
 
             case Pop:

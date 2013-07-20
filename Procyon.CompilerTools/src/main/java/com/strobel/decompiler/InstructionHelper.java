@@ -259,6 +259,9 @@ public final class InstructionHelper {
             case PushA:
                 return 1;
 
+            case PushAddress:
+                return 1;
+
             case VarPush: {
                 if (code.getFlowControl() != FlowControl.Call) {
                     break;

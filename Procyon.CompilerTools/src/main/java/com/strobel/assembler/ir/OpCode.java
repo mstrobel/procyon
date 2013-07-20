@@ -185,7 +185,7 @@ public enum OpCode {
     IF_ACMPEQ(0xA5, FlowControl.ConditionalBranch, OpCodeType.Macro, OperandType.BranchTarget, StackBehavior.PopA_PopA, StackBehavior.Push0),
     IF_ACMPNE(0xA6, FlowControl.ConditionalBranch, OpCodeType.Macro, OperandType.BranchTarget, StackBehavior.PopA_PopA, StackBehavior.Push0),
     GOTO(0xA7, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.Push0),
-    JSR(0xA8, FlowControl.Call, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.Push0),
+    JSR(0xA8, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.PushAddress),
     RET(0xA9, FlowControl.Branch, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.Push0),
     TABLESWITCH(0xAA, FlowControl.ConditionalBranch, OpCodeType.Primitive, OperandType.Switch, StackBehavior.PopI4, StackBehavior.Push0),
     LOOKUPSWITCH(0xAB, FlowControl.ConditionalBranch, OpCodeType.Primitive, OperandType.Switch, StackBehavior.PopI4, StackBehavior.Push0),

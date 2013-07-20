@@ -63,36 +63,38 @@ public class MetadataSystem extends MetadataResolver {
     @Override
     protected TypeDefinition resolveCore(final TypeReference type) {
         VerifyArgument.notNull(type, "type");
-        return resolveType(type.getInternalName());
+        return resolveType(type.getInternalName(), false);
     }
 
     @Override
     protected TypeReference lookupTypeCore(final String descriptor) {
-        return resolveType(descriptor);
+        return resolveType(descriptor, true);
     }
 
-    protected TypeDefinition resolveType(final String descriptor) {
+    protected TypeDefinition resolveType(final String descriptor, final boolean mightBePrimitive) {
         VerifyArgument.notNull(descriptor, "descriptor");
 
-        if (descriptor.length() == 1) {
-            final int primitiveHash = descriptor.charAt(0) - 'B';
+        if (mightBePrimitive) {
+            if (descriptor.length() == 1) {
+                final int primitiveHash = descriptor.charAt(0) - 'B';
 
-            if (primitiveHash >= 0 && primitiveHash < PRIMITIVE_TYPES_BY_DESCRIPTOR.length) {
-                final TypeDefinition primitiveType = PRIMITIVE_TYPES_BY_DESCRIPTOR[primitiveHash];
+                if (primitiveHash >= 0 && primitiveHash < PRIMITIVE_TYPES_BY_DESCRIPTOR.length) {
+                    final TypeDefinition primitiveType = PRIMITIVE_TYPES_BY_DESCRIPTOR[primitiveHash];
 
-                if (primitiveType != null) {
-                    return primitiveType;
+                    if (primitiveType != null) {
+                        return primitiveType;
+                    }
                 }
             }
-        }
-        else {
-            final int primitiveHash = hashPrimitiveName(descriptor);
+            else {
+                final int primitiveHash = hashPrimitiveName(descriptor);
 
-            if (primitiveHash >= 0 && primitiveHash < PRIMITIVE_TYPES_BY_NAME.length) {
-                final TypeDefinition primitiveType = PRIMITIVE_TYPES_BY_NAME[primitiveHash];
+                if (primitiveHash >= 0 && primitiveHash < PRIMITIVE_TYPES_BY_NAME.length) {
+                    final TypeDefinition primitiveType = PRIMITIVE_TYPES_BY_NAME[primitiveHash];
 
-                if (primitiveType != null && descriptor.equals(primitiveType.getName())) {
-                    return primitiveType;
+                    if (primitiveType != null && descriptor.equals(primitiveType.getName())) {
+                        return primitiveType;
+                    }
                 }
             }
         }

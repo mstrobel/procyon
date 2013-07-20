@@ -76,6 +76,9 @@ final class Inlining {
                     increment(loadCounts, localVariable);
                     increment(storeCounts, localVariable);
                 }
+                else if (code == AstCode.Ret) {
+                    increment(loadCounts, localVariable);
+                }
                 else {
                     throw new IllegalStateException("Unexpected AST op code: " + code.getName());
                 }

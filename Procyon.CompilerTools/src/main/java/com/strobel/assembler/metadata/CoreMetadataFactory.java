@@ -207,7 +207,7 @@ public class CoreMetadataFactory implements MetadataFactory {
 
         int dollarIndex = name.indexOf('$');
 
-        while (dollarIndex < 0 &&
+        while (dollarIndex >= 0 &&
                dollarIndex < length - 1 &&
                name.charAt(dollarIndex + 1) == '$') {
 
@@ -233,7 +233,25 @@ public class CoreMetadataFactory implements MetadataFactory {
                     declaringType = makeNamedType(entry.getOuterClassName().replace('/', '.'));
                 }
                 else {
-                    declaringType = makeNamedType(name.substring(0, dollarIndex).replace('/', '.'));
+                    int lastDollarIndex = name.lastIndexOf('$');
+
+                    while (lastDollarIndex >= 1 &&
+                           lastDollarIndex < length &&
+                           name.charAt(lastDollarIndex - 1) == '$') {
+
+                        if (lastDollarIndex > 1) {
+                            lastDollarIndex = name.lastIndexOf(lastDollarIndex, lastDollarIndex - 2);
+                        }
+                        else {
+                            lastDollarIndex = -1;
+                        }
+                    }
+
+                    if (lastDollarIndex == length - 1) {
+                        lastDollarIndex = -1;
+                    }
+
+                    declaringType = makeNamedType(name.substring(0, lastDollarIndex).replace('/', '.'));
                 }
 
                 return new UnresolvedType(declaringType, qualifiedName, shortName);

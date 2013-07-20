@@ -95,6 +95,10 @@ public final class FrameValue {
         return new FrameValue(FrameValueType.Reference, VerifyArgument.notNull(type, "type"));
     }
 
+    public static FrameValue makeAddress(final Instruction target) {
+        return new FrameValue(FrameValueType.Address, VerifyArgument.notNull(target, "target"));
+    }
+
     public static FrameValue makeUninitializedReference(final Instruction newInstruction) {
         VerifyArgument.notNull(newInstruction, "newInstruction");
 

@@ -779,6 +779,9 @@ public class StackMappingVisitor implements MethodVisitor {
 
                 return;
             }
+            else if (code == OpCode.JSR || code == OpCode.JSR) {
+                set(0, FrameValue.makeAddress(instruction));
+            }
 
             switch (code.getStackBehaviorPush()) {
                 case Push0:
@@ -959,6 +962,11 @@ public class StackMappingVisitor implements MethodVisitor {
                             push(pop());
                             break;
                     }
+                    break;
+                }
+
+                case PushAddress: {
+                    push(FrameValue.makeAddress(instruction.getNext()));
                     break;
                 }
 

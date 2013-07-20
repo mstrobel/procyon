@@ -9,27 +9,27 @@ import static org.junit.Assert.*;
 @SuppressWarnings("UnusedDeclaration")
 public class MetadataHelperTests {
     private static TypeReference string() {
-        return MetadataSystem.instance().resolveType("java/lang/String");
+        return MetadataSystem.instance().lookupTypeCore("java/lang/String");
     }
 
     private static TypeReference charSequence() {
-        return MetadataSystem.instance().resolveType("java/lang/CharSequence");
+        return MetadataSystem.instance().lookupTypeCore("java/lang/CharSequence");
     }
 
     private static TypeReference integer() {
-        return MetadataSystem.instance().resolveType("java/lang/Integer");
+        return MetadataSystem.instance().lookupTypeCore("java/lang/Integer");
     }
 
     private static TypeReference list() {
-        return MetadataSystem.instance().resolveType("java/util/List");
+        return MetadataSystem.instance().lookupTypeCore("java/util/List");
     }
 
     private static TypeReference arrayList() {
-        return MetadataSystem.instance().resolveType("java/util/ArrayList");
+        return MetadataSystem.instance().lookupTypeCore("java/util/ArrayList");
     }
 
     private static TypeReference iterable() {
-        return MetadataSystem.instance().resolveType("java/lang/Iterable");
+        return MetadataSystem.instance().lookupTypeCore("java/lang/Iterable");
     }
 
     @Test
@@ -93,5 +93,36 @@ public class MetadataHelperTests {
         assertTrue(isSameType(t7, iterable.makeGenericType(single(arrayList.getGenericParameters())), true));
         assertTrue(isSameType(t8, genericIterable, true));
         assertTrue(isSameType(t9, rawIterable, true));
+    }
+    
+    @Test
+    public void testAsSubTypeWithSimpleGenerics() throws Throwable {
+        final TypeReference arrayList = arrayList();
+        final TypeReference rawArrayList = new RawType(arrayList());
+        final TypeReference genericArrayList = arrayList().makeGenericType(string());
+
+        final TypeReference iterable = iterable();
+        final TypeReference rawIterable = new RawType(iterable());
+        final TypeReference genericIterable = iterable().makeGenericType(string());
+
+        final TypeReference t1 = MetadataHelper.asSubType(arrayList, genericIterable);
+        final TypeReference t2 = MetadataHelper.asSubType(genericArrayList, genericIterable);
+        final TypeReference t3 = MetadataHelper.asSubType(rawArrayList, genericIterable);
+        final TypeReference t4 = MetadataHelper.asSubType(arrayList, iterable);
+        final TypeReference t5 = MetadataHelper.asSubType(genericArrayList, iterable);
+        final TypeReference t6 = MetadataHelper.asSubType(rawArrayList, iterable);
+        final TypeReference t7 = MetadataHelper.asSubType(arrayList, rawIterable);
+        final TypeReference t8 = MetadataHelper.asSubType(genericArrayList, rawIterable);
+        final TypeReference t9 = MetadataHelper.asSubType(rawArrayList, rawIterable);
+
+        assertTrue(isSameType(t1, genericArrayList, true));
+        assertTrue(isSameType(t2, genericArrayList, true));
+        assertTrue(isSameType(t3, genericArrayList, true));
+        assertTrue(isSameType(t4, arrayList.makeGenericType(single(iterable.getGenericParameters())), true));
+        assertTrue(isSameType(t5, genericArrayList, true));
+        assertTrue(isSameType(t6, arrayList.makeGenericType(single(iterable.getGenericParameters())), true));
+        assertTrue(isSameType(t7, rawArrayList, true));
+        assertTrue(isSameType(t8, genericArrayList, true));
+        assertTrue(isSameType(t9, rawArrayList, true));
     }
 }

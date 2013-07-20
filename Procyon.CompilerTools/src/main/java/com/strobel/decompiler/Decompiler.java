@@ -17,7 +17,9 @@
 package com.strobel.decompiler;
 
 import com.strobel.assembler.metadata.ClasspathTypeLoader;
+import com.strobel.assembler.metadata.IMetadataResolver;
 import com.strobel.assembler.metadata.ITypeLoader;
+import com.strobel.assembler.metadata.MetadataParser;
 import com.strobel.assembler.metadata.MetadataSystem;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -35,7 +37,23 @@ public final class Decompiler {
 
         final ITypeLoader typeLoader = settings.getTypeLoader() != null ? settings.getTypeLoader() : new ClasspathTypeLoader();
         final MetadataSystem metadataSystem = new MetadataSystem(typeLoader);
-        final TypeReference type = metadataSystem.lookupType(internalName);
+
+        final TypeReference type;
+
+        if (internalName.length() == 1) {
+            //
+            // Hack to get around classes whose descriptors clash with primitive types.
+            //
+
+            final MetadataParser parser = new MetadataParser(IMetadataResolver.EMPTY);
+            final TypeReference reference = parser.parseTypeDescriptor(internalName);
+
+            type = metadataSystem.resolve(reference);
+        }
+        else {
+            type = metadataSystem.lookupType(internalName);
+        }
+
         final TypeDefinition resolvedType;
 
         if (type == null || (resolvedType = type.resolve()) == null) {
