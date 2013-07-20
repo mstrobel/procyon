@@ -23,11 +23,13 @@ import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilationOptions;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.PlainTextOutput;
 import com.strobel.decompiler.ast.*;
 import com.strobel.decompiler.ast.Label;
+import com.strobel.decompiler.languages.Languages;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.util.ContractUtils;
 
@@ -71,14 +73,19 @@ public class AstMethodBodyBuilder {
             return builder.createMethodBody(parameters);
         }
         catch (Throwable t) {
-            return createErrorBlock(astBuilder, t);
+            return createErrorBlock(astBuilder, context, method, t);
         }
         finally {
             context.setCurrentMethod(oldCurrentMethod);
         }
     }
 
-    private static BlockStatement createErrorBlock(final AstBuilder astBuilder, final Throwable t) {
+    private static BlockStatement createErrorBlock(
+        final AstBuilder astBuilder,
+        final DecompilerContext context,
+        final MethodDefinition method,
+        final Throwable t) {
+
         final BlockStatement block = new BlockStatement();
 
         final List<String> lines = StringUtilities.split(
@@ -88,8 +95,47 @@ public class AstMethodBodyBuilder {
             '\n'
         );
 
-        for (final String line : lines) {
-            block.addChild(new Comment(" " + line.replace("\t", "    "), CommentType.SingleLine), Roles.COMMENT);
+        block.addChild(new Comment(" ", CommentType.SingleLine), Roles.COMMENT);
+        block.addChild(new Comment(" This method could not be decompiled.", CommentType.SingleLine), Roles.COMMENT);
+        block.addChild(new Comment(" ", CommentType.SingleLine), Roles.COMMENT);
+
+        try {
+            final PlainTextOutput bytecodeOutput = new PlainTextOutput();
+
+            Languages.bytecode().decompileMethod(method, bytecodeOutput, new DecompilationOptions());
+
+            final List<String> bytecodeLines = StringUtilities.split(
+                bytecodeOutput.toString(),
+                true,
+                '\r',
+                '\n'
+            );
+
+            block.addChild(new Comment(" Original Bytecode:", CommentType.SingleLine), Roles.COMMENT);
+            block.addChild(new Comment(" ", CommentType.SingleLine), Roles.COMMENT);
+
+            for (int i = 4; i < bytecodeLines.size(); i++) {
+                final String line = StringUtilities.removeLeft(bytecodeLines.get(i), "      ");
+
+                block.addChild(new Comment(line.replace("\t", "  "), CommentType.SingleLine), Roles.COMMENT);
+            }
+
+            block.addChild(new Comment(" ", CommentType.SingleLine), Roles.COMMENT);
+        }
+        catch (Throwable ignored) {
+            block.addChild(new Comment(" Could not show original bytecode.", CommentType.SingleLine), Roles.COMMENT);
+            block.addChild(new Comment(" ", CommentType.SingleLine), Roles.COMMENT);
+        }
+
+        if (context.getSettings().getIncludeErrorDiagnostics()) {
+            block.addChild(new Comment(" The error that occurred was:", CommentType.SingleLine), Roles.COMMENT);
+            block.addChild(new Comment(" ", CommentType.SingleLine), Roles.COMMENT);
+
+            for (final String line : lines) {
+                block.addChild(new Comment(" " + line.replace("\t", "    "), CommentType.SingleLine), Roles.COMMENT);
+            }
+
+            block.addChild(new Comment(" ", CommentType.SingleLine), Roles.COMMENT);
         }
 
         try {
@@ -119,7 +165,7 @@ public class AstMethodBodyBuilder {
         _context = context;
     }
 
-    @SuppressWarnings("UnusedParameters")
+    @SuppressWarnings("ConstantConditions")
     private BlockStatement createMethodBody(final Iterable<ParameterDeclaration> parameters) {
         final MethodBody body = _method.getBody();
 
@@ -873,6 +919,7 @@ public class AstMethodBodyBuilder {
         return inlinedAssembly;
     }
 
+    @SuppressWarnings("ConstantConditions")
     private AstNode transformCall(
         final boolean isVirtual,
         final com.strobel.decompiler.ast.Expression byteCode,

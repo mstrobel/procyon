@@ -30,6 +30,7 @@ public class DecompilerSettings {
     private boolean _flattenSwitchBlocks;
     private boolean _showNestedTypes;
     private boolean _retainRedundantCasts;
+    private boolean _includeErrorDiagnostics = true;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
     private String _outputFileHeaderText;
@@ -132,5 +133,13 @@ public class DecompilerSettings {
 
     public void setRetainRedundantCasts(final boolean retainRedundantCasts) {
         _retainRedundantCasts = retainRedundantCasts;
+    }
+
+    public boolean getIncludeErrorDiagnostics() {
+        return _includeErrorDiagnostics;
+    }
+
+    public void setIncludeErrorDiagnostics(final boolean value) {
+        _includeErrorDiagnostics = value;
     }
 }
