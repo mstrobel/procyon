@@ -764,7 +764,19 @@ public class StackMappingVisitor implements MethodVisitor {
             }
 
             if (code.isArrayLoad()) {
-                push(((TypeReference) _temp.pop().getParameter()).getElementType());
+                final FrameValue frameValue = _temp.pop();
+                final Object parameter = frameValue.getParameter();
+
+                if (parameter instanceof TypeReference) {
+                    push(((TypeReference) parameter).getElementType());
+                }
+                else if (frameValue.getType() == FrameValueType.Null) {
+                    push(FrameValue.NULL);
+                }
+                else {
+                    push(FrameValue.TOP);
+                }
+
                 return;
             }
 
@@ -997,7 +1009,7 @@ public class StackMappingVisitor implements MethodVisitor {
 
                             final Instruction next = instruction.getNext();
                             final int slot = InstructionHelper.getLoadOrStoreSlot(next);
-                            final VariableDefinition variable = _body.getVariables().find(slot, next.getEndOffset() );
+                            final VariableDefinition variable = _body.getVariables().find(slot, next.getEndOffset());
 
                             if (variable != null && variable.isFromMetadata()) {
                                 returnType = substituteTypeArguments(

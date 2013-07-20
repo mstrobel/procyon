@@ -63,9 +63,9 @@ public final class AstBuilder {
 
         builder.analyzeHandlers();
 
+/*
         final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(builder._instructions, builder._exceptionHandlers);
 
-/*
         cfg.computeDominance();
         cfg.computeDominanceFrontier();
 
@@ -152,7 +152,7 @@ public final class AstBuilder {
         }
 
         //
-        // Remove finally handlers that handle themselves.
+        // Remove finally handlers that indirectly handle themselves.
         //
 
         for (int i = 0; i < _exceptionHandlers.size(); i++) {
@@ -242,6 +242,10 @@ public final class AstBuilder {
         for (int i = 0; i < exceptionHandlers.size(); i++) {
             final ExceptionHandler handler = exceptionHandlers.get(i);
             final HandlerInfo handlerInfo = handlers.get(handler);
+
+            if (handlerInfo == null) {
+                continue;
+            }
 
             //
             // Look for trailing branch instructions between a try block and its handler and adjust the
@@ -657,6 +661,18 @@ public final class AstBuilder {
 
         cfg.computeDominance();
         cfg.computeDominanceFrontier();
+
+        //
+        // Remove handlers that directly handle themselves.
+        //
+
+        for (int i = 0; i < _exceptionHandlers.size(); i++) {
+            final ExceptionHandler handler = _exceptionHandlers.get(i);
+
+            if (handler.getTryBlock().contains(handler.getHandlerBlock())) {
+                _exceptionHandlers.remove(i--);
+            }
+        }
 
         includeLeaveTryInstructions(handlers, _exceptionHandlers, cfg);
     }
