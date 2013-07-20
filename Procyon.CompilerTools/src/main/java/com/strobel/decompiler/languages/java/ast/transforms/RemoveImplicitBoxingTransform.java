@@ -135,10 +135,14 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         // TODO: Remove the `if` below once overload resolution is written and integrated.
         //
         if (node.getRole() == Roles.ARGUMENT) {
-            final MethodReference method = (MethodReference) parent.getUserData(Keys.MEMBER_REFERENCE);
+            final MemberReference member = parent.getUserData(Keys.MEMBER_REFERENCE);
 
-            if (method == null || MetadataHelper.isOverloadCheckingRequired(method)) {
-                return false;
+            if (member instanceof MethodReference) {
+                final MethodReference method = (MethodReference) parent.getUserData(Keys.MEMBER_REFERENCE);
+
+                if (method == null || MetadataHelper.isOverloadCheckingRequired(method)) {
+                    return false;
+                }
             }
         }
 
