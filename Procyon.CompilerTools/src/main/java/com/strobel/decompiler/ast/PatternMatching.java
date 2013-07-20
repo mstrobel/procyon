@@ -314,6 +314,11 @@ public final class PatternMatching {
                Comparer.equals(operand.get(), expectedVariable);
     }
 
+    public static boolean matchStore(final Node node, final Variable expectedVariable) {
+        return match(node, AstCode.Store) &&
+               Comparer.equals(((Expression)node).getOperand(), expectedVariable);
+    }
+
     public static boolean matchLoad(final Node node, final Variable expectedVariable, final StrongBox<Expression> argument) {
         final StrongBox<Variable> operand = new StrongBox<>();
 

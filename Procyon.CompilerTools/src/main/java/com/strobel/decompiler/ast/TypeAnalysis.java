@@ -1000,13 +1000,11 @@ public final class TypeAnalysis {
                 }
 
                 if (operand instanceof TypeReference) {
-                    final TypeReference classType = _factory.makeNamedType("java.lang.Class");
-
-                    if (expectedType != null) {
-                        return MetadataHelper.substituteGenericArguments(classType, expectedType);
-                    }
-
-                    return classType;
+                    return _factory.makeParameterizedType(
+                        _factory.makeNamedType("java.lang.Class"),
+                        null,
+                        (TypeReference) operand
+                    );
                 }
 
                 return _factory.makeNamedType("java.lang.String");

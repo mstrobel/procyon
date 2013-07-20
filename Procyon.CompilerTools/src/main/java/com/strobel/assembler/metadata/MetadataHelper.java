@@ -450,113 +450,12 @@ public final class MetadataHelper {
 
     public static boolean isAssignableFrom(final TypeReference target, final TypeReference source) {
         return isConvertible(source, target);
-/*
-        VerifyArgument.notNull(source, "source");
-        VerifyArgument.notNull(target, "target");
-
-        if (target == source) {
-            return true;
-        }
-
-        if (target.isArray()) {
-            return source.isArray() &&
-                   isAssignableFrom(target.getElementType(), source.getElementType());
-        }
-
-        if (target.isPrimitive()) {
-            if (source == BuiltinTypes.Null) {
-                return false;
-            }
-
-            final JvmType targetJvmType = target.getSimpleType();
-            final JvmType sourceJvmType = getUnderlyingPrimitiveTypeOrSelf(source).getSimpleType();
-
-            if (targetJvmType == JvmType.Boolean || targetJvmType == JvmType.Character) {
-                return targetJvmType == sourceJvmType;
-            }
-
-            switch (getNumericConversionType(target, source)) {
-                case IDENTITY:
-                case IMPLICIT:
-                    return true;
-
-                default:
-                    return false;
-            }
-        }
-
-        if (target.hasExtendsBound()) {
-            return isAssignableFrom(target.getExtendsBound(), source);
-        }
-
-        if (source.isPrimitive()) {
-            if (target == BuiltinTypes.Null) {
-                return false;
-            }
-
-            final JvmType sourceJvmType = source.getSimpleType();
-
-            if (sourceJvmType == JvmType.Boolean) {
-                return sourceJvmType == getUnderlyingPrimitiveTypeOrSelf(target).getSimpleType();
-            }
-
-            switch (getNumericConversionType(target, source)) {
-                case IDENTITY:
-                case IMPLICIT:
-                    return true;
-
-                default:
-                    return false;
-            }
-        }
-
-        return source == BuiltinTypes.Null ||
-               BuiltinTypes.Object.equals(target) ||
-               isSubType(source, target);
-*/
     }
 
     public static boolean isSubType(final TypeReference type, final TypeReference baseType) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(baseType, "baseType");
 
-/*
-        final TypeReference lower = getLowerBound(baseType);
-
-        if (baseType != lower) {
-            return isSubType(type, lower);
-        }
-
-        if (type == BuiltinTypes.Bottom) {
-            return true;
-        }
-
-        if (baseType == BuiltinTypes.Bottom) {
-            return false;
-        }
-
-        TypeReference current = type;
-
-        final TypeDefinition resolvedBaseType = baseType.resolve();
-
-        while (current != null) {
-            if (MetadataResolver.areEquivalent(current, baseType)) {
-                return true;
-            }
-
-            if (resolvedBaseType != null && resolvedBaseType.isInterface()) {
-                for (final TypeReference interfaceType : getInterfaces(current)) {
-                    if (isSubType(interfaceType, resolvedBaseType)) {
-                        return true;
-                    }
-                }
-            }
-
-            current = getBaseType(current);
-        }
-
-        return false;
-*/
         return IS_SUBTYPE_VISITOR.visit(type, baseType);
     }
 
@@ -622,7 +521,8 @@ public final class MetadataHelper {
     }
 
     public static List<TypeReference> getInterfaces(final TypeReference type) {
-        return INTERFACES_VISITOR.visit(type);
+        final List<TypeReference> result = INTERFACES_VISITOR.visit(type);
+        return result != null ? result : Collections.<TypeReference>emptyList();
     }
 
     public static TypeReference asSubType(final TypeReference type, final TypeReference baseType) {
@@ -679,7 +579,9 @@ public final class MetadataHelper {
                 resolvedBaseType.isGenericDefinition() &&
                 isSameType(resolved, resolvedBaseType)) {
 
-                if (current instanceof IGenericInstance) {
+                if (current instanceof IGenericInstance &&
+                    baseType instanceof IGenericInstance) {
+
                     final List<? extends TypeReference> typeArguments = ((IGenericInstance) current).getTypeArguments();
 
                     if (baseArguments.size() == typeArguments.size()) {
@@ -1373,7 +1275,7 @@ public final class MetadataHelper {
 
     private final static TypeMapper<Void> UPPER_BOUND_VISITOR = new TypeMapper<Void>() {
         @Override
-        public TypeReference visitWildcard(final WildcardType t, final Void ignored) {
+        public TypeReference visitType(final TypeReference t, final Void ignored) {
             return t.isUnbounded() || t.hasSuperBound() ? BuiltinTypes.Object
                                                         : visit(t.getExtendsBound());
         }
@@ -2082,17 +1984,20 @@ public final class MetadataHelper {
             public List<TypeReference> visitClassType(final TypeReference t, final Void ignored) {
                 final TypeDefinition r = t.resolve();
 
-                if (r == null)
+                if (r == null) {
                     return Collections.emptyList();
+                }
 
                 final List<TypeReference> interfaces = r.getExplicitInterfaces();
 
                 if (r.isGenericDefinition()) {
-                    if (t.isGenericDefinition())
+                    if (t.isGenericDefinition()) {
                         return interfaces;
+                    }
 
-                    if (isRawType(t))
+                    if (isRawType(t)) {
                         return eraseRecursive(interfaces);
+                    }
 
                     final List<? extends TypeReference> formal = getTypeArguments(r);
                     final List<? extends TypeReference> actual = getTypeArguments(t);

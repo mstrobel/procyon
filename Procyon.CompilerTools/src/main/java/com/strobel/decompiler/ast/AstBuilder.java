@@ -65,6 +65,7 @@ public final class AstBuilder {
 
         final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(builder._instructions, builder._exceptionHandlers);
 
+/*
         cfg.computeDominance();
         cfg.computeDominanceFrontier();
 
@@ -77,6 +78,7 @@ public final class AstBuilder {
                 )
             )
         );
+*/
 
         final List<ByteCode> byteCode = builder.performStackAnalysis();
 

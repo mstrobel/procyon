@@ -542,7 +542,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
             return null;
         }
 
-        return resolveType(type.getUserData(Keys.TYPE_REFERENCE));
+        return resolveType(type.toTypeReference());
     }
 
     private static ResolveResult resolveType(final TypeReference type) {

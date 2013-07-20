@@ -195,7 +195,7 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
         final TypeReference targetType = parameter.getParameterType();
         final ConversionType castToTarget = MetadataHelper.getConversionType(targetType, castType);
 
-        if (castToTarget != ConversionType.IDENTITY) {
+        if (castToTarget != ConversionType.IDENTITY && castToTarget != ConversionType.IMPLICIT) {
             return;
         }
 

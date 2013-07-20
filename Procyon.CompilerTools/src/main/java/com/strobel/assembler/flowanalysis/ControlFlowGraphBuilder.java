@@ -218,7 +218,11 @@ public final class ControlFlowGraphBuilder {
             // Create normal edges from one instruction to the next.
             //
             if (!endOpCode.isUnconditionalBranch()) {
-                createEdge(node, end.getNext(), JumpType.Normal);
+                final Instruction next = end.getNext();
+
+                if (next != null) {
+                    createEdge(node, next, JumpType.Normal);
+                }
             }
 
             //
