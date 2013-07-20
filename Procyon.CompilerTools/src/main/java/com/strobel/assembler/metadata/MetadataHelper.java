@@ -215,6 +215,26 @@ public final class MetadataHelper {
             return ConversionType.IMPLICIT;
         }
 
+        int targetRank = 0;
+        int sourceRank = 0;
+
+        TypeReference targetElementType = target;
+        TypeReference sourceElementType = source;
+
+        while (targetElementType.isArray()) {
+            ++targetRank;
+            targetElementType = targetElementType.getElementType();
+        }
+
+        while (sourceElementType.isArray()) {
+            ++sourceRank;
+            sourceElementType = sourceElementType.getElementType();
+        }
+
+        if (sourceRank != targetRank) {
+            return ConversionType.NONE;
+        }
+
         return ConversionType.EXPLICIT;
     }
 
