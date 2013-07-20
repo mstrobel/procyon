@@ -24,13 +24,13 @@ import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
 import com.strobel.assembler.ir.*;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.InstructionHelper;
 
-import java.io.File;
 import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
@@ -1923,7 +1923,15 @@ public final class AstBuilder {
                 // See if we share a block with another handler; if so, add our catch type and move on.
                 //
                 for (final CatchBlock catchBlock : tryCatchBlock.getCatchBlocks()) {
-                    final Expression firstExpression = firstOrDefault(catchBlock.getSelfAndChildrenRecursive(Expression.class));
+                    final Expression firstExpression = firstOrDefault(
+                        catchBlock.getSelfAndChildrenRecursive(Expression.class),
+                        new Predicate<Expression>() {
+                            @Override
+                            public boolean test(final Expression e) {
+                                return !e.getRanges().isEmpty();
+                            }
+                        }
+                    );
 
                     if (firstExpression == null) {
                         continue;
