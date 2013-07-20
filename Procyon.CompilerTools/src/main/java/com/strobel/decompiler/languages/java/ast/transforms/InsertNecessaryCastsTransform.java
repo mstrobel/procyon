@@ -2,7 +2,10 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.ConversionType;
+import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MetadataHelper;
+import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.semantics.ResolveResult;
@@ -99,4 +102,85 @@ public class InsertNecessaryCastsTransform extends ContextTrackingVisitor<Void> 
 
         return null;
     }
+
+    @Override
+    public Void visitMemberReferenceExpression(final MemberReferenceExpression node, final Void data) {
+        super.visitMemberReferenceExpression(node, data);
+
+        final Expression target = node.getTarget();
+
+        if (target == null || target.isNull()) {
+            return null;
+        }
+
+        MemberReference member = node.getUserData(Keys.MEMBER_REFERENCE);
+
+        if (member == null && node.getParent() != null) {
+            member = node.getParent().getUserData(Keys.MEMBER_REFERENCE);
+        }
+
+        if (member == null) {
+            return null;
+        }
+
+        final ResolveResult targetResult = _resolver.apply(target);
+
+        if (targetResult == null || targetResult.getType() == null) {
+            return null;
+        }
+
+        final TypeReference declaringType = member.getDeclaringType();
+        final TypeDefinition resolvedDeclaringType = declaringType.resolve();
+
+        final boolean isSubType = MetadataHelper.isSubType(
+            targetResult.getType(),
+            resolvedDeclaringType != null ? resolvedDeclaringType : declaringType
+        );
+
+        if (isSubType) {
+            return null;
+        }
+
+        final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+        if (astBuilder == null) {
+            return null;
+        }
+
+        TypeReference castType = MetadataHelper.asSubType(targetResult.getType(), declaringType);
+
+        if (castType == null) {
+
+            if (resolvedDeclaringType != null &&
+                resolvedDeclaringType.isGenericDefinition() &&
+                member.containsGenericParameters()) {
+
+                final int wildcardCount = resolvedDeclaringType.getGenericParameters().size();
+                final TypeReference[] typeArguments = new TypeReference[wildcardCount];
+
+                for (int i = 0; i < typeArguments.length; i++) {
+                    typeArguments[i] = com.strobel.assembler.metadata.WildcardType.unbounded();
+                }
+
+                castType = resolvedDeclaringType.makeGenericType(typeArguments);
+            }
+            else {
+                castType = declaringType;
+            }
+        }
+
+        final AstType astType = astBuilder.convertType(castType);
+
+        final AstNode replacement = target.replaceWith(
+            new Function<AstNode, AstNode>() {
+                @Override
+                public AstNode apply(final AstNode n) {
+                    return new CastExpression(astType, target);
+                }
+            }
+        );
+
+        return replacement.acceptVisitor(this, data);
+    }
 }
+

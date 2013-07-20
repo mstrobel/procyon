@@ -68,9 +68,11 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
         Collections.addAll(BOX_METHODS, boxMethods);
 
+/*
         for (final String unboxMethod : unboxMethods) {
             UNBOX_METHODS.add("java/lang/Number." + unboxMethod);
         }
+*/
 
         for (final String boxType : boxTypes) {
             for (final String unboxMethod : unboxMethods) {
