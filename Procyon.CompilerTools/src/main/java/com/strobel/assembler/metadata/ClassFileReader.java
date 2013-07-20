@@ -800,7 +800,45 @@ public final class ClassFileReader extends MetadataReader {
             final ConstantValueAttribute constantValueAttribute = SourceAttribute.find(AttributeNames.ConstantValue, field.attributes);
 
             if (constantValueAttribute != null) {
-                fieldDefinition.setConstantValue(constantValueAttribute.getValue());
+                final Object constantValue = constantValueAttribute.getValue();
+
+                if (constantValue instanceof Number) {
+                    final Number number = (Number) constantValue;
+                    final JvmType jvmType = fieldDefinition.getFieldType().getSimpleType();
+
+                    switch (jvmType) {
+                        case Boolean:
+                            fieldDefinition.setConstantValue(number.longValue() != 0L);
+                            break;
+                        case Byte:
+                            fieldDefinition.setConstantValue(number.byteValue());
+                            break;
+                        case Character:
+                            fieldDefinition.setConstantValue((char)number.longValue());
+                            break;
+                        case Short:
+                            fieldDefinition.setConstantValue(number.shortValue());
+                            break;
+                        case Integer:
+                            fieldDefinition.setConstantValue(number.intValue());
+                            break;
+                        case Long:
+                            fieldDefinition.setConstantValue(number.longValue());
+                            break;
+                        case Float:
+                            fieldDefinition.setConstantValue(number.floatValue());
+                            break;
+                        case Double:
+                            fieldDefinition.setConstantValue(number.doubleValue());
+                            break;
+                        default:
+                            fieldDefinition.setConstantValue(constantValue);
+                            break;
+                    }
+                }
+                else {
+                    fieldDefinition.setConstantValue(constantValue);
+                }
             }
 
             if (SourceAttribute.find(AttributeNames.Synthetic, field.attributes) != null) {

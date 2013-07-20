@@ -42,7 +42,7 @@ public class ModifierTests extends DecompilerTest {
             "    float f;\n" +
             "    private transient volatile double d;\n" +
             "    public static final synchronized strictfp void m(final String... args) {\n" +
-            "        for (char c = '\\0'; c < '\\u0080'; c++) {\n" +
+            "        for (char c = '\\0'; c < '\\u0080'; ++c) {\n" +
             "            System.out.println(\"ascii \" + (int)c + \" character \" + c);\n" +
             "        }\n" +
             "    }\n" +

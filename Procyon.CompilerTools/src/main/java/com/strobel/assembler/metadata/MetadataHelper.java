@@ -29,22 +29,6 @@ import java.util.*;
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public final class MetadataHelper {
-    private final static Set<String> BOXED_TYPES;
-
-    static {
-        final HashSet<String> boxedNumericTypes = new HashSet<>();
-
-        boxedNumericTypes.add("java/lang/Byte");
-        boxedNumericTypes.add("java/lang/Character");
-        boxedNumericTypes.add("java/lang/Short");
-        boxedNumericTypes.add("java/lang/Integer");
-        boxedNumericTypes.add("java/lang/Long");
-        boxedNumericTypes.add("java/lang/Float");
-        boxedNumericTypes.add("java/lang/Double");
-
-        BOXED_TYPES = boxedNumericTypes;
-    }
-
     public static boolean isEnclosedBy(final TypeReference innerType, final TypeReference outerType) {
         if (innerType == null) {
             return false;
@@ -242,7 +226,7 @@ public final class MetadataHelper {
         VerifyArgument.notNull(source, "source");
         VerifyArgument.notNull(target, "target");
 
-        if (target == source && BOXED_TYPES.contains(target.getInternalName())) {
+        if (isSameType(target, source)) {
             return ConversionType.IDENTITY;
         }
 
@@ -270,6 +254,9 @@ public final class MetadataHelper {
                     break;
                 case "java/lang/Double":
                     unboxedSourceType = BuiltinTypes.Double;
+                    break;
+                case "java/lang/Boolean":
+                    unboxedSourceType = BuiltinTypes.Boolean;
                     break;
                 default:
                     return ConversionType.NONE;
@@ -312,6 +299,9 @@ public final class MetadataHelper {
                     break;
                 case "java/lang/Double":
                     unboxedTargetType = BuiltinTypes.Double;
+                    break;
+                case "java/lang/Boolean":
+                    unboxedTargetType = BuiltinTypes.Boolean;
                     break;
                 default:
                     return ConversionType.NONE;
@@ -359,6 +349,10 @@ public final class MetadataHelper {
                 }
 
                 return ConversionType.EXPLICIT;
+
+            case Character:
+                return sourceJvmType.isNumeric() ? ConversionType.EXPLICIT
+                                                 : ConversionType.NONE;
         }
 
         return ConversionType.NONE;

@@ -299,7 +299,7 @@ public final class TypeAnalysis {
                         new Predicate<Variable>() {
                             @Override
                             public boolean test(final Variable v) {
-                                return v.getType() != null || _singleLoadVariables.contains(v);
+                                return inferTypeForVariable(v, null) != null || _singleLoadVariables.contains(v);
                             }
                         }
                     ) &&
@@ -396,9 +396,8 @@ public final class TypeAnalysis {
                     // Assign inferred types to all dependent expressions (in case they used  different inferred types).
                     //
                     for (final ExpressionToInfer e : _allExpressions) {
-                        if (e.dependsOnSingleLoad == variable ||
-                            e.dependencies.contains(variable)/* ||
-                            expressionsToInfer.contains(e)*/) {
+                        if (e.dependencies.contains(variable) ||
+                            expressionsToInfer.contains(e)) {
 
                             for (final Expression c : e.expression.getSelfAndChildrenRecursive(Expression.class)) {
                                 c.setExpectedType(null);
@@ -510,8 +509,7 @@ public final class TypeAnalysis {
 
             for (final ExpressionToInfer e : _allExpressions) {
                 if (e.expression != expression &&
-                    (e.dependsOnSingleLoad == changedVariable ||
-                     e.dependencies.contains(changedVariable) ||
+                    (e.dependencies.contains(changedVariable) ||
                      assignments.contains(e))) {
 
                     for (final Expression c : e.expression.getSelfAndChildrenRecursive(Expression.class)) {
@@ -603,10 +601,10 @@ public final class TypeAnalysis {
                     //
                     // NOTE: Do not use 'expectedType' here!
                     //
-                    inferTypeForExpression(expression.getArguments().get(0), v.getType());
+                    inferTypeForExpression(expression.getArguments().get(0), inferTypeForVariable(v, expectedType));
                 }
 
-                return v.getType();
+                return inferTypeForVariable(v, expectedType);
             }
 
             case Load: {
@@ -616,7 +614,7 @@ public final class TypeAnalysis {
                     v.setType(expectedType);
                 }
 
-                return v.getType();
+                return inferTypeForVariable(v, expectedType);
             }
 
             case InvokeDynamic: {

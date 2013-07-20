@@ -230,11 +230,14 @@ public class SimplifyBooleanExpressionsTransform extends ContextTrackingVisitor<
 
                         newValue.remove();
                         right.replaceWith(newValue);
+                        return newValue.acceptVisitor(this, data);
                     }
                 }
             }
 
-            tryRewriteBinaryAsAssignment(node, left, right);
+            if (tryRewriteBinaryAsAssignment(node, left, right)) {
+                return node.acceptVisitor(this, data);
+            }
         }
 
         return super.visitAssignmentExpression(node, data);
@@ -259,7 +262,8 @@ public class SimplifyBooleanExpressionsTransform extends ContextTrackingVisitor<
                     // t = t (op) n => t (op)= n
                     //
 
-                    return tryRewriteBinaryAsAssignment(node, left, innerRight) || true;
+                    tryRewriteBinaryAsUnary(node, node.getLeft(), node.getRight());
+                    return true;
                 }
             }
             else if (innerRight.matches(left)) {
@@ -287,17 +291,15 @@ public class SimplifyBooleanExpressionsTransform extends ContextTrackingVisitor<
             }
         }
 
-        if (tryRewriteBinaryAsUnary(node, left, right)) {
-            return true;
-        }
-
         return false;
     }
 
     private boolean tryRewriteBinaryAsUnary(final AssignmentExpression node, final Expression left, final Expression right) {
+        final AssignmentOperatorType op = node.getOperator();
+
         if (right instanceof PrimitiveExpression &&
-            (node.getOperator() == AssignmentOperatorType.ADD ||
-             node.getOperator() == AssignmentOperatorType.SUBTRACT)) {
+            (op == AssignmentOperatorType.ADD ||
+             op == AssignmentOperatorType.SUBTRACT)) {
 
             final Object value = ((PrimitiveExpression) right).getValue();
 
@@ -309,7 +311,7 @@ public class SimplifyBooleanExpressionsTransform extends ContextTrackingVisitor<
                 if (value instanceof Float || value instanceof Double) {
                     final double d = n.doubleValue();
 
-                    if (d == 1d || Math.abs(d) == 1d) {
+                    if (Math.abs(d) == 1d) {
                         delta = (long) d;
                     }
                 }
@@ -318,26 +320,22 @@ public class SimplifyBooleanExpressionsTransform extends ContextTrackingVisitor<
                 }
             }
             else if (value instanceof Character) {
-                delta = ((Character) value).charValue();
+                delta = (Character) value;
             }
 
-            if (delta == 1L || delta == -1L) {
+            if (Math.abs(delta) == 1L) {
                 final UnaryOperatorType unaryOp;
+                final boolean increment = (delta == 1L) ^ (op == AssignmentOperatorType.SUBTRACT);
 
-                if (node.getParent() instanceof ExpressionStatement) {
-                    //
-                    // t += 1; => t++;
-                    //
-                    unaryOp = delta == 1L ? UnaryOperatorType.POST_INCREMENT
-                                          : UnaryOperatorType.POST_DECREMENT;
-                }
-                else {
-                    //
-                    // (t += 1) => ++t
-                    //
-                    unaryOp = delta == 1L ? UnaryOperatorType.INCREMENT
-                                          : UnaryOperatorType.DECREMENT;
-                }
+                //
+                // (t += +1) => ++t
+                // (t += -1) => --t
+                // (t -= +1) => --t
+                // (t -= -1) => ++t
+                //
+
+                unaryOp = increment ? UnaryOperatorType.INCREMENT
+                                    : UnaryOperatorType.DECREMENT;
 
                 left.remove();
                 node.replaceWith(new UnaryOperatorExpression(unaryOp, left));
