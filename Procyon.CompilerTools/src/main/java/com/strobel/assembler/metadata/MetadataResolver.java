@@ -246,21 +246,7 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
                 }
             }
 
-            if (!areEquivalent(candidate.getReturnType(), reference.getReturnType())) {
-                if (!candidate.getReturnType().isGenericParameter() || !BuiltinTypes.Object.equals(reference.getReturnType())) {
-                    continue;
-                }
-            }
-
-            if (candidate.hasParameters() != reference.hasParameters()) {
-                continue;
-            }
-
-            if (!candidate.hasParameters()) {
-                return candidate;
-            }
-
-            if (!areParametersEquivalent(candidate.getParameters(), reference.getParameters())) {
+            if (!StringComparator.Ordinal.equals(candidate.getErasedSignature(), erasedSignature)) {
                 continue;
             }
 

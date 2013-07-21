@@ -453,7 +453,7 @@ public final class MetadataHelper {
             return isSubTypeUnchecked(getUpperBound(t), s);
         }
         else if (!isRawType(s)) {
-            final TypeReference t2 = asSuper(t, s);
+            final TypeReference t2 = asSuper(s, t);
             if (t2 != null && isRawType(t2)) {
                 return true;
             }
@@ -543,24 +543,24 @@ public final class MetadataHelper {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(baseType, "baseType");
 
-        TypeReference effectiveBaseType = type;
+        TypeReference effectiveType = type;
 
         if (type instanceof RawType) {
-            effectiveBaseType = type.getUnderlyingType();
+            effectiveType = type.getUnderlyingType();
         }
         else if (isRawType(type)) {
             final TypeDefinition resolvedType = type.resolve();
-            effectiveBaseType = resolvedType != null ? resolvedType : type;
+            effectiveType = resolvedType != null ? resolvedType : type;
         }
 
-        return AS_SUBTYPE_VISITOR.visit(baseType, effectiveBaseType);
+        return AS_SUBTYPE_VISITOR.visit(baseType, effectiveType);
     }
 
-    public static TypeReference asSuper(final TypeReference t, final TypeReference s) {
-        VerifyArgument.notNull(t, "t");
-        VerifyArgument.notNull(s, "s");
+    public static TypeReference asSuper(final TypeReference type, final TypeReference subType) {
+        VerifyArgument.notNull(subType, "t");
+        VerifyArgument.notNull(type, "s");
 
-        return AS_SUPER_VISITOR.visit(t, s);
+        return AS_SUPER_VISITOR.visit(subType, type);
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -656,12 +656,22 @@ public final class MetadataHelper {
         VerifyArgument.notNull(method, "method");
         VerifyArgument.notNull(baseType, "baseType");
 
-        final Map<TypeReference, TypeReference> map = getSubTypeMappings(method.getDeclaringType(), baseType);
+        TypeReference base = baseType;
 
+        while (base.isGenericParameter() || base.isWildcardType()) {
+            if (base.hasExtendsBound()) {
+                base = getUpperBound(base);
+            }
+            else {
+                base = BuiltinTypes.Object;
+            }
+        }
+
+        final Map<TypeReference, TypeReference> map = adapt(method.getDeclaringType(), base);
         final MethodReference asMember = TypeSubstitutionVisitor.instance().visitMethod(method, map);
 
         if (asMember != method && asMember instanceof GenericMethodInstance) {
-            ((GenericMethodInstance) asMember).setDeclaringType(baseType);
+            ((GenericMethodInstance) asMember).setDeclaringType(base);
         }
 
         return asMember;
@@ -671,7 +681,7 @@ public final class MetadataHelper {
         VerifyArgument.notNull(field, "field");
         VerifyArgument.notNull(baseType, "baseType");
 
-        final Map<TypeReference, TypeReference> map = getSubTypeMappings(field.getDeclaringType(), baseType);
+        final Map<TypeReference, TypeReference> map = adapt(field.getDeclaringType(), baseType);
 
         return TypeSubstitutionVisitor.instance().visitField(field, map);
     }
@@ -680,38 +690,11 @@ public final class MetadataHelper {
         final TypeReference inputType,
         final TypeReference substitutionsProvider) {
 
-        if (inputType == null) {
-            return null;
-        }
-
-        if (substitutionsProvider == null || !substitutionsProvider.isGenericType()) {
+        if (inputType == null || substitutionsProvider == null) {
             return inputType;
         }
 
-        final List<? extends TypeReference> genericParameters = substitutionsProvider.getGenericParameters();
-        final List<? extends TypeReference> typeArguments;
-
-        if (substitutionsProvider.isGenericDefinition()) {
-            typeArguments = genericParameters;
-        }
-        else {
-            typeArguments = ((IGenericInstance) substitutionsProvider).getTypeArguments();
-        }
-
-        if (!isGenericSubstitutionNeeded(inputType) ||
-            typeArguments.isEmpty() ||
-            typeArguments.size() != genericParameters.size()) {
-
-            return inputType;
-        }
-
-        final Map<TypeReference, TypeReference> map = new HashMap<>();
-
-        for (int i = 0; i < typeArguments.size(); i++) {
-            map.put(genericParameters.get(i), typeArguments.get(i));
-        }
-
-        return substituteGenericArguments(inputType, map);
+        return substituteGenericArguments(inputType, adapt(inputType, substitutionsProvider));
     }
 
     public static TypeReference substituteGenericArguments(
@@ -1279,13 +1262,19 @@ public final class MetadataHelper {
     }
 
     public static TypeReference eraseRecursive(final TypeReference type) {
+        if (type.isGenericParameter() || type.isWildcardType()) {
+            if (type.hasExtendsBound()) {
+                return eraseRecursive(type.getExtendsBound());
+            }
+            return BuiltinTypes.Object;
+        }
+
         //
         // TODO: Implement recursive type erasure.
         //
         final TypeReference resolved = VerifyArgument.notNull(type, "type").resolve();
 
-        return resolved.isGenericDefinition() ? new RawType(resolved)
-                                              : type;
+        return resolved != null && resolved.isGenericDefinition() ? new RawType(resolved) : type;
     }
 
     private static TypeReference classBound(final TypeReference t) {
@@ -1352,7 +1341,7 @@ public final class MetadataHelper {
 
         @Override
         public Boolean visitClassType(final TypeReference t, final TypeReference s) {
-            final TypeReference superType = asSuper(t, s);
+            final TypeReference superType = asSuper(s, t);
 
             return superType != null &&
                    StringUtilities.equals(superType.getInternalName(), s.getInternalName()) &&
@@ -1503,7 +1492,7 @@ public final class MetadataHelper {
                 (st.getSimpleType() == JvmType.Object ||
                  st.getSimpleType() == JvmType.TypeVariable)) {
 
-                final TypeReference x = asSuper(st, s);
+                final TypeReference x = asSuper(s, st);
 
                 if (x != null) {
                     return x;
@@ -1514,7 +1503,7 @@ public final class MetadataHelper {
 
             if (ds != null && ds.isInterface()) {
                 for (final TypeReference i : getInterfaces(t)) {
-                    final TypeReference x = asSuper(i, s);
+                    final TypeReference x = asSuper(s, i);
 
                     if (x != null) {
                         return x;
@@ -1530,7 +1519,7 @@ public final class MetadataHelper {
             if (isSameType(t, s)) {
                 return t;
             }
-            return asSuper(t.hasExtendsBound() ? t.getExtendsBound() : BuiltinTypes.Object, s);
+            return asSuper(s, t.hasExtendsBound() ? t.getExtendsBound() : BuiltinTypes.Object);
         }
 
         @Override
@@ -1816,6 +1805,10 @@ public final class MetadataHelper {
 
         @Override
         public Boolean visitClassType(final TypeReference t, final TypeReference s) {
+            if (t == s) {
+                return true;
+            }
+
             if (t.isGenericDefinition()) {
                 if (s.isGenericDefinition()) {
                     return StringUtilities.equals(t.getInternalName(), s.getInternalName()) &&
@@ -1826,7 +1819,7 @@ public final class MetadataHelper {
 
             if (s.getSimpleType() == JvmType.Object &&
                 StringUtilities.equals(t.getInternalName(), s.getInternalName()) &&
-                visit(t.getDeclaringType(), s.getDeclaringType()) &&
+                //isSameType(t.getDeclaringType(), s.getDeclaringType(), false) &&
                 containsTypes(getTypeArguments(t), getTypeArguments(s))) {
 
                 return true;
@@ -1926,14 +1919,47 @@ public final class MetadataHelper {
     final static class LooseSameTypeVisitor extends SameTypeVisitor {
         @Override
         boolean areSameGenericParameters(final GenericParameter gp1, final GenericParameter gp2) {
-            final TypeReference ub1 = getUpperBound(gp1);
-            final TypeReference ub2 = getUpperBound(gp2);
-
-            if (ub1 == gp1) {
-                return ub2 == gp2;
+            if (gp1 == gp2) {
+                return true;
             }
 
-            return visit(ub1, ub2);
+            if (gp1 == null || gp2 == null) {
+                return false;
+            }
+
+            if (!StringUtilities.equals(gp1.getName(), gp2.getName())) {
+                return false;
+            }
+
+            final IGenericParameterProvider owner1 = gp1.getOwner();
+            final IGenericParameterProvider owner2 = gp2.getOwner();
+
+            if (owner1.getGenericParameters().indexOf(gp1) != owner1.getGenericParameters().indexOf(gp2)) {
+                return false;
+            }
+
+            if (owner1 == owner2) {
+                return true;
+            }
+
+            if (owner1 instanceof TypeReference) {
+                return owner2 instanceof TypeReference &&
+                       StringUtilities.equals(
+                           ((TypeReference) owner1).getInternalName(),
+                           ((TypeReference) owner2).getInternalName()
+                       );
+            }
+
+            return owner1 instanceof MethodReference &&
+                   owner2 instanceof MethodReference &&
+                   StringUtilities.equals(
+                       ((MethodReference) owner1).getFullName(),
+                       ((MethodReference) owner2).getFullName()
+                   ) &&
+                   StringUtilities.equals(
+                       ((MethodReference) owner1).getErasedSignature(),
+                       ((MethodReference) owner2).getErasedSignature()
+                   );
         }
 
         @Override
@@ -1945,39 +1971,49 @@ public final class MetadataHelper {
     final static class StrictSameTypeVisitor extends SameTypeVisitor {
         @Override
         boolean areSameGenericParameters(final GenericParameter gp1, final GenericParameter gp2) {
-            if (gp1 == null) {
-                return gp2 == null;
+            if (gp1 == gp2) {
+                return true;
             }
 
-            if (gp2 == null) {
+            if (gp1 == null || gp2 == null) {
                 return false;
             }
 
-            final IGenericParameterProvider o1 = gp1.getOwner();
-            final IGenericParameterProvider o2 = gp2.getOwner();
-
-            if (o1 instanceof TypeDefinition) {
-                return o2 instanceof TypeDefinition &&
-                       visit((TypeReference) o1, (TypeReference) o2);
+            if (!StringUtilities.equals(gp1.getName(), gp2.getName())) {
+                return false;
             }
 
-            if (o1 instanceof MethodDefinition) {
-                if (o2 instanceof MethodDefinition) {
-                    final TypeDefinition dt1 = ((MethodDefinition) o1).getDeclaringType();
-                    final TypeDefinition dt2 = ((MethodDefinition) o2).getDeclaringType();
+            final IGenericParameterProvider owner1 = gp1.getOwner();
+            final IGenericParameterProvider owner2 = gp2.getOwner();
 
-                    if (!visit(dt1, dt2)) {
-                        return false;
-                    }
-
-                    return StringUtilities.equals(
-                        ((MethodDefinition) o1).getErasedSignature(),
-                        ((MethodDefinition) o2).getErasedSignature()
-                    );
-                }
+            if (owner1.getGenericParameters().indexOf(gp1) != owner1.getGenericParameters().indexOf(gp2)) {
+                return false;
             }
 
-            return false;
+            if (owner1 == owner2) {
+                return true;
+            }
+
+            if (owner1 instanceof TypeReference) {
+                return owner2 instanceof TypeReference &&
+                       StringUtilities.equals(gp1.getName(), gp2.getName()) &&
+                       StringUtilities.equals(
+                           ((TypeReference) owner1).getInternalName(),
+                           ((TypeReference) owner2).getInternalName()
+                       );
+            }
+
+            return owner1 instanceof MethodReference &&
+                   owner2 instanceof MethodReference &&
+                   StringUtilities.equals(gp1.getName(), gp2.getName()) &&
+                   StringUtilities.equals(
+                       ((MethodReference) owner1).getFullName(),
+                       ((MethodReference) owner2).getFullName()
+                   ) &&
+                   StringUtilities.equals(
+                       ((MethodReference) owner1).getErasedSignature(),
+                       ((MethodReference) owner2).getErasedSignature()
+                   );
         }
 
         @Override
@@ -2096,7 +2132,7 @@ public final class MetadataHelper {
                 return t;
             }
 
-            final TypeReference base = asSuper(s, t);
+            final TypeReference base = asSuper(t, s);
 
             if (base == null) {
                 return null;

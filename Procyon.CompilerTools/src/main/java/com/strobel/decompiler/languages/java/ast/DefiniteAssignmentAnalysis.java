@@ -209,6 +209,8 @@ public class DefiniteAssignmentAnalysis {
             return;
         }
 
+        node.setNodeStatus(inputStatus);
+
         DefiniteAssignmentStatus outputStatus;
 
         switch (node.getType()) {

@@ -19,6 +19,11 @@ package com.strobel.decompiler.languages.java.ast;
 public enum DefiniteAssignmentStatus
 {
     /**
+     * The variable is definitely not assigned.
+     */
+    DEFINITELY_NOT_ASSIGNED,
+
+    /**
      * The variable might be assigned or unassigned.
      */
     POTENTIALLY_ASSIGNED,

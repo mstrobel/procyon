@@ -43,6 +43,9 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
 
     private MethodBody _body;
     private String _name;
+    private String _fullName;
+    private String _erasedSignature;
+    private String _signature;
     private TypeReference _returnType;
     private TypeDefinition _declaringType;
     private long _flags;
@@ -130,6 +133,30 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     @Override
     public final String getName() {
         return _name;
+    }
+
+    @Override
+    public String getFullName() {
+        if (_fullName == null) {
+            _fullName = super.getFullName();
+        }
+        return _fullName;
+    }
+
+    @Override
+    public String getSignature() {
+        if (_signature == null) {
+            _signature = super.getSignature();
+        }
+        return _signature;
+    }
+
+    @Override
+    public String getErasedSignature() {
+        if (_erasedSignature == null) {
+            _erasedSignature = super.getErasedSignature();
+        }
+        return _erasedSignature;
     }
 
     @Override

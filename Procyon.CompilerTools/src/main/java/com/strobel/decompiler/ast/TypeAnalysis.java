@@ -601,7 +601,7 @@ public final class TypeAnalysis {
                     //
                     // NOTE: Do not use 'expectedType' here!
                     //
-                    inferTypeForExpression(expression.getArguments().get(0), v.getType());
+                    inferTypeForExpression(expression.getArguments().get(0), inferTypeForVariable(v, null));
                 }
 
                 return v.getType();
@@ -711,6 +711,12 @@ public final class TypeAnalysis {
                             }
 
                             for (final GenericParameter gp : boundDeclaringType.getGenericParameters()) {
+                                final GenericParameter inScope = _context.getCurrentMethod().findTypeVariable(gp.getName());
+
+                                if (inScope != null && MetadataHelper.isSameType(gp, inScope)) {
+                                    continue;
+                                }
+
                                 if (!mappings.containsKey(gp)) {
                                     mappings.put(gp, BuiltinTypes.Object);
                                 }
@@ -770,6 +776,9 @@ public final class TypeAnalysis {
                                 p = boundMethod.getParameters();
                             }
                         }
+                    }
+                    else {
+                        boundMethod = actualMethod;
                     }
 
                     if (hasThis && mappings != null) {
@@ -1242,17 +1251,19 @@ public final class TypeAnalysis {
             case CheckCast:
             case Unbox: {
                 if (expectedType != null) {
-                    final TypeReference inferredType = substituteTypeArguments(expectedType, (TypeReference) operand);
+                    final TypeReference castType = (TypeReference) operand;
+
+                    TypeReference inferredType = MetadataHelper.asSubType(castType, expectedType);
 
                     if (forceInferChildren) {
-                        inferTypeForExpression(
+                        inferredType = inferTypeForExpression(
                             arguments.get(0),
                             inferredType != null ? inferredType
                                                  : (TypeReference) operand
                         );
                     }
 
-                    if (inferredType != null) {
+                    if (inferredType != null && MetadataHelper.isSubType(inferredType, castType)) {
                         expression.setOperand(inferredType);
                         return inferredType;
                     }

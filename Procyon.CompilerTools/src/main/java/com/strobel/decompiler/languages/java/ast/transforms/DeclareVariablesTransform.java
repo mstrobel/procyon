@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.strobel.core.CollectionUtilities.*;
+
 @SuppressWarnings("ProtectedField")
 public class DeclareVariablesTransform implements IAstTransform {
     protected final List<VariableToDeclare> variablesToDeclare = new ArrayList<>();
@@ -537,7 +539,30 @@ public class DeclareVariablesTransform implements IAstTransform {
             }
         }
 
-        return false;
+        AstNode current = node;
+
+        while (current != null && !current.isNull()) {
+            for (AstNode prev = current.getPreviousSibling();
+                 prev != null &&
+                 !prev.isNull(); prev = prev.getPreviousSibling()) {
+
+                if (usesVariable(prev, variableName)) {
+                    final Statement statement = firstOrDefault(ofType(prev.getAncestorsAndSelf(), Statement.class));
+
+                    if (statement == null) {
+                        return false;
+                    }
+
+                    if (!canMoveVariableIntoSubBlock(statement, variableName, true)) {
+                        return false;
+                    }
+                }
+            }
+
+            current = current.getParent();
+        }
+
+        return true;
     }
 
     private static boolean hasNestedBlocks(final AstNode node) {
@@ -713,6 +738,9 @@ public class DeclareVariablesTransform implements IAstTransform {
         public Boolean visitForEachStatement(final ForEachStatement node, final Void _) {
             ++_loopDepth;
             try {
+                if (StringUtilities.equals(node.getVariableName(), _variableName)) {
+                    ++_assignmentCount;
+                }
                 return super.visitForEachStatement(node, _);
             }
             finally {

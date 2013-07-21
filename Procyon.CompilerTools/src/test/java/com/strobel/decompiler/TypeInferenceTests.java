@@ -167,7 +167,7 @@ public class TypeInferenceTests extends DecompilerTest {
             "private static class F {\n" +
             "    public static <T> List<T> safeCopyOf(final Iterable<T> iterable) {\n" +
             "        final ArrayList<T> list = new ArrayList<T>();\n" +
-            "        for (T element : iterable) {\n" +
+            "        for (final T element : iterable) {\n" +
             "            list.add(Objects.requireNonNull(element));\n" +
             "        }\n" +
             "        return list;\n" +

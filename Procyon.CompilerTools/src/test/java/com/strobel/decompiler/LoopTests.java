@@ -16,6 +16,7 @@ package com.strobel.decompiler;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 public class LoopTests extends DecompilerTest {
@@ -62,6 +63,7 @@ public class LoopTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("ForLoopReplaceableByForEach")
     private static class F {
         public void test(final String[] items) {
             for (int i = 0; i < items.length; i++) {
@@ -96,6 +98,72 @@ public class LoopTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings({ "LocalCanBeFinal", "UnusedAssignment" })
+    private static class I {
+        public void canRedeclare(final List<List<Integer>> lists) {
+            for (final List<Integer> list : lists) {
+                Iterator<Integer> it;
+
+                it = list.iterator();
+
+                while (it.hasNext()) {
+                    final Integer next = it.next();
+                    System.out.println(next);
+                }
+
+                it = list.iterator();
+
+                while (it.hasNext()) {
+                    final Integer next = it.next();
+                    System.out.println(next);
+                }
+            }
+        }
+
+        public void cannotRedeclare(final List<List<Integer>> lists) {
+            for (final List<Integer> list : lists) {
+                Iterator<Integer> it = null;
+
+                it = list.iterator();
+
+                while (it.hasNext()) {
+                    final Integer next = it.next();
+                    System.out.println(next);
+                }
+
+                it = list.iterator();
+
+                while (it.hasNext()) {
+                    final Integer next = it.next();
+                    System.out.println(next);
+                }
+            }
+        }
+    }
+
+    @SuppressWarnings("WhileLoopReplaceableByForEach")
+    private final static class J {
+        public void itemVariableCanBeFinal(final List<Integer> list) {
+            final Iterator<Integer> iterator = list.iterator();
+
+            while (iterator.hasNext()) {
+                final Integer next = iterator.next();
+                System.out.println(next);
+            }
+        }
+
+        public void itemVariableCannotBeFinal(final List<Integer> list) {
+            final Iterator<Integer> iterator = list.iterator();
+
+            while (iterator.hasNext()) {
+                Integer next = iterator.next();
+                System.out.println(next);
+                next = iterator.hasNext() ? iterator.next() : null;
+                System.out.println(next);
+            }
+        }
+    }
+
     @Test
     public void testEnhancedForInIterable() {
         verifyOutput(
@@ -104,7 +172,7 @@ public class LoopTests extends DecompilerTest {
             "private static class A\n" +
             "{\n" +
             "    public void test(final Iterable<String> items) {\n" +
-            "        for (String item : items) {\n" +
+            "        for (final String item : items) {\n" +
             "            System.out.println(item);\n" +
             "        }\n" +
             "    }\n" +
@@ -120,7 +188,7 @@ public class LoopTests extends DecompilerTest {
             "private static class B\n" +
             "{\n" +
             "    public void test(final List<String> items) {\n" +
-            "        for (String item : items) {\n" +
+            "        for (final String item : items) {\n" +
             "            System.out.println(item);\n" +
             "        }\n" +
             "    }\n" +
@@ -136,7 +204,7 @@ public class LoopTests extends DecompilerTest {
             "private static class C\n" +
             "{\n" +
             "    public void test(final StringList items) {\n" +
-            "        for (String item : items) {\n" +
+            "        for (final String item : items) {\n" +
             "            System.out.println(item);\n" +
             "        }\n" +
             "    }\n" +
@@ -152,7 +220,7 @@ public class LoopTests extends DecompilerTest {
             "private static class D\n" +
             "{\n" +
             "    public void test(final String[] items) {\n" +
-            "        for (String item : items) {\n" +
+            "        for (final String item : items) {\n" +
             "            System.out.println(item);\n" +
             "        }\n" +
             "    }\n" +
@@ -211,6 +279,7 @@ public class LoopTests extends DecompilerTest {
             "}\n"
         );
     }
+
     @Test
     public void testUnboxingEnhancedForLoop() {
         verifyOutput(
@@ -218,11 +287,45 @@ public class LoopTests extends DecompilerTest {
             defaultSettings(),
             "private static class H {\n" +
             "    public void test(final List<Integer> items) {\n" +
-            "        for (int item : items) {\n" +
+            "        for (final int item : items) {\n" +
             "            System.out.println(item);\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
         );
+    }
+
+    @Test
+    public void testIteratorVariableRedeclaration() {
+        verifyOutput(
+            I.class,
+            defaultSettings(),
+            "private static class I {\n" +
+            "    public void canRedeclare(final List<List<Integer>> lists) {\n" +
+            "        for (final List<Integer> list : lists) {\n" +
+            "            for (final Integer next : list) {\n" +
+            "                System.out.println(next);\n" +
+            "            }\n" +
+            "            for (final Integer next : list) {\n" +
+            "                System.out.println(next);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public void cannotRedeclare(final List<List<Integer>> lists) {\n" +
+            "        for (final List<Integer> list : lists) {\n" +
+            "            Iterator<Integer> it = null;\n" +
+            "            it = list.iterator();\n" +
+            "            while (it.hasNext()) {\n" +
+            "                final Integer next = it.next();\n" +
+            "                System.out.println(next);\n" +
+            "            }\n" +
+            "            it = list.iterator();\n" +
+            "            while (it.hasNext()) {\n" +
+            "                final Integer next = it.next();\n" +
+            "                System.out.println(next);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n");
     }
 }

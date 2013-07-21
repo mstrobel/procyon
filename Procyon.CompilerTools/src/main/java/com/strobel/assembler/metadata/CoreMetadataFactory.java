@@ -484,8 +484,11 @@ public class CoreMetadataFactory implements MetadataFactory {
         private final String _packageName;
         private final TypeReference _declaringType;
         private final GenericParameterCollection _genericParameters;
+
         private String _fullName;
         private String _internalName;
+        private String _signature;
+        private String _erasedSignature;
 
         UnresolvedType(final TypeReference declaringType, final String name, final String shortName) {
             _name = VerifyArgument.notNull(name, "name");
@@ -541,18 +544,30 @@ public class CoreMetadataFactory implements MetadataFactory {
 
         public String getFullName() {
             if (_fullName == null) {
-                final StringBuilder name = new StringBuilder();
-                appendName(name, true, true);
-                _fullName = name.toString();
+                _fullName = super.getInternalName();
             }
             return _fullName;
         }
 
+        @Override
+        public String getErasedSignature() {
+            if (_erasedSignature == null) {
+                _erasedSignature = super.getErasedSignature();
+            }
+            return _erasedSignature;
+        }
+
+        @Override
+        public String getSignature() {
+            if (_signature == null) {
+                _signature = super.getSignature();
+            }
+            return _signature;
+        }
+
         public String getInternalName() {
             if (_internalName == null) {
-                final StringBuilder name = new StringBuilder();
-                appendName(name, true, false);
-                _internalName = name.toString();
+                _internalName = super.getInternalName();
             }
             return _internalName;
         }
@@ -634,6 +649,8 @@ public class CoreMetadataFactory implements MetadataFactory {
         private final TypeReference _genericDefinition;
         private final List<TypeReference> _typeParameters;
 
+        private String _signature;
+
         UnresolvedGenericType(final TypeReference genericDefinition, final List<TypeReference> typeParameters) {
             _genericDefinition = genericDefinition;
             _typeParameters = typeParameters;
@@ -677,6 +694,19 @@ public class CoreMetadataFactory implements MetadataFactory {
         @Override
         public String getInternalName() {
             return _genericDefinition.getInternalName();
+        }
+
+        @Override
+        public String getSignature() {
+            if (_signature == null) {
+                _signature = super.getSignature();
+            }
+            return _signature;
+        }
+
+        @Override
+        public String getErasedSignature() {
+            return _genericDefinition.getErasedSignature();
         }
 
         @Override

@@ -37,6 +37,7 @@ import com.strobel.decompiler.patterns.NamedNode;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Repeat;
 
+import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -66,38 +67,42 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             }
         }
 
-        return null;
+        return node;
     }
 
     @Override
     public AstNode visitExpressionStatement(final ExpressionStatement node, final Void data) {
+        super.visitExpressionStatement(node, data);
+
         final AstNode result = transformForEach(node);
 
         if (result != null) {
-            return result;
+            return result.acceptVisitor(this, data);
         }
 
-        return super.visitExpressionStatement(node, data);
+        return node;
     }
 
     @Override
     public AstNode visitWhileStatement(final WhileStatement node, final Void data) {
+        super.visitWhileStatement(node, data);
+
         final ForStatement forLoop = transformFor(node);
 
         if (forLoop != null) {
             final AstNode forEachInArray = transformForEachInArray(forLoop);
 
             if (forEachInArray != null) {
-                return forEachInArray;
+                return forEachInArray.acceptVisitor(this, data);
             }
 
-            return forLoop;
+            return forLoop.acceptVisitor(this, data);
         }
 
         final DoWhileStatement doWhile = transformDoWhile(node);
 
         if (doWhile != null) {
-            return doWhile;
+            return doWhile.acceptVisitor(this, data);
         }
 
         return transformContinueOuter(node);
@@ -720,6 +725,19 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             }
         }
 
+        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, body);
+        final Statement firstStatement = firstOrDefault(body.getStatements());
+        final Statement lastStatement = lastOrDefault(body.getStatements());
+
+        analysis.setAnalyzedRange(firstStatement, lastStatement);
+        analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+
+        final DefiniteAssignmentStatus status = analysis.getStatusAfter(lastStatement);
+
+        if (status == DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED) {
+            forEach.addVariableModifier(Modifier.FINAL);
+        }
+
         return forEach;
     }
 
@@ -919,7 +937,20 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             bodyStatements.add(statement);
         }
 
-        iteratorDeclaration.remove();
+//        iteratorDeclaration.remove();
+
+        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, body);
+        final Statement firstStatement = firstOrDefault(body.getStatements());
+        final Statement lastStatement = lastOrDefault(body.getStatements());
+
+        analysis.setAnalyzedRange(firstStatement, lastStatement);
+        analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+
+        final DefiniteAssignmentStatus status = analysis.getStatusAfter(lastStatement);
+
+        if (status == DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED) {
+            forEach.addVariableModifier(Modifier.FINAL);
+        }
 
         return forEach;
     }

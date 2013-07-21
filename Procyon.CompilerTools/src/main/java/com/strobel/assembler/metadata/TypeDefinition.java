@@ -48,6 +48,8 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
     private String _packageName;
     private String _internalName;
     private String _fullName;
+    private String _signature;
+    private String _erasedSignature;
     private TypeReference _baseType;
     private long _flags;
     private int _compilerVersion;
@@ -144,18 +146,30 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
 
     public String getFullName() {
         if (_fullName == null) {
-            final StringBuilder name = new StringBuilder();
-            appendName(name, true, true);
-            _fullName = name.toString();
+            _fullName = super.getFullName();
         }
         return _fullName;
     }
 
+    @Override
+    public String getErasedSignature() {
+        if (_erasedSignature == null) {
+            _erasedSignature = super.getErasedSignature();
+        }
+        return _erasedSignature;
+    }
+
+    @Override
+    public String getSignature() {
+        if (_signature == null) {
+            _signature = super.getSignature();
+        }
+        return _signature;
+    }
+
     public String getInternalName() {
         if (_internalName == null) {
-            final StringBuilder name = new StringBuilder();
-            appendName(name, true, false);
-            _internalName = name.toString();
+            _internalName = super.getInternalName();
         }
         return _internalName;
     }

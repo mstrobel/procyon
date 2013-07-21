@@ -140,6 +140,10 @@ public final class CollectionUtilities {
         return null;
     }
 
+    public static <T, R> Iterable<R> ofType(final Iterable<T> collection, final Class<R> type) {
+        return new OfTypeIterator<>(VerifyArgument.notNull(collection, "collection"), type);
+    }
+
     public static <T> T firstOrDefault(final Iterable<T> collection) {
         final Iterator<T> it = VerifyArgument.notNull(collection, "collection").iterator();
         return it.hasNext() ? it.next() : null;
@@ -640,6 +644,53 @@ public final class CollectionUtilities {
                                 next = current;
                                 return true;
                             }
+                        }
+                    }
+                    state = STATE_FINISHED;
+                    // goto case STATE_FINISHED
+
+                case STATE_FINISHED:
+                    return false;
+
+                case STATE_HAS_NEXT:
+                    return true;
+            }
+
+            return false;
+        }
+    }
+
+    private final static class OfTypeIterator<T, R> extends AbstractIterator<R> {
+        final Iterable<T> source;
+        final Class<R> type;
+
+        Iterator<T> iterator;
+
+        OfTypeIterator(final Iterable<T> source, final Class<R> type) {
+            this.source = VerifyArgument.notNull(source, "source");
+            this.type = VerifyArgument.notNull(type, "type");
+        }
+
+        @Override
+        @SuppressWarnings("CloneDoesntCallSuperClone")
+        protected OfTypeIterator<T, R> clone() {
+            return new OfTypeIterator<>(source, type);
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public boolean hasNext() {
+            switch (state) {
+                case STATE_NEED_NEXT:
+                    if (iterator == null) {
+                        iterator = source.iterator();
+                    }
+                    while (iterator.hasNext()) {
+                        final T current = iterator.next();
+                        if (type.isInstance(current)) {
+                            state = STATE_HAS_NEXT;
+                            next = (R) current;
+                            return true;
                         }
                     }
                     state = STATE_FINISHED;

@@ -74,15 +74,15 @@ public class MetadataHelperTests {
         final TypeReference rawIterable = new RawType(iterable());
         final TypeReference genericIterable = iterable().makeGenericType(string());
 
-        final TypeReference t1 = MetadataHelper.asSuper(arrayList, genericIterable);
-        final TypeReference t2 = MetadataHelper.asSuper(genericArrayList, genericIterable);
-        final TypeReference t3 = MetadataHelper.asSuper(rawArrayList, genericIterable);
-        final TypeReference t4 = MetadataHelper.asSuper(arrayList, iterable);
-        final TypeReference t5 = MetadataHelper.asSuper(genericArrayList, iterable);
-        final TypeReference t6 = MetadataHelper.asSuper(rawArrayList, iterable);
-        final TypeReference t7 = MetadataHelper.asSuper(arrayList, rawIterable);
-        final TypeReference t8 = MetadataHelper.asSuper(genericArrayList, rawIterable);
-        final TypeReference t9 = MetadataHelper.asSuper(rawArrayList, rawIterable);
+        final TypeReference t1 = MetadataHelper.asSuper(genericIterable, arrayList);
+        final TypeReference t2 = MetadataHelper.asSuper(genericIterable, genericArrayList);
+        final TypeReference t3 = MetadataHelper.asSuper(genericIterable, rawArrayList);
+        final TypeReference t4 = MetadataHelper.asSuper(iterable, arrayList);
+        final TypeReference t5 = MetadataHelper.asSuper(iterable, genericArrayList);
+        final TypeReference t6 = MetadataHelper.asSuper(iterable, rawArrayList);
+        final TypeReference t7 = MetadataHelper.asSuper(rawIterable, arrayList);
+        final TypeReference t8 = MetadataHelper.asSuper(rawIterable, genericArrayList);
+        final TypeReference t9 = MetadataHelper.asSuper(rawIterable, rawArrayList);
 
         assertTrue(isSameType(t1, iterable.makeGenericType(single(arrayList.getGenericParameters())), true));
         assertTrue(isSameType(t2, genericIterable, true));

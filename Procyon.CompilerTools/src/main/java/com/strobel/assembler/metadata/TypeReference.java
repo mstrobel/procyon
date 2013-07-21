@@ -84,9 +84,17 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     public abstract String getSimpleName();
 
-    public abstract String getFullName();
+    public String getFullName() {
+        final StringBuilder name = new StringBuilder();
+        appendName(name, true, true);
+        return name.toString();
+    }
 
-    public abstract String getInternalName();
+    public String getInternalName() {
+        final StringBuilder name = new StringBuilder();
+        appendName(name, true, false);
+        return name.toString();
+    }
 
     public TypeReference getUnderlyingType() {
         return this;

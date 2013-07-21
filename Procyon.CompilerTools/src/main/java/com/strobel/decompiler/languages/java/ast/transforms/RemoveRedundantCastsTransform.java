@@ -150,7 +150,19 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
             return;
         }
 
-        final MethodReference method = (MethodReference) member;
+        MethodReference method = (MethodReference) member;
+        AstNode target = parent.getChildByRole(Roles.TARGET_EXPRESSION);
+
+        if (target instanceof MemberReferenceExpression) {
+            target = ((MemberReferenceExpression) target).getTarget();
+        }
+
+        final ResolveResult targetResult = _resolver.apply(target);
+
+        if (targetResult != null && targetResult.getType() != null) {
+            method = MetadataHelper.asMemberOf(method, targetResult.getType());
+        }
+
         final List<ParameterDefinition> parameters = method.getParameters();
         final AstNodeCollection<Expression> arguments = parent.getChildrenByRole(Roles.ARGUMENT);
 

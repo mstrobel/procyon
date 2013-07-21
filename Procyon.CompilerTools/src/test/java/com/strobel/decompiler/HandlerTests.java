@@ -98,7 +98,7 @@ public class HandlerTests extends DecompilerTest {
             }
             catch (FileNotFoundException e) {
                 System.out.println("File Not found");
-                for (String s : path) {
+                for (final String s : path) {
                     System.out.println(s);
                 }
             }
@@ -247,7 +247,7 @@ public class HandlerTests extends DecompilerTest {
             "        }\n" +
             "        catch (FileNotFoundException e) {\n" +
             "            System.out.println(\"File Not found\");\n" +
-            "            for (String s : path) {\n" +
+            "            for (final String s : path) {\n" +
             "                System.out.println(s);\n" +
             "            }\n" +
             "        }\n" +
