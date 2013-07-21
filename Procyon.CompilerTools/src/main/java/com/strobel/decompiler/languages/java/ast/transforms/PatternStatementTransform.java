@@ -873,6 +873,23 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             return null;
         }
 
+        final BlockStatement loopBody = (BlockStatement) loop.getEmbeddedStatement();
+        final Statement secondStatement = getOrDefault(loopBody.getStatements(), 1);
+
+        if (secondStatement != null && !secondStatement.isNull()) {
+            final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, loopBody);
+
+            analysis.setAnalyzedRange(secondStatement, loopBody);
+            analysis.analyze(iterator.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+
+            if (!analysis.getUnassignedVariableUses().isEmpty()) {
+                //
+                // We can't eliminate the iterator variable because it's used in the loop.
+                //
+                return null;
+            }
+        }
+
         final ForEachStatement forEach = new ForEachStatement();
 
         forEach.setVariableType(itemDeclaration.getType().clone());
@@ -939,9 +956,9 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
 //        iteratorDeclaration.remove();
 
-        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, body);
         final Statement firstStatement = firstOrDefault(body.getStatements());
         final Statement lastStatement = lastOrDefault(body.getStatements());
+        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, body);
 
         analysis.setAnalyzedRange(firstStatement, lastStatement);
         analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);

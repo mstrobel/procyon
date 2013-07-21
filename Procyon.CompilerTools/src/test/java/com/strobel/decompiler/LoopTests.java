@@ -120,7 +120,7 @@ public class LoopTests extends DecompilerTest {
             }
         }
 
-        public void cannotRedeclare(final List<List<Integer>> lists) {
+        public void cannotRedeclare1(final List<List<Integer>> lists) {
             for (final List<Integer> list : lists) {
                 Iterator<Integer> it = null;
 
@@ -131,10 +131,25 @@ public class LoopTests extends DecompilerTest {
                     System.out.println(next);
                 }
 
+                System.out.println(it);
                 it = list.iterator();
 
                 while (it.hasNext()) {
                     final Integer next = it.next();
+                    System.out.println(next);
+                }
+            }
+        }
+
+        public void cannotRedeclare2(final List<Integer> list) {
+            final Iterator<Integer> iterator = list.iterator();
+
+            while (iterator.hasNext()) {
+                Integer next = iterator.next();
+                System.out.println(next);
+
+                for (int i = 0; i < 10; i++) {
+                    next = iterator.hasNext() ? iterator.next() : null;
                     System.out.println(next);
                 }
             }
@@ -152,14 +167,28 @@ public class LoopTests extends DecompilerTest {
             }
         }
 
-        public void itemVariableCannotBeFinal(final List<Integer> list) {
+        public void itemVariableCannotBeFinal1(final List<Integer> list) {
             final Iterator<Integer> iterator = list.iterator();
 
             while (iterator.hasNext()) {
                 Integer next = iterator.next();
                 System.out.println(next);
-                next = iterator.hasNext() ? iterator.next() : null;
+                next = 5;
                 System.out.println(next);
+            }
+        }
+
+        public void itemVariableCannotBeFinal2(final List<Integer> list) {
+            final Iterator<Integer> iterator = list.iterator();
+
+            while (iterator.hasNext()) {
+                Integer next = iterator.next();
+                System.out.println(next);
+
+                for (int i = 0; i < 10; i++) {
+                    next = i;
+                    System.out.println(next);
+                }
             }
         }
     }
@@ -311,7 +340,7 @@ public class LoopTests extends DecompilerTest {
             "            }\n" +
             "        }\n" +
             "    }\n" +
-            "    public void cannotRedeclare(final List<List<Integer>> lists) {\n" +
+            "    public void cannotRedeclare1(final List<List<Integer>> lists) {\n" +
             "        for (final List<Integer> list : lists) {\n" +
             "            Iterator<Integer> it = null;\n" +
             "            it = list.iterator();\n" +
@@ -319,9 +348,51 @@ public class LoopTests extends DecompilerTest {
             "                final Integer next = it.next();\n" +
             "                System.out.println(next);\n" +
             "            }\n" +
+            "            System.out.println(it);\n" +
             "            it = list.iterator();\n" +
             "            while (it.hasNext()) {\n" +
             "                final Integer next = it.next();\n" +
+            "                System.out.println(next);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public void cannotRedeclare2(final List<Integer> list) {\n" +
+            "        final Iterator<Integer> iterator = list.iterator();\n" +
+            "        while (iterator.hasNext()) {\n" +
+            "            Integer next = iterator.next();\n" +
+            "            System.out.println(next);\n" +
+            "            for (int i = 0; i < 10; ++i) {\n" +
+            "                next = (iterator.hasNext() ? ((Integer)iterator.next()) : null);\n" +
+            "                System.out.println(next);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n");
+    }
+
+    @Test
+    public void testForEachVariableFinalAnalysis() {
+        verifyOutput(
+            J.class,
+            defaultSettings(),
+            "private static final class J {\n" +
+            "        public void itemVariableCanBeFinal(final List<Integer> list) {\n" +
+            "        for (final Integer next : list) {\n" +
+            "            System.out.println(next);\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public void itemVariableCannotBeFinal1(final List<Integer> list) {\n" +
+            "        for (Integer next : list) {\n" +
+            "            System.out.println(next);\n" +
+            "            next = 5;\n" +
+            "            System.out.println(next);\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public void itemVariableCannotBeFinal2(final List<Integer> list) {\n" +
+            "        for (Integer next : list) {\n" +
+            "            System.out.println(next);\n" +
+            "            for (int i = 0; i < 10; ++i) {\n" +
+            "                next = i;\n" +
             "                System.out.println(next);\n" +
             "            }\n" +
             "        }\n" +

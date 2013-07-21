@@ -20,14 +20,7 @@ import com.strobel.assembler.ir.attributes.AnnotationDefaultAttribute;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
-import com.strobel.assembler.metadata.annotations.AnnotationAnnotationElement;
-import com.strobel.assembler.metadata.annotations.AnnotationElement;
-import com.strobel.assembler.metadata.annotations.AnnotationParameter;
-import com.strobel.assembler.metadata.annotations.ArrayAnnotationElement;
-import com.strobel.assembler.metadata.annotations.ClassAnnotationElement;
-import com.strobel.assembler.metadata.annotations.ConstantAnnotationElement;
-import com.strobel.assembler.metadata.annotations.CustomAnnotation;
-import com.strobel.assembler.metadata.annotations.EnumAnnotationElement;
+import com.strobel.assembler.metadata.annotations.*;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.Predicate;
@@ -133,26 +126,11 @@ public final class AstBuilder {
             return existingDeclaration;
         }
 
-/*
-        ITypeLoader loader = _context.getSettings().getTypeLoader();
+        return createTypeNoCache(type);
+    }
 
-        if (loader == null) {
-            loader = new ClasspathTypeLoader();
-        }
-
-        final Buffer buffer = new Buffer(0);
-
-        if (!loader.tryLoadType(type.getInternalName(), buffer)) {
-            throw new IllegalStateException(String.format("Failed to load class %s.", type.getInternalName()));
-        }
-
-        final TypeDefinition typeWithCode = ClassFileReader.readClass(
-            ClassFileReader.OPTION_PROCESS_CODE |
-            ClassFileReader.OPTION_PROCESS_ANNOTATIONS,
-            type.getResolver(),
-            buffer
-        );
-*/
+    protected final TypeDeclaration createTypeNoCache(final TypeDefinition type) {
+        VerifyArgument.notNull(type, "type");
 
         final TypeDefinition oldCurrentType = _context.getCurrentType();
 
@@ -525,7 +503,7 @@ public final class AstBuilder {
                     _typeDeclarations.put(type.getInternalName(), astType);
                 }
                 else {
-                    astType.addChild(createType(nestedType), Roles.TYPE_MEMBER);
+                    astType.addChild(createTypeNoCache(nestedType), Roles.TYPE_MEMBER);
                 }
             }
         }
