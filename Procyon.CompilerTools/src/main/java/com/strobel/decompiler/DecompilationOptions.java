@@ -29,6 +29,9 @@ public class DecompilationOptions {
     }
 
     public final DecompilerSettings getSettings() {
+        if (_settings == null) {
+            _settings = new DecompilerSettings();
+        }
         return _settings;
     }
 

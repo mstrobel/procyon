@@ -397,7 +397,7 @@ public class BytecodeLanguage extends Language {
     @Override
     public void decompileMethod(final MethodDefinition method, final ITextOutput output, final DecompilationOptions options) {
         writeMethodHeader(output, method);
-        writeMethodBody(output, method);
+        writeMethodBody(output, method, options);
 
         for (final SourceAttribute attribute : method.getSourceAttributes()) {
             writeMethodAttribute(output, method, attribute);
@@ -771,7 +771,7 @@ public class BytecodeLanguage extends Language {
         }
     }
 
-    private void writeMethodBody(final ITextOutput output, final MethodDefinition method) {
+    private void writeMethodBody(final ITextOutput output, final MethodDefinition method, final DecompilationOptions options) {
         final MethodBody body = method.getBody();
 
         if (body == null) {
@@ -802,20 +802,25 @@ public class BytecodeLanguage extends Language {
             final InstructionCollection instructions = body.getInstructions();
 
             if (!instructions.isEmpty()) {
-                final LineNumberTableAttribute lineNumbersAttribute = SourceAttribute.find(
-                    AttributeNames.LineNumberTable,
-                    method.getSourceAttributes()
-                );
-
                 final int[] lineNumbers;
 
-                if (lineNumbersAttribute != null) {
-                    lineNumbers = new int[body.getCodeSize()];
+                if (options.getSettings().getIncludeLineNumbersInBytecode()) {
+                    final LineNumberTableAttribute lineNumbersAttribute = SourceAttribute.find(
+                        AttributeNames.LineNumberTable,
+                        method.getSourceAttributes()
+                    );
 
-                    Arrays.fill(lineNumbers, -1);
+                    if (lineNumbersAttribute != null) {
+                        lineNumbers = new int[body.getCodeSize()];
 
-                    for (final LineNumberTableEntry entry : lineNumbersAttribute.getEntries()) {
-                        lineNumbers[entry.getOffset()] = entry.getLineNumber();
+                        Arrays.fill(lineNumbers, -1);
+
+                        for (final LineNumberTableEntry entry : lineNumbersAttribute.getEntries()) {
+                            lineNumbers[entry.getOffset()] = entry.getLineNumber();
+                        }
+                    }
+                    else {
+                        lineNumbers = null;
                     }
                 }
                 else {
