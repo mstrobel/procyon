@@ -61,6 +61,9 @@ public class CommandLineOptions {
     @Parameter(names = { "-jar", "--jar-file" }, description = "Decompile all classes in the specified jar file (enables -n, disables -s).")
     private String _jarFile;
 
+    @Parameter(names = { "-ln" }, description = "Include line numbers (raw bytecode mode only).")
+    private boolean _includeLineNumbers;
+
     public final List<String> getClassNames() {
         return _classNames;
     }
@@ -159,5 +162,13 @@ public class CommandLineOptions {
 
     public final void setJarFile(final String jarFile) {
         _jarFile = jarFile;
+    }
+
+    public final boolean getIncludeLineNumbers() {
+        return _includeLineNumbers;
+    }
+
+    public final void setIncludeLineNumbers(final boolean includeLineNumbers) {
+        _includeLineNumbers = includeLineNumbers;
     }
 }

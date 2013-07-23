@@ -101,8 +101,11 @@ public class AstMethodBodyBuilder {
 
         try {
             final PlainTextOutput bytecodeOutput = new PlainTextOutput();
+            final DecompilationOptions bytecodeOptions = new DecompilationOptions();
 
-            Languages.bytecode().decompileMethod(method, bytecodeOutput, new DecompilationOptions());
+            bytecodeOptions.getSettings().setIncludeLineNumbersInBytecode(false);
+
+            Languages.bytecode().decompileMethod(method, bytecodeOutput, bytecodeOptions);
 
             final List<String> bytecodeLines = StringUtilities.split(
                 bytecodeOutput.toString(),

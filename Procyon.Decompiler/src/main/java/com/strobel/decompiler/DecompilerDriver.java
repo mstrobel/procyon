@@ -65,6 +65,7 @@ public class DecompilerDriver {
         settings.setShowSyntheticMembers(options.getShowSyntheticMembers());
         settings.setShowNestedTypes(options.getShowNestedTypes());
         settings.setOutputDirectory(options.getOutputDirectory());
+        settings.setIncludeLineNumbersInBytecode(options.getIncludeLineNumbers());
         settings.setTypeLoader(new InputTypeLoader());
 
         final StringWriter writer = new StringWriter();

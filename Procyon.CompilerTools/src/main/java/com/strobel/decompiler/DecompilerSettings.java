@@ -23,8 +23,9 @@ import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 
 public class DecompilerSettings {
     private ITypeLoader _typeLoader;
+    private boolean _includeLineNumbersInBytecode = true;
     private boolean _showSyntheticMembers;
-    private boolean _alwaysGenerateExceptionVariableForCatchBlocks;
+    private boolean _alwaysGenerateExceptionVariableForCatchBlocks = true;
     private boolean _forceExplicitImports;
     private boolean _forceExplicitTypeArguments;
     private boolean _flattenSwitchBlocks;
@@ -127,19 +128,27 @@ public class DecompilerSettings {
         _outputDirectory = outputDirectory;
     }
 
-    public boolean getRetainRedundantCasts() {
+    public final boolean getRetainRedundantCasts() {
         return _retainRedundantCasts;
     }
 
-    public void setRetainRedundantCasts(final boolean retainRedundantCasts) {
+    public final void setRetainRedundantCasts(final boolean retainRedundantCasts) {
         _retainRedundantCasts = retainRedundantCasts;
     }
 
-    public boolean getIncludeErrorDiagnostics() {
+    public final boolean getIncludeErrorDiagnostics() {
         return _includeErrorDiagnostics;
     }
 
-    public void setIncludeErrorDiagnostics(final boolean value) {
+    public final void setIncludeErrorDiagnostics(final boolean value) {
         _includeErrorDiagnostics = value;
+    }
+
+    public final boolean getIncludeLineNumbersInBytecode() {
+        return _includeLineNumbersInBytecode;
+    }
+
+    public final void setIncludeLineNumbersInBytecode(final boolean value) {
+        _includeLineNumbersInBytecode = value;
     }
 }

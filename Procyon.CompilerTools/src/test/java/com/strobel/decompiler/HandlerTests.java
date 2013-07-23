@@ -255,6 +255,7 @@ public class HandlerTests extends DecompilerTest {
             "}\n"
         );
     }
+
     @Test
     public void testSimpleTryCatchFinallyControlFlow() throws Throwable {
         verifyOutput(
