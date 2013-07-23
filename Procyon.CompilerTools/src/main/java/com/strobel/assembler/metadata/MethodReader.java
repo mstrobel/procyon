@@ -527,12 +527,7 @@ public class MethodReader {
         final List<ExceptionTableEntry> exceptionTable = _code.getExceptionTableEntries();
 
         if (!exceptionTable.isEmpty()) {
-            try {
-                _methodBody.getExceptionHandlers().addAll(ExceptionHandlerMapper.run(body, exceptionTable));
-            }
-            catch (Throwable t) {
-                t.printStackTrace();
-            }
+            populateExceptionHandlerInfo(body, exceptionTable);
         }
 
         return _methodBody;
