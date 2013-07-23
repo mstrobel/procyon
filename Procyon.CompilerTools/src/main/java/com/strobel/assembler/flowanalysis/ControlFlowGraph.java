@@ -174,7 +174,7 @@ public final class ControlFlowGraph {
         );
     }
 
-    static ControlFlowNode findCommonDominator(final ControlFlowNode a, final ControlFlowNode b) {
+    public static ControlFlowNode findCommonDominator(final ControlFlowNode a, final ControlFlowNode b) {
         final Set<ControlFlowNode> path1 = new LinkedHashSet<>();
 
         ControlFlowNode node1 = a;
