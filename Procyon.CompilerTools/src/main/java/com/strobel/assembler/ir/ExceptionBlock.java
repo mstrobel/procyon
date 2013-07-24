@@ -40,13 +40,29 @@ public final class ExceptionBlock {
     public final boolean contains(final ExceptionBlock block) {
         return block != null &&
                block.getFirstInstruction().getOffset() >= getFirstInstruction().getOffset() &&
-               block.getLastInstruction().getOffset() <= getLastInstruction().getEndOffset();
+               block.getLastInstruction().getOffset() <= getLastInstruction().getOffset();
     }
 
     public final boolean contains(final Range range) {
         return range != null &&
                range.getStart() >= getFirstInstruction().getOffset() &&
                range.getEnd() <= getLastInstruction().getEndOffset();
+    }
+
+    public final boolean intersects(final ExceptionBlock block) {
+        return block != null &&
+               ((block.getFirstInstruction().getOffset() >= getFirstInstruction().getOffset() &&
+                 block.getFirstInstruction().getOffset() <= getLastInstruction().getOffset()) ||
+                (block.getLastInstruction().getOffset() <= getFirstInstruction().getEndOffset() &&
+                 block.getLastInstruction().getOffset() >= getLastInstruction().getEndOffset()));
+    }
+
+    public final boolean intersects(final Range range) {
+        return range != null &&
+               ((range.getStart() >= getFirstInstruction().getOffset() &&
+                 range.getStart() <= getLastInstruction().getOffset()) ||
+                (range.getEnd() <= getFirstInstruction().getEndOffset() &&
+                 range.getEnd() >= getLastInstruction().getEndOffset()));
     }
 
     @Override

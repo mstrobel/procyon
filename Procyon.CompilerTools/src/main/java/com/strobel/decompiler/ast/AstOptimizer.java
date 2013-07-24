@@ -77,6 +77,12 @@ public final class AstOptimizer {
 
         inliningPhase1.copyPropagation();
 
+        if (abortBeforeStep == AstOptimizationStep.RemoveFinallyExceptionCapture) {
+            return;
+        }
+
+        removeFinallyExceptionCapture(method);
+
         if (abortBeforeStep == AstOptimizationStep.SplitToMovableBlocks) {
             return;
         }
@@ -272,6 +278,49 @@ public final class AstOptimizer {
         GotoRemoval.removeRedundantCode(method);
     }
 
+    private static void removeFinallyExceptionCapture(final Block method) {
+        final List<Expression> a = new ArrayList<>();
+        final StrongBox<Variable> v = new StrongBox<>();
+
+        for (final TryCatchBlock tryCatch : method.getChildrenAndSelfRecursive(TryCatchBlock.class)) {
+            final Block finallyBlock = tryCatch.getFinallyBlock();
+
+            if (finallyBlock == null || finallyBlock.getBody().size() < 2) {
+                continue;
+            }
+
+            final List<Node> body = finallyBlock.getBody();
+
+            if (matchGetArguments(body.get(0), AstCode.Store, v, a) &&
+                match(a.get(0), AstCode.LoadException)) {
+
+                body.remove(0);
+
+                for (final Node node : body) {
+                    if (node instanceof TryCatchBlock) {
+                        final TryCatchBlock innerTryCatch = (TryCatchBlock) node;
+                        final List<CatchBlock> catchBlocks = innerTryCatch.getCatchBlocks();
+
+                        for (final CatchBlock block : catchBlocks) {
+                            final List<Node> catchBody = block.getBody();
+
+                            if (catchBody.size() >= 1 &&
+                                matchGetArguments(catchBody.get(catchBody.size() - 1), AstCode.AThrow, a) &&
+                                matchLoad(a.get(0), v.get())) {
+
+                                final Expression oldThrow = (Expression) catchBody.get(catchBody.size() - 1);
+
+                                oldThrow.setCode(AstCode.Leave);
+                                oldThrow.setOperand(null);
+                                oldThrow.getArguments().clear();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">
 
     @SuppressWarnings({ "ConstantConditions", "StatementWithEmptyBody" })
@@ -308,7 +357,7 @@ public final class AstOptimizer {
             for (int i = 0, n = body.size(); i < n; i++) {
                 final Node node = body.get(i);
                 final StrongBox<Label> target = new StrongBox<>();
-                final StrongBox<Expression> popExpression = new StrongBox<>();
+                final List<Expression> args = new ArrayList<>();
 
                 if (PatternMatching.matchGetOperand(node, AstCode.Goto, target) &&
                     i + 1 < body.size() &&
@@ -329,10 +378,10 @@ public final class AstOptimizer {
                     // Ignore NOP.
                     //
                 }
-                else if (PatternMatching.matchGetArgument(node, AstCode.Pop, popExpression)) {
+                else if (PatternMatching.matchGetArguments(node, AstCode.Pop, args)) {
                     final StrongBox<Variable> variable = new StrongBox<>();
 
-                    if (!PatternMatching.matchGetOperand(popExpression.get(), AstCode.Load, variable)) {
+                    if (!PatternMatching.matchGetOperand(args.get(0), AstCode.Load, variable)) {
                         throw new IllegalStateException("Pop should just have Load at this stage.");
                     }
 
@@ -351,6 +400,39 @@ public final class AstOptimizer {
 
                         //
                         // Ignore POP.
+                        //
+                    }
+                }
+                else if (PatternMatching.matchGetArguments(node, AstCode.Pop2, args)) {
+                    final StrongBox<Variable> v1 = new StrongBox<>();
+                    final StrongBox<Variable> v2 = new StrongBox<>();
+
+                    if (!PatternMatching.matchGetOperand(args.get(0), AstCode.Load, v1) ||
+                        !PatternMatching.matchGetOperand(args.get(1), AstCode.Load, v2)) {
+
+                        throw new IllegalStateException("Pop2 should just have Load arguments at this stage.");
+                    }
+
+                    //
+                    // Best effort to move bytecode range to previous statement.
+                    //
+
+                    final StrongBox<Variable> pv1 = new StrongBox<>();
+                    final StrongBox<Variable> pv2 = new StrongBox<>();
+                    final StrongBox<Expression> pe1 = new StrongBox<>();
+                    final StrongBox<Expression> pe2 = new StrongBox<>();
+
+                    if (i - 2 >= 0 &&
+                        matchGetArgument(body.get(i - 2), AstCode.Store, pv1, pe1) &&
+                        pv1.get() == v1.get() &&
+                        matchGetArgument(body.get(i - 1), AstCode.Store, pv2, pe2) &&
+                        pv2.get() == v2.get()) {
+
+                        pe1.get().getRanges().addAll(((Expression) node).getRanges());
+                        pe2.get().getRanges().addAll(((Expression) node).getRanges());
+
+                        //
+                        // Ignore POP2.
                         //
                     }
                 }

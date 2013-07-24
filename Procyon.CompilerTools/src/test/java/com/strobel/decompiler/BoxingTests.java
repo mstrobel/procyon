@@ -80,7 +80,7 @@ public class BoxingTests extends DecompilerTest {
 
         void t(final int x) {
             test(Integer.valueOf(x));
-            test((Object)Integer.valueOf(x));
+            test((Object) Integer.valueOf(x));
             test(x);
         }
     }
@@ -91,6 +91,14 @@ public class BoxingTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings({ "UnusedDeclaration", "RedundantCast" })
+    private static class E {
+        void t(final boolean b) {
+            final Double d = 4.3;
+            final Integer i = 3;
+            final short s = (short) (b ? i : (int) Integer.valueOf((int) d.doubleValue()));
+        }
+    }
 
     @Test
     public void testImplicitBoxingTranslation() throws Throwable {
@@ -153,13 +161,13 @@ public class BoxingTests extends DecompilerTest {
     @Test
     public void testExceptionalUnboxingNotOmitted() throws Exception {
         verifyOutput(
-           B.class,
-           defaultSettings(),
-           "private static class B {\n" +
-           "    boolean test(final Integer n) {\n" +
-           "        return Integer.valueOf(n) != null;\n" +
-           "    }\n" +
-           "}\n"
+            B.class,
+            defaultSettings(),
+            "private static class B {\n" +
+            "    boolean test(final Integer n) {\n" +
+            "        return Integer.valueOf(n) != null;\n" +
+            "    }\n" +
+            "}\n"
         );
     }
 
@@ -167,21 +175,21 @@ public class BoxingTests extends DecompilerTest {
     @Ignore
     public void testNoImproperCastRemoval() throws Exception {
         verifyOutput(
-           C.class,
-           defaultSettings(),
-           "private static class C {\n" +
-           "    void test(final Object o) {\n" +
-           "    }\n" +
-           "    void test(final Integer i) {\n" +
-           "    }\n" +
-           "    void test(final int i) {\n" +
-           "    }\n" +
-           "    void t(final int x) {\n" +
-           "        test(Integer.valueOf(x));\n" +
-           "        test((Object)Integer.valueOf(x));\n" +
-           "        test(x);\n" +
-           "    }\n" +
-           "}\n"
+            C.class,
+            defaultSettings(),
+            "private static class C {\n" +
+            "    void test(final Object o) {\n" +
+            "    }\n" +
+            "    void test(final Integer i) {\n" +
+            "    }\n" +
+            "    void test(final int i) {\n" +
+            "    }\n" +
+            "    void t(final int x) {\n" +
+            "        test(Integer.valueOf(x));\n" +
+            "        test((Object)Integer.valueOf(x));\n" +
+            "        test(x);\n" +
+            "    }\n" +
+            "}\n"
         );
     }
 
@@ -193,13 +201,28 @@ public class BoxingTests extends DecompilerTest {
         // incorrectly decompiled to `i == j && i == j`).
         //
         verifyOutput(
-           D.class,
-           defaultSettings(),
-           "private static class D {\n" +
-           "    boolean t(final Integer i, final int j) {\n" +
-           "        return i == Integer.valueOf(j) && i == j;\n" +
-           "    }\n" +
-           "}\n"
+            D.class,
+            defaultSettings(),
+            "private static class D {\n" +
+            "    boolean t(final Integer i, final int j) {\n" +
+            "        return i == Integer.valueOf(j) && i == j;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testBoxedVersusUnboxedInTernary() throws Exception {
+        verifyOutput(
+            E.class,
+            defaultSettings(),
+            "private static class E {\n" +
+            "    void t(final boolean b) {\n" +
+            "        final Double d = 4.3;\n" +
+            "        final Integer i = 3;\n" +
+            "        final short s = (short)(b ? i : Integer.valueOf((int)d.doubleValue()).intValue());\n" +
+            "    }\n" +
+            "}\n"
         );
     }
 }

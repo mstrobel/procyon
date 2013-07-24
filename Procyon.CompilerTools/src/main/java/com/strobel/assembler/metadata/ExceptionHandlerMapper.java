@@ -1,5 +1,6 @@
 package com.strobel.assembler.metadata;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.Collection;
 import com.strobel.assembler.flowanalysis.ControlFlowEdge;
 import com.strobel.assembler.flowanalysis.ControlFlowGraph;
@@ -14,11 +15,8 @@ import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OperandType;
 import com.strobel.assembler.ir.attributes.ExceptionTableEntry;
-import com.strobel.core.BooleanBox;
 import com.strobel.core.Predicate;
 import com.strobel.core.VerifyArgument;
-import com.strobel.functions.Block;
-import com.strobel.functions.Function;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -40,12 +38,12 @@ public final class ExceptionHandlerMapper {
         final ExceptionHandlerMapper builder = new ExceptionHandlerMapper(instructions, tableEntries);
         final ControlFlowGraph cfg = builder.build();
 
-        builder.computeDominance(cfg);
+        cfg.computeDominance();
         cfg.computeDominanceFrontier();
 
         final List<ExceptionHandler> handlers = new ArrayList<>();
 
-        for (final ExceptionTableEntry entry : tableEntries) {
+        for (final ExceptionTableEntry entry : builder._tableEntries) {
             final Instruction handlerStart = instructions.atOffset(entry.getHandlerOffset());
 
             final ControlFlowNode handlerStartNode = firstOrDefault(
@@ -71,9 +69,16 @@ public final class ExceptionHandlerMapper {
             final List<ControlFlowNode> dominatedNodes = new ArrayList<>();
 
             for (final ControlFlowNode node : cfg.getNodes()) {
+                if (node.getNodeType() != ControlFlowNodeType.Normal) {
+                    continue;
+                }
+
                 if (handlerStartNode.dominates(node)) {
                     if (dominationSet.add(node)) {
                         dominatedNodes.add(node);
+                    }
+                    if (node.getDominanceFrontier().contains(cfg.getRegularExit())) {
+                        break;
                     }
                 }
             }
@@ -82,16 +87,28 @@ public final class ExceptionHandlerMapper {
                 dominatedNodes,
                 new Comparator<ControlFlowNode>() {
                     @Override
-                    public int compare(final ControlFlowNode o1, final ControlFlowNode o2) {
+                    public int compare(@NotNull final ControlFlowNode o1, @NotNull final ControlFlowNode o2) {
                         return Integer.compare(o1.getBlockIndex(), o2.getBlockIndex());
                     }
                 }
             );
 
-            final ExceptionBlock tryBlock = new ExceptionBlock(
-                instructions.atOffset(entry.getStartOffset()),
-                instructions.atOffset(entry.getEndOffset())
-            );
+            final Instruction lastInstruction = instructions.get(instructions.size() - 1);
+
+            final ExceptionBlock tryBlock;
+
+            if (entry.getEndOffset() == lastInstruction.getEndOffset()) {
+                tryBlock = new ExceptionBlock(
+                    instructions.atOffset(entry.getStartOffset()),
+                    lastInstruction
+                );
+            }
+            else {
+                tryBlock = new ExceptionBlock(
+                    instructions.atOffset(entry.getStartOffset()),
+                    instructions.atOffset(entry.getEndOffset()).getPrevious()
+                );
+            }
 
             if (entry.getCatchType() == null) {
                 handlers.add(
@@ -112,116 +129,9 @@ public final class ExceptionHandlerMapper {
             }
         }
 
+        Collections.sort(handlers);
+
         return handlers;
-    }
-
-    private void computeDominance(final ControlFlowGraph cfg) {
-        final ControlFlowNode entryPoint = cfg.getEntryPoint();
-
-        entryPoint.setImmediateDominator(entryPoint);
-
-        final BooleanBox changed = new BooleanBox(true);
-
-        while (changed.get()) {
-            changed.set(false);
-            cfg.resetVisited();
-
-            entryPoint.traversePreOrder(
-                new Function<ControlFlowNode, Iterable<ControlFlowNode>>() {
-                    @Override
-                    public final Iterable<ControlFlowNode> apply(final ControlFlowNode input) {
-                        return input.getSuccessors();
-                    }
-                },
-                new Block<ControlFlowNode>() {
-                    @Override
-                    public final void accept(final ControlFlowNode b) {
-                        if (b == entryPoint) {
-                            return;
-                        }
-
-                        ControlFlowNode newImmediateDominator = null;
-
-                        for (final ControlFlowNode p : b.getPredecessors()) {
-                            if (p.isVisited() && p != b) {
-                                newImmediateDominator = p;
-                                break;
-                            }
-                        }
-
-                        if (newImmediateDominator == null) {
-                            throw new IllegalStateException("Could not compute new immediate dominator!");
-                        }
-
-                        for (final ControlFlowNode p : b.getPredecessors()) {
-                            if (p != b && p.getImmediateDominator() != null) {
-                                newImmediateDominator = ControlFlowGraph.findCommonDominator(p, newImmediateDominator);
-                            }
-                        }
-
-                        if (b.getImmediateDominator() != newImmediateDominator) {
-                            b.setImmediateDominator(newImmediateDominator);
-                            changed.set(true);
-                        }
-                    }
-                }
-            );
-
-            for (final ControlFlowNode node : _nodes) {
-                if (node.getUserData() instanceof ExceptionTableEntry) {
-                    node.traversePreOrder(
-                        new Function<ControlFlowNode, Iterable<ControlFlowNode>>() {
-                            @Override
-                            public final Iterable<ControlFlowNode> apply(final ControlFlowNode input) {
-                                return input.getSuccessors();
-                            }
-                        },
-                        new Block<ControlFlowNode>() {
-                            @Override
-                            public final void accept(final ControlFlowNode b) {
-                                if (b == node) {
-                                    return;
-                                }
-
-                                ControlFlowNode newImmediateDominator = null;
-
-                                for (final ControlFlowNode p : b.getPredecessors()) {
-                                    if (p.isVisited() && p != b) {
-                                        newImmediateDominator = p;
-                                        break;
-                                    }
-                                }
-
-                                if (newImmediateDominator == null) {
-                                    throw new IllegalStateException("Could not compute new immediate dominator!");
-                                }
-
-                                for (final ControlFlowNode p : b.getPredecessors()) {
-                                    if (p != b && p.getImmediateDominator() != null) {
-                                        newImmediateDominator = ControlFlowGraph.findCommonDominator(p, newImmediateDominator);
-                                    }
-                                }
-
-                                if (b.getImmediateDominator() != newImmediateDominator) {
-                                    b.setImmediateDominator(newImmediateDominator);
-                                    changed.set(true);
-                                }
-                            }
-                        }
-                    );
-                }
-            }
-        }
-
-        entryPoint.setImmediateDominator(null);
-
-        for (final ControlFlowNode node : _nodes) {
-            final ControlFlowNode immediateDominator = node.getImmediateDominator();
-
-            if (immediateDominator != null) {
-                immediateDominator.getDominatorTreeChildren().add(node);
-            }
-        }
     }
 
     private final InstructionCollection _instructions;
@@ -310,7 +220,7 @@ public final class ExceptionHandlerMapper {
                 final Instruction instruction = instructions.get(i);
                 final OpCode opCode = instruction.getOpCode();
 
-                if (opCode.isUnconditionalBranch() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
+                if (opCode.isBranch() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
                     break;
                 }
 
@@ -357,7 +267,7 @@ public final class ExceptionHandlerMapper {
             //
             // Create normal edges from one instruction to the next.
             //
-            if (!endOpCode.isUnconditionalBranch()) {
+            if (!endOpCode.isBranch()) {
                 final Instruction next = end.getNext();
 
                 if (next != null) {
@@ -403,43 +313,48 @@ public final class ExceptionHandlerMapper {
         //
 
         for (final ControlFlowNode node : _nodes) {
-            final Instruction end = node.getEnd();
+            if (node.getNodeType() != ControlFlowNodeType.Normal) {
+                continue;
+            }
 
-            if (end != null &&
-                end.getOffset() < _instructions.get(_instructions.size() - 1).getEndOffset()) {
+            final ExceptionTableEntry entry = (ExceptionTableEntry) node.getUserData();
 
+            if (entry != null) {
                 final ControlFlowNode innermostHandler = findInnermostExceptionHandlerNode(node.getEnd().getOffset());
 
-                if (innermostHandler == null) {
-                    continue;
-                }
+                if (innermostHandler != null) {
+                    for (final ExceptionTableEntry handler : _tableEntries) {
+                        if (handler.getStartOffset() == entry.getStartOffset() &&
+                            handler.getEndOffset() == entry.getEndOffset()) {
 
-                for (final ExceptionTableEntry entry : _tableEntries) {
-                    final ExceptionTableEntry handlerEntry = (ExceptionTableEntry) innermostHandler.getUserData();
-
-                    if (handlerEntry == null) {
-                        continue;
-                    }
-
-                    if (entry.getStartOffset() == handlerEntry.getStartOffset() &&
-                        entry.getEndOffset() == handlerEntry.getEndOffset()) {
-
-                        final ControlFlowNode handlerNode = firstOrDefault(
-                            _nodes,
-                            new Predicate<ControlFlowNode>() {
-                                @Override
-                                public boolean test(final ControlFlowNode node) {
-                                    return node.getUserData() == entry;
+                            final ControlFlowNode handlerNode = firstOrDefault(
+                                _nodes,
+                                new Predicate<ControlFlowNode>() {
+                                    @Override
+                                    public boolean test(final ControlFlowNode node) {
+                                        return node.getNodeType() == ControlFlowNodeType.Normal &&
+                                               node.getStart().getOffset() == handler.getHandlerOffset();
+                                    }
                                 }
-                            }
-                        );
+                            );
 
-                        if (handlerNode != null) {
-                            createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
+                            if (node != handlerNode) {
+                                createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
+                            }
                         }
                     }
                 }
             }
+
+/*
+            if (entry != null) {
+                createEdge(
+                    node,
+                    _instructions.atOffset(entry.getHandlerOffset()),
+                    JumpType.Normal
+                );
+            }
+*/
         }
     }
 

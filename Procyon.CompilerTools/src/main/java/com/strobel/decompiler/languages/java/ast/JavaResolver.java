@@ -330,7 +330,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                 return new ResolveResult(resolvedType);
             }
 
-            return childResult;
+            return typeResult;
         }
 
         @Override
@@ -470,9 +470,21 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                 }
             }
 
-            final TypeReference resultType = doBinaryPromotionStrict(
-                node.getTrueExpression().acceptVisitor(this, data),
-                node.getFalseExpression().acceptVisitor(this, data)
+            final ResolveResult leftResult = node.getTrueExpression().acceptVisitor(this, data);
+
+            if (leftResult == null || leftResult.getType() == null) {
+                return null;
+            }
+
+            final ResolveResult rightResult = node.getFalseExpression().acceptVisitor(this, data);
+
+            if (rightResult == null || rightResult.getType() == null) {
+                return null;
+            }
+
+            final TypeReference resultType = MetadataHelper.findCommonSuperType(
+                leftResult.getType(),
+                rightResult.getType()
             );
 
             if (resultType != null) {

@@ -195,16 +195,41 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
             return;
         }
 
-        final Expression boxedValue = ((MemberReferenceExpression) target).getTarget();
+        if (parent instanceof ConditionalExpression) {
+            removeUnboxingForCondition(
+                e,
+                (MemberReferenceExpression) target,
+                (ConditionalExpression) parent
+            );
+            return;
+        }
+
+        performUnboxingRemoval(e, (MemberReferenceExpression) target);
+    }
+
+    private void removeUnboxingForCondition(
+        final InvocationExpression e,
+        final MemberReferenceExpression target,
+        final ConditionalExpression parent) {
+
+        final boolean leftSide = parent.getTrueExpression().isAncestorOf(e);
+        final Expression otherSide = leftSide ? parent.getFalseExpression() : parent.getTrueExpression();
+        final ResolveResult otherResult = _resolver.apply(otherSide);
+
+        if (otherResult == null || otherResult.getType() == null || !otherResult.getType().isPrimitive()) {
+            return;
+        }
+
+        performUnboxingRemoval(e, target);
+    }
+
+    private void performUnboxingRemoval(final InvocationExpression e, final MemberReferenceExpression target) {
+        final Expression boxedValue = target.getTarget();
         boxedValue.remove();
         e.replaceWith(boxedValue);
     }
 
     private void removeUnboxingForArgument(final InvocationExpression e) {
-        //
-        // TODO: Use overload checking (once implemented).  As is, we may remove necessary casts.
-        //
-
         final AstNode parent = e.getParent();
 
         final MemberReference unboxMethod = e.getUserData(Keys.MEMBER_REFERENCE);

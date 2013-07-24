@@ -353,7 +353,7 @@ final class Inlining {
 
             final Boolean result = findLoadInNext(argument, variable, expressionBeingMoved, parent, position);
 
-            if (result != null) {
+            if (Boolean.TRUE.equals(result)) {
                 return result;
             }
         }
@@ -573,7 +573,7 @@ final class Inlining {
         }
     }
 
-    private static boolean canBeExpressionStatement(final Expression expression) {
+    static boolean canBeExpressionStatement(final Expression expression) {
         switch (expression.getCode()) {
             case PutStatic:
             case PutField:

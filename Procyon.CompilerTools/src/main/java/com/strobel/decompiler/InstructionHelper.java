@@ -66,7 +66,7 @@ public final class InstructionHelper {
             }
 
             case Pop2:
-                return 1;
+                return 2;
 
             case Pop1_Pop1:
                 return 2;
