@@ -129,7 +129,7 @@ public final class ExceptionHandlerMapper {
             }
         }
 
-        Collections.sort(handlers);
+//        Collections.sort(handlers);
 
         return handlers;
     }
