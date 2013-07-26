@@ -285,9 +285,22 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         switch (MetadataHelper.getNumericConversionType(targetType, sourceType)) {
             case IDENTITY:
             case IMPLICIT: {
+                //
+                // We don't actually want to remove round-trip boxing without some sort of cast,
+                // or we may end up with:
+                //
+                // Integer i = null; Integer j = Integer.valueOf(i.intValue());
+                //
+                // ...becoming:
+                //
+                // Integer i = null; Integer j = i;
+                //
+/*
                 boxedValue.remove();
                 parent.replaceWith(boxedValue);
                 break;
+*/
+                return;
             }
 
             case EXPLICIT_TO_UNBOXED: {
