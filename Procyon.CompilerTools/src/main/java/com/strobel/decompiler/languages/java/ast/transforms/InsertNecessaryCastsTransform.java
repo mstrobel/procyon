@@ -111,14 +111,14 @@ public class InsertNecessaryCastsTransform extends ContextTrackingVisitor<Void> 
                     public AstNode apply(final AstNode input) {
                         return new ConditionalExpression(
                             right,
-                            new PrimitiveExpression(1),
-                            new PrimitiveExpression(0)
+                            new PrimitiveExpression(JavaPrimitiveCast.cast(targetResult.getType().getSimpleType(), 1)),
+                            new PrimitiveExpression(JavaPrimitiveCast.cast(targetResult.getType().getSimpleType(), 0))
                         );
                     }
                 }
             );
 
-            super.visitAssignmentExpression(node, data);
+            node.acceptVisitor(this, data);
         }
 
         return null;
