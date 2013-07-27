@@ -117,8 +117,9 @@ public class DefiniteAssignmentAnalysis {
         final int startIndex = startMap.get(start).getIndex();
         final int endIndex = endMap.get(end).getIndex();
 
-        if (startIndex > endIndex)
+        if (startIndex > endIndex) {
             throw new IllegalStateException("The start statement must lexically precede the end statement.");
+        }
 
         this.analyzedRangeStart = startIndex;
         this.analyzedRangeEnd = endIndex;
@@ -149,7 +150,7 @@ public class DefiniteAssignmentAnalysis {
 
                 DefiniteAssignmentStatus inputStatus = DefiniteAssignmentStatus.CODE_UNREACHABLE;
 
-                for (final ControlFlowEdge edge : node.getIncoming()){
+                for (final ControlFlowEdge edge : node.getIncoming()) {
                     inputStatus = mergeStatus(inputStatus, edgeStatus.get(edge));
                 }
 
@@ -217,10 +218,12 @@ public class DefiniteAssignmentAnalysis {
             case StartNode:
             case BetweenStatements: {
                 if (!(node.getNextStatement() instanceof IfElseStatement)) {
-                    if (inputStatus == DefiniteAssignmentStatus.DEFINITELY_ASSIGNED)
+                    if (inputStatus == DefiniteAssignmentStatus.DEFINITELY_ASSIGNED) {
                         outputStatus = DefiniteAssignmentStatus.DEFINITELY_ASSIGNED;
-                    else
+                    }
+                    else {
                         outputStatus = cleanSpecialValues(node.getNextStatement().acceptVisitor(visitor, inputStatus));
+                    }
                     break;
                 }
                 //
@@ -263,7 +266,7 @@ public class DefiniteAssignmentAnalysis {
                         changeEdgeStatus(edge, DefiniteAssignmentStatus.DEFINITELY_ASSIGNED);
                     }
                     else if (edge.getType() == ControlFlowEdgeType.ConditionFalse &&
-                        outputStatus == DefiniteAssignmentStatus.ASSIGNED_AFTER_FALSE_EXPRESSION) {
+                             outputStatus == DefiniteAssignmentStatus.ASSIGNED_AFTER_FALSE_EXPRESSION) {
 
                         changeEdgeStatus(edge, DefiniteAssignmentStatus.DEFINITELY_ASSIGNED);
                     }
@@ -313,8 +316,17 @@ public class DefiniteAssignmentAnalysis {
     private void changeEdgeStatus(final ControlFlowEdge edge, final DefiniteAssignmentStatus newStatus) {
         final DefiniteAssignmentStatus oldStatus = edgeStatus.get(edge);
 
-        if (oldStatus == newStatus)
+        if (oldStatus == newStatus) {
             return;
+        }
+
+        //
+        // Ensure that status cannot change after it is definitely assigned..
+        //
+
+        if (oldStatus == DefiniteAssignmentStatus.DEFINITELY_ASSIGNED) {
+            return;
+        }
 
         //
         // Ensure that status cannot change back to unreachable after it was once reachable.
