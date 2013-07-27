@@ -2,6 +2,7 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.ConversionType;
+import com.strobel.assembler.metadata.JvmType;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.TypeDefinition;
@@ -98,6 +99,25 @@ public class InsertNecessaryCastsTransform extends ContextTrackingVisitor<Void> 
                     }
                 }
             );
+        }
+
+        if (valueResult.getType().getSimpleType() == JvmType.Boolean &&
+            targetResult.getType().getSimpleType().isNumeric()) {
+
+            right.replaceWith(
+                new Function<AstNode, AstNode>() {
+                    @Override
+                    public AstNode apply(final AstNode input) {
+                        return new ConditionalExpression(
+                            right,
+                            new PrimitiveExpression(1),
+                            new PrimitiveExpression(0)
+                        );
+                    }
+                }
+            );
+
+            super.visitAssignmentExpression(node, data);
         }
 
         return null;

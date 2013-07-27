@@ -415,6 +415,16 @@ public final class TypeAnalysis {
     private boolean shouldInferVariableType(final Variable variable) {
         final VariableDefinition variableDefinition = variable.getOriginalVariable();
 
+        if (variable.isParameter()) {
+            final TypeReference parameterType = variable.getOriginalParameter().getParameterType();
+
+            if (parameterType.isGenericType() || MetadataHelper.isRawType(parameterType)) {
+                return !_preserveMetadataGenericTypes;
+            }
+
+            return false;
+        }
+
         //noinspection RedundantIfStatement
         if (variableDefinition != null &&
             variableDefinition.isFromMetadata() &&
