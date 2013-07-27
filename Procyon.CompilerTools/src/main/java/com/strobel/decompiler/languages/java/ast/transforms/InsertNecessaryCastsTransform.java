@@ -102,6 +102,7 @@ public class InsertNecessaryCastsTransform extends ContextTrackingVisitor<Void> 
         }
 
         if (valueResult.getType().getSimpleType() == JvmType.Boolean &&
+            targetResult.getType().getSimpleType() != JvmType.Boolean &&
             targetResult.getType().getSimpleType().isNumeric()) {
 
             right.replaceWith(
