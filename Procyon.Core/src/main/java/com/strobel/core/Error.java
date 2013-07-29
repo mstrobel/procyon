@@ -29,6 +29,10 @@ final class Error {
         return new IllegalArgumentException("Sequence has no elements.");
     }
 
+    static IllegalArgumentException sequenceHasMultipleElements() {
+        return new IllegalArgumentException("Sequence contains more than one element.");
+    }
+
     static IllegalArgumentException couldNotConvertFromNull() {
         return new IllegalArgumentException("Could not convert from 'null'.");
     }
@@ -55,6 +59,12 @@ final class Error {
                 sourceType.getName(),
                 targetType.getName()
             )
+        );
+    }
+
+    static IndexOutOfBoundsException indexOutOfRange(final int index) {
+        return new IndexOutOfBoundsException(
+            format("Index is out of range: %d", index)
         );
     }
 }

@@ -22,11 +22,32 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @author Mike Strobel
  */
 public final class CollectionUtilities {
+    public static <T> int indexOf(final Iterable<? super T> collection, final T item) {
+        VerifyArgument.notNull(collection, "collection");
+
+        if (collection instanceof List<?>) {
+            return ((List<?>)collection).indexOf(item);
+        }
+
+        int i = -1;
+
+        for (final Object o : collection) {
+            ++i;
+
+            if (Objects.equals(o, item)) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     public static <T> List<T> toList(final Enumeration<T> collection) {
         if (!collection.hasMoreElements()) {
             return Collections.emptyList();
@@ -51,14 +72,6 @@ public final class CollectionUtilities {
         return list;
     }
 
-    public static <T> T first(final Iterable<T> collection) {
-        final Iterator<T> it = VerifyArgument.notNull(collection, "collection").iterator();
-        if (it.hasNext()) {
-            return it.next();
-        }
-        throw Error.sequenceHasNoElements();
-    }
-
     public static <T> T getOrDefault(final Iterable<T> collection, final int index) {
         int i = 0;
 
@@ -78,14 +91,37 @@ public final class CollectionUtilities {
         return collection.get(index);
     }
 
+    public static <T> T get(final Iterable<T> collection, final int index) {
+        if (VerifyArgument.notNull(collection, "collection") instanceof List<?>) {
+            return get((List<T>) collection, index);
+        }
+
+        int i = 0;
+
+        for (final T item : collection) {
+            if (i++ == index) {
+                return item;
+            }
+        }
+
+        throw Error.indexOutOfRange(index);
+    }
+
+    public static <T> T get(final List<T> list, final int index) {
+        if (index >= VerifyArgument.notNull(list, "list").size() || index < 0) {
+            throw Error.indexOutOfRange(index);
+        }
+        return list.get(index);
+    }
+
     public static <T> T single(final List<T> list) {
         switch (VerifyArgument.notNull(list, "list").size()) {
             case 0:
-                throw new IllegalArgumentException("Sequence contains no elements.");
+                throw Error.sequenceHasNoElements();
             case 1:
                 return list.get(0);
             default:
-                throw new IllegalArgumentException("Sequence contains more than one element.");
+                throw Error.sequenceHasMultipleElements();
         }
     }
 
@@ -96,7 +132,7 @@ public final class CollectionUtilities {
             case 1:
                 return list.get(0);
             default:
-                throw new IllegalArgumentException("Sequence contains more than one element.");
+                throw Error.sequenceHasMultipleElements();
         }
     }
 
@@ -111,13 +147,34 @@ public final class CollectionUtilities {
             final T result = it.next();
 
             if (it.hasNext()) {
-                throw new IllegalArgumentException("Sequence contains more than one element.");
+                throw Error.sequenceHasMultipleElements();
             }
 
             return result;
         }
 
-        throw new IllegalArgumentException("Sequence contains no elements.");
+        throw Error.sequenceHasNoElements();
+    }
+
+    public static <T> T first(final List<T> list) {
+        if (VerifyArgument.notNull(list, "list").isEmpty()) {
+            throw Error.sequenceHasNoElements();
+        }
+        return list.get(0);
+    }
+
+    public static <T> T first(final Iterable<T> collection) {
+        if (collection instanceof List<?>) {
+            return first((List<T>) collection);
+        }
+
+        final Iterator<T> it = VerifyArgument.notNull(collection, "collection").iterator();
+
+        if (it.hasNext()) {
+            return it.next();
+        }
+
+        throw Error.sequenceHasNoElements();
     }
 
     public static <T> T singleOrDefault(final Iterable<T> collection) {
@@ -131,7 +188,7 @@ public final class CollectionUtilities {
             final T result = it.next();
 
             if (it.hasNext()) {
-                throw new IllegalArgumentException("Sequence contains more than one element.");
+                throw Error.sequenceHasMultipleElements();
             }
 
             return result;
@@ -159,6 +216,38 @@ public final class CollectionUtilities {
         }
 
         return null;
+    }
+
+    public static <T> T last(final List<T> list) {
+        if (VerifyArgument.notNull(list, "list").isEmpty()) {
+            throw Error.sequenceHasNoElements();
+        }
+
+        return list.get(list.size() - 1);
+    }
+
+    public static <T> T last(final Iterable<T> collection) {
+        VerifyArgument.notNull(collection, "collection");
+
+        if (collection instanceof List<?>) {
+            return last((List<T>) collection);
+        }
+
+        final Iterator<T> iterator = collection.iterator();
+        final boolean hasAny = iterator.hasNext();
+
+        if (!hasAny) {
+            throw Error.sequenceHasNoElements();
+        }
+
+        T last;
+
+        do {
+            last = iterator.next();
+        }
+        while (iterator.hasNext());
+
+        return last;
     }
 
     public static <T> T lastOrDefault(final Iterable<T> collection) {
