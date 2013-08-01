@@ -487,6 +487,11 @@ public class DeclareVariablesTransform implements IAstTransform {
 
     private static boolean usesVariable(final AstNode node, final String variableName) {
         if (node instanceof AnonymousObjectCreationExpression) {
+            for (final Expression argument : ((AnonymousObjectCreationExpression) node).getArguments()) {
+                if (usesVariable(argument, variableName)) {
+                    return true;
+                }
+            }
             return false;
         }
 

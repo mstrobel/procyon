@@ -1,5 +1,7 @@
 package com.strobel.decompiler;
 
+import org.junit.Test;
+
 @SuppressWarnings("UnusedDeclaration")
 public class SyncTests extends DecompilerTest {
     private static class A {
@@ -70,5 +72,108 @@ public class SyncTests extends DecompilerTest {
 
             return result;
         }
+    }
+
+    @Test
+    public void testSimpleSynchronized() throws Throwable {
+        verifyOutput(
+            A.class,
+            defaultSettings(),
+            "private static class A {\n" +
+            "    public String test(final Object o) {\n" +
+            "        synchronized (o) {\n" +
+            "            return \"\";\n" +
+            "        }\n" +
+            "    }\n" +
+            "}"
+        );
+    }
+
+    @Test
+    public void testTwoTightlyNestedSynchronized() throws Throwable {
+        verifyOutput(
+            B.class,
+            defaultSettings(),
+            "private static class B {\n" +
+            "    public String test(final Object o, final Object p) {\n" +
+            "        synchronized (o) {\n" +
+            "            synchronized (p) {\n" +
+            "                return \"\";\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testThreeTightlyNestedSynchronized() throws Throwable {
+        verifyOutput(
+            C.class,
+            defaultSettings(),
+            "private static class C {\n" +
+            "    public String test(final Object o, final Object p, final Object q) {\n" +
+            "        synchronized (o) {\n" +
+            "            synchronized (p) {\n" +
+            "                synchronized (q) {\n" +
+            "                    return \"\";\n" +
+            "                }\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testFourTightlyNestedSynchronized() throws Throwable {
+        verifyOutput(
+            D.class,
+            defaultSettings(),
+            "private static class D {\n" +
+            "    public String test(final Object o, final Object p, final Object q, final Object r) {\n" +
+            "        synchronized (o) {\n" +
+            "            synchronized (p) {\n" +
+            "                synchronized (q) {\n" +
+            "                    synchronized (r) {\n" +
+            "                        return \"\";\n" +
+            "                    }\n" +
+            "                }\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testFourLooselyNestedSynchronized() throws Throwable {
+        verifyOutput(
+            E.class,
+            defaultSettings(),
+            "private static class E {\n" +
+            "    public String test(final Object o, final Object p, final Object q, final Object r) {\n" +
+            "        final String result;\n" +
+            "        synchronized (o) {\n" +
+            "            System.out.println(\"enter(o)\");\n" +
+            "            synchronized (p) {\n" +
+            "                System.out.println(\"enter(p)\");\n" +
+            "                synchronized (q) {\n" +
+            "                    System.out.println(\"enter(q)\");\n" +
+            "                    synchronized (r) {\n" +
+            "                        System.out.println(\"enter(r)\");\n" +
+            "                        result = \"\";\n" +
+            "                        System.out.println(\"exit(r)\");\n" +
+            "                    }\n" +
+            "                    System.out.println(\"exit(q)\");\n" +
+            "                }\n" +
+            "                System.out.println(\"exit(p)\");\n" +
+            "            }\n" +
+            "            System.out.println(\"exit(o)\");\n" +
+            "        }\n" +
+            "        return result;\n" +
+            "    }\n" +
+            "}\n"
+        );
     }
 }

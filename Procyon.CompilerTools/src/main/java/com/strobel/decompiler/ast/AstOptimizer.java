@@ -325,29 +325,48 @@ public final class AstOptimizer {
 
                 body.set(body.size() - 1, new Expression(AstCode.Leave, null));
 
-                for (final Expression e : finallyBlock.getSelfAndChildrenRecursive(Expression.class)) {
-                    final boolean exceptionCopy = any(
-                        exceptionCopies,
-                        new Predicate<Variable>() {
-                            @Override
-                            public boolean test(final Variable variable) {
-                                if (matchLoadStore(e, variable, v)) {
-                                    exceptionCopies.add(v.get());
-                                    return true;
+                for (final Block b : finallyBlock.getSelfAndChildrenRecursive(Block.class)) {
+                    final List<Node> blockBody = b.getBody();
+
+                    for (int i = 0; i < blockBody.size(); i++) {
+                        final Node node = blockBody.get(i);
+
+                        if (node instanceof Expression) {
+                            final Expression e = (Expression) node;
+
+                            final boolean exceptionCopy;
+
+                            if (match(e, AstCode.Store)) {
+                                exceptionCopy = any(
+                                    exceptionCopies,
+                                    new Predicate<Variable>() {
+                                        @Override
+                                        public boolean test(final Variable variable) {
+                                            if (matchLoadStore(e, variable, v)) {
+                                                exceptionCopies.add(v.get());
+
+                                                return true;
+                                            }
+                                            return false;
+                                        }
+                                    }
+                                );
+
+                                if (exceptionCopy) {
+                                    blockBody.remove(i--);
+                                    continue;
                                 }
-                                return false;
+                            }
+
+                            if (matchGetArguments(e, AstCode.AThrow, a) &&
+                                matchGetOperand(a.get(0), AstCode.Load, v) &&
+                                exceptionCopies.contains(v.get())) {
+
+                                e.setCode(AstCode.Goto);
+                                e.setOperand(endFinallyLabel);
+                                e.getArguments().clear();
                             }
                         }
-                    );
-
-                    if (!exceptionCopy &&
-                        matchGetArguments(e, AstCode.AThrow, a) &&
-                        matchGetOperand(a.get(0), AstCode.Load, v) &&
-                        exceptionCopies.contains(v.get())) {
-
-                        e.setCode(AstCode.Goto);
-                        e.setOperand(endFinallyLabel);
-                        e.getArguments().clear();
                     }
                 }
             }
@@ -509,6 +528,10 @@ public final class AstOptimizer {
 
                     tryBody.remove(0);
                     tryBody.addAll(0, innerTry.getTryBlock().getBody());
+
+                    for (final CatchBlock innerCatch : innerTry.getCatchBlocks()) {
+                        tryCatch.getCatchBlocks().add(innerCatch);
+                    }
                 }
                 else if (removeHead >= 0) {
                     for (int i = 0, n = removableSize; i < n; i++) {

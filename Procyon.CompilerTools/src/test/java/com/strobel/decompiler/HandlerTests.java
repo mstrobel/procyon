@@ -1,6 +1,5 @@
 package com.strobel.decompiler;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -212,7 +211,6 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    @Ignore
     public void testSimpleNestedHandlerInFinally() throws Throwable {
         verifyOutput(
             C.class,
@@ -227,8 +225,7 @@ public class HandlerTests extends DecompilerTest {
             "            try {\n" +
             "                throw new Exception();\n" +
             "            }\n" +
-            "            catch (Exception e) {\n" +
-            "            }\n" +
+            "            catch (Exception e2) {}\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
@@ -236,7 +233,6 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    @Ignore
     public void testEmptyCatchWithinFinally() throws Throwable {
         verifyOutput(
             D.class,
@@ -252,8 +248,7 @@ public class HandlerTests extends DecompilerTest {
             "                int k = 0;\n" +
             "                k = 1 / k;\n" +
             "            }\n" +
-            "            catch (Exception e) {\n" +
-            "            }\n" +
+            "            catch (Exception e2) {}\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
@@ -283,6 +278,39 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
+    public void testNestedTryCatchFinally() throws Throwable {
+        verifyOutput(
+            G.class,
+            defaultSettings(),
+            "private static class G {\n" +
+            "    void test() {\n" +
+            "        try {\n" +
+            "            System.out.println(\"try\");\n" +
+            "            try {\n" +
+            "                System.out.println(\"inner try\");\n" +
+            "            }\n" +
+            "            catch (RuntimeException e) {\n" +
+            "                System.out.println(\"inner catch\");\n" +
+            "            }\n" +
+            "            finally {\n" +
+            "                System.out.println(\"inner finally\");\n" +
+            "            }\n" +
+            "            System.out.println(\"end of outer try\");\n" +
+            "        }\n" +
+            "        catch (RuntimeException e) {\n" +
+            "            System.out.println(\"catch\");\n" +
+            "            return;\n" +
+            "        }\n" +
+            "        finally {\n" +
+            "            System.out.println(\"finally\");\n" +
+            "        }\n" +
+            "        System.out.println(\"exit\");\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
     public void testSimpleTryCatchFinallyControlFlow() throws Throwable {
         verifyOutput(
             F.class,
@@ -304,9 +332,6 @@ public class HandlerTests extends DecompilerTest {
             "        }\n" +
             "        catch (FileNotFoundException t) {\n" +
             "            result = false;\n" +
-            "            if (lockAcquired) {\n" +
-            "                exit(this);\n" +
-            "            }\n" +
             "        }\n" +
             "        finally {\n" +
             "            if (lockAcquired) {\n" +
