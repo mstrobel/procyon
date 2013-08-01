@@ -1,5 +1,6 @@
 package com.strobel.decompiler;
 
+@SuppressWarnings("UnusedDeclaration")
 public class SyncTests extends DecompilerTest {
     private static class A {
         public String test(final Object o) {
@@ -31,28 +32,6 @@ public class SyncTests extends DecompilerTest {
         }
     }
 
-    private static class C2 {
-        public String test(final Object o, final Object p, final Object q) {
-            final String result;
-
-            synchronized (o) {
-                System.out.println("enter(o)");
-                synchronized (p) {
-                    System.out.println("enter(p)");
-                    synchronized (q) {
-                        System.out.println("enter(q)");
-                        result = "";
-                        System.out.println("exit(q)");
-                    }
-                    System.out.println("exit(p)");
-                }
-                System.out.println("exit(o)");
-            }
-
-            return result;
-        }
-    }
-
     private static class D {
         public String test(final Object o, final Object p, final Object q, final Object r) {
             synchronized (o) {
@@ -64,6 +43,32 @@ public class SyncTests extends DecompilerTest {
                     }
                 }
             }
+        }
+    }
+
+    private static class E {
+        public String test(final Object o, final Object p, final Object q, final Object r) {
+            final String result;
+
+            synchronized (o) {
+                System.out.println("enter(o)");
+                synchronized (p) {
+                    System.out.println("enter(p)");
+                    synchronized (q) {
+                        System.out.println("enter(q)");
+                        synchronized (r) {
+                            System.out.println("enter(r)");
+                            result = "";
+                            System.out.println("exit(r)");
+                        }
+                        System.out.println("exit(q)");
+                    }
+                    System.out.println("exit(p)");
+                }
+                System.out.println("exit(o)");
+            }
+
+            return result;
         }
     }
 }

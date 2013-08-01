@@ -16,13 +16,7 @@
 
 package com.strobel.assembler.metadata;
 
-import com.strobel.assembler.flowanalysis.ControlFlowGraph;
-import com.strobel.assembler.flowanalysis.ControlFlowGraphBuilder;
-import com.strobel.assembler.flowanalysis.ControlFlowNode;
-import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
 import com.strobel.assembler.ir.ErrorOperand;
-import com.strobel.assembler.ir.ExceptionBlock;
-import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.OpCode;
@@ -35,18 +29,9 @@ import com.strobel.assembler.ir.attributes.LocalVariableTableEntry;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
-import com.strobel.decompiler.ast.Range;
 
-import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 public class MethodReader {
     private final MethodDefinition _methodDefinition;
@@ -531,12 +516,14 @@ public class MethodReader {
         if (!exceptionTable.isEmpty()) {
 //            populateExceptionHandlerInfo(body, exceptionTable);
             _methodBody.getExceptionHandlers().addAll(ExceptionHandlerMapper.run(body, exceptionTable));
+/*
             if (!_methodBody.getExceptionHandlers().isEmpty()) {
                 final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(_methodBody);
                 cfg.computeDominance();
                 cfg.computeDominanceFrontier();
                 cfg.export(new File("/tmp/test"));
             }
+*/
         }
 
         return _methodBody;
@@ -590,273 +577,6 @@ public class MethodReader {
             }
         }
     }
-
-    // <editor-fold defaultstate="collapsed" desc="Exception Handler Info">
-
-    @SuppressWarnings("ConstantConditions")
-    private void populateExceptionHandlerInfo(final InstructionCollection body, final List<ExceptionTableEntry> exceptionTable) {
-        if (body.isEmpty()) {
-            return;
-        }
-
-        final Instruction bodyEndInstruction = body.get(body.size() - 1);
-
-        final List<HandlerWithRange> entries = new ArrayList<>(exceptionTable.size());
-
-        for (final ExceptionTableEntry entry : exceptionTable) {
-            entries.add(
-                new HandlerWithRange(
-                    entry,
-                    new Range(entry.getHandlerOffset(), Integer.MAX_VALUE)
-                )
-            );
-        }
-
-//        Collections.sort(entries);
-
-        final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(body, Collections.<ExceptionHandler>emptyList());
-
-        cfg.computeDominance();
-        cfg.computeDominanceFrontier();
-
-        final List<ControlFlowNode> nodes = cfg.getNodes();
-        final Map<Instruction, ControlFlowNode> nodeLookup = new IdentityHashMap<>();
-
-        for (int j = 0; j < nodes.size(); j++) {
-            final ControlFlowNode node = nodes.get(j);
-
-            if (node.getNodeType() != ControlFlowNodeType.Normal) {
-                continue;
-            }
-
-            for (Instruction i = node.getStart();
-                 i != null && i.getOffset() < node.getEnd().getEndOffset();
-                 i = i.getNext()) {
-
-                nodeLookup.put(i, node);
-            }
-        }
-
-        for (int i = 0; i < entries.size(); i++) {
-            int minOffset = Integer.MAX_VALUE;
-
-            final HandlerWithRange entry = entries.get(i);
-
-            ControlFlowNode tryEnd = null;
-
-            for (int j = 0; j < nodes.size(); j++) {
-                final ControlFlowNode node = nodes.get(j);
-                final Instruction end = node.getEnd();
-
-                if (end != null && end.getOffset() == entry.entry.getEndOffset()) {
-                    final Instruction previousInstruction = node.getStart().getPrevious();
-                    final HandlerWithRange nearestHandler = findNearestHandler(entries, entry);
-                    final Instruction firstHandlerInstruction = body.atOffset(nearestHandler.range.getStart());
-
-                    if (end.getOpCode() == OpCode.GOTO && end.getNext() == firstHandlerInstruction) {
-                        tryEnd = nodeLookup.get(end);
-                    }
-                    else if (previousInstruction != null) {
-                        tryEnd = nodeLookup.get(previousInstruction);
-                    }
-
-                    break;
-                }
-            }
-
-            for (int j = 0; j < nodes.size(); j++) {
-                final ControlFlowNode node = nodes.get(j);
-
-                if (node.getNodeType() != ControlFlowNodeType.Normal) {
-                    continue;
-                }
-
-                if (node.getStart().getOffset() == entry.range.getStart()) {
-                    final ControlFlowNode end = findHandlerEnd(node, tryEnd, new LinkedHashSet<ControlFlowNode>(), cfg.getRegularExit());
-
-                    if (end != null && end.getNodeType() == ControlFlowNodeType.Normal) {
-                        minOffset = end.getEnd().getEndOffset();
-                    }
-                    else {
-                        minOffset = node.getEnd().getEndOffset();
-                    }
-
-                    for (int k = 0; k < entries.size(); k++) {
-                        final HandlerWithRange other = entries.get(k);
-
-                        if (k != i &&
-                            entry.entry.getStartOffset() >= other.entry.getStartOffset() &&
-                            entry.entry.getHandlerOffset() < other.entry.getHandlerOffset() &&
-                            entry.entry.getEndOffset() <= other.entry.getEndOffset() &&
-                            other.range.getStart() < minOffset) {
-
-                            minOffset = other.range.getStart();
-                        }
-                    }
-
-                    break;
-                }
-            }
-
-            if (minOffset != Integer.MAX_VALUE) {
-                entry.range.setEnd(minOffset);
-            }
-        }
-
-//        Collections.sort(entries);
-
-        final List<ExceptionHandler> exceptionHandlers = _methodBody.getExceptionHandlers();
-
-        for (final HandlerWithRange entry : entries) {
-            final int startOffset = entry.entry.getStartOffset();
-            final int endOffset = entry.entry.getEndOffset();
-            final int handlerStart = entry.range.getStart();
-            final int handlerEnd = entry.range.getEnd();
-            final TypeReference catchType = entry.entry.getCatchType();
-
-            final Instruction firstInstruction = body.tryGetAtOffset(startOffset);
-            final Instruction lastInstruction;
-            final Instruction handlerFirstInstruction = body.tryGetAtOffset(handlerStart);
-            final Instruction handlerLastInstruction;
-
-            if (endOffset <= bodyEndInstruction.getOffset()) {
-                lastInstruction = body.tryGetAtOffset(endOffset).getPrevious();
-            }
-            else if (endOffset == bodyEndInstruction.getEndOffset()) {
-                lastInstruction = bodyEndInstruction;
-            }
-            else {
-                lastInstruction = new Instruction(endOffset, OpCode.NOP);
-            }
-
-            if (handlerEnd <= bodyEndInstruction.getOffset()) {
-                handlerLastInstruction = body.tryGetAtOffset(handlerEnd).getPrevious();
-            }
-            else if (handlerEnd == bodyEndInstruction.getEndOffset()) {
-                handlerLastInstruction = bodyEndInstruction;
-            }
-            else {
-                handlerLastInstruction = new Instruction(handlerEnd, OpCode.NOP);
-            }
-
-            final ExceptionHandler handler;
-
-            if (catchType == null) {
-                handler = ExceptionHandler.createFinally(
-                    new ExceptionBlock(firstInstruction, lastInstruction),
-                    new ExceptionBlock(handlerFirstInstruction, handlerLastInstruction)
-                );
-            }
-            else {
-                handler = ExceptionHandler.createCatch(
-                    new ExceptionBlock(firstInstruction, lastInstruction),
-                    new ExceptionBlock(handlerFirstInstruction, handlerLastInstruction),
-                    catchType
-                );
-            }
-
-            exceptionHandlers.add(handler);
-        }
-    }
-
-    private HandlerWithRange findNearestHandler(final List<HandlerWithRange> entries, final HandlerWithRange entry) {
-        HandlerWithRange nearestHandler = entry;
-        int nearestHandlerStart = nearestHandler.range.getStart();
-
-        for (final HandlerWithRange h : entries) {
-            if (h.entry.getStartOffset() == entry.entry.getStartOffset() &&
-                h.entry.getEndOffset() == entry.entry.getEndOffset() &&
-                h.range.getStart() < nearestHandlerStart) {
-
-                nearestHandler = h;
-                nearestHandlerStart = nearestHandler.range.getStart();
-            }
-        }
-
-        return nearestHandler;
-    }
-
-    private static ControlFlowNode findHandlerEnd(
-        final ControlFlowNode node,
-        final ControlFlowNode tryEnd, final Set<ControlFlowNode> visited,
-        final ControlFlowNode regularExit) {
-
-        if (!visited.add(node)) {
-            return null;
-        }
-
-        for (final ControlFlowNode successor : node.getSuccessors()) {
-            if (successor.getNodeType() != ControlFlowNodeType.Normal) {
-                continue;
-            }
-
-            if (tryEnd != null && tryEnd.dominates(successor)) {
-                continue;
-            }
-
-            if (successor.getDominatorTreeChildren().isEmpty()) {
-                final ControlFlowNode result = findHandlerEnd(successor, tryEnd, visited, regularExit);
-
-                if (result != null) {
-                    return result;
-                }
-
-                if (!successor.getDominanceFrontier().contains(regularExit)) {
-                    return successor;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private final static class HandlerWithRange implements Comparable<HandlerWithRange> {
-        final ExceptionTableEntry entry;
-        final Range range;
-
-        HandlerWithRange(final ExceptionTableEntry entry, final Range range) {
-            this.entry = entry;
-            this.range = range;
-        }
-
-        @Override
-        public final int compareTo(final HandlerWithRange o) {
-            int compareResult = Integer.compare(this.entry.getEndOffset(), o.entry.getEndOffset());
-
-            if (compareResult != 0) {
-                return compareResult;
-            }
-
-            compareResult = Integer.compare(o.entry.getStartOffset(), this.entry.getStartOffset());
-
-            if (compareResult != 0) {
-                return compareResult;
-            }
-
-            compareResult = Integer.compare(this.range.getEnd(), o.range.getEnd());
-
-            if (compareResult != 0) {
-                return compareResult;
-            }
-
-            compareResult = Integer.compare(o.range.getStart(), this.range.getStart());
-
-            return compareResult;
-        }
-
-        @Override
-        public String toString() {
-            final TypeReference catchType = entry.getCatchType();
-
-            return "Entry{" +
-                   "Try=" + entry.getStartOffset() + ":" + entry.getEndOffset() +
-                   ", Handler=" + range.getStart() + ":" + range.getEnd() +
-                   ", Type=" + (catchType != null ? catchType.getName() : "any") +
-                   '}';
-        }
-    }
-
-    // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Fixup Class">
 

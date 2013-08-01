@@ -127,14 +127,14 @@ final class Inlining {
         final StrongBox<Variable> tempVariable = new StrongBox<>();
         final StrongBox<Expression> tempExpression = new StrongBox<>();
 
-        if (block instanceof CatchBlock && body.size() > 1) {
+        if (block instanceof CatchBlock && !body.isEmpty()) {
             final CatchBlock catchBlock = (CatchBlock) block;
             final Variable v = catchBlock.getExceptionVariable();
 
             if (v != null &&
                 v.isGenerated() &&
                 count(storeCounts, v) == 1 &&
-                count(loadCounts, v) == 1) {
+                count(loadCounts, v) <= 1) {
 
                 if (matchGetArgument(body.get(0), AstCode.Store, tempVariable, tempExpression) &&
                     matchLoad(tempExpression.get(), v)) {
