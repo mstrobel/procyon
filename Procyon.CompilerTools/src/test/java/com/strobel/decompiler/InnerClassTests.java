@@ -512,7 +512,7 @@ public class InnerClassTests extends DecompilerTest {
             "    }\n" +
             "    private static final class F implements Function<Integer, Integer> {\n" +
             "        public Integer apply(final Integer x) {\n" +
-            "            return x * 3;\n" +
+            "            return (int)x * 3;\n" +
             "        }\n" +
             "    }\n" +
             "}\n"

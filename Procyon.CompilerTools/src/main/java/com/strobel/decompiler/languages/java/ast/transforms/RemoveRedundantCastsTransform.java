@@ -288,43 +288,49 @@ public class RemoveRedundantCastsTransform extends ContextTrackingVisitor<Void> 
             return;
         }
 
-        final ConversionType valueToInner = MetadataHelper.getNumericConversionType(innerCastType, valueType);
-        final ConversionType outerToInner = MetadataHelper.getNumericConversionType(innerCastType, outerCastType);
+        if (innerCastType.isPrimitive() || outerCastType.isPrimitive()) {
+            final ConversionType valueToInner = MetadataHelper.getNumericConversionType(innerCastType, valueType);
+            final ConversionType outerToInner = MetadataHelper.getNumericConversionType(innerCastType, outerCastType);
 
-        if (outerToInner == ConversionType.IDENTITY) {
-            if (valueToInner == ConversionType.IDENTITY) {
-                //
-                // T t; (T)(T)t => t
-                //
-                value.remove();
-                parent.replaceWith(value);
+            if (outerToInner == ConversionType.IDENTITY) {
+                if (valueToInner == ConversionType.IDENTITY) {
+                    //
+                    // T t; (T)(T)t => t
+                    //
+                    value.remove();
+                    parent.replaceWith(value);
+                }
+                else {
+                    //
+                    // (T)(T)x => (T)x
+                    //
+                    value.remove();
+                    node.replaceWith(value);
+                }
+                return;
             }
-            else {
-                //
-                // (T)(T)x => (T)x
-                //
-                value.remove();
-                node.replaceWith(value);
+
+            if (outerToInner != ConversionType.IMPLICIT) {
+                return;
             }
-            return;
+
+            final ConversionType valueToOuter = MetadataHelper.getNumericConversionType(outerCastType, valueType);
+
+            if (valueToOuter == ConversionType.NONE) {
+                return;
+            }
+
+            //
+            // If V -> T is equivalent to U -> T (assumed if T -> U is an implicit/non-narrowing conversion):
+            // V v; (T)(U)v => (T)v
+            //
+
+            value.remove();
+            node.replaceWith(value);
         }
-
-        if (outerToInner != ConversionType.IMPLICIT) {
-            return;
+        else if (MetadataHelper.isAssignableFrom(outerCastType, innerCastType)) {
+            value.remove();
+            node.replaceWith(value);
         }
-
-        final ConversionType valueToOuter = MetadataHelper.getNumericConversionType(outerCastType, valueType);
-
-        if (valueToOuter == ConversionType.NONE) {
-            return;
-        }
-
-        //
-        // If V -> T is equivalent to U -> T (assumed if T -> U is an implicit/non-narrowing conversion):
-        // V v; (T)(U)v => (T)v
-        //
-
-        value.remove();
-        node.replaceWith(value);
     }
 }

@@ -225,8 +225,17 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
     private void performUnboxingRemoval(final InvocationExpression e, final MemberReferenceExpression target) {
         final Expression boxedValue = target.getTarget();
+        final MethodReference unboxMethod = (MethodReference) e.getUserData(Keys.MEMBER_REFERENCE);
+        final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
         boxedValue.remove();
-        e.replaceWith(boxedValue);
+
+        e.replaceWith(
+            new CastExpression(
+                astBuilder.convertType(unboxMethod.getReturnType()),
+                boxedValue
+            )
+        );
     }
 
     private void removeUnboxingForArgument(final InvocationExpression e) {
@@ -348,12 +357,7 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         final ConversionType conversionType = MetadataHelper.getNumericConversionType(targetType, sourceType);
 
         switch (conversionType) {
-            case IMPLICIT: {
-                boxedValue.remove();
-                parent.replaceWith(boxedValue);
-                return;
-            }
-
+            case IMPLICIT:
             case EXPLICIT:
             case EXPLICIT_TO_UNBOXED: {
                 boxedValue.remove();

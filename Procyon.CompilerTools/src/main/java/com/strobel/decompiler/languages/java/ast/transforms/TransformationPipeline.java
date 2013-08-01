@@ -28,9 +28,9 @@ public final class TransformationPipeline {
             new EnumSwitchRewriterTransform(context),
             new EclipseEnumSwitchRewriterTransform(context),
             new AssertStatementTransform(context),
+            new RemoveImplicitBoxingTransform(context),
             new RemoveRedundantCastsTransform(context),
             new InsertNecessaryCastsTransform(context),
-            new RemoveImplicitBoxingTransform(context),
             new PatternStatementTransform(context),
             new BreakTargetRelocation(context),
             new DeclareVariablesTransform(context),
@@ -49,7 +49,8 @@ public final class TransformationPipeline {
             new FlattenSwitchBlocksTransform(context),
             new InlineFieldInitializersTransform(context),
             new RemoveHiddenMembersTransform(context),
-            new VarArgsTransform(context)
+            new VarArgsTransform(context),
+            new InsertConstantReferencesTransform(context)
         };
     }
 

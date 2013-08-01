@@ -205,7 +205,7 @@ public class BoxingTests extends DecompilerTest {
             defaultSettings(),
             "private static class D {\n" +
             "    boolean t(final Integer i, final int j) {\n" +
-            "        return i == Integer.valueOf(j) && i == j;\n" +
+            "        return i == Integer.valueOf(j) && (int)i == j;\n" +
             "    }\n" +
             "}\n"
         );
@@ -220,7 +220,7 @@ public class BoxingTests extends DecompilerTest {
             "    void t(final boolean b) {\n" +
             "        final Double d = 4.3;\n" +
             "        final Integer i = 3;\n" +
-            "        final short s = (short)(b ? i : Integer.valueOf((int)d.doubleValue()).intValue());\n" +
+            "        final short s = (short)(b ? ((int)i) : ((int)Integer.valueOf((int)d.doubleValue())));\n" +
             "    }\n" +
             "}\n"
         );

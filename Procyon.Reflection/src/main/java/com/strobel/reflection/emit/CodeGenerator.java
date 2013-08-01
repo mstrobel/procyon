@@ -825,6 +825,10 @@ public class CodeGenerator {
 
         final int localIndex = translateLocal(local.getLocalIndex());
 
+        if (local.startOffset < 0) {
+            local.startOffset = offset();
+        }
+
         if (localIndex < MAX_BYTE && delta <= Byte.MAX_VALUE && delta >= Byte.MIN_VALUE) {
             emit(OpCode.IINC);
             emitByteOperand(localIndex);
@@ -835,6 +839,8 @@ public class CodeGenerator {
             emitShortOperand(localIndex);
             emitShortOperand(delta);
         }
+
+        local.endOffset = offset();
     }
 
     public void emitLoad(final LocalBuilder local) {

@@ -941,6 +941,7 @@ public final class CompilerTests extends AbstractExpressionTest {
 
         final LambdaExpression<IntegerPowerDelegate> powerLambda = lambda(
             Type.of(IntegerPowerDelegate.class),
+            "power",
             block(
                 new ParameterExpressionList(accumulator),
                 assign(accumulator, base),
