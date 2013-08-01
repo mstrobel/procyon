@@ -37,6 +37,8 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Range;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -527,7 +529,14 @@ public class MethodReader {
         final List<ExceptionTableEntry> exceptionTable = _code.getExceptionTableEntries();
 
         if (!exceptionTable.isEmpty()) {
-            populateExceptionHandlerInfo(body, exceptionTable);
+//            populateExceptionHandlerInfo(body, exceptionTable);
+            _methodBody.getExceptionHandlers().addAll(ExceptionHandlerMapper.run(body, exceptionTable));
+            if (!_methodBody.getExceptionHandlers().isEmpty()) {
+                final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(_methodBody);
+                cfg.computeDominance();
+                cfg.computeDominanceFrontier();
+                cfg.export(new File("/tmp/test"));
+            }
         }
 
         return _methodBody;

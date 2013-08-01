@@ -77,11 +77,11 @@ public final class AstOptimizer {
 
         inliningPhase1.copyPropagation();
 
-        if (abortBeforeStep == AstOptimizationStep.RemoveFinallyExceptionCapture) {
+        if (abortBeforeStep == AstOptimizationStep.RewriteFinallyBlocks) {
             return;
         }
 
-        removeFinallyExceptionCapture(method);
+        rewriteFinallyBlocks(method);
 
         if (abortBeforeStep == AstOptimizationStep.SplitToMovableBlocks) {
             return;
@@ -278,9 +278,15 @@ public final class AstOptimizer {
         GotoRemoval.removeRedundantCode(method);
     }
 
-    private static void removeFinallyExceptionCapture(final Block method) {
+    // <editor-fold defaultstate="collapsed" desc="RewriteFinallyBlocks Optimization">
+
+    private static void rewriteFinallyBlocks(final Block method) {
+        rewriteNestedSynchronized(method);
+
         final List<Expression> a = new ArrayList<>();
         final StrongBox<Variable> v = new StrongBox<>();
+
+        int endFinallyCount = 0;
 
         for (final TryCatchBlock tryCatch : method.getChildrenAndSelfRecursive(TryCatchBlock.class)) {
             final Block finallyBlock = tryCatch.getFinallyBlock();
@@ -296,30 +302,142 @@ public final class AstOptimizer {
 
                 body.remove(0);
 
-                for (final Node node : body) {
-                    if (node instanceof TryCatchBlock) {
-                        final TryCatchBlock innerTryCatch = (TryCatchBlock) node;
-                        final List<CatchBlock> catchBlocks = innerTryCatch.getCatchBlocks();
+                final List<Variable> exceptionCopies = new ArrayList<>();
 
-                        for (final CatchBlock block : catchBlocks) {
-                            final List<Node> catchBody = block.getBody();
+                exceptionCopies.add(v.get());
 
-                            if (catchBody.size() >= 1 &&
-                                matchGetArguments(catchBody.get(catchBody.size() - 1), AstCode.AThrow, a) &&
-                                matchLoad(a.get(0), v.get())) {
+                if (body.isEmpty() || !PatternMatching.matchLoadStore(body.get(0), v.get(), v)) {
+                    v.set(null);
+                }
 
-                                final Expression oldThrow = (Expression) catchBody.get(catchBody.size() - 1);
+                final Label endFinallyLabel = new Label();
 
-                                oldThrow.setCode(AstCode.Leave);
-                                oldThrow.setOperand(null);
-                                oldThrow.getArguments().clear();
+                endFinallyLabel.setName("EndFinally_" + endFinallyCount++);
+
+                body.add(endFinallyLabel);
+                body.add(new Expression(AstCode.Leave, null));
+
+                for (final Expression e : finallyBlock.getSelfAndChildrenRecursive(Expression.class)) {
+                    final boolean exceptionCopy = any(
+                        exceptionCopies,
+                        new Predicate<Variable>() {
+                            @Override
+                            public boolean test(final Variable variable) {
+                                if (matchLoadStore(e, variable, v)) {
+                                    exceptionCopies.add(v.get());
+                                    return true;
+                                }
+                                return false;
                             }
+                        }
+                    );
+
+                    if (!exceptionCopy &&
+                        matchGetArguments(e, AstCode.AThrow, a) &&
+                        matchGetOperand(a.get(0), AstCode.Load, v) &&
+                        exceptionCopies.contains(v.get())) {
+
+                        e.setCode(AstCode.Goto);
+                        e.setOperand(endFinallyLabel);
+                        e.getArguments().clear();
+                    }
+                }
+            }
+        }
+
+        removeInlinedFinallyCode(method);
+    }
+
+    private static void rewriteNestedSynchronized(final Block method) {
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            final List<Node> body = block.getBody();
+
+            for (int i = 0; i < body.size() - 1; i++) {
+                final Node node = body.get(i);
+
+                if (match(node, AstCode.MonitorExit) &&
+                    match(body.get(i + 1), AstCode.MonitorExit)) {
+
+                    int lockCount = 2;
+
+                    while (i < body.size() - lockCount) {
+                        if (match(body.get(i + lockCount), AstCode.MonitorExit)) {
+                            ++lockCount;
+                        }
+                        else {
+                            break;
+                        }
+                    }
+
+                    while (lockCount-- > 0) {
+                        body.remove(i);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void removeInlinedFinallyCode(final Block method) {
+        for (final TryCatchBlock tryCatch : method.getChildrenAndSelfRecursive(TryCatchBlock.class)) {
+            final Block finallyBlock = tryCatch.getFinallyBlock();
+
+            if (finallyBlock == null || finallyBlock.getBody().isEmpty()) {
+                continue;
+            }
+
+            final Block tryBlock = tryCatch.getTryBlock();
+            final List<Node> tryBody = tryBlock.getBody();
+            final List<Node> finallyBody = finallyBlock.getBody();
+            final int removableSize = finallyBody.size() - 4;
+
+            if (tryBody.size() >= removableSize) {
+                int removeTail = tryBody.size() - 1;
+
+                if (matchUnconditionalBranch(tryBody.get(removeTail))) {
+                    --removeTail;
+                }
+
+                final int removeHead = removeTail - removableSize + 1;
+
+                if (removeHead <= 0 &&
+                    tryBody.get(0) instanceof TryCatchBlock &&
+                    tryCatch.getCatchBlocks().isEmpty()) {
+
+                    final TryCatchBlock innerTry = (TryCatchBlock) tryBody.get(0);
+
+                    tryBody.remove(0);
+                    tryBody.addAll(0, innerTry.getTryBlock().getBody());
+                }
+                else if (removeHead >= 0) {
+                    for (int i = 0, n = removableSize; i < n; i++) {
+                        tryBody.remove(removeHead);
+                    }
+                }
+            }
+
+            for (final CatchBlock catchBlock : tryCatch.getCatchBlocks()) {
+                final List<Node> catchBody = catchBlock.getBody();
+
+                if (catchBody.size() >= removableSize) {
+                    int removeTail = catchBody.size() - 1;
+
+                    if (matchUnconditionalBranch(catchBody.get(removeTail))) {
+                        --removeTail;
+                    }
+
+                    final int removeHead = removeTail - removableSize + 1;
+
+                    if (removeHead >= 0) {
+                        for (int i = 0, n = removableSize; i < n; i++) {
+                            catchBody.remove(removeHead);
                         }
                     }
                 }
             }
         }
     }
+
+    // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">
 

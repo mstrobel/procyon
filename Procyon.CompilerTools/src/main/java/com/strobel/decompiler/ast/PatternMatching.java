@@ -326,6 +326,19 @@ public final class PatternMatching {
                Comparer.equals(operand.get(), expectedVariable);
     }
 
+    public static boolean matchLoadStore(final Node node, final Variable expectedVariable, final StrongBox<Variable> targetVariable) {
+        final StrongBox<Expression> temp = new StrongBox<>();
+
+        if (matchGetArgument(node, AstCode.Store, targetVariable, temp) &&
+            matchLoad(temp.get(), expectedVariable)) {
+
+            return true;
+        }
+
+        targetVariable.set(null);
+        return false;
+    }
+
     public static boolean matchSimplifiableComparison(final Node node) {
         if (node instanceof Expression) {
             final Expression e = (Expression) node;
@@ -390,5 +403,10 @@ public final class PatternMatching {
         }
 
         return null;
+    }
+
+    public static boolean matchUnconditionalBranch(final Node node) {
+        return node instanceof Expression &&
+               ((Expression) node).getCode().isUnconditionalControlFlow();
     }
 }

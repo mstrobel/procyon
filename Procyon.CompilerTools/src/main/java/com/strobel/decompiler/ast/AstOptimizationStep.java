@@ -21,7 +21,7 @@ public enum AstOptimizationStep {
     ReduceBranchInstructionSet,
     InlineVariables,
     CopyPropagation,
-    RemoveFinallyExceptionCapture,
+    RewriteFinallyBlocks,
     SplitToMovableBlocks,
     TypeInference,
     RemoveInnerClassInitSecurityChecks,
