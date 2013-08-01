@@ -230,13 +230,23 @@ final class GotoRemoval {
             return true;
         }
 
+        if (tryInlineReturn(gotoExpression, target, AstCode.Return) ||
+            tryInlineReturn(gotoExpression, target, AstCode.AThrow)) {
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean tryInlineReturn(final Expression gotoExpression, final Node target, final AstCode code) {
         final List<Expression> expressions = new ArrayList<>();
 
-        if (matchGetArguments(target, AstCode.Return, expressions) &&
+        if (matchGetArguments(target, code, expressions) &&
             (expressions.isEmpty() ||
              expressions.size() == 1/* && Inlining.hasNoSideEffect(expressions.get(0))*/)) {
 
-            gotoExpression.setCode(AstCode.Return);
+            gotoExpression.setCode(code);
             gotoExpression.setOperand(null);
             gotoExpression.getArguments().clear();
 
@@ -259,12 +269,12 @@ final class GotoRemoval {
         if (matchGetArguments(target, AstCode.Store, v, expressions) &&
             expressions.size() == 1 &&
             /*Inlining.hasNoSideEffect(expressions.get(0)) &&*/
-            matchGetArguments(next, AstCode.Return, expressions) &&
+            matchGetArguments(next, code, expressions) &&
             expressions.size() == 1 &&
             matchGetOperand(expressions.get(0), AstCode.Load, v2) &&
             v2.get() == v.get()) {
 
-            gotoExpression.setCode(AstCode.Return);
+            gotoExpression.setCode(code);
             gotoExpression.setOperand(null);
             gotoExpression.getArguments().clear();
             gotoExpression.getArguments().add(((Expression) target).getArguments().get(0).clone());
@@ -531,6 +541,7 @@ final class GotoRemoval {
                     for (final TryCatchBlock tryCatchBlock : method.getSelfAndChildrenRecursive(TryCatchBlock.class)) {
                         final Block finallyBlock = tryCatchBlock.getFinallyBlock();
 
+/*
                         if (finallyBlock == null) {
                             continue;
                         }
@@ -539,6 +550,25 @@ final class GotoRemoval {
 
                         if (firstInBody == target.get()) {
                             continue outer;
+                        }
+*/
+                        if (finallyBlock != null) {
+                            final Node firstInBody = firstOrDefault(finallyBlock.getBody());
+
+                            if (firstInBody == target.get()) {
+                                e.setCode(AstCode.Leave);
+                                e.setOperand(null);
+                                continue outer;
+                            }
+                        }
+                        else if (tryCatchBlock.getCatchBlocks().size() == 1) {
+                            final Node firstInBody = firstOrDefault(first(tryCatchBlock.getCatchBlocks()).getBody());
+
+                            if (firstInBody == target.get()) {
+                                e.setCode(AstCode.Leave);
+                                e.setOperand(null);
+                                continue outer;
+                            }
                         }
                     }
                 }
@@ -631,7 +661,7 @@ final class GotoRemoval {
         }
 
         //
-        // Remove unreachable return statements.
+        // Remove unreachable return/throw statements.
         //
 
         boolean modified = false;
@@ -641,7 +671,8 @@ final class GotoRemoval {
 
             for (int i = 0; i < blockBody.size() - 1; i++) {
                 if (blockBody.get(i).isUnconditionalControlFlow() &&
-                    match(blockBody.get(i + 1), AstCode.Return)) {
+                    (match(blockBody.get(i + 1), AstCode.Return) ||
+                     match(blockBody.get(i + 1), AstCode.AThrow))) {
 
                     modified = true;
                     blockBody.remove(i-- + 1);

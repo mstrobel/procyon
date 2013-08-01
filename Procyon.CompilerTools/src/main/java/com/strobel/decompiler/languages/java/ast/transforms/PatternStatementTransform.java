@@ -1225,7 +1225,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         Statement result = null;
 
         for (final BlockStatement block : blocks) {
-            if (!DeclareVariablesTransform.findDeclarationPoint(analysis, declaration, block, declarationPoint)) {
+            if (!DeclareVariablesTransform.findDeclarationPoint(analysis, declaration, block, declarationPoint, null)) {
                 break;
             }
             result = declarationPoint.get();

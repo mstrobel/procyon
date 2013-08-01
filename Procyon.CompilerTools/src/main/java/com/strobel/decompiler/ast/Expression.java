@@ -163,8 +163,8 @@ public final class Expression extends Node implements Cloneable, UserDataStore {
         final TypeReference inferredType = _inferredType;
         final TypeReference expectedType = _expectedType;
 
-        if (operand instanceof Variable &&
-            ((Variable) operand).isGenerated()) {
+        if (operand instanceof Variable /*&&
+            ((Variable) operand).isGenerated()*/) {
 
             if (AstCodeHelpers.isLocalStore(code)) {
                 output.write(((Variable) operand).getName());

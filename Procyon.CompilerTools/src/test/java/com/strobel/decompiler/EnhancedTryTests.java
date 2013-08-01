@@ -17,26 +17,17 @@ import java.io.IOException;
 import java.io.StringWriter;
 
 public class EnhancedTryTests {
-    public void testEnhancedTryEmpty() throws IOException {
+    public void testEnhancedTryOneResource() throws IOException {
         try (final StringWriter writer = new StringWriter()) {
             writer.write("This is only a test.");
         }
     }
 
-/*
-    public void testEnhancedTryMinimal() throws IOException {
-        try (final StringWriter writer = new StringWriter()) {
-            writer.write("This is only a test.");
+    public void testEnhancedTryTwoResources() throws IOException {
+        try (final StringWriter writer1 = new StringWriter();
+             final StringWriter writer2 = new StringWriter()) {
+            writer1.write("This is only a test.");
+            writer2.write("This is also a test.");
         }
     }
-
-    public void testEnhancedTryMinimalEmptyCatch() {
-        try (final StringWriter writer = new StringWriter()) {
-            writer.write("This is only a test.");
-        }
-        catch (IOException ignored) {
-            return;
-        }
-    }
-*/
 }

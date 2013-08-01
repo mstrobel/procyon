@@ -26,6 +26,7 @@ public final class TryCatchBlock extends Node {
     private final List<CatchBlock> _catchBlocks = new Collection<>();
     private Block _tryBlock;
     private Block _finallyBlock;
+    private boolean _isSimpleSynchronized;
 
     public final Block getTryBlock() {
         return _tryBlock;
@@ -47,6 +48,14 @@ public final class TryCatchBlock extends Node {
         _finallyBlock = finallyBlock;
     }
 
+    public final boolean isSimpleSynchronized() {
+        return _isSimpleSynchronized;
+    }
+
+    public final void setSimpleSynchronized(final boolean simpleSynchronized) {
+        _isSimpleSynchronized = simpleSynchronized;
+    }
+
     @Override
     public final List<Node> getChildren() {
         final int size = _catchBlocks.size() + (_tryBlock != null ? 1 : 0) + (_finallyBlock != null ? 1 : 0);
@@ -63,6 +72,7 @@ public final class TryCatchBlock extends Node {
         }
 
         if (_finallyBlock != null) {
+            //noinspection UnusedAssignment
             children[i++] = _finallyBlock;
         }
 

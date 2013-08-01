@@ -137,6 +137,32 @@ public class HandlerTests extends DecompilerTest {
         }
     }
 
+    private static class G {
+        void test() {
+            try {
+                System.out.println("try");
+                try {
+                    System.out.println("inner try");
+                }
+                catch (RuntimeException e) {
+                    System.out.println("inner catch");
+                }
+                finally {
+                    System.out.println("inner finally");
+                }
+                System.out.println("end of outer try");
+            }
+            catch (RuntimeException e) {
+                System.out.println("catch");
+                return;
+            }
+            finally {
+                System.out.println("finally");
+            }
+            System.out.println("exit");
+        }
+    }
+
     @Test
     public void testThrowsSignatures() throws Throwable {
         verifyOutput(

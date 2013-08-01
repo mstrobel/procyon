@@ -1054,7 +1054,6 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         node.getStatement().acceptVisitor(this, _);
-        newLine();
         endNode(node);
         return null;
     }

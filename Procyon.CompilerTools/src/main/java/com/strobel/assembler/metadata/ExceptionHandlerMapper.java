@@ -17,6 +17,7 @@ import com.strobel.assembler.ir.OperandType;
 import com.strobel.assembler.ir.attributes.ExceptionTableEntry;
 import com.strobel.core.Predicate;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.InstructionHelper;
 
 import java.util.*;
 
@@ -62,7 +63,7 @@ public final class ExceptionHandlerMapper {
             final ControlFlowNode handlerStart = handlerStartNodes.get(entry);
             final List<ControlFlowNode> dominatedNodes = new ArrayList<>();
 
-            dominatedNodes.addAll(findDominatedNodes(handlerStart));
+            dominatedNodes.addAll(findDominatedNodes(cfg, handlerStart));
 
             Collections.sort(
                 dominatedNodes,
@@ -134,7 +135,7 @@ public final class ExceptionHandlerMapper {
         );
     }
 
-    private static Set<ControlFlowNode> findDominatedNodes(final ControlFlowNode head) {
+    private static Set<ControlFlowNode> findDominatedNodes(final ControlFlowGraph cfg, final ControlFlowNode head) {
         final Set<ControlFlowNode> agenda = new LinkedHashSet<>();
         final Set<ControlFlowNode> result = new LinkedHashSet<>();
 
@@ -149,7 +150,9 @@ public final class ExceptionHandlerMapper {
                 continue;
             }
 
-            if (!head.dominates(addNode)) {
+            if (!head.dominates(addNode) &&
+                !shouldIncludeExceptionalExit(cfg, head, addNode)) {
+
                 continue;
             }
 
@@ -163,6 +166,26 @@ public final class ExceptionHandlerMapper {
         }
 
         return result;
+    }
+
+    private static boolean shouldIncludeExceptionalExit(final ControlFlowGraph cfg, final ControlFlowNode head, final ControlFlowNode node) {
+        if (!node.getDominanceFrontier().contains(cfg.getExceptionalExit())) {
+            return false;
+        }
+
+        if (node.getStart().getNext() != node.getEnd()) {
+            return false;
+        }
+
+        if (head.getStart().getOpCode().isStore() &&
+            node.getStart().getOpCode().isLoad() &&
+            node.getEnd().getOpCode() == OpCode.ATHROW) {
+
+            return InstructionHelper.getLoadOrStoreSlot(head.getStart()) ==
+                   InstructionHelper.getLoadOrStoreSlot(node.getStart());
+        }
+
+        return false;
     }
 
     private final InstructionCollection _instructions;
