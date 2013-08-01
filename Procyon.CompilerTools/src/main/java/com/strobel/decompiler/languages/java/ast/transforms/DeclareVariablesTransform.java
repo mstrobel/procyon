@@ -261,6 +261,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private void declareVariableInBlock(
         final DefiniteAssignmentAnalysis analysis,
         final BlockStatement block,
@@ -279,7 +280,8 @@ public class DeclareVariablesTransform implements IAstTransform {
             variableName,
             allowPassIntoLoops,
             block,
-            declarationPoint
+            declarationPoint,
+            null
         );
 
         if (declarationPoint.get() == null) {
@@ -309,10 +311,34 @@ public class DeclareVariablesTransform implements IAstTransform {
                     else if (hasNestedBlocks(child)) {
                         for (final AstNode nestedChild : child.getChildren()) {
                             if (nestedChild instanceof BlockStatement) {
-                                declareVariableInBlock(analysis, (BlockStatement) nestedChild, type, variableName, variable, allowPassIntoLoops);
+                                declareVariableInBlock(
+                                    analysis,
+                                    (BlockStatement) nestedChild,
+                                    type,
+                                    variableName,
+                                    variable,
+                                    allowPassIntoLoops
+                                );
                             }
                         }
                     }
+                }
+
+                final boolean canStillMoveIntoSubBlocks = findDeclarationPoint(
+                    analysis,
+                    variableName,
+                    allowPassIntoLoops,
+                    block,
+                    declarationPoint,
+                    statement
+                );
+
+                if (!canStillMoveIntoSubBlocks && declarationPoint.get() != null) {
+                    if (!tryConvertAssignmentExpressionIntoVariableDeclaration(block, declarationPoint.get(), type, variableName)) {
+                        final VariableToDeclare vtd = new VariableToDeclare(type, variableName, variable, declarationPoint.get(), block);
+                        variablesToDeclare.add(vtd);
+                    }
+                    return;
                 }
             }
         }
@@ -326,11 +352,12 @@ public class DeclareVariablesTransform implements IAstTransform {
         final DefiniteAssignmentAnalysis analysis,
         final VariableDeclarationStatement declaration,
         final BlockStatement block,
-        final StrongBox<Statement> declarationPoint) {
+        final StrongBox<Statement> declarationPoint,
+        final Statement skipUpThrough) {
 
         final String variableName = declaration.getVariables().firstOrNullObject().getName();
 
-        return findDeclarationPoint(analysis, variableName, true, block, declarationPoint);
+        return findDeclarationPoint(analysis, variableName, true, block, declarationPoint, skipUpThrough);
     }
 
     static boolean findDeclarationPoint(
@@ -338,11 +365,20 @@ public class DeclareVariablesTransform implements IAstTransform {
         final String variableName,
         final boolean allowPassIntoLoops,
         final BlockStatement block,
-        final StrongBox<Statement> declarationPoint) {
+        final StrongBox<Statement> declarationPoint,
+        final Statement skipUpThrough) {
 
         declarationPoint.set(null);
 
+        Statement waitFor = skipUpThrough;
+
         for (final Statement statement : block.getStatements()) {
+            if (waitFor != null && statement != waitFor) {
+                continue;
+            }
+
+            waitFor = null;
+
             if (usesVariable(statement, variableName)) {
                 if (declarationPoint.get() != null) {
                     return canRedeclareVariable(statement, variableName);
@@ -450,6 +486,10 @@ public class DeclareVariablesTransform implements IAstTransform {
     }
 
     private static boolean usesVariable(final AstNode node, final String variableName) {
+        if (node instanceof AnonymousObjectCreationExpression) {
+            return false;
+        }
+
         if (node instanceof IdentifierExpression) {
             if (StringUtilities.equals(((IdentifierExpression) node).getIdentifier(), variableName)) {
                 return true;
@@ -539,27 +579,21 @@ public class DeclareVariablesTransform implements IAstTransform {
             }
         }
 
-        AstNode current = node;
+        for (AstNode prev = node.getPreviousSibling();
+             prev != null &&
+             !prev.isNull(); prev = prev.getPreviousSibling()) {
 
-        while (current != null && !current.isNull()) {
-            for (AstNode prev = current.getPreviousSibling();
-                 prev != null &&
-                 !prev.isNull(); prev = prev.getPreviousSibling()) {
+            if (usesVariable(prev, variableName)) {
+                final Statement statement = firstOrDefault(ofType(prev.getAncestorsAndSelf(), Statement.class));
 
-                if (usesVariable(prev, variableName)) {
-                    final Statement statement = firstOrDefault(ofType(prev.getAncestorsAndSelf(), Statement.class));
+                if (statement == null) {
+                    return false;
+                }
 
-                    if (statement == null) {
-                        return false;
-                    }
-
-                    if (!canMoveVariableIntoSubBlock(statement, variableName, true)) {
-                        return false;
-                    }
+                if (!canMoveVariableIntoSubBlock(statement, variableName, true)) {
+                    return false;
                 }
             }
-
-            current = current.getParent();
         }
 
         return true;
