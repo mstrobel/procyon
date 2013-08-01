@@ -20,6 +20,7 @@ import com.strobel.assembler.metadata.*;
 import com.strobel.core.*;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.functions.Function;
+import com.strobel.functions.Suppliers;
 import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
@@ -492,6 +493,10 @@ public final class AstOptimizer {
 
                 if (matchUnconditionalBranch(tryBody.get(removeTail))) {
                     --removeTail;
+
+                    if (removeTail > 0 && tryBody.get(removeTail) instanceof Label) {
+                        --removeTail;
+                    }
                 }
 
                 final int removeHead = removeTail - removableSize + 1;
@@ -520,6 +525,10 @@ public final class AstOptimizer {
 
                     if (matchUnconditionalBranch(catchBody.get(removeTail))) {
                         --removeTail;
+
+                        if (removeTail > 0 && catchBody.get(removeTail) instanceof Label) {
+                            --removeTail;
+                        }
                     }
 
                     final int removeHead = removeTail - removableSize + 1;
@@ -622,33 +631,60 @@ public final class AstOptimizer {
                     final StrongBox<Variable> v1 = new StrongBox<>();
                     final StrongBox<Variable> v2 = new StrongBox<>();
 
-                    if (!PatternMatching.matchGetOperand(args.get(0), AstCode.Load, v1) ||
-                        !PatternMatching.matchGetOperand(args.get(1), AstCode.Load, v2)) {
-
-                        throw new IllegalStateException("Pop2 should just have Load arguments at this stage.");
-                    }
-
-                    //
-                    // Best effort to move bytecode range to previous statement.
-                    //
-
                     final StrongBox<Variable> pv1 = new StrongBox<>();
-                    final StrongBox<Variable> pv2 = new StrongBox<>();
                     final StrongBox<Expression> pe1 = new StrongBox<>();
-                    final StrongBox<Expression> pe2 = new StrongBox<>();
 
-                    if (i - 2 >= 0 &&
-                        matchGetArgument(body.get(i - 2), AstCode.Store, pv1, pe1) &&
-                        pv1.get() == v1.get() &&
-                        matchGetArgument(body.get(i - 1), AstCode.Store, pv2, pe2) &&
-                        pv2.get() == v2.get()) {
+                    if (args.size() == 1) {
+                        if (!PatternMatching.matchGetOperand(args.get(0), AstCode.Load, v1)) {
+                            throw new IllegalStateException("Pop2 should just have Load arguments at this stage.");
+                        }
 
-                        pe1.get().getRanges().addAll(((Expression) node).getRanges());
-                        pe2.get().getRanges().addAll(((Expression) node).getRanges());
+                        if (!v1.get().getType().getSimpleType().isDoubleWord()) {
+                            throw new IllegalStateException("Pop2 instruction has only one single-word operand.");
+                        }
 
                         //
-                        // Ignore POP2.
+                        // Best effort to move bytecode range to previous statement.
                         //
+
+                        if (i - 1 >= 0 &&
+                            matchGetArgument(body.get(i - 1), AstCode.Store, pv1, pe1) &&
+                            pv1.get() == v1.get()) {
+
+                            pe1.get().getRanges().addAll(((Expression) node).getRanges());
+
+                            //
+                            // Ignore POP2.
+                            //
+                        }
+                    }
+                    else {
+                        if (!PatternMatching.matchGetOperand(args.get(0), AstCode.Load, v1) ||
+                            !PatternMatching.matchGetOperand(args.get(1), AstCode.Load, v2)) {
+
+                            throw new IllegalStateException("Pop2 should just have Load arguments at this stage.");
+                        }
+
+                        //
+                        // Best effort to move bytecode range to previous statement.
+                        //
+
+                        final StrongBox<Variable> pv2 = new StrongBox<>();
+                        final StrongBox<Expression> pe2 = new StrongBox<>();
+
+                        if (i - 2 >= 0 &&
+                            matchGetArgument(body.get(i - 2), AstCode.Store, pv1, pe1) &&
+                            pv1.get() == v1.get() &&
+                            matchGetArgument(body.get(i - 1), AstCode.Store, pv2, pe2) &&
+                            pv2.get() == v2.get()) {
+
+                            pe1.get().getRanges().addAll(((Expression) node).getRanges());
+                            pe2.get().getRanges().addAll(((Expression) node).getRanges());
+
+                            //
+                            // Ignore POP2.
+                            //
+                        }
                     }
                 }
                 else if (node instanceof Label) {
@@ -1411,9 +1447,27 @@ public final class AstOptimizer {
                 matchGetOperand(headBody.get(headBody.size() - 1), AstCode.Goto, nextLabel) &&
                 labelGlobalRefCount.get(nextLabel.get()).getValue() == 1 &
                 (nextBlock = labelToBasicBlock.get(nextLabel.get())) != null &&
+                nextBlock != EMPTY_BLOCK &&
                 body.contains(nextBlock) &&
                 nextBlock.getBody().get(0) == nextLabel.get() &&
                 !CollectionUtilities.any(nextBlock.getBody(), Predicates.instanceOf(BasicBlock.class))) {
+
+                final Node secondInNext = getOrDefault(nextBlock.getBody(), 1);
+
+                if (secondInNext instanceof TryCatchBlock) {
+                    final Block tryBlock = ((TryCatchBlock) secondInNext).getTryBlock();
+                    final Node firstInTry = firstOrDefault(tryBlock.getBody());
+
+                    if (firstInTry instanceof BasicBlock) {
+                        final Node firstInTryBody = firstOrDefault(((BasicBlock) firstInTry).getBody());
+
+                        if (firstInTryBody instanceof Label &&
+                            labelGlobalRefCount.get(firstInTryBody).getValue() > 1) {
+
+                            return false;
+                        }
+                    }
+                }
 
                 removeTail(headBody, AstCode.Goto);
                 nextBlock.getBody().remove(0);
@@ -2502,8 +2556,10 @@ public final class AstOptimizer {
 
     @SuppressWarnings("ProtectedField")
     private static abstract class AbstractBasicBlockOptimization implements BasicBlockOptimization {
+        protected final static BasicBlock EMPTY_BLOCK = new BasicBlock();
+
         protected final Map<Label, MutableInteger> labelGlobalRefCount = new DefaultMap<>(MutableInteger.SUPPLIER);
-        protected final Map<Label, BasicBlock> labelToBasicBlock = new IdentityHashMap<>();
+        protected final Map<Label, BasicBlock> labelToBasicBlock = new DefaultMap<>(Suppliers.forValue(EMPTY_BLOCK));
 
         protected final DecompilerContext context;
         protected final IMetadataResolver resolver;

@@ -42,6 +42,18 @@ public final class ControlFlowEdge {
     }
 
     @Override
+    public boolean equals(final Object obj) {
+        if (obj instanceof ControlFlowEdge) {
+            final ControlFlowEdge other = (ControlFlowEdge) obj;
+
+            return other._source == _source &&
+                   other._target == _target;
+        }
+
+        return false;
+    }
+
+    @Override
     public final String toString() {
         switch (_type) {
             case Normal:

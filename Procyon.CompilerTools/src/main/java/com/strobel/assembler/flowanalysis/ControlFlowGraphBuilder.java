@@ -154,7 +154,7 @@ public final class ControlFlowGraphBuilder {
                 final Instruction instruction = instructions.get(i);
                 final OpCode opCode = instruction.getOpCode();
 
-                if (opCode.isUnconditionalBranch() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
+                if (opCode.isBranch() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
                     break;
                 }
 
@@ -314,31 +314,31 @@ public final class ControlFlowGraphBuilder {
 //                        );
 //                    }
 //                    else {
-                        final ControlFlowNode parentHandler = findParentExceptionHandlerNode(node);
+                    final ControlFlowNode parentHandler = findParentExceptionHandlerNode(node);
 
-                        if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
-                            createEdge(node, parentHandler, JumpType.JumpToExceptionHandler);
-                        }
+                    if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
+                        createEdge(node, parentHandler, JumpType.JumpToExceptionHandler);
+                    }
 
-                        if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
-                            for (final ExceptionHandler handler : _exceptionHandlers) {
-                                if (Comparer.equals(handler.getTryBlock(), parentHandler.getExceptionHandler().getTryBlock())) {
-                                    final ControlFlowNode handlerNode = firstOrDefault(
-                                        _nodes,
-                                        new Predicate<ControlFlowNode>() {
-                                            @Override
-                                            public boolean test(final ControlFlowNode node) {
-                                                return node.getExceptionHandler() == handler;
-                                            }
+                    if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
+                        for (final ExceptionHandler handler : _exceptionHandlers) {
+                            if (Comparer.equals(handler.getTryBlock(), parentHandler.getExceptionHandler().getTryBlock())) {
+                                final ControlFlowNode handlerNode = firstOrDefault(
+                                    _nodes,
+                                    new Predicate<ControlFlowNode>() {
+                                        @Override
+                                        public boolean test(final ControlFlowNode node) {
+                                            return node.getExceptionHandler() == handler;
                                         }
-                                    );
-
-                                    if (handlerNode != node && handlerNode != parentHandler) {
-                                        createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
                                     }
+                                );
+
+                                if (handlerNode != node && handlerNode != parentHandler) {
+                                    createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
                                 }
                             }
                         }
+                    }
 //                    }
                 }
 
@@ -580,6 +580,15 @@ public final class ControlFlowGraphBuilder {
 
     private ControlFlowEdge createEdge(final ControlFlowNode fromNode, final ControlFlowNode toNode, final JumpType type) {
         final ControlFlowEdge edge = new ControlFlowEdge(fromNode, toNode, type);
+
+        for (final ControlFlowEdge existingEdge : fromNode.getOutgoing()) {
+            if (existingEdge.getSource() == fromNode &&
+                existingEdge.getTarget() == toNode &&
+                existingEdge.getType() == type) {
+
+                return existingEdge;
+            }
+        }
 
         fromNode.getOutgoing().add(edge);
         toNode.getIncoming().add(edge);

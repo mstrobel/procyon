@@ -265,6 +265,8 @@ public final class AstBuilder {
                         --i;
                         break;
                     }
+
+                    --j;
                 }
             }
         }
@@ -331,6 +333,73 @@ public final class AstBuilder {
                 }
             }
         }
+
+        //
+        // Look for finally blocks which duplicate an outer catch.
+        //
+
+        for (int i = 0; i < handlers.size(); i++) {
+            final ExceptionHandler handler = handlers.get(i);
+            final ExceptionBlock tryBlock = handler.getTryBlock();
+            final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+
+            if (!handler.isFinally()) {
+                continue;
+            }
+
+            final ExceptionHandler innermostHandler = findInnermostExceptionHandler(
+                tryBlock.getFirstInstruction().getOffset(),
+                handler
+            );
+
+            if (innermostHandler == null ||
+                innermostHandler == handler ||
+                innermostHandler.isFinally()) {
+
+                continue;
+            }
+
+            for (int j = 0; j < handlers.size(); j++) {
+                final ExceptionHandler sibling = handlers.get(j);
+
+                if (sibling != handler &&
+                    sibling != innermostHandler &&
+                    sibling.getTryBlock().equals(handlerBlock) &&
+                    sibling.getHandlerBlock().equals(innermostHandler.getHandlerBlock())) {
+
+                    handlers.remove(j);
+
+                    if (j < i) {
+                        --i;
+                        break;
+                    }
+
+                    --j;
+                }
+            }
+        }
+    }
+
+    private ExceptionHandler findInnermostExceptionHandler(final int offsetInTryBlock, final ExceptionHandler exclude) {
+        ExceptionHandler result = null;
+
+        for (final ExceptionHandler handler : _exceptionHandlers) {
+            if (handler == exclude) {
+                continue;
+            }
+
+            final ExceptionBlock tryBlock = handler.getTryBlock();
+
+            if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
+                offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
+                (result == null ||
+                 tryBlock.getFirstInstruction().getOffset() > result.getTryBlock().getFirstInstruction().getOffset())) {
+
+                result = handler;
+            }
+        }
+
+        return result;
     }
 
     private void closeTryHandlerGaps() {
@@ -711,7 +780,9 @@ public final class AstBuilder {
                 }
                 else {
                     if (branchTarget.stackBefore.length != newStack.length) {
-                        throw new IllegalStateException("Inconsistent stack size at " + byteCode.name() + ".");
+                        throw new IllegalStateException(
+                            "Inconsistent stack size at " + branchTarget.name()
+                            + " (coming from " + byteCode.name() + ").");
                     }
 
                     //
