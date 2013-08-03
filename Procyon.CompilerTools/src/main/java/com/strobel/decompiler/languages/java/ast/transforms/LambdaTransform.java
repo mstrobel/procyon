@@ -74,7 +74,6 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
     }
 
     private void inlineLambda(final MethodGroupExpression methodGroup, final MethodDefinition method) {
-
         final MethodDeclaration declaration = _methodDeclarations.get(makeMethodKey(method));
 
         if (declaration == null) {
@@ -133,6 +132,11 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
         );
 
         final LambdaExpression lambda = new LambdaExpression();
+        final DynamicCallSite callSite = methodGroup.getUserData(Keys.DYNAMIC_CALL_SITE);
+
+        if (callSite != null) {
+            lambda.putUserData(Keys.DYNAMIC_CALL_SITE, callSite);
+        }
 
         body.remove();
 

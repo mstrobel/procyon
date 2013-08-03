@@ -30,7 +30,7 @@ public final class InsertParenthesesVisitor extends DepthFirstAstVisitor<Void, V
     private final static Function<AstNode, AstNode> PARENTHESIZE_FUNCTION = new Function<AstNode, AstNode>() {
         @Override
         public AstNode apply(final AstNode input) {
-            return new ParenthesizedExpression((Expression)input);
+            return new ParenthesizedExpression((Expression) input);
         }
     };
 
@@ -186,7 +186,9 @@ public final class InsertParenthesesVisitor extends DepthFirstAstVisitor<Void, V
     public Void visitCastExpression(final CastExpression node, final Void data) {
         final Expression child = node.getExpression();
 
-        parenthesizeIfRequired(child, _insertParenthesesForReadability ? PRIMARY : UNARY);
+        if (!(child instanceof CastExpression)) {
+            parenthesizeIfRequired(child, _insertParenthesesForReadability ? PRIMARY : UNARY);
+        }
 
         if (child instanceof UnaryOperatorExpression) {
             final UnaryOperatorExpression childUnary = (UnaryOperatorExpression) child;
