@@ -213,19 +213,10 @@ public final class RedundantCastUtility {
             return super.visitBinaryOperatorExpression(node, data);
         }
 
-/*
-        @Override
-        public Void visitConditionalExpression(final ConditionalExpression node, final Void data) {
-            super.visitChildren(node, data);
-            return null;
-        }
-*/
-
         @Override
         public Void visitInvocationExpression(final InvocationExpression node, final Void data) {
-            super.visitChildren(node, data);
             processCall(node);
-            return null;
+            return super.visitInvocationExpression(node, data);
         }
 
         @Override
@@ -334,8 +325,9 @@ public final class RedundantCastUtility {
                         final Expression thenExpression = ((ConditionalExpression) parent).getTrueExpression();
                         final Expression elseExpression = ((ConditionalExpression) parent).getFalseExpression();
                         final Expression opposite = (thenExpression == node) ? elseExpression : thenExpression;
+                        final TypeReference oppositeType = getType(opposite);
 
-                        if (opposite == null || !MetadataHelper.isSameType(conditionalType, getType(opposite), true)) {
+                        if (oppositeType == null || !MetadataHelper.isSameType(conditionalType, oppositeType, true)) {
                             return null;
                         }
                     }
@@ -362,7 +354,14 @@ public final class RedundantCastUtility {
                     // TODO: Implement getFunctionalInterfaceType().
                     //
 
-                    final TypeReference functionalInterfaceType = getType(e);
+                    final DynamicCallSite callSite = e.getUserData(Keys.DYNAMIC_CALL_SITE);
+
+                    if (callSite == null) {
+                        return null;
+                    }
+
+                    final MethodReference method = (MethodReference) callSite.getBootstrapArguments().get(0);
+                    final TypeReference functionalInterfaceType = method.getDeclaringType();
 
                     if (!MetadataHelper.isAssignableFrom(topCastType, functionalInterfaceType, false)) {
                         return null;
@@ -441,9 +440,24 @@ public final class RedundantCastUtility {
             if (operand instanceof CastExpression) {
                 final CastExpression cast = (CastExpression) operand;
                 final Expression toCast = cast.getExpression();
+                final TypeReference castType = getType(cast);
+                final TypeReference innerType = getType(toCast);
 
-                if (toCast != null &&
-                    TypeUtilities.isBinaryOperatorApplicable(op, getType(toCast), otherType, false)) {
+                if (castType != null &&
+                    TypeUtilities.isBinaryOperatorApplicable(op, innerType, otherType, false)) {
+
+                    if (castType.isPrimitive() &&
+                        !otherType.isPrimitive() &&
+                        (op == BinaryOperatorType.EQUALITY || op == BinaryOperatorType.INEQUALITY)) {
+
+
+                        if (innerType == null || !innerType.isPrimitive()) {
+                            //
+                            // Don't change an unboxing (in)equality operator to a reference (in)equality operator.
+                            //
+                            return;
+                        }
+                    }
 
                     addToResults(cast, false);
                 }
@@ -485,12 +499,6 @@ public final class RedundantCastUtility {
                 targetType = method.getDeclaringType();
             }
 
-            final TypeDefinition resolvedTarget = targetType != null ? targetType.resolve() : null;
-
-            if (resolvedTarget == null) {
-                return;
-            }
-
             final List<MethodReference> candidates = MetadataHelper.findMethods(
                 targetType,
                 MetadataFilters.matchName(method.getName())
@@ -502,6 +510,17 @@ public final class RedundantCastUtility {
             final Expression lastArgument = arguments.lastOrNullObject();
 
             List<TypeReference> newTypes = null;
+            int syntheticLeadingCount = 0;
+
+            for (final ParameterDefinition parameter : parameters) {
+                if (parameter.isSynthetic()) {
+                    ++syntheticLeadingCount;
+                    originalTypes.add(parameter.getParameterType());
+                }
+                else {
+                    break;
+                }
+            }
 
             for (final Expression argument : arguments) {
                 final TypeReference argumentType = getType(argument);
@@ -513,7 +532,7 @@ public final class RedundantCastUtility {
                 originalTypes.add(argumentType);
             }
 
-            int i = 0;
+            int i = syntheticLeadingCount;
 
             for (Expression a = arguments.firstOrNullObject();
                  a != null && !a.isNull();
@@ -540,12 +559,26 @@ public final class RedundantCastUtility {
 
                 final CastExpression cast = (CastExpression) arg;
                 final Expression castOperand = cast.getExpression();
+                final TypeReference castType = getType(cast);
                 final TypeReference operandType = getType(castOperand);
 
-                if (operandType == null) {
+                if (castType == null || operandType == null) {
                     continue;
                 }
-                else if (newTypes == null) {
+
+                if (castType.isPrimitive() && !operandType.isPrimitive()) {
+                    final ParameterDefinition p = parameters.get(i);
+                    final TypeReference parameterType = p.getParameterType();
+
+                    if (!parameterType.isPrimitive()) {
+                        //
+                        // Don't mark a cast as redundant if it has a side effect (possible NullPointerException).
+                        //
+                        continue;
+                    }
+                }
+
+                if (newTypes == null) {
                     newTypes = new ArrayList<>(originalTypes);
                 }
                 else {
@@ -595,7 +628,8 @@ public final class RedundantCastUtility {
             if (parent == null ||
                 cast.getRole() == Roles.ARGUMENT ||
                 parent instanceof ReturnStatement ||
-                parent instanceof CastExpression) {
+                parent instanceof CastExpression ||
+                parent instanceof BinaryOperatorExpression) {
 
                 //
                 // Null, or handled by ancestor.
@@ -637,7 +671,10 @@ public final class RedundantCastUtility {
 
                 final TypeReference referenceType = getType(parent);
 
-                if (referenceType != null && !isCastRedundantInReferenceExpression(referenceType, operand)) {
+                if (!operandType.isPrimitive() &&
+                    referenceType != null &&
+                    !isCastRedundantInReferenceExpression(referenceType, operand)) {
+
                     return;
                 }
             }

@@ -105,9 +105,4 @@ public class MemberReferenceExpression extends Expression {
 
         return false;
     }
-
-    @Override
-    public boolean isReference() {
-        return true;
-    }
 }

@@ -6,6 +6,7 @@ import com.strobel.assembler.metadata.CommonClassReferences;
 import com.strobel.assembler.metadata.DynamicCallSite;
 import com.strobel.assembler.metadata.JvmType;
 import com.strobel.assembler.metadata.MetadataHelper;
+import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.Comparer;
 import com.strobel.core.StringUtilities;
@@ -273,9 +274,13 @@ public final class TypeUtilities {
             if (lambdaExpression != null) {
                 final DynamicCallSite callSite = lambdaExpression.getUserData(Keys.DYNAMIC_CALL_SITE);
 
-                if (callSite != null) {
-                    return (TypeReference) callSite.getMethodType();
+                if (callSite == null) {
+                    return null;
                 }
+
+                final MethodReference method = (MethodReference) callSite.getBootstrapArguments().get(0);
+
+                return method.getDeclaringType();
             }
             else {
                 final MethodDeclaration method = firstOrDefault(parent.getAncestors(MethodDeclaration.class));

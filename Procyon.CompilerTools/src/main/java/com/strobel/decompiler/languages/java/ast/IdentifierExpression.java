@@ -68,9 +68,4 @@ public class IdentifierExpression extends Expression {
 
         return false;
     }
-
-    @Override
-    public boolean isReference() {
-        return true;
-    }
 }

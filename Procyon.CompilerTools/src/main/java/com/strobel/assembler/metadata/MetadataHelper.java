@@ -30,8 +30,9 @@ import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public final class MetadataHelper {
     public static int getArrayRank(final TypeReference t) {
-        if (t == null)
+        if (t == null) {
             return 0;
+        }
 
         int rank = 0;
         TypeReference current = t;
@@ -204,6 +205,10 @@ public final class MetadataHelper {
 
         if (underlyingTarget.getSimpleType().isNumeric() && underlyingSource.getSimpleType().isNumeric()) {
             return getNumericConversionType(target, source);
+        }
+
+        if (StringUtilities.equals(target.getInternalName(), "java/lang/Object")) {
+            return ConversionType.IMPLICIT;
         }
 
         if (isSameType(target, source, true)) {
@@ -846,7 +851,7 @@ public final class MetadataHelper {
 
         List<MethodReference> results = null;
 
-        agenda.addLast(type);
+        agenda.addLast(getUpperBound(type));
         descriptors.add(type.getInternalName());
 
         while (!agenda.isEmpty()) {
