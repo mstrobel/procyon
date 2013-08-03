@@ -43,6 +43,8 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import static com.strobel.core.CollectionUtilities.ofType;
+
 public abstract class AstNode extends Freezable implements INode, UserDataStore, Cloneable {
     final static Role<AstNode> ROOT_ROLE = new Role<>("Root", AstNode.class);
 
@@ -259,6 +261,11 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         return node != null && node.isAncestorOf(this);
     }
 
+    public final <T extends AstNode> Iterable<T> getAncestors(@NotNull final Class<T> type) {
+        VerifyArgument.notNull(type, "type");
+        return ofType(getAncestors(), type);
+    }
+
     public final Iterable<AstNode> getAncestors() {
         return new Iterable<AstNode>() {
             @NotNull
@@ -353,6 +360,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         );
     }
 
+    @NotNull
     @SuppressWarnings("unchecked")
     public final <T extends AstNode> T getChildByRole(final Role<T> role) {
         VerifyArgument.notNull(role, "role");
@@ -368,6 +376,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         return role.getNullObject();
     }
 
+    @NotNull
     public final <T extends AstNode> AstNodeCollection<T> getChildrenByRole(final Role<T> role) {
         return new AstNodeCollection<>(this, role);
     }
@@ -699,6 +708,10 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     // <editor-fold defaultstate="collapsed" desc="Pattern Matching">
 
     public abstract NodeType getNodeType();
+
+    public boolean isReference() {
+        return false;
+    }
 
     @Override
     public boolean isNull() {

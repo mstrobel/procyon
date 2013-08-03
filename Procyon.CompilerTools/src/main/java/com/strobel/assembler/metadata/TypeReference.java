@@ -221,6 +221,10 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return false;
     }
 
+    public boolean isVoid() {
+        return false;
+    }
+
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Generics">

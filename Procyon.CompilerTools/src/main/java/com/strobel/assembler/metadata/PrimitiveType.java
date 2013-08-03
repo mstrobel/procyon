@@ -57,6 +57,11 @@ public final class PrimitiveType extends TypeDefinition {
     }
 
     @Override
+    public final boolean isVoid() {
+        return _jvmType == JvmType.Void;
+    }
+
+    @Override
     public final JvmType getSimpleType() {
         return _jvmType;
     }

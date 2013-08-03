@@ -43,6 +43,16 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         }
 
         @Override
+        public ResolveResult visitVariableDeclaration(final VariableDeclarationStatement node, final Void data) {
+            return resolveType(node.getType());
+        }
+
+        @Override
+        public ResolveResult visitVariableInitializer(final VariableInitializer node, final Void data) {
+            return node.getInitializer().acceptVisitor(this, data);
+        }
+
+        @Override
         public ResolveResult visitObjectCreationExpression(final ObjectCreationExpression node, final Void _) {
 /*
             final ResolveResult result = resolveTypeFromMember(node.getUserData(Keys.MEMBER_REFERENCE));
@@ -125,7 +135,13 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
 
         @Override
         public ResolveResult visitMemberReferenceExpression(final MemberReferenceExpression node, final Void _) {
-            return resolveTypeFromMember(node.getUserData(Keys.MEMBER_REFERENCE));
+            MemberReference memberReference = node.getUserData(Keys.MEMBER_REFERENCE);
+
+            if (memberReference == null && node.getParent() instanceof InvocationExpression) {
+                memberReference = node.getParent().getUserData(Keys.MEMBER_REFERENCE);
+            }
+
+            return resolveTypeFromMember(memberReference);
         }
 
         @Override
@@ -488,6 +504,9 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
             );
 
             if (resultType != null) {
+                if (leftResult.getType().isPrimitive() || rightResult.getType().isPrimitive()) {
+                    return new ResolveResult(MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(resultType));
+                }
                 return new ResolveResult(resultType);
             }
 

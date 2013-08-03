@@ -78,4 +78,9 @@ public class MethodGroupExpression extends Expression {
     public boolean matches(final INode other, final Match match) {
         return false;
     }
+
+    @Override
+    public boolean isReference() {
+        return true;
+    }
 }

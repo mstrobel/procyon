@@ -179,30 +179,30 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
             return;
         }
 
-        final AstNode parent = e.getParent();
-
-        if (e.getRole() == Roles.ARGUMENT) {
-            removeUnboxingForArgument(e);
-            return;
-        }
-
-        if (parent instanceof CastExpression) {
-            removeUnboxingForCast(
-                e,
-                (MemberReferenceExpression) target,
-                (CastExpression) parent
-            );
-            return;
-        }
-
-        if (parent instanceof ConditionalExpression) {
-            removeUnboxingForCondition(
-                e,
-                (MemberReferenceExpression) target,
-                (ConditionalExpression) parent
-            );
-            return;
-        }
+//        final AstNode parent = e.getParent();
+//
+//        if (e.getRole() == Roles.ARGUMENT) {
+//            removeUnboxingForArgument(e);
+//            return;
+//        }
+//
+//        if (parent instanceof CastExpression) {
+//            removeUnboxingForCast(
+//                e,
+//                (MemberReferenceExpression) target,
+//                (CastExpression) parent
+//            );
+//            return;
+//        }
+//
+//        if (parent instanceof ConditionalExpression) {
+//            removeUnboxingForCondition(
+//                e,
+//                (MemberReferenceExpression) target,
+//                (ConditionalExpression) parent
+//            );
+//            return;
+//        }
 
         performUnboxingRemoval(e, (MemberReferenceExpression) target);
     }

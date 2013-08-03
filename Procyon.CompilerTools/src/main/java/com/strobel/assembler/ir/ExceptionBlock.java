@@ -51,18 +51,14 @@ public final class ExceptionBlock {
 
     public final boolean intersects(final ExceptionBlock block) {
         return block != null &&
-               ((block.getFirstInstruction().getOffset() >= getFirstInstruction().getOffset() &&
-                 block.getFirstInstruction().getOffset() <= getLastInstruction().getOffset()) ||
-                (block.getLastInstruction().getOffset() <= getFirstInstruction().getEndOffset() &&
-                 block.getLastInstruction().getOffset() >= getLastInstruction().getEndOffset()));
+               block.getFirstInstruction().getOffset() <= getLastInstruction().getOffset() &&
+               block.getLastInstruction().getOffset() >= getFirstInstruction().getOffset();
     }
 
     public final boolean intersects(final Range range) {
         return range != null &&
-               ((range.getStart() >= getFirstInstruction().getOffset() &&
-                 range.getStart() <= getLastInstruction().getOffset()) ||
-                (range.getEnd() <= getFirstInstruction().getEndOffset() &&
-                 range.getEnd() >= getLastInstruction().getEndOffset()));
+               range.getStart() <= getLastInstruction().getOffset() &&
+               range.getEnd() >= getFirstInstruction().getOffset();
     }
 
     @Override

@@ -47,4 +47,9 @@ public class TypeReferenceExpression extends Expression {
                !other.isNull() &&
                getType().matches(((TypeReferenceExpression) other).getType(), match);
     }
+
+    @Override
+    public boolean isReference() {
+        return true;
+    }
 }
