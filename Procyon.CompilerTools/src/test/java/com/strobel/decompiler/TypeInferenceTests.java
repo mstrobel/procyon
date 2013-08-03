@@ -127,7 +127,7 @@ public class TypeInferenceTests extends DecompilerTest {
             C.class,
             defaultSettings(),
             "private interface C {\n" +
-            "    public static final Integer[] EMPTY_ARRAY = (Integer[])EmptyArrayCache.fromElementType(Integer.class);\n" +
+            "    public static final Integer[] EMPTY_ARRAY = EmptyArrayCache.fromElementType(Integer.class);\n" +
             "}\n"
         );
     }

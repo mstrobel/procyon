@@ -51,4 +51,9 @@ public final class ClassOfExpression extends Expression {
         return other instanceof ClassOfExpression &&
                getType().matches(((ClassOfExpression) other).getType(), match);
     }
+
+    @Override
+    public boolean isReference() {
+        return true;
+    }
 }

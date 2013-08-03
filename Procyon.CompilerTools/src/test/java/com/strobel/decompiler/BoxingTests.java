@@ -111,8 +111,8 @@ public class BoxingTests extends DecompilerTest {
             "        this.b(i);\n" +
             "        this.c(i);\n" +
             "        this.d((double)i);\n" +
-            "        this.e((short)i.intValue());\n" +
-            "        this.f((short)i.intValue());\n" +
+            "        this.e((short)(int)i);\n" +
+            "        this.f((short)(int)i);\n" +
             "    }\n" +
             "    void b(final int i) {\n" +
             "        this.a(i);\n" +
@@ -131,12 +131,12 @@ public class BoxingTests extends DecompilerTest {
             "        this.f((short)d);\n" +
             "    }\n" +
             "    void d(final Double d) {\n" +
-            "        this.a((int)d.doubleValue());\n" +
-            "        this.b((int)d.doubleValue());\n" +
+            "        this.a((int)(double)d);\n" +
+            "        this.b((int)(double)d);\n" +
             "        this.c(d);\n" +
             "        this.d(d);\n" +
-            "        this.e((short)d.doubleValue());\n" +
-            "        this.f((short)d.doubleValue());\n" +
+            "        this.e((short)(double)d);\n" +
+            "        this.f((short)(double)d);\n" +
             "    }\n" +
             "    void e(final Short s) {\n" +
             "        this.a((int)s);\n" +
@@ -205,7 +205,7 @@ public class BoxingTests extends DecompilerTest {
             defaultSettings(),
             "private static class D {\n" +
             "    boolean t(final Integer i, final int j) {\n" +
-            "        return i == Integer.valueOf(j) && (int)i == j;\n" +
+            "        return i == Integer.valueOf(j) && i == j;\n" +
             "    }\n" +
             "}\n"
         );
@@ -220,7 +220,7 @@ public class BoxingTests extends DecompilerTest {
             "    void t(final boolean b) {\n" +
             "        final Double d = 4.3;\n" +
             "        final Integer i = 3;\n" +
-            "        final short s = (short)(b ? ((int)i) : ((int)Integer.valueOf((int)d.doubleValue())));\n" +
+            "        final short s = (short)(b ? i : ((int)Integer.valueOf((int)(double)d)));\n" +
             "    }\n" +
             "}\n"
         );

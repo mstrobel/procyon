@@ -362,12 +362,13 @@ public class LoopTests extends DecompilerTest {
             "            Integer next = iterator.next();\n" +
             "            System.out.println(next);\n" +
             "            for (int i = 0; i < 10; ++i) {\n" +
-            "                next = (iterator.hasNext() ? ((Integer)iterator.next()) : null);\n" +
+            "                next = (iterator.hasNext() ? iterator.next() : null);\n" +
             "                System.out.println(next);\n" +
             "            }\n" +
             "        }\n" +
             "    }\n" +
-            "}\n");
+            "}\n"
+        );
     }
 
     @Test
@@ -397,6 +398,7 @@ public class LoopTests extends DecompilerTest {
             "            }\n" +
             "        }\n" +
             "    }\n" +
-            "}\n");
+            "}\n"
+        );
     }
 }

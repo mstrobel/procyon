@@ -29,6 +29,21 @@ import java.util.*;
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public final class MetadataHelper {
+    public static int getArrayRank(final TypeReference t) {
+        if (t == null)
+            return 0;
+
+        int rank = 0;
+        TypeReference current = t;
+
+        while (current.isArray()) {
+            ++rank;
+            current = current.getElementType();
+        }
+
+        return rank;
+    }
+
     public static boolean isEnclosedBy(final TypeReference innerType, final TypeReference outerType) {
         if (innerType == null) {
             return false;
@@ -398,6 +413,10 @@ public final class MetadataHelper {
     }
 
     public static boolean isConvertible(final TypeReference source, final TypeReference target) {
+        return isConvertible(source, target, true);
+    }
+
+    public static boolean isConvertible(final TypeReference source, final TypeReference target, final boolean allowUnchecked) {
         VerifyArgument.notNull(source, "source");
         VerifyArgument.notNull(target, "target");
 
@@ -422,7 +441,8 @@ public final class MetadataHelper {
             }
         }
 
-        return isSubType(getUnderlyingPrimitiveTypeOrSelf(source), target);
+        return allowUnchecked ? isSubTypeUnchecked(getUnderlyingPrimitiveTypeOrSelf(source), target)
+                              : isSubType(getUnderlyingPrimitiveTypeOrSelf(source), target);
     }
 
     private static boolean isSubTypeUnchecked(final TypeReference t, final TypeReference s) {
@@ -464,6 +484,10 @@ public final class MetadataHelper {
 
     public static boolean isAssignableFrom(final TypeReference target, final TypeReference source) {
         return isConvertible(source, target);
+    }
+
+    public static boolean isAssignableFrom(final TypeReference target, final TypeReference source, final boolean allowUnchecked) {
+        return isConvertible(source, target, allowUnchecked);
     }
 
     public static boolean isSubType(final TypeReference type, final TypeReference baseType) {
@@ -806,6 +830,14 @@ public final class MetadataHelper {
         final TypeReference type,
         final Predicate<? super MethodReference> filter) {
 
+        return findMethods(type, filter, false);
+    }
+
+    public static List<MethodReference> findMethods(
+        final TypeReference type,
+        final Predicate<? super MethodReference> filter,
+        final boolean includeBridgeMethods) {
+
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(filter, "filter");
 
@@ -837,6 +869,10 @@ public final class MetadataHelper {
             }
 
             for (final MethodDefinition method : resolvedType.getDeclaredMethods()) {
+                if (!includeBridgeMethods && method.isBridgeMethod()) {
+                    continue;
+                }
+
                 if (filter.test(method)) {
                     final String key = method.getName() + ":" + method.getErasedSignature();
 
