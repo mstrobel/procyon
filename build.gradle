@@ -12,7 +12,7 @@ allprojects {
     apply plugin: 'idea'
     apply plugin: 'maven'
 
-    version "0.5.1"
+    version "1.0-SNAPSHOT"
 
     group 'org.bitbucket.mstrobel'
     sourceCompatibility = 1.7    // JDK version
