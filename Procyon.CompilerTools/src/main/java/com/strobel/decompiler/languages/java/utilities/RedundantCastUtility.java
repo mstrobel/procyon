@@ -450,7 +450,6 @@ public final class RedundantCastUtility {
                         !otherType.isPrimitive() &&
                         (op == BinaryOperatorType.EQUALITY || op == BinaryOperatorType.INEQUALITY)) {
 
-
                         if (innerType == null || !innerType.isPrimitive()) {
                             //
                             // Don't change an unboxing (in)equality operator to a reference (in)equality operator.
@@ -595,8 +594,8 @@ public final class RedundantCastUtility {
                 }
 
                 final boolean sameMethod = StringUtilities.equals(
-                    method.getSignature(),
-                    result.getMethod().getSignature()
+                    method.getErasedSignature(),
+                    result.getMethod().getErasedSignature()
                 );
 
                 if (sameMethod) {
@@ -626,7 +625,7 @@ public final class RedundantCastUtility {
             }
 
             if (parent == null ||
-                cast.getRole() == Roles.ARGUMENT ||
+                cast.getRole() == Roles.ARGUMENT && !(parent instanceof IndexerExpression) ||
                 parent instanceof ReturnStatement ||
                 parent instanceof CastExpression ||
                 parent instanceof BinaryOperatorExpression) {
@@ -836,12 +835,12 @@ public final class RedundantCastUtility {
             }
             else if (castType instanceof IGenericInstance) {
                 if (MetadataHelper.isRawType(opType)) {
-                    return true;
+                    return !MetadataHelper.isAssignableFrom(castType, opType, false);
                 }
             }
             else if (MetadataHelper.isRawType(castType)) {
                 if (opType instanceof IGenericInstance) {
-                    return true;
+                    return !MetadataHelper.isAssignableFrom(castType, opType, false);
                 }
             }
 
