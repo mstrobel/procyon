@@ -444,13 +444,14 @@ public final class RedundantCastUtility {
                 final TypeReference innerType = getType(toCast);
 
                 if (castType != null &&
+                    innerType != null &&
                     TypeUtilities.isBinaryOperatorApplicable(op, innerType, otherType, false)) {
 
                     if (castType.isPrimitive() &&
                         !otherType.isPrimitive() &&
                         (op == BinaryOperatorType.EQUALITY || op == BinaryOperatorType.INEQUALITY)) {
 
-                        if (innerType == null || !innerType.isPrimitive()) {
+                        if (!innerType.isPrimitive()) {
                             //
                             // Don't change an unboxing (in)equality operator to a reference (in)equality operator.
                             //

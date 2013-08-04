@@ -25,14 +25,14 @@ public class ThirdPartyTests extends DecompilerTest {
             "    public static void f(short n) {\n" +
             "        Drawable drawable;\n" +
             "        if (n > 10) {\n" +
-            "            drawable = new Rectangle(n, n);\n" +
-            "            n = (((Rectangle)drawable).isFat() ? 1 : 0);\n" +
-            "            drawable = drawable;\n" +
+            "            final Rectangle rectangle = new Rectangle(n, n);\n" +
+            "            n = (rectangle.isFat() ? 1 : 0);\n" +
+            "            drawable = rectangle;\n" +
             "        }\n" +
             "        else {\n" +
-            "            drawable = new Circle(n);\n" +
-            "            n = (((Circle)drawable).isFat() ? 1 : 0);\n" +
-            "            drawable = drawable;\n" +
+            "            final Circle circle = new Circle(n);\n" +
+            "            n = (circle.isFat() ? 1 : 0);\n" +
+            "            drawable = circle;\n" +
             "        }\n" +
             "        if (n == 0) {\n" +
             "            drawable.draw();\n" +

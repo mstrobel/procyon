@@ -339,6 +339,12 @@ public final class TypeAnalysis {
             //
             inferTypesForVariables(assignVariableTypesBasedOnPartialInformation);
         }
+
+        for (final Variable variable : assignmentExpressions.keySet()) {
+            if (variable.getType() == null) {
+                variable.setType(BuiltinTypes.Object);
+            }
+        }
     }
 
     private void inferTypesForVariables(final boolean assignVariableTypesBasedOnPartialInformation) {
@@ -372,7 +378,7 @@ public final class TypeAnalysis {
                 }
 
                 if (inferredType == null) {
-                    inferredType = variable.getType() != null ? inferredType : BuiltinTypes.Object;
+                    inferredType = variable.getType();
                 }
                 else if (!inferredType.isUnbounded()) {
                     inferredType = inferredType.hasSuperBound() ? inferredType.getSuperBound()
