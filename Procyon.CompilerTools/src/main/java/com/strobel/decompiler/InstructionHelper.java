@@ -40,7 +40,7 @@ public final class InstructionHelper {
             return OpCodeHelpers.getLoadStoreMacroArgumentIndex(code);
         }
 
-        final VariableDefinition variable = instruction.getOperand(0);
+        final VariableReference variable = instruction.getOperand(0);
 
         return variable.getSlot();
     }

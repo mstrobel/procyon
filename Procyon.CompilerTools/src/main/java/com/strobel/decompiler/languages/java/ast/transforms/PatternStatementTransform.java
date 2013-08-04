@@ -186,12 +186,14 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             }
         }
 
+/*
         if (loopBody.size() - iterators.size() == 0) {
             //
             // Don't transform a 'while' loop into a 'for' loop with an empty body.
             //
             return null;
         }
+*/
 
         final ForStatement forLoop = new ForStatement();
         final Stack<Statement> initializers = new Stack<>();
