@@ -1084,9 +1084,10 @@ public class BytecodeLanguage extends Language {
                 if (slot < variables.size()) {
                     final VariableDefinition variable = findVariable(op, slot, _currentOffset);
 
-                    assert variable != null;
+                    if (variable != null &&
+                        variable.hasName() &&
+                        variable.isFromMetadata()) {
 
-                    if (variable.hasName() && variable.isFromMetadata()) {
                         _output.writeComment(" /* %s */", JavaOutputVisitor.escapeUnicode(variable.getName()));
                     }
                 }
