@@ -137,8 +137,21 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         public ResolveResult visitMemberReferenceExpression(final MemberReferenceExpression node, final Void _) {
             MemberReference memberReference = node.getUserData(Keys.MEMBER_REFERENCE);
 
-            if (memberReference == null && node.getParent() instanceof InvocationExpression) {
-                memberReference = node.getParent().getUserData(Keys.MEMBER_REFERENCE);
+            if (memberReference == null) {
+                if (StringUtilities.equals(node.getMemberName(), "length")) {
+                    final ResolveResult targetResult = node.getTarget().acceptVisitor(this, _);
+
+                    if (targetResult != null &&
+                        targetResult.getType() != null &&
+                        targetResult.getType().isArray()) {
+
+                        return new ResolveResult(BuiltinTypes.Integer);
+                    }
+
+                }
+                if (node.getParent() instanceof InvocationExpression) {
+                    memberReference = node.getParent().getUserData(Keys.MEMBER_REFERENCE);
+                }
             }
 
             return resolveTypeFromMember(memberReference);

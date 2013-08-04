@@ -594,9 +594,7 @@ public final class AstBuilder {
         }
 
         final Stack<ByteCode> agenda = new Stack<>();
-        final VariableDefinitionCollection variables = _body.getVariables();
-
-        final int variableCount = variables.slotCount();
+        final int variableCount = _body.getMaxLocals();
         final Set<ByteCode> exceptionHandlerStarts = new LinkedHashSet<>(exceptionHandlers.size());
         final VariableSlot[] unknownVariables = VariableSlot.makeUnknownState(variableCount);
         final MethodReference method = _body.getMethod();
@@ -782,7 +780,8 @@ public final class AstBuilder {
                     if (branchTarget.stackBefore.length != newStack.length) {
                         throw new IllegalStateException(
                             "Inconsistent stack size at " + branchTarget.name()
-                            + " (coming from " + byteCode.name() + ").");
+                            + " (coming from " + byteCode.name() + ")."
+                        );
                     }
 
                     //
@@ -1170,7 +1169,7 @@ public final class AstBuilder {
         final MethodDefinition method = _context.getCurrentMethod();
         final List<ParameterDefinition> parameters = method.getParameters();
         final VariableDefinitionCollection variables = _body.getVariables();
-        final ParameterDefinition[] parameterMap = new ParameterDefinition[variables.slotCount()];
+        final ParameterDefinition[] parameterMap = new ParameterDefinition[_body.getMaxLocals()];
         final boolean hasThis = _body.hasThis();
 
         if (hasThis) {
@@ -1181,7 +1180,8 @@ public final class AstBuilder {
             parameterMap[parameter.getSlot()] = parameter;
         }
 
-        for (final VariableDefinition variableDefinition : variables) {
+//        for (final VariableDefinition variableDefinition : variables) {
+        for (int slot = 0; slot < _body.getMaxLocals(); slot++) {
             //
             // Find all definitions of and references to this variable.
             //
@@ -1190,7 +1190,9 @@ public final class AstBuilder {
             final List<ByteCode> references = new ArrayList<>();
 
             for (final ByteCode b : body) {
-                if (b.operand == variableDefinition) {
+                if (b.operand instanceof VariableReference &&
+                    ((VariableReference) b.operand).getSlot() == slot) {
+
                     if (b.isVariableDefinition()) {
                         definitions.add(b);
                     }
@@ -1203,20 +1205,18 @@ public final class AstBuilder {
             final List<VariableInfo> newVariables;
             boolean fromUnknownDefinition = false;
 
-            final int variableIndex = variableDefinition.getSlot();
-
             if (_optimize) {
                 for (final ByteCode b : references) {
-                    if (b.variablesBefore[variableIndex].isUninitialized()) {
+                    if (b.variablesBefore[slot].isUninitialized()) {
                         fromUnknownDefinition = true;
                         break;
                     }
                 }
             }
 
-            final ParameterDefinition parameter = parameterMap[variableIndex];
+            final ParameterDefinition parameter = parameterMap[slot];
 
-            if (parameter != null && variableDefinition.getScopeStart() == 0) {
+            if (parameter != null) {
                 final Variable variable = new Variable();
 
                 variable.setName(
@@ -1232,17 +1232,20 @@ public final class AstBuilder {
                 newVariables = Collections.singletonList(variableInfo);
             }
             else if (!_optimize || fromUnknownDefinition) {
+                final VariableDefinition definition = findDefinition(slot, definitions, variables);
                 final Variable variable = new Variable();
 
-                variable.setName(
-                    StringUtilities.isNullOrEmpty(variableDefinition.getName()) ? "var_" + variableIndex
-                                                                                : variableDefinition.getName()
-                );
+                if (definition != null) {
+                    variable.setType(definition.getVariableType());
 
-                if (variableDefinition.isFromMetadata()) {
-                    variable.setType(variableDefinition.getVariableType());
+                    variable.setName(
+                        StringUtilities.isNullOrEmpty(definition.getName()) ? "var_" + slot
+                                                                                    : definition.getName()
+                    );
                 }
                 else {
+                    variable.setName("var_" + slot);
+
                     for (final ByteCode b : definitions) {
                         final FrameValue stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
 
@@ -1271,8 +1274,11 @@ public final class AstBuilder {
 
                                         variableType = ((Instruction) stackValue.getParameter()).getOperand(0);
                                     }
+                                    else if (definition != null) {
+                                        variableType = definition.getVariableType();
+                                    }
                                     else {
-                                        variableType = variableDefinition.getVariableType();
+                                        variableType = BuiltinTypes.Object;
                                     }
                                     break;
                                 case UninitializedThis:
@@ -1281,8 +1287,16 @@ public final class AstBuilder {
                                 case Reference:
                                     variableType = (TypeReference) stackValue.getParameter();
                                     break;
+                                case Address:
+                                    variableType = BuiltinTypes.Integer;
+                                    break;
                                 default:
-                                    variableType = variableDefinition.getVariableType();
+                                    if (definition != null) {
+                                        variableType = definition.getVariableType();
+                                    }
+                                    else {
+                                        variableType = BuiltinTypes.Object;
+                                    }
                                     break;
                             }
 
@@ -1296,7 +1310,14 @@ public final class AstBuilder {
                     }
                 }
 
-                variable.setOriginalVariable(variableDefinition);
+                if (definition == null) {
+                    variable.setOriginalVariable(new VariableDefinition(slot, variable.getName(), method, variable.getType()));
+                }
+                else {
+                    variable.setOriginalVariable(definition);
+                }
+
+                variable.setOriginalVariable(definition);
                 variable.setGenerated(false);
 
                 final VariableInfo variableInfo = new VariableInfo(variable, definitions, references);
@@ -1308,15 +1329,14 @@ public final class AstBuilder {
 
                 for (final ByteCode b : definitions) {
                     final Variable variable = new Variable();
+                    final VariableDefinition definition = findDefinition(slot, Collections.singletonList(b), variables);
 
-                    variable.setName(
-                        format(
-                            "%1$s_%2$02X",
-                            StringUtilities.isNullOrEmpty(variableDefinition.getName()) ? "var_" + variableIndex
-                                                                                        : variableDefinition.getName(),
-                            b.offset
-                        )
-                    );
+                    if (definition != null && !StringUtilities.isNullOrEmpty(definition.getName())) {
+                        variable.setName(definition.getName());
+                    }
+                    else {
+                        variable.setName(format("var_%1$d_%2$02X", slot, b.offset));
+                    }
 
                     final TypeReference variableType;
                     final FrameValue stackValue;
@@ -1328,8 +1348,8 @@ public final class AstBuilder {
                         stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
                     }
 
-                    if (variableDefinition.isFromMetadata()) {
-                        variable.setType(variableDefinition.getVariableType());
+                    if (definition != null && definition.isFromMetadata()) {
+                        variable.setType(definition.getVariableType());
                     }
                     else {
                         switch (stackValue.getType()) {
@@ -1351,15 +1371,29 @@ public final class AstBuilder {
                             case Reference:
                                 variableType = (TypeReference) stackValue.getParameter();
                                 break;
+                            case Address:
+                                variableType = BuiltinTypes.Integer;
+                                break;
                             default:
-                                variableType = variableDefinition.getVariableType();
+                                if (definition != null) {
+                                    variableType = definition.getVariableType();
+                                }
+                                else {
+                                    variableType = BuiltinTypes.Object;
+                                }
                                 break;
                         }
 
                         variable.setType(variableType);
                     }
 
-                    variable.setOriginalVariable(variableDefinition);
+                    if (definition == null) {
+                        variable.setOriginalVariable(new VariableDefinition(slot, variable.getName(), method, variable.getType()));
+                    }
+                    else {
+                        variable.setOriginalVariable(definition);
+                    }
+
                     variable.setGenerated(false);
 
                     final VariableInfo variableInfo = new VariableInfo(
@@ -1376,7 +1410,7 @@ public final class AstBuilder {
                 // Add loads to the data structure; merge variables if necessary.
                 //
                 for (final ByteCode ref : references) {
-                    final ByteCode[] refDefinitions = ref.variablesBefore[variableIndex].definitions;
+                    final ByteCode[] refDefinitions = ref.variablesBefore[slot].definitions;
 
                     if (refDefinitions.length == 1) {
                         VariableInfo newVariable = null;
@@ -1446,6 +1480,28 @@ public final class AstBuilder {
                 }
             }
         }
+    }
+
+    private static VariableDefinition findDefinition(final int slot, final List<ByteCode> definitions, final VariableDefinitionCollection variables) {
+        for (final ByteCode byteCode : definitions) {
+            final int effectiveOffset;
+            final OpCode op = byteCode.instruction.getOpCode();
+
+            if (op.isStore()) {
+                effectiveOffset = byteCode.offset + op.getSize() + op.getOperandType().getBaseSize();
+            }
+            else {
+                effectiveOffset = byteCode.offset;
+            }
+
+            final VariableDefinition definition = variables.tryFind(slot, effectiveOffset);
+
+            if (definition != null) {
+                return definition;
+            }
+        }
+
+        return null;
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -2110,8 +2166,8 @@ public final class AstBuilder {
         }
 
         public final boolean isVariableDefinition() {
-            return code == AstCode.Store ||
-                   code == AstCode.Inc;
+            return code == AstCode.Store/* ||
+                   code == AstCode.Inc*/;
         }
 
         @Override

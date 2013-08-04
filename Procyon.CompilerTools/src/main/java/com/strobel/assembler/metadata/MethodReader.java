@@ -95,14 +95,20 @@ public class MethodReader {
         for (int i = 0; i < parameters.size(); i++) {
             final ParameterDefinition parameter = parameters.get(i);
             final int variableSlot = parameter.getSlot();
-            final VariableDefinition variable = variables.ensure(variableSlot, OpCode.NOP, 0);
+
+            final VariableDefinition variable = new VariableDefinition(
+                variableSlot,
+                parameter.getName(),
+                _methodDefinition,
+                parameter.getParameterType()
+            );
 
             variable.setScopeStart(0);
             variable.setScopeEnd(_code.getCodeSize());
             variable.setTypeKnown(true);
-            variable.setName(parameter.getName());
             variable.setFromMetadata(true);
-            variable.setVariableType(parameter.getParameterType());
+
+            variables.add(variable);
         }
 
         if (localVariableTable != null) {
@@ -133,7 +139,7 @@ public class MethodReader {
             switch (op.getOperandType()) {
                 case None: {
                     if (op.isLoad() || op.isStore()) {
-                        variables.ensure(OpCodeHelpers.getLoadStoreMacroArgumentIndex(op), op, offset);
+                        variables.reference(OpCodeHelpers.getLoadStoreMacroArgumentIndex(op), op, offset);
                     }
                     instruction = Instruction.create(op);
                     break;
@@ -369,7 +375,7 @@ public class MethodReader {
                         variableSlot = b.readUnsignedByte();
                     }
 
-                    final VariableDefinition variable = variables.ensure(variableSlot, op, offset);
+                    final VariableReference variable = variables.reference(variableSlot, op, offset);
 
                     if (variableSlot < 0) {
                         instruction = new Instruction(op, new ErrorOperand("!!! BAD LOCAL: " + variableSlot + " !!!"));
@@ -392,7 +398,7 @@ public class MethodReader {
                         variableSlot = b.readUnsignedByte();
                     }
 
-                    final VariableDefinition variable = variables.ensure(variableSlot, op, offset);
+                    final VariableReference variable = variables.reference(variableSlot, op, offset);
 
                     operand = b.readByte();
 
@@ -421,7 +427,7 @@ public class MethodReader {
                         variableSlot = b.readUnsignedByte();
                     }
 
-                    final VariableDefinition variable = variables.ensure(variableSlot, op, offset);
+                    final VariableReference variable = variables.reference(variableSlot, op, offset);
 
                     operand = b.readShort();
 

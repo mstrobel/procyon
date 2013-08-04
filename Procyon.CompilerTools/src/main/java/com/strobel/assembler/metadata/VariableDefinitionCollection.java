@@ -20,6 +20,7 @@ import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -80,14 +81,14 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
         throw new NoSuchElementException(
             String.format(
-                "Could not find varible at slot %d and offset %d.",
+                "Could not find variable at slot %d and offset %d.",
                 slot,
                 instructionOffset
             )
         );
     }
 
-    public VariableDefinition ensure(final int slot, final OpCode op, final int instructionOffset) {
+    public VariableReference reference(final int slot, final OpCode op, final int instructionOffset) {
         final TypeReference variableType;
 
         switch (op) {
@@ -170,41 +171,51 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
             effectiveOffset = instructionOffset;
         }
 
-        VariableDefinition variable = tryFind(slot, effectiveOffset);
+        final VariableDefinition variable = tryFind(slot, effectiveOffset);
+
+//        if (variable != null) {
+//            final TypeReference targetType = op.isStore() ? variable.getVariableType() : variableType;
+//            final TypeReference sourceType = op.isStore() ? variableType : variable.getVariableType();
+//
+//            if (variableType == BuiltinTypes.Object && !variable.getVariableType().getSimpleType().isPrimitive() ||
+//                isTargetTypeCompatible(targetType, sourceType) ||
+//                variable.isFromMetadata()) {
+//
+//                return variable;
+//            }
+//
+//            variable.setScopeEnd(instructionOffset - 1);
+//        }
+//
+//        variable = new VariableDefinition(
+//            slot,
+//            String.format("$%d_%d$", slot, effectiveOffset),
+//            _declaringMethod
+//        );
+//
+//        variable.setVariableType(variableType);
+//        variable.setScopeStart(effectiveOffset);
+//        variable.setScopeEnd(-1);
+//        variable.setFromMetadata(false);
+//
+//        if (variableType != BuiltinTypes.Object) {
+//            variable.setTypeKnown(true);
+//        }
+//
+//        add(variable);
+//
+//        updateScopes(-1);
+//        return variable;
 
         if (variable != null) {
-            final TypeReference targetType = op.isStore() ? variable.getVariableType() : variableType;
-            final TypeReference sourceType = op.isStore() ? variableType : variable.getVariableType();
-
-            if (variableType == BuiltinTypes.Object && !variable.getVariableType().getSimpleType().isPrimitive() ||
-                isTargetTypeCompatible(targetType, sourceType) ||
-                variable.isFromMetadata()) {
-
-                return variable;
-            }
-
-            variable.setScopeEnd(instructionOffset - 1);
+            return variable;
         }
 
-        variable = new VariableDefinition(
+        return new UnknownVariableReference(
+            variableType,
             slot,
-            String.format("$%d_%d$", slot, effectiveOffset),
-            _declaringMethod
+            _declaringMethod.getDeclaringType()
         );
-
-        variable.setVariableType(variableType);
-        variable.setScopeStart(effectiveOffset);
-        variable.setScopeEnd(-1);
-        variable.setFromMetadata(false);
-
-        if (variableType != BuiltinTypes.Object) {
-            variable.setTypeKnown(true);
-        }
-
-        add(variable);
-
-        updateScopes(-1);
-        return variable;
     }
 
     public void updateScopes(final int codeSize) {
@@ -367,4 +378,35 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
         return false;
     }
+
+    // <editor-fold defaultstate="collapsed" desc="UnknownVariableReference Class">
+
+    private final static class UnknownVariableReference extends VariableReference {
+        private final int _slot;
+        private final TypeReference _declaringType;
+
+        UnknownVariableReference(final TypeReference variableType, final int slot, final TypeReference declaringType) {
+            super(variableType);
+
+            _slot = slot;
+            _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+        }
+
+        @Override
+        public final TypeReference getDeclaringType() {
+            return _declaringType;
+        }
+
+        @Override
+        public final int getSlot() {
+            return _slot;
+        }
+
+        @Override
+        public final VariableDefinition resolve() {
+            throw ContractUtils.unsupported();
+        }
+    }
+
+    // </editor-fold>
 }
