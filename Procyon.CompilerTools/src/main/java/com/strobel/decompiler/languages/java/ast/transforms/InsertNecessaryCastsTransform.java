@@ -136,7 +136,7 @@ public class InsertNecessaryCastsTransform extends ContextTrackingVisitor<Void> 
 
         MemberReference member = node.getUserData(Keys.MEMBER_REFERENCE);
 
-        if (member == null && node.getParent() != null) {
+        if (member == null && node.getParent() != null && node.getRole() == Roles.TARGET_EXPRESSION) {
             member = node.getParent().getUserData(Keys.MEMBER_REFERENCE);
         }
 
@@ -171,7 +171,6 @@ public class InsertNecessaryCastsTransform extends ContextTrackingVisitor<Void> 
         TypeReference castType = MetadataHelper.asSubType(targetResult.getType(), declaringType);
 
         if (castType == null) {
-
             if (resolvedDeclaringType != null &&
                 resolvedDeclaringType.isGenericDefinition() &&
                 member.containsGenericParameters()) {

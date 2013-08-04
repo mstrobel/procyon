@@ -166,7 +166,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             new Predicate<Statement>() {
                 @Override
                 public boolean test(final Statement s) {
-                    return s.isEmbeddable() && areCorrelated(condition, s);
+                    return s.isEmbeddable() && isSimpleIterator(s) && areCorrelated(condition, s);
                 }
             }
         );
@@ -185,15 +185,6 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                 return null;
             }
         }
-
-/*
-        if (loopBody.size() - iterators.size() == 0) {
-            //
-            // Don't transform a 'while' loop into a 'for' loop with an empty body.
-            //
-            return null;
-        }
-*/
 
         final ForStatement forLoop = new ForStatement();
         final Stack<Statement> initializers = new Stack<>();
@@ -225,6 +216,13 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             else {
                 break;
             }
+        }
+
+        if (loopBody.size() - iterators.size() == 0 && initializers.isEmpty()) {
+            //
+            // Don't transform a 'while' loop into a 'for' loop with an empty body and no initializers.
+            //
+            return null;
         }
 
         final Statement body = node.getEmbeddedStatement();
@@ -302,6 +300,33 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         }
 
         return forLoop;
+    }
+
+    private static boolean isSimpleIterator(final Statement statement) {
+        if (!(statement instanceof ExpressionStatement)) {
+            return false;
+        }
+
+        final Expression e = ((ExpressionStatement) statement).getExpression();
+
+        if (e instanceof AssignmentExpression) {
+            return true;
+        }
+
+        if (e instanceof UnaryOperatorExpression) {
+            switch (((UnaryOperatorExpression) e).getOperator()) {
+                case INCREMENT:
+                case DECREMENT:
+                case POST_INCREMENT:
+                case POST_DECREMENT:
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+
+        return false;
     }
 
     private Statement canInlineInitializerDeclarations(final ForStatement forLoop) {
@@ -631,6 +656,23 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
         if (declarationPoint != loop) {
             return null;
+        }
+
+        final BlockStatement loopBody = (BlockStatement) loop.getEmbeddedStatement();
+        final Statement secondStatement = getOrDefault(loopBody.getStatements(), 1);
+
+        if (secondStatement != null && !secondStatement.isNull()) {
+            final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, loopBody);
+
+            analysis.setAnalyzedRange(secondStatement, loopBody);
+            analysis.analyze(array.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+
+            if (analysis.getStatusAfter(loopBody) != DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED) {
+                //
+                // We can't transform into a for-each loop because the array variable is reassigned.
+                //
+                return null;
+            }
         }
 
         final ForEachStatement forEach = new ForEachStatement();

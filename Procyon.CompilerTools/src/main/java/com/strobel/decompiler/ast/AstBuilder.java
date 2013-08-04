@@ -2166,8 +2166,8 @@ public final class AstBuilder {
         }
 
         public final boolean isVariableDefinition() {
-            return code == AstCode.Store ||
-                   code == AstCode.Inc;
+            return code == AstCode.Store/* ||
+                   code == AstCode.Inc*/;
         }
 
         @Override
