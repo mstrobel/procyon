@@ -124,7 +124,11 @@ public final class AstBuilder {
         }
     }
 
-    private static Set<ControlFlowNode> findDominatedNodes(final Collection<ControlFlowNode> scope, final ControlFlowNode head, final boolean normalEdgesOnly) {
+    private static Set<ControlFlowNode> findDominatedNodes(
+        final Collection<ControlFlowNode> scope,
+        final ControlFlowNode head,
+        final boolean normalEdgesOnly) {
+
         final Set<ControlFlowNode> agenda = new LinkedHashSet<>();
         final Set<ControlFlowNode> result = new LinkedHashSet<>();
 
@@ -198,6 +202,8 @@ public final class AstBuilder {
         final List<ExceptionHandler> handlers = _exceptionHandlers;
         final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, handlers);
 
+        Collections.reverse(handlers);
+
         cfg.computeDominance();
         cfg.computeDominanceFrontier();
 
@@ -228,7 +234,7 @@ public final class AstBuilder {
             final ControlFlowNode tail = nodeMap.get(handler.getHandlerBlock().getLastInstruction());
             final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
 
-            final List<ControlFlowNode> tryNodes = new ArrayList<>(findDominatedNodes(allNodes, tryHead, true));
+            final List<ControlFlowNode> tryNodes = new ArrayList<>(findDominatedNodes(allNodes, tryHead, false));
             final List<ControlFlowNode> handlerNodes = new ArrayList<>();
 
             for (int i = head.getBlockIndex(); i <= tail.getBlockIndex(); i++) {
@@ -248,7 +254,7 @@ public final class AstBuilder {
         for (final ExceptionHandler handler : finallyHandlers) {
             final HandlerInfo handlerInfo = handlerMap.get(handler);
             final List<ExceptionHandler> siblings = new ArrayList<>();
-            final List<ControlFlowNode> successors = toList(handlerInfo.tail.getSuccessors());
+            final Set<ControlFlowNode> successors = new LinkedHashSet<>(toList(handlerInfo.tail.getSuccessors()));
             final ExceptionBlock finallyBlock = handler.getHandlerBlock();
 
             for (final ExceptionHandler exceptionHandler : _exceptionHandlers) {
@@ -257,6 +263,14 @@ public final class AstBuilder {
 
                     siblings.add(exceptionHandler);
                 }
+            }
+
+            if (successors.contains(cfg.getExceptionalExit())) {
+                successors.add(cfg.getRegularExit());
+            }
+
+            if (successors.contains(cfg.getRegularExit())) {
+                successors.add(cfg.getExceptionalExit());
             }
 
             Instruction first = finallyBlock.getFirstInstruction();
@@ -291,23 +305,24 @@ public final class AstBuilder {
                 ++instructionCount;
             }
 
-            final ControlFlowNode lastTryNode = last(handlerInfo.tryNodes);
             final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
             final ControlFlowNode finallyTail = nodeMap.get(handler.getHandlerBlock().getLastInstruction());
             final List<ControlFlowNode> additionalTargets = new ArrayList<>();
 
-            for (final ControlFlowNode node : lastTryNode.getDominatorTreeChildren()) {
-                if (node.getNodeType() == ControlFlowNodeType.CatchHandler) {
+            for (final ControlFlowNode node : handlerInfo.tryNodes) {
+                if (node.getDominanceFrontier().contains(cfg.getRegularExit()) ||
+                    node.getDominanceFrontier().contains(cfg.getExceptionalExit())) {
+
                     additionalTargets.add(node);
                 }
             }
+
+            final Set<ControlFlowNode> toProcess = new LinkedHashSet<>(additionalTargets);
 
             for (final ControlFlowNode successor : successors) {
                 if (allFinallyNodes.contains(successor)) {
                     continue;
                 }
-
-                final List<ControlFlowNode> toProcess = new ArrayList<>(additionalTargets);
 
                 for (final ControlFlowNode predecessor : successor.getPredecessors()) {
                     if (!allFinallyNodes.contains(predecessor)) {
@@ -327,128 +342,136 @@ public final class AstBuilder {
                         }
                     }
                 }
+            }
 
-                for (ControlFlowNode node : toProcess) {
-                    final ExceptionHandler nodeHandler = node.getExceptionHandler();
+            for (ControlFlowNode node : toProcess) {
+                final ExceptionHandler nodeHandler = node.getExceptionHandler();
 
-                    if (nodeHandler != null) {
-                        node = nodeMap.get(nodeHandler.getHandlerBlock().getLastInstruction());
+                if (nodeHandler != null) {
+                    node = nodeMap.get(nodeHandler.getHandlerBlock().getLastInstruction());
+                }
+
+                if (processedNodes.contains(node) || allFinallyNodes.contains(node)) {
+                    continue;
+                }
+
+                Instruction tail = node.getEnd();
+                Instruction newJumpTarget = null;
+                boolean isLeave = false;
+                boolean tryPrevious = false;
+
+                if (tail.getOpCode().isUnconditionalBranch()) {
+                    switch (tail.getOpCode()) {
+                        case GOTO:
+                        case GOTO_W:
+                        case RETURN:
+                            newJumpTarget = tail;
+                            if (newJumpTarget.getOpCode() == OpCode.GOTO || newJumpTarget.getOpCode() == OpCode.GOTO_W) {
+                                newJumpTarget = newJumpTarget.getOperand(0);
+                            }
+                            tail = tail.getPrevious();
+                            break;
+
+                        case IRETURN:
+                        case LRETURN:
+                        case FRETURN:
+                        case DRETURN:
+                        case ARETURN:
+                            newJumpTarget = tail;
+                            if (newJumpTarget.getOpCode() == OpCode.GOTO || newJumpTarget.getOpCode() == OpCode.GOTO_W) {
+                                newJumpTarget = newJumpTarget.getOperand(0);
+                            }
+                            tail = tail.getPrevious();
+                            if (finallyTail.getEnd().getOpCode().getFlowControl() == FlowControl.Return) {
+                                tail = tail.getPrevious();
+                            }
+                            else {
+                                tryPrevious = true;
+                            }
+                            break;
+
+                        case ATHROW:
+                            tail = tail.getPrevious();
+                            if (finallyTail.getEnd().getOpCode() == OpCode.ATHROW) {
+                                isLeave = true;
+                            }
+                            break;
                     }
+                }
 
-                    if (processedNodes.contains(node) || allFinallyNodes.contains(node)) {
+                while (tail != null && _removed.contains(tail)) {
+                    tail = tail.getPrevious();
+                }
+
+                if (tail == null) {
+                    continue;
+                }
+
+                if (!opCodesMatch(last, tail, instructionCount)) {
+                    if (!tryPrevious || !opCodesMatch(last, tail = tail.getPrevious(), instructionCount)) {
                         continue;
                     }
-
-                    Instruction tail = node.getEnd();
-                    Instruction newJumpTarget = null;
-                    boolean isLeave = false;
-                    boolean tryPrevious = false;
-
-                    if (tail.getOpCode().isUnconditionalBranch()) {
-                        switch (tail.getOpCode()) {
-                            case GOTO:
-                            case GOTO_W:
-                            case RETURN:
-                                newJumpTarget = tail;
-                                if (newJumpTarget.getOpCode() == OpCode.GOTO || newJumpTarget.getOpCode() == OpCode.GOTO_W) {
-                                    newJumpTarget = newJumpTarget.getOperand(0);
-                                }
-                                tail = tail.getPrevious();
-                                break;
-
-                            case IRETURN:
-                            case LRETURN:
-                            case FRETURN:
-                            case DRETURN:
-                            case ARETURN:
-                                newJumpTarget = tail;
-                                if (newJumpTarget.getOpCode() == OpCode.GOTO || newJumpTarget.getOpCode() == OpCode.GOTO_W) {
-                                    newJumpTarget = newJumpTarget.getOperand(0);
-                                }
-                                tail = tail.getPrevious();
-                                if (finallyTail.getEnd().getOpCode().getFlowControl() == FlowControl.Return) {
-                                    tail = tail.getPrevious();
-                                }
-                                else {
-                                    tryPrevious = true;
-                                }
-                                break;
-
-                            case ATHROW:
-                                tail = tail.getPrevious();
-                                if (finallyTail.getEnd().getOpCode() == OpCode.ATHROW) {
-                                    isLeave = true;
-                                }
-                                break;
-                        }
-                    }
-
-                    if (!opCodesMatch(last, tail, instructionCount)) {
-                        if (!tryPrevious || !opCodesMatch(last, tail = tail.getPrevious(), instructionCount)) {
-                            continue;
-                        }
-                    }
-
-                    if (newJumpTarget == null) {
-                        Instruction head = tail;
-                        for (int i = 1; i < instructionCount; i++) {
-                            head = head.getPrevious();
-                        }
-                        newJumpTarget = head;
-                    }
-
-                    for (int i = 0; i < instructionCount; i++) {
-                        _removed.add(tail);
-                        remappedJumps.put(tail, newJumpTarget);
-                        tail = tail.getPrevious();
-                    }
-
-                    if (isLeave) {
-                        if (tail != null &&
-                            tail.getOpCode().isStore() &&
-                            !_body.getMethod().getReturnType().isVoid()) {
-
-                            final Instruction load = InstructionHelper.reverseLoadOrStore(tail);
-                            final Instruction returnSite = node.getEnd();
-                            final Instruction loadSite = returnSite.getPrevious();
-
-                            loadSite.setOpCode(load.getOpCode());
-
-                            if (load.getOperandCount() == 1) {
-                                loadSite.setOperand(load.getOperand(0));
-                            }
-
-                            switch (load.getOpCode().name().charAt(0)) {
-                                case 'I':
-                                    returnSite.setOpCode(OpCode.IRETURN);
-                                    break;
-                                case 'L':
-                                    returnSite.setOpCode(OpCode.LRETURN);
-                                    break;
-                                case 'F':
-                                    returnSite.setOpCode(OpCode.FRETURN);
-                                    break;
-                                case 'D':
-                                    returnSite.setOpCode(OpCode.DRETURN);
-                                    break;
-                                case 'A':
-                                    returnSite.setOpCode(OpCode.ARETURN);
-                                    break;
-                            }
-
-                            returnSite.setOperand(null);
-
-                            _removed.remove(loadSite);
-                            _removed.remove(returnSite);
-                        }
-                        else {
-                            node.getEnd().setOpCode(OpCode.NOP);
-                            node.getEnd().setOperand(null);
-                        }
-                    }
-
-                    processedNodes.add(node);
                 }
+
+                if (newJumpTarget == null) {
+                    Instruction head = tail;
+                    for (int i = 1; i < instructionCount; i++) {
+                        head = head.getPrevious();
+                    }
+                    newJumpTarget = head;
+                }
+
+                for (int i = 0; i < instructionCount; i++) {
+                    _removed.add(tail);
+                    remappedJumps.put(tail, newJumpTarget);
+                    tail = tail.getPrevious();
+                }
+
+                if (isLeave) {
+                    if (tail != null &&
+                        tail.getOpCode().isStore() &&
+                        !_body.getMethod().getReturnType().isVoid()) {
+
+                        final Instruction load = InstructionHelper.reverseLoadOrStore(tail);
+                        final Instruction returnSite = node.getEnd();
+                        final Instruction loadSite = returnSite.getPrevious();
+
+                        loadSite.setOpCode(load.getOpCode());
+
+                        if (load.getOperandCount() == 1) {
+                            loadSite.setOperand(load.getOperand(0));
+                        }
+
+                        switch (load.getOpCode().name().charAt(0)) {
+                            case 'I':
+                                returnSite.setOpCode(OpCode.IRETURN);
+                                break;
+                            case 'L':
+                                returnSite.setOpCode(OpCode.LRETURN);
+                                break;
+                            case 'F':
+                                returnSite.setOpCode(OpCode.FRETURN);
+                                break;
+                            case 'D':
+                                returnSite.setOpCode(OpCode.DRETURN);
+                                break;
+                            case 'A':
+                                returnSite.setOpCode(OpCode.ARETURN);
+                                break;
+                        }
+
+                        returnSite.setOperand(null);
+
+                        _removed.remove(loadSite);
+                        _removed.remove(returnSite);
+                    }
+                    else {
+                        node.getEnd().setOpCode(OpCode.NOP);
+                        node.getEnd().setOperand(null);
+                    }
+                }
+
+                processedNodes.add(node);
             }
         }
 
@@ -458,6 +481,8 @@ public final class AstBuilder {
             p.setOpCode(OpCode.NOP);
             p.setOperand(null);
         }
+
+        Collections.reverse(handlers);
     }
 
     private static List<ExceptionHandler> remapHandlers(final List<ExceptionHandler> handlers, final InstructionCollection instructions) {

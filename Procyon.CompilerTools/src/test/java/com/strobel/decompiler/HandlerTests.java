@@ -226,6 +226,50 @@ public class HandlerTests extends DecompilerTest {
         }
     }
 
+    private static class K {
+        private static String negative() {
+            return "negative";
+        }
+
+        private static String positive() {
+            return "positive";
+        }
+
+        public String test(final int x) {
+            try {
+                if (x == 0) {
+                    return "zero";
+                }
+                else {
+                    try {
+                        if (x < 0) {
+                            return negative();
+                        }
+                        else if (x > 0) {
+                            return positive();
+                        }
+                    }
+                    catch (Throwable t) {
+                        System.out.println("inner catch");
+                        return "inner error";
+                    }
+                    finally {
+                        System.out.println("inner finally");
+                    }
+                    return "unreachable";
+                }
+            }
+            catch (RuntimeException e) {
+                System.out.println("catch");
+                return "error";
+            }
+            finally {
+                System.out.println("finally");
+                throw new RuntimeException("whoop whoop");
+            }
+        }
+    }
+
     @Test
     public void testThrowsSignatures() throws Throwable {
         verifyOutput(
@@ -342,6 +386,40 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
+    public void testSimpleTryCatchFinallyControlFlow() throws Throwable {
+        verifyOutput(
+            F.class,
+            defaultSettings(),
+            "private static class F {\n" +
+            "    private static boolean tryEnter(final Object o) {\n" +
+            "        return true;\n" +
+            "    }\n" +
+            "    private static void exit(final Object o) {\n" +
+            "    }\n" +
+            "    private static void doSomething() throws FileNotFoundException {\n" +
+            "    }\n" +
+            "    boolean test(final String[] path) {\n" +
+            "        final boolean lockAcquired = tryEnter(this);\n" +
+            "        boolean result;\n" +
+            "        try {\n" +
+            "            doSomething();\n" +
+            "            result = true;\n" +
+            "        }\n" +
+            "        catch (FileNotFoundException t) {\n" +
+            "            result = false;\n" +
+            "        }\n" +
+            "        finally {\n" +
+            "            if (lockAcquired) {\n" +
+            "                exit(this);\n" +
+            "            }\n" +
+            "        }\n" +
+            "        return result;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
     public void testNestedTryCatchFinally() throws Throwable {
         verifyOutput(
             G.class,
@@ -375,34 +453,127 @@ public class HandlerTests extends DecompilerTest {
     }
 
     @Test
-    public void testSimpleTryCatchFinallyControlFlow() throws Throwable {
+    public void testTryCatchFinallyWithNestedConditions() throws Throwable {
         verifyOutput(
-            F.class,
+            H.class,
             defaultSettings(),
-            "private static class F {\n" +
-            "    private static boolean tryEnter(final Object o) {\n" +
-            "        return true;\n" +
-            "    }\n" +
-            "    private static void exit(final Object o) {\n" +
-            "    }\n" +
-            "    private static void doSomething() throws FileNotFoundException {\n" +
-            "    }\n" +
-            "    boolean test(final String[] path) {\n" +
-            "        final boolean lockAcquired = tryEnter(this);\n" +
-            "        boolean result;\n" +
+            "private static class H {\n" +
+            "    public String test(final int x) {\n" +
             "        try {\n" +
-            "            doSomething();\n" +
-            "            result = true;\n" +
+            "            if (x < 0) {\n" +
+            "                return \"negative\";\n" +
+            "            }\n" +
+            "            if (x > 0) {\n" +
+            "                return \"positive\";\n" +
+            "            }\n" +
+            "            if (x == 0) {\n" +
+            "                return \"zero\";\n" +
+            "            }\n" +
+            "            return \"unreachable\";\n" +
             "        }\n" +
-            "        catch (FileNotFoundException t) {\n" +
-            "            result = false;\n" +
+            "        catch (RuntimeException e) {\n" +
+            "            System.out.println(\"catch\");\n" +
+            "            return \"error\";\n" +
             "        }\n" +
             "        finally {\n" +
-            "            if (lockAcquired) {\n" +
-            "                exit(this);\n" +
-            "            }\n" +
+            "            System.out.println(\"finally\");\n" +
             "        }\n" +
-            "        return result;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testTryCatchFinallyWithNestedConditionsAndThrowingFinally() throws Throwable {
+        verifyOutput(
+            I.class,
+            defaultSettings(),
+            "private static class I {\n" +
+            "    public String test(final int x) {\n" +
+            "        try {\n" +
+            "            if (x < 0) {\n" +
+            "                return \"negative\";\n" +
+            "            }\n" +
+            "            if (x > 0) {\n" +
+            "                return \"positive\";\n" +
+            "            }\n" +
+            "            if (x == 0) {\n" +
+            "                return \"zero\";\n" +
+            "            }\n" +
+            "            return \"unreachable\";\n" +
+            "        }\n" +
+            "        catch (RuntimeException e) {\n" +
+            "            System.out.println(\"catch\");\n" +
+            "            return \"error\";\n" +
+            "        }\n" +
+            "        finally {\n" +
+            "            System.out.println(\"finally\");\n" +
+            "            throw new RuntimeException(\"whoop whoop\");\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testTryFinallyWhereFinallyOverridesReturn() throws Throwable {
+        verifyOutput(
+            J.class,
+            defaultSettings(),
+            "private static class J {\n" +
+            "    public int test(final int x) {\n" +
+            "        try {\n" +
+            "            return x + 1;\n" +
+            "        }\n" +
+            "        finally {\n" +
+            "            return x + 1;\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testComplexNestedTryCatchFinallyWithThrowingOuterFinally() throws Throwable {
+        verifyOutput(
+            K.class,
+            defaultSettings(),
+            "private static class K {\n" +
+            "    private static String negative() {\n" +
+            "        return \"negative\";\n" +
+            "    }\n" +
+            "    private static String positive() {\n" +
+            "        return \"positive\";\n" +
+            "    }\n" +
+            "    public String test(final int x) {\n" +
+            "        try {\n" +
+            "            if (x == 0) {\n" +
+            "                return \"zero\";\n" +
+            "            }\n" +
+            "            try {\n" +
+            "                if (x < 0) {\n" +
+            "                    negative();\n" +
+            "                }\n" +
+            "                if (x > 0) {\n" +
+            "                    positive();\n" +
+            "                }\n" +
+            "            }\n" +
+            "            catch (Throwable t) {\n" +
+            "                System.out.println(\"inner catch\");\n" +
+            "            }\n" +
+            "            finally {\n" +
+            "                System.out.println(\"inner finally\");\n" +
+            "            }\n" +
+            "            return \"unreachable\";\n" +
+            "        }\n" +
+            "        catch (RuntimeException e) {\n" +
+            "            System.out.println(\"catch\");\n" +
+            "            return \"error\";\n" +
+            "        }\n" +
+            "        finally {\n" +
+            "            System.out.println(\"finally\");\n" +
+            "            throw new RuntimeException(\"whoop whoop\");\n" +
+            "        }\n" +
             "    }\n" +
             "}\n"
         );
