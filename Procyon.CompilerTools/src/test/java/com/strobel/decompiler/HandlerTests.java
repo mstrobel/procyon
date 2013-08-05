@@ -161,6 +161,32 @@ public class HandlerTests extends DecompilerTest {
             System.out.println("exit");
         }
     }
+    
+    private static class H {
+        public String test(final int x) {
+            try {
+                if (x < 0) {
+                    return "negative";
+                }
+                else if (x > 0) {
+                    return "positive";
+                }
+                else if (x == 0) {
+                    return "zero";
+                }
+                else {
+                    return "unreachable";
+                }
+            }
+            catch (RuntimeException e) {
+                System.out.println("catch");
+                return "error";
+            }
+            finally {
+                System.out.println("finally");
+            }
+        }
+    }
 
     @Test
     public void testThrowsSignatures() throws Throwable {

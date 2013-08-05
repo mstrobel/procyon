@@ -372,7 +372,7 @@ public final class AstOptimizer {
             }
         }
 
-        removeInlinedFinallyCode(method);
+//        removeInlinedFinallyCode(method);
     }
 
     private static void rewriteNestedSynchronized(final Block method) {

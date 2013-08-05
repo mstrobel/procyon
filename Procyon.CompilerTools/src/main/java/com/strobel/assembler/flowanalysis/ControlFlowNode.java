@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-public final class ControlFlowNode {
+public final class ControlFlowNode implements Comparable<ControlFlowNode> {
     private final int _blockIndex;
     private final int _offset;
     private final ControlFlowNodeType _nodeType;
@@ -376,6 +376,11 @@ public final class ControlFlowNode {
         output.unindent();
 
         return output.toString();
+    }
+
+    @Override
+    public int compareTo(final ControlFlowNode o) {
+        return Integer.compare(_blockIndex, o._blockIndex);
     }
 
     // <editor-fold defaultstate="collapsed" desc="Iterators">
