@@ -161,7 +161,7 @@ public class HandlerTests extends DecompilerTest {
             System.out.println("exit");
         }
     }
-    
+
     private static class H {
         public String test(final int x) {
             try {
@@ -184,6 +184,44 @@ public class HandlerTests extends DecompilerTest {
             }
             finally {
                 System.out.println("finally");
+            }
+        }
+    }
+
+    private static class I {
+        public String test(final int x) {
+            try {
+                if (x < 0) {
+                    return "negative";
+                }
+                else if (x > 0) {
+                    return "positive";
+                }
+                else if (x == 0) {
+                    return "zero";
+                }
+                else {
+                    return "unreachable";
+                }
+            }
+            catch (RuntimeException e) {
+                System.out.println("catch");
+                return "error";
+            }
+            finally {
+                System.out.println("finally");
+                throw new RuntimeException("whoop whoop");
+            }
+        }
+    }
+
+    private static class J {
+        public int test(final int x) {
+            try {
+                return x;
+            }
+            finally {
+                return x + 1;
             }
         }
     }

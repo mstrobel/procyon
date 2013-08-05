@@ -46,6 +46,7 @@ public final class AstBuilder {
     private final static ByteCode[] EMPTY_DEFINITIONS = new ByteCode[0];
 
     private final Map<ExceptionHandler, ByteCode> _loadExceptions = new LinkedHashMap<>();
+    private final Set<Instruction> _removed = new LinkedHashSet<>();
     private Map<Instruction, Instruction> _originalInstructionMap;
     private ControlFlowGraph _cfg;
     private InstructionCollection _instructions;
@@ -66,22 +67,27 @@ public final class AstBuilder {
             return Collections.emptyList();
         }
 
-        builder._instructions = body.getInstructions();
-        builder._exceptionHandlers = new ArrayList<>(body.getExceptionHandlers());
+        builder._instructions = copyInstructions(body.getInstructions());
+
+        final InstructionCollection oldInstructions = body.getInstructions();
+        final InstructionCollection newInstructions = builder._instructions;
+
         builder._originalInstructionMap = new IdentityHashMap<>();
 
+        for (int i = 0; i < newInstructions.size(); i++) {
+            builder._originalInstructionMap.put(newInstructions.get(i), oldInstructions.get(i));
+        }
+
+        builder._exceptionHandlers = remapHandlers(body.getExceptionHandlers(), builder._instructions);
+
         builder.removeSelfHandlingFinallyHandlers();
-        builder.trimAggressiveCatchBlocks();
         builder.removeInlinedFinallyCode();
+        builder.trimAggressiveCatchBlocks();
         builder.pruneExceptionHandlers();
 
         builder._cfg = ControlFlowGraphBuilder.build(builder._instructions, builder._exceptionHandlers);
         builder._cfg.computeDominance();
         builder._cfg.computeDominanceFrontier();
-
-        for (final Instruction instruction : body.getInstructions()) {
-            builder._originalInstructionMap.put(instruction, instruction);
-        }
 
         final List<ByteCode> byteCode = builder.performStackAnalysis();
 
@@ -147,9 +153,12 @@ public final class AstBuilder {
         return result;
     }
 
-    private static boolean areAllNop(final Instruction start, final Instruction end) {
+    private boolean areAllRemoved(final Instruction start, final Instruction end) {
         for (Instruction p = start; p != null && p.getOffset() < end.getEndOffset(); p = p.getNext()) {
-            if (p.getOpCode() != OpCode.NOP) {
+//            if (p.getOpCode() != OpCode.NOP) {
+//                return false;
+//            }
+            if (!_removed.contains(p)) {
                 return false;
             }
         }
@@ -195,6 +204,7 @@ public final class AstBuilder {
         final Set<ExceptionHandler> finallyHandlers = new LinkedHashSet<>();
         final Map<ExceptionHandler, HandlerInfo> handlerMap = new IdentityHashMap<>();
         final Set<ControlFlowNode> processedNodes = new LinkedHashSet<>();
+        final Map<Instruction, Instruction> remappedJumps = new IdentityHashMap<>();
 
         for (final ControlFlowNode node : cfg.getNodes()) {
             if (node.getNodeType() != ControlFlowNodeType.Normal) {
@@ -260,8 +270,13 @@ public final class AstBuilder {
                 first = first.getNext();
                 last = last.getPrevious().getPrevious();
             }
-            else if (first.getOpCode().isStore() || first.getOpCode() == OpCode.POP) {
-                first = first.getNext();
+            else {
+                if (first.getOpCode().isStore() || first.getOpCode() == OpCode.POP) {
+                    first = first.getNext();
+                }
+                if (last.getOpCode().isUnconditionalBranch()) {
+                    last = last.getPrevious();
+                }
             }
 
             if (first == null || last == null) {
@@ -276,11 +291,28 @@ public final class AstBuilder {
 
             final ControlFlowNode lastTryNode = last(handlerInfo.tryNodes);
             final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
-            final List<ControlFlowNode> additionalTargets;
+            final ControlFlowNode finallyTail = nodeMap.get(handler.getHandlerBlock().getLastInstruction());
+            final List<ControlFlowNode> additionalTargets = new ArrayList<>();
 
+            for (final ControlFlowNode node : lastTryNode.getDominatorTreeChildren()) {
+                if (node.getNodeType() == ControlFlowNodeType.CatchHandler) {
+                    additionalTargets.add(node);
+                }
+            }
+
+            if (lastTryNode.precedes(cfg.getRegularExit()) ||
+                lastTryNode.precedes(cfg.getRegularExit())) {
+
+                additionalTargets.add(lastTryNode);
+            }
+
+            for (final ControlFlowNode n : new ControlFlowNode[] { cfg.getRegularExit(), cfg.getExceptionalExit() }) {
+                if (successors.contains(n)) {
+                }
+            }
+
+/*
             if (successors.contains(cfg.getExceptionalExit())) {
-                additionalTargets = new ArrayList<>();
-
                 for (final ControlFlowEdge edge : lastTryNode.getOutgoing()) {
                     if (edge.getType() == JumpType.Normal || edge.getType() == JumpType.LeaveTry) {
                         final ControlFlowNode target = edge.getTarget();
@@ -291,35 +323,27 @@ public final class AstBuilder {
                     }
                 }
             }
-            else {
-                additionalTargets = Collections.emptyList();
-            }
+*/
 
             for (final ControlFlowNode successor : successors) {
                 if (allFinallyNodes.contains(successor)) {
                     continue;
                 }
 
-//                final ExceptionHandler sHandler = successor.getExceptionHandler();
-//
-//                if (sHandler != null) {
-//                    successor = handlerMap.get(sHandler).head;
-//                }
-
                 final List<ControlFlowNode> toProcess = new ArrayList<>(additionalTargets);
 
                 for (ControlFlowNode predecessor : successor.getPredecessors()) {
-                    final ExceptionHandler pHandler = predecessor.getExceptionHandler();
+//                    final ExceptionHandler pHandler = predecessor.getExceptionHandler();
+//
+//                    if (pHandler != null) {
+//                        if (pHandler.isFinally()) {
+//                            continue;
+//                        }
+//
+//                        predecessor = handlerMap.get(pHandler).tail;
+//                    }
 
-                    if (pHandler != null) {
-                        if (pHandler.isFinally()) {
-                            continue;
-                        }
-
-                        predecessor = handlerMap.get(pHandler).tail;
-                    }
-
-                    if (predecessor.getNodeType() == ControlFlowNodeType.Normal &&
+                    if (/*predecessor.getNodeType() == ControlFlowNodeType.Normal &&*/
                         !allFinallyNodes.contains(predecessor)) {
 
                         final ControlFlowNode p = predecessor;
@@ -340,40 +364,357 @@ public final class AstBuilder {
                     }
                 }
 
-                for (final ControlFlowNode predecessor : toProcess) {
-                    if (processedNodes.contains(predecessor)) {
+                for (ControlFlowNode node : toProcess) {
+                    final ExceptionHandler nodeHandler = node.getExceptionHandler();
+
+                    if (nodeHandler != null) {
+                        node = nodeMap.get(nodeHandler.getHandlerBlock().getLastInstruction());
+                    }
+
+                    if (processedNodes.contains(node)) {
                         continue;
                     }
 
-                    Instruction tail = predecessor.getEnd();
+                    Instruction tail = node.getEnd();
+                    Instruction newJumpTarget = null;
+                    boolean isLeave = false;
 
-                    switch (tail.getOpCode()) {
-                        case GOTO:
-                        case GOTO_W:
-                        case RETURN:
-                            tail = tail.getPrevious();
-                            break;
+                    if (tail.getOpCode().isUnconditionalBranch()) {
+                        switch (tail.getOpCode()) {
+                            case GOTO:
+                            case GOTO_W:
+                            case RETURN:
+                                newJumpTarget = tail;
+                                if (newJumpTarget.getOpCode() == OpCode.GOTO || newJumpTarget.getOpCode() == OpCode.GOTO_W) {
+                                    newJumpTarget = newJumpTarget.getOperand(0);
+                                }
+                                tail = tail.getPrevious();
+                                break;
 
-                        case IRETURN:
-                        case LRETURN:
-                        case FRETURN:
-                        case DRETURN:
-                        case ARETURN:
-                            tail = tail.getPrevious().getPrevious();
-                            break;
+                            case IRETURN:
+                            case LRETURN:
+                            case FRETURN:
+                            case DRETURN:
+                            case ARETURN:
+                                newJumpTarget = tail;
+                                if (newJumpTarget.getOpCode() == OpCode.GOTO || newJumpTarget.getOpCode() == OpCode.GOTO_W) {
+                                    newJumpTarget = newJumpTarget.getOperand(0);
+                                }
+                                tail = tail.getPrevious().getPrevious();
+                                break;
+
+                            case ATHROW:
+                                tail = tail.getPrevious();
+
+                                if (finallyTail.getEnd().getOpCode() == OpCode.ATHROW) {
+                                    isLeave = true;
+                                }
+                                break;
+                        }
                     }
 
                     if (!opCodesMatch(last, tail, instructionCount)) {
                         continue;
                     }
 
+                    if (newJumpTarget == null) {
+                        Instruction head = tail;
+                        for (int i = 1; i < instructionCount; i++) {
+                            head = head.getPrevious();
+                        }
+                        newJumpTarget = head;
+                    }
+
                     for (int i = 0; i < instructionCount; i++) {
-                        tail.setOperand(null);
-                        tail.setOpCode(OpCode.NOP);
+//                        tail.setOperand(null);
+//                        tail.setOpCode(OpCode.NOP);
+                        _removed.add(tail);
+                        remappedJumps.put(tail, newJumpTarget);
                         tail = tail.getPrevious();
                     }
 
-                    processedNodes.add(predecessor);
+                    if (isLeave) {
+                        if (tail != null &&
+                            tail.getOpCode().isStore() &&
+                            !_body.getMethod().getReturnType().isVoid()) {
+
+                            final Instruction load = InstructionHelper.reverseLoadOrStore(tail);
+                            final Instruction returnSite = node.getEnd();
+                            final Instruction loadSite = returnSite.getPrevious();
+
+                            loadSite.setOpCode(load.getOpCode());
+
+                            if (load.getOperandCount() == 1) {
+                                loadSite.setOperand(load.getOperand(0));
+                            }
+
+                            switch (load.getOpCode().name().charAt(0)) {
+                                case 'I':
+                                    returnSite.setOpCode(OpCode.IRETURN);
+                                    break;
+                                case 'L':
+                                    returnSite.setOpCode(OpCode.LRETURN);
+                                    break;
+                                case 'F':
+                                    returnSite.setOpCode(OpCode.FRETURN);
+                                    break;
+                                case 'D':
+                                    returnSite.setOpCode(OpCode.DRETURN);
+                                    break;
+                                case 'A':
+                                    returnSite.setOpCode(OpCode.ARETURN);
+                                    break;
+                            }
+
+                            returnSite.setOperand(null);
+
+                            _removed.remove(loadSite);
+                            _removed.remove(returnSite);
+                        }
+                        else {
+                            node.getEnd().setOpCode(OpCode.NOP);
+                            node.getEnd().setOperand(null);
+                        }
+                    }
+
+                    processedNodes.add(node);
+                }
+            }
+        }
+
+        remapJumps(remappedJumps);
+
+        for (final Instruction p : _removed) {
+            p.setOpCode(OpCode.NOP);
+            p.setOperand(null);
+        }
+    }
+
+    private void updateHandlersForRemovedInstruction(final Set<Instruction> toRemove, final Instruction instruction) {
+        for (int i = 0; i < _exceptionHandlers.size(); i++) {
+            ExceptionHandler handler = _exceptionHandlers.get(i);
+
+            Instruction first = handler.getHandlerBlock().getFirstInstruction();
+            Instruction last = handler.getHandlerBlock().getLastInstruction();
+
+            boolean changed = false;
+
+            if (first == instruction) {
+                while (first != null &&
+                       toRemove.contains(first) &&
+                       first.getOffset() < last.getEndOffset()) {
+
+                    first = first.getNext();
+                    changed = true;
+                }
+            }
+
+            if (first != null && last == instruction) {
+                while (last != null &&
+                       toRemove.contains(last) &&
+                       last.getOffset() > first.getOffset()) {
+
+                    last = last.getPrevious();
+                    changed = true;
+                }
+            }
+
+            if (changed) {
+                if (first == null ||
+                    last == null ||
+                    toRemove.contains(first) ||
+                    toRemove.contains(last)) {
+
+                    _exceptionHandlers.remove(i--);
+                }
+                else if (handler.isCatch()) {
+                    handler = ExceptionHandler.createCatch(
+                        handler.getTryBlock(),
+                        new ExceptionBlock(first, last),
+                        handler.getCatchType()
+                    );
+
+                    _exceptionHandlers.set(i, handler);
+                }
+                else {
+                    handler = ExceptionHandler.createFinally(
+                        handler.getTryBlock(),
+                        new ExceptionBlock(first, last)
+                    );
+
+                    _exceptionHandlers.set(i, handler);
+                }
+            }
+        }
+    }
+
+    private static List<ExceptionHandler> remapHandlers(final List<ExceptionHandler> handlers, final InstructionCollection instructions) {
+        final List<ExceptionHandler> newHandlers = new ArrayList<>();
+
+        for (final ExceptionHandler handler : handlers) {
+            final ExceptionBlock oldTry = handler.getTryBlock();
+            final ExceptionBlock oldHandler = handler.getHandlerBlock();
+
+            final ExceptionBlock newTry = new ExceptionBlock(
+                instructions.atOffset(oldTry.getFirstInstruction().getOffset()),
+                instructions.atOffset(oldTry.getLastInstruction().getOffset())
+            );
+
+            final ExceptionBlock newHandler = new ExceptionBlock(
+                instructions.atOffset(oldHandler.getFirstInstruction().getOffset()),
+                instructions.atOffset(oldHandler.getLastInstruction().getOffset())
+            );
+
+            if (handler.isCatch()) {
+                newHandlers.add(
+                    ExceptionHandler.createCatch(
+                        newTry,
+                        newHandler,
+                        handler.getCatchType()
+                    )
+                );
+            }
+            else {
+                newHandlers.add(
+                    ExceptionHandler.createFinally(
+                        newTry,
+                        newHandler
+                    )
+                );
+            }
+        }
+
+        return newHandlers;
+    }
+
+    private static InstructionCollection copyInstructions(final InstructionCollection instructions) {
+        final InstructionCollection instructionsCopy = new InstructionCollection();
+
+        for (final Instruction instruction : instructions) {
+            final Instruction copy = new Instruction(instruction.getOffset(), instruction.getOpCode());
+
+            if (instruction.getOperandCount() > 1) {
+                final Object[] operands = new Object[instruction.getOperandCount()];
+
+                for (int i = 0; i < operands.length; i++) {
+                    operands[i] = instruction.getOperand(i);
+                }
+
+                copy.setOperand(operands);
+            }
+            else {
+                copy.setOperand(instruction.getOperand(0));
+            }
+
+            copy.setLabel(instruction.getLabel());
+
+            instructionsCopy.add(copy);
+        }
+
+        for (final Instruction instruction : instructionsCopy) {
+            if (!instruction.hasOperand()) {
+                continue;
+            }
+
+            final Object operand = instruction.getOperand(0);
+
+            if (operand instanceof Instruction) {
+                instruction.setOperand(instructionsCopy.atOffset(((Instruction) operand).getOffset()));
+            }
+            else if (operand instanceof SwitchInfo) {
+                final SwitchInfo oldOperand = (SwitchInfo) operand;
+
+                final Instruction oldDefault = oldOperand.getDefaultTarget();
+                final Instruction newDefault = instructionsCopy.atOffset(oldDefault.getOffset());
+
+                final Instruction[] oldTargets = oldOperand.getTargets();
+                final Instruction[] newTargets = new Instruction[oldTargets.length];
+
+                for (int i = 0; i < newTargets.length; i++) {
+                    newTargets[i] = instructionsCopy.atOffset(oldTargets[i].getOffset());
+                }
+
+                final SwitchInfo newOperand = new SwitchInfo(oldOperand.getKeys(), newDefault, newTargets);
+
+                instruction.setOperand(newOperand);
+            }
+        }
+
+        return instructionsCopy;
+    }
+
+    private void remapJumps(final Map<Instruction, Instruction> remappedJumps) {
+        for (final Instruction instruction : _instructions) {
+            if (_removed.contains(instruction)) {
+                continue;
+            }
+
+            if (instruction.hasLabel()) {
+                instruction.getLabel().setIndex(instruction.getOffset());
+            }
+
+            if (instruction.getOperandCount() == 0) {
+                continue;
+            }
+
+            final Object operand = instruction.getOperand(0);
+
+            if (operand instanceof Instruction) {
+                final Instruction oldTarget = (Instruction) operand;
+                final Instruction newTarget = remappedJumps.get(oldTarget);
+
+                if (newTarget != null) {
+                    if (newTarget == instruction) {
+                        instruction.setOpCode(OpCode.NOP);
+                        instruction.setOperand(null);
+                    }
+                    else {
+                        instruction.setOperand(newTarget);
+
+                        if (!newTarget.hasLabel()) {
+                            newTarget.setLabel(new com.strobel.assembler.metadata.Label(newTarget.getOffset()));
+                        }
+                    }
+                }
+            }
+            else if (operand instanceof SwitchInfo) {
+                final SwitchInfo oldOperand = (SwitchInfo) operand;
+
+                final Instruction oldDefault = oldOperand.getDefaultTarget();
+                final Instruction newDefault = remappedJumps.get(oldDefault);
+
+                if (newDefault != null && !newDefault.hasLabel()) {
+                    newDefault.setLabel(new com.strobel.assembler.metadata.Label(newDefault.getOffset()));
+                }
+
+                final Instruction[] oldTargets = oldOperand.getTargets();
+
+                Instruction[] newTargets = null;
+
+                for (int i = 0; i < oldTargets.length; i++) {
+                    final Instruction newTarget = remappedJumps.get(oldTargets[i]);
+
+                    if (newTarget != null) {
+                        if (newTargets == null) {
+                            newTargets = Arrays.copyOf(oldTargets, oldTargets.length);
+                        }
+
+                        newTargets[i] = newTarget;
+
+                        if (!newTarget.hasLabel()) {
+                            newTarget.setLabel(new com.strobel.assembler.metadata.Label(newTarget.getOffset()));
+                        }
+                    }
+                }
+
+                if (newDefault != null || newTargets != null) {
+                    final SwitchInfo newOperand = new SwitchInfo(
+                        oldOperand.getKeys(),
+                        newDefault != null ? newDefault : oldDefault,
+                        newTargets != null ? newTargets : oldTargets
+                    );
+
+                    instruction.setOperand(newOperand);
                 }
             }
         }
@@ -734,7 +1075,7 @@ public final class AstBuilder {
                         }
                     }
 
-//                    if (!areAllNop(head, tail)) {
+//                    if (!areAllRemoved(head, tail)) {
 //                        continue;
 //                    }
 
@@ -2433,7 +2774,7 @@ public final class AstBuilder {
             final Instruction originalInstruction = _originalInstructionMap.get(byteCode.instruction);
             final Range codeRange = new Range(originalInstruction.getOffset(), originalInstruction.getEndOffset());
 
-            if (byteCode.stackBefore == null) {
+            if (byteCode.stackBefore == null /*|| _removed.contains(byteCode.instruction)*/) {
                 //
                 // Unreachable code.
                 //
@@ -2703,6 +3044,16 @@ public final class AstBuilder {
                     for (final Label l : (Label[]) operand) {
                         sb.append(l.getName());
                         sb.append(' ');
+                    }
+                }
+                else if (operand instanceof VariableReference) {
+                    final VariableReference variable = (VariableReference) operand;
+
+                    if (variable.hasName()) {
+                        sb.append(variable.getName());
+                    }
+                    else {
+                        sb.append("$" + String.valueOf(variable.getSlot()));
                     }
                 }
                 else {

@@ -337,7 +337,6 @@ public class AstMethodBodyBuilder {
                 final List<CatchBlock> catchBlocks = tryCatch.getCatchBlocks();
 
                 if (finallyBlock != null &&
-                    catchBlocks.isEmpty() &&
                     finallyBlock.getBody().size() == 1) {
 
                     final Node finallyNode = finallyBlock.getBody().get(0);
@@ -483,8 +482,17 @@ public class AstMethodBodyBuilder {
 
     private SynchronizedStatement transformSynchronized(final com.strobel.decompiler.ast.Expression expression, final TryCatchBlock tryCatch) {
         final SynchronizedStatement s = new SynchronizedStatement();
+
         s.setExpression((Expression) transformExpression(expression.getArguments().get(0), false));
-        s.setEmbeddedStatement(transformBlock(tryCatch.getTryBlock()));
+
+        if (tryCatch.getCatchBlocks().isEmpty()) {
+            s.setEmbeddedStatement(transformBlock(tryCatch.getTryBlock()));
+        }
+        else {
+            tryCatch.setFinallyBlock(null);
+            s.setEmbeddedStatement(transformNode(tryCatch, null));
+        }
+
         return s;
     }
 
