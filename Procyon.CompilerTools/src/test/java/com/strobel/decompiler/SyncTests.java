@@ -198,8 +198,7 @@ public class SyncTests extends DecompilerTest {
         verifyOutput(
             F.class,
             defaultSettings(),
-            "private static class F\n" +
-            "{\n" +
+            "private static class F {\n" +
             "    Object x;\n" +
             "    Object y;\n" +
             "    Object z;\n" +

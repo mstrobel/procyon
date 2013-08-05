@@ -124,10 +124,6 @@ public final class AstBuilder {
         }
     }
 
-    private static Set<ControlFlowNode> findDominatedNodes(final Collection<ControlFlowNode> scope, final ControlFlowNode head) {
-        return findDominatedNodes(scope, head, false);
-    }
-
     private static Set<ControlFlowNode> findDominatedNodes(final Collection<ControlFlowNode> scope, final ControlFlowNode head, final boolean normalEdgesOnly) {
         final Set<ControlFlowNode> agenda = new LinkedHashSet<>();
         final Set<ControlFlowNode> result = new LinkedHashSet<>();
@@ -153,17 +149,14 @@ public final class AstBuilder {
         return result;
     }
 
-    private boolean areAllRemoved(final Instruction start, final Instruction end) {
-        for (Instruction p = start; p != null && p.getOffset() < end.getEndOffset(); p = p.getNext()) {
-//            if (p.getOpCode() != OpCode.NOP) {
+//    private boolean areAllRemoved(final Instruction start, final Instruction end) {
+//        for (Instruction p = start; p != null && p.getOffset() < end.getEndOffset(); p = p.getNext()) {
+//            if (!_removed.contains(p)) {
 //                return false;
 //            }
-            if (!_removed.contains(p)) {
-                return false;
-            }
-        }
-        return true;
-    }
+//        }
+//        return true;
+//    }
 
     private static boolean opCodesMatch(final Instruction tail1, final Instruction tail2, final int count) {
         int i = 0;
@@ -199,18 +192,7 @@ public final class AstBuilder {
         return true;
     }
 
-    private static ControlFlowNode lastNode(final Collection<ControlFlowNode> nodes) {
-        ControlFlowNode last = null;
-
-        for (final ControlFlowNode node : nodes) {
-            if (last == null || node.getBlockIndex() > last.getBlockIndex()) {
-                last = node;
-            }
-        }
-
-        return last;
-    }
-
+    @SuppressWarnings("ConstantConditions")
     private void removeInlinedFinallyCode() {
         final InstructionCollection instructions = _instructions;
         final List<ExceptionHandler> handlers = _exceptionHandlers;
@@ -245,6 +227,7 @@ public final class AstBuilder {
             final ControlFlowNode head = nodeMap.get(handler.getHandlerBlock().getFirstInstruction());
             final ControlFlowNode tail = nodeMap.get(handler.getHandlerBlock().getLastInstruction());
             final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
+
             final List<ControlFlowNode> tryNodes = new ArrayList<>(findDominatedNodes(allNodes, tryHead, true));
             final List<ControlFlowNode> handlerNodes = new ArrayList<>();
 
@@ -318,15 +301,6 @@ public final class AstBuilder {
                     additionalTargets.add(node);
                 }
             }
-
-/*
-            if (lastTryNode.precedes(cfg.getRegularExit()) ||
-                lastTryNode.precedes(cfg.getRegularExit())) {
-
-                additionalTargets.add(lastTryNode);
-            }
-*/
-
 
             for (final ControlFlowNode successor : successors) {
                 if (allFinallyNodes.contains(successor)) {
@@ -424,8 +398,6 @@ public final class AstBuilder {
                     }
 
                     for (int i = 0; i < instructionCount; i++) {
-//                        tail.setOperand(null);
-//                        tail.setOpCode(OpCode.NOP);
                         _removed.add(tail);
                         remappedJumps.put(tail, newJumpTarget);
                         tail = tail.getPrevious();
@@ -485,64 +457,6 @@ public final class AstBuilder {
         for (final Instruction p : _removed) {
             p.setOpCode(OpCode.NOP);
             p.setOperand(null);
-        }
-    }
-
-    private void updateHandlersForRemovedInstruction(final Set<Instruction> toRemove, final Instruction instruction) {
-        for (int i = 0; i < _exceptionHandlers.size(); i++) {
-            ExceptionHandler handler = _exceptionHandlers.get(i);
-
-            Instruction first = handler.getHandlerBlock().getFirstInstruction();
-            Instruction last = handler.getHandlerBlock().getLastInstruction();
-
-            boolean changed = false;
-
-            if (first == instruction) {
-                while (first != null &&
-                       toRemove.contains(first) &&
-                       first.getOffset() < last.getEndOffset()) {
-
-                    first = first.getNext();
-                    changed = true;
-                }
-            }
-
-            if (first != null && last == instruction) {
-                while (last != null &&
-                       toRemove.contains(last) &&
-                       last.getOffset() > first.getOffset()) {
-
-                    last = last.getPrevious();
-                    changed = true;
-                }
-            }
-
-            if (changed) {
-                if (first == null ||
-                    last == null ||
-                    toRemove.contains(first) ||
-                    toRemove.contains(last)) {
-
-                    _exceptionHandlers.remove(i--);
-                }
-                else if (handler.isCatch()) {
-                    handler = ExceptionHandler.createCatch(
-                        handler.getTryBlock(),
-                        new ExceptionBlock(first, last),
-                        handler.getCatchType()
-                    );
-
-                    _exceptionHandlers.set(i, handler);
-                }
-                else {
-                    handler = ExceptionHandler.createFinally(
-                        handler.getTryBlock(),
-                        new ExceptionBlock(first, last)
-                    );
-
-                    _exceptionHandlers.set(i, handler);
-                }
-            }
         }
     }
 
@@ -641,6 +555,7 @@ public final class AstBuilder {
         return instructionsCopy;
     }
 
+    @SuppressWarnings("ConstantConditions")
     private void remapJumps(final Map<Instruction, Instruction> remappedJumps) {
         for (final Instruction instruction : _instructions) {
             if (_removed.contains(instruction)) {
@@ -1048,31 +963,30 @@ public final class AstBuilder {
                 final ExceptionBlock try2 = h2.getTryBlock();
 
                 final Instruction head = try1.getLastInstruction().getNext();
-
-                Instruction tail = try2.getFirstInstruction().getPrevious();
+                final Instruction tail = try2.getFirstInstruction().getPrevious();
 
                 final int i1 = handlers.indexOf(h1);
                 final int i2 = handlers.indexOf(h2);
 
                 if (head != tail) {
-                    if (tail.getOpCode().isUnconditionalBranch()) {
-                        switch (tail.getOpCode()) {
-                            case GOTO:
-                            case GOTO_W:
-                            case RETURN:
-                                tail = tail.getPrevious();
-                                break;
-
-                            case IRETURN:
-                            case LRETURN:
-                            case FRETURN:
-                            case DRETURN:
-                            case ARETURN:
-                                tail = tail.getPrevious().getPrevious();
-                                break;
-                        }
-                    }
-
+//                    if (tail.getOpCode().isUnconditionalBranch()) {
+//                        switch (tail.getOpCode()) {
+//                            case GOTO:
+//                            case GOTO_W:
+//                            case RETURN:
+//                                tail = tail.getPrevious();
+//                                break;
+//
+//                            case IRETURN:
+//                            case LRETURN:
+//                            case FRETURN:
+//                            case DRETURN:
+//                            case ARETURN:
+//                                tail = tail.getPrevious().getPrevious();
+//                                break;
+//                        }
+//                    }
+//
 //                    if (!areAllRemoved(head, tail)) {
 //                        continue;
 //                    }
@@ -2343,28 +2257,6 @@ public final class AstBuilder {
                 }
             }
         }
-    }
-
-    private static VariableDefinition findDefinition(final int slot, final List<ByteCode> definitions, final VariableDefinitionCollection variables) {
-        for (final ByteCode byteCode : definitions) {
-            final int effectiveOffset;
-            final OpCode op = byteCode.instruction.getOpCode();
-
-            if (op.isStore()) {
-                effectiveOffset = byteCode.offset + op.getSize() + op.getOperandType().getBaseSize();
-            }
-            else {
-                effectiveOffset = byteCode.offset;
-            }
-
-            final VariableDefinition definition = variables.tryFind(slot, effectiveOffset);
-
-            if (definition != null) {
-                return definition;
-            }
-        }
-
-        return null;
     }
 
     @SuppressWarnings("ConstantConditions")
