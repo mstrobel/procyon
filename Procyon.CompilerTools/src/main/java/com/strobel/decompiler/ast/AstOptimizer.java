@@ -279,7 +279,34 @@ public final class AstOptimizer {
         }
 
         GotoRemoval.removeRedundantCode(method);
+
+        if (abortBeforeStep == AstOptimizationStep.HoistNestedTryBlocks) {
+            return;
+        }
+
+        hoistNestedTryBlocks(method);
     }
+
+    // <editor-fold defaultstate="collapsed" desc="HoistNestedTryBlocks Optimization">
+
+    private static void hoistNestedTryBlocks(final Block method) {
+        for (final TryCatchBlock tryCatch : method.getSelfAndChildrenRecursive(TryCatchBlock.class)) {
+            if (tryCatch.getFinallyBlock() != null &&
+                tryCatch.getCatchBlocks().isEmpty() &&
+                tryCatch.getTryBlock().getBody().size() == 1 &&
+                tryCatch.getTryBlock().getBody().get(0) instanceof TryCatchBlock) {
+
+                final TryCatchBlock innerTryCatch = (TryCatchBlock) tryCatch.getTryBlock().getBody().get(0);
+
+                if (innerTryCatch.getFinallyBlock() == null) {
+                    tryCatch.setTryBlock(innerTryCatch.getTryBlock());
+                    tryCatch.getCatchBlocks().addAll(innerTryCatch.getCatchBlocks());
+                }
+            }
+        }
+    }
+
+    // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="RewriteFinallyBlocks Optimization">
 
@@ -449,8 +476,9 @@ public final class AstOptimizer {
                                 final StrongBox<Variable> v = new StrongBox<>();
                                 final List<Variable> lockCopies = new ArrayList<>();
 
-                                if (lockInfo.lockCopy != null)
+                                if (lockInfo.lockCopy != null) {
                                     lockCopies.add(lockInfo.lockCopy);
+                                }
 
                                 for (final Expression e : tryCatch.getChildrenAndSelfRecursive(Expression.class)) {
                                     if (matchLoadAny(e, lockCopies)) {
@@ -521,7 +549,7 @@ public final class AstOptimizer {
 
         final boolean skipTrailingBranch = matchUnconditionalBranch(tryBody.get(tryBody.size() - 1));
 
-        if (tryBody.size() < (skipTrailingBranch ? depth + 1: depth)) {
+        if (tryBody.size() < (skipTrailingBranch ? depth + 1 : depth)) {
             return false;
         }
 

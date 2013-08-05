@@ -2037,18 +2037,50 @@ public final class AstBuilder {
             parameterMap[parameter.getSlot()] = parameter;
         }
 
-//        for (final VariableDefinition variableDefinition : variables) {
-        for (int slot = 0; slot < _body.getMaxLocals(); slot++) {
+        final Set<Integer> undefinedSlots = new HashSet<>();
+        final List<VariableReference> varReferences = new ArrayList<>();
+
+        for (final VariableDefinition variableDefinition : variables) {
+            varReferences.add(variableDefinition);
+        }
+
+        for (final ByteCode b : body) {
+            if (b.operand instanceof VariableReference && !(b.operand instanceof VariableDefinition)) {
+                final VariableReference reference = (VariableReference) b.operand;
+
+                if (undefinedSlots.add(reference.getSlot())) {
+                    varReferences.add(reference);
+                }
+            }
+        }
+
+        for (final VariableReference vRef : varReferences) {
+//        for (int slot = 0; slot < _body.getMaxLocals(); slot++) {
             //
             // Find all definitions of and references to this variable.
             //
 
+            final int slot = vRef.getSlot();
+
             final List<ByteCode> definitions = new ArrayList<>();
             final List<ByteCode> references = new ArrayList<>();
 
+            final VariableDefinition vDef = vRef instanceof VariableDefinition ? (VariableDefinition) vRef
+                                                                               : null;
+
             for (final ByteCode b : body) {
-                if (b.operand instanceof VariableReference &&
-                    ((VariableReference) b.operand).getSlot() == slot) {
+                if (vRef instanceof VariableDefinition) {
+                    if (b.operand == vRef) {
+                        if (b.isVariableDefinition()) {
+                            definitions.add(b);
+                        }
+                        else {
+                            references.add(b);
+                        }
+                    }
+                }
+                else if (b.operand instanceof VariableReference &&
+                         ((VariableReference) b.operand).getSlot() == vRef.getSlot()) {
 
                     if (b.isVariableDefinition()) {
                         definitions.add(b);
@@ -2089,15 +2121,14 @@ public final class AstBuilder {
                 newVariables = Collections.singletonList(variableInfo);
             }
             else if (!_optimize || fromUnknownDefinition) {
-                final VariableDefinition definition = null; //findDefinition(slot, definitions, variables);
                 final Variable variable = new Variable();
 
-                if (definition != null) {
-                    variable.setType(definition.getVariableType());
+                if (vDef != null) {
+                    variable.setType(vDef.getVariableType());
 
                     variable.setName(
-                        StringUtilities.isNullOrEmpty(definition.getName()) ? "var_" + slot
-                                                                            : definition.getName()
+                        StringUtilities.isNullOrEmpty(vDef.getName()) ? "var_" + slot
+                                                                      : vDef.getName()
                     );
                 }
                 else {
@@ -2131,8 +2162,8 @@ public final class AstBuilder {
 
                                         variableType = ((Instruction) stackValue.getParameter()).getOperand(0);
                                     }
-                                    else if (definition != null) {
-                                        variableType = definition.getVariableType();
+                                    else if (vDef != null) {
+                                        variableType = vDef.getVariableType();
                                     }
                                     else {
                                         variableType = BuiltinTypes.Object;
@@ -2148,8 +2179,8 @@ public final class AstBuilder {
                                     variableType = BuiltinTypes.Integer;
                                     break;
                                 default:
-                                    if (definition != null) {
-                                        variableType = definition.getVariableType();
+                                    if (vDef != null) {
+                                        variableType = vDef.getVariableType();
                                     }
                                     else {
                                         variableType = BuiltinTypes.Object;
@@ -2167,11 +2198,11 @@ public final class AstBuilder {
                     }
                 }
 
-                if (definition == null) {
+                if (vDef == null) {
                     variable.setOriginalVariable(new VariableDefinition(slot, variable.getName(), method, variable.getType()));
                 }
                 else {
-                    variable.setOriginalVariable(definition);
+                    variable.setOriginalVariable(vDef);
                 }
 
                 variable.setGenerated(false);
@@ -2185,10 +2216,9 @@ public final class AstBuilder {
 
                 for (final ByteCode b : definitions) {
                     final Variable variable = new Variable();
-                    final VariableDefinition definition = findDefinition(slot, Collections.singletonList(b), variables);
 
-                    if (definition != null && !StringUtilities.isNullOrEmpty(definition.getName())) {
-                        variable.setName(definition.getName());
+                    if (vDef != null && !StringUtilities.isNullOrEmpty(vDef.getName())) {
+                        variable.setName(vDef.getName());
                     }
                     else {
                         variable.setName(format("var_%1$d_%2$02X", slot, b.offset));
@@ -2204,8 +2234,8 @@ public final class AstBuilder {
                         stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
                     }
 
-                    if (definition != null && definition.isFromMetadata()) {
-                        variable.setType(definition.getVariableType());
+                    if (vDef != null && vDef.isFromMetadata()) {
+                        variable.setType(vDef.getVariableType());
                     }
                     else {
                         switch (stackValue.getType()) {
@@ -2231,8 +2261,8 @@ public final class AstBuilder {
                                 variableType = BuiltinTypes.Integer;
                                 break;
                             default:
-                                if (definition != null) {
-                                    variableType = definition.getVariableType();
+                                if (vDef != null) {
+                                    variableType = vDef.getVariableType();
                                 }
                                 else {
                                     variableType = BuiltinTypes.Object;
@@ -2243,11 +2273,11 @@ public final class AstBuilder {
                         variable.setType(variableType);
                     }
 
-                    if (definition == null) {
+                    if (vDef == null) {
                         variable.setOriginalVariable(new VariableDefinition(slot, variable.getName(), method, variable.getType()));
                     }
                     else {
-                        variable.setOriginalVariable(definition);
+                        variable.setOriginalVariable(vDef);
                     }
 
                     variable.setGenerated(false);

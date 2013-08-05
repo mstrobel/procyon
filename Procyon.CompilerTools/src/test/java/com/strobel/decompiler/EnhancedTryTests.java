@@ -17,11 +17,13 @@ import java.io.IOException;
 import java.io.StringWriter;
 
 public class EnhancedTryTests {
+/*
     public void testEnhancedTryOneResource() throws IOException {
         try (final StringWriter writer = new StringWriter()) {
             writer.write("This is only a test.");
         }
     }
+*/
 
     public void testEnhancedTryTwoResources() throws IOException {
         try (final StringWriter writer1 = new StringWriter();
