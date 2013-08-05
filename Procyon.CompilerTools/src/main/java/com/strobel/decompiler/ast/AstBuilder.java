@@ -1798,12 +1798,7 @@ public final class AstBuilder {
             }
         }
 
-        //
-        // Convert parameters to Variables.
-        //
-//        convertParameters(body);
-
-        return body; //removeRedundantFinallyBlocks(body, byteCodeMap, exceptionHandlers);
+        return body;
     }
 
     private static StackSlot[] createModifiedStack(final ByteCode byteCode, final StackMappingVisitor stackMapper) {
@@ -1946,7 +1941,6 @@ public final class AstBuilder {
         }
 
         for (final VariableReference vRef : varReferences) {
-//        for (int slot = 0; slot < _body.getMaxLocals(); slot++) {
             //
             // Find all definitions of and references to this variable.
             //
