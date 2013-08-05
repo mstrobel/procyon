@@ -465,11 +465,11 @@ public final class PatternMatching {
         }
 
         final StrongBox<Variable> v = new StrongBox<>();
-
         final Variable lockVariable;
-        final Expression lockInit;
-        final Expression lockStore;
-        final Expression lockStoreCopy;
+
+        Expression lockInit;
+        Expression lockStore;
+        Expression lockStoreCopy;
 
         if (head < body.size() - 1 &&
             matchGetArguments(body.get(head), AstCode.Store, v, a)) {
@@ -489,7 +489,16 @@ public final class PatternMatching {
                 matchGetArguments(body.get(head), AstCode.MonitorEnter, a)) {
 
                 if (!matchLoad(a.get(0), lockVariable)) {
-                    return false;
+                    if (matchGetOperand(lockInit, AstCode.Load, v) &&
+                        matchLoad(a.get(0), v.get())) {
+
+                        lockStoreCopy = lockStore;
+                        lockStore = null;
+                        lockInit = null;
+                    }
+                    else {
+                        return false;
+                    }
                 }
 
                 result.set(

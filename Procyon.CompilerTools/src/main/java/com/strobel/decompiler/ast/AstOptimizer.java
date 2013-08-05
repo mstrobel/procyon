@@ -383,18 +383,19 @@ public final class AstOptimizer {
     }
 
     private static void rewriteNestedSynchronized(final Block method) {
-        final StrongBox<LockInfo> lockInfo = new StrongBox<>();
+/*
+        final StrongBox<LockInfo> lockInfoBox = new StrongBox<>();
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             final List<Node> body = block.getBody();
 
             for (int i = 0; i < body.size() - 1; i++) {
-                if (matchLock(body, i, lockInfo) &&
+                if (matchLock(body, i, lockInfoBox) &&
                     body.get(i + 1) instanceof TryCatchBlock) {
 
                     final TryCatchBlock tryCatch = (TryCatchBlock) body.get(i + 1);
 
-                    if (tryCatch.isSimpleSynchronized()) {
+                    if (tryCatch.isSynchronized()) {
                         continue;
                     }
 
@@ -404,10 +405,63 @@ public final class AstOptimizer {
                         final List<Node> finallyBody = finallyBlock.getBody();
 
                         if (finallyBody.size() == 3 &&
-                            matchUnlock(finallyBody.get(1), lockInfo.get())) {
+                            matchUnlock(finallyBody.get(1), lockInfoBox.get())) {
 
                             if (rewriteNestedSynchronizedCore(tryCatch, 1)) {
-                                tryCatch.setSimpleSynchronized(true);
+                                tryCatch.setSynchronized(true);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+*/
+        final StrongBox<LockInfo> lockInfoBox = new StrongBox<>();
+        final List<Expression> a = new ArrayList<>();
+
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            final List<Node> body = block.getBody();
+
+            for (int i = 0; i < body.size() - 1; i++) {
+                if (matchLock(body, i, lockInfoBox) &&
+                    i + lockInfoBox.get().operationCount < body.size() &&
+                    body.get(i + lockInfoBox.get().operationCount) instanceof TryCatchBlock) {
+
+                    final TryCatchBlock tryCatch = (TryCatchBlock) body.get(i + lockInfoBox.get().operationCount);
+
+                    if (tryCatch.isSynchronized()) {
+                        continue;
+                    }
+
+                    final Block finallyBlock = tryCatch.getFinallyBlock();
+
+                    if (finallyBlock != null) {
+                        final List<Node> finallyBody = finallyBlock.getBody();
+                        final LockInfo lockInfo = lockInfoBox.get();
+
+                        if (finallyBody.size() == 3 &&
+                            matchUnlock(finallyBody.get(1), lockInfo)) {
+
+                            if (rewriteNestedSynchronizedCore(tryCatch, lockInfo.operationCount)) {
+                                tryCatch.setSynchronized(true);
+                            }
+                            else {
+                                final StrongBox<Variable> v = new StrongBox<>();
+                                final List<Variable> lockCopies = new ArrayList<>();
+
+                                if (lockInfo.lockCopy != null)
+                                    lockCopies.add(lockInfo.lockCopy);
+
+                                for (final Expression e : tryCatch.getChildrenAndSelfRecursive(Expression.class)) {
+                                    if (matchLoadAny(e, lockCopies)) {
+                                        e.setOperand(lockInfo.lock);
+                                    }
+                                    else if (matchLoadStore(e, lockInfo.lock, v) &&
+                                             v.get() != lockInfo.lock) {
+
+                                        lockCopies.add(v.get());
+                                    }
+                                }
                             }
                         }
                     }
@@ -452,7 +506,7 @@ public final class AstOptimizer {
                         matchUnlock(finallyBody.get(1), lockInfo) &&
                         rewriteNestedSynchronizedCore(nestedTry, depth + 1)) {
 
-                        tryCatch.setSimpleSynchronized(true);
+                        tryCatch.setSynchronized(true);
 
                         return true;
                     }
@@ -467,30 +521,28 @@ public final class AstOptimizer {
 
         final boolean skipTrailingBranch = matchUnconditionalBranch(tryBody.get(tryBody.size() - 1));
 
-        if (tryBody.size() < (skipTrailingBranch ? depth : depth + 1)) {
+        if (tryBody.size() < (skipTrailingBranch ? depth + 1: depth)) {
             return false;
         }
 
         final int removeTail = tryBody.size() - (skipTrailingBranch ? 1 : 0);
         final List<Node> monitorExitNodes;
 
-        if (tryBody.get(removeTail - 1) instanceof TryCatchBlock) {
+        if (removeTail > 0 &&
+            tryBody.get(removeTail - 1) instanceof TryCatchBlock) {
+
             final TryCatchBlock innerTry = (TryCatchBlock) tryBody.get(removeTail - 1);
             final List<Node> innerTryBody = innerTry.getTryBlock().getBody();
 
             if (matchLock(innerTryBody, 0, lockInfoBox) &&
                 rewriteNestedSynchronizedCore(innerTry, depth)) {
 
-                for (final CatchBlock catchBlock : innerTry.getCatchBlocks()) {
-                    purgeUnlockStatements(catchBlock, lockInfoBox.get().getLockVariables());
-                }
-
                 return true;
             }
 
             final boolean skipInnerTrailingBranch = matchUnconditionalBranch(innerTryBody.get(innerTryBody.size() - 1));
 
-            if (innerTryBody.size() < (skipInnerTrailingBranch ? depth : depth + 1)) {
+            if (innerTryBody.size() < (skipInnerTrailingBranch ? depth + 1 : depth)) {
                 return false;
             }
 
@@ -539,11 +591,6 @@ public final class AstOptimizer {
             //
             monitorExitNodes.clear();
 
-            //
-            // Look for alternate monitorexit instructions (in case of 'if' or 'switch').
-            //
-            purgeUnlockStatements(tryBlock, lockVariables);
-
             if (!tryCatch.getCatchBlocks().isEmpty()) {
                 final TryCatchBlock newTryCatch = new TryCatchBlock();
 
@@ -554,7 +601,7 @@ public final class AstOptimizer {
                 tryCatch.setTryBlock(new Block(newTryCatch));
             }
 
-            tryCatch.setSimpleSynchronized(true);
+            tryCatch.setSynchronized(true);
 
             return true;
         }
@@ -562,25 +609,9 @@ public final class AstOptimizer {
         return false;
     }
 
-    private static void purgeUnlockStatements(final Node root, final Collection<Variable> lockVariables) {
-        final StrongBox<Variable> v = new StrongBox<>();
-        final StrongBox<Expression> a = new StrongBox<>();
-
-        for (final Expression e : root.getChildrenAndSelfRecursive(Expression.class)) {
-            if (matchGetArgument(e, AstCode.MonitorExit, a) &&
-                matchGetOperand(a.get(), AstCode.Load, v) &&
-                lockVariables.contains(v.get())) {
-
-                e.setCode(AstCode.Nop);
-                e.setOperand(null);
-                e.getArguments().clear();
-            }
-        }
-    }
-
     private static void removeInlinedFinallyCode(final Block method) {
         for (final TryCatchBlock tryCatch : method.getChildrenAndSelfRecursive(TryCatchBlock.class)) {
-            if (tryCatch.isSimpleSynchronized()) {
+            if (tryCatch.isSynchronized()) {
                 continue;
             }
 
@@ -831,8 +862,7 @@ public final class AstOptimizer {
                 else if (node instanceof TryCatchBlock) {
                     final TryCatchBlock tryCatch = (TryCatchBlock) node;
 
-                    if (tryCatch.getTryBlock().getBody().isEmpty() &&
-                        tryCatch.getFinallyBlock() == null) {
+                    if (isEmptyTryCatch(tryCatch)) {
 
                     }
                     else {
@@ -872,6 +902,25 @@ public final class AstOptimizer {
                 }
             }
         }
+    }
+
+    private static boolean isEmptyTryCatch(final TryCatchBlock tryCatch) {
+        if (tryCatch.getFinallyBlock() != null) {
+            return false;
+        }
+
+        final List<Node> body = tryCatch.getTryBlock().getBody();
+
+        if (body.isEmpty()) {
+            return true;
+        }
+
+        final StrongBox<Label> label = new StrongBox<>();
+
+        return body.size() == 3 &&
+               matchGetOperand(body.get(0), AstCode.Goto, label) &&
+               body.get(1) == label.get() &&
+               match(body.get(2), AstCode.Leave);
     }
 
     // </editor-fold>

@@ -172,7 +172,20 @@ public final class AstBuilder {
              p1 != null && p2 != null && i < count;
              p1 = p1.getPrevious(), p2 = p2.getPrevious(), i++) {
 
-            if (p1.getOpCode() != p2.getOpCode()) {
+            final OpCode c1 = p1.getOpCode();
+            final OpCode c2 = p2.getOpCode();
+
+            if (c1.isLoad()) {
+                if (!c2.isLoad() || c2.getStackBehaviorPush() != c1.getStackBehaviorPush()) {
+                    return false;
+                }
+            }
+            else if (c1.isStore()) {
+                if (!c2.isStore() || c2.getStackBehaviorPop() != c1.getStackBehaviorPop()) {
+                    return false;
+                }
+            }
+            else if (c1 != p2.getOpCode()) {
                 return false;
             }
         }
@@ -371,13 +384,14 @@ public final class AstBuilder {
                         node = nodeMap.get(nodeHandler.getHandlerBlock().getLastInstruction());
                     }
 
-                    if (processedNodes.contains(node)) {
+                    if (processedNodes.contains(node) || allFinallyNodes.contains(node)) {
                         continue;
                     }
 
                     Instruction tail = node.getEnd();
                     Instruction newJumpTarget = null;
                     boolean isLeave = false;
+                    boolean tryPrevious = false;
 
                     if (tail.getOpCode().isUnconditionalBranch()) {
                         switch (tail.getOpCode()) {
@@ -400,12 +414,17 @@ public final class AstBuilder {
                                 if (newJumpTarget.getOpCode() == OpCode.GOTO || newJumpTarget.getOpCode() == OpCode.GOTO_W) {
                                     newJumpTarget = newJumpTarget.getOperand(0);
                                 }
-                                tail = tail.getPrevious().getPrevious();
+                                tail = tail.getPrevious();
+                                if (finallyTail.getEnd().getOpCode().getFlowControl() == FlowControl.Return) {
+                                    tail = tail.getPrevious();
+                                }
+                                else {
+                                    tryPrevious = true;
+                                }
                                 break;
 
                             case ATHROW:
                                 tail = tail.getPrevious();
-
                                 if (finallyTail.getEnd().getOpCode() == OpCode.ATHROW) {
                                     isLeave = true;
                                 }
@@ -414,7 +433,9 @@ public final class AstBuilder {
                     }
 
                     if (!opCodesMatch(last, tail, instructionCount)) {
-                        continue;
+                        if (!tryPrevious || !opCodesMatch(last, tail = tail.getPrevious(), instructionCount)) {
+                            continue;
+                        }
                     }
 
                     if (newJumpTarget == null) {
