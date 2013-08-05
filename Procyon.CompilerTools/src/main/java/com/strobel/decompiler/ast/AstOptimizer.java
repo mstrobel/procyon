@@ -405,46 +405,10 @@ public final class AstOptimizer {
                 }
             }
         }
-
-//        removeInlinedFinallyCode(method);
     }
 
     private static void rewriteNestedSynchronized(final Block method) {
-/*
         final StrongBox<LockInfo> lockInfoBox = new StrongBox<>();
-
-        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
-            final List<Node> body = block.getBody();
-
-            for (int i = 0; i < body.size() - 1; i++) {
-                if (matchLock(body, i, lockInfoBox) &&
-                    body.get(i + 1) instanceof TryCatchBlock) {
-
-                    final TryCatchBlock tryCatch = (TryCatchBlock) body.get(i + 1);
-
-                    if (tryCatch.isSynchronized()) {
-                        continue;
-                    }
-
-                    final Block finallyBlock = tryCatch.getFinallyBlock();
-
-                    if (finallyBlock != null) {
-                        final List<Node> finallyBody = finallyBlock.getBody();
-
-                        if (finallyBody.size() == 3 &&
-                            matchUnlock(finallyBody.get(1), lockInfoBox.get())) {
-
-                            if (rewriteNestedSynchronizedCore(tryCatch, 1)) {
-                                tryCatch.setSynchronized(true);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-*/
-        final StrongBox<LockInfo> lockInfoBox = new StrongBox<>();
-        final List<Expression> a = new ArrayList<>();
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             final List<Node> body = block.getBody();
@@ -662,104 +626,6 @@ public final class AstOptimizer {
 
         body.remove(lockInfo.lockStore);
         lockInfo.lockAcquire.getArguments().set(0, lockInfo.lockInit.clone());
-    }
-
-    private static void removeInlinedFinallyCode(final Block method) {
-        for (final TryCatchBlock tryCatch : method.getChildrenAndSelfRecursive(TryCatchBlock.class)) {
-            if (tryCatch.isSynchronized()) {
-                continue;
-            }
-
-            final Block finallyBlock = tryCatch.getFinallyBlock();
-
-            if (finallyBlock == null || finallyBlock.getBody().isEmpty()) {
-                continue;
-            }
-
-            final Block tryBlock = tryCatch.getTryBlock();
-            final List<Node> tryBody = tryBlock.getBody();
-            final List<Node> finallyBody = finallyBlock.getBody();
-            final int removableSize = finallyBody.size() - 2;
-
-            if (tryBody.size() >= removableSize) {
-                int removeTail = tryBody.size() - 1;
-
-                if (matchUnconditionalBranch(tryBody.get(removeTail))) {
-                    --removeTail;
-
-                    if (removeTail > 0 && tryBody.get(removeTail) instanceof Label) {
-                        --removeTail;
-                    }
-                }
-
-                final int removeHead = removeTail - removableSize + 1;
-
-                if (removeHead <= 0 &&
-                    tryBody.get(0) instanceof TryCatchBlock &&
-                    tryCatch.getCatchBlocks().isEmpty()) {
-
-                    final TryCatchBlock innerTry = (TryCatchBlock) tryBody.get(0);
-
-                    tryBody.remove(0);
-                    tryBody.addAll(0, innerTry.getTryBlock().getBody());
-
-                    for (final CatchBlock innerCatch : innerTry.getCatchBlocks()) {
-                        tryCatch.getCatchBlocks().add(innerCatch);
-                    }
-                }
-                else if (removeHead >= 0) {
-                    if (tryBody.get(removeHead) instanceof TryCatchBlock) {
-                        final TryCatchBlock innerTry = (TryCatchBlock) tryBody.get(removeHead);
-                        final List<Node> innerTryBody = innerTry.getTryBlock().getBody();
-
-                        removeTail = innerTryBody.size() - 1;
-
-                        if (matchUnconditionalBranch(innerTryBody.get(removeTail))) {
-                            --removeTail;
-
-                            if (removeTail > 0 && innerTryBody.get(removeTail) instanceof Label) {
-                                --removeTail;
-                            }
-                        }
-
-                        final int innerRemoveHead = removeTail - removableSize + 1;
-
-                        for (int i = 0, n = removableSize; i < n; i++) {
-                            innerTryBody.remove(innerRemoveHead);
-                        }
-                    }
-                    else {
-                        for (int i = 0, n = removableSize; i < n; i++) {
-                            tryBody.remove(removeHead);
-                        }
-                    }
-                }
-            }
-
-            for (final CatchBlock catchBlock : tryCatch.getCatchBlocks()) {
-                final List<Node> catchBody = catchBlock.getBody();
-
-                if (catchBody.size() >= removableSize) {
-                    int removeTail = catchBody.size() - 1;
-
-                    if (matchUnconditionalBranch(catchBody.get(removeTail))) {
-                        --removeTail;
-
-                        if (removeTail > 0 && catchBody.get(removeTail) instanceof Label) {
-                            --removeTail;
-                        }
-                    }
-
-                    final int removeHead = removeTail - removableSize + 1;
-
-                    if (removeHead >= 0) {
-                        for (int i = 0, n = removableSize; i < n; i++) {
-                            catchBody.remove(removeHead);
-                        }
-                    }
-                }
-            }
-        }
     }
 
     // </editor-fold>
