@@ -188,6 +188,12 @@ public final class AstBuilder {
             else if (c1 != p2.getOpCode()) {
                 return false;
             }
+
+            if (c1 == OpCode.LDC || c1 == OpCode.LDC_W || c1 == OpCode.LDC2_W) {
+                if (!Objects.equals(p1.getOperand(0), p2.getOperand(0))) {
+                    return false;
+                }
+            }
         }
 
         return true;
@@ -313,30 +319,14 @@ public final class AstBuilder {
                 }
             }
 
+/*
             if (lastTryNode.precedes(cfg.getRegularExit()) ||
                 lastTryNode.precedes(cfg.getRegularExit())) {
 
                 additionalTargets.add(lastTryNode);
             }
-
-            for (final ControlFlowNode n : new ControlFlowNode[] { cfg.getRegularExit(), cfg.getExceptionalExit() }) {
-                if (successors.contains(n)) {
-                }
-            }
-
-/*
-            if (successors.contains(cfg.getExceptionalExit())) {
-                for (final ControlFlowEdge edge : lastTryNode.getOutgoing()) {
-                    if (edge.getType() == JumpType.Normal || edge.getType() == JumpType.LeaveTry) {
-                        final ControlFlowNode target = edge.getTarget();
-
-                        if (target.getNodeType() == ControlFlowNodeType.Normal) {
-                            additionalTargets.add(target);
-                        }
-                    }
-                }
-            }
 */
+
 
             for (final ControlFlowNode successor : successors) {
                 if (allFinallyNodes.contains(successor)) {
@@ -345,28 +335,15 @@ public final class AstBuilder {
 
                 final List<ControlFlowNode> toProcess = new ArrayList<>(additionalTargets);
 
-                for (ControlFlowNode predecessor : successor.getPredecessors()) {
-//                    final ExceptionHandler pHandler = predecessor.getExceptionHandler();
-//
-//                    if (pHandler != null) {
-//                        if (pHandler.isFinally()) {
-//                            continue;
-//                        }
-//
-//                        predecessor = handlerMap.get(pHandler).tail;
-//                    }
-
-                    if (/*predecessor.getNodeType() == ControlFlowNodeType.Normal &&*/
-                        !allFinallyNodes.contains(predecessor)) {
-
-                        final ControlFlowNode p = predecessor;
+                for (final ControlFlowNode predecessor : successor.getPredecessors()) {
+                    if (!allFinallyNodes.contains(predecessor)) {
                         final boolean process = tryHead.dominates(predecessor) ||
                                                 any(
                                                     siblings,
                                                     new Predicate<ExceptionHandler>() {
                                                         @Override
                                                         public boolean test(final ExceptionHandler handler) {
-                                                            return handlerMap.get(handler).head.dominates(p);
+                                                            return handlerMap.get(handler).head.dominates(predecessor);
                                                         }
                                                     }
                                                 );

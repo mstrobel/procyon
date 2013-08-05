@@ -1,6 +1,5 @@
 package com.strobel.decompiler;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class BoxingTests extends DecompilerTest {
@@ -172,7 +171,6 @@ public class BoxingTests extends DecompilerTest {
     }
 
     @Test
-    @Ignore
     public void testNoImproperCastRemoval() throws Exception {
         verifyOutput(
             C.class,
@@ -185,9 +183,9 @@ public class BoxingTests extends DecompilerTest {
             "    void test(final int i) {\n" +
             "    }\n" +
             "    void t(final int x) {\n" +
-            "        test(Integer.valueOf(x));\n" +
-            "        test((Object)Integer.valueOf(x));\n" +
-            "        test(x);\n" +
+            "        this.test(Integer.valueOf(x));\n" +
+            "        this.test((Object)x);\n" +
+            "        this.test(x);\n" +
             "    }\n" +
             "}\n"
         );

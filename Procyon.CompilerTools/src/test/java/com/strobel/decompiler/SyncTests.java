@@ -74,6 +74,22 @@ public class SyncTests extends DecompilerTest {
         }
     }
 
+    private static class F {
+        Object x;
+        Object y;
+        Object z;
+
+        public String test() {
+            synchronized (this.x) {
+                synchronized (this.y) {
+                    synchronized (this.z) {
+                        return "";
+                    }
+                }
+            }
+        }
+    }
+
     @Test
     public void testSimpleSynchronized() throws Throwable {
         verifyOutput(
@@ -174,6 +190,29 @@ public class SyncTests extends DecompilerTest {
             "        return result;\n" +
             "    }\n" +
             "}\n"
+        );
+    }
+
+    @Test
+    public void testNestedSynchronizeOnFields() throws Throwable {
+        verifyOutput(
+            F.class,
+            defaultSettings(),
+            "private static class F\n" +
+            "{\n" +
+            "    Object x;\n" +
+            "    Object y;\n" +
+            "    Object z;\n" +
+            "    public String test() {\n" +
+            "        synchronized (this.x) {\n" +
+            "            synchronized (this.y) {\n" +
+            "                synchronized (this.z) {\n" +
+            "                    return \"\";\n" +
+            "                }\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}"
         );
     }
 }

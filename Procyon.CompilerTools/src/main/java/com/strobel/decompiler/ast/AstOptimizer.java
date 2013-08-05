@@ -491,6 +491,8 @@ public final class AstOptimizer {
                                     }
                                 }
                             }
+
+                            inlineLockAccess(tryCatch, body, lockInfo);
                         }
                     }
                 }
@@ -535,6 +537,7 @@ public final class AstOptimizer {
                         rewriteNestedSynchronizedCore(nestedTry, depth + 1)) {
 
                         tryCatch.setSynchronized(true);
+                        inlineLockAccess(tryCatch, tryBody, lockInfo);
 
                         return true;
                     }
@@ -564,6 +567,9 @@ public final class AstOptimizer {
 
             if (matchLock(innerTryBody, 0, lockInfoBox) &&
                 rewriteNestedSynchronizedCore(innerTry, depth)) {
+
+                inlineLockAccess(tryCatch, tryBody, lockInfo);
+                tryCatch.setSynchronized(true);
 
                 return true;
             }
@@ -629,12 +635,33 @@ public final class AstOptimizer {
                 tryCatch.setTryBlock(new Block(newTryCatch));
             }
 
+            inlineLockAccess(tryCatch, tryBody, lockInfo);
+
             tryCatch.setSynchronized(true);
 
             return true;
         }
 
         return false;
+    }
+
+    private static void inlineLockAccess(final Node owner, final List<Node> body, final LockInfo lockInfo) {
+        if (lockInfo == null || lockInfo.lockInit == null) {
+            return;
+        }
+
+        final StrongBox<Expression> a = new StrongBox<>();
+
+        for (final Expression e : owner.getSelfAndChildrenRecursive(Expression.class)) {
+            if ((matchGetArgument(e, AstCode.MonitorEnter, a) || matchGetArgument(e, AstCode.MonitorExit, a)) &&
+                matchLoad(a.get(), lockInfo.lock)) {
+
+                e.getArguments().set(0, lockInfo.lockInit.clone());
+            }
+        }
+
+        body.remove(lockInfo.lockStore);
+        lockInfo.lockAcquire.getArguments().set(0, lockInfo.lockInit.clone());
     }
 
     private static void removeInlinedFinallyCode(final Block method) {

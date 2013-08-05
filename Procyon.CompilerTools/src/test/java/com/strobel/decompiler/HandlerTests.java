@@ -309,7 +309,7 @@ public class HandlerTests extends DecompilerTest {
             "        catch (Exception e) {}\n" +
             "        finally {\n" +
             "            try {\n" +
-            "                final int k = 0;\n" +
+            "                int k = 0;\n" +
             "                k = 1 / k;\n" +
             "            }\n" +
             "            catch (Exception e2) {}\n" +
