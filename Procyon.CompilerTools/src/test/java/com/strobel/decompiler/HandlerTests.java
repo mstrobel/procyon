@@ -322,11 +322,11 @@ public class HandlerTests extends DecompilerTest {
             "                return;\n" +
             "            }\n" +
             "        }\n" +
-            "        catch (UnsupportedOperationException e) {\n" +
+            "        catch (UnsupportedOperationException e2) {\n" +
             "            System.out.println(\"unchecked\");\n" +
             "            return;\n" +
             "        }\n" +
-            "        catch (Throwable e) {\n" +
+            "        catch (Throwable e3) {\n" +
             "            System.out.println(\"checked\");\n" +
             "            return;\n" +
             "        }\n" +
@@ -350,7 +350,7 @@ public class HandlerTests extends DecompilerTest {
             "            try {\n" +
             "                throw new Exception();\n" +
             "            }\n" +
-            "            catch (Exception e2) {}\n" +
+            "            catch (Exception e) {}\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
@@ -373,7 +373,7 @@ public class HandlerTests extends DecompilerTest {
             "                int k = 0;\n" +
             "                k = 1 / k;\n" +
             "            }\n" +
-            "            catch (Exception e2) {}\n" +
+            "            catch (Exception e) {}\n" +
             "        }\n" +
             "    }\n" +
             "}\n"

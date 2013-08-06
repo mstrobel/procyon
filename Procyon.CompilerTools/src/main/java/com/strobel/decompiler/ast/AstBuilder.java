@@ -1905,6 +1905,7 @@ public final class AstBuilder {
 
         final Set<Integer> undefinedSlots = new HashSet<>();
         final List<VariableReference> varReferences = new ArrayList<>();
+        final Map<String, VariableDefinition> lookup = makeVariableLookup(variables);
 
         for (final VariableDefinition variableDefinition : variables) {
             varReferences.add(variableDefinition);
@@ -1930,12 +1931,14 @@ public final class AstBuilder {
             final List<ByteCode> definitions = new ArrayList<>();
             final List<ByteCode> references = new ArrayList<>();
 
-            final VariableDefinition vDef = vRef instanceof VariableDefinition ? (VariableDefinition) vRef
+            final VariableDefinition vDef = vRef instanceof VariableDefinition ? lookup.get(key((VariableDefinition) vRef))
                                                                                : null;
 
             for (final ByteCode b : body) {
-                if (vRef instanceof VariableDefinition) {
-                    if (b.operand == vRef) {
+                if (vDef != null) {
+                    if (b.operand instanceof VariableDefinition &&
+                        lookup.get(key((VariableDefinition) b.operand)) == vDef) {
+
                         if (b.isVariableDefinition()) {
                             definitions.add(b);
                         }
@@ -2231,6 +2234,40 @@ public final class AstBuilder {
                 }
             }
         }
+    }
+
+    private static Map<String, VariableDefinition> makeVariableLookup(final VariableDefinitionCollection variables) {
+        final Map<String, VariableDefinition> lookup = new HashMap<>();
+
+        for (final VariableDefinition variable : variables) {
+            final String key = key(variable);
+
+            if (lookup.containsKey(key)) {
+                continue;
+            }
+
+            lookup.put(key, variable);
+        }
+
+        return lookup;
+    }
+
+    private static String key(final VariableDefinition variable) {
+        final StringBuilder sb = new StringBuilder();
+
+        if (variable.hasName()) {
+            sb.append(variable.getName());
+        }
+        else {
+            sb.append("#unnamed_")
+              .append(variable.getScopeStart())
+              .append('_')
+              .append(variable.getScopeEnd());
+        }
+
+        return sb.append(':')
+                 .append(variable.getVariableType().getSignature())
+                 .toString();
     }
 
     @SuppressWarnings("ConstantConditions")

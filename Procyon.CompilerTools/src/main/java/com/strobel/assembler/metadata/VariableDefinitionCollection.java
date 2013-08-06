@@ -18,13 +18,9 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.OpCode;
-import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.NoSuchElementException;
 
 public final class VariableDefinitionCollection extends Collection<VariableDefinition> {
@@ -173,40 +169,6 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
         final VariableDefinition variable = tryFind(slot, effectiveOffset);
 
-//        if (variable != null) {
-//            final TypeReference targetType = op.isStore() ? variable.getVariableType() : variableType;
-//            final TypeReference sourceType = op.isStore() ? variableType : variable.getVariableType();
-//
-//            if (variableType == BuiltinTypes.Object && !variable.getVariableType().getSimpleType().isPrimitive() ||
-//                isTargetTypeCompatible(targetType, sourceType) ||
-//                variable.isFromMetadata()) {
-//
-//                return variable;
-//            }
-//
-//            variable.setScopeEnd(instructionOffset - 1);
-//        }
-//
-//        variable = new VariableDefinition(
-//            slot,
-//            String.format("$%d_%d$", slot, effectiveOffset),
-//            _declaringMethod
-//        );
-//
-//        variable.setVariableType(variableType);
-//        variable.setScopeStart(effectiveOffset);
-//        variable.setScopeEnd(-1);
-//        variable.setFromMetadata(false);
-//
-//        if (variableType != BuiltinTypes.Object) {
-//            variable.setTypeKnown(true);
-//        }
-//
-//        add(variable);
-//
-//        updateScopes(-1);
-//        return variable;
-
         if (variable != null) {
             return variable;
         }
@@ -216,167 +178,6 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
             slot,
             _declaringMethod.getDeclaringType()
         );
-    }
-
-    public void updateScopes(final int codeSize) {
-        boolean modified;
-
-        do {
-            modified = false;
-
-            for (int i = 0; i < size(); i++) {
-                final VariableDefinition variable = get(i);
-
-                if (variable.getScopeEnd() < 0) {
-                    for (int j = 0; j < size(); j++) {
-                        if (i == j) {
-                            continue;
-                        }
-
-                        final VariableDefinition other = get(j);
-
-                        if (variable.getSlot() == other.getSlot() &&
-                            variable.getScopeStart() < other.getScopeStart()) {
-
-                            variable.setScopeEnd(other.getScopeStart());
-                            modified = true;
-                        }
-                    }
-                }
-            }
-        }
-        while (modified);
-
-        for (int i = 0; i < size(); i++) {
-            final VariableDefinition variable = get(i);
-
-            if (variable.getScopeEnd() < 0) {
-                variable.setScopeEnd(codeSize);
-            }
-        }
-    }
-
-    @SuppressWarnings("ConstantConditions")
-    public final void mergeVariables() {
-        final ArrayList<VariableDefinition> slotSharers = new ArrayList<>();
-        final ArrayList<VariableDefinition> sortedVariables = new ArrayList<>(this);
-
-        Collections.sort(
-            sortedVariables,
-            new Comparator<VariableDefinition>() {
-                @Override
-                public int compare(final VariableDefinition o1, final VariableDefinition o2) {
-                    final int slotComparison = Integer.compare(o1.getSlot(), o2.getSlot());
-
-                    if (slotComparison != 0) {
-                        return slotComparison;
-                    }
-
-                    return Integer.compare(o1.getScopeStart(), o2.getScopeStart());
-                }
-            }
-        );
-
-    outer:
-        for (int i = 0; i < sortedVariables.size(); i++) {
-            final VariableDefinition variable = sortedVariables.get(i);
-            final TypeReference variableType = variable.getVariableType();
-
-            for (int j = i + 1; j < sortedVariables.size(); j++) {
-                final VariableDefinition other;
-
-                if (variable.getSlot() == (other = sortedVariables.get(j)).getSlot()) {
-                    if (StringUtilities.equals(other.getName(), variable.getName())) {
-                        slotSharers.add(other);
-                    }
-                    else {
-                        break;
-                    }
-                }
-                else {
-                    break;
-                }
-            }
-
-            boolean merged = false;
-            int minScopeStart = variable.getScopeStart();
-            int maxScopeEnd = variable.getScopeEnd();
-
-            for (int j = 0; j < slotSharers.size(); j++) {
-                final VariableDefinition slotSharer = slotSharers.get(j);
-
-                if (slotSharer.isFromMetadata() &&
-                    !StringUtilities.equals(slotSharer.getName(), variable.getName())) {
-
-                    continue;
-                }
-
-                final TypeReference slotSharerType = slotSharer.getVariableType();
-
-                if (isTargetTypeCompatible(variableType, slotSharerType) ||
-                    isTargetTypeCompatible(slotSharerType, variableType)) {
-
-                    if (slotSharer.getScopeStart() < minScopeStart) {
-                        merged = true;
-                        minScopeStart = slotSharer.getScopeStart();
-                    }
-
-                    if (slotSharer.getScopeEnd() > maxScopeEnd) {
-                        merged = true;
-                        maxScopeEnd = slotSharer.getScopeEnd();
-                    }
-
-                    if (merged) {
-                        remove(slotSharer);
-                        sortedVariables.remove(slotSharer);
-                    }
-
-                    if (variable.isFromMetadata()) {
-                        continue;
-                    }
-
-                    if (!isTargetTypeCompatible(variableType, slotSharerType)) {
-                        variable.setVariableType(slotSharerType);
-                    }
-                }
-            }
-
-            if (merged) {
-                variable.setScopeStart(minScopeStart);
-                variable.setScopeEnd(maxScopeEnd);
-            }
-        }
-    }
-
-    private boolean isTargetTypeCompatible(final TypeReference targetType, final TypeReference sourceType) {
-        //noinspection SimplifiableIfStatement
-        if (sourceType.isPrimitive() || targetType.isPrimitive()) {
-            if (sourceType.isPrimitive() != targetType.isPrimitive()) {
-                return false;
-            }
-        }
-
-        if (MetadataHelper.isAssignableFrom(targetType, sourceType)) {
-            return true;
-        }
-
-        final JvmType simpleTarget = targetType.getSimpleType();
-        final JvmType simpleSource = sourceType.getSimpleType();
-
-        if (simpleTarget.isIntegral()) {
-            if (simpleSource == JvmType.Integer) {
-                return true;
-            }
-            return simpleSource.isIntegral() &&
-                   simpleSource.bitWidth() <= simpleTarget.bitWidth();
-        }
-
-        if (simpleTarget.isFloating()) {
-            return simpleSource.isFloating() &&
-                   simpleSource.bitWidth() <= simpleTarget.bitWidth();
-        }
-
-        return false;
     }
 
     // <editor-fold defaultstate="collapsed" desc="UnknownVariableReference Class">

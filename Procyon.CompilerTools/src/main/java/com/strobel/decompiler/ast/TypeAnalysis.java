@@ -30,8 +30,7 @@ import com.strobel.util.ContractUtils;
 import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
-import static com.strobel.decompiler.ast.PatternMatching.match;
-import static com.strobel.decompiler.ast.PatternMatching.matchGetOperand;
+import static com.strobel.decompiler.ast.PatternMatching.*;
 
 public final class TypeAnalysis {
     private final List<ExpressionToInfer> _allExpressions = new ArrayList<>();
@@ -632,7 +631,7 @@ public final class TypeAnalysis {
                         //
                         final TypeReference inferredType = inferTypeForExpression(
                             expression.getArguments().get(0),
-                            v.getType()
+                            inferTypeForVariable(v, null)
                         );
 
                         if (inferredType != null) {
@@ -648,10 +647,6 @@ public final class TypeAnalysis {
                     final TypeReference lastInferredType = _inferredVariableTypes.get(v);
 
                     if (expectedType != null) {
-                        if (_singleLoadVariables.contains(v) && v.getType() == null) {
-                            v.setType(expectedType);
-                        }
-
                         TypeReference result = null;
 
                         if (expectedType.isGenericType()) {
@@ -678,6 +673,9 @@ public final class TypeAnalysis {
                             if (_singleLoadVariables.contains(v) && v.getType() == null) {
                                 v.setType(result != null ? result : expectedType);
                             }
+                        }
+                        else if (_singleLoadVariables.contains(v) && v.getType() == null) {
+                            v.setType(result != null ? result : expectedType);
                         }
 
                         return result != null ? result : v.getType();
