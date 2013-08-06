@@ -270,6 +270,23 @@ public class HandlerTests extends DecompilerTest {
         }
     }
 
+    private static final class L {
+        public void test() {
+            try {
+                try {
+                    System.out.print(3);
+                    throw new NoSuchFieldException();
+                }
+                catch (NoSuchFieldException e) {
+                }
+            }
+            finally {
+                System.out.print("finally");
+            }
+            System.out.print(5);
+        }
+    }
+
     @Test
     public void testThrowsSignatures() throws Throwable {
         verifyOutput(

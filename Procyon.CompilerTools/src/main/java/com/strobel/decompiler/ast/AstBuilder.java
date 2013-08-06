@@ -202,8 +202,6 @@ public final class AstBuilder {
         final List<ExceptionHandler> handlers = _exceptionHandlers;
         final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, handlers);
 
-        Collections.reverse(handlers);
-
         cfg.computeDominance();
         cfg.computeDominanceFrontier();
 
@@ -423,7 +421,7 @@ public final class AstBuilder {
 
                 for (int i = 0; i < instructionCount; i++) {
                     _removed.add(tail);
-                    remappedJumps.put(tail, newJumpTarget);
+//                    remappedJumps.put(tail, newJumpTarget);
                     tail = tail.getPrevious();
                 }
 
@@ -466,8 +464,9 @@ public final class AstBuilder {
                         _removed.remove(returnSite);
                     }
                     else {
-                        node.getEnd().setOpCode(OpCode.NOP);
-                        node.getEnd().setOperand(null);
+//                        node.getEnd().setOpCode(OpCode.NOP);
+//                        node.getEnd().setOperand(null);
+                        _removed.add(node.getEnd());
                     }
                 }
 
@@ -475,14 +474,14 @@ public final class AstBuilder {
             }
         }
 
-        remapJumps(remappedJumps);
-
-        for (final Instruction p : _removed) {
-            p.setOpCode(OpCode.NOP);
-            p.setOperand(null);
-        }
-
-        Collections.reverse(handlers);
+//        remapJumps(remappedJumps);
+//
+//        for (final Instruction p : _removed) {
+//            p.setOpCode(OpCode.NOP);
+//            p.setOperand(null);
+//        }
+//
+//        instructions.recomputeOffsets();
     }
 
     private static List<ExceptionHandler> remapHandlers(final List<ExceptionHandler> handlers, final InstructionCollection instructions) {
@@ -599,7 +598,12 @@ public final class AstBuilder {
 
             if (operand instanceof Instruction) {
                 final Instruction oldTarget = (Instruction) operand;
-                final Instruction newTarget = remappedJumps.get(oldTarget);
+
+                Instruction newTarget = remappedJumps.get(oldTarget);
+
+                while (remappedJumps.containsKey(newTarget)) {
+                    newTarget = remappedJumps.get(newTarget);
+                }
 
                 if (newTarget != null) {
                     if (newTarget == instruction) {
@@ -619,7 +623,12 @@ public final class AstBuilder {
                 final SwitchInfo oldOperand = (SwitchInfo) operand;
 
                 final Instruction oldDefault = oldOperand.getDefaultTarget();
-                final Instruction newDefault = remappedJumps.get(oldDefault);
+
+                Instruction newDefault = remappedJumps.get(oldDefault);
+
+                while (remappedJumps.containsKey(newDefault)) {
+                    newDefault = remappedJumps.get(newDefault);
+                }
 
                 if (newDefault != null && !newDefault.hasLabel()) {
                     newDefault.setLabel(new com.strobel.assembler.metadata.Label(newDefault.getOffset()));
@@ -630,7 +639,11 @@ public final class AstBuilder {
                 Instruction[] newTargets = null;
 
                 for (int i = 0; i < oldTargets.length; i++) {
-                    final Instruction newTarget = remappedJumps.get(oldTargets[i]);
+                    Instruction newTarget = remappedJumps.get(oldTargets[i]);
+
+                    while (remappedJumps.containsKey(newTarget)) {
+                        newTarget = remappedJumps.get(newTarget);
+                    }
 
                     if (newTarget != null) {
                         if (newTargets == null) {
@@ -2738,7 +2751,15 @@ public final class AstBuilder {
                     continue;
             }
 
-            final Expression expression = new Expression(byteCode.code, byteCode.operand);
+            final Expression expression;
+
+            if (_removed.contains(byteCode.instruction)) {
+                expression = new Expression(AstCode.Nop, null);
+                ast.add(expression);
+                continue;
+            }
+
+            expression = new Expression(byteCode.code, byteCode.operand);
 
             if (byteCode.code == AstCode.Inc) {
                 assert byteCode.secondOperand instanceof Integer;

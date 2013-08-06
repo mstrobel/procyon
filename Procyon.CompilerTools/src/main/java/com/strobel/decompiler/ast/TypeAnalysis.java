@@ -30,6 +30,7 @@ import com.strobel.util.ContractUtils;
 import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.decompiler.ast.PatternMatching.match;
 import static com.strobel.decompiler.ast.PatternMatching.matchGetOperand;
 
 public final class TypeAnalysis {
@@ -572,7 +573,7 @@ public final class TypeAnalysis {
 
     @SuppressWarnings("ConstantConditions")
     private TypeReference doInferTypeForExpression(final Expression expression, final TypeReference expectedType, final boolean forceInferChildren) {
-        if (_stack.contains(expression)) {
+        if (_stack.contains(expression) && !match(expression, AstCode.LdC)) {
             return expectedType;
         }
 
@@ -631,7 +632,7 @@ public final class TypeAnalysis {
                         //
                         final TypeReference inferredType = inferTypeForExpression(
                             expression.getArguments().get(0),
-                            inferTypeForVariable(v, null)
+                            v.getType()
                         );
 
                         if (inferredType != null) {
@@ -647,9 +648,13 @@ public final class TypeAnalysis {
                     final TypeReference lastInferredType = _inferredVariableTypes.get(v);
 
                     if (expectedType != null) {
-                        if (expectedType.isGenericType()) {
-                            TypeReference result = null;
+                        if (_singleLoadVariables.contains(v) && v.getType() == null) {
+                            v.setType(expectedType);
+                        }
 
+                        TypeReference result = null;
+
+                        if (expectedType.isGenericType()) {
                             if (lastInferredType != null) {
                                 result = MetadataHelper.asSubType(lastInferredType, expectedType);
                             }
@@ -670,8 +675,12 @@ public final class TypeAnalysis {
                                 invalidateDependentExpressions(expression, v);
                             }
 
-                            return result;
+                            if (_singleLoadVariables.contains(v) && v.getType() == null) {
+                                v.setType(result != null ? result : expectedType);
+                            }
                         }
+
+                        return result != null ? result : v.getType();
                     }
 
                     return lastInferredType != null ? lastInferredType : v.getType();
