@@ -81,6 +81,7 @@ public final class AstBuilder {
         builder._exceptionHandlers = remapHandlers(body.getExceptionHandlers(), builder._instructions);
 
         builder.removeSelfHandlingFinallyHandlers();
+        builder.trimAggressiveFinallyBlocks();
         builder.removeInlinedFinallyCode();
         builder.trimAggressiveCatchBlocks();
         builder.pruneExceptionHandlers();
@@ -209,7 +210,6 @@ public final class AstBuilder {
         final Set<ExceptionHandler> finallyHandlers = new LinkedHashSet<>();
         final Map<ExceptionHandler, HandlerInfo> handlerMap = new IdentityHashMap<>();
         final Set<ControlFlowNode> processedNodes = new LinkedHashSet<>();
-        final Map<Instruction, Instruction> remappedJumps = new IdentityHashMap<>();
 
         for (final ControlFlowNode node : cfg.getNodes()) {
             if (node.getNodeType() != ControlFlowNodeType.Normal) {
@@ -315,6 +315,12 @@ public final class AstBuilder {
                 }
             }
 
+            for (final ControlFlowNode node : tryHead.getSuccessors()) {
+                if (node.getNodeType() == ControlFlowNodeType.CatchHandler) {
+                    additionalTargets.add(nodeMap.get(node.getExceptionHandler().getHandlerBlock().getLastInstruction()));
+                }
+            }
+
             final Set<ControlFlowNode> toProcess = new LinkedHashSet<>(additionalTargets);
 
             for (final ControlFlowNode successor : successors) {
@@ -354,7 +360,6 @@ public final class AstBuilder {
                 }
 
                 Instruction tail = node.getEnd();
-                Instruction newJumpTarget = null;
                 boolean isLeave = false;
                 boolean tryPrevious = false;
 
@@ -363,10 +368,6 @@ public final class AstBuilder {
                         case GOTO:
                         case GOTO_W:
                         case RETURN:
-                            newJumpTarget = tail;
-                            if (newJumpTarget.getOpCode() == OpCode.GOTO || newJumpTarget.getOpCode() == OpCode.GOTO_W) {
-                                newJumpTarget = newJumpTarget.getOperand(0);
-                            }
                             tail = tail.getPrevious();
                             break;
 
@@ -375,10 +376,6 @@ public final class AstBuilder {
                         case FRETURN:
                         case DRETURN:
                         case ARETURN:
-                            newJumpTarget = tail;
-                            if (newJumpTarget.getOpCode() == OpCode.GOTO || newJumpTarget.getOpCode() == OpCode.GOTO_W) {
-                                newJumpTarget = newJumpTarget.getOperand(0);
-                            }
                             tail = tail.getPrevious();
                             if (finallyTail.getEnd().getOpCode().getFlowControl() == FlowControl.Return) {
                                 tail = tail.getPrevious();
@@ -411,17 +408,8 @@ public final class AstBuilder {
                     }
                 }
 
-                if (newJumpTarget == null) {
-                    Instruction head = tail;
-                    for (int i = 1; i < instructionCount; i++) {
-                        head = head.getPrevious();
-                    }
-                    newJumpTarget = head;
-                }
-
                 for (int i = 0; i < instructionCount; i++) {
                     _removed.add(tail);
-//                    remappedJumps.put(tail, newJumpTarget);
                     tail = tail.getPrevious();
                 }
 
@@ -577,98 +565,6 @@ public final class AstBuilder {
         }
 
         return instructionsCopy;
-    }
-
-    @SuppressWarnings("ConstantConditions")
-    private void remapJumps(final Map<Instruction, Instruction> remappedJumps) {
-        for (final Instruction instruction : _instructions) {
-            if (_removed.contains(instruction)) {
-                continue;
-            }
-
-            if (instruction.hasLabel()) {
-                instruction.getLabel().setIndex(instruction.getOffset());
-            }
-
-            if (instruction.getOperandCount() == 0) {
-                continue;
-            }
-
-            final Object operand = instruction.getOperand(0);
-
-            if (operand instanceof Instruction) {
-                final Instruction oldTarget = (Instruction) operand;
-
-                Instruction newTarget = remappedJumps.get(oldTarget);
-
-                while (remappedJumps.containsKey(newTarget)) {
-                    newTarget = remappedJumps.get(newTarget);
-                }
-
-                if (newTarget != null) {
-                    if (newTarget == instruction) {
-                        instruction.setOpCode(OpCode.NOP);
-                        instruction.setOperand(null);
-                    }
-                    else {
-                        instruction.setOperand(newTarget);
-
-                        if (!newTarget.hasLabel()) {
-                            newTarget.setLabel(new com.strobel.assembler.metadata.Label(newTarget.getOffset()));
-                        }
-                    }
-                }
-            }
-            else if (operand instanceof SwitchInfo) {
-                final SwitchInfo oldOperand = (SwitchInfo) operand;
-
-                final Instruction oldDefault = oldOperand.getDefaultTarget();
-
-                Instruction newDefault = remappedJumps.get(oldDefault);
-
-                while (remappedJumps.containsKey(newDefault)) {
-                    newDefault = remappedJumps.get(newDefault);
-                }
-
-                if (newDefault != null && !newDefault.hasLabel()) {
-                    newDefault.setLabel(new com.strobel.assembler.metadata.Label(newDefault.getOffset()));
-                }
-
-                final Instruction[] oldTargets = oldOperand.getTargets();
-
-                Instruction[] newTargets = null;
-
-                for (int i = 0; i < oldTargets.length; i++) {
-                    Instruction newTarget = remappedJumps.get(oldTargets[i]);
-
-                    while (remappedJumps.containsKey(newTarget)) {
-                        newTarget = remappedJumps.get(newTarget);
-                    }
-
-                    if (newTarget != null) {
-                        if (newTargets == null) {
-                            newTargets = Arrays.copyOf(oldTargets, oldTargets.length);
-                        }
-
-                        newTargets[i] = newTarget;
-
-                        if (!newTarget.hasLabel()) {
-                            newTarget.setLabel(new com.strobel.assembler.metadata.Label(newTarget.getOffset()));
-                        }
-                    }
-                }
-
-                if (newDefault != null || newTargets != null) {
-                    final SwitchInfo newOperand = new SwitchInfo(
-                        oldOperand.getKeys(),
-                        newDefault != null ? newDefault : oldDefault,
-                        newTargets != null ? newTargets : oldTargets
-                    );
-
-                    instruction.setOperand(newOperand);
-                }
-            }
-        }
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -1129,7 +1025,53 @@ public final class AstBuilder {
                 tryBlock.getLastInstruction().getOffset() < handlerBlock.getLastInstruction().getEndOffset()) {
 
                 handlers.remove(i--);
+            }
+        }
+    }
+
+    private void trimAggressiveFinallyBlocks() {
+        final List<ExceptionHandler> handlers = _exceptionHandlers;
+
+    outer:
+        for (int i = 0; i < handlers.size(); i++) {
+            final ExceptionHandler handler = handlers.get(i);
+            final ExceptionBlock tryBlock = handler.getTryBlock();
+            final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+
+            if (!handler.isFinally()) {
                 continue;
+            }
+
+            for (int j = 0; j < handlers.size(); j++) {
+                if (i == j) {
+                    continue;
+                }
+
+                final ExceptionHandler other = handlers.get(j);
+
+                if (!other.isCatch()) {
+                    continue;
+                }
+
+                final ExceptionBlock otherTry = other.getTryBlock();
+                final ExceptionBlock otherHandler = other.getHandlerBlock();
+
+                if (tryBlock.getFirstInstruction() == otherTry.getFirstInstruction() &&
+                    tryBlock.getLastInstruction() == otherHandler.getFirstInstruction()) {
+
+                    handlers.set(
+                        i--,
+                        ExceptionHandler.createFinally(
+                            new ExceptionBlock(
+                                tryBlock.getFirstInstruction(),
+                                otherHandler.getFirstInstruction().getPrevious()
+                            ),
+                            handlerBlock
+                        )
+                    );
+
+                    continue outer;
+                }
             }
         }
     }
@@ -3013,7 +2955,7 @@ public final class AstBuilder {
                         sb.append(variable.getName());
                     }
                     else {
-                        sb.append("$" + String.valueOf(variable.getSlot()));
+                        sb.append("$").append(String.valueOf(variable.getSlot()));
                     }
                 }
                 else {
