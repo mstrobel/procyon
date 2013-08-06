@@ -287,6 +287,21 @@ public class HandlerTests extends DecompilerTest {
         }
     }
 
+    private static final class M {
+        int test1(final int x) {
+            exit: {
+                try {
+                    return 1;
+                }
+                finally {
+                    break exit;
+                }
+            }
+            System.out.println("TEST");
+            return 1;
+        }
+    }
+
     @Test
     public void testThrowsSignatures() throws Throwable {
         verifyOutput(
@@ -591,6 +606,41 @@ public class HandlerTests extends DecompilerTest {
             "            System.out.println(\"finally\");\n" +
             "            throw new RuntimeException(\"whoop whoop\");\n" +
             "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testFinallyEatingIntoCatch() throws Throwable {
+        verifyOutput(
+            L.class,
+            defaultSettings(),
+            "private static final class L {\n" +
+            "    public void test() {\n" +
+            "        try {\n" +
+            "            System.out.print(3);\n" +
+            "            throw new NoSuchFieldException();\n" +
+            "        }\n" +
+            "        catch (NoSuchFieldException e) {}\n" +
+            "        finally {\n" +
+            "            System.out.print(\"finally\");\n" +
+            "        }\n" +
+            "        System.out.print(5);\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testBreakOutOfFinally() throws Throwable {
+        verifyOutput(
+            M.class,
+            defaultSettings(),
+            "private static final class M {\n" +
+            "    int test1(final int x) {\n" +
+            "        System.out.println(\"TEST\");\n" +
+            "        return 1;\n" +
             "    }\n" +
             "}\n"
         );

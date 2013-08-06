@@ -335,6 +335,20 @@ public final class PatternMatching {
                Comparer.equals(((Expression) node).getOperand(), expectedVariable);
     }
 
+    public static boolean matchStore(final Node node, final Variable expectedVariable, final StrongBox<Expression> value) {
+        final StrongBox<Variable> v = new StrongBox<>();
+
+        if (matchGetArgument(node, AstCode.Store, v, value) &&
+            Comparer.equals(((Expression) node).getOperand(), expectedVariable) &&
+            v.get() == expectedVariable) {
+
+            return true;
+        }
+
+        value.set(null);
+        return false;
+    }
+
     public static boolean matchLoad(final Node node, final Variable expectedVariable, final StrongBox<Expression> argument) {
         final StrongBox<Variable> operand = new StrongBox<>();
 
@@ -403,24 +417,80 @@ public final class PatternMatching {
         return false;
     }
 
+    public static Boolean matchTrue(final Node node) {
+        return Boolean.TRUE.equals(matchBooleanConstant(node));
+    }
+
+    public static Boolean matchFalse(final Node node) {
+        return Boolean.FALSE.equals(matchBooleanConstant(node));
+    }
+
     public static Boolean matchBooleanConstant(final Node node) {
         if (match(node, AstCode.LdC)) {
             final Object operand = ((Expression) node).getOperand();
 
-            if (operand instanceof Integer) {
-                final int intValue = (Integer) operand;
+            if (operand instanceof Boolean) {
+                return (Boolean) operand;
+            }
 
-                if (intValue == 0) {
+            if (operand instanceof Number && !(operand instanceof Float || operand instanceof Double)) {
+                final long longValue = ((Number) operand).longValue();
+
+                if (longValue == 0) {
                     return Boolean.FALSE;
                 }
 
-                if (intValue == 1) {
+                if (longValue == 1) {
                     return Boolean.TRUE;
                 }
             }
         }
 
         return null;
+    }
+
+    public static Character matchCharacterConstant(final Node node) {
+        if (match(node, AstCode.LdC)) {
+            final Object operand = ((Expression) node).getOperand();
+
+            if (operand instanceof Character) {
+                return (Character) operand;
+            }
+
+            if (operand instanceof Number && !(operand instanceof Float || operand instanceof Double)) {
+                final long longValue = ((Number) operand).longValue();
+
+                if (longValue >= Character.MIN_VALUE && longValue <= Character.MAX_VALUE) {
+                    return (char)longValue;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public static boolean matchBooleanConstant(final Node node, final StrongBox<Boolean> value) {
+        final Boolean booleanConstant = matchBooleanConstant(node);
+
+        if (booleanConstant != null) {
+            value.set(booleanConstant);
+            return true;
+        }
+
+        value.set(null);
+        return false;
+    }
+
+    public static boolean matchCharacterConstant(final Node node, final StrongBox<Character> value) {
+        final Character characterConstant = matchCharacterConstant(node);
+
+        if (characterConstant != null) {
+            value.set(characterConstant);
+            return true;
+        }
+
+        value.set(null);
+        return false;
     }
 
     public static boolean matchUnconditionalBranch(final Node node) {

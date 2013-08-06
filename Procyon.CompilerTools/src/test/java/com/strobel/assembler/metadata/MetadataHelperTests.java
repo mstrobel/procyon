@@ -1,13 +1,29 @@
 package com.strobel.assembler.metadata;
 
+import com.strobel.compilerservices.RuntimeHelpers;
 import org.junit.Test;
 
-import static com.strobel.assembler.metadata.MetadataHelper.*;
-import static com.strobel.core.CollectionUtilities.*;
+import static com.strobel.assembler.metadata.MetadataHelper.isSameType;
+import static com.strobel.core.CollectionUtilities.single;
+import static java.lang.String.format;
 import static org.junit.Assert.*;
 
 @SuppressWarnings("UnusedDeclaration")
 public class MetadataHelperTests {
+    static {
+        RuntimeHelpers.ensureClassInitialized(MetadataSystem.class);
+    }
+
+    private static final boolean[][] IS_ASSIGNABLE_BIT_SET = {
+        { true, true, false, true, true, true, true }, // byte
+        { false, true, false, true, true, true, true }, // short
+        { false, false, true, true, true, true, true }, // char
+        { false, false, false, true, true, true, true }, // int
+        { false, false, false, false, true, true, true }, // long
+        { false, false, false, false, false, true, true }, // float
+        { false, false, false, false, false, false, true }, // double
+    };
+
     private static TypeReference string() {
         return MetadataSystem.instance().lookupTypeCore("java/lang/String");
     }
@@ -30,6 +46,39 @@ public class MetadataHelperTests {
 
     private static TypeReference iterable() {
         return MetadataSystem.instance().lookupTypeCore("java/lang/Iterable");
+    }
+
+    @Test
+    public void testIsAssignableBetweenPrimitives() throws Throwable {
+        final JvmType[] jvmTypes = JvmType.values();
+
+        final TypeReference[] primitiveTypes = {
+            BuiltinTypes.Byte,
+            BuiltinTypes.Short,
+            BuiltinTypes.Character,
+            BuiltinTypes.Integer,
+            BuiltinTypes.Long,
+            BuiltinTypes.Float,
+            BuiltinTypes.Double,
+        };
+
+        for (int i = 0, n = IS_ASSIGNABLE_BIT_SET.length; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                assertEquals(
+                    format(
+                        "%s (assignable from) %s",
+                        primitiveTypes[i],
+                        primitiveTypes[j],
+                        IS_ASSIGNABLE_BIT_SET[j][i]
+                    ),
+                    MetadataHelper.isAssignableFrom(
+                        primitiveTypes[i],
+                        primitiveTypes[j]
+                    ),
+                    IS_ASSIGNABLE_BIT_SET[j][i]
+                );
+            }
+        }
     }
 
     @Test
@@ -94,7 +143,7 @@ public class MetadataHelperTests {
         assertTrue(isSameType(t8, genericIterable, true));
         assertTrue(isSameType(t9, rawIterable, true));
     }
-    
+
     @Test
     public void testAsSubTypeWithSimpleGenerics() throws Throwable {
         final TypeReference arrayList = arrayList();
