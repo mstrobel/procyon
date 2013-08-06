@@ -220,7 +220,19 @@ public final class ControlFlowGraphBuilder {
                 final Instruction next = end.getNext();
 
                 if (next != null) {
-                    createEdge(node, next, JumpType.Normal);
+                    final boolean isHandlerStart = any(
+                        _exceptionHandlers,
+                        new Predicate<ExceptionHandler>() {
+                            @Override
+                            public boolean test(final ExceptionHandler handler) {
+                                return handler.getHandlerBlock().getFirstInstruction() == next;
+                            }
+                        }
+                    );
+
+                    if (!isHandlerStart) {
+                        createEdge(node, next, JumpType.Normal);
+                    }
                 }
             }
 
@@ -277,9 +289,9 @@ public final class ControlFlowGraphBuilder {
                 final ControlFlowNode innermostHandler = findInnermostExceptionHandlerNode(node.getEnd().getOffset());
 
                 if (innermostHandler == _exceptionalExit) {
-                    if (any(node.getInstructions(), CAN_THROW)) {
-                        createEdge(node, innermostHandler, JumpType.JumpToExceptionHandler);
-                    }
+//                    if (any(node.getInstructions(), CAN_THROW)) {
+                    createEdge(node, innermostHandler, JumpType.JumpToExceptionHandler);
+//                    }
                 }
                 else {
                     for (final ExceptionHandler handler : _exceptionHandlers) {
@@ -303,7 +315,7 @@ public final class ControlFlowGraphBuilder {
             final ExceptionHandler exceptionHandler = node.getExceptionHandler();
 
             if (exceptionHandler != null) {
-                if (exceptionHandler.isFinally() || any(node.getInstructions(), CAN_THROW)) {
+                if (exceptionHandler.isFinally()/* || any(node.getInstructions(), CAN_THROW)*/) {
 //                    final ControlFlowNode endFinallyNode = node.getEndFinallyNode();
 //
 //                    if (endFinallyNode != null) {

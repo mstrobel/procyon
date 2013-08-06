@@ -27,23 +27,17 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.functions.Supplier;
 import com.strobel.util.ContractUtils;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
-import static com.strobel.decompiler.ast.PatternMatching.matchGetOperand;
+import static com.strobel.decompiler.ast.PatternMatching.*;
 
 public final class TypeAnalysis {
     private final List<ExpressionToInfer> _allExpressions = new ArrayList<>();
     private final Set<Variable> _singleLoadVariables = new LinkedHashSet<>();
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
-    private final Map<Variable, List<ExpressionToInfer>> assignmentExpressions = new DefaultMap<>(
+    private final Map<Variable, List<ExpressionToInfer>> _assignmentExpressions = new DefaultMap<>(
         new Supplier<List<ExpressionToInfer>>() {
             @Override
             public List<ExpressionToInfer> get() {
@@ -52,10 +46,13 @@ public final class TypeAnalysis {
         }
     );
 
+    private final IdentityHashMap<Variable, TypeReference> _inferredVariableTypes = new IdentityHashMap<>();
+
     private DecompilerContext _context;
     private CoreMetadataFactory _factory;
     private boolean _preserveMetadataTypes;
     private boolean _preserveMetadataGenericTypes;
+    private Stack<Expression> _stack = new Stack<>();
 
     public static void run(final DecompilerContext context, final Block method) {
         final TypeAnalysis ta = new TypeAnalysis();
@@ -143,7 +140,7 @@ public final class TypeAnalysis {
                 shouldInferVariableType((Variable) expression.getOperand())
                 /*((Variable) expression.getOperand()).getType() == null*/) {
 
-                assignmentExpressions.get(expression.getOperand()).add(expressionToInfer);
+                _assignmentExpressions.get(expression.getOperand()).add(expressionToInfer);
             }
 
             return;
@@ -169,7 +166,7 @@ public final class TypeAnalysis {
                 final Variable variable = (Variable) argument.getOperand();
 
                 if (shouldInferVariableType(variable)) {
-                    assignmentExpressions.get(variable).add(expressionToInfer);
+                    _assignmentExpressions.get(variable).add(expressionToInfer);
 
                     //
                     // The instruction that consumes the Store result is handled as if it was reading the variable.
@@ -187,7 +184,7 @@ public final class TypeAnalysis {
                 final Variable variable = (Variable) argument.getOperand();
 
                 if (shouldInferVariableType(variable)) {
-                    assignmentExpressions.get(variable).add(expressionToInfer);
+                    _assignmentExpressions.get(variable).add(expressionToInfer);
 
                     //
                     // The instruction that consumes the Store result is handled as if it was reading the variable.
@@ -211,7 +208,7 @@ public final class TypeAnalysis {
                     matchGetOperand(load, AstCode.Load, variable) &&
                     shouldInferVariableType(variable.get())) {
 
-                    assignmentExpressions.get(variable.get()).add(expressionToInfer);
+                    _assignmentExpressions.get(variable.get()).add(expressionToInfer);
 
                     //
                     // The instruction that consumes the Store result is handled as if it was reading the variable.
@@ -270,7 +267,7 @@ public final class TypeAnalysis {
                     //
                     // Mark the assignments as dependent on the type from the single load:
                     //
-                    for (final ExpressionToInfer assignment : assignmentExpressions.get(variable)) {
+                    for (final ExpressionToInfer assignment : _assignmentExpressions.get(variable)) {
                         assignment.dependsOnSingleLoad = variable;
                     }
                 }
@@ -280,6 +277,8 @@ public final class TypeAnalysis {
 
     @SuppressWarnings("ConstantConditions")
     private void runInference() {
+        _inferredVariableTypes.clear();
+
         int numberOfExpressionsAlreadyInferred = 0;
 
         //
@@ -340,7 +339,7 @@ public final class TypeAnalysis {
             inferTypesForVariables(assignVariableTypesBasedOnPartialInformation);
         }
 
-        for (final Variable variable : assignmentExpressions.keySet()) {
+        for (final Variable variable : _assignmentExpressions.keySet()) {
             if (variable.getType() == null) {
                 variable.setType(BuiltinTypes.Object);
             }
@@ -348,8 +347,8 @@ public final class TypeAnalysis {
     }
 
     private void inferTypesForVariables(final boolean assignVariableTypesBasedOnPartialInformation) {
-        for (final Variable variable : assignmentExpressions.keySet()) {
-            final List<ExpressionToInfer> expressionsToInfer = assignmentExpressions.get(variable);
+        for (final Variable variable : _assignmentExpressions.keySet()) {
+            final List<ExpressionToInfer> expressionsToInfer = _assignmentExpressions.get(variable);
 
             if (assignVariableTypesBasedOnPartialInformation ? anyDone(expressionsToInfer)
                                                              : allDone(expressionsToInfer)) {
@@ -387,6 +386,7 @@ public final class TypeAnalysis {
 
                 if (shouldInferVariableType(variable) && inferredType != null) {
                     variable.setType(inferredType);
+                    _inferredVariableTypes.put(variable, inferredType);
 
 /*
                     //
@@ -521,20 +521,24 @@ public final class TypeAnalysis {
         }
 
         if (changedVariable != null) {
-            final List<ExpressionToInfer> assignments = assignmentExpressions.get(changedVariable);
+            invalidateDependentExpressions(expression, changedVariable);
+        }
+    }
 
-            for (final ExpressionToInfer e : _allExpressions) {
-                if (e.expression != expression &&
-                    (e.dependencies.contains(changedVariable) ||
-                     assignments.contains(e))) {
+    private void invalidateDependentExpressions(final Expression expression, final Variable variable) {
+        final List<ExpressionToInfer> assignments = _assignmentExpressions.get(variable);
 
-                    for (final Expression c : e.expression.getSelfAndChildrenRecursive(Expression.class)) {
-                        c.setExpectedType(null);
-                        c.setInferredType(null);
-                    }
+        for (final ExpressionToInfer e : _allExpressions) {
+            if (e.expression != expression &&
+                (e.dependencies.contains(variable) ||
+                 assignments.contains(e))) {
 
-                    runInference(e.expression);
+                for (final Expression c : e.expression.getSelfAndChildrenRecursive(Expression.class)) {
+                    c.setExpectedType(null);
+                    c.setInferredType(null);
                 }
+
+                runInference(e.expression);
             }
         }
     }
@@ -568,884 +572,988 @@ public final class TypeAnalysis {
 
     @SuppressWarnings("ConstantConditions")
     private TypeReference doInferTypeForExpression(final Expression expression, final TypeReference expectedType, final boolean forceInferChildren) {
-        final AstCode code = expression.getCode();
-        final Object operand = expression.getOperand();
-        final List<Expression> arguments = expression.getArguments();
+        if (_stack.contains(expression) && !match(expression, AstCode.LdC)) {
+            return expectedType;
+        }
 
-        switch (code) {
-            case LogicalNot: {
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(0), BuiltinTypes.Boolean);
+        _stack.push(expression);
+
+        try {
+            final AstCode code = expression.getCode();
+            final Object operand = expression.getOperand();
+            final List<Expression> arguments = expression.getArguments();
+
+            switch (code) {
+                case LogicalNot: {
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(0), BuiltinTypes.Boolean);
+                    }
+
+                    return BuiltinTypes.Boolean;
                 }
 
-                return BuiltinTypes.Boolean;
-            }
+                case LogicalAnd:
+                case LogicalOr: {
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(0), BuiltinTypes.Boolean);
+                        inferTypeForExpression(arguments.get(1), BuiltinTypes.Boolean);
+                    }
 
-            case LogicalAnd:
-            case LogicalOr: {
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(0), BuiltinTypes.Boolean);
-                    inferTypeForExpression(arguments.get(1), BuiltinTypes.Boolean);
+                    return BuiltinTypes.Boolean;
                 }
 
-                return BuiltinTypes.Boolean;
-            }
+                case TernaryOp: {
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(0), BuiltinTypes.Boolean);
+                    }
 
-            case TernaryOp: {
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(0), BuiltinTypes.Boolean);
+                    return inferBinaryArguments(
+                        arguments.get(1),
+                        arguments.get(2),
+                        expectedType,
+                        forceInferChildren,
+                        null,
+                        null
+                    );
                 }
 
-                return inferBinaryArguments(
-                    arguments.get(1),
-                    arguments.get(2),
-                    expectedType,
-                    forceInferChildren,
-                    null,
-                    null
-                );
-            }
+                case MonitorEnter:
+                case MonitorExit:
+                    return null;
 
-            case MonitorEnter:
-            case MonitorExit:
-                return null;
+                case Store: {
+                    final Variable v = (Variable) operand;
+                    final TypeReference lastInferredType = _inferredVariableTypes.get(v);
 
-            case Store: {
-                final Variable v = (Variable) operand;
-
-                if (forceInferChildren) {
-                    //
-                    // NOTE: Do not use 'expectedType' here!
-                    //
-                    inferTypeForExpression(expression.getArguments().get(0), inferTypeForVariable(v, null));
-                }
-
-                return v.getType();
-            }
-
-            case Load: {
-                final Variable v = (Variable) expression.getOperand();
-
-                if (v.getType() == null && _singleLoadVariables.contains(v)) {
-                    v.setType(expectedType);
-                }
-
-                return v.getType();
-            }
-
-            case InvokeDynamic: {
-                final DynamicCallSite callSite = (DynamicCallSite) operand;
-
-                if (expectedType == null) {
-                    return callSite.getMethodType().getReturnType();
-                }
-
-                return MetadataHelper.substituteGenericArguments(
-                    expectedType,
-                    callSite.getMethodType().getReturnType()
-                );
-            }
-
-            case InvokeVirtual:
-            case InvokeSpecial:
-            case InvokeStatic:
-            case InvokeInterface: {
-                final MethodReference method = (MethodReference) operand;
-                final List<ParameterDefinition> parameters = method.getParameters();
-                final boolean hasThis = code != AstCode.InvokeStatic && code != AstCode.InvokeDynamic;
-
-                MethodReference boundMethod = method;
-
-                if (forceInferChildren) {
-                    final MethodDefinition r = method.resolve();
-
-                    MethodReference actualMethod;
-
-                    if (hasThis) {
-                        final TypeReference targetType = inferTypeForExpression(
-                            arguments.get(0),
-                            method.getDeclaringType()
+                    if (forceInferChildren) {
+                        //
+                        // NOTE: Do not use 'expectedType' here!
+                        //
+                        final TypeReference inferredType = inferTypeForExpression(
+                            expression.getArguments().get(0),
+                            inferTypeForVariable(v, null)
                         );
 
-                        final MethodReference m = targetType != null ? MetadataHelper.asMemberOf(r != null ? r : method, targetType)
-                                                                     : method;
+                        if (inferredType != null) {
+                            return inferredType;
+                        }
+                    }
 
-                        if (m != null) {
-                            actualMethod = m;
-                            boundMethod = m;
-                            expression.setOperand(m);
+                    return lastInferredType != null ? lastInferredType : v.getType();
+                }
+
+                case Load: {
+                    final Variable v = (Variable) expression.getOperand();
+                    final TypeReference lastInferredType = _inferredVariableTypes.get(v);
+
+                    if (expectedType != null) {
+                        TypeReference result = null;
+
+                        if (expectedType.isGenericType()) {
+                            if (lastInferredType != null) {
+                                result = MetadataHelper.asSubType(lastInferredType, expectedType);
+                            }
+
+                            if (result == null && v.getType() != null) {
+                                result = MetadataHelper.asSubType(v.getType(), expectedType);
+
+                                if (result == null) {
+                                    result = MetadataHelper.asSubType(MetadataHelper.eraseRecursive(v.getType()), expectedType);
+                                }
+                            }
+
+                            _inferredVariableTypes.put(v, result);
+
+                            if (result != null && lastInferredType == null ||
+                                !MetadataHelper.isSameType(result, lastInferredType)) {
+
+                                invalidateDependentExpressions(expression, v);
+                            }
+
+                            if (_singleLoadVariables.contains(v) && v.getType() == null) {
+                                v.setType(result != null ? result : expectedType);
+                            }
+                        }
+                        else if (_singleLoadVariables.contains(v) && v.getType() == null) {
+                            v.setType(result != null ? result : expectedType);
+                        }
+
+                        return result != null ? result : v.getType();
+                    }
+
+                    return lastInferredType != null ? lastInferredType : v.getType();
+                }
+
+                case InvokeDynamic: {
+                    final DynamicCallSite callSite = (DynamicCallSite) operand;
+
+                    if (expectedType == null) {
+                        return callSite.getMethodType().getReturnType();
+                    }
+
+                    return MetadataHelper.substituteGenericArguments(
+                        expectedType,
+                        callSite.getMethodType().getReturnType()
+                    );
+                }
+
+                case InvokeVirtual:
+                case InvokeSpecial:
+                case InvokeStatic:
+                case InvokeInterface: {
+                    final MethodReference method = (MethodReference) operand;
+                    final List<ParameterDefinition> parameters = method.getParameters();
+                    final boolean hasThis = code != AstCode.InvokeStatic && code != AstCode.InvokeDynamic;
+
+                    MethodReference boundMethod = method;
+
+                    if (forceInferChildren) {
+                        final MethodDefinition r = method.resolve();
+
+                        MethodReference actualMethod;
+
+                        if (hasThis) {
+                            final TypeReference targetType;
+                            final Expression thisArg = arguments.get(0);
+
+                            final TypeReference expectedTargetType = thisArg.getInferredType() != null ? thisArg.getInferredType()
+                                                                                                       : thisArg.getExpectedType();
+
+                            if (expectedTargetType != null &&
+                                expectedTargetType.isGenericType() &&
+                                !expectedTargetType.isGenericDefinition()) {
+
+                                boundMethod = MetadataHelper.asMemberOf(method, expectedTargetType);
+
+                                targetType = inferTypeForExpression(
+                                    arguments.get(0),
+                                    expectedTargetType
+                                );
+                            }
+                            else if (method.isConstructor()) {
+                                targetType = method.getDeclaringType();
+                            }
+                            else {
+                                targetType = inferTypeForExpression(
+                                    arguments.get(0),
+                                    method.getDeclaringType()
+                                );
+                            }
+
+                            final MethodReference m = targetType != null ? MetadataHelper.asMemberOf(r != null ? r : method, targetType)
+                                                                         : method;
+
+                            if (m != null) {
+                                actualMethod = m;
+                                boundMethod = m;
+                                expression.setOperand(m);
+                            }
+                            else {
+                                actualMethod = r != null ? r : boundMethod;
+                            }
                         }
                         else {
                             actualMethod = r != null ? r : boundMethod;
                         }
-                    }
-                    else {
-                        actualMethod = r != null ? r : boundMethod;
-                    }
 
-                    List<ParameterDefinition> p = r != null ? r.getParameters()
-                                                            : boundMethod.getParameters();
+                        List<ParameterDefinition> p = r != null ? r.getParameters()
+                                                                : boundMethod.getParameters();
 
-                    Map<TypeReference, TypeReference> mappings = null;
+                        Map<TypeReference, TypeReference> mappings = null;
 
-                    if (actualMethod.containsGenericParameters() || r != null && r.isGenericDefinition()) {
-                        if (expectedType != null) {
-                            final TypeReference returnType = r != null ? r.getReturnType()
-                                                                       : actualMethod.getReturnType();
+                        if (actualMethod.containsGenericParameters() || r != null && r.containsGenericParameters()) {
+                            final Map<TypeReference, TypeReference> oldMappings = new HashMap<>();
+                            final Map<TypeReference, TypeReference> newMappings = new HashMap<>();
 
-                            if (returnType.containsGenericParameters()) {
-                                mappings = new HashMap<>();
-                                new AddMappingsForArgumentVisitor(expectedType).visit(returnType, mappings);
+                            final List<ParameterDefinition> rp = r != null ? r.getParameters() : p;
+
+                            if (expectedType != null) {
+                                final TypeReference returnType = r != null ? r.getReturnType()
+                                                                           : actualMethod.getReturnType();
+
+                                if (returnType.containsGenericParameters()) {
+                                    new AddMappingsForArgumentVisitor(expectedType).visit(returnType, newMappings);
+                                }
                             }
-                        }
 
-                        for (int i = 0; i < parameters.size(); i++) {
-                            final TypeReference pType = p.get(i).getParameterType();
-                            final TypeReference aType = inferTypeForExpression(arguments.get(hasThis ? i + 1 : i), null);
+                            for (int i = 0; i < parameters.size(); i++) {
+                                final TypeReference rType = rp.get(i).getParameterType();
+                                final TypeReference pType = p.get(i).getParameterType();
+                                final TypeReference aType = inferTypeForExpression(arguments.get(hasThis ? i + 1 : i), null);
 
-                            if (aType != null && pType.containsGenericParameters()) {
+                                if (aType != null && pType.containsGenericParameters()) {
+                                    new AddMappingsForArgumentVisitor(aType).visit(pType, oldMappings);
+                                }
+
+                                if (aType != null && rType.containsGenericParameters()) {
+                                    new AddMappingsForArgumentVisitor(aType).visit(pType, newMappings);
+                                }
+                            }
+
+                            if (!oldMappings.isEmpty() || !newMappings.isEmpty()) {
+                                mappings = newMappings;
+                                mappings.putAll(oldMappings);
+                            }
+
+                            if (mappings != null) {
+                                boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
+                                actualMethod = boundMethod;
+                                expression.setOperand(boundMethod);
+                                p = boundMethod.getParameters();
+                            }
+
+                            final TypeReference boundDeclaringType = boundMethod.getDeclaringType();
+
+                            if (boundDeclaringType.isGenericType()) {
                                 if (mappings == null) {
                                     mappings = new HashMap<>();
                                 }
 
-                                new AddMappingsForArgumentVisitor(aType).visit(pType, mappings);
-                            }
-                        }
+                                for (final GenericParameter gp : boundDeclaringType.getGenericParameters()) {
+                                    final GenericParameter inScope = _context.getCurrentMethod().findTypeVariable(gp.getName());
 
-                        if (mappings != null) {
-                            boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
-                            actualMethod = boundMethod;
-                            expression.setOperand(boundMethod);
-                            p = boundMethod.getParameters();
-                        }
+                                    if (inScope != null && MetadataHelper.isSameType(gp, inScope)) {
+                                        continue;
+                                    }
 
-                        final TypeReference boundDeclaringType = boundMethod.getDeclaringType();
-
-                        if (boundDeclaringType.isGenericType()) {
-                            if (mappings == null) {
-                                mappings = new HashMap<>();
-                            }
-
-                            for (final GenericParameter gp : boundDeclaringType.getGenericParameters()) {
-                                final GenericParameter inScope = _context.getCurrentMethod().findTypeVariable(gp.getName());
-
-                                if (inScope != null && MetadataHelper.isSameType(gp, inScope)) {
-                                    continue;
-                                }
-
-                                if (!mappings.containsKey(gp)) {
-                                    mappings.put(gp, BuiltinTypes.Object);
-                                }
-                            }
-
-                            boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
-                            expression.setOperand(boundMethod);
-                            p = boundMethod.getParameters();
-                        }
-
-                        if (boundMethod.isGenericMethod()) {
-                            if (mappings == null) {
-                                mappings = new HashMap<>();
-                            }
-
-                            for (final GenericParameter gp : boundMethod.getGenericParameters()) {
-                                if (!mappings.containsKey(gp)) {
-                                    mappings.put(gp, BuiltinTypes.Object);
-                                }
-                            }
-
-                            boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
-                            expression.setOperand(boundMethod);
-                            p = boundMethod.getParameters();
-                        }
-
-                        if (r != null && method.isGenericMethod()) {
-                            final HashMap<TypeReference, TypeReference> tempMappings = new HashMap<>();
-                            final List<ParameterDefinition> rp = r.getParameters();
-                            final List<ParameterDefinition> bp = method.getParameters();
-
-                            for (int i = 0, n = bp.size(); i < n; i++) {
-                                new AddMappingsForArgumentVisitor(bp.get(i).getParameterType()).visit(
-                                    rp.get(i).getParameterType(),
-                                    tempMappings
-                                );
-                            }
-
-                            boolean changed = false;
-
-                            if (mappings == null) {
-                                mappings = tempMappings;
-                                changed = true;
-                            }
-                            else {
-                                for (final TypeReference key : tempMappings.keySet()) {
-                                    if (!mappings.containsKey(key)) {
-                                        mappings.put(key, tempMappings.get(key));
-                                        changed = true;
+                                    if (!mappings.containsKey(gp)) {
+                                        mappings.put(gp, BuiltinTypes.Object);
                                     }
                                 }
-                            }
 
-                            if (changed) {
                                 boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
                                 expression.setOperand(boundMethod);
                                 p = boundMethod.getParameters();
                             }
+
+                            if (boundMethod.isGenericMethod()) {
+                                if (mappings == null) {
+                                    mappings = new HashMap<>();
+                                }
+
+                                for (final GenericParameter gp : boundMethod.getGenericParameters()) {
+                                    if (!mappings.containsKey(gp)) {
+                                        mappings.put(gp, BuiltinTypes.Object);
+                                    }
+                                }
+
+                                boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
+                                expression.setOperand(boundMethod);
+                                p = boundMethod.getParameters();
+                            }
+
+                            if (r != null && method.isGenericMethod()) {
+                                final HashMap<TypeReference, TypeReference> tempMappings = new HashMap<>();
+                                final List<ParameterDefinition> bp = method.getParameters();
+
+                                for (int i = 0, n = bp.size(); i < n; i++) {
+                                    new AddMappingsForArgumentVisitor(bp.get(i).getParameterType()).visit(
+                                        rp.get(i).getParameterType(),
+                                        tempMappings
+                                    );
+                                }
+
+                                boolean changed = false;
+
+                                if (mappings == null) {
+                                    mappings = tempMappings;
+                                    changed = true;
+                                }
+                                else {
+                                    for (final TypeReference key : tempMappings.keySet()) {
+                                        if (!mappings.containsKey(key)) {
+                                            mappings.put(key, tempMappings.get(key));
+                                            changed = true;
+                                        }
+                                    }
+                                }
+
+                                if (changed) {
+                                    boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
+                                    expression.setOperand(boundMethod);
+                                    p = boundMethod.getParameters();
+                                }
+                            }
+                        }
+                        else {
+                            boundMethod = actualMethod;
+                        }
+
+                        if (hasThis && mappings != null) {
+                            TypeReference expectedTargetType;
+
+                            if (boundMethod.isConstructor()) {
+                                expectedTargetType = MetadataHelper.substituteGenericArguments(boundMethod.getDeclaringType(), mappings);
+                            }
+                            else {
+                                expectedTargetType = boundMethod.getDeclaringType();
+                            }
+
+                            if (expectedTargetType != null &&
+                                expectedTargetType.isGenericDefinition() &&
+                                arguments.get(0).getInferredType() != null) {
+
+                                expectedTargetType = MetadataHelper.asSuper(expectedTargetType, arguments.get(0).getInferredType());
+                            }
+
+                            inferTypeForExpression(
+                                arguments.get(0),
+                                expectedTargetType,
+                                forceInferChildren
+                            );
+                        }
+
+                        for (int i = 0; i < parameters.size(); i++) {
+                            final TypeReference pType = p.get(i).getParameterType();
+                            inferTypeForExpression(
+                                arguments.get(hasThis ? i + 1 : i),
+                                pType.isPrimitive() ? pType : null, //p.get(i).getParameterType(),
+                                forceInferChildren
+                            );
                         }
                     }
-                    else {
-                        boundMethod = actualMethod;
+
+                    if (hasThis) {
+                        if (boundMethod.isConstructor()) {
+                            return boundMethod.getDeclaringType();
+                        }
                     }
 
-                    if (hasThis && mappings != null) {
+                    return boundMethod.getReturnType();
+                }
+
+                case GetField: {
+                    final FieldReference field = (FieldReference) operand;
+
+                    if (forceInferChildren) {
+                        final TypeReference targetType = inferTypeForExpression(arguments.get(0), field.getDeclaringType());
+
+                        if (targetType != null) {
+                            final FieldReference asMember = MetadataHelper.asMemberOf(field, targetType);
+
+                            return asMember.getFieldType();
+                        }
+                    }
+
+                    return getFieldType((FieldReference) operand);
+                }
+
+                case GetStatic: {
+                    return getFieldType((FieldReference) operand);
+                }
+
+                case PutField: {
+                    if (forceInferChildren) {
                         inferTypeForExpression(
                             arguments.get(0),
-                            null, //boundMethod.getDeclaringType(),
-                            forceInferChildren
+                            ((FieldReference) operand).getDeclaringType()
                         );
-                    }
 
-                    for (int i = 0; i < parameters.size(); i++) {
-                        final TypeReference pType = p.get(i).getParameterType();
                         inferTypeForExpression(
-                            arguments.get(hasThis ? i + 1 : i),
-                            pType.isPrimitive() ? pType : null, //p.get(i).getParameterType(),
-                            forceInferChildren
+                            arguments.get(1),
+                            getFieldType((FieldReference) operand)
                         );
                     }
+
+                    return null; //getFieldType((FieldReference) operand);
                 }
 
-                if (hasThis) {
-                    if (boundMethod.isConstructor()) {
-                        return boundMethod.getDeclaringType();
-                    }
-                }
-
-                return boundMethod.getReturnType();
-            }
-
-            case GetField: {
-                final FieldReference field = (FieldReference) operand;
-
-                if (forceInferChildren) {
-                    final TypeReference targetType = inferTypeForExpression(arguments.get(0), field.getDeclaringType());
-
-                    if (targetType != null) {
-                        final FieldReference asMember = MetadataHelper.asMemberOf(field, targetType);
-
-                        return asMember.getFieldType();
-                    }
-                }
-
-                return getFieldType((FieldReference) operand);
-            }
-
-            case GetStatic: {
-                return getFieldType((FieldReference) operand);
-            }
-
-            case PutField: {
-                if (forceInferChildren) {
-                    inferTypeForExpression(
-                        arguments.get(0),
-                        ((FieldReference) operand).getDeclaringType()
-                    );
-
-                    inferTypeForExpression(
-                        arguments.get(1),
-                        getFieldType((FieldReference) operand)
-                    );
-                }
-
-                return null; //getFieldType((FieldReference) operand);
-            }
-
-            case PutStatic: {
-                if (forceInferChildren) {
-                    inferTypeForExpression(
-                        arguments.get(0),
-                        getFieldType((FieldReference) operand)
-                    );
-                }
-
-                return null; //getFieldType((FieldReference) operand);
-            }
-
-            case __New: {
-                return (TypeReference) operand;
-            }
-
-            case PreIncrement:
-            case PostIncrement: {
-                final TypeReference inferredType = inferTypeForExpression(arguments.get(0), null);
-
-                if (inferredType == null) {
-                    final Number n = (Number) operand;
-
-                    if (n instanceof Long) {
-                        return BuiltinTypes.Long;
+                case PutStatic: {
+                    if (forceInferChildren) {
+                        inferTypeForExpression(
+                            arguments.get(0),
+                            getFieldType((FieldReference) operand)
+                        );
                     }
 
-                    return BuiltinTypes.Integer;
+                    return null; //getFieldType((FieldReference) operand);
                 }
 
-                return inferredType;
-            }
-
-            case Not:
-            case Neg: {
-                return inferTypeForExpression(arguments.get(0), expectedType);
-            }
-
-            case Add:
-            case Sub:
-            case Mul:
-            case Or:
-            case And:
-            case Xor:
-            case Div:
-            case Rem: {
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(0), expectedType);
-                    inferTypeForExpression(arguments.get(1), expectedType);
-                }
-                return inferBinaryArguments(arguments.get(0), arguments.get(1), expectedType, false, null, null);
-            }
-
-            case Shl: {
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
+                case __New: {
+                    return (TypeReference) operand;
                 }
 
-                if (expectedType != null &&
-                    (expectedType.getSimpleType() == JvmType.Integer ||
-                     expectedType.getSimpleType() == JvmType.Long)) {
+                case PreIncrement:
+                case PostIncrement: {
+                    final TypeReference inferredType = inferTypeForExpression(arguments.get(0), null);
 
-                    return numericPromotion(inferTypeForExpression(arguments.get(0), expectedType));
-                }
+                    if (inferredType == null) {
+                        final Number n = (Number) operand;
 
-                return numericPromotion(inferTypeForExpression(arguments.get(0), null));
-            }
-
-            case Shr:
-            case UShr: {
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
-                }
-
-                final TypeReference type = numericPromotion(inferTypeForExpression(arguments.get(0), null));
-
-                if (type == null) {
-                    return null;
-                }
-
-                TypeReference expectedInputType = null;
-
-                switch (type.getSimpleType()) {
-                    case Integer:
-                        expectedInputType = BuiltinTypes.Integer;
-                        break;
-                    case Long:
-                        expectedInputType = BuiltinTypes.Long;
-                        break;
-                }
-
-                if (expectedInputType != null) {
-                    inferTypeForExpression(arguments.get(0), expectedInputType);
-                    return expectedInputType;
-                }
-
-                return type;
-            }
-
-            case CompoundAssignment: {
-                final Expression op = arguments.get(0);
-                final TypeReference targetType = inferTypeForExpression(op.getArguments().get(0), null);
-
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(0), targetType);
-                }
-
-                return targetType;
-            }
-
-            case AConstNull: {
-                return null;
-            }
-
-            case LdC: {
-                if (operand instanceof Number) {
-                    final Number number = (Number) operand;
-
-                    if (number instanceof Integer) {
-                        if (expectedType != null) {
-                            switch (expectedType.getSimpleType()) {
-                                case Boolean:
-                                    if (number.intValue() == 0 || number.intValue() == 1) {
-                                        return BuiltinTypes.Boolean;
-                                    }
-                                    return BuiltinTypes.Integer;
-
-                                case Byte:
-                                    if (number.intValue() >= Byte.MIN_VALUE &&
-                                        number.intValue() <= Byte.MAX_VALUE) {
-
-                                        return BuiltinTypes.Byte;
-                                    }
-                                    return BuiltinTypes.Integer;
-
-                                case Character:
-                                    if (number.intValue() >= Character.MIN_VALUE &&
-                                        number.intValue() <= Character.MAX_VALUE) {
-
-                                        return BuiltinTypes.Character;
-                                    }
-                                    return BuiltinTypes.Integer;
-
-                                case Short:
-                                    if (number.intValue() >= Short.MIN_VALUE &&
-                                        number.intValue() <= Short.MAX_VALUE) {
-
-                                        return BuiltinTypes.Short;
-                                    }
-                                    return BuiltinTypes.Integer;
-                            }
+                        if (n instanceof Long) {
+                            return BuiltinTypes.Long;
                         }
 
                         return BuiltinTypes.Integer;
                     }
 
-                    if (number instanceof Long) {
-                        return BuiltinTypes.Long;
-                    }
-
-                    if (number instanceof Float) {
-                        return BuiltinTypes.Float;
-                    }
-
-                    return BuiltinTypes.Double;
-                }
-
-                if (operand instanceof TypeReference) {
-                    return _factory.makeParameterizedType(
-                        _factory.makeNamedType("java.lang.Class"),
-                        null,
-                        (TypeReference) operand
-                    );
-                }
-
-                return _factory.makeNamedType("java.lang.String");
-            }
-
-            case NewArray:
-            case __NewArray:
-            case __ANewArray: {
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(0), BuiltinTypes.Integer);
-                }
-                return ((TypeReference) operand).makeArrayType();
-            }
-
-            case MultiANewArray: {
-                if (forceInferChildren) {
-                    for (int i = 0; i < arguments.size(); i++) {
-                        inferTypeForExpression(arguments.get(i), BuiltinTypes.Integer);
-                    }
-                }
-                return (TypeReference) operand;
-            }
-
-            case InitObject: {
-                final MethodReference instanceCtor = (MethodReference) operand;
-                final MethodReference resolvedCtor = instanceCtor instanceof IGenericInstance ? instanceCtor.resolve() : instanceCtor;
-                final MethodReference constructor = resolvedCtor != null ? resolvedCtor : instanceCtor;
-                final TypeReference type = constructor.getDeclaringType();
-
-                final TypeReference inferredType;
-
-                if (expectedType != null) {
-                    final TypeReference asSubType = MetadataHelper.asSubType(type, expectedType);
-                    inferredType = asSubType != null ? asSubType : type;
-                }
-                else {
-                    inferredType = type;
-                }
-
-                final Map<TypeReference, TypeReference> mappings;
-
-                if (inferredType.isGenericDefinition()) {
-                    mappings = new HashMap<>();
-
-                    for (final GenericParameter gp : inferredType.getGenericParameters()) {
-                        mappings.put(gp, BuiltinTypes.Object);
-                    }
-                }
-                else {
-                    mappings = Collections.emptyMap();
-                }
-
-                if (forceInferChildren) {
-                    final MethodReference asMember = MetadataHelper.asMemberOf(
-                        constructor,
-                        TypeSubstitutionVisitor.instance().visit(inferredType, mappings)
-                    );
-
-                    final List<ParameterDefinition> parameters = asMember.getParameters();
-
-                    for (int i = 0; i < arguments.size() && i < parameters.size(); i++) {
-                        inferTypeForExpression(
-                            arguments.get(i),
-                            parameters.get(i).getParameterType()
-                        );
-                    }
-
-                    expression.setOperand(asMember);
-                }
-
-                if (inferredType != null) {
-                    if (inferredType instanceof IGenericInstance) {
-                        expression.putUserData(
-                            AstKeys.TYPE_ARGUMENTS,
-                            ((IGenericInstance) inferredType).getTypeArguments()
-                        );
-                    }
-
                     return inferredType;
                 }
 
-                return type;
-            }
-
-            case InitArray: {
-                final TypeReference arrayType = (TypeReference) operand;
-                final TypeReference elementType = arrayType.getElementType();
-
-                if (forceInferChildren) {
-                    for (final Expression argument : arguments) {
-                        inferTypeForExpression(argument, elementType);
-                    }
+                case Not:
+                case Neg: {
+                    return inferTypeForExpression(arguments.get(0), expectedType);
                 }
 
-                return arrayType;
-            }
-
-            case ArrayLength: {
-                return BuiltinTypes.Integer;
-            }
-
-            case LoadElement: {
-                final TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
-
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
+                case Add:
+                case Sub:
+                case Mul:
+                case Or:
+                case And:
+                case Xor:
+                case Div:
+                case Rem: {
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(0), expectedType);
+                        inferTypeForExpression(arguments.get(1), expectedType);
+                    }
+                    return inferBinaryArguments(arguments.get(0), arguments.get(1), expectedType, false, null, null);
                 }
 
-                return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
-            }
-
-            case StoreElement: {
-                final TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
-
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
-
-                    if (arrayType != null && arrayType.isArray()) {
-                        inferTypeForExpression(arguments.get(2), arrayType.getElementType());
+                case Shl: {
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
                     }
+
+                    if (expectedType != null &&
+                        (expectedType.getSimpleType() == JvmType.Integer ||
+                         expectedType.getSimpleType() == JvmType.Long)) {
+
+                        return numericPromotion(inferTypeForExpression(arguments.get(0), expectedType));
+                    }
+
+                    return numericPromotion(inferTypeForExpression(arguments.get(0), null));
                 }
 
-                return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
-            }
-
-            case __BIPush:
-            case __SIPush: {
-                final Number number = (Number) operand;
-
-                if (expectedType != null) {
-                    if (expectedType.getSimpleType() == JvmType.Boolean &&
-                        (number.intValue() == 0 || number.intValue() == 1)) {
-
-                        return BuiltinTypes.Boolean;
+                case Shr:
+                case UShr: {
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
                     }
 
-                    if (expectedType.getSimpleType() == JvmType.Byte &&
-                        number.intValue() >= Byte.MIN_VALUE &&
-                        number.intValue() <= Byte.MAX_VALUE) {
+                    final TypeReference type = numericPromotion(inferTypeForExpression(arguments.get(0), null));
 
-                        return BuiltinTypes.Byte;
+                    if (type == null) {
+                        return null;
                     }
 
-                    if (expectedType.getSimpleType() == JvmType.Character &&
-                        number.intValue() >= Character.MIN_VALUE &&
-                        number.intValue() <= Character.MAX_VALUE) {
+                    TypeReference expectedInputType = null;
 
-                        return BuiltinTypes.Character;
+                    switch (type.getSimpleType()) {
+                        case Integer:
+                            expectedInputType = BuiltinTypes.Integer;
+                            break;
+                        case Long:
+                            expectedInputType = BuiltinTypes.Long;
+                            break;
                     }
 
-                    if (expectedType.getSimpleType().isIntegral()) {
-                        return expectedType;
+                    if (expectedInputType != null) {
+                        inferTypeForExpression(arguments.get(0), expectedInputType);
+                        return expectedInputType;
                     }
-                }
-                else if (code == AstCode.__BIPush) {
-                    return BuiltinTypes.Byte;
+
+                    return type;
                 }
 
-                return BuiltinTypes.Short;
-            }
-
-            case I2L:
-            case I2F:
-            case I2D:
-            case L2I:
-            case L2F:
-            case L2D:
-            case F2I:
-            case F2L:
-            case F2D:
-            case D2I:
-            case D2L:
-            case D2F:
-            case I2B:
-            case I2C:
-            case I2S: {
-                final TypeReference conversionResult;
-
-                switch (code) {
-                    case I2L:
-                        conversionResult = BuiltinTypes.Long;
-                        break;
-                    case I2F:
-                        conversionResult = BuiltinTypes.Float;
-                        break;
-                    case I2D:
-                        conversionResult = BuiltinTypes.Double;
-                        break;
-                    case L2I:
-                        conversionResult = BuiltinTypes.Integer;
-                        break;
-                    case L2F:
-                        conversionResult = BuiltinTypes.Float;
-                        break;
-                    case L2D:
-                        conversionResult = BuiltinTypes.Double;
-                        break;
-                    case F2I:
-                        conversionResult = BuiltinTypes.Integer;
-                        break;
-                    case F2L:
-                        conversionResult = BuiltinTypes.Long;
-                        break;
-                    case F2D:
-                        conversionResult = BuiltinTypes.Double;
-                        break;
-                    case D2I:
-                        conversionResult = BuiltinTypes.Integer;
-                        break;
-                    case D2L:
-                        conversionResult = BuiltinTypes.Long;
-                        break;
-                    case D2F:
-                        conversionResult = BuiltinTypes.Float;
-                        break;
-                    case I2B:
-                        conversionResult = BuiltinTypes.Byte;
-                        break;
-                    case I2C:
-                        conversionResult = BuiltinTypes.Character;
-                        break;
-                    case I2S:
-                        conversionResult = BuiltinTypes.Short;
-                        break;
-                    default:
-                        throw ContractUtils.unsupported();
-                }
-
-                arguments.get(0).setExpectedType(conversionResult);
-                return conversionResult;
-            }
-
-            case CheckCast:
-            case Unbox: {
-                if (expectedType != null) {
-                    final TypeReference castType = (TypeReference) operand;
-
-                    TypeReference inferredType = MetadataHelper.asSubType(castType, expectedType);
+                case CompoundAssignment: {
+                    final Expression op = arguments.get(0);
+                    final TypeReference targetType = inferTypeForExpression(op.getArguments().get(0), null);
 
                     if (forceInferChildren) {
-                        inferredType = inferTypeForExpression(
-                            arguments.get(0),
-                            inferredType != null ? inferredType
-                                                 : (TypeReference) operand
+                        inferTypeForExpression(arguments.get(0), targetType);
+                    }
+
+                    return targetType;
+                }
+
+                case AConstNull: {
+                    return null;
+                }
+
+                case LdC: {
+                    if (operand instanceof Number) {
+                        final Number number = (Number) operand;
+
+                        if (number instanceof Integer) {
+                            if (expectedType != null) {
+                                switch (expectedType.getSimpleType()) {
+                                    case Boolean:
+                                        if (number.intValue() == 0 || number.intValue() == 1) {
+                                            return BuiltinTypes.Boolean;
+                                        }
+                                        return BuiltinTypes.Integer;
+
+                                    case Byte:
+                                        if (number.intValue() >= Byte.MIN_VALUE &&
+                                            number.intValue() <= Byte.MAX_VALUE) {
+
+                                            return BuiltinTypes.Byte;
+                                        }
+                                        return BuiltinTypes.Integer;
+
+                                    case Character:
+                                        if (number.intValue() >= Character.MIN_VALUE &&
+                                            number.intValue() <= Character.MAX_VALUE) {
+
+                                            return BuiltinTypes.Character;
+                                        }
+                                        return BuiltinTypes.Integer;
+
+                                    case Short:
+                                        if (number.intValue() >= Short.MIN_VALUE &&
+                                            number.intValue() <= Short.MAX_VALUE) {
+
+                                            return BuiltinTypes.Short;
+                                        }
+                                        return BuiltinTypes.Integer;
+                                }
+                            }
+
+                            return BuiltinTypes.Integer;
+                        }
+
+                        if (number instanceof Long) {
+                            return BuiltinTypes.Long;
+                        }
+
+                        if (number instanceof Float) {
+                            return BuiltinTypes.Float;
+                        }
+
+                        return BuiltinTypes.Double;
+                    }
+
+                    if (operand instanceof TypeReference) {
+                        return _factory.makeParameterizedType(
+                            _factory.makeNamedType("java.lang.Class"),
+                            null,
+                            (TypeReference) operand
                         );
                     }
 
-                    if (inferredType != null && MetadataHelper.isSubType(inferredType, castType)) {
-                        expression.setOperand(inferredType);
+                    return _factory.makeNamedType("java.lang.String");
+                }
+
+                case NewArray:
+                case __NewArray:
+                case __ANewArray: {
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(0), BuiltinTypes.Integer);
+                    }
+                    return ((TypeReference) operand).makeArrayType();
+                }
+
+                case MultiANewArray: {
+                    if (forceInferChildren) {
+                        for (int i = 0; i < arguments.size(); i++) {
+                            inferTypeForExpression(arguments.get(i), BuiltinTypes.Integer);
+                        }
+                    }
+                    return (TypeReference) operand;
+                }
+
+                case InitObject: {
+                    final MethodReference instanceCtor = (MethodReference) operand;
+                    final MethodReference resolvedCtor = instanceCtor instanceof IGenericInstance ? instanceCtor.resolve() : instanceCtor;
+                    final MethodReference constructor = resolvedCtor != null ? resolvedCtor : instanceCtor;
+                    final TypeReference type = constructor.getDeclaringType();
+
+                    final TypeReference inferredType;
+
+                    if (expectedType != null && !MetadataHelper.isSameType(expectedType, BuiltinTypes.Object)) {
+                        final TypeReference asSubType = MetadataHelper.asSubType(type, expectedType);
+                        inferredType = asSubType != null ? asSubType : type;
+                    }
+                    else {
+                        inferredType = type;
+                    }
+
+                    final Map<TypeReference, TypeReference> mappings;
+
+                    if (inferredType.isGenericDefinition()) {
+                        mappings = new HashMap<>();
+
+                        for (final GenericParameter gp : inferredType.getGenericParameters()) {
+                            mappings.put(gp, BuiltinTypes.Object);
+                        }
+                    }
+                    else {
+                        mappings = Collections.emptyMap();
+                    }
+
+                    if (forceInferChildren) {
+                        final MethodReference asMember = MetadataHelper.asMemberOf(
+                            constructor,
+                            TypeSubstitutionVisitor.instance().visit(inferredType, mappings)
+                        );
+
+                        final List<ParameterDefinition> parameters = asMember.getParameters();
+
+                        for (int i = 0; i < arguments.size() && i < parameters.size(); i++) {
+                            inferTypeForExpression(
+                                arguments.get(i),
+                                parameters.get(i).getParameterType()
+                            );
+                        }
+
+                        expression.setOperand(asMember);
+                    }
+
+                    if (inferredType != null) {
+                        if (inferredType instanceof IGenericInstance) {
+                            expression.putUserData(
+                                AstKeys.TYPE_ARGUMENTS,
+                                ((IGenericInstance) inferredType).getTypeArguments()
+                            );
+                        }
+
                         return inferredType;
                     }
-                }
-                return (TypeReference) operand;
-            }
 
-            case Box: {
-                final TypeReference type = (TypeReference) operand;
-
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(0), type);
+                    return type;
                 }
 
-                return type.isPrimitive() ? BuiltinTypes.Object : type;
-            }
+                case InitArray: {
+                    final TypeReference arrayType = (TypeReference) operand;
+                    final TypeReference elementType = arrayType.getElementType();
 
-            case CmpEq:
-            case CmpNe:
-            case CmpLt:
-            case CmpGe:
-            case CmpGt:
-            case CmpLe: {
-                if (forceInferChildren) {
-                    final List<Expression> binaryArguments;
-
-                    if (arguments.size() == 1) {
-                        binaryArguments = arguments.get(0).getArguments();
-                    }
-                    else {
-                        binaryArguments = arguments;
+                    if (forceInferChildren) {
+                        for (final Expression argument : arguments) {
+                            inferTypeForExpression(argument, elementType);
+                        }
                     }
 
-                    runInference(binaryArguments.get(0));
-                    runInference(binaryArguments.get(1));
-
-                    binaryArguments.get(0).setExpectedType(binaryArguments.get(0).getInferredType());
-                    binaryArguments.get(1).setExpectedType(binaryArguments.get(0).getInferredType());
-                    binaryArguments.get(0).setInferredType(null);
-                    binaryArguments.get(1).setInferredType(null);
-
-                    inferBinaryArguments(
-                        binaryArguments.get(0),
-                        binaryArguments.get(1),
-                        typeWithMoreInformation(
-                            binaryArguments.get(0).getExpectedType(),
-                            binaryArguments.get(1).getExpectedType()
-                        ),
-                        false,
-                        null,
-                        null
-                    );
+                    return arrayType;
                 }
 
-                return BuiltinTypes.Boolean;
-            }
+                case ArrayLength: {
+                    return BuiltinTypes.Integer;
+                }
 
-            case __DCmpG:
-            case __DCmpL:
-            case __FCmpG:
-            case __FCmpL:
-            case __LCmp: {
-                if (forceInferChildren) {
-                    final List<Expression> binaryArguments;
+                case LoadElement: {
+                    final TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
 
-                    if (arguments.size() == 1) {
-                        binaryArguments = arguments.get(0).getArguments();
-                    }
-                    else {
-                        binaryArguments = arguments;
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
                     }
 
-                    inferBinaryArguments(
-                        binaryArguments.get(0),
-                        binaryArguments.get(1),
-                        expectedType,
-                        false,
-                        null,
-                        null
-                    );
+                    return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
                 }
 
-                return BuiltinTypes.Integer;
-            }
+                case StoreElement: {
+                    final TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
 
-            case IfTrue: {
-                if (forceInferChildren) {
-                    inferTypeForExpression(arguments.get(0), BuiltinTypes.Boolean);
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
+
+                        if (arrayType != null && arrayType.isArray()) {
+                            inferTypeForExpression(arguments.get(2), arrayType.getElementType());
+                        }
+                    }
+
+                    return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
                 }
-                return null;
-            }
 
-            case Goto:
-            case TableSwitch:
-            case LookupSwitch:
-            case AThrow:
-            case LoopOrSwitchBreak:
-            case LoopContinue:
-            case __Return: {
-                return null;
-            }
+                case __BIPush:
+                case __SIPush: {
+                    final Number number = (Number) operand;
 
-            case __IReturn:
-            case __LReturn:
-            case __FReturn:
-            case __DReturn:
-            case __AReturn:
-            case Return: {
-                final TypeReference returnType = _context.getCurrentMethod().getReturnType();
-                if (forceInferChildren && arguments.size() == 1) {
-                    inferTypeForExpression(arguments.get(0), returnType);
+                    if (expectedType != null) {
+                        if (expectedType.getSimpleType() == JvmType.Boolean &&
+                            (number.intValue() == 0 || number.intValue() == 1)) {
+
+                            return BuiltinTypes.Boolean;
+                        }
+
+                        if (expectedType.getSimpleType() == JvmType.Byte &&
+                            number.intValue() >= Byte.MIN_VALUE &&
+                            number.intValue() <= Byte.MAX_VALUE) {
+
+                            return BuiltinTypes.Byte;
+                        }
+
+                        if (expectedType.getSimpleType() == JvmType.Character &&
+                            number.intValue() >= Character.MIN_VALUE &&
+                            number.intValue() <= Character.MAX_VALUE) {
+
+                            return BuiltinTypes.Character;
+                        }
+
+                        if (expectedType.getSimpleType().isIntegral()) {
+                            return expectedType;
+                        }
+                    }
+                    else if (code == AstCode.__BIPush) {
+                        return BuiltinTypes.Byte;
+                    }
+
+                    return BuiltinTypes.Short;
                 }
-                return returnType;
+
+                case I2L:
+                case I2F:
+                case I2D:
+                case L2I:
+                case L2F:
+                case L2D:
+                case F2I:
+                case F2L:
+                case F2D:
+                case D2I:
+                case D2L:
+                case D2F:
+                case I2B:
+                case I2C:
+                case I2S: {
+                    final TypeReference conversionResult;
+
+                    switch (code) {
+                        case I2L:
+                            conversionResult = BuiltinTypes.Long;
+                            break;
+                        case I2F:
+                            conversionResult = BuiltinTypes.Float;
+                            break;
+                        case I2D:
+                            conversionResult = BuiltinTypes.Double;
+                            break;
+                        case L2I:
+                            conversionResult = BuiltinTypes.Integer;
+                            break;
+                        case L2F:
+                            conversionResult = BuiltinTypes.Float;
+                            break;
+                        case L2D:
+                            conversionResult = BuiltinTypes.Double;
+                            break;
+                        case F2I:
+                            conversionResult = BuiltinTypes.Integer;
+                            break;
+                        case F2L:
+                            conversionResult = BuiltinTypes.Long;
+                            break;
+                        case F2D:
+                            conversionResult = BuiltinTypes.Double;
+                            break;
+                        case D2I:
+                            conversionResult = BuiltinTypes.Integer;
+                            break;
+                        case D2L:
+                            conversionResult = BuiltinTypes.Long;
+                            break;
+                        case D2F:
+                            conversionResult = BuiltinTypes.Float;
+                            break;
+                        case I2B:
+                            conversionResult = BuiltinTypes.Byte;
+                            break;
+                        case I2C:
+                            conversionResult = BuiltinTypes.Character;
+                            break;
+                        case I2S:
+                            conversionResult = BuiltinTypes.Short;
+                            break;
+                        default:
+                            throw ContractUtils.unsupported();
+                    }
+
+                    arguments.get(0).setExpectedType(conversionResult);
+                    return conversionResult;
+                }
+
+                case CheckCast:
+                case Unbox: {
+                    if (expectedType != null) {
+                        final TypeReference castType = (TypeReference) operand;
+
+                        TypeReference inferredType = MetadataHelper.asSubType(castType, expectedType);
+
+                        if (forceInferChildren) {
+                            inferredType = inferTypeForExpression(
+                                arguments.get(0),
+                                inferredType != null ? inferredType
+                                                     : (TypeReference) operand
+                            );
+                        }
+
+                        if (inferredType != null && MetadataHelper.isSubType(inferredType, castType)) {
+                            expression.setOperand(inferredType);
+                            return inferredType;
+                        }
+                    }
+                    return (TypeReference) operand;
+                }
+
+                case Box: {
+                    final TypeReference type = (TypeReference) operand;
+
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(0), type);
+                    }
+
+                    return type.isPrimitive() ? BuiltinTypes.Object : type;
+                }
+
+                case CmpEq:
+                case CmpNe:
+                case CmpLt:
+                case CmpGe:
+                case CmpGt:
+                case CmpLe: {
+                    if (forceInferChildren) {
+                        final List<Expression> binaryArguments;
+
+                        if (arguments.size() == 1) {
+                            binaryArguments = arguments.get(0).getArguments();
+                        }
+                        else {
+                            binaryArguments = arguments;
+                        }
+
+                        runInference(binaryArguments.get(0));
+                        runInference(binaryArguments.get(1));
+
+                        binaryArguments.get(0).setExpectedType(binaryArguments.get(0).getInferredType());
+                        binaryArguments.get(1).setExpectedType(binaryArguments.get(0).getInferredType());
+                        binaryArguments.get(0).setInferredType(null);
+                        binaryArguments.get(1).setInferredType(null);
+
+                        inferBinaryArguments(
+                            binaryArguments.get(0),
+                            binaryArguments.get(1),
+                            typeWithMoreInformation(
+                                binaryArguments.get(0).getExpectedType(),
+                                binaryArguments.get(1).getExpectedType()
+                            ),
+                            false,
+                            null,
+                            null
+                        );
+                    }
+
+                    return BuiltinTypes.Boolean;
+                }
+
+                case __DCmpG:
+                case __DCmpL:
+                case __FCmpG:
+                case __FCmpL:
+                case __LCmp: {
+                    if (forceInferChildren) {
+                        final List<Expression> binaryArguments;
+
+                        if (arguments.size() == 1) {
+                            binaryArguments = arguments.get(0).getArguments();
+                        }
+                        else {
+                            binaryArguments = arguments;
+                        }
+
+                        inferBinaryArguments(
+                            binaryArguments.get(0),
+                            binaryArguments.get(1),
+                            expectedType,
+                            false,
+                            null,
+                            null
+                        );
+                    }
+
+                    return BuiltinTypes.Integer;
+                }
+
+                case IfTrue: {
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(0), BuiltinTypes.Boolean);
+                    }
+                    return null;
+                }
+
+                case Goto:
+                case TableSwitch:
+                case LookupSwitch:
+                case AThrow:
+                case LoopOrSwitchBreak:
+                case LoopContinue:
+                case __Return: {
+                    return null;
+                }
+
+                case __IReturn:
+                case __LReturn:
+                case __FReturn:
+                case __DReturn:
+                case __AReturn:
+                case Return: {
+                    final TypeReference returnType = _context.getCurrentMethod().getReturnType();
+                    if (forceInferChildren && arguments.size() == 1) {
+                        inferTypeForExpression(arguments.get(0), returnType);
+                    }
+                    return returnType;
+                }
+
+                case Jsr:
+                case Ret: {
+                    return null;
+                }
+
+                case Pop:
+                case Pop2: {
+                    return null;
+                }
+
+                case Dup:
+                case Dup2: {
+                    //
+                    // TODO: Handle the more obscure DUP instructions.
+                    //
+
+                    final Expression argument = arguments.get(0);
+                    final TypeReference result = inferTypeForExpression(argument, expectedType);
+
+                    argument.setExpectedType(result);
+
+                    return result;
+                }
+
+                case InstanceOf: {
+                    return BuiltinTypes.Boolean;
+                }
+
+                case __IInc:
+                case __IIncW:
+                case Inc: {
+                    return inferTypeForVariable((Variable) operand, expectedType);
+                }
+
+                case Leave:
+                case Nop: {
+                    return null;
+                }
+
+                case DefaultValue: {
+                    return (TypeReference) expression.getOperand();
+                }
+
+                default: {
+                    System.err.printf("Type inference can't handle opcode '%s'.\n", code.getName());
+                    return null;
+                }
             }
-
-            case Jsr:
-            case Ret: {
-                return null;
-            }
-
-            case Pop:
-            case Pop2: {
-                return null;
-            }
-
-            case Dup:
-            case Dup2: {
-                //
-                // TODO: Handle the more obscure DUP instructions.
-                //
-
-                final Expression argument = arguments.get(0);
-                final TypeReference result = inferTypeForExpression(argument, expectedType);
-
-                argument.setExpectedType(result);
-
-                return result;
-            }
-
-            case InstanceOf: {
-                return BuiltinTypes.Boolean;
-            }
-
-            case __IInc:
-            case __IIncW:
-            case Inc: {
-                return inferTypeForVariable((Variable) operand, expectedType);
-            }
-
-            case Leave:
-            case Nop: {
-                return null;
-            }
-
-            case DefaultValue: {
-                return (TypeReference) expression.getOperand();
-            }
-
-            default: {
-                System.err.printf("Type inference can't handle opcode '%s'.\n", code.getName());
-                return null;
-            }
+        }
+        finally {
+            _stack.pop();
         }
     }
 
     private TypeReference inferTypeForVariable(final Variable v, final TypeReference expectedType) {
+        final TypeReference lastInferredType = _inferredVariableTypes.get(v);
+
+        if (lastInferredType != null) {
+            return lastInferredType;
+        }
+
         final TypeReference variableType = v.getType();
 
         if (variableType != null) {
@@ -1849,7 +1957,8 @@ public final class TypeAnalysis {
 
         @Override
         public Void visitParameterizedType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
-            final TypeReference s = MetadataHelper.asSubType(argumentType, t.getUnderlyingType());
+            final TypeReference r = MetadataHelper.asSuper(t.getUnderlyingType(), argumentType);
+            final TypeReference s = MetadataHelper.asSubType(argumentType, r != null ? r : t.getUnderlyingType());
 
             if (s != null && s instanceof IGenericInstance) {
                 final List<TypeReference> tArgs = ((IGenericInstance) t).getTypeArguments();

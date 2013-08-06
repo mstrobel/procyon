@@ -18,12 +18,11 @@ package com.strobel.decompiler;
 
 import com.strobel.assembler.ir.FlowControl;
 import com.strobel.assembler.ir.Instruction;
+import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OpCodeHelpers;
 import com.strobel.assembler.ir.OpCodeType;
 import com.strobel.assembler.metadata.*;
-import com.strobel.assembler.ir.OpCode;
 import com.strobel.core.VerifyArgument;
-import com.strobel.assembler.metadata.JvmType;
 import com.strobel.util.ContractUtils;
 
 import java.util.List;
@@ -288,5 +287,28 @@ public final class InstructionHelper {
         }
 
         throw ContractUtils.unsupported();
+    }
+
+    public static Instruction reverseLoadOrStore(final Instruction instruction) {
+        VerifyArgument.notNull(instruction, "instruction");
+
+        final OpCode oldCode = instruction.getOpCode();
+        final OpCode newCode;
+
+        if (oldCode.isStore()) {
+            newCode = OpCode.valueOf(oldCode.name().replace("STORE", "LOAD"));
+        }
+        else if (oldCode.isLoad()) {
+            newCode = OpCode.valueOf(oldCode.name().replace("LOAD", "STORE"));
+        }
+        else {
+            throw new IllegalArgumentException("Instruction is neither a load nor store: " + instruction.getOpCode());
+        }
+
+        if (instruction.getOperandCount() == 1) {
+            return new Instruction(newCode, instruction.getOperand(0));
+        }
+
+        return new Instruction(newCode);
     }
 }

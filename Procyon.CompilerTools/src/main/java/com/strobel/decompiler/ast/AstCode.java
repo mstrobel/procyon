@@ -619,83 +619,83 @@ public enum AstCode {
                 return true;
             case __IStore0:
                 code.set(Store);
-                operand.set(body.getVariables().reference(0, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __IStore1:
                 code.set(Store);
-                operand.set(body.getVariables().reference(1, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __IStore2:
                 code.set(Store);
-                operand.set(body.getVariables().reference(2, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __IStore3:
                 code.set(Store);
-                operand.set(body.getVariables().reference(3, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LStore0:
                 code.set(Store);
-                operand.set(body.getVariables().reference(0, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LStore1:
                 code.set(Store);
-                operand.set(body.getVariables().reference(1, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LStore2:
                 code.set(Store);
-                operand.set(body.getVariables().reference(2, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __LStore3:
                 code.set(Store);
-                operand.set(body.getVariables().reference(3, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FStore0:
                 code.set(Store);
-                operand.set(body.getVariables().reference(0, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FStore1:
                 code.set(Store);
-                operand.set(body.getVariables().reference(1, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FStore2:
                 code.set(Store);
-                operand.set(body.getVariables().reference(2, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __FStore3:
                 code.set(Store);
-                operand.set(body.getVariables().reference(3, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DStore0:
                 code.set(Store);
-                operand.set(body.getVariables().reference(0, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DStore1:
                 code.set(Store);
-                operand.set(body.getVariables().reference(1, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DStore2:
                 code.set(Store);
-                operand.set(body.getVariables().reference(2, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __DStore3:
                 code.set(Store);
-                operand.set(body.getVariables().reference(3, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __AStore0:
                 code.set(Store);
-                operand.set(body.getVariables().reference(0, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(0, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __AStore1:
                 code.set(Store);
-                operand.set(body.getVariables().reference(1, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(1, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __AStore2:
                 code.set(Store);
-                operand.set(body.getVariables().reference(2, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(2, STANDARD_CODES[op.ordinal()], offset));
                 return true;
             case __AStore3:
                 code.set(Store);
-                operand.set(body.getVariables().reference(3, STANDARD_CODES[op.ordinal()], offset + 1));
+                operand.set(body.getVariables().reference(3, STANDARD_CODES[op.ordinal()], offset));
                 return true;
 
             case __IAStore:

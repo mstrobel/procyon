@@ -132,7 +132,7 @@ final class Inlining {
             final Variable v = catchBlock.getExceptionVariable();
 
             if (v != null &&
-                v.isGenerated() &&
+                isGenerated(v) &&
                 count(storeCounts, v) == 1 &&
                 count(loadCounts, v) <= 1) {
 
@@ -262,9 +262,8 @@ final class Inlining {
         final MutableInteger position = new MutableInteger();
 
         if (findLoadInNext((Expression) n, variable, inlinedExpression, parent, position) == Boolean.TRUE) {
-
             if (!aggressive &&
-                !variable.isGenerated() &&
+                !isGenerated(variable) &&
                 !nonAggressiveInlineInto((Expression) n, parent.get())) {
 
                 return false;
@@ -285,6 +284,11 @@ final class Inlining {
         }
 
         return false;
+    }
+
+    private boolean isGenerated(final Variable variable) {
+        return variable.isGenerated() ||
+               !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata();
     }
 
     private boolean nonAggressiveInlineInto(final Expression next, final Expression parent) {
@@ -452,8 +456,7 @@ final class Inlining {
     }
 
     private boolean canInline(final Variable variable) {
-        return variable.isGenerated() ||
-               !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata();
+        return isGenerated(variable);
     }
 
     // </editor-fold>
@@ -545,8 +548,8 @@ final class Inlining {
                 // Variables can be copied only if both the variable and the target copy variable are generated,
                 // and if the variable has only a single assignment.
                 //
-                return v.isGenerated() &&
-                       copyVariable.isGenerated() &&
+                return isGenerated(v) &&
+                       isGenerated(copyVariable) &&
                        count(storeCounts, v) == 1;
             }
 
