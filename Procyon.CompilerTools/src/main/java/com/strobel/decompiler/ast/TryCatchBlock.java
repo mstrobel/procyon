@@ -26,7 +26,7 @@ public final class TryCatchBlock extends Node {
     private final List<CatchBlock> _catchBlocks = new Collection<>();
     private Block _tryBlock;
     private Block _finallyBlock;
-    private boolean _isSimpleSynchronized;
+    private boolean _synchronized;
 
     public final Block getTryBlock() {
         return _tryBlock;
@@ -48,12 +48,12 @@ public final class TryCatchBlock extends Node {
         _finallyBlock = finallyBlock;
     }
 
-    public final boolean isSimpleSynchronized() {
-        return _isSimpleSynchronized;
+    public final boolean isSynchronized() {
+        return _synchronized;
     }
 
-    public final void setSimpleSynchronized(final boolean simpleSynchronized) {
-        _isSimpleSynchronized = simpleSynchronized;
+    public final void setSynchronized(final boolean simpleSynchronized) {
+        _synchronized = simpleSynchronized;
     }
 
     @Override

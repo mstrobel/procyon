@@ -17,11 +17,15 @@
 package com.strobel.decompiler.ast;
 
 import com.strobel.core.Comparer;
+import com.strobel.core.Predicate;
 import com.strobel.core.StrongBox;
+import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.strobel.core.CollectionUtilities.any;
 
 public final class PatternMatching {
     private PatternMatching() {
@@ -307,6 +311,18 @@ public final class PatternMatching {
                operand.get().getOriginalParameter().getPosition() == -1;
     }
 
+    public static boolean matchLoadAny(final Node node, final Iterable<Variable> expectedVariables) {
+        return any(
+            expectedVariables,
+            new Predicate<Variable>() {
+                @Override
+                public boolean test(final Variable variable) {
+                    return matchLoad(node, variable);
+                }
+            }
+        );
+    }
+
     public static boolean matchLoad(final Node node, final Variable expectedVariable) {
         final StrongBox<Variable> operand = new StrongBox<>();
 
@@ -316,7 +332,7 @@ public final class PatternMatching {
 
     public static boolean matchStore(final Node node, final Variable expectedVariable) {
         return match(node, AstCode.Store) &&
-               Comparer.equals(((Expression)node).getOperand(), expectedVariable);
+               Comparer.equals(((Expression) node).getOperand(), expectedVariable);
     }
 
     public static boolean matchLoad(final Node node, final Variable expectedVariable, final StrongBox<Expression> argument) {
@@ -394,11 +410,13 @@ public final class PatternMatching {
             if (operand instanceof Integer) {
                 final int intValue = (Integer) operand;
 
-                if (intValue == 0)
+                if (intValue == 0) {
                     return Boolean.FALSE;
+                }
 
-                if (intValue == 1)
+                if (intValue == 1) {
                     return Boolean.TRUE;
+                }
             }
         }
 
@@ -408,5 +426,107 @@ public final class PatternMatching {
     public static boolean matchUnconditionalBranch(final Node node) {
         return node instanceof Expression &&
                ((Expression) node).getCode().isUnconditionalControlFlow();
+    }
+
+    public static boolean matchLock(final List<Node> body, final int position, final StrongBox<LockInfo> result) {
+        VerifyArgument.notNull(body, "body");
+        VerifyArgument.notNull(result, "result");
+
+        result.set(null);
+
+        int head = position;
+
+        if (head < 0 || head >= body.size()) {
+            return false;
+        }
+
+        final List<Expression> a = new ArrayList<>();
+        final Label leadingLabel;
+
+        if (body.get(head) instanceof Label) {
+            leadingLabel = (Label) body.get(head);
+            ++head;
+        }
+        else {
+            leadingLabel = null;
+        }
+
+        if (head >= body.size()) {
+            return false;
+        }
+
+        if (matchGetArguments(body.get(head), AstCode.MonitorEnter, a)) {
+            if (!match(a.get(0), AstCode.Load)) {
+                return false;
+            }
+
+            result.set(new LockInfo(leadingLabel, (Expression) body.get(head)));
+            return true;
+        }
+
+        final StrongBox<Variable> v = new StrongBox<>();
+        final Variable lockVariable;
+
+        Expression lockInit;
+        Expression lockStore;
+        Expression lockStoreCopy;
+
+        if (head < body.size() - 1 &&
+            matchGetArguments(body.get(head), AstCode.Store, v, a)) {
+
+            lockVariable = v.get();
+            lockInit = a.get(0);
+            lockStore = (Expression) body.get(head++);
+
+            if (matchLoadStore(body.get(head), lockVariable, v)) {
+                lockStoreCopy = (Expression) body.get(head++);
+            }
+            else {
+                lockStoreCopy = null;
+            }
+
+            if (head < body.size() &&
+                matchGetArguments(body.get(head), AstCode.MonitorEnter, a)) {
+
+                if (!matchLoad(a.get(0), lockVariable)) {
+                    if (matchGetOperand(lockInit, AstCode.Load, v) &&
+                        matchLoad(a.get(0), v.get())) {
+
+                        lockStoreCopy = lockStore;
+                        lockStore = null;
+                        lockInit = null;
+                    }
+                    else {
+                        return false;
+                    }
+                }
+
+                result.set(
+                    new LockInfo(
+                        leadingLabel,
+                        lockInit,
+                        lockStore,
+                        lockStoreCopy,
+                        (Expression) body.get(head)
+                    )
+                );
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean matchUnlock(final Node e, final LockInfo lockInfo) {
+        if (lockInfo == null) {
+            return false;
+        }
+
+        final StrongBox<Expression> a = new StrongBox<>();
+
+        return matchGetArgument(e, AstCode.MonitorExit, a) &&
+               (matchLoad(a.get(), lockInfo.lock) ||
+                lockInfo.lockCopy != null && matchLoad(a.get(), lockInfo.lockCopy));
     }
 }

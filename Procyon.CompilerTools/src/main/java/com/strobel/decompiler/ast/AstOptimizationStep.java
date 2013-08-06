@@ -50,5 +50,6 @@ public enum AstOptimizationStep {
     RecombineVariables,
     TypeInference2,
     RemoveRedundantCode3,
+    HoistNestedTryBlocks,
     None
 }

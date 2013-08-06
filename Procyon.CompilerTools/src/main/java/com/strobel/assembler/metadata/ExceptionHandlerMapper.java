@@ -169,7 +169,9 @@ public final class ExceptionHandlerMapper {
     }
 
     private static boolean shouldIncludeExceptionalExit(final ControlFlowGraph cfg, final ControlFlowNode head, final ControlFlowNode node) {
-        if (!node.getDominanceFrontier().contains(cfg.getExceptionalExit())) {
+        if (!node.getDominanceFrontier().contains(cfg.getExceptionalExit()) &&
+            !node.dominates(cfg.getExceptionalExit())) {
+
             return false;
         }
 

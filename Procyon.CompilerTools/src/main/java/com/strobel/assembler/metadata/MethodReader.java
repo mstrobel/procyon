@@ -119,8 +119,6 @@ public class MethodReader {
             processLocalVariableTable(variables, localVariableTypeTable, parameters);
         }
 
-        variables.mergeVariables();
-
         @SuppressWarnings("unchecked")
         final Fixup[] fixups = new Fixup[b.size()];
 
@@ -462,10 +460,6 @@ public class MethodReader {
                 fixup.fix(instruction);
             }
         }
-
-        variables.updateScopes(_code.getCodeSize());
-        variables.mergeVariables();
-        variables.updateScopes(_code.getCodeSize());
 
         int labelCount = 0;
 
