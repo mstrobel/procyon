@@ -719,7 +719,7 @@ public final class RedundantCastUtility {
             final TypeReference targetType;
 
             if (grandParent instanceof InvocationExpression) {
-                targetType = getType(((InvocationExpression) parent).getTarget());
+                targetType = getType(((InvocationExpression) grandParent).getTarget());
             }
             else {
                 targetType = getType(grandParent);
@@ -754,7 +754,7 @@ public final class RedundantCastUtility {
                 return false;
             }
 
-            final int argumentIndex = indexOf(arguments, (Expression) parent);
+            final int argumentIndex = indexOf(grandParent.getChildrenByRole(Roles.ARGUMENT), (Expression) parent);
             final Expression toReplace = get(arguments, argumentIndex);
 
             if (toReplace instanceof ConditionalExpression) {

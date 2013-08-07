@@ -2320,7 +2320,7 @@ public final class AstBuilder {
     }
 
     private static String key(final VariableDefinition variable) {
-        final StringBuilder sb = new StringBuilder();
+        final StringBuilder sb = new StringBuilder().append(variable.getSlot()).append(':');
 
         if (variable.hasName()) {
             sb.append(variable.getName());
