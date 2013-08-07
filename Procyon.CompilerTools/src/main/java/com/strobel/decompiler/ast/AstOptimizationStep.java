@@ -23,6 +23,7 @@ public enum AstOptimizationStep {
     CopyPropagation,
     RewriteFinallyBlocks,
     SplitToMovableBlocks,
+    RemoveUnreachableBlocks,
     TypeInference,
     RemoveInnerClassInitSecurityChecks,
     SimplifyShortCircuit,
@@ -50,6 +51,6 @@ public enum AstOptimizationStep {
     RecombineVariables,
     TypeInference2,
     RemoveRedundantCode3,
-    HoistNestedTryBlocks,
+    CleanUpTryBlocks,
     None
 }

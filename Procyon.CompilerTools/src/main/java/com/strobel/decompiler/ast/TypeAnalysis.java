@@ -339,14 +339,62 @@ public final class TypeAnalysis {
             inferTypesForVariables(assignVariableTypesBasedOnPartialInformation);
         }
 
+        verifyResults();
+    }
+
+    private void verifyResults() {
+        final StrongBox<Expression> a = new StrongBox<>();
+
         for (final Variable variable : _assignmentExpressions.keySet()) {
             if (variable.getType() == null) {
                 variable.setType(BuiltinTypes.Object);
+            }
+            else if (variable.getType().getSimpleType() == JvmType.Boolean) {
+                //
+                // Make sure constant assignments to boolean variables have boolean values,
+                // and not integer values.
+                //
+
+                for (final ExpressionToInfer e : _assignmentExpressions.get(variable)) {
+                    if (matchStore(e.expression, variable, a)) {
+                        final Boolean booleanConstant = matchBooleanConstant(a.get());
+
+                        if (booleanConstant != null) {
+                            e.expression.setExpectedType(BuiltinTypes.Boolean);
+                            e.expression.setInferredType(BuiltinTypes.Boolean);
+                            a.get().setExpectedType(BuiltinTypes.Boolean);
+                            a.get().setInferredType(BuiltinTypes.Boolean);
+                            a.get().setOperand(booleanConstant);
+                        }
+                    }
+                }
+            }
+            else if (variable.getType().getSimpleType() == JvmType.Character) {
+                //
+                // Make sure constant assignments to boolean variables have boolean values,
+                // and not integer values.
+                //
+
+                for (final ExpressionToInfer e : _assignmentExpressions.get(variable)) {
+                    if (matchStore(e.expression, variable, a)) {
+                        final Character characterConstant = matchCharacterConstant(a.get());
+
+                        if (characterConstant != null) {
+                            e.expression.setExpectedType(BuiltinTypes.Character);
+                            e.expression.setInferredType(BuiltinTypes.Character);
+                            a.get().setExpectedType(BuiltinTypes.Character);
+                            a.get().setInferredType(BuiltinTypes.Character);
+                            a.get().setOperand(characterConstant);
+                        }
+                    }
+                }
             }
         }
     }
 
     private void inferTypesForVariables(final boolean assignVariableTypesBasedOnPartialInformation) {
+        final StrongBox<Expression> a = new StrongBox<>();
+
         for (final Variable variable : _assignmentExpressions.keySet()) {
             final List<ExpressionToInfer> expressionsToInfer = _assignmentExpressions.get(variable);
 
@@ -1072,6 +1120,14 @@ public final class TypeAnalysis {
                 }
 
                 case LdC: {
+                    if (operand instanceof Boolean) {
+                        return BuiltinTypes.Boolean;
+                    }
+                    
+                    if (operand instanceof Character) {
+                        return BuiltinTypes.Character;
+                    }
+
                     if (operand instanceof Number) {
                         final Number number = (Number) operand;
 
@@ -1306,59 +1362,75 @@ public final class TypeAnalysis {
                 case I2B:
                 case I2C:
                 case I2S: {
+                    final TypeReference expectedArgumentType;
                     final TypeReference conversionResult;
 
                     switch (code) {
                         case I2L:
                             conversionResult = BuiltinTypes.Long;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         case I2F:
                             conversionResult = BuiltinTypes.Float;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         case I2D:
                             conversionResult = BuiltinTypes.Double;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         case L2I:
                             conversionResult = BuiltinTypes.Integer;
+                            expectedArgumentType = BuiltinTypes.Long;
                             break;
                         case L2F:
                             conversionResult = BuiltinTypes.Float;
+                            expectedArgumentType = BuiltinTypes.Long;
                             break;
                         case L2D:
                             conversionResult = BuiltinTypes.Double;
+                            expectedArgumentType = BuiltinTypes.Long;
                             break;
                         case F2I:
                             conversionResult = BuiltinTypes.Integer;
+                            expectedArgumentType = BuiltinTypes.Float;
                             break;
                         case F2L:
                             conversionResult = BuiltinTypes.Long;
+                            expectedArgumentType = BuiltinTypes.Float;
                             break;
                         case F2D:
                             conversionResult = BuiltinTypes.Double;
+                            expectedArgumentType = BuiltinTypes.Float;
                             break;
                         case D2I:
                             conversionResult = BuiltinTypes.Integer;
+                            expectedArgumentType = BuiltinTypes.Double;
                             break;
                         case D2L:
                             conversionResult = BuiltinTypes.Long;
+                            expectedArgumentType = BuiltinTypes.Double;
                             break;
                         case D2F:
                             conversionResult = BuiltinTypes.Float;
+                            expectedArgumentType = BuiltinTypes.Double;
                             break;
                         case I2B:
                             conversionResult = BuiltinTypes.Byte;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         case I2C:
                             conversionResult = BuiltinTypes.Character;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         case I2S:
                             conversionResult = BuiltinTypes.Short;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         default:
                             throw ContractUtils.unsupported();
                     }
 
-                    arguments.get(0).setExpectedType(conversionResult);
+                    arguments.get(0).setExpectedType(expectedArgumentType);
                     return conversionResult;
                 }
 

@@ -368,6 +368,17 @@ public enum AstCode {
         }
     }
 
+    public final boolean isShortCircuiting() {
+        switch (this) {
+            case LogicalAnd:
+            case LogicalOr:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
     public final AstCode reverse() {
         switch (this) {
             case CmpEq: return CmpNe;

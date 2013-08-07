@@ -2,7 +2,7 @@ package com.strobel.decompiler.languages.java.utilities;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.annotations.Nullable;
-import com.strobel.assembler.metadata.CommonClassReferences;
+import com.strobel.assembler.metadata.CommonTypeReferences;
 import com.strobel.assembler.metadata.DynamicCallSite;
 import com.strobel.assembler.metadata.JvmType;
 import com.strobel.assembler.metadata.MetadataHelper;
@@ -253,7 +253,7 @@ public final class TypeUtilities {
         final AstNode parent = skipParenthesesUp(expression.getParent());
 
         if (expression.getRole() == Roles.CONDITION) {
-            return CommonClassReferences.BOOLEAN;
+            return CommonTypeReferences.BOOLEAN;
         }
 
         if (parent instanceof VariableInitializer) {

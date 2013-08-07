@@ -20,16 +20,11 @@ import com.strobel.assembler.metadata.*;
 import com.strobel.core.*;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.functions.Function;
+import com.strobel.functions.Supplier;
 import com.strobel.functions.Suppliers;
 import com.strobel.util.ContractUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
@@ -93,6 +88,12 @@ public final class AstOptimizer {
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             optimizer.splitToMovableBlocks(block);
         }
+
+        if (abortBeforeStep == AstOptimizationStep.RemoveUnreachableBlocks) {
+            return;
+        }
+
+        removeUnreachableBlocks(method);
 
         if (abortBeforeStep == AstOptimizationStep.TypeInference) {
             return;
@@ -280,27 +281,92 @@ public final class AstOptimizer {
 
         GotoRemoval.removeRedundantCode(method);
 
-        if (abortBeforeStep == AstOptimizationStep.HoistNestedTryBlocks) {
+        if (abortBeforeStep == AstOptimizationStep.CleanUpTryBlocks) {
             return;
         }
 
-        hoistNestedTryBlocks(method);
+        cleanUpTryBlocks(method);
     }
 
-    // <editor-fold defaultstate="collapsed" desc="HoistNestedTryBlocks Optimization">
+    // <editor-fold defaultstate="collapsed" desc="RemoveUnreachableBlocks Optimization">
 
-    private static void hoistNestedTryBlocks(final Block method) {
-        for (final TryCatchBlock tryCatch : method.getSelfAndChildrenRecursive(TryCatchBlock.class)) {
-            if (tryCatch.getFinallyBlock() != null &&
-                tryCatch.getCatchBlocks().isEmpty() &&
-                tryCatch.getTryBlock().getBody().size() == 1 &&
-                tryCatch.getTryBlock().getBody().get(0) instanceof TryCatchBlock) {
+    private static void removeUnreachableBlocks(final Block method) {
+        final BasicBlock entryBlock = first(ofType(method.getBody(), BasicBlock.class));
+        final Set<Label> liveLabels = new LinkedHashSet<>();
 
-                final TryCatchBlock innerTryCatch = (TryCatchBlock) tryCatch.getTryBlock().getBody().get(0);
+        final Map<BasicBlock, List<Label>> embeddedLabels = new DefaultMap<>(
+            new Supplier<List<Label>>() {
+                @Override
+                public List<Label> get() {
+                    return new ArrayList<>();
+                }
+            }
+        );
 
-                if (innerTryCatch.getFinallyBlock() == null) {
-                    tryCatch.setTryBlock(innerTryCatch.getTryBlock());
-                    tryCatch.getCatchBlocks().addAll(innerTryCatch.getCatchBlocks());
+        for (final BasicBlock basicBlock : method.getChildrenAndSelfRecursive(BasicBlock.class)) {
+            for (final Label label : basicBlock.getChildrenAndSelfRecursive(Label.class)) {
+                embeddedLabels.get(basicBlock).add(label);
+            }
+        }
+
+        for (final Expression e : method.getChildrenAndSelfRecursive(Expression.class)) {
+            if (e.getOperand() instanceof Label) {
+                liveLabels.add((Label) e.getOperand());
+            }
+            else if (e.getOperand() instanceof Label[]) {
+                Collections.addAll(liveLabels, (Label[]) e.getOperand());
+            }
+        }
+
+    outer:
+        for (final BasicBlock basicBlock : method.getChildrenAndSelfRecursive(BasicBlock.class)) {
+            final List<Node> body = basicBlock.getBody();
+            final Label entryLabel = (Label) body.get(0);
+
+            if (basicBlock != entryBlock && !liveLabels.contains(entryLabel)) {
+                for (final Label label : embeddedLabels.get(basicBlock)) {
+                    if (liveLabels.contains(label)) {
+                        continue outer;
+                    }
+                }
+                while (body.size() > 1) {
+                    body.remove(body.size() - 1);
+                }
+            }
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="CleanUpTryBlocks Optimization">
+
+    private static void cleanUpTryBlocks(final Block method) {
+        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+            final List<Node> body = block.getBody();
+
+            for (int i = 0; i < body.size(); i++) {
+                if (body.get(i) instanceof TryCatchBlock) {
+                    final TryCatchBlock tryCatch = (TryCatchBlock) body.get(i);
+
+                    if (tryCatch.getTryBlock().getBody().isEmpty()) {
+                        if (tryCatch.getFinallyBlock() == null || tryCatch.getFinallyBlock().getBody().isEmpty()) {
+                            body.remove(i--);
+                            continue;
+                        }
+                    }
+
+                    if (tryCatch.getFinallyBlock() != null &&
+                        tryCatch.getCatchBlocks().isEmpty() &&
+                        tryCatch.getTryBlock().getBody().size() == 1 &&
+                        tryCatch.getTryBlock().getBody().get(0) instanceof TryCatchBlock) {
+
+                        final TryCatchBlock innerTryCatch = (TryCatchBlock) tryCatch.getTryBlock().getBody().get(0);
+
+                        if (innerTryCatch.getFinallyBlock() == null) {
+                            tryCatch.setTryBlock(innerTryCatch.getTryBlock());
+                            tryCatch.getCatchBlocks().addAll(innerTryCatch.getCatchBlocks());
+                        }
+                    }
                 }
             }
         }
@@ -326,25 +392,20 @@ public final class AstOptimizer {
             }
 
             final List<Node> body = finallyBlock.getBody();
+            final List<Variable> exceptionCopies = new ArrayList<>();
+            final Node lastInFinally = last(finallyBlock.getBody());
 
             if (matchGetArguments(body.get(0), AstCode.Store, v, a) &&
                 match(a.get(0), AstCode.LoadException)) {
 
                 body.remove(0);
-
-                final List<Variable> exceptionCopies = new ArrayList<>();
-
                 exceptionCopies.add(v.get());
 
                 if (body.isEmpty() || !PatternMatching.matchLoadStore(body.get(0), v.get(), v)) {
                     v.set(null);
                 }
-
-                if (body.size() >= 1 &&
-                    matchGetArguments(body.get(body.size() - 1), AstCode.AThrow, a) &&
-                    matchLoadAny(a.get(0), exceptionCopies)) {
-
-                    body.set(body.size() - 1, new Expression(AstCode.Leave, null));
+                else {
+                    exceptionCopies.add(v.get());
                 }
 
                 final Label endFinallyLabel;
@@ -368,33 +429,12 @@ public final class AstOptimizer {
                         if (node instanceof Expression) {
                             final Expression e = (Expression) node;
 
-                            final boolean exceptionCopy;
-
-                            if (match(e, AstCode.Store)) {
-                                exceptionCopy = any(
-                                    exceptionCopies,
-                                    new Predicate<Variable>() {
-                                        @Override
-                                        public boolean test(final Variable variable) {
-                                            if (matchLoadStore(e, variable, v)) {
-                                                exceptionCopies.add(v.get());
-
-                                                return true;
-                                            }
-                                            return false;
-                                        }
-                                    }
-                                );
-
-                                if (exceptionCopy) {
-                                    blockBody.remove(i--);
-                                    continue;
-                                }
+                            if (matchLoadStoreAny(node, exceptionCopies, v)) {
+                                exceptionCopies.add(v.get());
                             }
-
-                            if (matchGetArguments(e, AstCode.AThrow, a) &&
-                                matchGetOperand(a.get(0), AstCode.Load, v) &&
-                                exceptionCopies.contains(v.get())) {
+                            else if (e != lastInFinally &&
+                                     matchGetArguments(e, AstCode.AThrow, a) &&
+                                     matchLoadAny(a.get(0), exceptionCopies)) {
 
                                 e.setCode(AstCode.Goto);
                                 e.setOperand(endFinallyLabel);
@@ -402,6 +442,13 @@ public final class AstOptimizer {
                             }
                         }
                     }
+                }
+
+                if (body.size() >= 1 &&
+                    matchGetArguments(body.get(body.size() - 1), AstCode.AThrow, a) &&
+                    matchLoadAny(a.get(0), exceptionCopies)) {
+
+                    body.set(body.size() - 1, new Expression(AstCode.Leave, null));
                 }
             }
         }
@@ -1634,8 +1681,8 @@ public final class AstOptimizer {
 
                 final boolean returnTypeIsBoolean = TypeAnalysis.isBoolean(returnType);
 
-                final StrongBox<Integer> leftBooleanValue = new StrongBox<>();
-                final StrongBox<Integer> rightBooleanValue = new StrongBox<>();
+                final StrongBox<Boolean> leftBooleanValue = new StrongBox<>();
+                final StrongBox<Boolean> rightBooleanValue = new StrongBox<>();
 
                 final Expression newExpression;
 
@@ -1647,15 +1694,15 @@ public final class AstOptimizer {
                 // a ? false : b   is equivalent to  !a && b
 
                 if (returnTypeIsBoolean &&
-                    matchGetOperand(trueExpression.get(), AstCode.LdC, Integer.class, leftBooleanValue) &&
-                    matchGetOperand(falseExpression.get(), AstCode.LdC, Integer.class, rightBooleanValue) &&
-                    (leftBooleanValue.get() == 1 && rightBooleanValue.get() == 0 ||
-                     leftBooleanValue.get() == 0 && rightBooleanValue.get() == 1)) {
+                    matchBooleanConstant(trueExpression.get(), leftBooleanValue) &&
+                    matchBooleanConstant(falseExpression.get(), rightBooleanValue) &&
+                    (leftBooleanValue.get() && !rightBooleanValue.get() ||
+                     !leftBooleanValue.get() && rightBooleanValue.get())) {
 
                     //
                     // It can be expressed as a trivial expression.
                     //
-                    if (leftBooleanValue.get() != 0) {
+                    if (leftBooleanValue.get()) {
                         newExpression = condition.get();
                     }
                     else {
@@ -1664,13 +1711,12 @@ public final class AstOptimizer {
                     }
                 }
                 else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(falseExpression.get().getInferredType())) &&
-                         matchGetOperand(trueExpression.get(), AstCode.LdC, Integer.class, leftBooleanValue) &&
-                         (leftBooleanValue.get() == 0 || leftBooleanValue.get() == 1)) {
+                         matchBooleanConstant(trueExpression.get(), leftBooleanValue)) {
 
                     //
                     // It can be expressed as a logical expression.
                     //
-                    if (leftBooleanValue.get() != 0) {
+                    if (leftBooleanValue.get()) {
                         newExpression = makeLeftAssociativeShortCircuit(
                             AstCode.LogicalOr,
                             condition.get(),
@@ -1686,13 +1732,12 @@ public final class AstOptimizer {
                     }
                 }
                 else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(trueExpression.get().getInferredType())) &&
-                         matchGetOperand(falseExpression.get(), AstCode.LdC, Integer.class, rightBooleanValue) &&
-                         (rightBooleanValue.get() == 0 || rightBooleanValue.get() == 1)) {
+                         matchBooleanConstant(falseExpression.get(), rightBooleanValue)) {
 
                     //
                     // It can be expressed as a logical expression.
                     //
-                    if (rightBooleanValue.get() != 0) {
+                    if (rightBooleanValue.get()) {
                         newExpression = makeLeftAssociativeShortCircuit(
                             AstCode.LogicalOr,
                             new Expression(AstCode.LogicalNot, null, condition.get()),
@@ -1950,15 +1995,6 @@ public final class AstOptimizer {
 
             return false;
         }
-
-        private static boolean references(final Node node, final Variable v) {
-            for (final Expression e : node.getSelfAndChildrenRecursive(Expression.class)) {
-                if (matchLoad(e, v)) {
-                    return true;
-                }
-            }
-            return false;
-        }
     }
 
     private final static class TransformArrayInitializersOptimization extends AbstractExpressionOptimization {
@@ -2107,70 +2143,115 @@ public final class AstOptimizer {
             final StrongBox<Variable> ev = new StrongBox<>();
             final StrongBox<Expression> initializer = new StrongBox<>();
 
-            if (!matchGetArgument(head, AstCode.Store, ev, initializer)/* || !ev.get().isGenerated()*/) {
-                return false;
-            }
-
             final Node next = getOrDefault(body, position + 1);
+            final StrongBox<FieldReference> field = new StrongBox<>();
             final StrongBox<Variable> v = new StrongBox<>();
             final StrongBox<Expression> storeArgument = new StrongBox<>();
+            final List<Expression> storeArguments = new ArrayList<>();
 
-            if (matchGetArgument(next, AstCode.Store, v, storeArgument) &&
-                matchLoad(storeArgument.get(), ev.get())) {
+            if (matchGetArgument(head, AstCode.Store, ev, initializer)/* || !ev.get().isGenerated()*/) {
+                if (matchGetArgument(next, AstCode.Store, v, storeArgument) &&
+                    matchLoad(storeArgument.get(), ev.get())) {
 
-                final Expression nextExpression = (Expression) next;
-                final Node store2 = getOrDefault(body, position + 2);
+                    final Expression nextExpression = (Expression) next;
+                    final Node store2 = getOrDefault(body, position + 2);
 
-                if (canConvertStoreToAssignment(store2, ev.get())) {
-                    //
-                    // e = ...; store(v1, e); anyStore(v2, e) => store(v1, anyStore(v2, ...)
-                    //
+                    if (canConvertStoreToAssignment(store2, ev.get())) {
+                        //
+                        // e = ...; store(v1, e); anyStore(v2, e) => store(v1, anyStore(v2, ...)
+                        //
 
-                    final Inlining inlining = new Inlining(context, method);
-                    final MutableInteger loadCounts = inlining.loadCounts.get(ev.get());
-                    final MutableInteger storeCounts = inlining.storeCounts.get(ev.get());
+                        final Inlining inlining = new Inlining(context, method);
+                        final MutableInteger loadCounts = inlining.loadCounts.get(ev.get());
+                        final MutableInteger storeCounts = inlining.storeCounts.get(ev.get());
 
-                    if (loadCounts != null &&
-                        loadCounts.getValue() == 2 &&
-                        storeCounts != null &&
-                        storeCounts.getValue() == 1) {
+                        if (loadCounts != null &&
+                            loadCounts.getValue() == 2 &&
+                            storeCounts != null &&
+                            storeCounts.getValue() == 1) {
 
-                        final Expression storeExpression = (Expression) store2;
+                            final Expression storeExpression = (Expression) store2;
 
-                        body.remove(position + 2);  // remove store2
-                        body.remove(position);      // remove ev = ...
+                            body.remove(position + 2);  // remove store2
+                            body.remove(position);      // remove ev = ...
 
-                        nextExpression.getArguments().set(0, storeExpression);
-                        storeExpression.getArguments().set(storeExpression.getArguments().size() - 1, initializer.get());
+                            nextExpression.getArguments().set(0, storeExpression);
+                            storeExpression.getArguments().set(storeExpression.getArguments().size() - 1, initializer.get());
 
-                        inlining.inlineIfPossible(body, new MutableInteger(position));
+                            inlining.inlineIfPossible(body, new MutableInteger(position));
 
-                        return true;
+                            return true;
+                        }
                     }
-                }
 
-                body.remove(position + 1);  // remove store
-
-                nextExpression.getArguments().set(0, initializer.get());
-                ((Expression) body.get(position)).getArguments().set(0, nextExpression);
-
-                return true;
-            }
-
-            if (match(next, AstCode.PutStatic)) {
-                final Expression nextExpression = (Expression) next;
-
-                //
-                // ev = ...; putstatic(f, ev) => ev = putstatic(f, ...)
-                //
-
-                if (matchLoad(nextExpression.getArguments().get(0), ev.get())) {
-                    body.remove(position + 1);  // remove putstatic
+                    body.remove(position + 1);  // remove store
 
                     nextExpression.getArguments().set(0, initializer.get());
                     ((Expression) body.get(position)).getArguments().set(0, nextExpression);
 
                     return true;
+                }
+
+                if (match(next, AstCode.PutStatic)) {
+                    final Expression nextExpression = (Expression) next;
+
+                    //
+                    // ev = ...; putstatic(f, ev) => ev = putstatic(f, ...)
+                    //
+
+                    if (matchLoad(nextExpression.getArguments().get(0), ev.get())) {
+                        body.remove(position + 1);  // remove putstatic
+
+                        nextExpression.getArguments().set(0, initializer.get());
+                        ((Expression) body.get(position)).getArguments().set(0, nextExpression);
+
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            if ((matchGetOperand(head, AstCode.Store, v) ||
+                 (matchGetArguments(head, AstCode.PutStatic, field, storeArguments) &&
+                  matchGetOperand(storeArguments.get(0), AstCode.Load, v)) ||
+                 (matchGetArguments(head, AstCode.PutField, field, storeArguments) &&
+                  matchGetOperand(storeArguments.get(1), AstCode.Load, v))) &&
+                next instanceof Expression &&
+                countReferences(next, v.get()) == 1) {
+
+                if (field.get() != null) {
+                    final FieldDefinition resolvedField = field.get().resolve();
+
+                    if (resolvedField == null || resolvedField.isSynthetic()) {
+                        return false;
+                    }
+                }
+
+                final ArrayDeque<Expression> agenda = new ArrayDeque<>();
+
+                agenda.push((Expression) next);
+
+                while (!agenda.isEmpty()) {
+                    final Expression e = agenda.removeFirst();
+
+                    if (e.getCode().isShortCircuiting()) {
+                        break;
+                    }
+
+                    final List<Expression> arguments = e.getArguments();
+
+                    for (int i = 0; i < arguments.size(); i++) {
+                        final Expression a = arguments.get(i);
+
+                        if (matchLoad(a, v.get())) {
+                            arguments.set(i, head);
+                            body.remove(position);
+                            return true;
+                        }
+
+                        agenda.push(a);
+                    }
                 }
             }
 
@@ -2882,12 +2963,13 @@ public final class AstOptimizer {
 
         List<Expression> arguments = e.getArguments();
 
+        final StrongBox<Boolean> b = new StrongBox<>();
         final Expression operand = arguments.isEmpty() ? null : arguments.get(0);
 
         if (e.getCode() == AstCode.CmpEq &&
             TypeAnalysis.isBoolean(operand.getInferredType()) &&
-            (a = arguments.get(1)).getCode() == AstCode.LdC &&
-            ((Number) a.getOperand()).intValue() == 0) {
+            matchBooleanConstant(a = arguments.get(1), b) &&
+            Boolean.FALSE.equals(b.get())) {
 
             e.setCode(AstCode.LogicalNot);
             e.getRanges().addAll(a.getRanges());
@@ -2900,8 +2982,8 @@ public final class AstOptimizer {
 
         if (e.getCode() == AstCode.CmpNe &&
             TypeAnalysis.isBoolean(operand.getInferredType()) &&
-            (a = arguments.get(1)).getCode() == AstCode.LdC &&
-            ((Number) a.getOperand()).intValue() == 0) {
+            matchBooleanConstant(arguments.get(1), b) &&
+            Boolean.FALSE.equals(b.get())) {
 
             modified.set(true);
             return e.getArguments().get(0);
@@ -3013,6 +3095,27 @@ public final class AstOptimizer {
             default:
                 return false;
         }
+    }
+
+    private static boolean references(final Node node, final Variable v) {
+        for (final Expression e : node.getSelfAndChildrenRecursive(Expression.class)) {
+            if (matchLoad(e, v)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int countReferences(final Node node, final Variable v) {
+        int references = 0;
+
+        for (final Expression e : node.getSelfAndChildrenRecursive(Expression.class)) {
+            if (matchLoad(e, v)) {
+                ++references;
+            }
+        }
+
+        return references;
     }
 
     // </editor-fold>

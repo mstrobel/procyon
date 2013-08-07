@@ -177,9 +177,11 @@ public final class LocalClassHelper {
                             if (parameterIndex >= 0 && parameterIndex < _originalArguments.size()) {
                                 final Expression argument = _originalArguments.get(parameterIndex);
 
-                                if (argument != null) {
-                                    _nodesToRemove.add(argument);
+                                if (argument == null) {
+                                    return null;
                                 }
+
+                                _nodesToRemove.add(argument);
 
                                 if (argument instanceof ThisReferenceExpression) {
                                     //

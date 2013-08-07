@@ -2,7 +2,7 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.util.ContractUtils;
 
-public final class CommonClassReferences {
+public final class CommonTypeReferences {
     public final static TypeReference OBJECT;
     public final static TypeReference STRING;
     public final static TypeReference SERIALIZABLE;
@@ -33,7 +33,7 @@ public final class CommonClassReferences {
         DOUBLE = parser.parseTypeDescriptor("java/lang/Double");
     }
 
-    private CommonClassReferences() {
+    private CommonTypeReferences() {
         throw ContractUtils.unreachable();
     }
 }

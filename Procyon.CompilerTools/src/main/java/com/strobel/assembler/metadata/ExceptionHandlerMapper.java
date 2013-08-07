@@ -15,6 +15,7 @@ import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OperandType;
 import com.strobel.assembler.ir.attributes.ExceptionTableEntry;
+import com.strobel.core.Comparer;
 import com.strobel.core.Predicate;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.InstructionHelper;
@@ -74,6 +75,18 @@ public final class ExceptionHandlerMapper {
                     }
                 }
             );
+
+//            for (int i = 1; i < dominatedNodes.size(); i++) {
+//                final ControlFlowNode prev = dominatedNodes.get(i - 1);
+//                final ControlFlowNode node = dominatedNodes.get(i);
+//
+//                if (node.getBlockIndex() != prev.getBlockIndex() + 1) {
+//                    for (int j = i; j < dominatedNodes.size(); j++) {
+//                        dominatedNodes.remove(i);
+//                        break;
+//                    }
+//                }
+//            }
 
             final Instruction lastInstruction = instructions.get(instructions.size() - 1);
 
@@ -172,7 +185,11 @@ public final class ExceptionHandlerMapper {
         if (!node.getDominanceFrontier().contains(cfg.getExceptionalExit()) &&
             !node.dominates(cfg.getExceptionalExit())) {
 
-            return false;
+            final ControlFlowNode innermostHandlerNode = findInnermostExceptionHandlerNode(cfg, node.getEnd().getOffset());
+
+            if (innermostHandlerNode == null || !node.getDominanceFrontier().contains(innermostHandlerNode)) {
+                return false;
+            }
         }
 
         if (node.getStart().getNext() != node.getEnd()) {
@@ -192,6 +209,7 @@ public final class ExceptionHandlerMapper {
 
     private final InstructionCollection _instructions;
     private final List<ExceptionTableEntry> _tableEntries;
+    private final List<ExceptionHandler> _handlerPlaceholders;
     private final List<ControlFlowNode> _nodes = new Collection<>();
     private final int[] _offsets;
     private final boolean[] _hasIncomingJumps;
@@ -205,6 +223,7 @@ public final class ExceptionHandlerMapper {
     private ExceptionHandlerMapper(final InstructionCollection instructions, final List<ExceptionTableEntry> tableEntries) {
         _instructions = VerifyArgument.notNull(instructions, "instructions");
         _tableEntries = VerifyArgument.notNull(tableEntries, "tableEntries");
+        _handlerPlaceholders = createHandlerPlaceholders();
 
         _offsets = new int[instructions.size()];
         _hasIncomingJumps = new boolean[instructions.size()];
@@ -226,7 +245,7 @@ public final class ExceptionHandlerMapper {
         calculateIncomingJumps();
         createNodes();
         createRegularControlFlow();
-//        createExceptionalControlFlow();
+        createExceptionalControlFlow();
 
         return new ControlFlowGraph(_nodes.toArray(new ControlFlowNode[_nodes.size()]));
     }
@@ -276,7 +295,7 @@ public final class ExceptionHandlerMapper {
 
         for (int i = 0, n = instructions.size(); i < n; i++) {
             final Instruction blockStart = instructions.get(i);
-            final ExceptionTableEntry blockStartExceptionHandler = findInnermostExceptionHandler(blockStart.getOffset());
+            final ExceptionHandler blockStartExceptionHandler = findInnermostExceptionHandler(blockStart.getOffset());
 
             //
             // See how big we can make that block...
@@ -295,7 +314,7 @@ public final class ExceptionHandlerMapper {
                     //
                     // Ensure that blocks never contain instructions from different try blocks.
                     //
-                    final ExceptionTableEntry innermostExceptionHandler = findInnermostExceptionHandler(next.getOffset());
+                    final ExceptionHandler innermostExceptionHandler = findInnermostExceptionHandler(next.getOffset());
 
                     if (innermostExceptionHandler != blockStartExceptionHandler) {
                         break;
@@ -308,6 +327,15 @@ public final class ExceptionHandlerMapper {
             node.setUserData(blockStartExceptionHandler);
 
             _nodes.add(node);
+        }
+
+        //
+        // Step 2b: Create special nodes for exception handling constructs.
+        //
+
+        for (final ExceptionHandler handler : _handlerPlaceholders) {
+            final int index = _nodes.size();
+            _nodes.add(new ControlFlowNode(index, handler, null));
         }
     }
 
@@ -369,92 +397,154 @@ public final class ExceptionHandlerMapper {
             if (endOpCode.getFlowControl() == FlowControl.Return) {
                 createEdge(node, _regularExit, JumpType.Normal);
             }
-            else if (endOpCode.getFlowControl() == FlowControl.Throw) {
+//            else if (endOpCode.getFlowControl() == FlowControl.Throw) {
+//                createEdge(node, _exceptionalExit, JumpType.JumpToExceptionHandler);
+//            }
+        }
+    }
+
+    private void createExceptionalControlFlow() {
+        //
+        // Step 4: Create edges for the exceptional control flow.
+        //
+
+        for (final ControlFlowNode node : _nodes) {
+            if (node.getNodeType() != ControlFlowNodeType.Normal) {
+                continue;
+            }
+
+            final Instruction end = node.getEnd();
+            final ExceptionHandler innermostHandler = findInnermostExceptionHandler(node.getEnd().getOffset());
+
+            if (innermostHandler != null) {
+                for (final ExceptionHandler other : _handlerPlaceholders) {
+                    if (other.getTryBlock().equals(innermostHandler.getTryBlock())) {
+                        final ControlFlowNode handlerNode = firstOrDefault(
+                            _nodes,
+                            new Predicate<ControlFlowNode>() {
+                                @Override
+                                public boolean test(final ControlFlowNode node) {
+                                    return node.getExceptionHandler() == other;
+                                }
+                            }
+                        );
+
+                        if (node != handlerNode) {
+                            createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
+                        }
+                    }
+                }
+            }
+            else if (end.getOpCode() == OpCode.ATHROW) {
                 createEdge(node, _exceptionalExit, JumpType.JumpToExceptionHandler);
+            }
+
+            final ExceptionHandler exceptionHandler = node.getExceptionHandler();
+
+            if (exceptionHandler != null) {
+                if (exceptionHandler.isFinally()) {
+                    final ControlFlowNode parentHandler = findParentExceptionHandlerNode(node);
+
+                    if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
+                        createEdge(node, parentHandler, JumpType.JumpToExceptionHandler);
+                    }
+
+                    if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
+                        for (final ExceptionHandler other : _handlerPlaceholders) {
+                            if (Comparer.equals(other.getTryBlock(), parentHandler.getExceptionHandler().getTryBlock())) {
+                                final ControlFlowNode handlerNode = firstOrDefault(
+                                    _nodes,
+                                    new Predicate<ControlFlowNode>() {
+                                        @Override
+                                        public boolean test(final ControlFlowNode node) {
+                                            return node.getExceptionHandler() == other;
+                                        }
+                                    }
+                                );
+
+                                if (handlerNode != node && handlerNode != parentHandler) {
+                                    createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                createEdge(
+                    node,
+                    exceptionHandler.getHandlerBlock().getFirstInstruction(),
+                    JumpType.Normal
+                );
             }
         }
     }
 
-//    private void createExceptionalControlFlow() {
-//        //
-//        // Step 4: Create edges for the exceptional control flow.
-//        //
-//
-//        for (final ControlFlowNode node : _nodes) {
-//            if (node.getNodeType() != ControlFlowNodeType.Normal) {
-//                continue;
-//            }
-//
-//            final Instruction end = node.getEnd();
-//            final ExceptionTableEntry entry = (ExceptionTableEntry) node.getUserData();
-//
-//            if (entry != null && end.getEndOffset() == entry.getEndOffset()) {
-//                final ControlFlowNode innermostHandler = findInnermostExceptionHandlerNode(node.getEnd().getOffset());
-//
-//                if (innermostHandler != null) {
-//                    for (final ExceptionTableEntry handler : _tableEntries) {
-//                        if (handler.getStartOffset() == entry.getStartOffset() &&
-//                            handler.getEndOffset() == entry.getEndOffset()) {
-//
-//                            final ControlFlowNode handlerNode = firstOrDefault(
-//                                _nodes,
-//                                new Predicate<ControlFlowNode>() {
-//                                    @Override
-//                                    public boolean test(final ControlFlowNode node) {
-//                                        return node.getNodeType() == ControlFlowNodeType.Normal &&
-//                                               node.getStart().getOffset() == handler.getHandlerOffset();
-//                                    }
-//                                }
-//                            );
-//
-//                            if (node != handlerNode) {
-//                                createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//
-///*
-//            if (entry != null) {
-//                createEdge(
-//                    node,
-//                    _instructions.atOffset(entry.getHandlerOffset()),
-//                    JumpType.Normal
-//                );
-//            }
-//*/
-//        }
-//    }
+    private static ControlFlowNode findInnermostExceptionHandlerNode(final ControlFlowGraph cfg, final int offsetInTryBlock) {
+        ExceptionHandler result = null;
+        ControlFlowNode resultNode = null;
 
-//    private ControlFlowNode findInnermostExceptionHandlerNode(final int offsetInTryBlock) {
-//        final ExceptionTableEntry entry = findInnermostExceptionHandler(offsetInTryBlock);
-//
-//        if (entry == null) {
-//            return null;
-//        }
-//
-//        final Instruction nodeStart = _instructions.atOffset(entry.getHandlerOffset());
-//
-//        for (final ControlFlowNode node : _nodes) {
-//            if (node.getStart() == nodeStart) {
-//                return node;
-//            }
-//        }
-//
-//        return null;
-//    }
+        final List<ControlFlowNode> nodes = cfg.getNodes();
 
-    private ExceptionTableEntry findInnermostExceptionHandler(final int offsetInTryBlock) {
-        for (final ExceptionTableEntry entry : _tableEntries) {
-            if (entry.getStartOffset() <= offsetInTryBlock &&
-                offsetInTryBlock < entry.getEndOffset()) {
+        for (int i = nodes.size() - 1; i >= 0; i--) {
+            final ControlFlowNode node = nodes.get(i);
+            final ExceptionHandler handler = node.getExceptionHandler();
 
-                return entry;
+            if (handler == null) {
+                break;
+            }
+
+            final ExceptionBlock tryBlock = handler.getTryBlock();
+
+            if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
+                offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
+                (result == null ||
+                 tryBlock.getFirstInstruction().getOffset() > result.getTryBlock().getFirstInstruction().getOffset())) {
+
+                result = handler;
+                resultNode = node;
             }
         }
 
-        return null;
+        return resultNode;
+    }
+
+    private ExceptionHandler findInnermostExceptionHandler(final int offsetInTryBlock) {
+        ExceptionHandler result = null;
+
+        for (final ExceptionHandler handler : _handlerPlaceholders) {
+            final ExceptionBlock tryBlock = handler.getTryBlock();
+
+            if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
+                offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
+                (result == null ||
+                 tryBlock.getFirstInstruction().getOffset() > result.getTryBlock().getFirstInstruction().getOffset())) {
+
+                result = handler;
+            }
+        }
+
+        return result;
+    }
+
+    private ControlFlowNode findParentExceptionHandlerNode(final ControlFlowNode node) {
+        assert node.getNodeType() == ControlFlowNodeType.CatchHandler ||
+               node.getNodeType() == ControlFlowNodeType.FinallyHandler;
+
+        final int offset = node.getExceptionHandler().getHandlerBlock().getFirstInstruction().getOffset();
+
+        for (int i = node.getBlockIndex() + 1, n = _nodes.size(); i < n; i++) {
+            final ControlFlowNode currentNode = _nodes.get(i);
+            final ExceptionHandler handler = currentNode.getExceptionHandler();
+
+            if (handler != null &&
+                handler.getTryBlock().getFirstInstruction().getOffset() <= offset &&
+                offset < handler.getTryBlock().getLastInstruction().getEndOffset()) {
+
+                return currentNode;
+            }
+        }
+
+        return _exceptionalExit;
     }
 
     private int getInstructionIndex(final Instruction instruction) {
@@ -489,6 +579,45 @@ public final class ExceptionHandlerMapper {
         toNode.getIncoming().add(edge);
 
         return edge;
+    }
+
+    private List<ExceptionHandler> createHandlerPlaceholders() {
+        final ArrayList<ExceptionHandler> handlers = new ArrayList<>();
+
+        for (final ExceptionTableEntry entry : _tableEntries) {
+            final ExceptionHandler handler;
+            final Instruction afterTry = _instructions.tryGetAtOffset(entry.getEndOffset());
+
+            if (entry.getCatchType() == null) {
+                handler = ExceptionHandler.createFinally(
+                    new ExceptionBlock(
+                        _instructions.atOffset(entry.getStartOffset()),
+                        afterTry != null ? afterTry.getPrevious() : last(_instructions)
+                    ),
+                    new ExceptionBlock(
+                        _instructions.atOffset(entry.getHandlerOffset()),
+                        _instructions.atOffset(entry.getHandlerOffset())
+                    )
+                );
+            }
+            else {
+                handler = ExceptionHandler.createCatch(
+                    new ExceptionBlock(
+                        _instructions.atOffset(entry.getStartOffset()),
+                        afterTry != null ? afterTry.getPrevious() : last(_instructions)
+                    ),
+                    new ExceptionBlock(
+                        _instructions.atOffset(entry.getHandlerOffset()),
+                        _instructions.atOffset(entry.getHandlerOffset())
+                    ),
+                    entry.getCatchType()
+                );
+            }
+
+            handlers.add(handler);
+        }
+
+        return handlers;
     }
 }
 
