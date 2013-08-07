@@ -1362,59 +1362,75 @@ public final class TypeAnalysis {
                 case I2B:
                 case I2C:
                 case I2S: {
+                    final TypeReference expectedArgumentType;
                     final TypeReference conversionResult;
 
                     switch (code) {
                         case I2L:
                             conversionResult = BuiltinTypes.Long;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         case I2F:
                             conversionResult = BuiltinTypes.Float;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         case I2D:
                             conversionResult = BuiltinTypes.Double;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         case L2I:
                             conversionResult = BuiltinTypes.Integer;
+                            expectedArgumentType = BuiltinTypes.Long;
                             break;
                         case L2F:
                             conversionResult = BuiltinTypes.Float;
+                            expectedArgumentType = BuiltinTypes.Long;
                             break;
                         case L2D:
                             conversionResult = BuiltinTypes.Double;
+                            expectedArgumentType = BuiltinTypes.Long;
                             break;
                         case F2I:
                             conversionResult = BuiltinTypes.Integer;
+                            expectedArgumentType = BuiltinTypes.Float;
                             break;
                         case F2L:
                             conversionResult = BuiltinTypes.Long;
+                            expectedArgumentType = BuiltinTypes.Float;
                             break;
                         case F2D:
                             conversionResult = BuiltinTypes.Double;
+                            expectedArgumentType = BuiltinTypes.Float;
                             break;
                         case D2I:
                             conversionResult = BuiltinTypes.Integer;
+                            expectedArgumentType = BuiltinTypes.Double;
                             break;
                         case D2L:
                             conversionResult = BuiltinTypes.Long;
+                            expectedArgumentType = BuiltinTypes.Double;
                             break;
                         case D2F:
                             conversionResult = BuiltinTypes.Float;
+                            expectedArgumentType = BuiltinTypes.Double;
                             break;
                         case I2B:
                             conversionResult = BuiltinTypes.Byte;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         case I2C:
                             conversionResult = BuiltinTypes.Character;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         case I2S:
                             conversionResult = BuiltinTypes.Short;
+                            expectedArgumentType = BuiltinTypes.Integer;
                             break;
                         default:
                             throw ContractUtils.unsupported();
                     }
 
-                    arguments.get(0).setExpectedType(conversionResult);
+                    arguments.get(0).setExpectedType(expectedArgumentType);
                     return conversionResult;
                 }
 

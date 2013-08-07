@@ -70,6 +70,8 @@ final class GotoRemoval {
             }
         }
 
+        transformLeaveStatements(method);
+
         boolean modified;
 
         do {
@@ -167,7 +169,6 @@ final class GotoRemoval {
                         }
                     }
                 }
-
             }
             else if (parent instanceof Switch) {
                 ++switchDepth;
@@ -520,6 +521,35 @@ final class GotoRemoval {
         }
 
         throw Error.unsupportedNode(parent);
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private void transformLeaveStatements(final Block method) {
+        final StrongBox<Label> target = new StrongBox<>();
+        final Set<Node> visitedNodes = new LinkedHashSet<>();
+
+    outer:
+        for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
+            if (matchGetOperand(e, AstCode.Goto, target)) {
+                visitedNodes.clear();
+
+                final Node exit = exit(e, new HashSet<Node>());
+
+                if (exit != null && match(exit, AstCode.Leave)) {
+                    final Node parent = parentLookup.get(e);
+                    final Node grandParent = parent != null ? parentLookup.get(parent) : null;
+
+                    if (parent instanceof Block &&
+                        (grandParent instanceof CatchBlock ||
+                         grandParent instanceof TryCatchBlock) &&
+                        e == last(((Block) parent).getBody())) {
+
+                        e.setCode(AstCode.Leave);
+                        e.setOperand(null);
+                    }
+                }
+            }
+        }
     }
 
     @SuppressWarnings("ConstantConditions")

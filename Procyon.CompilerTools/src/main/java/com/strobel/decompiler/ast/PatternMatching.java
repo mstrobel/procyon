@@ -369,6 +369,16 @@ public final class PatternMatching {
         return false;
     }
 
+    public static boolean matchLoadStoreAny(final Node node, final Iterable<Variable> expectedVariables, final StrongBox<Variable> targetVariable) {
+        for (final Variable variable : VerifyArgument.notNull(expectedVariables, "expectedVariables")) {
+            if (matchLoadStore(node, variable, targetVariable)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static boolean matchSimplifiableComparison(final Node node) {
         if (node instanceof Expression) {
             final Expression e = (Expression) node;

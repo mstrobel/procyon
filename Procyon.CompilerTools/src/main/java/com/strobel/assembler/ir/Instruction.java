@@ -149,11 +149,18 @@ public final class Instruction {
 
     @Override
     @SuppressWarnings("CloneDoesntCallSuperClone")
-    protected Instruction clone() {
-        final Instruction copy = new Instruction(_opCode, _operand);
+    public Instruction clone() {
+        final Instruction copy = new Instruction(_opCode, (Object) null);
 
         copy._offset = _offset;
-        copy._label = _label;
+        copy._label = _label != null ? new Label(_label.getIndex()) : null;
+
+        if (ArrayUtilities.isArray(_operand)) {
+            copy._operand = ((Object[])_operand).clone();
+        }
+        else {
+            copy._operand = _operand;
+        }
 
         return copy;
     }

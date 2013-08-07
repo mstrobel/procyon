@@ -470,7 +470,7 @@ public class AstMethodBodyBuilder {
                 tryCatch.getCatchClauses().add(catchClause);
             }
 
-            if (finallyBlock != null && !finallyBlock.getBody().isEmpty()) {
+            if (finallyBlock != null && (!finallyBlock.getBody().isEmpty() || catchBlocks.isEmpty())) {
                 tryCatch.setFinallyBlock(transformBlock(finallyBlock));
             }
 

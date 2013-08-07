@@ -23,6 +23,7 @@ public enum AstOptimizationStep {
     CopyPropagation,
     RewriteFinallyBlocks,
     SplitToMovableBlocks,
+    RemoveUnreachableBlocks,
     TypeInference,
     RemoveInnerClassInitSecurityChecks,
     SimplifyShortCircuit,
