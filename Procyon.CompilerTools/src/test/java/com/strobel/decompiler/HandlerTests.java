@@ -388,7 +388,7 @@ public class HandlerTests extends DecompilerTest {
             "            try {\n" +
             "                throw new Exception();\n" +
             "            }\n" +
-            "            catch (Exception e) {}\n" +
+            "            catch (Exception e2) {}\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
@@ -411,7 +411,7 @@ public class HandlerTests extends DecompilerTest {
             "                int k = 0;\n" +
             "                k = 1 / k;\n" +
             "            }\n" +
-            "            catch (Exception e) {}\n" +
+            "            catch (Exception e2) {}\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
