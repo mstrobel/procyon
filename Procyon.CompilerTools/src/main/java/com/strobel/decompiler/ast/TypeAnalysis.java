@@ -37,14 +37,23 @@ public final class TypeAnalysis {
     private final Set<Variable> _singleLoadVariables = new LinkedHashSet<>();
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
-    private final Map<Variable, List<ExpressionToInfer>> _assignmentExpressions = new DefaultMap<>(
-        new Supplier<List<ExpressionToInfer>>() {
-            @Override
-            public List<ExpressionToInfer> get() {
-                return new ArrayList<>();
+    private final Map<Variable, List<ExpressionToInfer>> _assignmentExpressions = new IdentityHashMap<Variable, List<ExpressionToInfer>>() {
+        @Override
+        @SuppressWarnings("unchecked")
+        public List<ExpressionToInfer> get(final Object key) {
+            List<ExpressionToInfer> value = super.get(key);
+
+            if (value == null) {
+                if (_doneInitializing) {
+                    return Collections.emptyList();
+                }
+
+                put((Variable) key, value = new ArrayList<>());
             }
+
+            return value;
         }
-    );
+    };
 
     private final IdentityHashMap<Variable, TypeReference> _inferredVariableTypes = new IdentityHashMap<>();
 
@@ -53,6 +62,7 @@ public final class TypeAnalysis {
     private boolean _preserveMetadataTypes;
     private boolean _preserveMetadataGenericTypes;
     private Stack<Expression> _stack = new Stack<>();
+    private boolean _doneInitializing;
 
     public static void run(final DecompilerContext context, final Block method) {
         final TypeAnalysis ta = new TypeAnalysis();
@@ -74,6 +84,7 @@ public final class TypeAnalysis {
 
         ta.createDependencyGraph(method);
         ta.identifySingleLoadVariables();
+        ta._doneInitializing = true;
         ta.runInference();
     }
 
@@ -393,8 +404,6 @@ public final class TypeAnalysis {
     }
 
     private void inferTypesForVariables(final boolean assignVariableTypesBasedOnPartialInformation) {
-        final StrongBox<Expression> a = new StrongBox<>();
-
         for (final Variable variable : _assignmentExpressions.keySet()) {
             final List<ExpressionToInfer> expressionsToInfer = _assignmentExpressions.get(variable);
 
@@ -1123,7 +1132,7 @@ public final class TypeAnalysis {
                     if (operand instanceof Boolean) {
                         return BuiltinTypes.Boolean;
                     }
-                    
+
                     if (operand instanceof Character) {
                         return BuiltinTypes.Character;
                     }

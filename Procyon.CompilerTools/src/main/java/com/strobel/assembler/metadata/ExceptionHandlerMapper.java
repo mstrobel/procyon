@@ -185,7 +185,7 @@ public final class ExceptionHandlerMapper {
         if (!node.getDominanceFrontier().contains(cfg.getExceptionalExit()) &&
             !node.dominates(cfg.getExceptionalExit())) {
 
-            final ControlFlowNode innermostHandlerNode = findInnermostExceptionHandlerNode(cfg, node.getEnd().getOffset());
+            final ControlFlowNode innermostHandlerNode = findInnermostExceptionHandlerNode(cfg, node.getStart().getOffset());
 
             if (innermostHandlerNode == null || !node.getDominanceFrontier().contains(innermostHandlerNode)) {
                 return false;
@@ -497,8 +497,7 @@ public final class ExceptionHandlerMapper {
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
                 offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
-                (result == null ||
-                 tryBlock.getFirstInstruction().getOffset() > result.getTryBlock().getFirstInstruction().getOffset())) {
+                isNarrower(handler, result)) {
 
                 result = handler;
                 resultNode = node;
@@ -506,6 +505,25 @@ public final class ExceptionHandlerMapper {
         }
 
         return resultNode;
+    }
+
+    private static boolean isNarrower(final ExceptionHandler handler, final ExceptionHandler anchor) {
+        if (handler == null || anchor == null) {
+            return false;
+        }
+
+        final Instruction tryStart = handler.getTryBlock().getFirstInstruction();
+        final Instruction anchorTryStart = anchor.getTryBlock().getFirstInstruction();
+
+        if (tryStart.getOffset() > anchorTryStart.getOffset()) {
+            return true;
+        }
+
+        final Instruction tryEnd = handler.getTryBlock().getLastInstruction();
+        final Instruction anchorTryEnd = anchor.getTryBlock().getLastInstruction();
+
+        return tryStart.getOffset() == anchorTryStart.getOffset() &&
+               tryEnd.getOffset() < anchorTryEnd.getOffset();
     }
 
     private ExceptionHandler findInnermostExceptionHandler(final int offsetInTryBlock) {
@@ -516,8 +534,7 @@ public final class ExceptionHandlerMapper {
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
                 offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
-                (result == null ||
-                 tryBlock.getFirstInstruction().getOffset() > result.getTryBlock().getFirstInstruction().getOffset())) {
+                isNarrower(handler, result)) {
 
                 result = handler;
             }

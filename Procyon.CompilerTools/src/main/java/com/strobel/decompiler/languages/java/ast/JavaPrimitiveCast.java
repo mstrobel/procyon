@@ -47,6 +47,9 @@ public final class JavaPrimitiveCast {
                 break;
 
             case Character:
+                if (input instanceof Character) {
+                    return input;
+                }
                 if (input instanceof Number) {
                     return (char)((Number) input).intValue();
                 }
