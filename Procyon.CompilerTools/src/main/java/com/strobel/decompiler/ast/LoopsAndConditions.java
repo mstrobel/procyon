@@ -16,13 +16,11 @@
 
 package com.strobel.decompiler.ast;
 
-import com.strobel.assembler.Collection;
 import com.strobel.assembler.flowanalysis.ControlFlowEdge;
 import com.strobel.assembler.flowanalysis.ControlFlowGraph;
 import com.strobel.assembler.flowanalysis.ControlFlowNode;
 import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
 import com.strobel.assembler.flowanalysis.JumpType;
-import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.SwitchInfo;
@@ -350,11 +348,7 @@ final class LoopsAndConditions {
             return result;
         }
 
-        final List<ControlFlowNode> sortedResult = new ArrayList<>();
-
-        for (final ControlFlowNode node : result) {
-            sortedResult.add(node);
-        }
+        final List<ControlFlowNode> sortedResult = new ArrayList<>(result);
 
         Collections.sort(
             sortedResult,
@@ -408,8 +402,6 @@ final class LoopsAndConditions {
                     matchLastAndBreak(block, switchCode = AstCode.LookupSwitch, caseLabels, switchArgument, fallLabel)) {
 
                     final Expression switchExpression = (Expression) blockBody.get(blockBody.size() - 2);
-                    final Collection<Range> switchRanges = switchExpression.getArguments().get(0).getRanges();
-                    final Instruction switchInstruction = instructions.atOffset(switchRanges.get(switchRanges.size() - 1).getStart());
 
                     //
                     // Replace the switch code with a Switch node.
@@ -433,7 +425,7 @@ final class LoopsAndConditions {
                     //
 
                     final Label[] labels = caseLabels.get();
-                    final SwitchInfo switchInfo = switchInstruction.getOperand(0);
+                    final SwitchInfo switchInfo = switchExpression.getUserData(AstKeys.SWITCH_INFO);
                     final int lowValue = switchInfo.getLowValue();
                     final int[] keys = switchInfo.getKeys();
                     final Label defaultLabel = labels[0];

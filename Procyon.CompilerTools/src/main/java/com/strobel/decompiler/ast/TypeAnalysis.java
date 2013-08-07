@@ -1730,7 +1730,12 @@ public final class TypeAnalysis {
         }
 
         if (leftPreferred != null && rightPreferred != null) {
-            return MetadataHelper.findCommonSuperType(leftPreferred, rightPreferred);
+            return MetadataHelper.findCommonSuperType(
+                leftPreferred.isGenericDefinition() ? new RawType(leftPreferred)
+                                                    : leftPreferred,
+                rightPreferred.isGenericDefinition() ? new RawType(rightPreferred)
+                                                     : rightPreferred
+            );
         }
 
         return leftPreferred;
