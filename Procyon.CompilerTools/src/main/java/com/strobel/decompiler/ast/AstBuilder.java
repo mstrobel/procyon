@@ -17,12 +17,10 @@
 package com.strobel.decompiler.ast;
 
 import com.strobel.annotations.NotNull;
-import com.strobel.assembler.flowanalysis.ControlFlowEdge;
 import com.strobel.assembler.flowanalysis.ControlFlowGraph;
 import com.strobel.assembler.flowanalysis.ControlFlowGraphBuilder;
 import com.strobel.assembler.flowanalysis.ControlFlowNode;
 import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
-import com.strobel.assembler.flowanalysis.JumpType;
 import com.strobel.assembler.ir.*;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
@@ -125,11 +123,7 @@ public final class AstBuilder {
         }
     }
 
-    private static Set<ControlFlowNode> findDominatedNodes(
-        final Collection<ControlFlowNode> scope,
-        final ControlFlowNode head,
-        final boolean normalEdgesOnly) {
-
+    private static Set<ControlFlowNode> findDominatedNodes(final ControlFlowGraph cfg, final ControlFlowNode head) {
         final Set<ControlFlowNode> agenda = new LinkedHashSet<>();
         final Set<ControlFlowNode> result = new LinkedHashSet<>();
 
@@ -140,18 +134,89 @@ public final class AstBuilder {
 
             agenda.remove(addNode);
 
-            if (scope.contains(addNode) && head.dominates(addNode) && result.add(addNode)) {
-                final List<ControlFlowEdge> outgoing = addNode.getOutgoing();
+            if (addNode.getNodeType() != ControlFlowNodeType.Normal) {
+                continue;
+            }
 
-                for (final ControlFlowEdge edge : outgoing) {
-                    if (!normalEdgesOnly || edge.getType() == JumpType.Normal) {
-                        agenda.add(edge.getTarget());
-                    }
-                }
+            if (!head.dominates(addNode) &&
+                !shouldIncludeExceptionalExit(cfg, head, addNode)) {
+
+                continue;
+            }
+
+            if (!result.add(addNode)) {
+                continue;
+            }
+
+            for (final ControlFlowNode successor : addNode.getSuccessors()) {
+                agenda.add(successor);
             }
         }
 
         return result;
+    }
+
+    private static boolean shouldIncludeExceptionalExit(
+        final ControlFlowGraph cfg,
+        final ControlFlowNode head,
+        final ControlFlowNode node) {
+
+        if (!node.getDominanceFrontier().contains(cfg.getExceptionalExit()) &&
+            !node.dominates(cfg.getExceptionalExit())) {
+
+            final ControlFlowNode innermostHandlerNode = findInnermostExceptionHandlerNode(cfg, node.getEnd().getOffset());
+
+            if (innermostHandlerNode == null || !node.getDominanceFrontier().contains(innermostHandlerNode)) {
+                return false;
+            }
+        }
+
+        if (node.getNodeType() != ControlFlowNodeType.Normal) {
+            return false;
+        }
+
+        if (node.getStart().getNext() != node.getEnd()) {
+            return false;
+        }
+
+        if (head.getStart().getOpCode().isStore() &&
+            node.getStart().getOpCode().isLoad() &&
+            node.getEnd().getOpCode() == OpCode.ATHROW) {
+
+            return InstructionHelper.getLoadOrStoreSlot(head.getStart()) ==
+                   InstructionHelper.getLoadOrStoreSlot(node.getStart());
+        }
+
+        return false;
+    }
+
+    private static ControlFlowNode findInnermostExceptionHandlerNode(final ControlFlowGraph cfg, final int offsetInTryBlock) {
+        ExceptionHandler result = null;
+        ControlFlowNode resultNode = null;
+
+        final List<ControlFlowNode> nodes = cfg.getNodes();
+
+        for (int i = nodes.size() - 1; i >= 0; i--) {
+            final ControlFlowNode node = nodes.get(i);
+            final ExceptionHandler handler = node.getExceptionHandler();
+
+            if (handler == null) {
+                break;
+            }
+
+            final ExceptionBlock tryBlock = handler.getTryBlock();
+
+            if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
+                offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
+                (result == null ||
+                 tryBlock.getFirstInstruction().getOffset() > result.getTryBlock().getFirstInstruction().getOffset())) {
+
+                result = handler;
+                resultNode = node;
+            }
+        }
+
+        return resultNode;
     }
 
 //    private boolean areAllRemoved(final Instruction start, final Instruction end) {
@@ -201,43 +266,29 @@ public final class AstBuilder {
     private void removeInlinedFinallyCode() {
         final InstructionCollection instructions = _instructions;
         final List<ExceptionHandler> handlers = _exceptionHandlers;
+
         final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, handlers);
 
         cfg.computeDominance();
         cfg.computeDominanceFrontier();
 
-        final Map<Instruction, ControlFlowNode> nodeMap = new IdentityHashMap<>();
+        final Map<Instruction, ControlFlowNode> nodeMap = createNodeMap(cfg);
         final Set<ExceptionHandler> finallyHandlers = new LinkedHashSet<>();
         final Map<ExceptionHandler, HandlerInfo> handlerMap = new IdentityHashMap<>();
         final Set<ControlFlowNode> processedNodes = new LinkedHashSet<>();
-
-        for (final ControlFlowNode node : cfg.getNodes()) {
-            if (node.getNodeType() != ControlFlowNodeType.Normal) {
-                continue;
-            }
-
-            for (Instruction p = node.getStart();
-                 p != null && p.getOffset() < node.getEnd().getEndOffset();
-                 p = p.getNext()) {
-
-                nodeMap.put(p, node);
-            }
-        }
-
-        final Set<ControlFlowNode> allNodes = new LinkedHashSet<>(cfg.getNodes());
         final Set<ControlFlowNode> allFinallyNodes = new LinkedHashSet<>();
 
-        for (final ExceptionHandler handler : handlers) {
+        for (int i = 0; i < handlers.size(); i++) {
+            final ExceptionHandler handler = handlers.get(i);
             final ControlFlowNode head = nodeMap.get(handler.getHandlerBlock().getFirstInstruction());
             final ControlFlowNode tail = nodeMap.get(handler.getHandlerBlock().getLastInstruction());
             final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
 
-            final List<ControlFlowNode> tryNodes = new ArrayList<>(findDominatedNodes(allNodes, tryHead, false));
-            final List<ControlFlowNode> handlerNodes = new ArrayList<>();
+            final List<ControlFlowNode> tryNodes = new ArrayList<>(findDominatedNodes(cfg, tryHead));
+            final List<ControlFlowNode> handlerNodes = new ArrayList<>(findDominatedNodes(cfg, head));
 
-            for (int i = head.getBlockIndex(); i <= tail.getBlockIndex(); i++) {
-                handlerNodes.add(cfg.getNodes().get(i));
-            }
+            Collections.sort(tryNodes);
+            Collections.sort(handlerNodes);
 
             final HandlerInfo handlerInfo = new HandlerInfo(handler, head, tail, tryNodes, handlerNodes);
 
@@ -253,7 +304,6 @@ public final class AstBuilder {
             final HandlerInfo handlerInfo = handlerMap.get(handler);
             final List<ExceptionHandler> siblings = new ArrayList<>();
             final Set<ControlFlowNode> successors = new LinkedHashSet<>(toList(handlerInfo.tail.getSuccessors()));
-            final ExceptionBlock finallyBlock = handler.getHandlerBlock();
 
             for (final ExceptionHandler exceptionHandler : _exceptionHandlers) {
                 if (exceptionHandler.isCatch() &&
@@ -271,8 +321,14 @@ public final class AstBuilder {
                 successors.add(cfg.getExceptionalExit());
             }
 
-            Instruction first = finallyBlock.getFirstInstruction();
-            Instruction last = finallyBlock.getLastInstruction();
+            Instruction first = handlerInfo.head.getStart();
+            Instruction last = handlerInfo.tail.getEnd();
+
+            if (handlerInfo.handlerNodes.size() > 2 &&
+                handlerInfo.tail.getBlockIndex() != nodeMap.get(handlerInfo.tail.getStart().getPrevious()).getBlockIndex()) {
+
+                last = handlerInfo.handlerNodes.get(handlerInfo.handlerNodes.size() - 2).getEnd();
+            }
 
             if (first.getOpCode().isStore() &&
                 last.getOpCode() == OpCode.ATHROW &&
@@ -386,9 +442,12 @@ public final class AstBuilder {
                             break;
 
                         case ATHROW:
-                            tail = tail.getPrevious();
                             if (finallyTail.getEnd().getOpCode() == OpCode.ATHROW) {
                                 isLeave = true;
+                                tryPrevious = true;
+                            }
+                            else {
+                                tail = tail.getPrevious();
                             }
                             break;
                     }
@@ -452,8 +511,6 @@ public final class AstBuilder {
                         _removed.remove(returnSite);
                     }
                     else {
-//                        node.getEnd().setOpCode(OpCode.NOP);
-//                        node.getEnd().setOperand(null);
                         _removed.add(node.getEnd());
                     }
                 }
@@ -461,15 +518,25 @@ public final class AstBuilder {
                 processedNodes.add(node);
             }
         }
+    }
 
-//        remapJumps(remappedJumps);
-//
-//        for (final Instruction p : _removed) {
-//            p.setOpCode(OpCode.NOP);
-//            p.setOperand(null);
-//        }
-//
-//        instructions.recomputeOffsets();
+    private static Map<Instruction, ControlFlowNode> createNodeMap(final ControlFlowGraph cfg) {
+        final Map<Instruction, ControlFlowNode> nodeMap = new IdentityHashMap<>();
+
+        for (final ControlFlowNode node : cfg.getNodes()) {
+            if (node.getNodeType() != ControlFlowNodeType.Normal) {
+                continue;
+            }
+
+            for (Instruction p = node.getStart();
+                 p != null && p.getOffset() < node.getEnd().getEndOffset();
+                 p = p.getNext()) {
+
+                nodeMap.put(p, node);
+            }
+        }
+
+        return nodeMap;
     }
 
     private static List<ExceptionHandler> remapHandlers(final List<ExceptionHandler> handlers, final InstructionCollection instructions) {

@@ -288,8 +288,9 @@ public class HandlerTests extends DecompilerTest {
     }
 
     private static final class M {
-        int test1(final int x) {
-            exit: {
+        public int test(final int x) {
+        exit:
+            {
                 try {
                     return 1;
                 }
@@ -298,6 +299,28 @@ public class HandlerTests extends DecompilerTest {
                 }
             }
             System.out.println("TEST");
+            return 1;
+        }
+    }
+
+    private static final class N {
+        int callWhichThrows() {
+            throw new RuntimeException();
+        }
+
+        public int test1(final int x) {
+        bob:
+            {
+                try {
+                    return callWhichThrows();
+                }
+                catch (Throwable t) {
+                }
+                finally {
+                    break bob;
+                }
+            }
+            System.out.println("TEST!");
             return 1;
         }
     }
@@ -638,7 +661,7 @@ public class HandlerTests extends DecompilerTest {
             M.class,
             defaultSettings(),
             "private static final class M {\n" +
-            "    int test1(final int x) {\n" +
+            "    public int test(final int x) {\n" +
             "        System.out.println(\"TEST\");\n" +
             "        return 1;\n" +
             "    }\n" +

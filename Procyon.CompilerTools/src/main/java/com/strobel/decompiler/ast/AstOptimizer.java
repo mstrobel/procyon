@@ -20,6 +20,7 @@ import com.strobel.assembler.metadata.*;
 import com.strobel.core.*;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.functions.Function;
+import com.strobel.functions.Supplier;
 import com.strobel.functions.Suppliers;
 import com.strobel.util.ContractUtils;
 
@@ -87,6 +88,12 @@ public final class AstOptimizer {
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             optimizer.splitToMovableBlocks(block);
         }
+
+        if (abortBeforeStep == AstOptimizationStep.RemoveUnreachableBlocks) {
+            return;
+        }
+
+        removeUnreachableBlocks(method);
 
         if (abortBeforeStep == AstOptimizationStep.TypeInference) {
             return;
@@ -281,6 +288,56 @@ public final class AstOptimizer {
         cleanUpTryBlocks(method);
     }
 
+    // <editor-fold defaultstate="collapsed" desc="RemoveUnreachableBlocks Optimization">
+
+    private static void removeUnreachableBlocks(final Block method) {
+        final BasicBlock entryBlock = first(ofType(method.getBody(), BasicBlock.class));
+        final Set<Label> liveLabels = new LinkedHashSet<>();
+
+        final Map<BasicBlock, List<Label>> embeddedLabels = new DefaultMap<>(
+            new Supplier<List<Label>>() {
+                @Override
+                public List<Label> get() {
+                    return new ArrayList<>();
+                }
+            }
+        );
+
+        for (final BasicBlock basicBlock : method.getChildrenAndSelfRecursive(BasicBlock.class)) {
+            for (final Label label : basicBlock.getChildrenAndSelfRecursive(Label.class)) {
+                embeddedLabels.get(basicBlock).add(label);
+            }
+        }
+
+        for (final Expression e : method.getChildrenAndSelfRecursive(Expression.class)) {
+            if (e.getOperand() instanceof Label) {
+                liveLabels.add((Label) e.getOperand());
+            }
+            else if (e.getOperand() instanceof Label[]) {
+                Collections.addAll(liveLabels, (Label[]) e.getOperand());
+            }
+        }
+
+    outer:
+        for (final BasicBlock basicBlock : method.getChildrenAndSelfRecursive(BasicBlock.class)) {
+            final List<Node> body = basicBlock.getBody();
+            final Label entryLabel = (Label) body.get(0);
+
+            if (basicBlock != entryBlock && !liveLabels.contains(entryLabel)) {
+                for (final Label label : embeddedLabels.get(basicBlock)) {
+                    if (liveLabels.contains(label)) {
+                        continue outer;
+                    }
+                }
+                while (body.size() > 1) {
+                    body.remove(body.size() - 1);
+                }
+            }
+        }
+    }
+
+    // </editor-fold>
+
     // <editor-fold defaultstate="collapsed" desc="CleanUpTryBlocks Optimization">
 
     private static void cleanUpTryBlocks(final Block method) {
@@ -335,25 +392,20 @@ public final class AstOptimizer {
             }
 
             final List<Node> body = finallyBlock.getBody();
+            final List<Variable> exceptionCopies = new ArrayList<>();
+            final Node lastInFinally = last(finallyBlock.getBody());
 
             if (matchGetArguments(body.get(0), AstCode.Store, v, a) &&
                 match(a.get(0), AstCode.LoadException)) {
 
                 body.remove(0);
-
-                final List<Variable> exceptionCopies = new ArrayList<>();
-
                 exceptionCopies.add(v.get());
 
                 if (body.isEmpty() || !PatternMatching.matchLoadStore(body.get(0), v.get(), v)) {
                     v.set(null);
                 }
-
-                if (body.size() >= 1 &&
-                    matchGetArguments(body.get(body.size() - 1), AstCode.AThrow, a) &&
-                    matchLoadAny(a.get(0), exceptionCopies)) {
-
-                    body.set(body.size() - 1, new Expression(AstCode.Leave, null));
+                else {
+                    exceptionCopies.add(v.get());
                 }
 
                 final Label endFinallyLabel;
@@ -377,33 +429,12 @@ public final class AstOptimizer {
                         if (node instanceof Expression) {
                             final Expression e = (Expression) node;
 
-                            final boolean exceptionCopy;
-
-                            if (match(e, AstCode.Store)) {
-                                exceptionCopy = any(
-                                    exceptionCopies,
-                                    new Predicate<Variable>() {
-                                        @Override
-                                        public boolean test(final Variable variable) {
-                                            if (matchLoadStore(e, variable, v)) {
-                                                exceptionCopies.add(v.get());
-
-                                                return true;
-                                            }
-                                            return false;
-                                        }
-                                    }
-                                );
-
-                                if (exceptionCopy) {
-                                    blockBody.remove(i--);
-                                    continue;
-                                }
+                            if (matchLoadStoreAny(node, exceptionCopies, v)) {
+                                exceptionCopies.add(v.get());
                             }
-
-                            if (matchGetArguments(e, AstCode.AThrow, a) &&
-                                matchGetOperand(a.get(0), AstCode.Load, v) &&
-                                exceptionCopies.contains(v.get())) {
+                            else if (e != lastInFinally &&
+                                     matchGetArguments(e, AstCode.AThrow, a) &&
+                                     matchLoadAny(a.get(0), exceptionCopies)) {
 
                                 e.setCode(AstCode.Goto);
                                 e.setOperand(endFinallyLabel);
@@ -411,6 +442,13 @@ public final class AstOptimizer {
                             }
                         }
                     }
+                }
+
+                if (body.size() >= 1 &&
+                    matchGetArguments(body.get(body.size() - 1), AstCode.AThrow, a) &&
+                    matchLoadAny(a.get(0), exceptionCopies)) {
+
+                    body.set(body.size() - 1, new Expression(AstCode.Leave, null));
                 }
             }
         }
@@ -2944,7 +2982,7 @@ public final class AstOptimizer {
 
         if (e.getCode() == AstCode.CmpNe &&
             TypeAnalysis.isBoolean(operand.getInferredType()) &&
-            matchBooleanConstant(a = arguments.get(1), b) &&
+            matchBooleanConstant(arguments.get(1), b) &&
             Boolean.FALSE.equals(b.get())) {
 
             modified.set(true);
