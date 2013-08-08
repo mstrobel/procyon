@@ -586,6 +586,10 @@ public final class TypeAnalysis {
         final List<ExpressionToInfer> assignments = _assignmentExpressions.get(variable);
 
         for (final ExpressionToInfer e : _allExpressions) {
+            if (_stack.contains(e.expression)) {
+                continue;
+            }
+
             if (e.expression != expression &&
                 (e.dependencies.contains(variable) ||
                  assignments.contains(e))) {

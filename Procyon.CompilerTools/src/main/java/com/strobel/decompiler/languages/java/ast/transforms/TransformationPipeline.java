@@ -50,7 +50,8 @@ public final class TransformationPipeline {
             new InlineFieldInitializersTransform(context),
             new RemoveHiddenMembersTransform(context),
             new VarArgsTransform(context),
-            new InsertConstantReferencesTransform(context)
+            new InsertConstantReferencesTransform(context),
+            new SimplifyBooleanExpressionsTransform(context) // (again)
         };
     }
 
