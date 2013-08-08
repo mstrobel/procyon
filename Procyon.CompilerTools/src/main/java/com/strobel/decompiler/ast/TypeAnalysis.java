@@ -216,7 +216,7 @@ public final class TypeAnalysis {
                 final StrongBox<Variable> variable = new StrongBox<>();
 
                 if (load != null &&
-                    matchGetOperand(load, AstCode.Load, variable) &&
+                    matchLoadOrRet(load, variable) &&
                     shouldInferVariableType(variable.get())) {
 
                     _assignmentExpressions.get(variable.get()).add(expressionToInfer);
@@ -230,7 +230,7 @@ public final class TypeAnalysis {
             else {
                 final StrongBox<Variable> variable = new StrongBox<>();
 
-                if (matchGetOperand(argument, AstCode.Load, variable) &&
+                if (matchLoadOrRet(argument, variable) &&
                     shouldInferVariableType(variable.get())) {
 
                     parent.dependencies.add(variable.get());
@@ -1578,7 +1578,10 @@ public final class TypeAnalysis {
                     return returnType;
                 }
 
-                case Jsr:
+                case Jsr: {
+                    return BuiltinTypes.Integer;
+                }
+
                 case Ret: {
                     return null;
                 }

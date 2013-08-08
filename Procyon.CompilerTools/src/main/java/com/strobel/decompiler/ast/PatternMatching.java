@@ -323,6 +323,11 @@ public final class PatternMatching {
         );
     }
 
+    public static boolean matchLoadOrRet(final Node node, final StrongBox<Variable> variable) {
+        return matchGetOperand(node, AstCode.Load, variable) ||
+               matchGetOperand(node, AstCode.Ret, variable);
+    }
+
     public static boolean matchLoad(final Node node, final Variable expectedVariable) {
         final StrongBox<Variable> operand = new StrongBox<>();
 
@@ -471,7 +476,7 @@ public final class PatternMatching {
                 final long longValue = ((Number) operand).longValue();
 
                 if (longValue >= Character.MIN_VALUE && longValue <= Character.MAX_VALUE) {
-                    return (char)longValue;
+                    return (char) longValue;
                 }
             }
         }

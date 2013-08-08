@@ -344,6 +344,8 @@ public enum OpCode {
             case ALOAD_W:
                 return true;
 
+            case RET:
+                return true;
 
             default:
                 return false;
