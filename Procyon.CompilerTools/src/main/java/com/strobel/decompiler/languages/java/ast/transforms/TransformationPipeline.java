@@ -37,7 +37,7 @@ public final class TransformationPipeline {
             new StringSwitchRewriterTransform(context),
             new EclipseStringSwitchRewriterTransform(context),
             new CollapseImportsTransform(context),
-            new SimplifyBooleanExpressionsTransform(context),
+            new SimplifyAssignmentsTransform(context),
             new EliminateSyntheticAccessorsTransform(context),
             new LambdaTransform(context),
             new IntroduceStringConcatenationTransform(context),
@@ -51,7 +51,7 @@ public final class TransformationPipeline {
             new RemoveHiddenMembersTransform(context),
             new VarArgsTransform(context),
             new InsertConstantReferencesTransform(context),
-            new SimplifyBooleanExpressionsTransform(context) // (again)
+            new SimplifyAssignmentsTransform(context) // (again)
         };
     }
 
