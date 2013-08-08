@@ -372,6 +372,14 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         Statement waitFor = skipUpThrough;
 
+        if (block.getParent() instanceof CatchClause) {
+            final CatchClause catchClause = (CatchClause) block.getParent();
+
+            if (StringUtilities.equals(catchClause.getVariableName(), variableName)) {
+                return false;
+            }
+        }
+
         for (final Statement statement : block.getStatements()) {
             if (waitFor != null && statement != waitFor) {
                 continue;

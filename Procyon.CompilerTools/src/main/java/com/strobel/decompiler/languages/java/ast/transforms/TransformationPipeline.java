@@ -30,14 +30,14 @@ public final class TransformationPipeline {
             new AssertStatementTransform(context),
             new RemoveImplicitBoxingTransform(context),
             new RemoveRedundantCastsTransform(context),
-            new InsertNecessaryCastsTransform(context),
+            new InsertNecessaryConversionsTransform(context),
             new PatternStatementTransform(context),
             new BreakTargetRelocation(context),
             new DeclareVariablesTransform(context),
             new StringSwitchRewriterTransform(context),
             new EclipseStringSwitchRewriterTransform(context),
             new CollapseImportsTransform(context),
-            new SimplifyBooleanExpressionsTransform(context),
+            new SimplifyAssignmentsTransform(context),
             new EliminateSyntheticAccessorsTransform(context),
             new LambdaTransform(context),
             new IntroduceStringConcatenationTransform(context),
@@ -50,7 +50,8 @@ public final class TransformationPipeline {
             new InlineFieldInitializersTransform(context),
             new RemoveHiddenMembersTransform(context),
             new VarArgsTransform(context),
-            new InsertConstantReferencesTransform(context)
+            new InsertConstantReferencesTransform(context),
+            new SimplifyAssignmentsTransform(context) // (again)
         };
     }
 

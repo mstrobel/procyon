@@ -23,7 +23,6 @@ import com.strobel.assembler.ir.FlowControl;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OperandType;
-import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.SwitchInfo;
 import com.strobel.core.Comparer;
@@ -611,51 +610,47 @@ public final class ControlFlowGraphBuilder {
     private static List<ExceptionHandler> coalesceExceptionHandlers(final List<ExceptionHandler> handlers) {
         final ArrayList<ExceptionHandler> copy = new ArrayList<>(handlers);
 
-        for (int i = 0; i < copy.size(); i++) {
-            final ExceptionHandler handler = copy.get(i);
-
-            if (!handler.isCatch()) {
-                if (handler.getTryBlock().equals(handler.getHandlerBlock())) {
-                    copy.remove(i--);
-                }
-                else if (handler.getTryBlock().getFirstInstruction() == handler.getHandlerBlock().getFirstInstruction() &&
-                         handler.getTryBlock().getLastInstruction() == handler.getTryBlock().getFirstInstruction()) {
-                    copy.remove(i--);
-                }
-                continue;
-            }
-
-            final ExceptionBlock tryBlock = handler.getTryBlock();
-            final ExceptionBlock handlerBlock = handler.getHandlerBlock();
-
-            for (int j = i + 1; j < copy.size(); j++) {
-                final ExceptionHandler other = copy.get(j);
-
-                if (!other.isCatch()) {
-                    continue;
-                }
-
-                final ExceptionBlock otherTry = other.getTryBlock();
-                final ExceptionBlock otherHandler = other.getHandlerBlock();
-
-                if (otherTry.getFirstInstruction().getOffset() == tryBlock.getFirstInstruction().getOffset() &&
-                    otherTry.getLastInstruction().getOffset() == tryBlock.getLastInstruction().getOffset() &&
-                    otherHandler.getFirstInstruction().getOffset() == handlerBlock.getFirstInstruction().getOffset() &&
-                    otherHandler.getLastInstruction().getOffset() == handlerBlock.getLastInstruction().getOffset()) {
-
-                    copy.set(
-                        i,
-                        ExceptionHandler.createCatch(
-                            tryBlock,
-                            handlerBlock,
-                            MetadataHelper.findCommonSuperType(handler.getCatchType(), other.getCatchType())
-                        )
-                    );
-
-                    copy.remove(j--);
-                }
-            }
-        }
+//        for (int i = 0; i < copy.size(); i++) {
+//            final ExceptionHandler handler = copy.get(i);
+//
+//            if (!handler.isCatch()) {
+//                if (handler.getTryBlock().equals(handler.getHandlerBlock())) {
+//                    copy.remove(i--);
+//                }
+//                else if (handler.getTryBlock().getFirstInstruction() == handler.getHandlerBlock().getFirstInstruction() &&
+//                         handler.getTryBlock().getLastInstruction() == handler.getTryBlock().getFirstInstruction()) {
+//                    copy.remove(i--);
+//                }
+//                continue;
+//            }
+//
+//            final ExceptionBlock tryBlock = handler.getTryBlock();
+//            final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+//
+//            for (int j = i + 1; j < copy.size(); j++) {
+//                final ExceptionHandler other = copy.get(j);
+//
+//                if (!other.isCatch()) {
+//                    continue;
+//                }
+//
+//                final ExceptionBlock otherTry = other.getTryBlock();
+//                final ExceptionBlock otherHandler = other.getHandlerBlock();
+//
+//                if (otherTry.equals(tryBlock) && otherHandler.equals(handlerBlock)) {
+//                    copy.set(
+//                        i,
+//                        ExceptionHandler.createCatch(
+//                            tryBlock,
+//                            handlerBlock,
+//                            MetadataHelper.findCommonSuperType(handler.getCatchType(), other.getCatchType())
+//                        )
+//                    );
+//
+//                    copy.remove(j--);
+//                }
+//            }
+//        }
 
         return copy;
     }

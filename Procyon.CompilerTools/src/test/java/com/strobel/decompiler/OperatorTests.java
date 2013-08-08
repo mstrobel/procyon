@@ -114,7 +114,7 @@ public class OperatorTests extends DecompilerTest {
             "private static class B {\n" +
             "    public void test() {\n" +
             "        String s = \"\";\n" +
-            "        s = s + \"james\";\n" +
+            "        s += \"james\";\n" +
             "    }\n" +
             "}\n"
         );
