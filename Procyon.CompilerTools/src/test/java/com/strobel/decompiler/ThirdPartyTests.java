@@ -26,17 +26,21 @@ public class ThirdPartyTests extends DecompilerTest {
             "        Drawable drawable;\n" +
             "        if (n > 10) {\n" +
             "            final Rectangle rectangle = new Rectangle(n, n);\n" +
-            "            n = (rectangle.isFat() ? 1 : 0);\n" +
+            "            n = (short)(rectangle.isFat() ? 1 : 0);\n" +
             "            drawable = rectangle;\n" +
             "        }\n" +
             "        else {\n" +
             "            final Circle circle = new Circle(n);\n" +
-            "            n = (circle.isFat() ? 1 : 0);\n" +
+            "            n = (short)(circle.isFat() ? 1 : 0);\n" +
+            "            takeMyBoolean(n != 0);\n" +
             "            drawable = circle;\n" +
             "        }\n" +
             "        if (n == 0) {\n" +
             "            drawable.draw();\n" +
             "        }\n" +
+            "    }\n" +
+            "    public static void takeMyBoolean(final boolean b) {\n" +
+            "        System.out.println(b);\n" +
             "    }\n" +
             "}\n"
         );

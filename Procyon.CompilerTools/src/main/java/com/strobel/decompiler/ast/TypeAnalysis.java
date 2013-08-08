@@ -586,6 +586,10 @@ public final class TypeAnalysis {
         final List<ExpressionToInfer> assignments = _assignmentExpressions.get(variable);
 
         for (final ExpressionToInfer e : _allExpressions) {
+            if (_stack.contains(e.expression)) {
+                continue;
+            }
+
             if (e.expression != expression &&
                 (e.dependencies.contains(variable) ||
                  assignments.contains(e))) {
@@ -1730,7 +1734,12 @@ public final class TypeAnalysis {
         }
 
         if (leftPreferred != null && rightPreferred != null) {
-            return MetadataHelper.findCommonSuperType(leftPreferred, rightPreferred);
+            return MetadataHelper.findCommonSuperType(
+                leftPreferred.isGenericDefinition() ? new RawType(leftPreferred)
+                                                    : leftPreferred,
+                rightPreferred.isGenericDefinition() ? new RawType(rightPreferred)
+                                                     : rightPreferred
+            );
         }
 
         return leftPreferred;

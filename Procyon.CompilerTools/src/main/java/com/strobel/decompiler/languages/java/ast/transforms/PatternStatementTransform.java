@@ -85,7 +85,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
     @Override
     public AstNode visitWhileStatement(final WhileStatement node, final Void data) {
-        super.visitWhileStatement(node, data);
+//        super.visitWhileStatement(node, data);
 
         final ForStatement forLoop = transformFor(node);
 
@@ -105,7 +105,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             return doWhile.acceptVisitor(this, data);
         }
 
-        return transformContinueOuter(node);
+        return visitChildren(transformContinueOuter(node), data);
     }
 
     // </editor-fold>
@@ -1185,7 +1185,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         final Match m = CONTINUE_OUTER_PATTERN.match(loop);
 
         if (!m.success()) {
-            return null;
+            return loop;
         }
 
         final LabelStatement label = (LabelStatement) m.get("label").iterator().next();

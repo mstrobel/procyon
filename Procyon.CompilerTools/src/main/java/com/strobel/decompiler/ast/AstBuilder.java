@@ -25,6 +25,7 @@ import com.strobel.assembler.ir.*;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.MutableInteger;
+import com.strobel.core.Pair;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
@@ -626,6 +627,9 @@ public final class AstBuilder {
                 }
 
                 final SwitchInfo newOperand = new SwitchInfo(oldOperand.getKeys(), newDefault, newTargets);
+
+                newOperand.setLowValue(oldOperand.getLowValue());
+                newOperand.setHighValue(oldOperand.getHighValue());
 
                 instruction.setOperand(newOperand);
             }
@@ -1391,6 +1395,7 @@ public final class AstBuilder {
         }
 
         final Stack<ByteCode> agenda = new Stack<>();
+        final Set<ByteCode> handlerStarts = new LinkedHashSet<>();
         final int variableCount = _body.getMaxLocals();
         final VariableSlot[] unknownVariables = VariableSlot.makeUnknownState(variableCount);
         final MethodReference method = _body.getMethod();
@@ -1438,6 +1443,8 @@ public final class AstBuilder {
 
         for (final ExceptionHandler handler : exceptionHandlers) {
             final ByteCode handlerStart = byteCodeMap.get(handler.getHandlerBlock().getFirstInstruction());
+
+            handlerStarts.add(handlerStart);
 
             handlerStart.stackBefore = EMPTY_STACK;
             handlerStart.variablesBefore = unknownVariables;
@@ -1528,34 +1535,46 @@ public final class AstBuilder {
             //
             // Find all successors.
             //
-            final ArrayList<ByteCode> branchTargets = new ArrayList<>();
+            final ArrayList<Pair<ByteCode, ExceptionHandler>> branchTargets = new ArrayList<>();
             final ControlFlowNode node = nodeMap.get(byteCode.instruction);
 
             if (byteCode.instruction != node.getEnd()) {
-                branchTargets.add(byteCode.next);
+                branchTargets.add(Pair.create(byteCode.next, (ExceptionHandler) null));
             }
             else {
                 for (final ControlFlowNode successor : node.getSuccessors()) {
-                    if (successor.getNodeType() != ControlFlowNodeType.Normal) {
+                    final ControlFlowNode actualSuccessor;
+                    final ExceptionHandler handler = successor.getExceptionHandler();
+
+                    if (handler != null) {
+                        actualSuccessor = nodeMap.get(handler.getHandlerBlock().getFirstInstruction());
+                    }
+                    else if (successor.getNodeType() != ControlFlowNodeType.Normal) {
                         continue;
                     }
+                    else {
+                        actualSuccessor = successor;
+                    }
 
-                    final Instruction targetInstruction = successor.getStart();
+                    final Instruction targetInstruction = actualSuccessor.getStart();
                     final ByteCode target = byteCodeMap.get(targetInstruction);
 
-                    if (target.label == null) {
+                    if (target.label == null && handler == null) {
                         target.label = new Label();
                         target.label.setName(target.makeLabelName());
                     }
 
-                    branchTargets.add(target);
+                    branchTargets.add(Pair.create(target, handler));
                 }
             }
 
             //
             // Apply the state to successors.
             //
-            for (final ByteCode branchTarget : branchTargets) {
+            for (final Pair<ByteCode, ExceptionHandler> branchTargetInfo : branchTargets) {
+                final ByteCode branchTarget = branchTargetInfo.getFirst();
+                final ExceptionHandler handler = branchTargetInfo.getSecond();
+
                 if (branchTarget.stackBefore == null && branchTarget.variablesBefore == null) {
                     if (branchTargets.size() == 1) {
                         branchTarget.stackBefore = newStack;
@@ -1572,7 +1591,9 @@ public final class AstBuilder {
                     agenda.push(branchTarget);
                 }
                 else {
-                    if (branchTarget.stackBefore.length != newStack.length) {
+                    final boolean isHandlerStart = handler != null;
+
+                    if (branchTarget.stackBefore.length != newStack.length && !isHandlerStart) {
                         throw new IllegalStateException(
                             "Inconsistent stack size at " + branchTarget.name()
                             + " (coming from " + byteCode.name() + ")."
@@ -1586,16 +1607,18 @@ public final class AstBuilder {
 
                     boolean modified = false;
 
-                    //
-                    // Merge stacks; modify the target.
-                    //
-                    for (int i = 0; i < newStack.length; i++) {
-                        final ByteCode[] oldDefinitions = branchTarget.stackBefore[i].definitions;
-                        final ByteCode[] newDefinitions = ArrayUtilities.union(oldDefinitions, newStack[i].definitions);
+                    if (!isHandlerStart) {
+                        //
+                        // Merge stacks; modify the target.
+                        //
+                        for (int i = 0; i < newStack.length; i++) {
+                            final ByteCode[] oldDefinitions = branchTarget.stackBefore[i].definitions;
+                            final ByteCode[] newDefinitions = ArrayUtilities.union(oldDefinitions, newStack[i].definitions);
 
-                        if (newDefinitions.length > oldDefinitions.length) {
-                            branchTarget.stackBefore[i] = new StackSlot(newStack[i].value, newDefinitions);
-                            modified = true;
+                            if (newDefinitions.length > oldDefinitions.length) {
+                                branchTarget.stackBefore[i] = new StackSlot(newStack[i].value, newDefinitions);
+                                modified = true;
+                            }
                         }
                     }
 
@@ -1619,6 +1642,16 @@ public final class AstBuilder {
                                     branchTarget.variablesBefore[i] = new VariableSlot(oldSlot.value, newDefinitions);
                                     modified = true;
                                 }
+                            }
+                        }
+                        else if (!newSlot.isUninitialized()) {
+                            //
+                            // TODO: Figure out why this variable update breaks horribly in most cases.
+                            //       For now, keep it for double and long variables to ensure proper stack pushes/pops.
+                            //
+                            if (newVariableState[i].value.getType().isDoubleWord()) {
+                                branchTarget.variablesBefore[i] = newSlot;
+                                modified = true;
                             }
                         }
                     }
@@ -2498,7 +2531,8 @@ public final class AstBuilder {
             // Cut all handlers.
             //
         HandlerLoop:
-            for (final ExceptionHandler eh : handlers) {
+            for (int i = 0, n = handlers.size(); i < n; i++) {
+                final ExceptionHandler eh = handlers.get(i);
                 final TypeReference catchType = eh.getCatchType();
                 final ExceptionBlock handlerBlock = eh.getHandlerBlock();
 
@@ -2526,37 +2560,43 @@ public final class AstBuilder {
 
                 tailStartIndex = Math.max(tailStartIndex, handlersEndIndex);
 
-                //
-                // See if we share a block with another handler; if so, add our catch type and move on.
-                //
-                for (final CatchBlock catchBlock : tryCatchBlock.getCatchBlocks()) {
-                    final Expression firstExpression = firstOrDefault(
-                        catchBlock.getSelfAndChildrenRecursive(Expression.class),
-                        new Predicate<Expression>() {
-                            @Override
-                            public boolean test(final Expression e) {
-                                return !e.getRanges().isEmpty();
+                if (eh.isCatch()) {
+                    //
+                    // See if we share a block with another handler; if so, add our catch type and move on.
+                    //
+                    for (final CatchBlock catchBlock : tryCatchBlock.getCatchBlocks()) {
+                        final Expression firstExpression = firstOrDefault(
+                            catchBlock.getSelfAndChildrenRecursive(Expression.class),
+                            new Predicate<Expression>() {
+                                @Override
+                                public boolean test(final Expression e) {
+                                    return !e.getRanges().isEmpty();
+                                }
                             }
-                        }
-                    );
-
-                    if (firstExpression == null) {
-                        continue;
-                    }
-
-                    final int otherHandlerStart = firstExpression.getRanges().get(0).getStart();
-
-                    if (otherHandlerStart == handlerStart) {
-                        catchBlock.getCaughtTypes().add(catchType);
-
-                        catchBlock.setExceptionType(
-                            MetadataHelper.findCommonSuperType(
-                                catchBlock.getExceptionType(),
-                                catchType
-                            )
                         );
 
-                        continue HandlerLoop;
+                        if (firstExpression == null) {
+                            continue;
+                        }
+
+                        final int otherHandlerStart = firstExpression.getRanges().get(0).getStart();
+
+                        if (otherHandlerStart == handlerStart) {
+                            catchBlock.getCaughtTypes().add(catchType);
+
+                            final TypeReference commonCatchType = MetadataHelper.findCommonSuperType(
+                                catchBlock.getExceptionType(),
+                                catchType
+                            );
+
+                            catchBlock.setExceptionType(commonCatchType);
+
+                            if (catchBlock.getExceptionVariable() == null) {
+                                updateExceptionVariable(catchBlock, eh);
+                            }
+
+                            continue HandlerLoop;
+                        }
                     }
                 }
 
@@ -2605,8 +2645,6 @@ public final class AstBuilder {
                     handlerAst.add(new Expression(AstCode.Leave, null));
                 }
 
-                final ByteCode loadException = _loadExceptions.get(eh);
-
                 if (eh.isCatch()) {
                     final CatchBlock catchBlock = new CatchBlock();
 
@@ -2614,64 +2652,12 @@ public final class AstBuilder {
                     catchBlock.getCaughtTypes().add(catchType);
                     catchBlock.getBody().addAll(handlerAst);
 
-                    if (loadException.storeTo == null || loadException.storeTo.isEmpty()) {
-                        //
-                        // Exception is not used.
-                        //
-                        catchBlock.setExceptionVariable(null);
-                    }
-                    else if (loadException.storeTo.size() == 1) {
-                        if (!catchBlock.getBody().isEmpty() &&
-                            catchBlock.getBody().get(0) instanceof Expression &&
-                            !((Expression) catchBlock.getBody().get(0)).getArguments().isEmpty()) {
-
-                            final Expression first = (Expression) catchBlock.getBody().get(0);
-                            final AstCode firstCode = first.getCode();
-                            final Expression firstArgument = first.getArguments().get(0);
-
-                            if (firstCode == AstCode.Pop &&
-                                firstArgument.getCode() == AstCode.Load &&
-                                firstArgument.getOperand() == loadException.storeTo.get(0)) {
-
-                                //
-                                // The exception is just popped; optimize it away.
-                                //
-                                if (_context.getSettings().getAlwaysGenerateExceptionVariableForCatchBlocks()) {
-                                    final Variable exceptionVariable = new Variable();
-
-                                    exceptionVariable.setName(format("ex_%1$02X", handlerStart));
-                                    exceptionVariable.setGenerated(true);
-
-                                    catchBlock.setExceptionVariable(exceptionVariable);
-                                }
-                                else {
-                                    catchBlock.setExceptionVariable(null);
-                                }
-                            }
-                            else {
-                                catchBlock.setExceptionVariable(loadException.storeTo.get(0));
-                            }
-                        }
-                    }
-                    else {
-                        final Variable exceptionTemp = new Variable();
-
-                        exceptionTemp.setName(format("ex_%1$02X", handlerStart));
-                        exceptionTemp.setGenerated(true);
-
-                        catchBlock.setExceptionVariable(exceptionTemp);
-
-                        for (final Variable storeTo : loadException.storeTo) {
-                            catchBlock.getBody().add(
-                                0,
-                                new Expression(AstCode.Store, storeTo, new Expression(AstCode.Load, exceptionTemp))
-                            );
-                        }
-                    }
+                    updateExceptionVariable(catchBlock, eh);
 
                     tryCatchBlock.getCatchBlocks().add(catchBlock);
                 }
                 else if (eh.isFinally()) {
+                    final ByteCode loadException = _loadExceptions.get(eh);
                     final Block finallyBlock = new Block();
 
                     finallyBlock.getBody().addAll(handlerAst);
@@ -2761,6 +2747,71 @@ public final class AstBuilder {
         return ast;
     }
 
+    private void updateExceptionVariable(final CatchBlock catchBlock, final ExceptionHandler handler) {
+        final ByteCode loadException = _loadExceptions.get(handler);
+        final int handlerStart = handler.getHandlerBlock().getFirstInstruction().getOffset();
+
+        if (loadException.storeTo == null || loadException.storeTo.isEmpty()) {
+            //
+            // Exception is not used.
+            //
+            catchBlock.setExceptionVariable(null);
+        }
+        else {
+            if (loadException.storeTo.size() == 1) {
+                if (!catchBlock.getBody().isEmpty() &&
+                    catchBlock.getBody().get(0) instanceof Expression &&
+                    !((Expression) catchBlock.getBody().get(0)).getArguments().isEmpty()) {
+
+                    final Expression first = (Expression) catchBlock.getBody().get(0);
+                    final AstCode firstCode = first.getCode();
+                    final Expression firstArgument = first.getArguments().get(0);
+
+                    if (firstCode == AstCode.Pop &&
+                        firstArgument.getCode() == AstCode.Load &&
+                        firstArgument.getOperand() == loadException.storeTo.get(0)) {
+
+                        //
+                        // The exception is just popped; optimize it away.
+                        //
+                        if (_context.getSettings().getAlwaysGenerateExceptionVariableForCatchBlocks()) {
+                            final Variable exceptionVariable = new Variable();
+
+                            exceptionVariable.setName(format("ex_%1$02X", handlerStart));
+                            exceptionVariable.setGenerated(true);
+//                            exceptionVariable.setType(catchType);
+
+                            catchBlock.setExceptionVariable(exceptionVariable);
+                        }
+                        else {
+                            catchBlock.setExceptionVariable(null);
+                        }
+                    }
+                    else {
+                        catchBlock.setExceptionVariable(loadException.storeTo.get(0));
+//                        catchBlock.getExceptionVariable().setType(catchType);
+                    }
+                }
+            }
+            else {
+                final Variable exceptionTemp = new Variable();
+
+                exceptionTemp.setName(format("ex_%1$02X", handlerStart));
+                exceptionTemp.setGenerated(true);
+//                exceptionTemp.setType(catchType);
+
+                catchBlock.setExceptionVariable(exceptionTemp);
+
+                for (final Variable storeTo : loadException.storeTo) {
+                    catchBlock.getBody().add(
+                        0,
+                        new Expression(AstCode.Store, storeTo, new Expression(AstCode.Load, exceptionTemp))
+                    );
+                }
+            }
+        }
+    }
+
     @SuppressWarnings("ConstantConditions")
     private List<Node> convertToAst(final List<ByteCode> body) {
         final ArrayList<Node> ast = new ArrayList<>();
@@ -2812,6 +2863,9 @@ public final class AstBuilder {
 
                 expression.setCode(AstCode.Inc);
                 expression.getArguments().add(new Expression(AstCode.LdC, byteCode.secondOperand));
+            }
+            else if (byteCode.code == AstCode.TableSwitch || byteCode.code == AstCode.LookupSwitch) {
+                expression.putUserData(AstKeys.SWITCH_INFO, byteCode.instruction.<SwitchInfo>getOperand(0));
             }
 
             expression.getRanges().add(codeRange);

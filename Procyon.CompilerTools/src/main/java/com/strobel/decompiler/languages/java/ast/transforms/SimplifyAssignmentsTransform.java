@@ -23,7 +23,7 @@ import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
-public class SimplifyBooleanExpressionsTransform extends ContextTrackingVisitor<AstNode> implements IAstTransform {
+public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode> implements IAstTransform {
     private final static Function<AstNode, AstNode> NEGATE_FUNCTION = new Function<AstNode, AstNode>() {
         @Override
         public AstNode apply(final AstNode n) {
@@ -42,7 +42,7 @@ public class SimplifyBooleanExpressionsTransform extends ContextTrackingVisitor<
 
     private final JavaResolver _resolver;
 
-    public SimplifyBooleanExpressionsTransform(final DecompilerContext context) {
+    public SimplifyAssignmentsTransform(final DecompilerContext context) {
         super(context);
         _resolver = new JavaResolver(context);
     }
