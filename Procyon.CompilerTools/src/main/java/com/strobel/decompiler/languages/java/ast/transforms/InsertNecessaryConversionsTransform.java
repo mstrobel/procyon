@@ -9,13 +9,14 @@ import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.languages.java.utilities.RedundantCastUtility;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
-public class InsertNecessaryCastsTransform extends ContextTrackingVisitor<Void> {
+public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<Void> {
     private final JavaResolver _resolver;
 
-    public InsertNecessaryCastsTransform(final DecompilerContext context) {
+    public InsertNecessaryConversionsTransform(final DecompilerContext context) {
         super(context);
         _resolver = new JavaResolver(context);
     }
@@ -40,17 +41,88 @@ public class InsertNecessaryCastsTransform extends ContextTrackingVisitor<Void> 
         final ConversionType conversionType = MetadataHelper.getConversionType(targetResult.getType(), valueResult.getType());
 
         if (conversionType == ConversionType.NONE) {
-            final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+            if (valueResult.getType().getSimpleType() == JvmType.Boolean &&
+                targetResult.getType().getSimpleType() != JvmType.Boolean &&
+                targetResult.getType().getSimpleType().isNumeric()) {
 
-            if (astBuilder != null) {
-                value.replaceWith(
+                value.remove();
+
+                AstNode replacement = node.replaceWith(
                     new Function<AstNode, AstNode>() {
                         @Override
                         public AstNode apply(final AstNode input) {
-                            return new CastExpression(astBuilder.convertType(BuiltinTypes.Object), value);
+                            return new ConditionalExpression(
+                                value,
+                                new PrimitiveExpression(new PrimitiveExpression(1)),
+                                new PrimitiveExpression(new PrimitiveExpression(0))
+                            );
                         }
                     }
                 );
+
+                if (targetResult.getType().getSimpleType().bitWidth() < 32) {
+                    final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+                    if (astBuilder != null) {
+                        replacement = replacement.replaceWith(
+                            new Function<AstNode, AstNode>() {
+                                @Override
+                                public AstNode apply(final AstNode input) {
+                                    return new CastExpression(astBuilder.convertType(targetResult.getType()), (Expression) input);
+                                }
+                            }
+                        );
+
+                        if (RedundantCastUtility.isCastRedundant(_resolver, (CastExpression) replacement)) {
+                            final Expression operand = ((CastExpression) replacement).getExpression();
+                            RedundantCastUtility.removeCast((CastExpression) replacement);
+                            operand.acceptVisitor(this, data);
+                        }
+                        else {
+                            replacement.acceptVisitor(this, data);
+                        }
+                    }
+                }
+                else {
+                    replacement.acceptVisitor(this, data);
+                }
+            }
+            else if (targetResult.getType().getSimpleType() == JvmType.Boolean &&
+                     valueResult.getType().getSimpleType() != JvmType.Boolean &&
+                     valueResult.getType().getSimpleType().isNumeric()) {
+
+                value.remove();
+
+                final AstNode replacement = node.replaceWith(
+                    new Function<AstNode, AstNode>() {
+                        @Override
+                        public AstNode apply(final AstNode input) {
+                            return new BinaryOperatorExpression(
+                                value,
+                                BinaryOperatorType.INEQUALITY,
+                                new PrimitiveExpression(JavaPrimitiveCast.cast(valueResult.getType().getSimpleType(), 0))
+                            );
+                        }
+                    }
+                );
+
+                replacement.acceptVisitor(this, data);
+            }
+            else {
+                final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+                if (astBuilder != null) {
+                    final AstNode replacement = value.replaceWith(
+                        new Function<AstNode, AstNode>() {
+                            @Override
+                            public AstNode apply(final AstNode input) {
+                                return new CastExpression(astBuilder.convertType(BuiltinTypes.Object), value);
+                            }
+                        }
+                    );
+
+                    replacement.acceptVisitor(this, data);
+                }
             }
         }
 
@@ -105,20 +177,64 @@ public class InsertNecessaryCastsTransform extends ContextTrackingVisitor<Void> 
             targetResult.getType().getSimpleType() != JvmType.Boolean &&
             targetResult.getType().getSimpleType().isNumeric()) {
 
-            right.replaceWith(
+            AstNode replacement = right.replaceWith(
                 new Function<AstNode, AstNode>() {
                     @Override
                     public AstNode apply(final AstNode input) {
                         return new ConditionalExpression(
                             right,
-                            new PrimitiveExpression(JavaPrimitiveCast.cast(targetResult.getType().getSimpleType(), 1)),
-                            new PrimitiveExpression(JavaPrimitiveCast.cast(targetResult.getType().getSimpleType(), 0))
+                            new PrimitiveExpression(new PrimitiveExpression(1)),
+                            new PrimitiveExpression(new PrimitiveExpression(0))
                         );
                     }
                 }
             );
 
-            node.acceptVisitor(this, data);
+            if (targetResult.getType().getSimpleType().bitWidth() < 32) {
+                final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+                if (astBuilder != null) {
+                    replacement = replacement.replaceWith(
+                        new Function<AstNode, AstNode>() {
+                            @Override
+                            public AstNode apply(final AstNode input) {
+                                return new CastExpression(astBuilder.convertType(targetResult.getType()), (Expression) input);
+                            }
+                        }
+                    );
+
+                    if (RedundantCastUtility.isCastRedundant(_resolver, (CastExpression) replacement)) {
+                        final Expression operand = ((CastExpression) replacement).getExpression();
+                        RedundantCastUtility.removeCast((CastExpression) replacement);
+                        operand.acceptVisitor(this, data);
+                    }
+                    else {
+                        replacement.acceptVisitor(this, data);
+                    }
+                }
+            }
+            else {
+                replacement.acceptVisitor(this, data);
+            }
+        }
+        else if (targetResult.getType().getSimpleType() == JvmType.Boolean &&
+                 valueResult.getType().getSimpleType() != JvmType.Boolean &&
+                 valueResult.getType().getSimpleType().isNumeric()) {
+
+            final AstNode replacement = right.replaceWith(
+                new Function<AstNode, AstNode>() {
+                    @Override
+                    public AstNode apply(final AstNode input) {
+                        return new BinaryOperatorExpression(
+                            right,
+                            BinaryOperatorType.INEQUALITY,
+                            new PrimitiveExpression(JavaPrimitiveCast.cast(valueResult.getType().getSimpleType(), 0))
+                        );
+                    }
+                }
+            );
+
+            replacement.acceptVisitor(this, data);
         }
 
         return null;

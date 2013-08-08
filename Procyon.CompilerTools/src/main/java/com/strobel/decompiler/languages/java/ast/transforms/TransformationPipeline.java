@@ -30,7 +30,7 @@ public final class TransformationPipeline {
             new AssertStatementTransform(context),
             new RemoveImplicitBoxingTransform(context),
             new RemoveRedundantCastsTransform(context),
-            new InsertNecessaryCastsTransform(context),
+            new InsertNecessaryConversionsTransform(context),
             new PatternStatementTransform(context),
             new BreakTargetRelocation(context),
             new DeclareVariablesTransform(context),
