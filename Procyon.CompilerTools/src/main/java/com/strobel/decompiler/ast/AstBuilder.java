@@ -1645,6 +1645,10 @@ public final class AstBuilder {
                             }
                         }
                         else if (!newSlot.isUninitialized()) {
+                            //
+                            // TODO: Figure out why this variable update breaks horribly in most cases.
+                            //       For now, keep it for double and long variables to ensure proper stack pushes/pops.
+                            //
                             if (newVariableState[i].value.getType().isDoubleWord()) {
                                 branchTarget.variablesBefore[i] = newSlot;
                                 modified = true;
