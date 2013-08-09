@@ -32,7 +32,6 @@ public class OperatorTests extends DecompilerTest {
         }
     }
 
-
     @SuppressWarnings("UnusedAssignment")
     private static class C {
         public void test() {
@@ -90,6 +89,28 @@ public class OperatorTests extends DecompilerTest {
 
         public int h(int n) {
             return (++this.x + this.a[n++]) / (this.a[++n] + ++this.a[n]) * (++G.b[++G.y]);
+        }
+    }
+
+    private static class H {
+        public String test1(String s) {
+            s += "allow compound assignment";
+            return s;
+        }
+
+        public Object test2(Object o) {
+            o = o + "allow compound assignment";
+            return o;
+        }
+
+        public String test3(String s) {
+            s = "forbid compound assignment" + s;
+            return s;
+        }
+
+        public Object test4(Object o) {
+            o = "forbid compound assignment" + o;
+            return o;
         }
     }
 
@@ -208,6 +229,32 @@ public class OperatorTests extends DecompilerTest {
             "    }\n" +
             "    static {\n" +
             "        G.b = new int[] { 0 };\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testRightSideStringConcatNotWrittenAsCompoundAssignment() {
+        verifyOutput(
+            H.class,
+            defaultSettings(),
+            "private static class H {\n" +
+            "    public String test1(String s) {\n" +
+            "        s += \"allow compound assignment\";\n" +
+            "        return s;\n" +
+            "    }\n" +
+            "    public Object test2(Object o) {\n" +
+            "        o += \"allow compound assignment\";\n" +
+            "        return o;\n" +
+            "    }\n" +
+            "    public String test3(String s) {\n" +
+            "        s = \"forbid compound assignment\" + s;\n" +
+            "        return s;\n" +
+            "    }\n" +
+            "    public Object test4(Object o) {\n" +
+            "        o = \"forbid compound assignment\" + o;\n" +
+            "        return o;\n" +
             "    }\n" +
             "}\n"
         );

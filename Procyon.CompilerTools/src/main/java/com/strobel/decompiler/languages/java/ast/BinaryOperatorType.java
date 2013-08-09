@@ -37,5 +37,21 @@ public enum BinaryOperatorType
     MODULUS,
     SHIFT_LEFT,
     SHIFT_RIGHT,
-    UNSIGNED_SHIFT_RIGHT
+    UNSIGNED_SHIFT_RIGHT;
+
+    public final boolean isCommutative() {
+        switch (this) {
+            case BITWISE_AND:
+            case BITWISE_OR:
+            case EXCLUSIVE_OR:
+            case EQUALITY:
+            case INEQUALITY:
+            case ADD:
+            case MULTIPLY:
+                return true;
+
+            default:
+                return false;
+        }
+    }
 }
