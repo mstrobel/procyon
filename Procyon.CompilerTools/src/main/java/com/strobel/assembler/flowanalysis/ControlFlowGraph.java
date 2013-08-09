@@ -249,7 +249,7 @@ public final class ControlFlowGraph {
 
                 edges.addAll(endFinallyNode.getIncoming());
                 edges.addAll(endFinallyNode.getOutgoing());
-                edges.add(new ControlFlowEdge(node, endFinallyNode, JumpType.EndFinally));
+//                edges.add(new ControlFlowEdge(node, endFinallyNode, JumpType.EndFinally));
             }
         }
 

@@ -231,7 +231,7 @@ public enum OpCode {
     ASTORE_W(0xC43A, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.PopA, StackBehavior.Push0),
     IINC_W(0xC484, FlowControl.Next, OpCodeType.Primitive, OperandType.LocalI2, StackBehavior.Pop0, StackBehavior.Push0),
     RET_W(0xC4A9, FlowControl.Branch, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.Push0),
-    RESERVED_1(0xFE, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0),
+    LEAVE(0xFE, FlowControl.Branch, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0),
     RESERVED_2(0xFF, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0);
 
     private OpCode(

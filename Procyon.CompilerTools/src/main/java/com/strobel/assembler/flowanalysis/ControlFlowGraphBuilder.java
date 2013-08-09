@@ -285,7 +285,7 @@ public final class ControlFlowGraphBuilder {
             //
             // Create edges for return and leave instructions.
             //
-            if (endOpCode == OpCode.RESERVED_1 /* LEAVE */ ||
+            if (endOpCode == OpCode.LEAVE /* LEAVE */ ||
                 endOpCode.getFlowControl() == FlowControl.Return ||
                 endOpCode.getFlowControl() == FlowControl.Throw) {
 

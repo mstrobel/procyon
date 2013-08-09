@@ -241,7 +241,7 @@ public enum AstCode {
      * Special placeholder to mark the end of try, catch, and finally blocks with an unconditional branch.
      * Will be removed during optimization.
      */
-    Leave,  // RESERVED_1
+    Leave,  // LEAVE
 
     __Reserved2,
 

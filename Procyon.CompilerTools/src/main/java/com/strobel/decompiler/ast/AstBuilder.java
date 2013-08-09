@@ -43,7 +43,7 @@ public final class AstBuilder {
     private final static AstCode[] CODES = AstCode.values();
     private final static StackSlot[] EMPTY_STACK = new StackSlot[0];
     private final static ByteCode[] EMPTY_DEFINITIONS = new ByteCode[0];
-    private final static OpCode OP_LEAVE = OpCode.RESERVED_1;
+    private final static OpCode OP_LEAVE = OpCode.LEAVE;
 
     private final Map<ExceptionHandler, ByteCode> _loadExceptions = new LinkedHashMap<>();
     private final Set<Instruction> _removed = new LinkedHashSet<>();
@@ -80,9 +80,6 @@ public final class AstBuilder {
 
         builder._exceptionHandlers = remapHandlers(body.getExceptionHandlers(), builder._instructions);
 
-        builder.removeSelfHandlingFinallyHandlers();
-        builder.trimAggressiveFinallyBlocks();
-        builder.trimAggressiveCatchBlocks();
         builder.pruneExceptionHandlers();
         builder.removeInlinedFinallyCode();
 
@@ -547,6 +544,7 @@ public final class AstBuilder {
 
                 processedNodes.clear();
 
+            nextNode:
                 for (ControlFlowNode node : toProcess) {
                     final ExceptionHandler nodeHandler = node.getExceptionHandler();
 
@@ -636,11 +634,18 @@ public final class AstBuilder {
                         else {
                             tail = tail.getPrevious();
                         }
+
+                        if (tail == null) {
+                            continue;
+                        }
                     }
 
                     for (int i = 0; i < instructionCount; i++) {
                         _removed.add(tail);
                         tail = tail.getPrevious();
+                        if (tail == null) {
+                            continue nextNode;
+                        }
                     }
 
                     if (isLeave) {
@@ -816,55 +821,13 @@ public final class AstBuilder {
     private void pruneExceptionHandlers() {
         final List<ExceptionHandler> handlers = _exceptionHandlers;
 
+        removeSelfHandlingFinallyHandlers();
+        trimAggressiveFinallyBlocks();
+        trimAggressiveCatchBlocks();
         closeTryHandlerGaps();
-        mergeSharedHandlers(handlers);
-        alignFinallyBlocksWithSiblingCatchBlocks(handlers);
-
-        for (int i = 0; i < handlers.size(); i++) {
-            final ExceptionHandler handler = handlers.get(i);
-            final ExceptionBlock tryBlock = handler.getTryBlock();
-            final List<ExceptionHandler> siblings = findHandlers(tryBlock, handlers);
-            final ExceptionHandler firstSibling = first(siblings);
-            final ExceptionBlock firstHandler = firstSibling.getHandlerBlock();
-            final Instruction desiredEndTry = firstHandler.getFirstInstruction().getPrevious();
-
-            for (int j = 0; j < siblings.size(); j++) {
-                ExceptionHandler sibling = siblings.get(j);
-
-                if (handler.getTryBlock().getLastInstruction() != desiredEndTry) {
-                    final int index = handlers.indexOf(sibling);
-
-                    if (sibling.isCatch()) {
-                        handlers.set(
-                            index,
-                            ExceptionHandler.createCatch(
-                                new ExceptionBlock(
-                                    tryBlock.getFirstInstruction(),
-                                    desiredEndTry
-                                ),
-                                sibling.getHandlerBlock(),
-                                sibling.getCatchType()
-                            )
-                        );
-                    }
-                    else {
-                        handlers.set(
-                            index,
-                            ExceptionHandler.createFinally(
-                                new ExceptionBlock(
-                                    tryBlock.getFirstInstruction(),
-                                    desiredEndTry
-                                ),
-                                sibling.getHandlerBlock()
-                            )
-                        );
-                    }
-
-                    sibling = handlers.get(index);
-                    siblings.set(j, sibling);
-                }
-            }
-        }
+        mergeSharedHandlers();
+        alignFinallyBlocksWithSiblingCatchBlocks();
+        ensureDesiredProtectedRanges();
 
         for (int i = 0; i < handlers.size(); i++) {
             final ExceptionHandler handler = handlers.get(i);
@@ -1084,7 +1047,59 @@ public final class AstBuilder {
         }
     }
 
-    private void alignFinallyBlocksWithSiblingCatchBlocks(final List<ExceptionHandler> handlers) {
+    private void ensureDesiredProtectedRanges() {
+        final List<ExceptionHandler> handlers = _exceptionHandlers;
+
+        for (int i = 0; i < handlers.size(); i++) {
+            final ExceptionHandler handler = handlers.get(i);
+            final ExceptionBlock tryBlock = handler.getTryBlock();
+            final List<ExceptionHandler> siblings = findHandlers(tryBlock, handlers);
+            final ExceptionHandler firstSibling = first(siblings);
+            final ExceptionBlock firstHandler = firstSibling.getHandlerBlock();
+            final Instruction desiredEndTry = firstHandler.getFirstInstruction().getPrevious();
+
+            for (int j = 0; j < siblings.size(); j++) {
+                ExceptionHandler sibling = siblings.get(j);
+
+                if (handler.getTryBlock().getLastInstruction() != desiredEndTry) {
+                    final int index = handlers.indexOf(sibling);
+
+                    if (sibling.isCatch()) {
+                        handlers.set(
+                            index,
+                            ExceptionHandler.createCatch(
+                                new ExceptionBlock(
+                                    tryBlock.getFirstInstruction(),
+                                    desiredEndTry
+                                ),
+                                sibling.getHandlerBlock(),
+                                sibling.getCatchType()
+                            )
+                        );
+                    }
+                    else {
+                        handlers.set(
+                            index,
+                            ExceptionHandler.createFinally(
+                                new ExceptionBlock(
+                                    tryBlock.getFirstInstruction(),
+                                    desiredEndTry
+                                ),
+                                sibling.getHandlerBlock()
+                            )
+                        );
+                    }
+
+                    sibling = handlers.get(index);
+                    siblings.set(j, sibling);
+                }
+            }
+        }
+    }
+
+    private void alignFinallyBlocksWithSiblingCatchBlocks() {
+        final List<ExceptionHandler> handlers = _exceptionHandlers;
+
     outer:
         for (int i = 0; i < handlers.size(); i++) {
             final ExceptionHandler handler = handlers.get(i);
@@ -1129,7 +1144,9 @@ public final class AstBuilder {
         }
     }
 
-    private void mergeSharedHandlers(final List<ExceptionHandler> handlers) {
+    private void mergeSharedHandlers() {
+        final List<ExceptionHandler> handlers = _exceptionHandlers;
+
         for (int i = 0; i < handlers.size(); i++) {
             final ExceptionHandler handler = handlers.get(i);
             final List<ExceptionHandler> duplicates = findDuplicateHandlers(handler, handlers);
