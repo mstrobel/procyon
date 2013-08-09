@@ -17,8 +17,10 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.core.Predicate;
+import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.functions.Function;
 
 import java.util.*;
 
@@ -284,15 +286,50 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
                 gotoStatement.replaceWith(breakStatement);
             }
         }
+
+        if (rewriteAsLoop && !loopData.preexistingContinueStatements.isEmpty()) {
+            final AstNode existingLoop = firstOrDefault(
+                insertedStatement.getAncestors(),
+                new Predicate<AstNode>() {
+                    @Override
+                    public boolean test(final AstNode node) {
+                        return AstNode.isLoop(node);
+                    }
+                }
+            );
+
+            if (existingLoop != null) {
+                final String loopLabel = label.getLabel() + "_Outer";
+
+                existingLoop.replaceWith(
+                    new Function<AstNode, AstNode>() {
+                        @Override
+                        public AstNode apply(final AstNode input) {
+                            return new LabeledStatement(loopLabel, (Statement) existingLoop);
+                        }
+                    }
+                );
+
+                for (final ContinueStatement statement : loopData.preexistingContinueStatements) {
+                    statement.setLabel(loopLabel);
+                }
+            }
+        }
     }
 
     private final static class AssessForLoopResult {
         final boolean needsLabel;
         final Set<GotoStatement> continueStatements;
+        final Set<ContinueStatement> preexistingContinueStatements;
 
-        private AssessForLoopResult(final boolean needsLabel, final Set<GotoStatement> continueStatements) {
+        private AssessForLoopResult(
+            final boolean needsLabel,
+            final Set<GotoStatement> continueStatements,
+            final Set<ContinueStatement> preexistingContinueStatements) {
+
             this.needsLabel = needsLabel;
             this.continueStatements = continueStatements;
+            this.preexistingContinueStatements = preexistingContinueStatements;
         }
     }
 
@@ -304,11 +341,16 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
 
         final Set<GotoStatement> gotoStatements = new HashSet<>(statements);
         final Set<GotoStatement> continueStatements = new HashSet<>();
+        final Set<ContinueStatement> preexistingContinueStatements = new HashSet<>();
 
         boolean labelSeen = false;
         boolean loopEncountered = false;
 
         for (final Stack<AstNode> path : paths) {
+            if (firstOrDefault(path) == label) {
+                continue;
+            }
+
             loopEncountered = any(
                 path,
                 new Predicate<AstNode>() {
@@ -331,9 +373,14 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
             else if (labelSeen && node instanceof GotoStatement && gotoStatements.contains(node)) {
                 continueStatements.add((GotoStatement) node);
             }
+            else if (node instanceof ContinueStatement &&
+                     StringUtilities.isNullOrEmpty(((ContinueStatement) node).getLabel())) {
+
+                preexistingContinueStatements.add((ContinueStatement) node);
+            }
         }
 
-        return new AssessForLoopResult(loopEncountered, continueStatements);
+        return new AssessForLoopResult(loopEncountered, continueStatements, preexistingContinueStatements);
     }
 
     private static boolean lookAhead(final AstNode start, final Set<AstNode> targets) {
