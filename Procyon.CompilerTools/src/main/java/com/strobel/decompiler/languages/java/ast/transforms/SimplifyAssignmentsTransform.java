@@ -285,8 +285,8 @@ public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode
                     return false;
                 }
 
-                if (CommonTypeReferences.STRING.isEquivalentTo(leftResult.getType()) ||
-                    CommonTypeReferences.STRING.isEquivalentTo(innerLeftResult.getType())) {
+                if (CommonTypeReferences.String.isEquivalentTo(leftResult.getType()) ||
+                    CommonTypeReferences.String.isEquivalentTo(innerLeftResult.getType())) {
 
                     return false;
                 }

@@ -1583,6 +1583,9 @@ public final class TypeAnalysis {
                 }
 
                 case Ret: {
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(0), BuiltinTypes.Integer);
+                    }
                     return null;
                 }
 

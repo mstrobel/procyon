@@ -500,10 +500,10 @@ final class Inlining {
                     //
 
                     for (final Expression expression : _method.getSelfAndChildrenRecursive(Expression.class)) {
-                        if (expression.getCode() == AstCode.Load &&
+                        if (expression.getCode().isLoad() &&
                             expression.getOperand() == variable.get()) {
 
-                            expression.setCode(copiedExpression.get().getCode());
+                            //expression.setCode(copiedExpression.get().getCode());
                             expression.setOperand(copiedExpression.get().getOperand());
 
                             for (final Variable uninlinedArg : uninlinedArgs) {

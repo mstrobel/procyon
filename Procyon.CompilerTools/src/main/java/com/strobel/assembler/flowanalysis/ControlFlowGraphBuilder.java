@@ -249,17 +249,7 @@ public final class ControlFlowGraphBuilder {
                 final OpCode opCode = instruction.getOpCode();
 
                 if (opCode.getOperandType() == OperandType.BranchTarget) {
-                    ControlFlowNode finallyBlock = findInnermostFinallyHandlerNode(end.getOffset());
-
-/*
-                    if (finallyBlock != _exceptionalExit &&
-                        finallyBlock.getEndFinallyNode() == null) {
-
-                        finallyBlock = findInnermostFinallyHandlerNode(
-                            finallyBlock.getExceptionHandler().getTryBlock().getLastInstruction().getOffset()
-                        );
-                    }
-*/
+                    final ControlFlowNode finallyBlock = findInnermostFinallyHandlerNode(end.getOffset());
 
                     if (finallyBlock != null &&
                         finallyBlock.getNodeType() == ControlFlowNodeType.FinallyHandler &&
@@ -285,10 +275,7 @@ public final class ControlFlowGraphBuilder {
             //
             // Create edges for return and leave instructions.
             //
-            if (endOpCode == OpCode.LEAVE /* LEAVE */ ||
-                endOpCode.getFlowControl() == FlowControl.Return ||
-                endOpCode.getFlowControl() == FlowControl.Throw) {
-
+            if (endOpCode.isLeave() || endOpCode.isReturn() || endOpCode.isThrow()) {
                 ControlFlowNode handlerBlock = findInnermostHandlerBlock(end.getOffset());
 
                 if (handlerBlock != _exceptionalExit &&
@@ -386,7 +373,9 @@ public final class ControlFlowGraphBuilder {
                 node.getOutgoing().get(0).getType() == JumpType.LeaveTry) {
 
                 assert end.getOpCode() == OpCode.GOTO ||
-                       end.getOpCode() == OpCode.GOTO_W;
+                       end.getOpCode() == OpCode.GOTO_W ||
+                       end.getOpCode() == OpCode.JSR ||
+                       end.getOpCode() == OpCode.JSR_W;
 
                 ControlFlowNode handler = findInnermostHandlerBlock(end.getOffset());
 

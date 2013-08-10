@@ -283,6 +283,25 @@ public enum OpCode {
                _stackBehaviorPush == StackBehavior.VarPush;
     }
 
+    public boolean isReturn() {
+        return _flowControl == FlowControl.Return;
+    }
+
+    public boolean isThrow() {
+        return _flowControl == FlowControl.Throw;
+    }
+
+    public boolean isLeave() {
+        switch (this) {
+            case JSR:
+            case JSR_W:
+            case LEAVE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public boolean isBranch() {
         switch (_flowControl) {
             case Branch:
