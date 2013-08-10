@@ -295,7 +295,6 @@ public enum OpCode {
         switch (this) {
             case JSR:
             case JSR_W:
-            case LEAVE:
                 return true;
             default:
                 return false;
