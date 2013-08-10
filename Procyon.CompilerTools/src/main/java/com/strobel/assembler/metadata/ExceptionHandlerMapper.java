@@ -304,7 +304,7 @@ public final class ExceptionHandlerMapper {
                 final Instruction instruction = instructions.get(i);
                 final OpCode opCode = instruction.getOpCode();
 
-                if (opCode.isBranch() && !opCode.isLeave() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
+                if (opCode.isBranch() && !opCode.isJumpToSubroutine() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
                     break;
                 }
 
@@ -360,7 +360,7 @@ public final class ExceptionHandlerMapper {
             //
             // Create normal edges from one instruction to the next.
             //
-            if (!endOpCode.isUnconditionalBranch()) {
+            if (!endOpCode.isUnconditionalBranch() || endOpCode.isJumpToSubroutine()) {
                 final Instruction next = end.getNext();
 
                 if (next != null && !isHandlerStart(next)) {

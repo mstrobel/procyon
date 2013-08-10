@@ -291,6 +291,17 @@ public enum OpCode {
         return _flowControl == FlowControl.Throw;
     }
 
+    public boolean isJumpToSubroutine() {
+        switch (this) {
+            case JSR:
+            case JSR_W:
+            case LEAVE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public boolean isLeave() {
         switch (this) {
             case JSR:

@@ -219,7 +219,7 @@ public final class ControlFlowGraphBuilder {
             //
             // Create normal edges from one instruction to the next.
             //
-            if (!endOpCode.isUnconditionalBranch()) {
+            if (!endOpCode.isUnconditionalBranch() || endOpCode.isJumpToSubroutine()) {
                 final Instruction next = end.getNext();
 
                 if (next != null) {

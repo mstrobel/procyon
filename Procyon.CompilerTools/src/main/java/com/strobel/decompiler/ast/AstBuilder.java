@@ -601,14 +601,23 @@ public final class AstBuilder {
         Collections.reverse(handlers);
 
         try {
+            ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, handlers);
+
+            cfg.computeDominance();
+            cfg.computeDominanceFrontier();
+
             for (int i = 0; i < handlers.size(); i++) {
                 final ExceptionHandler handler = handlers.get(i);
 
                 if (handler.isFinally()) {
                     final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+                    final ControlFlowNode finallyHead = findNode(cfg, handler.getHandlerBlock().getFirstInstruction());
+                    final List<ControlFlowNode> finallyNodes = toList(findDominatedNodes(cfg, finallyHead));
+
+                    Collections.sort(finallyNodes);
 
                     final Instruction first = handlerBlock.getFirstInstruction();
-                    final Instruction last = handlerBlock.getLastInstruction();
+                    final Instruction last = last(finallyNodes).getEnd();
                     final Instruction nextToLast = last.getPrevious();
 
                     if (first.getOpCode().isStore() &&
@@ -623,7 +632,7 @@ public final class AstBuilder {
 
                         if (nextToLast.getPrevious() != null &&
                             nextToLast.getPrevious().getOpCode().isUnconditionalBranch() &&
-                            !nextToLast.getPrevious().getOpCode().isLeave()) {
+                            !nextToLast.getPrevious().getOpCode().isJumpToSubroutine()) {
 
                             last.setOpCode(OpCode.NOP);
                             _removed.add(last);
@@ -637,8 +646,7 @@ public final class AstBuilder {
                 }
             }
 
-            final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, handlers);
-
+            cfg = ControlFlowGraphBuilder.build(instructions, handlers);
             cfg.computeDominance();
             cfg.computeDominanceFrontier();
 
