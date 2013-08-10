@@ -76,17 +76,17 @@ public final class ExceptionHandlerMapper {
                 }
             );
 
-//            for (int i = 1; i < dominatedNodes.size(); i++) {
-//                final ControlFlowNode prev = dominatedNodes.get(i - 1);
-//                final ControlFlowNode node = dominatedNodes.get(i);
-//
-//                if (node.getBlockIndex() != prev.getBlockIndex() + 1) {
-//                    for (int j = i; j < dominatedNodes.size(); j++) {
-//                        dominatedNodes.remove(i);
-//                        break;
-//                    }
-//                }
-//            }
+            for (int i = 1; i < dominatedNodes.size(); i++) {
+                final ControlFlowNode prev = dominatedNodes.get(i - 1);
+                final ControlFlowNode node = dominatedNodes.get(i);
+
+                if (node.getBlockIndex() != prev.getBlockIndex() + 1) {
+                    for (int j = i; j < dominatedNodes.size(); j++) {
+                        dominatedNodes.remove(i);
+                        break;
+                    }
+                }
+            }
 
             final Instruction lastInstruction = instructions.get(instructions.size() - 1);
 
@@ -304,7 +304,7 @@ public final class ExceptionHandlerMapper {
                 final Instruction instruction = instructions.get(i);
                 final OpCode opCode = instruction.getOpCode();
 
-                if (opCode.isBranch() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
+                if (opCode.isBranch() && !opCode.isJumpToSubroutine() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
                     break;
                 }
 
@@ -360,7 +360,7 @@ public final class ExceptionHandlerMapper {
             //
             // Create normal edges from one instruction to the next.
             //
-            if (!endOpCode.isUnconditionalBranch()) {
+            if (!endOpCode.isUnconditionalBranch() || endOpCode.isJumpToSubroutine()) {
                 final Instruction next = end.getNext();
 
                 if (next != null && !isHandlerStart(next)) {
@@ -547,21 +547,26 @@ public final class ExceptionHandlerMapper {
         assert node.getNodeType() == ControlFlowNodeType.CatchHandler ||
                node.getNodeType() == ControlFlowNodeType.FinallyHandler;
 
+        ControlFlowNode result = null;
+        ExceptionHandler resultHandler = null;
+
         final int offset = node.getExceptionHandler().getHandlerBlock().getFirstInstruction().getOffset();
 
-        for (int i = node.getBlockIndex() + 1, n = _nodes.size(); i < n; i++) {
+        for (int i = 0, n = _nodes.size(); i < n; i++) {
             final ControlFlowNode currentNode = _nodes.get(i);
             final ExceptionHandler handler = currentNode.getExceptionHandler();
 
             if (handler != null &&
                 handler.getTryBlock().getFirstInstruction().getOffset() <= offset &&
-                offset < handler.getTryBlock().getLastInstruction().getEndOffset()) {
+                offset < handler.getTryBlock().getLastInstruction().getEndOffset() &&
+                (resultHandler == null || isNarrower(handler, resultHandler))) {
 
-                return currentNode;
+                result = currentNode;
+                resultHandler = handler;
             }
         }
 
-        return _exceptionalExit;
+        return result != null ? result : _exceptionalExit;
     }
 
     private int getInstructionIndex(final Instruction instruction) {

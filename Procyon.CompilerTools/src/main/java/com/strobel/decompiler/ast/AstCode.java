@@ -237,6 +237,14 @@ public enum AstCode {
     __IIncW,
     __RetW,
 
+    /**
+     * Special placeholder to mark the end of try, catch, and finally blocks with an unconditional branch.
+     * Will be removed during optimization.
+     */
+    Leave,  // LEAVE
+
+    __Reserved2,
+
     //
     // Virtual codes, defined for convenience.
     //
@@ -301,12 +309,6 @@ public enum AstCode {
      * Simulates extraction of a primitive type from its corresponding boxed type.
      */
     Unbox,
-
-    /**
-     * Special placeholder to mark the end of try, catch, and finally blocks with an unconditional branch.
-     * Will be removed during optimization.
-     */
-    Leave,
 
     DefaultValue;
 
@@ -408,13 +410,6 @@ public enum AstCode {
     }
 
     public final boolean isUnconditionalControlFlow() {
-        final int ordinal = ordinal();
-
-        if (ordinal < STANDARD_CODES.length) {
-            final OpCode standardCode = STANDARD_CODES[ordinal];
-            return standardCode.isUnconditionalBranch();
-        }
-
         switch (this) {
             case LoopContinue:
             case LoopOrSwitchBreak:
@@ -423,6 +418,13 @@ public enum AstCode {
                 return true;
 
             default:
+                final int ordinal = ordinal();
+
+                if (ordinal < STANDARD_CODES.length) {
+                    final OpCode standardCode = STANDARD_CODES[ordinal];
+                    return standardCode.isUnconditionalBranch();
+                }
+
                 return false;
         }
     }
@@ -497,6 +499,14 @@ public enum AstCode {
             case __LdCW:
             case __LdC2W:
                 code.set(LdC);
+                return true;
+
+            case __JsrW:
+                code.set(Jsr);
+                return true;
+
+            case __RetW:
+                code.set(Ret);
                 return true;
 
             case __IInc:
