@@ -325,10 +325,6 @@ public final class AstBuilder {
             Instruction first = handlerInfo.head.getStart();
             Instruction last = handlerInfo.tail.getEnd();
 
-            if (last.getOpCode() == OpCode.JSR) {
-                continue;
-            }
-
             if (handlerInfo.handlerNodes.size() > 2 &&
                 handlerInfo.tail.getBlockIndex() != nodeMap.get(handlerInfo.tail.getStart().getPrevious()).getBlockIndex()) {
 
@@ -349,7 +345,11 @@ public final class AstBuilder {
                 if (first.getOpCode().isStore() || first.getOpCode() == OpCode.POP) {
                     first = first.getNext();
                 }
-                if (last.getOpCode().isUnconditionalBranch()) {
+
+                if (last.getOpCode().isUnconditionalBranch() &&
+                    last.getOpCode() != OpCode.JSR &&
+                    last.getOpCode() != OpCode.JSR_W) {
+
                     last = last.getPrevious();
                 }
             }

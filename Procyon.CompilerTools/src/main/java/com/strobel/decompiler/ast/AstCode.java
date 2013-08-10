@@ -321,6 +321,7 @@ public enum AstCode {
             case Load:
             case PreIncrement:
             case PostIncrement:
+            case Ret:
                 return true;
 
             default:
