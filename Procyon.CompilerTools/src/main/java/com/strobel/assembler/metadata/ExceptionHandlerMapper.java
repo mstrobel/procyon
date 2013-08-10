@@ -304,7 +304,7 @@ public final class ExceptionHandlerMapper {
                 final Instruction instruction = instructions.get(i);
                 final OpCode opCode = instruction.getOpCode();
 
-                if (opCode.isBranch() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
+                if (opCode.isBranch() && !opCode.isLeave() /*|| opCode.canThrow()*/ || _hasIncomingJumps[i + 1]) {
                     break;
                 }
 
