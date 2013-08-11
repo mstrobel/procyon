@@ -43,6 +43,7 @@ public final class AstBuilder {
     private final static AstCode[] CODES = AstCode.values();
     private final static StackSlot[] EMPTY_STACK = new StackSlot[0];
     private final static ByteCode[] EMPTY_DEFINITIONS = new ByteCode[0];
+    private final static OpCode OP_LEAVE = OpCode.LEAVE;
 
     private final Map<ExceptionHandler, ByteCode> _loadExceptions = new LinkedHashMap<>();
     private final Set<Instruction> _removed = new LinkedHashSet<>();
@@ -79,11 +80,9 @@ public final class AstBuilder {
 
         builder._exceptionHandlers = remapHandlers(body.getExceptionHandlers(), builder._instructions);
 
-        builder.removeSelfHandlingFinallyHandlers();
-        builder.trimAggressiveFinallyBlocks();
-        builder.removeInlinedFinallyCode();
-        builder.trimAggressiveCatchBlocks();
         builder.pruneExceptionHandlers();
+        builder.removeInlinedFinallyCode();
+        builder.inlineSubroutines();
 
         builder._cfg = ControlFlowGraphBuilder.build(builder._instructions, builder._exceptionHandlers);
         builder._cfg.computeDominance();
@@ -102,26 +101,331 @@ public final class AstBuilder {
         return ast;
     }
 
+    private void inlineSubroutines() {
+        final List<SubroutineInfo> subroutines = findSubroutines();
+
+        for (final SubroutineInfo subroutine : subroutines) {
+            if (callsOtherSubroutine(subroutine, subroutines)) {
+                continue;
+            }
+
+            for (final Instruction reference : subroutine.liveReferences) {
+                inlineSubroutine(subroutine, reference);
+            }
+        }
+    }
+
+    private void inlineSubroutine(final SubroutineInfo subroutine, final Instruction reference) {
+        if (subroutine.end.getOpCode() != OpCode.RET || !subroutine.start.getOpCode().isStore()) {
+            return;
+        }
+
+        if (subroutine.liveReferences.size() != 1) {
+            //
+            // TODO: Implement inlining of subroutines with more than one entry point.
+            //
+            return;
+        }
+
+        final int startIndex = _instructions.indexOf(subroutine.start);
+        final int endIndex = _instructions.indexOf(subroutine.end);
+        final int jumpIndex = _instructions.indexOf(reference);
+
+        final boolean nonEmpty = subroutine.start != subroutine.end && subroutine.start.getNext() != subroutine.end;
+        final Instruction newStart = nonEmpty ? subroutine.start.getNext() : null;
+        final Instruction newEnd = nonEmpty ? (reference.getNext() != null ? reference.getNext() : subroutine.end.getPrevious()) : null;
+
+        final List<Instruction> contents = new ArrayList<>(_instructions.subList(startIndex, endIndex + 1));
+
+        for (final Instruction p : subroutine.deadReferences) {
+            p.setOpCode(OpCode.NOP);
+            p.setOperand(OpCode.NOP);
+        }
+
+        for (int i = startIndex; i <= endIndex; i++) {
+            _instructions.remove(startIndex);
+        }
+
+        if (nonEmpty) {
+            final List<Instruction> inlinedCode = contents.subList(1, contents.size() - 1);
+
+            _instructions.addAll(jumpIndex, inlinedCode);
+            _instructions.remove(reference);
+            _instructions.recomputeOffsets();
+
+            final Map<Instruction, Instruction> remappedJumps = new IdentityHashMap<>();
+
+            remappedJumps.put(reference, newStart);
+            remappedJumps.put(subroutine.start, newStart);
+            remappedJumps.put(subroutine.end, newEnd);
+
+            remapJumps(remappedJumps);
+            remapHandlersForInlinedSubroutine(reference, newStart, newEnd);
+        }
+        else {
+            reference.setOpCode(OpCode.NOP);
+            reference.setOperand(OpCode.NOP);
+        }
+    }
+
+    private void remapHandlersForInlinedSubroutine(final Instruction jump, final Instruction start, final Instruction end) {
+        final List<ExceptionHandler> handlers = _exceptionHandlers;
+
+        for (int i = 0; i < handlers.size(); i++) {
+            final ExceptionHandler handler = handlers.get(i);
+
+            final ExceptionBlock oldTry = handler.getTryBlock();
+            final ExceptionBlock oldHandler = handler.getHandlerBlock();
+
+            final ExceptionBlock newTryBlock;
+            final ExceptionBlock newHandlerBlock;
+
+            if (oldTry.getFirstInstruction() == jump || oldTry.getLastInstruction() == jump) {
+                newTryBlock = new ExceptionBlock(
+                    oldTry.getFirstInstruction() == jump ? start : oldTry.getFirstInstruction(),
+                    oldTry.getLastInstruction() == jump ? end : oldTry.getLastInstruction()
+                );
+            }
+            else {
+                newTryBlock = oldTry;
+            }
+
+            if (oldHandler.getFirstInstruction() == jump || oldHandler.getLastInstruction() == jump) {
+                newHandlerBlock = new ExceptionBlock(
+                    oldHandler.getFirstInstruction() == jump ? start : oldHandler.getFirstInstruction(),
+                    oldHandler.getLastInstruction() == jump ? end : oldHandler.getLastInstruction()
+                );
+            }
+            else {
+                newHandlerBlock = oldHandler;
+            }
+
+            if (newTryBlock != oldTry || newHandlerBlock != oldHandler) {
+                if (handler.isCatch()) {
+                    handlers.set(
+                        i,
+                        ExceptionHandler.createCatch(newTryBlock, newHandlerBlock, handler.getCatchType())
+                    );
+                }
+                else {
+                    handlers.set(
+                        i,
+                        ExceptionHandler.createFinally(newTryBlock, newHandlerBlock)
+                    );
+                }
+            }
+        }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private void remapJumps(final Map<Instruction, Instruction> remappedJumps) {
+        for (final Instruction instruction : _instructions) {
+            if (instruction.hasLabel()) {
+                instruction.getLabel().setIndex(instruction.getOffset());
+            }
+
+            if (instruction.getOperandCount() == 0) {
+                continue;
+            }
+
+            final Object operand = instruction.getOperand(0);
+
+            if (operand instanceof Instruction) {
+                final Instruction oldTarget = (Instruction) operand;
+                final Instruction newTarget = remappedJumps.get(oldTarget);
+
+                if (newTarget != null) {
+                    if (newTarget == instruction) {
+                        instruction.setOpCode(OpCode.NOP);
+                        instruction.setOperand(null);
+                    }
+                    else {
+                        instruction.setOperand(newTarget);
+
+                        if (!newTarget.hasLabel()) {
+                            newTarget.setLabel(new com.strobel.assembler.metadata.Label(newTarget.getOffset()));
+                        }
+                    }
+                }
+            }
+            else if (operand instanceof SwitchInfo) {
+                final SwitchInfo oldOperand = (SwitchInfo) operand;
+
+                final Instruction oldDefault = oldOperand.getDefaultTarget();
+                final Instruction newDefault = remappedJumps.get(oldDefault);
+
+                if (newDefault != null && !newDefault.hasLabel()) {
+                    newDefault.setLabel(new com.strobel.assembler.metadata.Label(newDefault.getOffset()));
+                }
+
+                final Instruction[] oldTargets = oldOperand.getTargets();
+
+                Instruction[] newTargets = null;
+
+                for (int i = 0; i < oldTargets.length; i++) {
+                    final Instruction newTarget = remappedJumps.get(oldTargets[i]);
+
+                    if (newTarget != null) {
+                        if (newTargets == null) {
+                            newTargets = Arrays.copyOf(oldTargets, oldTargets.length);
+                        }
+
+                        newTargets[i] = newTarget;
+
+                        if (!newTarget.hasLabel()) {
+                            newTarget.setLabel(new com.strobel.assembler.metadata.Label(newTarget.getOffset()));
+                        }
+                    }
+                }
+
+                if (newDefault != null || newTargets != null) {
+                    final SwitchInfo newOperand = new SwitchInfo(
+                        oldOperand.getKeys(),
+                        newDefault != null ? newDefault : oldDefault,
+                        newTargets != null ? newTargets : oldTargets
+                    );
+
+                    instruction.setOperand(newOperand);
+                }
+            }
+        }
+    }
+
+    private boolean callsOtherSubroutine(final SubroutineInfo subroutine, final List<SubroutineInfo> subroutines) {
+        return any(
+            subroutines,
+            new Predicate<SubroutineInfo>() {
+                @Override
+                public boolean test(final SubroutineInfo info) {
+                    return any(
+                        info.liveReferences,
+                        new Predicate<Instruction>() {
+                            @Override
+                            public boolean test(final Instruction p) {
+                                return p.getOffset() >= subroutine.start.getOffset() &&
+                                       p.getOffset() < subroutine.end.getEndOffset();
+                            }
+                        }
+                    );
+                }
+            }
+        );
+    }
+
+    private List<SubroutineInfo> findSubroutines() {
+        final InstructionCollection instructions = _instructions;
+
+        if (instructions.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<Instruction, SubroutineInfo> subroutineMap = null;
+        ControlFlowGraph cfg = null;
+
+        for (Instruction p = first(instructions);
+             p != null;
+             p = p.getNext()) {
+
+            if (p.getOpCode() != OpCode.JSR && p.getOpCode() != OpCode.JSR_W) {
+                continue;
+            }
+
+            final boolean isLive = !_removed.contains(p);
+
+            if (cfg == null) {
+                cfg = ControlFlowGraphBuilder.build(instructions, _exceptionHandlers);
+                cfg.computeDominance();
+                cfg.computeDominanceFrontier();
+                subroutineMap = new IdentityHashMap<>();
+            }
+
+            final Instruction target = p.getOperand(0);
+
+            if (_removed.contains(target)) {
+                continue;
+            }
+
+            SubroutineInfo info = subroutineMap.get(target);
+
+            if (info == null) {
+                final ControlFlowNode start = findNode(cfg, target);
+                final List<ControlFlowNode> contents = toList(findDominatedNodes(cfg, start));
+
+                Collections.sort(contents);
+
+                final ControlFlowNode end = last(contents);
+
+                subroutineMap.put(target, info = new SubroutineInfo(start.getStart(), end.getEnd()));
+            }
+
+            if (isLive) {
+                info.liveReferences.add(p);
+            }
+            else {
+                info.deadReferences.add(p);
+            }
+        }
+
+        if (subroutineMap == null) {
+            return Collections.emptyList();
+        }
+
+        return toList(subroutineMap.values());
+    }
+
+    private final static class SubroutineInfo {
+        final Instruction start;
+        final Instruction end;
+        final List<Instruction> liveReferences = new ArrayList<>();
+        final List<Instruction> deadReferences = new ArrayList<>();
+
+        SubroutineInfo(final Instruction start, final Instruction end) {
+            this.start = start;
+            this.end = end;
+        }
+    }
+
     private final static class HandlerInfo {
         final ExceptionHandler handler;
+        final ControlFlowNode handlerNode;
         final ControlFlowNode head;
         final ControlFlowNode tail;
         final List<ControlFlowNode> tryNodes;
         final List<ControlFlowNode> handlerNodes;
 
-        private HandlerInfo(
+        HandlerInfo(
             final ExceptionHandler handler,
+            final ControlFlowNode handlerNode,
             final ControlFlowNode head,
             final ControlFlowNode tail,
             final List<ControlFlowNode> tryNodes,
             final List<ControlFlowNode> handlerNodes) {
 
             this.handler = handler;
+            this.handlerNode = handlerNode;
             this.head = head;
             this.tail = tail;
             this.tryNodes = tryNodes;
             this.handlerNodes = handlerNodes;
         }
+    }
+
+    private static ControlFlowNode findNode(final ControlFlowGraph cfg, final Instruction instruction) {
+        final int offset = instruction.getOffset();
+
+        for (final ControlFlowNode node : cfg.getNodes()) {
+            if (node.getNodeType() != ControlFlowNodeType.Normal) {
+                continue;
+            }
+
+            if (offset >= node.getStart().getOffset() &&
+                offset < node.getEnd().getEndOffset()) {
+
+                return node;
+            }
+        }
+
+        return null;
     }
 
     private static Set<ControlFlowNode> findDominatedNodes(final ControlFlowGraph cfg, final ControlFlowNode head) {
@@ -172,23 +476,12 @@ public final class AstBuilder {
             }
         }
 
-        if (node.getNodeType() != ControlFlowNodeType.Normal) {
-            return false;
-        }
-
-        if (node.getStart().getNext() != node.getEnd()) {
-            return false;
-        }
-
-        if (head.getStart().getOpCode().isStore() &&
-            node.getStart().getOpCode().isLoad() &&
-            node.getEnd().getOpCode() == OpCode.ATHROW) {
-
-            return InstructionHelper.getLoadOrStoreSlot(head.getStart()) ==
-                   InstructionHelper.getLoadOrStoreSlot(node.getStart());
-        }
-
-        return false;
+        return node.getNodeType() == ControlFlowNodeType.Normal &&
+               node.getStart().getNext() == node.getEnd() &&
+               head.getStart().getOpCode().isStore() &&
+               node.getStart().getOpCode().isLoad() &&
+               node.getEnd().getOpCode() == OpCode.ATHROW &&
+               InstructionHelper.getLoadOrStoreSlot(head.getStart()) == InstructionHelper.getLoadOrStoreSlot(node.getStart());
     }
 
     private static ControlFlowNode findInnermostExceptionHandlerNode(final ControlFlowGraph cfg, final int offsetInTryBlock) {
@@ -220,6 +513,39 @@ public final class AstBuilder {
         return resultNode;
     }
 
+    private static ControlFlowNode findInnermostFinallyNode(final ControlFlowGraph cfg, final int offsetInTryBlock) {
+        ExceptionHandler result = null;
+        ControlFlowNode resultNode = null;
+
+        final List<ControlFlowNode> nodes = cfg.getNodes();
+
+        for (int i = nodes.size() - 1; i >= 0; i--) {
+            final ControlFlowNode node = nodes.get(i);
+            final ExceptionHandler handler = node.getExceptionHandler();
+
+            if (handler == null) {
+                break;
+            }
+
+            if (handler.isCatch()) {
+                continue;
+            }
+
+            final ExceptionBlock tryBlock = handler.getTryBlock();
+
+            if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
+                offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
+                (result == null ||
+                 tryBlock.getFirstInstruction().getOffset() > result.getTryBlock().getFirstInstruction().getOffset())) {
+
+                result = handler;
+                resultNode = node;
+            }
+        }
+
+        return resultNode;
+    }
+
 //    private boolean areAllRemoved(final Instruction start, final Instruction end) {
 //        for (Instruction p = start; p != null && p.getOffset() < end.getEndOffset(); p = p.getNext()) {
 //            if (!_removed.contains(p)) {
@@ -231,6 +557,10 @@ public final class AstBuilder {
 
     private static boolean opCodesMatch(final Instruction tail1, final Instruction tail2, final int count) {
         int i = 0;
+
+        if (tail1 == null || tail2 == null) {
+            return false;
+        }
 
         for (Instruction p1 = tail1, p2 = tail2;
              p1 != null && p2 != null && i < count;
@@ -268,256 +598,376 @@ public final class AstBuilder {
         final InstructionCollection instructions = _instructions;
         final List<ExceptionHandler> handlers = _exceptionHandlers;
 
-        final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, handlers);
+        Collections.reverse(handlers);
 
-        cfg.computeDominance();
-        cfg.computeDominanceFrontier();
+        try {
+            ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, handlers);
 
-        final Map<Instruction, ControlFlowNode> nodeMap = createNodeMap(cfg);
-        final Set<ExceptionHandler> finallyHandlers = new LinkedHashSet<>();
-        final Map<ExceptionHandler, HandlerInfo> handlerMap = new IdentityHashMap<>();
-        final Set<ControlFlowNode> processedNodes = new LinkedHashSet<>();
-        final Set<ControlFlowNode> allFinallyNodes = new LinkedHashSet<>();
+            cfg.computeDominance();
+            cfg.computeDominanceFrontier();
 
-        for (int i = 0; i < handlers.size(); i++) {
-            final ExceptionHandler handler = handlers.get(i);
-            final ControlFlowNode head = nodeMap.get(handler.getHandlerBlock().getFirstInstruction());
-            final ControlFlowNode tail = nodeMap.get(handler.getHandlerBlock().getLastInstruction());
-            final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
+            for (int i = 0; i < handlers.size(); i++) {
+                final ExceptionHandler handler = handlers.get(i);
 
-            final List<ControlFlowNode> tryNodes = new ArrayList<>(findDominatedNodes(cfg, tryHead));
-            final List<ControlFlowNode> handlerNodes = new ArrayList<>(findDominatedNodes(cfg, head));
+                if (handler.isFinally()) {
+                    final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+                    final ControlFlowNode finallyHead = findNode(cfg, handler.getHandlerBlock().getFirstInstruction());
+                    final List<ControlFlowNode> finallyNodes = toList(findDominatedNodes(cfg, finallyHead));
 
-            Collections.sort(tryNodes);
-            Collections.sort(handlerNodes);
+                    Collections.sort(finallyNodes);
 
-            final HandlerInfo handlerInfo = new HandlerInfo(handler, head, tail, tryNodes, handlerNodes);
+                    final Instruction first = handlerBlock.getFirstInstruction();
+                    final Instruction last = last(finallyNodes).getEnd();
+                    final Instruction nextToLast = last.getPrevious();
 
-            handlerMap.put(handler, handlerInfo);
+                    if (first.getOpCode().isStore() &&
+                        last.getOpCode() == OpCode.ATHROW &&
+                        nextToLast.getOpCode().isLoad() &&
+                        InstructionHelper.getLoadOrStoreSlot(first) == InstructionHelper.getLoadOrStoreSlot(nextToLast)) {
 
-            if (handler.isFinally()) {
-                finallyHandlers.add(handler);
-                allFinallyNodes.addAll(handlerNodes);
-            }
-        }
+                        nextToLast.setOpCode(OpCode.NOP);
+                        nextToLast.setOperand(null);
 
-        for (final ExceptionHandler handler : finallyHandlers) {
-            final HandlerInfo handlerInfo = handlerMap.get(handler);
-            final List<ExceptionHandler> siblings = new ArrayList<>();
-            final Set<ControlFlowNode> successors = new LinkedHashSet<>(toList(handlerInfo.tail.getSuccessors()));
+                        _removed.add(nextToLast);
 
-            for (final ExceptionHandler exceptionHandler : _exceptionHandlers) {
-                if (exceptionHandler.isCatch() &&
-                    exceptionHandler.getTryBlock().equals(handler.getTryBlock())) {
+                        if (nextToLast.getPrevious() != null &&
+                            nextToLast.getPrevious().getOpCode().isUnconditionalBranch() &&
+                            !nextToLast.getPrevious().getOpCode().isJumpToSubroutine()) {
 
-                    siblings.add(exceptionHandler);
+                            last.setOpCode(OpCode.NOP);
+                            _removed.add(last);
+                        }
+                        else {
+                            last.setOpCode(OP_LEAVE);
+                        }
+
+                        last.setOperand(null);
+                    }
                 }
             }
 
-            if (successors.contains(cfg.getExceptionalExit())) {
-                successors.add(cfg.getRegularExit());
-            }
+            cfg = ControlFlowGraphBuilder.build(instructions, handlers);
+            cfg.computeDominance();
+            cfg.computeDominanceFrontier();
 
-            if (successors.contains(cfg.getRegularExit())) {
-                successors.add(cfg.getExceptionalExit());
-            }
+            final Map<Instruction, ControlFlowNode> nodeMap = createNodeMap(cfg);
+            final Set<ExceptionHandler> finallyHandlers = new LinkedHashSet<>();
+            final Map<ExceptionHandler, HandlerInfo> handlerMap = new IdentityHashMap<>();
+            final Set<ControlFlowNode> processedNodes = new LinkedHashSet<>();
+            final Set<ControlFlowNode> allFinallyNodes = new LinkedHashSet<>();
 
-            Instruction first = handlerInfo.head.getStart();
-            Instruction last = handlerInfo.tail.getEnd();
+            for (int i = 0; i < handlers.size(); i++) {
+                final ExceptionHandler handler = handlers.get(i);
+                final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+                final ControlFlowNode head = nodeMap.get(handlerBlock.getFirstInstruction());
+                final ControlFlowNode tail = nodeMap.get(handlerBlock.getLastInstruction());
+                final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
 
-            if (handlerInfo.handlerNodes.size() > 2 &&
-                handlerInfo.tail.getBlockIndex() != nodeMap.get(handlerInfo.tail.getStart().getPrevious()).getBlockIndex()) {
+                final List<ControlFlowNode> tryNodes = new ArrayList<>(findDominatedNodes(cfg, tryHead));
+                final List<ControlFlowNode> handlerNodes = new ArrayList<>(findDominatedNodes(cfg, head));
 
-                last = handlerInfo.handlerNodes.get(handlerInfo.handlerNodes.size() - 2).getEnd();
-            }
+                Collections.sort(tryNodes);
+                Collections.sort(handlerNodes);
 
-            if (first.getOpCode().isStore() &&
-                last.getOpCode() == OpCode.ATHROW &&
-                last.getPrevious() != null &&
-                last.getPrevious() != first &&
-                last.getPrevious().getOpCode().isLoad() &&
-                InstructionHelper.getLoadOrStoreSlot(first) == InstructionHelper.getLoadOrStoreSlot(last.getPrevious())) {
+                final HandlerInfo handlerInfo = new HandlerInfo(
+                    handler,
+                    findHandlerNode(cfg, handler),
+                    head,
+                    tail,
+                    tryNodes,
+                    handlerNodes
+                );
 
-                first = first.getNext();
-                last = last.getPrevious().getPrevious();
-            }
-            else {
-                if (first.getOpCode().isStore() || first.getOpCode() == OpCode.POP) {
-                    first = first.getNext();
-                }
-                if (last.getOpCode().isUnconditionalBranch()) {
-                    last = last.getPrevious();
-                }
-            }
+                handlerMap.put(handler, handlerInfo);
 
-            if (first == null || last == null) {
-                continue;
-            }
-
-            int instructionCount = 1;
-
-            for (Instruction p = first.getNext(); p != null && p.getOffset() < last.getEndOffset(); p = p.getNext()) {
-                ++instructionCount;
-            }
-
-            final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
-            final ControlFlowNode finallyTail = nodeMap.get(handler.getHandlerBlock().getLastInstruction());
-            final List<ControlFlowNode> additionalTargets = new ArrayList<>();
-
-            for (final ControlFlowNode node : handlerInfo.tryNodes) {
-                if (node.getDominanceFrontier().contains(cfg.getRegularExit()) ||
-                    node.getDominanceFrontier().contains(cfg.getExceptionalExit())) {
-
-                    additionalTargets.add(node);
+                if (handler.isFinally()) {
+                    finallyHandlers.add(handler);
+                    allFinallyNodes.addAll(handlerNodes);
                 }
             }
 
-            for (final ControlFlowNode node : tryHead.getSuccessors()) {
-                if (node.getNodeType() == ControlFlowNodeType.CatchHandler) {
-                    additionalTargets.add(nodeMap.get(node.getExceptionHandler().getHandlerBlock().getLastInstruction()));
-                }
-            }
+            for (final ExceptionHandler handler : finallyHandlers) {
+                final HandlerInfo handlerInfo = handlerMap.get(handler);
+                final List<ExceptionHandler> siblings = new ArrayList<>();
+                final Set<ControlFlowNode> successors = new LinkedHashSet<>();
 
-            final Set<ControlFlowNode> toProcess = new LinkedHashSet<>(additionalTargets);
+                successors.add(handlerInfo.handlerNode);
 
-            for (final ControlFlowNode successor : successors) {
-                if (allFinallyNodes.contains(successor)) {
-                    continue;
-                }
+                for (final ControlFlowNode node : handlerInfo.tryNodes) {
+                    for (final ControlFlowNode successor : node.getSuccessors()) {
+                        switch (successor.getNodeType()) {
+                            case CatchHandler: {
+                                final ExceptionHandler catchHandler = successor.getExceptionHandler();
 
-                for (final ControlFlowNode predecessor : successor.getPredecessors()) {
-                    if (!allFinallyNodes.contains(predecessor)) {
-                        final boolean process = tryHead.dominates(predecessor) ||
-                                                any(
-                                                    siblings,
-                                                    new Predicate<ExceptionHandler>() {
-                                                        @Override
-                                                        public boolean test(final ExceptionHandler handler) {
-                                                            return handlerMap.get(handler).head.dominates(predecessor);
-                                                        }
-                                                    }
-                                                );
+                                final ControlFlowNode innermostFinally = findInnermostFinallyNode(
+                                    cfg,
+                                    catchHandler.getTryBlock().getLastInstruction().getOffset()
+                                );
 
-                        if (process) {
-                            toProcess.add(predecessor);
+                                if (innermostFinally != null && innermostFinally.getExceptionHandler() == handler) {
+                                    successors.add(handlerMap.get(catchHandler).tail);
+                                }
+
+                                break;
+                            }
+
+                            case FinallyHandler: {
+                                final ControlFlowNode endFinallyNode = successor.getEndFinallyNode();
+
+                                if (endFinallyNode != null) {
+                                    final ControlFlowNode dominator = endFinallyNode.getImmediateDominator();
+
+                                    if (dominator != null) {
+                                        for (final ControlFlowNode predecessor : dominator.getPredecessors()) {
+                                            successors.add(predecessor);
+                                        }
+                                    }
+
+                                    successors.add(endFinallyNode);
+                                }
+
+                                break;
+                            }
+
+                            case RegularExit: {
+                                successors.add(cfg.getRegularExit());
+                                break;
+                            }
+
+                            case ExceptionalExit: {
+                                successors.add(cfg.getExceptionalExit());
+                                break;
+                            }
                         }
                     }
                 }
-            }
 
-            for (ControlFlowNode node : toProcess) {
-                final ExceptionHandler nodeHandler = node.getExceptionHandler();
+                Instruction first = handlerInfo.head.getStart();
+                Instruction last = handlerInfo.tail.getEnd();
 
-                if (nodeHandler != null) {
-                    node = nodeMap.get(nodeHandler.getHandlerBlock().getLastInstruction());
+                if (handlerInfo.handlerNodes.size() > 2 &&
+                    handlerInfo.tail.getBlockIndex() != nodeMap.get(handlerInfo.tail.getStart().getPrevious()).getBlockIndex()) {
+
+                    last = handlerInfo.handlerNodes.get(handlerInfo.handlerNodes.size() - 2).getEnd();
                 }
 
-                if (processedNodes.contains(node) || allFinallyNodes.contains(node)) {
-                    continue;
+                if (last.getOpCode() == OP_LEAVE) {
+                    first = first.getNext();
+                    last = last.getPrevious().getPrevious();
                 }
+                else {
+                    if (first.getOpCode().isStore() || first.getOpCode() == OpCode.POP) {
+                        first = first.getNext();
+                    }
+                    if (last.getOpCode().getFlowControl() == FlowControl.Return/* ||
+                        last.getOpCode().getFlowControl() == FlowControl.Throw */) {
 
-                Instruction tail = node.getEnd();
-                boolean isLeave = false;
-                boolean tryPrevious = false;
-
-                if (tail.getOpCode().isUnconditionalBranch()) {
-                    switch (tail.getOpCode()) {
-                        case GOTO:
-                        case GOTO_W:
-                        case RETURN:
-                            tail = tail.getPrevious();
-                            break;
-
-                        case IRETURN:
-                        case LRETURN:
-                        case FRETURN:
-                        case DRETURN:
-                        case ARETURN:
-                            tail = tail.getPrevious();
-                            if (finallyTail.getEnd().getOpCode().getFlowControl() == FlowControl.Return) {
-                                tail = tail.getPrevious();
-                            }
-                            else {
-                                tryPrevious = true;
-                            }
-                            break;
-
-                        case ATHROW:
-                            if (finallyTail.getEnd().getOpCode() == OpCode.ATHROW) {
-                                isLeave = true;
-                                tryPrevious = true;
-                            }
-                            else {
-                                tail = tail.getPrevious();
-                            }
-                            break;
+                        last = last.getPrevious();
                     }
                 }
 
-                while (tail != null && _removed.contains(tail)) {
-                    tail = tail.getPrevious();
-                }
-
-                if (tail == null) {
+                if (first == null || last == null) {
                     continue;
                 }
 
-                if (!opCodesMatch(last, tail, instructionCount)) {
-                    if (!tryPrevious || !opCodesMatch(last, tail = tail.getPrevious(), instructionCount)) {
+                int instructionCount = 1;
+
+                for (Instruction p = first.getNext(); p != null && p.getOffset() < last.getEndOffset(); p = p.getNext()) {
+                    ++instructionCount;
+                }
+
+                final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
+                final ControlFlowNode finallyTail = nodeMap.get(handler.getHandlerBlock().getLastInstruction());
+                final Set<ControlFlowNode> toProcess = new LinkedHashSet<>();
+
+                for (final ControlFlowNode successor : successors) {
+                    if (allFinallyNodes.contains(successor)) {
                         continue;
                     }
-                }
 
-                for (int i = 0; i < instructionCount; i++) {
-                    _removed.add(tail);
-                    tail = tail.getPrevious();
-                }
+                    for (ControlFlowNode predecessor : successor.getPredecessors()) {
+                        final ExceptionHandler predecessorHandler = predecessor.getExceptionHandler();
 
-                if (isLeave) {
-                    if (tail != null &&
-                        tail.getOpCode().isStore() &&
-                        !_body.getMethod().getReturnType().isVoid()) {
-
-                        final Instruction load = InstructionHelper.reverseLoadOrStore(tail);
-                        final Instruction returnSite = node.getEnd();
-                        final Instruction loadSite = returnSite.getPrevious();
-
-                        loadSite.setOpCode(load.getOpCode());
-
-                        if (load.getOperandCount() == 1) {
-                            loadSite.setOperand(load.getOperand(0));
+                        if (predecessorHandler != null) {
+                            predecessor = findNode(cfg, predecessorHandler.getHandlerBlock().getLastInstruction());
                         }
 
-                        switch (load.getOpCode().name().charAt(0)) {
-                            case 'I':
-                                returnSite.setOpCode(OpCode.IRETURN);
-                                break;
-                            case 'L':
-                                returnSite.setOpCode(OpCode.LRETURN);
-                                break;
-                            case 'F':
-                                returnSite.setOpCode(OpCode.FRETURN);
-                                break;
-                            case 'D':
-                                returnSite.setOpCode(OpCode.DRETURN);
-                                break;
-                            case 'A':
-                                returnSite.setOpCode(OpCode.ARETURN);
-                                break;
+                        if (!allFinallyNodes.contains(predecessor)) {
+                            final ControlFlowNode p = predecessor;
+
+                            final boolean process = tryHead.dominates(predecessor) ||
+                                                    any(
+                                                        siblings,
+                                                        new Predicate<ExceptionHandler>() {
+                                                            @Override
+                                                            public boolean test(final ExceptionHandler handler) {
+                                                                return handlerMap.get(handler).head.dominates(p);
+                                                            }
+                                                        }
+                                                    );
+
+                            if (process) {
+                                toProcess.add(predecessor);
+                            }
                         }
-
-                        returnSite.setOperand(null);
-
-                        _removed.remove(loadSite);
-                        _removed.remove(returnSite);
-                    }
-                    else {
-                        _removed.add(node.getEnd());
                     }
                 }
 
-                processedNodes.add(node);
+                processedNodes.clear();
+
+            nextNode:
+                for (ControlFlowNode node : toProcess) {
+                    final ExceptionHandler nodeHandler = node.getExceptionHandler();
+
+                    if (node.getNodeType() == ControlFlowNodeType.EndFinally) {
+                        continue;
+                    }
+
+                    if (nodeHandler != null) {
+                        node = nodeMap.get(nodeHandler.getHandlerBlock().getLastInstruction());
+                    }
+
+                    if (processedNodes.contains(node) || allFinallyNodes.contains(node)) {
+                        continue;
+                    }
+
+                    Instruction tail = node.getEnd();
+                    boolean isLeave = false;
+                    boolean tryNext = false;
+                    boolean tryPrevious = false;
+
+                    if (finallyTail.getEnd().getOpCode() == OpCode.ATHROW) {
+                        isLeave = true;
+                    }
+
+                    if (last.getOpCode() == OpCode.GOTO || last.getOpCode() == OpCode.GOTO_W) {
+                        tryNext = true;
+                    }
+
+                    if (tail.getOpCode().isUnconditionalBranch()) {
+                        switch (tail.getOpCode()) {
+                            case GOTO:
+                            case GOTO_W:
+                                tail = tail.getPrevious();
+                                tryPrevious = true;
+                                break;
+
+                            case RETURN:
+                                tail = tail.getPrevious();
+                                tryPrevious = true;
+                                break;
+
+                            case IRETURN:
+                            case LRETURN:
+                            case FRETURN:
+                            case DRETURN:
+                            case ARETURN:
+                                tail = tail.getPrevious();
+                                if (finallyTail.getEnd().getOpCode().getFlowControl() == FlowControl.Return) {
+                                    tail = tail.getPrevious();
+                                }
+                                else {
+                                    tryPrevious = true;
+                                }
+                                break;
+                        }
+                    }
+
+                    while (tail != null && _removed.contains(tail)) {
+                        tail = tail.getPrevious();
+                    }
+
+                    if (tail == null) {
+                        continue;
+                    }
+
+                    if (tail.getOffset() - tryHead.getOffset() == last.getOffset() - first.getOffset()) {
+                        //
+                        // If the try block exactly matches the finally, don't remove it.
+                        //
+                        continue;
+                    }
+
+                    if (allFinallyNodes.contains(nodeMap.get(tail)) || !opCodesMatch(last, tail, instructionCount)) {
+                        if (!tryPrevious ||
+                            allFinallyNodes.contains(nodeMap.get(tail.getPrevious())) ||
+                            !opCodesMatch(last, tail.getPrevious(), instructionCount)) {
+
+                            if (!tryNext ||
+                                allFinallyNodes.contains(nodeMap.get(tail.getNext())) ||
+                                !opCodesMatch(last, tail.getNext(), instructionCount)) {
+
+                                continue;
+                            }
+
+                            tail = tail.getNext();
+                        }
+                        else {
+                            tail = tail.getPrevious();
+                        }
+
+                        if (tail == null) {
+                            continue;
+                        }
+                    }
+
+                    for (int i = 0; i < instructionCount; i++) {
+                        _removed.add(tail);
+                        tail = tail.getPrevious();
+                        if (tail == null) {
+                            continue nextNode;
+                        }
+                    }
+
+                    if (isLeave) {
+                        if (tail != null &&
+                            tail.getOpCode().isStore() &&
+                            !_body.getMethod().getReturnType().isVoid()) {
+
+                            final Instruction load = InstructionHelper.reverseLoadOrStore(tail);
+                            final Instruction returnSite = node.getEnd();
+                            final Instruction loadSite = returnSite.getPrevious();
+
+                            loadSite.setOpCode(load.getOpCode());
+
+                            if (load.getOperandCount() == 1) {
+                                loadSite.setOperand(load.getOperand(0));
+                            }
+
+                            switch (load.getOpCode().name().charAt(0)) {
+                                case 'I':
+                                    returnSite.setOpCode(OpCode.IRETURN);
+                                    break;
+                                case 'L':
+                                    returnSite.setOpCode(OpCode.LRETURN);
+                                    break;
+                                case 'F':
+                                    returnSite.setOpCode(OpCode.FRETURN);
+                                    break;
+                                case 'D':
+                                    returnSite.setOpCode(OpCode.DRETURN);
+                                    break;
+                                case 'A':
+                                    returnSite.setOpCode(OpCode.ARETURN);
+                                    break;
+                            }
+
+                            returnSite.setOperand(null);
+
+                            _removed.remove(loadSite);
+                            _removed.remove(returnSite);
+                        }
+                        else {
+                            _removed.add(node.getEnd());
+                        }
+                    }
+
+                    processedNodes.add(node);
+                }
             }
+        }
+        finally {
+            Collections.reverse(handlers);
         }
     }
 
@@ -642,55 +1092,13 @@ public final class AstBuilder {
     private void pruneExceptionHandlers() {
         final List<ExceptionHandler> handlers = _exceptionHandlers;
 
+        removeSelfHandlingFinallyHandlers();
+        trimAggressiveFinallyBlocks();
+        trimAggressiveCatchBlocks();
         closeTryHandlerGaps();
-        mergeSharedHandlers(handlers);
-        alignFinallyBlocksWithSiblingCatchBlocks(handlers);
-
-        for (int i = 0; i < handlers.size(); i++) {
-            final ExceptionHandler handler = handlers.get(i);
-            final ExceptionBlock tryBlock = handler.getTryBlock();
-            final List<ExceptionHandler> siblings = findHandlers(tryBlock, handlers);
-            final ExceptionHandler firstSibling = first(siblings);
-            final ExceptionBlock firstHandler = firstSibling.getHandlerBlock();
-            final Instruction desiredEndTry = firstHandler.getFirstInstruction().getPrevious();
-
-            for (int j = 0; j < siblings.size(); j++) {
-                ExceptionHandler sibling = siblings.get(j);
-
-                if (handler.getTryBlock().getLastInstruction() != desiredEndTry) {
-                    final int index = handlers.indexOf(sibling);
-
-                    if (sibling.isCatch()) {
-                        handlers.set(
-                            index,
-                            ExceptionHandler.createCatch(
-                                new ExceptionBlock(
-                                    tryBlock.getFirstInstruction(),
-                                    desiredEndTry
-                                ),
-                                sibling.getHandlerBlock(),
-                                sibling.getCatchType()
-                            )
-                        );
-                    }
-                    else {
-                        handlers.set(
-                            index,
-                            ExceptionHandler.createFinally(
-                                new ExceptionBlock(
-                                    tryBlock.getFirstInstruction(),
-                                    desiredEndTry
-                                ),
-                                sibling.getHandlerBlock()
-                            )
-                        );
-                    }
-
-                    sibling = handlers.get(index);
-                    siblings.set(j, sibling);
-                }
-            }
-        }
+        mergeSharedHandlers();
+        alignFinallyBlocksWithSiblingCatchBlocks();
+        ensureDesiredProtectedRanges();
 
         for (int i = 0; i < handlers.size(); i++) {
             final ExceptionHandler handler = handlers.get(i);
@@ -910,7 +1318,59 @@ public final class AstBuilder {
         }
     }
 
-    private void alignFinallyBlocksWithSiblingCatchBlocks(final List<ExceptionHandler> handlers) {
+    private void ensureDesiredProtectedRanges() {
+        final List<ExceptionHandler> handlers = _exceptionHandlers;
+
+        for (int i = 0; i < handlers.size(); i++) {
+            final ExceptionHandler handler = handlers.get(i);
+            final ExceptionBlock tryBlock = handler.getTryBlock();
+            final List<ExceptionHandler> siblings = findHandlers(tryBlock, handlers);
+            final ExceptionHandler firstSibling = first(siblings);
+            final ExceptionBlock firstHandler = firstSibling.getHandlerBlock();
+            final Instruction desiredEndTry = firstHandler.getFirstInstruction().getPrevious();
+
+            for (int j = 0; j < siblings.size(); j++) {
+                ExceptionHandler sibling = siblings.get(j);
+
+                if (handler.getTryBlock().getLastInstruction() != desiredEndTry) {
+                    final int index = handlers.indexOf(sibling);
+
+                    if (sibling.isCatch()) {
+                        handlers.set(
+                            index,
+                            ExceptionHandler.createCatch(
+                                new ExceptionBlock(
+                                    tryBlock.getFirstInstruction(),
+                                    desiredEndTry
+                                ),
+                                sibling.getHandlerBlock(),
+                                sibling.getCatchType()
+                            )
+                        );
+                    }
+                    else {
+                        handlers.set(
+                            index,
+                            ExceptionHandler.createFinally(
+                                new ExceptionBlock(
+                                    tryBlock.getFirstInstruction(),
+                                    desiredEndTry
+                                ),
+                                sibling.getHandlerBlock()
+                            )
+                        );
+                    }
+
+                    sibling = handlers.get(index);
+                    siblings.set(j, sibling);
+                }
+            }
+        }
+    }
+
+    private void alignFinallyBlocksWithSiblingCatchBlocks() {
+        final List<ExceptionHandler> handlers = _exceptionHandlers;
+
     outer:
         for (int i = 0; i < handlers.size(); i++) {
             final ExceptionHandler handler = handlers.get(i);
@@ -955,7 +1415,9 @@ public final class AstBuilder {
         }
     }
 
-    private void mergeSharedHandlers(final List<ExceptionHandler> handlers) {
+    private void mergeSharedHandlers() {
+        final List<ExceptionHandler> handlers = _exceptionHandlers;
+
         for (int i = 0; i < handlers.size(); i++) {
             final ExceptionHandler handler = handlers.get(i);
             final List<ExceptionHandler> duplicates = findDuplicateHandlers(handler, handlers);
@@ -1145,6 +1607,20 @@ public final class AstBuilder {
                 }
             }
         }
+    }
+
+    private ControlFlowNode findHandlerNode(final ControlFlowGraph cfg, final ExceptionHandler handler) {
+        final List<ControlFlowNode> nodes = cfg.getNodes();
+
+        for (int i = nodes.size() - 1; i >= 0; i--) {
+            final ControlFlowNode node = nodes.get(i);
+
+            if (node.getExceptionHandler() == handler) {
+                return node;
+            }
+        }
+
+        return null;
     }
 
     private ExceptionHandler findInnermostExceptionHandler(final int offsetInTryBlock, final ExceptionHandler exclude) {
@@ -1395,7 +1871,6 @@ public final class AstBuilder {
         }
 
         final Stack<ByteCode> agenda = new Stack<>();
-        final Set<ByteCode> handlerStarts = new LinkedHashSet<>();
         final int variableCount = _body.getMaxLocals();
         final VariableSlot[] unknownVariables = VariableSlot.makeUnknownState(variableCount);
         final MethodReference method = _body.getMethod();
@@ -1443,8 +1918,6 @@ public final class AstBuilder {
 
         for (final ExceptionHandler handler : exceptionHandlers) {
             final ByteCode handlerStart = byteCodeMap.get(handler.getHandlerBlock().getFirstInstruction());
-
-            handlerStarts.add(handlerStart);
 
             handlerStart.stackBefore = EMPTY_STACK;
             handlerStart.variablesBefore = unknownVariables;
@@ -1545,8 +2018,12 @@ public final class AstBuilder {
                 for (final ControlFlowNode successor : node.getSuccessors()) {
                     final ControlFlowNode actualSuccessor;
                     final ExceptionHandler handler = successor.getExceptionHandler();
+                    final ControlFlowNode endFinallyNode = successor.getEndFinallyNode();
 
-                    if (handler != null) {
+                    if (endFinallyNode != null) {
+                        actualSuccessor = firstOrDefault(endFinallyNode.getDominatorTreeChildren());
+                    }
+                    else if (handler != null) {
                         actualSuccessor = nodeMap.get(handler.getHandlerBlock().getFirstInstruction());
                     }
                     else if (successor.getNodeType() != ControlFlowNodeType.Normal) {
@@ -1556,10 +2033,14 @@ public final class AstBuilder {
                         actualSuccessor = successor;
                     }
 
+                    if (actualSuccessor == null) {
+                        continue;
+                    }
+
                     final Instruction targetInstruction = actualSuccessor.getStart();
                     final ByteCode target = byteCodeMap.get(targetInstruction);
 
-                    if (target.label == null && handler == null) {
+                    if (target.label == null) {
                         target.label = new Label();
                         target.label.setName(target.makeLabelName());
                     }
@@ -2506,7 +2987,7 @@ public final class AstBuilder {
                     tailStartIndex = tempIndex.getValue();
                 }
 
-                final Node lastInTry = lastOrDefault(tryAst);
+                final Node lastInTry = lastOrDefault(tryAst, NOT_A_LABEL_OR_NOP);
 
                 if (lastInTry != null && !lastInTry.isUnconditionalControlFlow()) {
                     tryAst.add(new Expression(AstCode.Leave, null));
@@ -2635,7 +3116,7 @@ public final class AstBuilder {
                 tempIndex.setValue(handlersEndIndex);
 
                 final List<Node> handlerAst = convertToAst(body, nestedHandlers, handlersStartIndex, tempIndex);
-                final Node lastInHandler = lastOrDefault(handlerAst);
+                final Node lastInHandler = lastOrDefault(handlerAst, NOT_A_LABEL_OR_NOP);
 
                 if (tempIndex.getValue() > tailStartIndex) {
                     tailStartIndex = tempIndex.getValue();
@@ -2791,6 +3272,10 @@ public final class AstBuilder {
                         catchBlock.setExceptionVariable(loadException.storeTo.get(0));
 //                        catchBlock.getExceptionVariable().setType(catchType);
                     }
+                }
+                else {
+                    catchBlock.setExceptionVariable(loadException.storeTo.get(0));
+//                        catchBlock.getExceptionVariable().setType(catchType);
                 }
             }
             else {
@@ -3186,6 +3671,17 @@ public final class AstBuilder {
             return sb.toString();
         }
     }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Predicates">
+
+    private final static Predicate<Node> NOT_A_LABEL_OR_NOP = new Predicate<Node>() {
+        @Override
+        public boolean test(final Node node) {
+            return !(node instanceof Label || match(node, AstCode.Nop));
+        }
+    };
 
     // </editor-fold>
 }

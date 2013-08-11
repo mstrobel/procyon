@@ -25,12 +25,14 @@ import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.SwitchInfo;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.Predicate;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 
 import java.util.*;
 
+import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.AstOptimizer.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
@@ -141,7 +143,6 @@ final class LoopsAndConditions {
         //
 
         for (final Node node : nodes) {
-            final List<Node> nodeBody = ((BasicBlock) node).getBody();
             final ControlFlowNode source = astNodesToControlFlowNodes.get(node);
 
             //
@@ -157,7 +158,7 @@ final class LoopsAndConditions {
                     final ControlFlowNode destination = labelsToNodes.get(target);
 
                     if (destination != null &&
-                        (destination != source || !nodeBody.isEmpty() && target == nodeBody.get(0))) {
+                        (destination != source || canBeSelfContainedLoop((BasicBlock) node, e, target))) {
 
                         final ControlFlowEdge edge = new ControlFlowEdge(source, destination, JumpType.Normal);
 
@@ -174,6 +175,72 @@ final class LoopsAndConditions {
         }
 
         return new ControlFlowGraph(cfNodes.toArray(new ControlFlowNode[cfNodes.size()]));
+    }
+
+    private boolean canBeSelfContainedLoop(final BasicBlock node, final Expression branch, final Label target) {
+        final List<Node> nodeBody = node.getBody();
+
+        if (target == null || nodeBody.isEmpty()) {
+            return false;
+        }
+
+        if (target == nodeBody.get(0)) {
+            return true;
+        }
+
+        final Node secondNode = getOrDefault(nodeBody, 1);
+
+        if (secondNode instanceof TryCatchBlock) {
+            final Node next = getOrDefault(nodeBody, 2);
+
+            if (next != branch) {
+                return false;
+            }
+
+            final TryCatchBlock tryCatch = (TryCatchBlock) secondNode;
+            final Block tryBlock = tryCatch.getTryBlock();
+
+            final Predicate<Expression> labelMatch = new Predicate<Expression>() {
+                @Override
+                public boolean test(final Expression e) {
+                    return e != tryBlock.getEntryGoto() && e.getBranchTargets().contains(target);
+                }
+            };
+
+/*
+            if (tryBlock != null) {
+                final Node firstInTryBody = firstOrDefault(tryBlock.getBody());
+
+                if (!(firstInTryBody instanceof BasicBlock &&
+                      target == firstOrDefault(((BasicBlock) firstInTryBody).getBody()))) {
+
+                    return false;
+                }
+
+                final boolean branchInTry = any(tryBlock.getSelfAndChildrenRecursive(Expression.class), labelMatch);
+
+                if (branchInTry) {
+                    return false;
+                }
+            }
+*/
+
+            for (final CatchBlock catchBlock : tryCatch.getCatchBlocks()) {
+                if (any(catchBlock.getSelfAndChildrenRecursive(Expression.class), labelMatch)) {
+                    return true;
+                }
+            }
+
+            if (tryCatch.getFinallyBlock() != null &&
+                any(tryCatch.getFinallyBlock().getSelfAndChildrenRecursive(Expression.class), labelMatch)) {
+
+                return true;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     @SuppressWarnings("ConstantConditions")

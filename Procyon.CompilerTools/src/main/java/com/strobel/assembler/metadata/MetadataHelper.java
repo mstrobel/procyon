@@ -29,6 +29,10 @@ import java.util.*;
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public final class MetadataHelper {
+    public static boolean areGenericsSupported(final TypeDefinition t) {
+        return t != null && t.getCompilerMajorVersion() >= 49;
+    }
+
     public static int getArrayRank(final TypeReference t) {
         if (t == null) {
             return 0;
@@ -1281,6 +1285,35 @@ public final class MetadataHelper {
         }
 
         return false;
+    }
+
+    public static int getUnboundGenericParameterCount(final TypeReference t) {
+        if (t == null || t instanceof RawType || !t.isGenericType()) {
+            return 0;
+        }
+
+        final List<GenericParameter> genericParameters = t.getGenericParameters();
+
+        if (t.isGenericDefinition()) {
+            return genericParameters.size();
+        }
+
+        final List<TypeReference> typeArguments = ((IGenericInstance)t).getTypeArguments();
+
+        assert genericParameters.size() == typeArguments.size();
+
+        int count = 0;
+
+        for (int i = 0; i < genericParameters.size(); i++) {
+            final GenericParameter genericParameter = genericParameters.get(i);
+            final TypeReference typeArgument = typeArguments.get(i);
+
+            if (isSameType(genericParameter, typeArgument, true)) {
+                ++count;
+            }
+        }
+
+        return count;
     }
 
     public static List<TypeReference> eraseRecursive(final List<TypeReference> types) {

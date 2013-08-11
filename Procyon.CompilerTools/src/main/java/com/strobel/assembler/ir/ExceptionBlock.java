@@ -37,6 +37,12 @@ public final class ExceptionBlock {
         return _lastInstruction;
     }
 
+    public final boolean contains(final Instruction instruction) {
+        return instruction != null &&
+               instruction.getOffset() >= getFirstInstruction().getOffset() &&
+               instruction.getOffset() <= getLastInstruction().getOffset();
+    }
+
     public final boolean contains(final ExceptionBlock block) {
         return block != null &&
                block.getFirstInstruction().getOffset() >= getFirstInstruction().getOffset() &&

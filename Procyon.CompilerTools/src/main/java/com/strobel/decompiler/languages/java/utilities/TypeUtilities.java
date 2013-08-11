@@ -253,7 +253,7 @@ public final class TypeUtilities {
         final AstNode parent = skipParenthesesUp(expression.getParent());
 
         if (expression.getRole() == Roles.CONDITION) {
-            return CommonTypeReferences.BOOLEAN;
+            return CommonTypeReferences.Boolean;
         }
 
         if (parent instanceof VariableInitializer) {

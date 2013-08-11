@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.CommonTypeReferences;
 import com.strobel.assembler.metadata.MetadataResolver;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
@@ -248,9 +249,9 @@ public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode
             final BinaryOperatorExpression binary = (BinaryOperatorExpression) right;
             final Expression innerLeft = binary.getLeft();
             final Expression innerRight = binary.getRight();
+            final BinaryOperatorType binaryOp = binary.getOperator();
 
             if (innerLeft.matches(left)) {
-                final BinaryOperatorType binaryOp = binary.getOperator();
                 final AssignmentOperatorType assignOp = AssignmentExpression.getCorrespondingAssignmentOperator(binaryOp);
 
                 if (assignOp != null) {
@@ -266,28 +267,40 @@ public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode
                     return true;
                 }
             }
-            else if (innerRight.matches(left)) {
-                final BinaryOperatorType binaryOp = binary.getOperator();
+            else if (binaryOp.isCommutative() && innerRight.matches(left)) {
+                final ResolveResult leftResult = _resolver.apply(left);
+                final ResolveResult innerLeftResult = _resolver.apply(innerLeft);
+
+                //
+                // The transform from `t = n + t` to `t += n` is legal for numeric types, but the
+                // commutative property does not hold for string concatenation (i.e., the result
+                // depends on the order of the operands).  If the assignment target does not match
+                // the left operand, and either operand is a string, then do not apply a compound
+                // assignment transform.
+                //
+
+                if (leftResult == null || leftResult.getType() == null ||
+                    innerLeftResult == null || innerLeftResult.getType() == null) {
+
+                    return false;
+                }
+
+                if (CommonTypeReferences.String.isEquivalentTo(leftResult.getType()) ||
+                    CommonTypeReferences.String.isEquivalentTo(innerLeftResult.getType())) {
+
+                    return false;
+                }
+
                 final AssignmentOperatorType assignOp = AssignmentExpression.getCorrespondingAssignmentOperator(binaryOp);
 
-                if (assignOp != null) {
-                    switch (assignOp) {
-                        case ADD:
-                        case MULTIPLY:
-                        case BITWISE_AND:
-                        case BITWISE_OR:
-                        case EXCLUSIVE_OR: {
-                            //
-                            // t = n (op) t => t (op)= n
-                            //
+                //
+                // t = n (op) t => t (op)= n
+                //
 
-                            innerLeft.remove();
-                            right.replaceWith(innerLeft);
-                            node.setOperator(assignOp);
-                            return true;
-                        }
-                    }
-                }
+                innerLeft.remove();
+                right.replaceWith(innerLeft);
+                node.setOperator(assignOp);
+                return true;
             }
         }
 
