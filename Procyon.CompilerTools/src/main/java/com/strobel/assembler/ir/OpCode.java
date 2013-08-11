@@ -217,8 +217,8 @@ public enum OpCode {
     IFNULL(0xC6, FlowControl.ConditionalBranch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.PopA, StackBehavior.Push0),
     IFNONNULL(0xC7, FlowControl.ConditionalBranch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.PopA, StackBehavior.Push0),
     GOTO_W(0xC8, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.Push0),
-    JSR_W(0xC9, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.Push0),
-    BREAKPOINT(0xC9, FlowControl.Breakpoint, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.PushAddress),
+    JSR_W(0xC9, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.PushAddress),
+    BREAKPOINT(0xC9, FlowControl.Breakpoint, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0),
     ILOAD_W(0xC415, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.PushI4),
     LLOAD_W(0xC416, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.PushI8),
     FLOAD_W(0xC417, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.PushR4),
@@ -376,6 +376,7 @@ public enum OpCode {
                 return true;
 
             case RET:
+            case RET_W:
                 return true;
 
             default:
