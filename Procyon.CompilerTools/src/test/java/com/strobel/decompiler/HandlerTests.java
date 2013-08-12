@@ -116,7 +116,7 @@ public class HandlerTests extends DecompilerTest {
         private static void doSomething() throws FileNotFoundException {
         }
 
-        boolean test(final String[] path) {
+        boolean test() {
             final boolean lockAcquired = tryEnter(this);
             boolean result;
 
@@ -227,6 +227,10 @@ public class HandlerTests extends DecompilerTest {
     }
 
     private static class K {
+        private static String zero() {
+            return "zero";
+        }
+
         private static String negative() {
             return "negative";
         }
@@ -247,6 +251,9 @@ public class HandlerTests extends DecompilerTest {
                         }
                         else if (x > 0) {
                             return positive();
+                        }
+                        else if (x == 0) {
+                            return zero();
                         }
                     }
                     catch (Throwable t) {
@@ -453,7 +460,7 @@ public class HandlerTests extends DecompilerTest {
             "    }\n" +
             "    private static void doSomething() throws FileNotFoundException {\n" +
             "    }\n" +
-            "    boolean test(final String[] path) {\n" +
+            "    boolean test() {\n" +
             "        final boolean lockAcquired = tryEnter(this);\n" +
             "        boolean result;\n" +
             "        try {\n" +
@@ -594,6 +601,9 @@ public class HandlerTests extends DecompilerTest {
             K.class,
             defaultSettings(),
             "private static class K {\n" +
+            "    private static String zero() {\n" +
+            "        return \"zero\";\n" +
+            "    }\n" +
             "    private static String negative() {\n" +
             "        return \"negative\";\n" +
             "    }\n" +
@@ -611,6 +621,9 @@ public class HandlerTests extends DecompilerTest {
             "                }\n" +
             "                if (x > 0) {\n" +
             "                    positive();\n" +
+            "                }\n" +
+            "                if (x == 0) {\n" +
+            "                    zero();\n" +
             "                }\n" +
             "            }\n" +
             "            catch (Throwable t) {\n" +

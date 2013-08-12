@@ -617,32 +617,45 @@ public final class AstBuilder {
                     Collections.sort(finallyNodes);
 
                     final Instruction first = handlerBlock.getFirstInstruction();
-                    final Instruction last = last(finallyNodes).getEnd();
-                    final Instruction nextToLast = last.getPrevious();
 
-                    if (first.getOpCode().isStore() &&
-                        last.getOpCode() == OpCode.ATHROW &&
-                        nextToLast.getOpCode().isLoad() &&
-                        InstructionHelper.getLoadOrStoreSlot(first) == InstructionHelper.getLoadOrStoreSlot(nextToLast)) {
+                    Instruction last = last(finallyNodes).getEnd();
+                    Instruction nextToLast = last.getPrevious();
 
-                        nextToLast.setOpCode(OpCode.NOP);
-                        nextToLast.setOperand(null);
+                    boolean firstPass = true;
 
-                        _removed.add(nextToLast);
+                    while (true) {
+                        if (first.getOpCode().isStore() &&
+                            last.getOpCode() == OpCode.ATHROW &&
+                            nextToLast.getOpCode().isLoad() &&
+                            InstructionHelper.getLoadOrStoreSlot(first) == InstructionHelper.getLoadOrStoreSlot(nextToLast)) {
 
-                        if (nextToLast.getPrevious() != null &&
-                            nextToLast.getPrevious().getOpCode().isUnconditionalBranch() &&
-                            !nextToLast.getPrevious().getOpCode().isJumpToSubroutine()) {
+                            nextToLast.setOpCode(OpCode.NOP);
+                            nextToLast.setOperand(null);
 
-                            last.setOpCode(OpCode.NOP);
-                            _removed.add(last);
-                        }
-                        else {
+                            _removed.add(nextToLast);
+
+                            if (nextToLast.getPrevious() != null &&
+                                nextToLast.getPrevious().getOpCode().isUnconditionalBranch() &&
+                                !nextToLast.getPrevious().getOpCode().isJumpToSubroutine()) {
+
+                                last.setOpCode(OpCode.NOP);
+                                _removed.add(last);
+                            }
+                            else {
+                                last.setOpCode(OP_LEAVE);
+                            }
+
                             last.setOpCode(OP_LEAVE);
+                            last.setOperand(null);
+                            break;
                         }
 
-                        last.setOperand(null);
-                    }
+                        if (firstPass = !firstPass) {
+                            break;
+                        }
+
+                        last = handlerBlock.getLastInstruction();
+                        nextToLast = last.getPrevious();}
                 }
             }
 
@@ -759,6 +772,7 @@ public final class AstBuilder {
                     if (first.getOpCode().isStore() || first.getOpCode() == OpCode.POP) {
                         first = first.getNext();
                     }
+
                     if (last.getOpCode().getFlowControl() == FlowControl.Return/* ||
                         last.getOpCode().getFlowControl() == FlowControl.Throw */) {
 

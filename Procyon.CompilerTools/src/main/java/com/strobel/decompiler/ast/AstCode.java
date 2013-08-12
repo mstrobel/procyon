@@ -534,6 +534,11 @@ public enum AstCode {
             case __FLoad:
             case __DLoad:
             case __ALoad:
+            case __ALoadW:
+            case __ILoadW:
+            case __FLoadW:
+            case __LLoadW:
+            case __DLoadW:
                 code.set(Load);
                 return true;
             case __ILoad0:
@@ -637,6 +642,11 @@ public enum AstCode {
             case __FStore:
             case __DStore:
             case __AStore:
+            case __AStoreW:
+            case __IStoreW:
+            case __LStoreW:
+            case __FStoreW:
+            case __DStoreW:
                 code.set(Store);
                 return true;
             case __IStore0:
