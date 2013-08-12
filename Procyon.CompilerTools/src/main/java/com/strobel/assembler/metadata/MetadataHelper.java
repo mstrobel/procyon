@@ -1298,6 +1298,12 @@ public final class MetadataHelper {
             return genericParameters.size();
         }
 
+        final IGenericParameterProvider genericDefinition = ((IGenericInstance)t).getGenericDefinition();
+
+        if (!genericDefinition.isGenericDefinition()) {
+            return 0;
+        }
+
         final List<TypeReference> typeArguments = ((IGenericInstance)t).getTypeArguments();
 
         assert genericParameters.size() == typeArguments.size();
@@ -2263,46 +2269,6 @@ public final class MetadataHelper {
 
             return result;
         }
-/*
-        @Override
-        public Type visitClassType(ClassType t, Symbol sym) {
-            if (t.tsym == sym)
-                return t;
-            Type base = asSuper(sym.type, t.tsym);
-            if (base == null)
-                return null;
-            ListBuffer<Type> from = new ListBuffer<Type>();
-            ListBuffer<Type> to = new ListBuffer<Type>();
-            try {
-                adapt(base, t, from, to);
-            } catch (AdaptFailure ex) {
-                return null;
-            }
-            Type res = subst(sym.type, from.toList(), to.toList());
-            if (!isSubtype(res, t))
-                return null;
-            ListBuffer<Type> openVars = new ListBuffer<Type>();
-            for (List<Type> l = sym.type.allparams();
-                 l.nonEmpty(); l = l.tail)
-                if (res.contains(l.head) && !t.contains(l.head))
-                    openVars.append(l.head);
-            if (openVars.nonEmpty()) {
-                if (t.isRaw()) {
-                    // The subtype of a raw type is raw
-                    res = erasure(res);
-                } else {
-                    // Unbound type arguments default to ?
-                    List<Type> opens = openVars.toList();
-                    ListBuffer<Type> qs = new ListBuffer<Type>();
-                    for (List<Type> iter = opens; iter.nonEmpty(); iter = iter.tail) {
-                        qs.append(new WildcardType(syms.objectType, BoundKind.UNBOUND, syms.boundClass, (TypeVar) iter.head.unannotatedType()));
-                    }
-                    res = subst(res, opens, qs.toList());
-                }
-            }
-            return res;
-        }
-*/
     };
 
     // </editor-fold>
