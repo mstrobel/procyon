@@ -36,7 +36,6 @@ import static com.strobel.decompiler.ast.PatternMatching.*;
 public final class TypeAnalysis {
     private final List<ExpressionToInfer> _allExpressions = new ArrayList<>();
     private final Set<Variable> _singleLoadVariables = new LinkedHashSet<>();
-    private final Set<Pair<Variable, TypeReference>> _previouslyInferred = new LinkedHashSet<>();
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final Map<Variable, List<ExpressionToInfer>> _assignmentExpressions = new IdentityHashMap<Variable, List<ExpressionToInfer>>() {
@@ -57,6 +56,7 @@ public final class TypeAnalysis {
         }
     };
 
+    private final Set<Pair<Variable, TypeReference>> _previouslyInferred = new LinkedHashSet<>();
     private final IdentityHashMap<Variable, TypeReference> _inferredVariableTypes = new IdentityHashMap<>();
 
     private DecompilerContext _context;
@@ -290,6 +290,7 @@ public final class TypeAnalysis {
 
     @SuppressWarnings("ConstantConditions")
     private void runInference() {
+        _previouslyInferred.clear();
         _inferredVariableTypes.clear();
 
         int numberOfExpressionsAlreadyInferred = 0;
