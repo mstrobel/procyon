@@ -20,7 +20,6 @@ import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.ExceptionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.ExceptionHandlerType;
-import com.strobel.assembler.ir.FlowControl;
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OperandType;
@@ -249,16 +248,45 @@ public final class ControlFlowGraphBuilder {
                 final OpCode opCode = instruction.getOpCode();
 
                 if (opCode.getOperandType() == OperandType.BranchTarget) {
-                    final ControlFlowNode finallyBlock = findInnermostFinallyHandlerNode(end.getOffset());
+                    final ControlFlowNode handlerNode = findInnermostHandlerBlock(end.getOffset());
 
-                    if (finallyBlock != null &&
-                        finallyBlock.getNodeType() == ControlFlowNodeType.FinallyHandler &&
-                        !finallyBlock.getExceptionHandler().getTryBlock().contains(instruction.<Instruction>getOperand(0))) {
+                    ControlFlowNode finallyNode = findInnermostFinallyHandlerNode(end.getOffset());
+                    ExceptionHandler finallyHandler = finallyNode.getExceptionHandler();
 
-                        createEdge(node, instruction.<Instruction>getOperand(0), JumpType.LeaveTry);
+                    boolean isFinallyAdjacent = false;
+
+                    if (handlerNode != finallyNode) {
+                        final ExceptionHandler handler = handlerNode.getExceptionHandler();
+                        final ControlFlowNode adjacentFinally = findInnermostFinallyHandlerNode(handler.getTryBlock().getLastInstruction().getOffset());
+
+                        if (adjacentFinally.getNodeType() == ControlFlowNodeType.FinallyHandler &&
+                            (finallyNode.getNodeType() != ControlFlowNodeType.FinallyHandler || finallyNode != adjacentFinally)) {
+
+                            finallyNode = adjacentFinally;
+                            finallyHandler = adjacentFinally.getExceptionHandler();
+                            isFinallyAdjacent = true;
+                        }
+                    }
+
+                    if (finallyNode.getNodeType() == ControlFlowNodeType.FinallyHandler &&
+                        !finallyHandler.getTryBlock().contains(instruction.<Instruction>getOperand(0)) &&
+                        !finallyHandler.getHandlerBlock().contains(end) &&
+                        !end.getOpCode().isJumpToSubroutine()) {
+
+                        if (end == finallyHandler.getHandlerBlock().getLastInstruction()) {
+                            createEdge(findNode(instruction.<Instruction>getOperand(0)), finallyNode.getEndFinallyNode(), JumpType.Normal);
+                        }
+                        else {
+                            createEdge(node, instruction.<Instruction>getOperand(0), JumpType.LeaveTry);
+                        }
                     }
                     else {
-                        createEdge(node, instruction.<Instruction>getOperand(0), JumpType.Normal);
+                        createEdge(
+                            node,
+                            instruction.<Instruction>getOperand(0),
+                            isFinallyAdjacent && !finallyHandler.getHandlerBlock().contains(end) ? JumpType.LeaveTry
+                                                                                                 : JumpType.Normal
+                        );
                     }
                 }
                 else if (opCode.getOperandType() == OperandType.Switch) {
@@ -275,22 +303,43 @@ public final class ControlFlowGraphBuilder {
             //
             // Create edges for return and leave instructions.
             //
-            if (endOpCode.isLeave() || endOpCode.isReturn() || endOpCode.isThrow()) {
+            if (endOpCode.isLeave()) {
                 ControlFlowNode handlerBlock = findInnermostHandlerBlock(end.getOffset());
 
-                if (handlerBlock != _exceptionalExit &&
-                    handlerBlock.getEndFinallyNode() == null) {
+                if (handlerBlock != _exceptionalExit) {
+                    if (handlerBlock.getEndFinallyNode() == null) {
+                        handlerBlock = findInnermostFinallyHandlerNode(
+                            handlerBlock.getExceptionHandler().getTryBlock().getLastInstruction().getOffset()
+                        );
+                    }
 
-                    handlerBlock = findInnermostFinallyHandlerNode(
-                        handlerBlock.getExceptionHandler().getTryBlock().getLastInstruction().getOffset()
-                    );
+                    if (handlerBlock.getEndFinallyNode() != null &&
+                        handlerBlock.getExceptionHandler().getHandlerBlock().contains(end)) {
+
+                        createEdge(node, handlerBlock.getEndFinallyNode(), JumpType.Normal);
+                    }
+                    else {
+                        createEdge(node, handlerBlock, JumpType.LeaveTry);
+                    }
+                }
+            }
+            else if (endOpCode.isReturn()) {
+                final ControlFlowNode handlerBlock = findInnermostHandlerBlock(end.getOffset());
+                ControlFlowNode finallyBlock = findInnermostFinallyHandlerNode(end.getOffset());
+
+                if (handlerBlock != finallyBlock) {
+                    final ExceptionHandler handler = handlerBlock.getExceptionHandler();
+                    final ControlFlowNode adjacentFinally = findInnermostFinallyHandlerNode(handler.getTryBlock().getLastInstruction().getOffset());
+
+                    if (finallyBlock.getNodeType() != ControlFlowNodeType.FinallyHandler || finallyBlock != adjacentFinally) {
+                        finallyBlock = adjacentFinally;
+                    }
                 }
 
-                if (handlerBlock.getEndFinallyNode() != null) {
-                    createEdge(node, handlerBlock.getEndFinallyNode(), JumpType.Normal);
+                if (finallyBlock.getNodeType() == ControlFlowNodeType.FinallyHandler) {
+                    createEdge(node, _regularExit, JumpType.LeaveTry);
                 }
-
-                if (endOpCode.getFlowControl() == FlowControl.Return) {
+                else {
                     createEdge(node, _regularExit, JumpType.Normal);
                 }
             }
@@ -311,7 +360,26 @@ public final class ControlFlowGraphBuilder {
                 final ControlFlowNode innermostHandler = findInnermostExceptionHandlerNode(node.getEnd().getOffset());
 
                 if (innermostHandler == _exceptionalExit) {
-                    createEdge(node, innermostHandler, JumpType.JumpToExceptionHandler);
+                    final ControlFlowNode handlerBlock = findInnermostHandlerBlock(node.getEnd().getOffset());
+
+                    ControlFlowNode finallyBlock;
+
+                    if (handlerBlock.getExceptionHandler() != null) {
+                        finallyBlock = findInnermostFinallyHandlerNode(
+                            handlerBlock.getExceptionHandler().getTryBlock().getLastInstruction().getOffset()
+                        );
+
+                        if (finallyBlock.getNodeType() == ControlFlowNodeType.FinallyHandler &&
+                            finallyBlock.getExceptionHandler().getHandlerBlock().contains(end)) {
+
+                            finallyBlock = _exceptionalExit;
+                        }
+                    }
+                    else {
+                        finallyBlock = _exceptionalExit;
+                    }
+
+                    createEdge(node, finallyBlock, JumpType.JumpToExceptionHandler);
                 }
                 else {
                     for (final ExceptionHandler handler : _exceptionHandlers) {
@@ -329,6 +397,24 @@ public final class ControlFlowGraphBuilder {
                             createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
                         }
                     }
+
+                    //
+                    // If we're in a catch block, and we have an adjacent finally block, jump to it.
+                    //
+
+                    final ControlFlowNode handlerBlock = findInnermostHandlerBlock(node.getEnd().getOffset());
+
+                    if (handlerBlock != innermostHandler &&
+                        handlerBlock.getNodeType() == ControlFlowNodeType.CatchHandler) {
+
+                        final ControlFlowNode finallyBlock = findInnermostFinallyHandlerNode(
+                            handlerBlock.getExceptionHandler().getTryBlock().getLastInstruction().getOffset()
+                        );
+
+                        if (finallyBlock.getNodeType() == ControlFlowNodeType.FinallyHandler) {
+                            createEdge(node, finallyBlock, JumpType.JumpToExceptionHandler);
+                        }
+                    }
                 }
             }
 
@@ -336,6 +422,18 @@ public final class ControlFlowGraphBuilder {
 
             if (exceptionHandler != null) {
                 if (exceptionHandler.isFinally()) {
+                    final ControlFlowNode handlerBlock = findInnermostFinallyHandlerNode(
+                        exceptionHandler.getHandlerBlock().getLastInstruction().getOffset()
+                    );
+
+                    if (handlerBlock.getNodeType() == ControlFlowNodeType.FinallyHandler && handlerBlock != node) {
+                        createEdge(
+                            node,
+                            handlerBlock,
+                            JumpType.JumpToExceptionHandler
+                        );
+                    }
+
                     createEdge(
                         node.getEndFinallyNode(),
                         findParentExceptionHandlerNode(node),
@@ -343,9 +441,13 @@ public final class ControlFlowGraphBuilder {
                     );
                 }
                 else {
+                    final ControlFlowNode adjacentFinally = findInnermostFinallyHandlerNode(
+                        exceptionHandler.getTryBlock().getLastInstruction().getOffset()
+                    );
+
                     createEdge(
                         node,
-                        findParentExceptionHandlerNode(node),
+                        adjacentFinally != null ? adjacentFinally : findParentExceptionHandlerNode(node),
                         JumpType.JumpToExceptionHandler
                     );
                 }
@@ -368,38 +470,47 @@ public final class ControlFlowGraphBuilder {
             final ControlFlowNode node = _nodes.get(i);
             final Instruction end = node.getEnd();
 
-            if (end != null &&
-                !node.getOutgoing().isEmpty() &&
-                node.getOutgoing().get(0).getType() == JumpType.LeaveTry) {
+            if (end != null && !node.getOutgoing().isEmpty()) {
+                for (final ControlFlowEdge edge : node.getOutgoing()) {
+                    if (edge.getType() == JumpType.LeaveTry) {
+                        assert end.getOpCode().isBranch();
 
-                assert end.getOpCode() == OpCode.GOTO ||
-                       end.getOpCode() == OpCode.GOTO_W ||
-                       end.getOpCode() == OpCode.JSR ||
-                       end.getOpCode() == OpCode.JSR_W;
+                        final ControlFlowNode handlerBlock = findInnermostHandlerBlock(end.getOffset());
+                        ControlFlowNode finallyBlock = findInnermostFinallyHandlerNode(end.getOffset());
 
-                ControlFlowNode handler = findInnermostHandlerBlock(end.getOffset());
+                        if (handlerBlock != finallyBlock) {
+                            final ExceptionHandler handler = handlerBlock.getExceptionHandler();
+                            final ControlFlowNode adjacentFinally = findInnermostFinallyHandlerNode(handler.getTryBlock().getLastInstruction().getOffset());
 
-                if (handler != _exceptionalExit && handler.getEndFinallyNode() == null) {
-                    handler = findInnermostFinallyHandlerNode(
-                        handler.getExceptionHandler().getTryBlock().getLastInstruction().getOffset()
-                    );
+                            if (finallyBlock.getNodeType() != ControlFlowNodeType.FinallyHandler || finallyBlock != adjacentFinally) {
+                                finallyBlock = adjacentFinally;
+                            }
+                        }
+
+                        final ControlFlowNode target = edge.getTarget();
+
+                        target.getIncoming().remove(edge);
+                        node.getOutgoing().remove(edge);
+
+                        if (finallyBlock.getNodeType() == ControlFlowNodeType.ExceptionalExit) {
+                            createEdge(node, finallyBlock, JumpType.Normal);
+                            continue;
+                        }
+
+                        assert finallyBlock.getNodeType() == ControlFlowNodeType.FinallyHandler;
+
+                        if (finallyBlock.getExceptionHandler().getHandlerBlock().contains(end)) {
+                            createEdge(node, finallyBlock.getEndFinallyNode(), JumpType.Normal);
+                        }
+                        else {
+                            createEdge(node, finallyBlock, JumpType.Normal);
+                        }
+
+                        if (finallyBlock != target) {
+                            createEdge(finallyBlock.getEndFinallyNode(), target, JumpType.EndFinally);
+                        }
+                    }
                 }
-
-                final ControlFlowEdge edge = node.getOutgoing().get(0);
-                final ControlFlowNode target = edge.getTarget();
-
-                target.getIncoming().remove(edge);
-                node.getOutgoing().remove(edge);
-
-                if (handler.getNodeType() == ControlFlowNodeType.ExceptionalExit) {
-                    createEdge(node, handler, JumpType.Normal);
-                    continue;
-                }
-
-                assert handler.getNodeType() == ControlFlowNodeType.FinallyHandler;
-
-                createEdge(node, handler, JumpType.Normal);
-                createEdge(handler.getEndFinallyNode(), target, JumpType.EndFinally);
             }
         }
     }
@@ -458,6 +569,24 @@ public final class ControlFlowGraphBuilder {
 
         return tryStart.getOffset() == anchorTryStart.getOffset() &&
                tryEnd.getOffset() < anchorTryEnd.getOffset();
+    }
+
+    private static boolean isNarrower(final ExceptionBlock block, final ExceptionBlock anchor) {
+        if (block == null || anchor == null) {
+            return false;
+        }
+
+        final Instruction start = block.getFirstInstruction();
+        final Instruction anchorStart = block.getFirstInstruction();
+        final Instruction end = block.getLastInstruction();
+        final Instruction anchorEnd = block.getLastInstruction();
+
+        if (start.getOffset() > anchorStart.getOffset()) {
+            return end.getOffset() < anchorEnd.getEndOffset();
+        }
+
+        return start.getOffset() == anchorStart.getOffset() &&
+               end.getOffset() < anchorEnd.getOffset();
     }
 
     private ControlFlowNode findParentExceptionHandlerNode(final ControlFlowNode node) {
@@ -524,6 +653,24 @@ public final class ControlFlowGraphBuilder {
         return index;
     }
 
+    private ControlFlowNode findNode(final Instruction instruction) {
+        final int offset = instruction.getOffset();
+
+        for (final ControlFlowNode node : _nodes) {
+            if (node.getNodeType() != ControlFlowNodeType.Normal) {
+                continue;
+            }
+
+            if (offset >= node.getStart().getOffset() &&
+                offset < node.getEnd().getEndOffset()) {
+
+                return node;
+            }
+        }
+
+        return null;
+    }
+
     private ExceptionHandler findInnermostExceptionHandler(final int offsetInTryBlock) {
         ExceptionHandler result = null;
 
@@ -542,6 +689,8 @@ public final class ControlFlowGraphBuilder {
     }
 
     private ExceptionHandler findInnermostFinallyHandler(final int offsetInTryBlock) {
+        ExceptionHandler result = null;
+
         for (final ExceptionHandler handler : _exceptionHandlers) {
             if (!handler.isFinally()) {
                 continue;
@@ -550,13 +699,14 @@ public final class ControlFlowGraphBuilder {
             final ExceptionBlock tryBlock = handler.getTryBlock();
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
-                offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset()) {
+                offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
+                (result == null || isNarrower(handler, result))) {
 
-                return handler;
+                result = handler;
             }
         }
 
-        return null;
+        return result;
     }
 
     private ControlFlowNode findInnermostHandlerBlock(final int instructionOffset) {
@@ -567,20 +717,21 @@ public final class ControlFlowGraphBuilder {
             final ExceptionBlock tryBlock = handler.getTryBlock();
             final ExceptionBlock handlerBlock = handler.getHandlerBlock();
 
-            if (tryBlock.getFirstInstruction().getOffset() <= instructionOffset &&
-                instructionOffset < tryBlock.getLastInstruction().getEndOffset() &&
-                (resultBlock == null || isNarrower(handler, result))) {
+            if (handlerBlock.getFirstInstruction().getOffset() <= instructionOffset &&
+                instructionOffset < handlerBlock.getLastInstruction().getEndOffset() &&
+                (resultBlock == null || isNarrower(handler.getHandlerBlock(), resultBlock))) {
 
                 result = handler;
                 resultBlock = tryBlock;
             }
-            else if (handlerBlock.getFirstInstruction().getOffset() <= instructionOffset &&
-                     instructionOffset < handlerBlock.getLastInstruction().getEndOffset() &&
-                     (resultBlock == null || isNarrower(handler, result))) {
+        }
 
-                result = handler;
-                resultBlock = handlerBlock;
-            }
+        final ControlFlowNode innerMost = findInnermostExceptionHandlerNode(instructionOffset);
+        final ExceptionHandler innerHandler = innerMost.getExceptionHandler();
+        final ExceptionBlock innerBlock = innerHandler != null ? innerHandler.getTryBlock() : null;
+
+        if (innerBlock != null && (resultBlock == null || isNarrower(innerBlock, resultBlock))) {
+            result = innerHandler;
         }
 
         if (result == null) {

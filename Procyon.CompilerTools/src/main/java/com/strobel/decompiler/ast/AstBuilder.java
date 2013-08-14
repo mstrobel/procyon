@@ -27,7 +27,6 @@ import com.strobel.assembler.ir.*;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.MutableInteger;
-import com.strobel.core.Pair;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
@@ -432,15 +431,31 @@ public final class AstBuilder {
     }
 
     private static Set<ControlFlowNode> findDominatedNodes(final ControlFlowGraph cfg, final ControlFlowNode head) {
+        return findDominatedNodes(cfg, head, false);
+    }
+
+    private static Set<ControlFlowNode> findDominatedNodes(final ControlFlowGraph cfg, final ControlFlowNode head, final boolean diveIntoHandlers) {
         final Set<ControlFlowNode> agenda = new LinkedHashSet<>();
         final Set<ControlFlowNode> result = new LinkedHashSet<>();
 
         agenda.add(head);
 
         while (!agenda.isEmpty()) {
-            final ControlFlowNode addNode = agenda.iterator().next();
+            ControlFlowNode addNode = agenda.iterator().next();
 
             agenda.remove(addNode);
+
+            if (diveIntoHandlers && addNode.getExceptionHandler() != null) {
+                addNode = findNode(cfg, addNode.getExceptionHandler().getHandlerBlock().getFirstInstruction());
+            }
+//            else if (addNode.getNodeType() == ControlFlowNodeType.EndFinally) {
+//                for (final ControlFlowEdge edge : addNode.getOutgoing()) {
+//                    if (edge.getType() == JumpType.EndFinally) {
+//                        agenda.add(edge.getTarget());
+//                    }
+//                }
+//                continue;
+//            }
 
             if (addNode.getNodeType() != ControlFlowNodeType.Normal) {
                 continue;
@@ -468,6 +483,10 @@ public final class AstBuilder {
         final ControlFlowGraph cfg,
         final ControlFlowNode head,
         final ControlFlowNode node) {
+
+        if (node.getNodeType() != ControlFlowNodeType.Normal) {
+            return false;
+        }
 
         if (!node.getDominanceFrontier().contains(cfg.getExceptionalExit()) &&
             !node.dominates(cfg.getExceptionalExit())) {
@@ -608,7 +627,7 @@ public final class AstBuilder {
                     if (!StringUtilities.equals(m1.getFullName(), m2.getFullName()) ||
                         !StringUtilities.equals(m1.getSignature(), m2.getSignature())) {
 
-                       return false;
+                        return false;
                     }
                 }
             }
@@ -636,7 +655,7 @@ public final class AstBuilder {
                 if (handler.isFinally()) {
                     final ExceptionBlock handlerBlock = handler.getHandlerBlock();
                     final ControlFlowNode finallyHead = findNode(cfg, handler.getHandlerBlock().getFirstInstruction());
-                    final List<ControlFlowNode> finallyNodes = toList(findDominatedNodes(cfg, finallyHead));
+                    final List<ControlFlowNode> finallyNodes = toList(findDominatedNodes(cfg, finallyHead, true));
 
                     Collections.sort(finallyNodes);
 
@@ -698,11 +717,12 @@ public final class AstBuilder {
                 final ExceptionHandler handler = handlers.get(i);
                 final ExceptionBlock handlerBlock = handler.getHandlerBlock();
                 final ControlFlowNode head = nodeMap.get(handlerBlock.getFirstInstruction());
-                final ControlFlowNode tail = nodeMap.get(handlerBlock.getLastInstruction());
                 final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
 
                 final List<ControlFlowNode> tryNodes = new ArrayList<>(findDominatedNodes(cfg, tryHead));
-                final List<ControlFlowNode> handlerNodes = new ArrayList<>(findDominatedNodes(cfg, head));
+                final List<ControlFlowNode> handlerNodes = new ArrayList<>(findDominatedNodes(cfg, head, false));
+
+                final ControlFlowNode tail = last(handlerNodes);
 
                 Collections.sort(tryNodes);
                 Collections.sort(handlerNodes);
@@ -726,78 +746,8 @@ public final class AstBuilder {
 
             for (final ExceptionHandler handler : finallyHandlers) {
                 final HandlerInfo handlerInfo = handlerMap.get(handler);
-                final List<ExceptionHandler> siblings = new ArrayList<>();
-                final Set<ControlFlowNode> successors = new LinkedHashSet<>();
+                final List<ControlFlowNode> successors = new ArrayList<>();
                 final Set<ControlFlowNode> toProcess = new LinkedHashSet<>();
-
-                for (final ControlFlowNode node : handlerInfo.tryNodes) {
-                    for (final ControlFlowEdge edge : node.getOutgoing()) {
-                        final ControlFlowNode successor = edge.getTarget();
-
-                        switch (successor.getNodeType()) {
-                            case CatchHandler: {
-                                final ExceptionHandler catchHandler = successor.getExceptionHandler();
-
-                                final ControlFlowNode innermostFinally = findInnermostFinallyNode(
-                                    cfg,
-                                    catchHandler.getTryBlock().getLastInstruction().getOffset()
-                                );
-
-                                if (innermostFinally != null && innermostFinally.getExceptionHandler() == handler) {
-                                    successors.add(handlerMap.get(catchHandler).tail);
-                                }
-
-                                final Set<ControlFlowNode> catchNodes = findDominatedNodes(
-                                    cfg,
-                                    findNode(cfg, catchHandler.getHandlerBlock().getFirstInstruction())
-                                );
-
-                                for (final ControlFlowNode catchNode : catchNodes) {
-                                    if (catchNode.precedes(cfg.getExceptionalExit()) ||
-                                        catchNode.precedes(cfg.getRegularExit())) {
-
-                                        toProcess.add(catchNode);
-                                    }
-                                }
-
-                                break;
-                            }
-
-                            case FinallyHandler: {
-                                if (successor.getExceptionHandler() == handler) {
-                                    if (edge.getType() == JumpType.Normal) {
-                                        toProcess.add(node);
-                                    }
-                                }
-//                                else if (handler.getTryBlock().intersects(successor.getExceptionHandler().getHandlerBlock())) {
-//                                    final ControlFlowNode endFinallyNode = successor.getEndFinallyNode();
-//
-//                                    if (endFinallyNode != null) {
-//                                        final ControlFlowNode dominator = endFinallyNode.getImmediateDominator();
-//
-//                                        if (dominator != null) {
-//                                            successors.add(dominator);
-//                                        }
-//
-//                                        successors.add(endFinallyNode);
-//                                    }
-//                                }
-
-                                break;
-                            }
-
-                            case RegularExit: {
-                                toProcess.add(node);
-                                break;
-                            }
-
-                            case ExceptionalExit: {
-                                toProcess.add(node);
-                                break;
-                            }
-                        }
-                    }
-                }
 
                 Instruction first = handlerInfo.head.getStart();
                 Instruction last = handlerInfo.tail.getEnd();
@@ -817,9 +767,7 @@ public final class AstBuilder {
                         first = first.getNext();
                     }
 
-                    if (last.getOpCode().getFlowControl() == FlowControl.Return/* ||
-                        last.getOpCode().getFlowControl() == FlowControl.Throw */) {
-
+                    if (last.getOpCode().getFlowControl() == FlowControl.Return) {
                         last = last.getPrevious();
                     }
                 }
@@ -839,63 +787,24 @@ public final class AstBuilder {
                 final ControlFlowNode endFinallyNode = handlerInfo.handlerNode.getEndFinallyNode();
 
                 if (endFinallyNode != null) {
-                    successors.add(endFinallyNode);
+                    successors.add(handlerInfo.handlerNode);
                 }
 
-                for (final ControlFlowEdge edge : handlerInfo.handlerNode.getIncoming()) {
-                    if (edge.getType() == JumpType.JumpToExceptionHandler) {
-                        if (edge.getSource().getNodeType() == ControlFlowNodeType.Normal &&
-                            edge.getSource().getEnd().getOpCode().isBranch()) {
+                for (int i = 0; i < successors.size(); i++) {
+                    final ControlFlowNode successor = successors.get(i);
 
-                            final Instruction end = edge.getSource().getEnd();
-
-                            if (end.hasOperand() &&
-                                end.getOperand(0) instanceof Instruction) {
-
-                                if (!handler.getTryBlock().contains(end.<Instruction>getOperand(0))) {
-                                    toProcess.add(edge.getSource());
-                                }
-                            }
-                            else {
-                                toProcess.add(edge.getSource());
-                            }
+                    for (final ControlFlowEdge edge : successor.getIncoming()) {
+                        if (edge.getType() == JumpType.Normal) {
+                            toProcess.add(edge.getSource());
                         }
-                    }
+                        else if (edge.getType() == JumpType.JumpToExceptionHandler &&
+                                 edge.getSource().getNodeType() == ControlFlowNodeType.Normal &&
+                                 edge.getSource().getEnd().getOpCode().isThrow()) {
 
-                    if (edge.getSource().getNodeType() == ControlFlowNodeType.EndFinally) {
-                        successors.add(edge.getSource());
-                    }
-                }
-
-                for (final ControlFlowNode successor : successors) {
-                    if (allFinallyNodes.contains(successor)) {
-                        continue;
-                    }
-
-                    for (ControlFlowNode predecessor : successor.getPredecessors()) {
-                        final ExceptionHandler predecessorHandler = predecessor.getExceptionHandler();
-
-                        if (predecessorHandler != null) {
-                            predecessor = findNode(cfg, predecessorHandler.getHandlerBlock().getLastInstruction());
+                            toProcess.add(edge.getSource());
                         }
-
-                        if (!allFinallyNodes.contains(predecessor)) {
-                            final ControlFlowNode p = predecessor;
-
-                            final boolean process = tryHead.dominates(predecessor) ||
-                                                    any(
-                                                        siblings,
-                                                        new Predicate<ExceptionHandler>() {
-                                                            @Override
-                                                            public boolean test(final ExceptionHandler handler) {
-                                                                return handlerMap.get(handler).head.dominates(p);
-                                                            }
-                                                        }
-                                                    );
-
-                            if (process) {
-                                toProcess.add(predecessor);
-                            }
+                        else if (edge.getSource().getNodeType() == ControlFlowNodeType.FinallyHandler) {
+                            successors.add(edge.getSource());
                         }
                     }
                 }
@@ -1884,10 +1793,12 @@ public final class AstBuilder {
 
     @SuppressWarnings("ConstantConditions")
     private List<ByteCode> performStackAnalysis() {
+        final Set<ByteCode> handlerStarts = new HashSet<>();
         final Map<Instruction, ByteCode> byteCodeMap = new LinkedHashMap<>();
         final Map<Instruction, ControlFlowNode> nodeMap = new IdentityHashMap<>();
         final InstructionCollection instructions = _instructions;
         final List<ExceptionHandler> exceptionHandlers = new ArrayList<>();
+        final List<ControlFlowNode> successors = new ArrayList<>();
 
         for (final ControlFlowNode node : _cfg.getNodes()) {
             if (node.getExceptionHandler() != null) {
@@ -2006,6 +1917,8 @@ public final class AstBuilder {
         for (final ExceptionHandler handler : exceptionHandlers) {
             final ByteCode handlerStart = byteCodeMap.get(handler.getHandlerBlock().getFirstInstruction());
 
+            handlerStarts.add(handlerStart);
+
             handlerStart.stackBefore = EMPTY_STACK;
             handlerStart.variablesBefore = unknownVariables;
 
@@ -2095,36 +2008,38 @@ public final class AstBuilder {
             //
             // Find all successors.
             //
-            final ArrayList<Pair<ByteCode, ExceptionHandler>> branchTargets = new ArrayList<>();
+            final ArrayList<ByteCode> branchTargets = new ArrayList<>();
             final ControlFlowNode node = nodeMap.get(byteCode.instruction);
 
             if (byteCode.instruction != node.getEnd()) {
-                branchTargets.add(Pair.create(byteCode.next, (ExceptionHandler) null));
+                branchTargets.add(byteCode.next);
             }
-            else {
+            else if (byteCode.code != AstCode.Return) {
+                successors.clear();
+
                 for (final ControlFlowNode successor : node.getSuccessors()) {
-                    final ControlFlowNode actualSuccessor;
                     final ExceptionHandler handler = successor.getExceptionHandler();
                     final ControlFlowNode endFinallyNode = successor.getEndFinallyNode();
 
                     if (endFinallyNode != null) {
-                        actualSuccessor = firstOrDefault(endFinallyNode.getDominatorTreeChildren());
+                        for (final ControlFlowNode s : endFinallyNode.getSuccessors()) {
+                            successors.add(s);
+                        }
                     }
                     else if (handler != null) {
-                        actualSuccessor = nodeMap.get(handler.getHandlerBlock().getFirstInstruction());
-                    }
-                    else if (successor.getNodeType() != ControlFlowNodeType.Normal) {
-                        continue;
+                        successors.add(nodeMap.get(handler.getHandlerBlock().getFirstInstruction()));
                     }
                     else {
-                        actualSuccessor = successor;
+                        successors.add(successor);
                     }
+                }
 
-                    if (actualSuccessor == null) {
+                for (final ControlFlowNode successor : successors) {
+                    if (successor.getNodeType() != ControlFlowNodeType.Normal) {
                         continue;
                     }
 
-                    final Instruction targetInstruction = actualSuccessor.getStart();
+                    final Instruction targetInstruction = successor.getStart();
                     final ByteCode target = byteCodeMap.get(targetInstruction);
 
                     if (target.label == null) {
@@ -2132,17 +2047,14 @@ public final class AstBuilder {
                         target.label.setName(target.makeLabelName());
                     }
 
-                    branchTargets.add(Pair.create(target, handler));
+                    branchTargets.add(target);
                 }
             }
 
             //
             // Apply the state to successors.
             //
-            for (final Pair<ByteCode, ExceptionHandler> branchTargetInfo : branchTargets) {
-                final ByteCode branchTarget = branchTargetInfo.getFirst();
-                final ExceptionHandler handler = branchTargetInfo.getSecond();
-
+            for (final ByteCode branchTarget : branchTargets) {
                 if (branchTarget.stackBefore == null && branchTarget.variablesBefore == null) {
                     if (branchTargets.size() == 1) {
                         branchTarget.stackBefore = newStack;
@@ -2159,7 +2071,7 @@ public final class AstBuilder {
                     agenda.push(branchTarget);
                 }
                 else {
-                    final boolean isHandlerStart = handler != null;
+                    final boolean isHandlerStart = handlerStarts.contains(branchTarget);
 
                     if (branchTarget.stackBefore.length != newStack.length && !isHandlerStart) {
                         throw new IllegalStateException(
