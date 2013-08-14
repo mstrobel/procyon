@@ -1188,7 +1188,7 @@ public final class MetadataHelper {
     }
 
     private static boolean containsTypeEquivalent(final TypeReference t, final TypeReference s) {
-        return isSameType(t, s) ||
+        return s == t ||
                containsType(t, s) && containsType(s, t);
     }
 
