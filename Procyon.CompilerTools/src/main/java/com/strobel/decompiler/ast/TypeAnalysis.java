@@ -19,6 +19,7 @@ package com.strobel.decompiler.ast;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
+import com.strobel.core.Pair;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
@@ -35,6 +36,7 @@ import static com.strobel.decompiler.ast.PatternMatching.*;
 public final class TypeAnalysis {
     private final List<ExpressionToInfer> _allExpressions = new ArrayList<>();
     private final Set<Variable> _singleLoadVariables = new LinkedHashSet<>();
+    private final Set<Pair<Variable, TypeReference>> _previouslyInferred = new LinkedHashSet<>();
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final Map<Variable, List<ExpressionToInfer>> _assignmentExpressions = new IdentityHashMap<Variable, List<ExpressionToInfer>>() {
@@ -586,7 +588,9 @@ public final class TypeAnalysis {
         }
 
         if (changedVariable != null) {
-            invalidateDependentExpressions(expression, changedVariable);
+            if (_previouslyInferred.add(Pair.create(changedVariable, changedVariable.getType()))) {
+                invalidateDependentExpressions(expression, changedVariable);
+            }
         }
     }
 
@@ -747,7 +751,8 @@ public final class TypeAnalysis {
                             _inferredVariableTypes.put(v, result);
 
                             if (result != null && lastInferredType == null ||
-                                !MetadataHelper.isSameType(result, lastInferredType)) {
+                                !MetadataHelper.isSameType(result, lastInferredType) &&
+                                _previouslyInferred.add(Pair.create(v, result))) {
 
                                 invalidateDependentExpressions(expression, v);
                             }

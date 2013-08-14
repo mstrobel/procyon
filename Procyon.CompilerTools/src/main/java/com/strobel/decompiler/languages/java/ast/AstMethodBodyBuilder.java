@@ -40,11 +40,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 
 public class AstMethodBodyBuilder {
     private final AstBuilder _astBuilder;
     private final MethodDefinition _method;
+    private final MetadataParser _parser;
     private final DecompilerContext _context;
     private final Set<Variable> _localVariablesToDefine = new LinkedHashSet<>();
 
@@ -166,6 +167,7 @@ public class AstMethodBodyBuilder {
         _astBuilder = astBuilder;
         _method = method;
         _context = context;
+        _parser = new MetadataParser(method.getDeclaringType());
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -694,7 +696,17 @@ public class AstMethodBodyBuilder {
             }
 
             case ArrayLength:
-                return arg1.member("length");
+                final MemberReferenceExpression length = arg1.member("length");
+                final TypeReference arrayType = single(byteCode.getArguments()).getInferredType();
+
+                if (arrayType != null) {
+                    length.putUserData(
+                        Keys.MEMBER_REFERENCE,
+                        _parser.parseField(arrayType, "length", "I")
+                    );
+                }
+
+                return length;
 
             case AThrow:
                 return new ThrowStatement(arg1);

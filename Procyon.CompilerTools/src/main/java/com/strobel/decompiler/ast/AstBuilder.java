@@ -535,48 +535,6 @@ public final class AstBuilder {
         return resultNode;
     }
 
-    private static ControlFlowNode findInnermostFinallyNode(final ControlFlowGraph cfg, final int offsetInTryBlock) {
-        ExceptionHandler result = null;
-        ControlFlowNode resultNode = null;
-
-        final List<ControlFlowNode> nodes = cfg.getNodes();
-
-        for (int i = nodes.size() - 1; i >= 0; i--) {
-            final ControlFlowNode node = nodes.get(i);
-            final ExceptionHandler handler = node.getExceptionHandler();
-
-            if (handler == null) {
-                break;
-            }
-
-            if (handler.isCatch()) {
-                continue;
-            }
-
-            final ExceptionBlock tryBlock = handler.getTryBlock();
-
-            if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
-                offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
-                (result == null ||
-                 tryBlock.getFirstInstruction().getOffset() > result.getTryBlock().getFirstInstruction().getOffset())) {
-
-                result = handler;
-                resultNode = node;
-            }
-        }
-
-        return resultNode;
-    }
-
-//    private boolean areAllRemoved(final Instruction start, final Instruction end) {
-//        for (Instruction p = start; p != null && p.getOffset() < end.getEndOffset(); p = p.getNext()) {
-//            if (!_removed.contains(p)) {
-//                return false;
-//            }
-//        }
-//        return true;
-//    }
-
     private static boolean opCodesMatch(final Instruction tail1, final Instruction tail2, final int count) {
         int i = 0;
 
