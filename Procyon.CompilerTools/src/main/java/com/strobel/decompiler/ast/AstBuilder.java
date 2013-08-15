@@ -2013,16 +2013,34 @@ public final class AstBuilder {
             // Apply the state to successors.
             //
             for (final ByteCode branchTarget : branchTargets) {
+                final boolean isSubroutineJump = byteCode.code == AstCode.Jsr &&
+                                                 byteCode.instruction.getOperand(0) == branchTarget.instruction;
+
+                final StackSlot[] effectiveStack;
+
+                if (isSubroutineJump) {
+                    effectiveStack = ArrayUtilities.append(
+                        newStack,
+                        new StackSlot(
+                            FrameValue.makeAddress(byteCode.next.instruction),
+                            new ByteCode[] { byteCode }
+                        )
+                    );
+                }
+                else {
+                    effectiveStack = newStack;
+                }
+
                 if (branchTarget.stackBefore == null && branchTarget.variablesBefore == null) {
                     if (branchTargets.size() == 1) {
-                        branchTarget.stackBefore = newStack;
+                        branchTarget.stackBefore = effectiveStack;
                         branchTarget.variablesBefore = newVariableState;
                     }
                     else {
                         //
                         // Do not share data for several bytecodes.
                         //
-                        branchTarget.stackBefore = StackSlot.modifyStack(newStack, 0, null);
+                        branchTarget.stackBefore = StackSlot.modifyStack(effectiveStack, 0, null);
                         branchTarget.variablesBefore = VariableSlot.cloneVariableState(newVariableState);
                     }
 
@@ -2031,7 +2049,10 @@ public final class AstBuilder {
                 else {
                     final boolean isHandlerStart = handlerStarts.contains(branchTarget);
 
-                    if (branchTarget.stackBefore.length != newStack.length && !isHandlerStart) {
+                    if (branchTarget.stackBefore.length != effectiveStack.length &&
+                        !isHandlerStart &&
+                        !isSubroutineJump) {
+
                         throw new IllegalStateException(
                             "Inconsistent stack size at " + branchTarget.name()
                             + " (coming from " + byteCode.name() + ")."
@@ -2046,15 +2067,19 @@ public final class AstBuilder {
                     boolean modified = false;
 
                     if (!isHandlerStart) {
+                        final StackSlot[] oldStack = branchTarget.stackBefore;
                         //
                         // Merge stacks; modify the target.
                         //
-                        for (int i = 0; i < newStack.length; i++) {
-                            final ByteCode[] oldDefinitions = branchTarget.stackBefore[i].definitions;
-                            final ByteCode[] newDefinitions = ArrayUtilities.union(oldDefinitions, newStack[i].definitions);
+                        for (int i = effectiveStack.length - 1, j = oldStack.length - 1;
+                             i >= 0 && j >= 0;
+                             i--, j--) {
+
+                            final ByteCode[] oldDefinitions = oldStack[j].definitions;
+                            final ByteCode[] newDefinitions = ArrayUtilities.union(oldDefinitions, effectiveStack[i].definitions);
 
                             if (newDefinitions.length > oldDefinitions.length) {
-                                branchTarget.stackBefore[i] = new StackSlot(newStack[i].value, newDefinitions);
+                                oldStack[j] = new StackSlot(effectiveStack[j].value, newDefinitions);
                                 modified = true;
                             }
                         }
