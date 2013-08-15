@@ -301,6 +301,16 @@ public enum OpCode {
         }
     }
 
+    public boolean isReturnFromSubroutine() {
+        switch (this) {
+            case RET:
+            case RET_W:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public boolean isLeave() {
         switch (this) {
             case JSR:
@@ -419,7 +429,6 @@ public enum OpCode {
             case DSTORE_W:
             case ASTORE_W:
                 return true;
-
 
             default:
                 return false;

@@ -249,7 +249,7 @@ public class SwitchTests extends DecompilerTest {
             "private static class E {\n" +
             "    public int test() {\n" +
             "        int x = 0;\n" +
-            "        Label_0067: {\n" +
+            "        Label_0068: {\n" +
             "            while (x < 10) {\n" +
             "                switch (x) {\n" +
             "                    case 1:\n" +
@@ -257,7 +257,7 @@ public class SwitchTests extends DecompilerTest {
             "                        return x;\n" +
             "                    case 3:\n" +
             "                    case 4:\n" +
-            "                        break Label_0067;\n" +
+            "                        break Label_0068;\n" +
             "                    default:\n" +
             "                        System.out.println(\"default\");\n" +
             "                        System.out.println(\"after switch\");\n" +

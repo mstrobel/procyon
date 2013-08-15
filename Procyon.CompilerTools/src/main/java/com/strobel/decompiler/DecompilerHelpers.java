@@ -16,7 +16,7 @@
 
 package com.strobel.decompiler;
 
-import com.strobel.assembler.ir.ExceptionBlock;
+import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.Frame;
 import com.strobel.assembler.ir.FrameType;
@@ -228,7 +228,7 @@ public final class DecompilerHelpers {
             writeType(output, catchType);
         }
 
-        final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+        final InstructionBlock handlerBlock = handler.getHandlerBlock();
 
         output.write(' ');
         writeOffsetReference(output, handlerBlock.getFirstInstruction());

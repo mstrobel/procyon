@@ -255,11 +255,19 @@ public final class VerifyArgument {
         return values;
     }
 
-    public static void validElementRange(final int size, final int startInclusive, final int endExclusive) {
-        if (startInclusive >= 0 && endExclusive <= size && endExclusive > startInclusive) {
-            return;
+    public static int validElementRange(final int size, final int startInclusive, final int endExclusive) {
+        if (startInclusive >= 0 && endExclusive <= size && endExclusive >= startInclusive) {
+            return endExclusive - startInclusive;
         }
-        throw new IllegalArgumentException("The specified element range is not valid.");
+
+        throw new IllegalArgumentException(
+            format(
+                "The specified element range is not valid: range=(%d, %d], length=%d",
+                startInclusive,
+                endExclusive,
+                size
+            )
+        );
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

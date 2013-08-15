@@ -17,7 +17,7 @@
 package com.strobel.assembler.flowanalysis;
 
 import com.strobel.assembler.Collection;
-import com.strobel.assembler.ir.ExceptionBlock;
+import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.ExceptionHandlerType;
 import com.strobel.assembler.ir.Instruction;
@@ -571,7 +571,7 @@ public final class ControlFlowGraphBuilder {
                tryEnd.getOffset() < anchorTryEnd.getOffset();
     }
 
-    private static boolean isNarrower(final ExceptionBlock block, final ExceptionBlock anchor) {
+    private static boolean isNarrower(final InstructionBlock block, final InstructionBlock anchor) {
         if (block == null || anchor == null) {
             return false;
         }
@@ -675,7 +675,7 @@ public final class ControlFlowGraphBuilder {
         ExceptionHandler result = null;
 
         for (final ExceptionHandler handler : _exceptionHandlers) {
-            final ExceptionBlock tryBlock = handler.getTryBlock();
+            final InstructionBlock tryBlock = handler.getTryBlock();
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
                 offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
@@ -696,7 +696,7 @@ public final class ControlFlowGraphBuilder {
                 continue;
             }
 
-            final ExceptionBlock tryBlock = handler.getTryBlock();
+            final InstructionBlock tryBlock = handler.getTryBlock();
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
                 offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
@@ -711,11 +711,11 @@ public final class ControlFlowGraphBuilder {
 
     private ControlFlowNode findInnermostHandlerBlock(final int instructionOffset) {
         ExceptionHandler result = null;
-        ExceptionBlock resultBlock = null;
+        InstructionBlock resultBlock = null;
 
         for (final ExceptionHandler handler : _exceptionHandlers) {
-            final ExceptionBlock tryBlock = handler.getTryBlock();
-            final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+            final InstructionBlock tryBlock = handler.getTryBlock();
+            final InstructionBlock handlerBlock = handler.getHandlerBlock();
 
             if (handlerBlock.getFirstInstruction().getOffset() <= instructionOffset &&
                 instructionOffset < handlerBlock.getLastInstruction().getEndOffset() &&
@@ -728,7 +728,7 @@ public final class ControlFlowGraphBuilder {
 
         final ControlFlowNode innerMost = findInnermostExceptionHandlerNode(instructionOffset);
         final ExceptionHandler innerHandler = innerMost.getExceptionHandler();
-        final ExceptionBlock innerBlock = innerHandler != null ? innerHandler.getTryBlock() : null;
+        final InstructionBlock innerBlock = innerHandler != null ? innerHandler.getTryBlock() : null;
 
         if (innerBlock != null && (resultBlock == null || isNarrower(innerBlock, resultBlock))) {
             result = innerHandler;
@@ -801,8 +801,8 @@ public final class ControlFlowGraphBuilder {
 //                continue;
 //            }
 //
-//            final ExceptionBlock tryBlock = handler.getTryBlock();
-//            final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+//            final InstructionBlock tryBlock = handler.getTryBlock();
+//            final InstructionBlock handlerBlock = handler.getHandlerBlock();
 //
 //            for (int j = i + 1; j < copy.size(); j++) {
 //                final ExceptionHandler other = copy.get(j);
@@ -811,8 +811,8 @@ public final class ControlFlowGraphBuilder {
 //                    continue;
 //                }
 //
-//                final ExceptionBlock otherTry = other.getTryBlock();
-//                final ExceptionBlock otherHandler = other.getHandlerBlock();
+//                final InstructionBlock otherTry = other.getTryBlock();
+//                final InstructionBlock otherHandler = other.getHandlerBlock();
 //
 //                if (otherTry.equals(tryBlock) && otherHandler.equals(handlerBlock)) {
 //                    copy.set(

@@ -18,9 +18,10 @@ package com.strobel.assembler.flowanalysis;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.assembler.Collection;
-import com.strobel.assembler.ir.ExceptionBlock;
+import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.Instruction;
+import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerHelpers;
@@ -78,7 +79,7 @@ public final class ControlFlowNode implements Comparable<ControlFlowNode> {
         _nodeType = exceptionHandler.isFinally() ? ControlFlowNodeType.FinallyHandler : ControlFlowNodeType.CatchHandler;
         _endFinallyNode = endFinallyNode;
 
-        final ExceptionBlock handlerBlock = exceptionHandler.getHandlerBlock();
+        final InstructionBlock handlerBlock = exceptionHandler.getHandlerBlock();
 
 //        _start = handlerBlock.getFirstInstruction();
 //        _end = handlerBlock.getLastInstruction();
@@ -470,4 +471,11 @@ public final class ControlFlowNode implements Comparable<ControlFlowNode> {
     }
 
     // </editor-fold>
+
+    public final static Predicate<ControlFlowNode> REACHABLE_PREDICATE = new Predicate<ControlFlowNode>() {
+        @Override
+        public boolean test(final ControlFlowNode node) {
+            return node.isReachable();
+        }
+    };
 }

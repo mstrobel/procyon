@@ -7,7 +7,7 @@ import com.strobel.assembler.flowanalysis.ControlFlowGraph;
 import com.strobel.assembler.flowanalysis.ControlFlowNode;
 import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
 import com.strobel.assembler.flowanalysis.JumpType;
-import com.strobel.assembler.ir.ExceptionBlock;
+import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.FlowControl;
 import com.strobel.assembler.ir.Instruction;
@@ -90,16 +90,16 @@ public final class ExceptionHandlerMapper {
 
             final Instruction lastInstruction = instructions.get(instructions.size() - 1);
 
-            final ExceptionBlock tryBlock;
+            final InstructionBlock tryBlock;
 
             if (entry.getEndOffset() == lastInstruction.getEndOffset()) {
-                tryBlock = new ExceptionBlock(
+                tryBlock = new InstructionBlock(
                     instructions.atOffset(entry.getStartOffset()),
                     lastInstruction
                 );
             }
             else {
-                tryBlock = new ExceptionBlock(
+                tryBlock = new InstructionBlock(
                     instructions.atOffset(entry.getStartOffset()),
                     instructions.atOffset(entry.getEndOffset()).getPrevious()
                 );
@@ -109,7 +109,7 @@ public final class ExceptionHandlerMapper {
                 handlers.add(
                     ExceptionHandler.createFinally(
                         tryBlock,
-                        new ExceptionBlock(handlerStart.getStart(), lastOrDefault(dominatedNodes).getEnd())
+                        new InstructionBlock(handlerStart.getStart(), lastOrDefault(dominatedNodes).getEnd())
                     )
                 );
             }
@@ -117,7 +117,7 @@ public final class ExceptionHandlerMapper {
                 handlers.add(
                     ExceptionHandler.createCatch(
                         tryBlock,
-                        new ExceptionBlock(handlerStart.getStart(), lastOrDefault(dominatedNodes).getEnd()),
+                        new InstructionBlock(handlerStart.getStart(), lastOrDefault(dominatedNodes).getEnd()),
                         entry.getCatchType()
                     )
                 );
@@ -493,7 +493,7 @@ public final class ExceptionHandlerMapper {
                 break;
             }
 
-            final ExceptionBlock tryBlock = handler.getTryBlock();
+            final InstructionBlock tryBlock = handler.getTryBlock();
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
                 offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
@@ -530,7 +530,7 @@ public final class ExceptionHandlerMapper {
         ExceptionHandler result = null;
 
         for (final ExceptionHandler handler : _handlerPlaceholders) {
-            final ExceptionBlock tryBlock = handler.getTryBlock();
+            final InstructionBlock tryBlock = handler.getTryBlock();
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
                 offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
@@ -612,11 +612,11 @@ public final class ExceptionHandlerMapper {
 
             if (entry.getCatchType() == null) {
                 handler = ExceptionHandler.createFinally(
-                    new ExceptionBlock(
+                    new InstructionBlock(
                         _instructions.atOffset(entry.getStartOffset()),
                         afterTry != null ? afterTry.getPrevious() : last(_instructions)
                     ),
-                    new ExceptionBlock(
+                    new InstructionBlock(
                         _instructions.atOffset(entry.getHandlerOffset()),
                         _instructions.atOffset(entry.getHandlerOffset())
                     )
@@ -624,11 +624,11 @@ public final class ExceptionHandlerMapper {
             }
             else {
                 handler = ExceptionHandler.createCatch(
-                    new ExceptionBlock(
+                    new InstructionBlock(
                         _instructions.atOffset(entry.getStartOffset()),
                         afterTry != null ? afterTry.getPrevious() : last(_instructions)
                     ),
-                    new ExceptionBlock(
+                    new InstructionBlock(
                         _instructions.atOffset(entry.getHandlerOffset()),
                         _instructions.atOffset(entry.getHandlerOffset())
                     ),

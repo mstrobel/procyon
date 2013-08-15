@@ -335,8 +335,8 @@ public final class StackMapAnalyzer {
         final int offsetInTryBlock) {
 
         for (final ExceptionHandler handler : exceptionHandlers) {
-            final ExceptionBlock tryBlock = handler.getTryBlock();
-            final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+            final InstructionBlock tryBlock = handler.getTryBlock();
+            final InstructionBlock handlerBlock = handler.getHandlerBlock();
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
                 offsetInTryBlock < handlerBlock.getFirstInstruction().getOffset()) {

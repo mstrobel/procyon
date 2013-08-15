@@ -22,14 +22,14 @@ import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.PlainTextOutput;
 
 public final class ExceptionHandler {
-    private final ExceptionBlock _tryBlock;
-    private final ExceptionBlock _handlerBlock;
+    private final InstructionBlock _tryBlock;
+    private final InstructionBlock _handlerBlock;
     private final ExceptionHandlerType _handlerType;
     private final TypeReference _catchType;
 
     private ExceptionHandler(
-        final ExceptionBlock tryBlock,
-        final ExceptionBlock handlerBlock,
+        final InstructionBlock tryBlock,
+        final InstructionBlock handlerBlock,
         final ExceptionHandlerType handlerType,
         final TypeReference catchType) {
 
@@ -40,8 +40,8 @@ public final class ExceptionHandler {
     }
 
     public static ExceptionHandler createCatch(
-        final ExceptionBlock tryBlock,
-        final ExceptionBlock handlerBlock,
+        final InstructionBlock tryBlock,
+        final InstructionBlock handlerBlock,
         final TypeReference catchType) {
 
         VerifyArgument.notNull(tryBlock, "tryBlock");
@@ -57,8 +57,8 @@ public final class ExceptionHandler {
     }
 
     public static ExceptionHandler createFinally(
-        final ExceptionBlock tryBlock,
-        final ExceptionBlock handlerBlock) {
+        final InstructionBlock tryBlock,
+        final InstructionBlock handlerBlock) {
 
         VerifyArgument.notNull(tryBlock, "tryBlock");
         VerifyArgument.notNull(handlerBlock, "handlerBlock");
@@ -79,11 +79,11 @@ public final class ExceptionHandler {
         return _handlerType == ExceptionHandlerType.Catch;
     }
 
-    public final ExceptionBlock getTryBlock() {
+    public final InstructionBlock getTryBlock() {
         return _tryBlock;
     }
 
-    public final ExceptionBlock getHandlerBlock() {
+    public final InstructionBlock getHandlerBlock() {
         return _handlerBlock;
     }
 

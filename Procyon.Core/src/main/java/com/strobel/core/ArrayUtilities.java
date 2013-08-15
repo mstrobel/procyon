@@ -13,6 +13,7 @@
 
 package com.strobel.core;
 
+import com.strobel.collections.Cache;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
 
@@ -26,6 +27,9 @@ import java.util.List;
  */
 @SuppressWarnings("unchecked")
 public final class ArrayUtilities {
+    private final static Cache<Class<?>, Class<?>> GLOBAL_ARRAY_TYPE_CACHE = Cache.createTopLevelCache();
+    private final static Cache<Class<?>, Class<?>> ARRAY_TYPE_CACHE = Cache.createThreadLocalCache(GLOBAL_ARRAY_TYPE_CACHE);
+
     private ArrayUtilities() {
         throw ContractUtils.unreachable();
     }
@@ -33,6 +37,84 @@ public final class ArrayUtilities {
     public static boolean isArray(final Object value) {
         return value != null &&
                value.getClass().isArray();
+    }
+
+    public static <T> T[] create(final Class<T> elementType, final int length) {
+        return (T[])Array.newInstance(elementType, length);
+    }
+
+    public static Object createAny(final Class<?> elementType, final int length) {
+        return Array.newInstance(elementType, length);
+    }
+
+    public static int[] range(final int start, final int count) {
+        VerifyArgument.isNonNegative(count, "count");
+
+        if (count == 0) {
+            return EmptyArrayCache.EMPTY_INT_ARRAY;
+        }
+
+        final int[] array = new int[count];
+
+        for (int i = 0, j = start; i < array.length; i++) {
+            array[i] = j++;
+        }
+
+        return array;
+    }
+
+    public static Object copyOf(final Object array, final int newLength) {
+        return copyOf(VerifyArgument.notNull(array, "array"), newLength, array.getClass());
+    }
+
+    public static Object copyOf(final Object array, final int newLength, final Class<?> newType) {
+        final Object copy = newType == Object[].class
+                            ? new Object[newLength]
+                            : Array.newInstance(newType.getComponentType(), newLength);
+
+        //noinspection SuspiciousSystemArraycopy
+        System.arraycopy(array, 0, copy, 0, Math.min(Array.getLength(array), newLength));
+
+        return copy;
+    }
+
+    public static Object copyOfRange(final Object array, final int from, final int to) {
+        return copyOfRange(VerifyArgument.notNull(array, "array"), from, to, array.getClass());
+    }
+
+    public static Object copyOfRange(final Object array, final int from, final int to, final Class<?> newType) {
+        final int newLength = to - from;
+
+        if (newLength < 0) {
+            throw new IllegalArgumentException(from + " > " + to);
+        }
+
+        final Object copy = newType == Object[].class
+                            ? new Object[newLength]
+                            : Array.newInstance(newType.getComponentType(), newLength);
+
+        //noinspection SuspiciousSystemArraycopy
+        System.arraycopy(
+            array,
+            from,
+            copy,
+            0,
+            Math.min(Array.getLength(array) - from, newLength)
+        );
+        return copy;
+    }
+
+    public static <T> Class<T[]> makeArrayType(final Class<T> elementType) {
+        final Class<?> arrayType = ARRAY_TYPE_CACHE.get(elementType);
+
+        if (arrayType != null) {
+            return (Class<T[]>)arrayType;
+        }
+
+        return (Class<T[]>)ARRAY_TYPE_CACHE.cache(
+            elementType,
+            Array.newInstance(elementType, 0).getClass()
+        );
     }
 
     public static <T> T[] copy(final T[] source, final T[] target) {
