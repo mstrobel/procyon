@@ -7,10 +7,10 @@ import com.strobel.assembler.flowanalysis.ControlFlowGraph;
 import com.strobel.assembler.flowanalysis.ControlFlowNode;
 import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
 import com.strobel.assembler.flowanalysis.JumpType;
-import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.FlowControl;
 import com.strobel.assembler.ir.Instruction;
+import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OperandType;
@@ -409,34 +409,32 @@ public final class ExceptionHandlerMapper {
         //
 
         for (final ControlFlowNode node : _nodes) {
-            if (node.getNodeType() != ControlFlowNodeType.Normal) {
-                continue;
-            }
+            if (node.getNodeType() == ControlFlowNodeType.Normal) {
+                final Instruction end = node.getEnd();
+                final ExceptionHandler innermostHandler = findInnermostExceptionHandler(node.getEnd().getOffset());
 
-            final Instruction end = node.getEnd();
-            final ExceptionHandler innermostHandler = findInnermostExceptionHandler(node.getEnd().getOffset());
-
-            if (innermostHandler != null) {
-                for (final ExceptionHandler other : _handlerPlaceholders) {
-                    if (other.getTryBlock().equals(innermostHandler.getTryBlock())) {
-                        final ControlFlowNode handlerNode = firstOrDefault(
-                            _nodes,
-                            new Predicate<ControlFlowNode>() {
-                                @Override
-                                public boolean test(final ControlFlowNode node) {
-                                    return node.getExceptionHandler() == other;
+                if (innermostHandler != null) {
+                    for (final ExceptionHandler other : _handlerPlaceholders) {
+                        if (other.getTryBlock().equals(innermostHandler.getTryBlock())) {
+                            final ControlFlowNode handlerNode = firstOrDefault(
+                                _nodes,
+                                new Predicate<ControlFlowNode>() {
+                                    @Override
+                                    public boolean test(final ControlFlowNode node) {
+                                        return node.getExceptionHandler() == other;
+                                    }
                                 }
-                            }
-                        );
+                            );
 
-                        if (node != handlerNode) {
-                            createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
+                            if (node != handlerNode) {
+                                createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
+                            }
                         }
                     }
                 }
-            }
-            else if (end.getOpCode() == OpCode.ATHROW) {
-                createEdge(node, _exceptionalExit, JumpType.JumpToExceptionHandler);
+                else if (end.getOpCode() == OpCode.ATHROW) {
+                    createEdge(node, _exceptionalExit, JumpType.JumpToExceptionHandler);
+                }
             }
 
             final ExceptionHandler exceptionHandler = node.getExceptionHandler();
@@ -534,7 +532,7 @@ public final class ExceptionHandlerMapper {
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
                 offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
-                isNarrower(handler, result)) {
+                (result == null || isNarrower(handler, result))) {
 
                 result = handler;
             }

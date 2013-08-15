@@ -830,10 +830,7 @@ public final class AstOptimizer {
                 else if (node instanceof TryCatchBlock) {
                     final TryCatchBlock tryCatch = (TryCatchBlock) node;
 
-                    if (isEmptyTryCatch(tryCatch)) {
-
-                    }
-                    else {
+                    if (!isEmptyTryCatch(tryCatch)) {
                         newBody.add(node);
                     }
                 }

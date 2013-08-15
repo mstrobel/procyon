@@ -490,7 +490,13 @@ public final class TypeAnalysis {
         final VariableDefinition variableDefinition = variable.getOriginalVariable();
 
         if (variable.isParameter()) {
-            final TypeReference parameterType = variable.getOriginalParameter().getParameterType();
+            final ParameterDefinition parameter = variable.getOriginalParameter();
+
+            if (parameter == _context.getCurrentMethod().getBody().getThisParameter()) {
+                return false;
+            }
+
+            final TypeReference parameterType = parameter.getParameterType();
 
             if (parameterType.isGenericType() || MetadataHelper.isRawType(parameterType)) {
                 return !_preserveMetadataGenericTypes;

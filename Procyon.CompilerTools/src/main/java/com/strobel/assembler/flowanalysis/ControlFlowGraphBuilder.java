@@ -17,10 +17,10 @@
 package com.strobel.assembler.flowanalysis;
 
 import com.strobel.assembler.Collection;
-import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.ExceptionHandlerType;
 import com.strobel.assembler.ir.Instruction;
+import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OperandType;
 import com.strobel.assembler.metadata.MethodBody;
@@ -303,7 +303,8 @@ public final class ControlFlowGraphBuilder {
             //
             // Create edges for return and leave instructions.
             //
-            if (endOpCode.isLeave()) {
+            if (endOpCode == OpCode.LEAVE) {
+                boolean jumpToNext = false;
                 ControlFlowNode handlerBlock = findInnermostHandlerBlock(end.getOffset());
 
                 if (handlerBlock != _exceptionalExit) {
@@ -319,7 +320,30 @@ public final class ControlFlowGraphBuilder {
                         createEdge(node, handlerBlock.getEndFinallyNode(), JumpType.Normal);
                     }
                     else {
-                        createEdge(node, handlerBlock, JumpType.LeaveTry);
+                        jumpToNext = true;
+                    }
+                }
+                else {
+                    jumpToNext = true;
+                }
+
+                if (jumpToNext) {
+                    final Instruction next = end.getNext();
+
+                    if (next != null) {
+                        final boolean isHandlerStart = any(
+                            _exceptionHandlers,
+                            new Predicate<ExceptionHandler>() {
+                                @Override
+                                public boolean test(final ExceptionHandler handler) {
+                                    return handler.getHandlerBlock().getFirstInstruction() == next;
+                                }
+                            }
+                        );
+
+                        if (!isHandlerStart) {
+                            createEdge(node, next, JumpType.Normal);
+                        }
                     }
                 }
             }
