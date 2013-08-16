@@ -377,7 +377,7 @@ public final class AstOptimizer {
     // <editor-fold defaultstate="collapsed" desc="RewriteFinallyBlocks Optimization">
 
     private static void rewriteFinallyBlocks(final Block method) {
-        rewriteNestedSynchronized(method);
+        rewriteSynchronized(method);
 
         final List<Expression> a = new ArrayList<>();
         final StrongBox<Variable> v = new StrongBox<>();
@@ -454,7 +454,7 @@ public final class AstOptimizer {
         }
     }
 
-    private static void rewriteNestedSynchronized(final Block method) {
+    private static void rewriteSynchronized(final Block method) {
         final StrongBox<LockInfo> lockInfoBox = new StrongBox<>();
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
@@ -480,7 +480,7 @@ public final class AstOptimizer {
                         if (finallyBody.size() == 3 &&
                             matchUnlock(finallyBody.get(1), lockInfo)) {
 
-                            if (rewriteNestedSynchronizedCore(tryCatch, lockInfo.operationCount)) {
+                            if (rewriteSynchronizedCore(tryCatch, lockInfo.operationCount)) {
                                 tryCatch.setSynchronized(true);
                             }
                             else {
@@ -511,7 +511,7 @@ public final class AstOptimizer {
         }
     }
 
-    private static boolean rewriteNestedSynchronizedCore(final TryCatchBlock tryCatch, final int depth) {
+    private static boolean rewriteSynchronizedCore(final TryCatchBlock tryCatch, final int depth) {
         final Block tryBlock = tryCatch.getTryBlock();
         final List<Node> tryBody = tryBlock.getBody();
 
@@ -545,7 +545,7 @@ public final class AstOptimizer {
 
                     if (finallyBody.size() == 3 &&
                         matchUnlock(finallyBody.get(1), lockInfo) &&
-                        rewriteNestedSynchronizedCore(nestedTry, depth + 1)) {
+                        rewriteSynchronizedCore(nestedTry, depth + 1)) {
 
                         tryCatch.setSynchronized(true);
                         inlineLockAccess(tryCatch, tryBody, lockInfo);
@@ -577,7 +577,7 @@ public final class AstOptimizer {
             final List<Node> innerTryBody = innerTry.getTryBlock().getBody();
 
             if (matchLock(innerTryBody, 0, lockInfoBox) &&
-                rewriteNestedSynchronizedCore(innerTry, depth)) {
+                rewriteSynchronizedCore(innerTry, depth)) {
 
                 inlineLockAccess(tryCatch, tryBody, lockInfo);
                 tryCatch.setSynchronized(true);

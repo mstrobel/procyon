@@ -217,14 +217,15 @@ public final class Instruction {
 
             case Switch:
                 final Instruction[] targets = ((SwitchInfo) _operand).getTargets();
-                final int padding = _offset >= 0 ? ((4 - (_offset % 4)) % 4) : 0;
+                final int relativeOffset = _offset + opCodeSize;
+                final int padding = _offset >= 0 ? (4 - (relativeOffset % 4)) % 4 : 0;
                 switch (_opCode) {
                     case TABLESWITCH:
                         // op + padding + default + low + high + targets
-                        return opCodeSize + padding + ((3 + targets.length) * 4);
+                        return opCodeSize + padding + (3 * 4) + (targets.length * 4);
                     case LOOKUPSWITCH:
-                        // op + padding + default + pairs
-                        return opCodeSize + padding + 4 + (targets.length * 8);
+                        // op + padding + default + number of pairs + pairs
+                        return opCodeSize + padding + (4 * 2) + (targets.length * 8);
                 }
                 break;
 

@@ -16,32 +16,26 @@
 
 package com.strobel.assembler.ir;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.Collection;
 
 import java.util.Collections;
 import java.util.Comparator;
+
+import static com.strobel.core.CollectionUtilities.lastOrDefault;
 
 /**
  * @author Mike Strobel
  */
 public final class InstructionCollection extends Collection<Instruction> {
     public Instruction atOffset(final int offset) {
-        final int index = Collections.binarySearch(
-            this,
-            new Instruction(offset, OpCode.NOP),
-            new Comparator<Instruction>() {
-                @Override
-                public int compare(final Instruction o1, final Instruction o2) {
-                    return Integer.compare(o1.getOffset(), o2.getOffset());
-                }
-            }
-        );
+        final Instruction result = tryGetAtOffset(offset);
 
-        if (index < 0) {
-            throw new IndexOutOfBoundsException("No instruction found at offset " + offset + '.');
+        if (result != null) {
+            return result;
         }
 
-        return get(index);
+        throw new IndexOutOfBoundsException("No instruction found at offset " + offset + '.');
     }
 
     public Instruction tryGetAtOffset(final int offset) {
@@ -50,13 +44,22 @@ public final class InstructionCollection extends Collection<Instruction> {
             new Instruction(offset, OpCode.NOP),
             new Comparator<Instruction>() {
                 @Override
-                public int compare(final Instruction o1, final Instruction o2) {
+                public int compare(@NotNull final Instruction o1, @NotNull final Instruction o2) {
                     return Integer.compare(o1.getOffset(), o2.getOffset());
                 }
             }
         );
 
         if (index < 0) {
+            final Instruction last = lastOrDefault(this);
+
+            if (last != null &&
+                last.getNext() != null &&
+                last.getNext().getOffset() == offset) {
+
+                return last.getNext();
+            }
+
             return null;
         }
 

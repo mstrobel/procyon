@@ -64,7 +64,11 @@ public final class ExceptionHandlerMapper {
             final ControlFlowNode handlerStart = handlerStartNodes.get(entry);
             final List<ControlFlowNode> dominatedNodes = new ArrayList<>();
 
-            dominatedNodes.addAll(findDominatedNodes(cfg, handlerStart));
+            for (final ControlFlowNode node : findDominatedNodes(cfg, handlerStart)) {
+                if (node.getNodeType() == ControlFlowNodeType.Normal) {
+                    dominatedNodes.add(node);
+                }
+            }
 
             Collections.sort(
                 dominatedNodes,
@@ -159,10 +163,6 @@ public final class ExceptionHandlerMapper {
 
             agenda.remove(addNode);
 
-            if (addNode.getNodeType() != ControlFlowNodeType.Normal) {
-                continue;
-            }
-
             if (!head.dominates(addNode) &&
                 !shouldIncludeExceptionalExit(cfg, head, addNode)) {
 
@@ -182,6 +182,10 @@ public final class ExceptionHandlerMapper {
     }
 
     private static boolean shouldIncludeExceptionalExit(final ControlFlowGraph cfg, final ControlFlowNode head, final ControlFlowNode node) {
+        if (node.getNodeType() != ControlFlowNodeType.Normal) {
+            return false;
+        }
+
         if (!node.getDominanceFrontier().contains(cfg.getExceptionalExit()) &&
             !node.dominates(cfg.getExceptionalExit())) {
 
@@ -522,27 +526,6 @@ public final class ExceptionHandlerMapper {
         ExceptionHandler result = null;
 
         for (final ExceptionHandler handler : _handlerPlaceholders) {
-            final InstructionBlock tryBlock = handler.getTryBlock();
-
-            if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
-                offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
-                (result == null || isNarrower(handler, result))) {
-
-                result = handler;
-            }
-        }
-
-        return result;
-    }
-
-    private ExceptionHandler findInnermostFinallyHandler(final int offsetInTryBlock) {
-        ExceptionHandler result = null;
-
-        for (final ExceptionHandler handler : _handlerPlaceholders) {
-            if (!handler.isFinally()) {
-                continue;
-            }
-
             final InstructionBlock tryBlock = handler.getTryBlock();
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
