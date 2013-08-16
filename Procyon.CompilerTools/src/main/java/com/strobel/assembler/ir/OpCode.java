@@ -232,7 +232,7 @@ public enum OpCode {
     IINC_W(0xC484, FlowControl.Next, OpCodeType.Primitive, OperandType.LocalI2, StackBehavior.Pop0, StackBehavior.Push0),
     RET_W(0xC4A9, FlowControl.Branch, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.Push0),
     LEAVE(0xFE, FlowControl.Branch, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0),
-    RESERVED_2(0xFF, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0);
+    ENDFINALLY(0xFF, FlowControl.Branch, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0);
 
     private OpCode(
         final int code,
@@ -316,6 +316,7 @@ public enum OpCode {
             case JSR:
             case JSR_W:
             case LEAVE:
+            case ENDFINALLY:
                 return true;
             default:
                 return false;

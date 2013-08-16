@@ -927,6 +927,7 @@ public class AstMethodBodyBuilder {
                 throw ContractUtils.unreachable();
 
             case Leave:
+            case EndFinally:
                 return null;
 
             case DefaultValue:

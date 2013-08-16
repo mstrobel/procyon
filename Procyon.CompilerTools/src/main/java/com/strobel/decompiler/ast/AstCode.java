@@ -238,12 +238,16 @@ public enum AstCode {
     __RetW,
 
     /**
-     * Special placeholder to mark the end of try, catch, and finally blocks with an unconditional branch.
+     * Special placeholder to mark the end of try and catch blocks with an unconditional branch.
      * Will be removed during optimization.
      */
-    Leave,  // LEAVE
+    Leave,
 
-    __Reserved2,
+    /**
+     * Special placeholder to mark the end of finally blocks with an unconditional branch.
+     * Will be removed during optimization.
+     */
+    EndFinally,
 
     //
     // Virtual codes, defined for convenience.
@@ -415,6 +419,7 @@ public enum AstCode {
             case LoopOrSwitchBreak:
             case Return:
             case Leave:
+            case EndFinally:
                 return true;
 
             default:

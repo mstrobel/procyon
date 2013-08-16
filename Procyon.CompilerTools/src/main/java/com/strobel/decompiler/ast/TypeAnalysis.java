@@ -1660,6 +1660,7 @@ public final class TypeAnalysis {
                 }
 
                 case Leave:
+                case EndFinally:
                 case Nop: {
                     return null;
                 }

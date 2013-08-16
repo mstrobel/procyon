@@ -45,7 +45,6 @@ public final class AstBuilder {
     private final static AstCode[] CODES = AstCode.values();
     private final static StackSlot[] EMPTY_STACK = new StackSlot[0];
     private final static ByteCode[] EMPTY_DEFINITIONS = new ByteCode[0];
-    private final static OpCode OP_LEAVE = OpCode.LEAVE;
 
     private final Map<ExceptionHandler, ByteCode> _loadExceptions = new LinkedHashMap<>();
     private final Set<Instruction> _removed = new LinkedHashSet<>();
@@ -83,8 +82,8 @@ public final class AstBuilder {
         builder._exceptionHandlers = remapHandlers(body.getExceptionHandlers(), builder._instructions);
 
         builder.pruneExceptionHandlers();
-        builder.removeInlinedFinallyCode();
         builder.inlineSubroutines();
+        builder.removeInlinedFinallyCode();
 
         builder._cfg = ControlFlowGraphBuilder.build(builder._instructions, builder._exceptionHandlers);
         builder._cfg.computeDominance();
@@ -764,6 +763,10 @@ public final class AstBuilder {
         final InstructionCollection instructions = _instructions;
         final List<ExceptionHandler> handlers = _exceptionHandlers;
 
+        if (handlers.isEmpty()) {
+            return;
+        }
+
         Collections.reverse(handlers);
 
         try {
@@ -800,17 +803,20 @@ public final class AstBuilder {
 
                             _removed.add(nextToLast);
 
-                            if (nextToLast.getPrevious() != null &&
-                                nextToLast.getPrevious().getOpCode().isUnconditionalBranch() &&
-                                !nextToLast.getPrevious().getOpCode().isJumpToSubroutine()) {
+//                            if (nextToLast.getPrevious() != null &&
+//                                nextToLast.getPrevious().getOpCode().isUnconditionalBranch() &&
+//                                !nextToLast.getPrevious().getOpCode().isJumpToSubroutine()) {
+//
+//                                last.setOpCode(OpCode.NOP);
+//                                _removed.add(last);
+//                            }
+//                            else {
+//                                last.setOpCode(OpCode.ENDFINALLY);
+//								last.setOperand(null);
+//                            }
 
-                                last.setOpCode(OpCode.NOP);
-                                _removed.add(last);
-                            }
-                            else {
-                                last.setOpCode(OP_LEAVE);
-								last.setOperand(null);
-                            }
+                            last.setOpCode(OpCode.ENDFINALLY);
+                            last.setOperand(null);
 
                             break;
                         }
@@ -872,15 +878,9 @@ public final class AstBuilder {
                 final Set<ControlFlowNode> toProcess = new LinkedHashSet<>();
 
                 Instruction first = handlerInfo.head.getStart();
-                Instruction last = handlerInfo.tail.getEnd();
+                Instruction last = handlerInfo.handler.getHandlerBlock().getLastInstruction();
 
-                if (handlerInfo.handlerNodes.size() > 2 &&
-                    handlerInfo.tail.getBlockIndex() != nodeMap.get(handlerInfo.tail.getStart().getPrevious()).getBlockIndex()) {
-
-                    last = handlerInfo.handlerNodes.get(handlerInfo.handlerNodes.size() - 2).getEnd();
-                }
-
-                if (last.getOpCode() == OP_LEAVE) {
+                if (last.getOpCode() == OpCode.ENDFINALLY) {
                     first = first.getNext();
                     last = last.getPrevious().getPrevious();
                 }
@@ -907,6 +907,7 @@ public final class AstBuilder {
                 final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
                 final ControlFlowNode finallyTail = nodeMap.get(handler.getHandlerBlock().getLastInstruction());
                 final ControlFlowNode endFinallyNode = handlerInfo.handlerNode.getEndFinallyNode();
+                final Set<ControlFlowNode> exitOnlySuccessors = new HashSet<>();
 
                 if (endFinallyNode != null) {
                     successors.add(handlerInfo.handlerNode);
@@ -916,17 +917,30 @@ public final class AstBuilder {
                     final ControlFlowNode successor = successors.get(i);
 
                     for (final ControlFlowEdge edge : successor.getIncoming()) {
-                        if (edge.getType() == JumpType.Normal) {
+                        if (edge.getSource() == successor) {
+                            continue;
+                        }
+
+                        if (edge.getType() == JumpType.Normal &&
+                            edge.getSource().getNodeType() == ControlFlowNodeType.Normal &&
+                            !exitOnlySuccessors.contains(successor)) {
+
                             toProcess.add(edge.getSource());
                         }
                         else if (edge.getType() == JumpType.JumpToExceptionHandler &&
                                  edge.getSource().getNodeType() == ControlFlowNodeType.Normal &&
-                                 edge.getSource().getEnd().getOpCode().isThrow()) {
+                                 (edge.getSource().getEnd().getOpCode().isThrow() ||
+                                  edge.getSource().getEnd().getOpCode().isReturn())) {
 
                             toProcess.add(edge.getSource());
+
+                            if (exitOnlySuccessors.contains(successor)) {
+                                exitOnlySuccessors.add(edge.getSource());
+                            }
                         }
-                        else if (edge.getSource().getNodeType() == ControlFlowNodeType.FinallyHandler) {
+                        else if (edge.getSource().getExceptionHandler() != null) {
                             successors.add(edge.getSource());
+                            exitOnlySuccessors.add(edge.getSource());
                         }
                     }
                 }
@@ -1222,7 +1236,7 @@ public final class AstBuilder {
         trimAggressiveFinallyBlocks();
         trimAggressiveCatchBlocks();
         closeTryHandlerGaps();
-        extendHandlers();
+//        extendHandlers();
         mergeSharedHandlers();
         alignFinallyBlocksWithSiblingCatchBlocks();
         ensureDesiredProtectedRanges();
@@ -1841,58 +1855,58 @@ public final class AstBuilder {
         }
     }
 
-    private void extendHandlers() {
-        final List<ExceptionHandler> handlers = _exceptionHandlers;
-
-    outer:
-        for (int i = 0; i < handlers.size(); i++) {
-            final ExceptionHandler handler = handlers.get(i);
-            final InstructionBlock tryBlock = handler.getTryBlock();
-            final InstructionBlock handlerBlock = handler.getHandlerBlock();
-
-            for (int j = 0; j < handlers.size(); j++) {
-                if (i == j) {
-                    continue;
-                }
-
-                final ExceptionHandler other = handlers.get(j);
-                final InstructionBlock otherHandler = other.getHandlerBlock();
-
-                if (handlerBlock.intersects(otherHandler) &&
-                    !handlerBlock.contains(otherHandler) &&
-                    handlerBlock.getFirstInstruction().getOffset() <= otherHandler.getFirstInstruction().getOffset()) {
-
-                    if (handler.isCatch()) {
-                        handlers.set(
-                            i--,
-                            ExceptionHandler.createCatch(
-                                tryBlock,
-                                new InstructionBlock(
-                                    handlerBlock.getFirstInstruction(),
-                                    otherHandler.getLastInstruction()
-                                ),
-                                handler.getCatchType()
-                            )
-                        );
-                    }
-                    else {
-                        handlers.set(
-                            i--,
-                            ExceptionHandler.createFinally(
-                                tryBlock,
-                                new InstructionBlock(
-                                    handlerBlock.getFirstInstruction(),
-                                    otherHandler.getLastInstruction()
-                                )
-                            )
-                        );
-                    }
-
-                    continue outer;
-                }
-            }
-        }
-    }
+//    private void extendHandlers() {
+//        final List<ExceptionHandler> handlers = _exceptionHandlers;
+//
+//    outer:
+//        for (int i = 0; i < handlers.size(); i++) {
+//            final ExceptionHandler handler = handlers.get(i);
+//            final InstructionBlock tryBlock = handler.getTryBlock();
+//            final InstructionBlock handlerBlock = handler.getHandlerBlock();
+//
+//            for (int j = 0; j < handlers.size(); j++) {
+//                if (i == j) {
+//                    continue;
+//                }
+//
+//                final ExceptionHandler other = handlers.get(j);
+//                final InstructionBlock otherHandler = other.getHandlerBlock();
+//
+//                if (handlerBlock.intersects(otherHandler) &&
+//                    !handlerBlock.contains(otherHandler) &&
+//                    handlerBlock.getFirstInstruction().getOffset() <= otherHandler.getFirstInstruction().getOffset()) {
+//
+//                    if (handler.isCatch()) {
+//                        handlers.set(
+//                            i--,
+//                            ExceptionHandler.createCatch(
+//                                tryBlock,
+//                                new InstructionBlock(
+//                                    handlerBlock.getFirstInstruction(),
+//                                    otherHandler.getLastInstruction()
+//                                ),
+//                                handler.getCatchType()
+//                            )
+//                        );
+//                    }
+//                    else {
+//                        handlers.set(
+//                            i--,
+//                            ExceptionHandler.createFinally(
+//                                tryBlock,
+//                                new InstructionBlock(
+//                                    handlerBlock.getFirstInstruction(),
+//                                    otherHandler.getLastInstruction()
+//                                )
+//                            )
+//                        );
+//                    }
+//
+//                    continue outer;
+//                }
+//            }
+//        }
+//    }
 
     private static ExceptionHandler findFirstHandler(final InstructionBlock tryBlock, final Collection<ExceptionHandler> handlers) {
         ExceptionHandler result = null;
@@ -3344,7 +3358,7 @@ public final class AstBuilder {
                 }
 
                 if (lastInHandler != null && !lastInHandler.isUnconditionalControlFlow()) {
-                    handlerAst.add(new Expression(AstCode.Leave, null));
+                    handlerAst.add(new Expression(eh.isCatch() ? AstCode.Leave : AstCode.EndFinally, null));
                 }
 
                 if (eh.isCatch()) {

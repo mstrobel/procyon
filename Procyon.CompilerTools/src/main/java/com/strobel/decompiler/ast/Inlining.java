@@ -470,8 +470,6 @@ final class Inlining {
 
             for (int i = 0; i < body.size(); i++) {
                 if (matchGetArgument(body.get(i), AstCode.Store, variable, copiedExpression) &&
-                    !variable.get().isParameter() &&
-                    count(storeCounts, variable.get()) == 1 &&
                     canPerformCopyPropagation(copiedExpression.get(), variable.get())) {
 
                     //

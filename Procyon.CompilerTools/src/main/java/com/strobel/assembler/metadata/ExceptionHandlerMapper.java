@@ -440,29 +440,23 @@ public final class ExceptionHandlerMapper {
             final ExceptionHandler exceptionHandler = node.getExceptionHandler();
 
             if (exceptionHandler != null) {
-                if (exceptionHandler.isFinally()) {
-                    final ControlFlowNode parentHandler = findParentExceptionHandlerNode(node);
+                final ControlFlowNode parentHandler = findParentExceptionHandlerNode(node);
 
-                    if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
-                        createEdge(node, parentHandler, JumpType.JumpToExceptionHandler);
-                    }
-
-                    if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
-                        for (final ExceptionHandler other : _handlerPlaceholders) {
-                            if (Comparer.equals(other.getTryBlock(), parentHandler.getExceptionHandler().getTryBlock())) {
-                                final ControlFlowNode handlerNode = firstOrDefault(
-                                    _nodes,
-                                    new Predicate<ControlFlowNode>() {
-                                        @Override
-                                        public boolean test(final ControlFlowNode node) {
-                                            return node.getExceptionHandler() == other;
-                                        }
+                if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
+                    for (final ExceptionHandler other : _handlerPlaceholders) {
+                        if (Comparer.equals(other.getTryBlock(), parentHandler.getExceptionHandler().getTryBlock())) {
+                            final ControlFlowNode handlerNode = firstOrDefault(
+                                _nodes,
+                                new Predicate<ControlFlowNode>() {
+                                    @Override
+                                    public boolean test(final ControlFlowNode node) {
+                                        return node.getExceptionHandler() == other;
                                     }
-                                );
-
-                                if (handlerNode != node && handlerNode != parentHandler) {
-                                    createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
                                 }
+                            );
+
+                            if (handlerNode != node) {
+                                createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
                             }
                         }
                     }
@@ -528,6 +522,27 @@ public final class ExceptionHandlerMapper {
         ExceptionHandler result = null;
 
         for (final ExceptionHandler handler : _handlerPlaceholders) {
+            final InstructionBlock tryBlock = handler.getTryBlock();
+
+            if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
+                offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
+                (result == null || isNarrower(handler, result))) {
+
+                result = handler;
+            }
+        }
+
+        return result;
+    }
+
+    private ExceptionHandler findInnermostFinallyHandler(final int offsetInTryBlock) {
+        ExceptionHandler result = null;
+
+        for (final ExceptionHandler handler : _handlerPlaceholders) {
+            if (!handler.isFinally()) {
+                continue;
+            }
+
             final InstructionBlock tryBlock = handler.getTryBlock();
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&

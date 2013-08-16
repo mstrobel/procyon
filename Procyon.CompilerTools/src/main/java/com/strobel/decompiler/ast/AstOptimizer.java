@@ -448,7 +448,7 @@ public final class AstOptimizer {
                     matchGetArguments(body.get(body.size() - 1), AstCode.AThrow, a) &&
                     matchLoadAny(a.get(0), exceptionCopies)) {
 
-                    body.set(body.size() - 1, new Expression(AstCode.Leave, null));
+                    body.set(body.size() - 1, new Expression(AstCode.EndFinally, null));
                 }
             }
         }
@@ -885,7 +885,7 @@ public final class AstOptimizer {
         return body.size() == 3 &&
                matchGetOperand(body.get(0), AstCode.Goto, label) &&
                body.get(1) == label.get() &&
-               match(body.get(2), AstCode.Leave);
+               match(body.get(2), AstCode.EndFinally);
     }
 
     // </editor-fold>

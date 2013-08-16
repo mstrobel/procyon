@@ -535,7 +535,7 @@ final class GotoRemoval {
 
                 final Node exit = exit(e, new HashSet<Node>());
 
-                if (exit != null && match(exit, AstCode.Leave)) {
+                if (exit != null && matchLeaveHandler(exit)) {
                     final Node parent = parentLookup.get(e);
                     final Node grandParent = parent != null ? parentLookup.get(parent) : null;
 
@@ -544,7 +544,15 @@ final class GotoRemoval {
                          grandParent instanceof TryCatchBlock) &&
                         e == last(((Block) parent).getBody())) {
 
-                        e.setCode(AstCode.Leave);
+                        if (grandParent instanceof TryCatchBlock &&
+                            parent == ((TryCatchBlock) grandParent).getFinallyBlock()) {
+
+                            e.setCode(AstCode.EndFinally);
+                        }
+                        else {
+                            e.setCode(AstCode.Leave);
+                        }
+
                         e.setOperand(null);
                     }
                 }
@@ -614,6 +622,7 @@ final class GotoRemoval {
 
                 if (match(n, AstCode.Nop) ||
                     match(n, AstCode.Leave) ||
+                    match(n, AstCode.EndFinally) ||
                     n instanceof Label && !liveLabels.contains(n)) {
 
                     body.remove(i--);
