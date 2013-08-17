@@ -1158,6 +1158,9 @@ public final class TypeAnalysis {
                 }
 
                 case AConstNull: {
+                    if (expectedType != null && !expectedType.isPrimitive()) {
+                        return expectedType;
+                    }
                     return null;
                 }
 

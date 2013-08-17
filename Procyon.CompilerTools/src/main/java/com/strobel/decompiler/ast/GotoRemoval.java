@@ -29,20 +29,13 @@ import static com.strobel.decompiler.ast.PatternMatching.*;
 
 @SuppressWarnings("ConstantConditions")
 final class GotoRemoval {
-    private final static Node NULL_NODE = new Node() {
-        @Override
-        public void writeTo(final ITextOutput output) {
-            throw ContractUtils.unreachable();
-        }
-    };
-
     final Map<Node, Label> labels = new IdentityHashMap<>();
     final Map<Label, Node> labelLookup = new IdentityHashMap<>();
     final Map<Node, Node> parentLookup = new IdentityHashMap<>();
     final Map<Node, Node> nextSibling = new IdentityHashMap<>();
 
     public final void removeGotos(final Block method) {
-        parentLookup.put(method, NULL_NODE);
+        parentLookup.put(method, Node.NULL);
 
         for (final Node node : method.getSelfAndChildrenRecursive(Node.class)) {
             Node previousChild = null;
@@ -66,7 +59,7 @@ final class GotoRemoval {
             }
 
             if (previousChild != null) {
-                nextSibling.put(previousChild, NULL_NODE);
+                nextSibling.put(previousChild, Node.NULL);
             }
         }
 
@@ -176,7 +169,7 @@ final class GotoRemoval {
                 final Node nextNode = nextSibling.get(parent);
 
                 if (nextNode != null &&
-                    nextNode != NULL_NODE &&
+                    nextNode != Node.NULL &&
                     nextNode == gotoExpression.getOperand()) {
 
                     breakBlock = parent;
@@ -300,7 +293,7 @@ final class GotoRemoval {
 
                     @SuppressWarnings("unchecked")
                     private T updateCurrent(Node node) {
-                        while (node != null && node != NULL_NODE) {
+                        while (node != null && node != Node.NULL) {
                             node = parentLookup.get(node);
 
                             if (parentType.isInstance(node)) {
@@ -480,7 +473,7 @@ final class GotoRemoval {
 
         final Node parent = parentLookup.get(node);
 
-        if (parent == null || parent == NULL_NODE) {
+        if (parent == null || parent == Node.NULL) {
             //
             // Exited main body.
             //
@@ -490,7 +483,7 @@ final class GotoRemoval {
         if (parent instanceof Block) {
             final Node nextNode = nextSibling.get(node);
 
-            if (nextNode != null && nextNode != NULL_NODE) {
+            if (nextNode != null && nextNode != Node.NULL) {
                 return enter(nextNode, visitedNodes);
             }
 

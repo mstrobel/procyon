@@ -599,7 +599,7 @@ final class Inlining {
         }
     }
 
-    private static int count(final Map<Variable, MutableInteger> map, final Variable variable) {
+    static int count(final Map<Variable, MutableInteger> map, final Variable variable) {
         final MutableInteger count = map.get(variable);
         return count != null ? count.getValue() : 0;
     }

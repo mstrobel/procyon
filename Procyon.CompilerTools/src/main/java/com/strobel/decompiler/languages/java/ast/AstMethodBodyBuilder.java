@@ -81,6 +81,7 @@ public class AstMethodBodyBuilder {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private static BlockStatement createErrorBlock(
         final AstBuilder astBuilder,
         final DecompilerContext context,
@@ -336,7 +337,6 @@ public class AstMethodBodyBuilder {
 
                 final TryCatchBlock tryCatch = (TryCatchBlock) next;
                 final Block finallyBlock = tryCatch.getFinallyBlock();
-                final List<CatchBlock> catchBlocks = tryCatch.getCatchBlocks();
 
                 if (finallyBlock != null &&
                     finallyBlock.getBody().size() == 1) {
@@ -944,7 +944,7 @@ public class AstMethodBodyBuilder {
     }
 
     @SuppressWarnings("ConstantConditions")
-    private AstNode transformCall(
+    private Expression transformCall(
         final boolean isVirtual,
         final com.strobel.decompiler.ast.Expression byteCode,
         final List<Expression> arguments) {
@@ -1127,6 +1127,10 @@ public class AstMethodBodyBuilder {
 
                             if (!resolvedType.isStatic() && !_context.getSettings().getShowSyntheticMembers()) {
                                 ++start;
+                            }
+
+                            if (start > end) {
+                                return Collections.emptyList();
                             }
 
                             return adjustArgumentsForMethodCallCore(

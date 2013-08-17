@@ -328,6 +328,18 @@ public final class PatternMatching {
         );
     }
 
+    public static boolean matchLoad(final Node node, final StrongBox<Variable> variable) {
+        return matchGetOperand(node, AstCode.Load, variable);
+    }
+
+    public static boolean matchStore(final Node node, final StrongBox<Variable> variable, final StrongBox<Expression> argument) {
+        return matchGetArgument(node, AstCode.Store, variable, argument);
+    }
+
+    public static boolean matchStore(final Node node, final StrongBox<Variable> variable, final List<Expression> argument) {
+        return matchGetArguments(node, AstCode.Store, variable, argument);
+    }
+
     public static boolean matchLoadOrRet(final Node node, final StrongBox<Variable> variable) {
         return matchGetOperand(node, AstCode.Load, variable) ||
                matchGetOperand(node, AstCode.Ret, variable);
