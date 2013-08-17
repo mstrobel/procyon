@@ -613,14 +613,10 @@ public final class AstBuilder {
             if (diveIntoHandlers && addNode.getExceptionHandler() != null) {
                 addNode = findNode(cfg, addNode.getExceptionHandler().getHandlerBlock().getFirstInstruction());
             }
-//            else if (addNode.getNodeType() == ControlFlowNodeType.EndFinally) {
-//                for (final ControlFlowEdge edge : addNode.getOutgoing()) {
-//                    if (edge.getType() == JumpType.EndFinally) {
-//                        agenda.add(edge.getTarget());
-//                    }
-//                }
-//                continue;
-//            }
+            else if (diveIntoHandlers && addNode.getNodeType() == ControlFlowNodeType.EndFinally) {
+                agenda.addAll(addNode.getDominatorTreeChildren());
+                continue;
+            }
 
             if (addNode.getNodeType() != ControlFlowNodeType.Normal) {
                 continue;

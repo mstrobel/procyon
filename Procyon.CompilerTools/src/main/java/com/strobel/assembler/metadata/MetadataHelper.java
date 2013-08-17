@@ -26,8 +26,7 @@ import com.strobel.core.VerifyArgument;
 
 import java.util.*;
 
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
-import static com.strobel.core.CollectionUtilities.indexOfByIdentity;
+import static com.strobel.core.CollectionUtilities.*;
 
 public final class MetadataHelper {
     public static boolean areGenericsSupported(final TypeDefinition t) {
@@ -565,7 +564,13 @@ public final class MetadataHelper {
             return null;
         }
 
-        return substituteGenericArguments(resolvedType.getBaseType(), type);
+        final TypeReference baseType = resolvedType.getBaseType();
+
+        if (baseType == null) {
+            return null;
+        }
+
+        return substituteGenericArguments(baseType, type);
     }
 
     public static List<TypeReference> getInterfaces(final TypeReference type) {
@@ -1808,10 +1813,10 @@ public final class MetadataHelper {
                 return BuiltinTypes.Object;
             }
 
-            final TypeReference baseType = ((TypeDefinition) genericDefinition).getBaseType();
+            final TypeReference baseType = getBaseType(genericDefinition);
 
-            return baseType.isGenericType() ? eraseRecursive(baseType)
-                                            : baseType;
+            return baseType != null && baseType.isGenericType() ? eraseRecursive(baseType)
+                                                                : baseType;
         }
 
         @Override
