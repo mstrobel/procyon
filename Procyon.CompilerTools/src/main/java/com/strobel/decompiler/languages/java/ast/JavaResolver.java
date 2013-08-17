@@ -756,6 +756,9 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
 
         private static Object divide(final JvmType type, final Object left, final Object right) {
             if (left instanceof Number && right instanceof Number) {
+                if (type.isIntegral() && ((Number) right).longValue() == 0L) {
+                   return null;
+                }
                 switch (type) {
                     case Byte:
                         return (byte) (((Number) left).intValue() / ((Number) right).intValue());

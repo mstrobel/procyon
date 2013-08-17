@@ -19,6 +19,7 @@ package com.strobel.decompiler.ast;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
+import com.strobel.core.Pair;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
@@ -55,6 +56,7 @@ public final class TypeAnalysis {
         }
     };
 
+    private final Set<Pair<Variable, TypeReference>> _previouslyInferred = new LinkedHashSet<>();
     private final IdentityHashMap<Variable, TypeReference> _inferredVariableTypes = new IdentityHashMap<>();
 
     private DecompilerContext _context;
@@ -288,6 +290,7 @@ public final class TypeAnalysis {
 
     @SuppressWarnings("ConstantConditions")
     private void runInference() {
+        _previouslyInferred.clear();
         _inferredVariableTypes.clear();
 
         int numberOfExpressionsAlreadyInferred = 0;
@@ -299,20 +302,19 @@ public final class TypeAnalysis {
         boolean ignoreSingleLoadDependencies = false;
         boolean assignVariableTypesBasedOnPartialInformation = false;
 
+        final Predicate<Variable> dependentVariableTypesKnown = new Predicate<Variable>() {
+            @Override
+            public boolean test(final Variable v) {
+                return inferTypeForVariable(v, null) != null || _singleLoadVariables.contains(v);
+            }
+        };
+
         while (numberOfExpressionsAlreadyInferred < _allExpressions.size()) {
             final int oldCount = numberOfExpressionsAlreadyInferred;
 
             for (final ExpressionToInfer e : _allExpressions) {
                 if (!e.done &&
-                    trueForAll(
-                        e.dependencies,
-                        new Predicate<Variable>() {
-                            @Override
-                            public boolean test(final Variable v) {
-                                return inferTypeForVariable(v, null) != null || _singleLoadVariables.contains(v);
-                            }
-                        }
-                    ) &&
+                    trueForAll(e.dependencies, dependentVariableTypesKnown) &&
                     (e.dependsOnSingleLoad == null || e.dependsOnSingleLoad.getType() != null || ignoreSingleLoadDependencies)) {
 
                     runInference(e.expression);
@@ -487,7 +489,13 @@ public final class TypeAnalysis {
         final VariableDefinition variableDefinition = variable.getOriginalVariable();
 
         if (variable.isParameter()) {
-            final TypeReference parameterType = variable.getOriginalParameter().getParameterType();
+            final ParameterDefinition parameter = variable.getOriginalParameter();
+
+            if (parameter == _context.getCurrentMethod().getBody().getThisParameter()) {
+                return false;
+            }
+
+            final TypeReference parameterType = parameter.getParameterType();
 
             if (parameterType.isGenericType() || MetadataHelper.isRawType(parameterType)) {
                 return !_preserveMetadataGenericTypes;
@@ -586,7 +594,9 @@ public final class TypeAnalysis {
         }
 
         if (changedVariable != null) {
-            invalidateDependentExpressions(expression, changedVariable);
+            if (_previouslyInferred.add(Pair.create(changedVariable, changedVariable.getType()))) {
+                invalidateDependentExpressions(expression, changedVariable);
+            }
         }
     }
 
@@ -747,7 +757,8 @@ public final class TypeAnalysis {
                             _inferredVariableTypes.put(v, result);
 
                             if (result != null && lastInferredType == null ||
-                                !MetadataHelper.isSameType(result, lastInferredType)) {
+                                !MetadataHelper.isSameType(result, lastInferredType) &&
+                                _previouslyInferred.add(Pair.create(v, result))) {
 
                                 invalidateDependentExpressions(expression, v);
                             }
@@ -1147,6 +1158,9 @@ public final class TypeAnalysis {
                 }
 
                 case AConstNull: {
+                    if (expectedType != null && !expectedType.isPrimitive()) {
+                        return expectedType;
+                    }
                     return null;
                 }
 
@@ -1648,6 +1662,7 @@ public final class TypeAnalysis {
                 }
 
                 case Leave:
+                case EndFinally:
                 case Nop: {
                     return null;
                 }

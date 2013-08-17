@@ -7,7 +7,7 @@ import java.util.List;
 final class GenericMethodInstance extends MethodReference implements IGenericInstance {
     private final MethodReference _genericDefinition;
     private final TypeReference _returnType;
-    private final List<ParameterDefinition> _parameters;
+    private final ParameterDefinitionCollection _parameters;
     private final List<TypeReference> _typeArguments;
 
     private TypeReference _declaringType;
@@ -22,8 +22,11 @@ final class GenericMethodInstance extends MethodReference implements IGenericIns
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _genericDefinition = VerifyArgument.notNull(definition, "definition");
         _returnType = VerifyArgument.notNull(returnType, "returnType");
-        _parameters = VerifyArgument.notNull(parameters, "parameters");
+        _parameters = new ParameterDefinitionCollection(this);
         _typeArguments = VerifyArgument.notNull(typeArguments, "typeArguments");
+
+        _parameters.addAll(VerifyArgument.notNull(parameters, "parameters"));
+        _parameters.freeze();
     }
 
     @Override

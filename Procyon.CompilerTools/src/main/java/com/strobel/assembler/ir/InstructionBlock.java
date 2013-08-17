@@ -17,14 +17,15 @@
 package com.strobel.assembler.ir;
 
 import com.strobel.core.Comparer;
+import com.strobel.core.Predicate;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Range;
 
-public final class ExceptionBlock {
+public final class InstructionBlock {
     private final Instruction _firstInstruction;
     private final Instruction _lastInstruction;
 
-    public ExceptionBlock(final Instruction firstInstruction, final Instruction lastInstruction) {
+    public InstructionBlock(final Instruction firstInstruction, final Instruction lastInstruction) {
         _firstInstruction = VerifyArgument.notNull(firstInstruction, "firstInstruction");
         _lastInstruction = lastInstruction;
     }
@@ -43,7 +44,7 @@ public final class ExceptionBlock {
                instruction.getOffset() <= getLastInstruction().getOffset();
     }
 
-    public final boolean contains(final ExceptionBlock block) {
+    public final boolean contains(final InstructionBlock block) {
         return block != null &&
                block.getFirstInstruction().getOffset() >= getFirstInstruction().getOffset() &&
                block.getLastInstruction().getOffset() <= getLastInstruction().getOffset();
@@ -55,7 +56,7 @@ public final class ExceptionBlock {
                range.getEnd() <= getLastInstruction().getEndOffset();
     }
 
-    public final boolean intersects(final ExceptionBlock block) {
+    public final boolean intersects(final InstructionBlock block) {
         return block != null &&
                block.getFirstInstruction().getOffset() <= getLastInstruction().getOffset() &&
                block.getLastInstruction().getOffset() >= getFirstInstruction().getOffset();
@@ -73,8 +74,8 @@ public final class ExceptionBlock {
             return true;
         }
 
-        if (o instanceof ExceptionBlock) {
-            final ExceptionBlock block = (ExceptionBlock) o;
+        if (o instanceof InstructionBlock) {
+            final InstructionBlock block = (InstructionBlock) o;
 
             return Comparer.equals(_firstInstruction, block._firstInstruction) &&
                    Comparer.equals(_lastInstruction, block._lastInstruction);
@@ -88,5 +89,23 @@ public final class ExceptionBlock {
         int result = _firstInstruction != null ? _firstInstruction.hashCode() : 0;
         result = 31 * result + (_lastInstruction != null ? _lastInstruction.hashCode() : 0);
         return result;
+    }
+
+    public final static Predicate<InstructionBlock> containsInstructionPredicate(final Instruction instruction) {
+        return new Predicate<InstructionBlock>() {
+            @Override
+            public boolean test(final InstructionBlock b) {
+                return b.contains(instruction);
+            }
+        };
+    }
+
+    public final static Predicate<InstructionBlock> containsBlockPredicate(final InstructionBlock block) {
+        return new Predicate<InstructionBlock>() {
+            @Override
+            public boolean test(final InstructionBlock b) {
+                return b.contains(block);
+            }
+        };
     }
 }

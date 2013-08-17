@@ -27,6 +27,7 @@ public interface IOutputFormatter {
     void writeIdentifier(String identifier);
     void writeKeyword(String keyword);
     void writeOperator(String token);
+    void writeDelimiter(String token);
     void writeToken(String token);
     void writeLiteral(String value);
     void writeTextLiteral(String value);

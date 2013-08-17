@@ -37,6 +37,11 @@ public final class PatternMatching {
                ((Expression) node).getCode() == code;
     }
 
+    public static boolean matchLeaveHandler(final Node node) {
+        return match(node, AstCode.Leave) ||
+               match(node, AstCode.EndFinally);
+    }
+
     public static <T> boolean matchGetOperand(final Node node, final AstCode code, final StrongBox<? super T> operand) {
         if (node instanceof Expression) {
             final Expression expression = (Expression) node;
@@ -321,6 +326,18 @@ public final class PatternMatching {
                 }
             }
         );
+    }
+
+    public static boolean matchLoad(final Node node, final StrongBox<Variable> variable) {
+        return matchGetOperand(node, AstCode.Load, variable);
+    }
+
+    public static boolean matchStore(final Node node, final StrongBox<Variable> variable, final StrongBox<Expression> argument) {
+        return matchGetArgument(node, AstCode.Store, variable, argument);
+    }
+
+    public static boolean matchStore(final Node node, final StrongBox<Variable> variable, final List<Expression> argument) {
+        return matchGetArguments(node, AstCode.Store, variable, argument);
     }
 
     public static boolean matchLoadOrRet(final Node node, final StrongBox<Variable> variable) {

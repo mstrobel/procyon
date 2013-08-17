@@ -247,6 +247,11 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 lastWritten = LastWritten.Operator;
                 return;
             }
+            else if (tokenRole.isDelimiter()) {
+                formatter.writeDelimiter(token);
+                lastWritten = "(".equals(token) ? LastWritten.LeftParenthesis : LastWritten.Delimiter;
+                return;
+            }
         }
 
         formatter.writeToken(token);
@@ -907,7 +912,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             closeBrace(style);
         }
 
-        if (!(parent instanceof Expression)) {
+        if (!(parent instanceof Expression || parent instanceof DoWhileStatement)) {
             newLine();
         }
 
@@ -962,6 +967,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         startNode(node);
         writeKeyword(DoWhileStatement.DO_KEYWORD_ROLE);
         writeEmbeddedStatement(node.getEmbeddedStatement());
+        space(lastWritten != LastWritten.Whitespace);
         writeKeyword(DoWhileStatement.WHILE_KEYWORD_ROLE);
         space(policy.SpaceBeforeWhileParentheses);
         leftParenthesis();
@@ -2408,6 +2414,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         QuestionMark,
         Division,
         Operator,
+        Delimiter,
         LeftParenthesis
     }
 

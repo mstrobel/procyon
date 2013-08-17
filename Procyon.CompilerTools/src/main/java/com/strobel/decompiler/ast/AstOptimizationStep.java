@@ -48,6 +48,7 @@ public enum AstOptimizationStep {
     ReduceIfNesting,
     InlineVariables3,
     ReduceComparisonInstructionSet,
+    MergeDisparateObjectInitializations,
     RecombineVariables,
     TypeInference2,
     RemoveRedundantCode3,

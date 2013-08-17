@@ -16,7 +16,7 @@
 
 package com.strobel.decompiler;
 
-import com.strobel.assembler.ir.ExceptionBlock;
+import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.Frame;
 import com.strobel.assembler.ir.FrameType;
@@ -228,7 +228,7 @@ public final class DecompilerHelpers {
             writeType(output, catchType);
         }
 
-        final ExceptionBlock handlerBlock = handler.getHandlerBlock();
+        final InstructionBlock handlerBlock = handler.getHandlerBlock();
 
         output.write(' ');
         writeOffsetReference(output, handlerBlock.getFirstInstruction());
@@ -438,9 +438,9 @@ public final class DecompilerHelpers {
                 case SIGNATURE:
                 case ERASED_SIGNATURE:
                 case DESCRIPTOR: {
-                    writer.write('T');
+                    writer.writeDelimiter("T");
                     writer.writeReference(type.getSimpleName(), type);
-                    writer.write(';');
+                    writer.writeDelimiter(";");
                     return;
                 }
 
@@ -478,15 +478,15 @@ public final class DecompilerHelpers {
                 case SIGNATURE:
                 case ERASED_SIGNATURE: {
                     if (type.hasSuperBound()) {
-                        writer.write("-");
+                        writer.write('-');
                         formatType(writer, type.getSuperBound(), syntax, false, stack);
                     }
                     else if (type.hasExtendsBound()) {
-                        writer.write("+");
+                        writer.write('+');
                         formatType(writer, type.getExtendsBound(), syntax, false, stack);
                     }
                     else {
-                        writer.write("*");
+                        writer.write('*');
                     }
                     return;
                 }
@@ -575,7 +575,7 @@ public final class DecompilerHelpers {
                 case SIGNATURE:
                 case ERASED_SIGNATURE:
                 case DESCRIPTOR: {
-                    writer.write("[");
+                    writer.writeDelimiter("[");
                     formatType(writer, type.getElementType(), syntax, false, stack);
                     break;
                 }
@@ -583,7 +583,7 @@ public final class DecompilerHelpers {
                 case TYPE_NAME:
                 case SHORT_TYPE_NAME: {
                     formatType(writer, type.getElementType(), syntax, false, stack);
-                    writer.write("[]");
+                    writer.writeDelimiter("[]");
                 }
             }
 
@@ -613,7 +613,7 @@ public final class DecompilerHelpers {
                         name = nameSource.getInternalName();
                     }
                     else {
-                        writer.write('L');
+                        writer.writeDelimiter("L");
                         name = nameSource.getInternalName();
                     }
                     break;
@@ -669,7 +669,7 @@ public final class DecompilerHelpers {
             }
 
             if (!type.isPrimitive() && (syntax == NameSyntax.SIGNATURE || syntax == NameSyntax.ERASED_SIGNATURE)) {
-                writer.write(';');
+                writer.writeDelimiter(";");
             }
         }
         finally {
@@ -768,7 +768,7 @@ public final class DecompilerHelpers {
             final float f = (Float) value;
             if (Float.isInfinite(f) || Float.isNaN(f)) {
                 output.writeReference("Float", MetadataSystem.instance().lookupType("java/lang/Float"));
-                output.write(".");
+                output.writeDelimiter(".");
                 if (f == Float.POSITIVE_INFINITY) {
                     output.write("POSITIVE_INFINITY");
                 }
@@ -787,7 +787,7 @@ public final class DecompilerHelpers {
             if (Double.isInfinite(d) || Double.isNaN(d)) {
                 final TypeReference doubleType = MetadataSystem.instance().lookupType("java/lang/Double");
                 output.writeReference("Double", doubleType);
-                output.write(".");
+                output.writeDelimiter(".");
                 if (d == Double.POSITIVE_INFINITY) {
                     output.write("POSITIVE_INFINITY");
                 }

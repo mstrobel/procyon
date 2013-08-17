@@ -132,7 +132,7 @@ final class Inlining {
             final Variable v = catchBlock.getExceptionVariable();
 
             if (v != null &&
-                isGenerated(v) &&
+                v.isGenerated() &&
                 count(storeCounts, v) == 1 &&
                 count(loadCounts, v) <= 1) {
 
@@ -263,7 +263,8 @@ final class Inlining {
 
         if (findLoadInNext((Expression) n, variable, inlinedExpression, parent, position) == Boolean.TRUE) {
             if (!aggressive &&
-                !isGenerated(variable) &&
+                !(variable.isGenerated() ||
+                  notFromMetadata(variable) && matchUnconditionalBranch(n) /* allow inline to return or throw */) &&
                 !nonAggressiveInlineInto((Expression) n, parent.get())) {
 
                 return false;
@@ -286,7 +287,7 @@ final class Inlining {
         return false;
     }
 
-    private boolean isGenerated(final Variable variable) {
+    private boolean notFromMetadata(final Variable variable) {
         return variable.isGenerated() ||
                !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata();
     }
@@ -424,7 +425,7 @@ final class Inlining {
             }
 
             if (count(loadCounts, variable.get()) == 0 &&
-                canInline(variable.get())) {
+                notFromMetadata(variable.get())) {
 
                 //
                 // The variable is never loaded.
@@ -453,10 +454,6 @@ final class Inlining {
         }
 
         return false;
-    }
-
-    private boolean canInline(final Variable variable) {
-        return isGenerated(variable);
     }
 
     // </editor-fold>
@@ -548,8 +545,8 @@ final class Inlining {
                 // Variables can be copied only if both the variable and the target copy variable are generated,
                 // and if the variable has only a single assignment.
                 //
-                return isGenerated(v) &&
-                       isGenerated(copyVariable) &&
+                return v.isGenerated() &&
+                       copyVariable.isGenerated() &&
                        count(storeCounts, v) == 1;
             }
 
@@ -602,7 +599,7 @@ final class Inlining {
         }
     }
 
-    private static int count(final Map<Variable, MutableInteger> map, final Variable variable) {
+    static int count(final Map<Variable, MutableInteger> map, final Variable variable) {
         final MutableInteger count = map.get(variable);
         return count != null ? count.getValue() : 0;
     }

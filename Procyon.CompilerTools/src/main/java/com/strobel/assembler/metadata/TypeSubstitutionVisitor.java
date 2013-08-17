@@ -232,7 +232,8 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
                 visit(m.getDeclaringType(), map),
                 resolvedMethod != null ? resolvedMethod : m,
                 newReturnType,
-                newParameters,
+                newParameters == oldParameters ? MetadataHelper.copyParameters(oldParameters)
+                                               : newParameters,
                 newTypeArguments
             );
         }

@@ -32,6 +32,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.regex.Pattern;
 
 public final class ControlFlowGraph {
     private final List<ControlFlowNode> _nodes;
@@ -207,17 +208,11 @@ public final class ControlFlowGraph {
             output.indent();
 
             output.writeLine(
-                "label = \"<f0> %s\"",
-                node.toString()
-                    .replace("\"", "\\\"")
-                    .replace("|", "\\|")
-                    .replace("{", "\\{")
-                    .replace("}", "\\}")
-                    .replace("<", "\\<")
-                    .replace(">", "\\>")
+                "label = \"%s\\l\"",
+                escapeGraphViz(node.toString())
             );
 
-            output.writeLine("shape = \"record\"");
+            output.writeLine(", shape = \"box\"");
 
             output.unindent();
             output.writeLine("];");
@@ -232,17 +227,11 @@ public final class ControlFlowGraph {
                 output.indent();
 
                 output.writeLine(
-                    "label = \"<f0> %s\"",
-                    endFinallyNode.toString()
-                                  .replace("\"", "\\\"")
-                                  .replace("|", "\\|")
-                                  .replace("{", "\\{")
-                                  .replace("}", "\\}")
-                                  .replace("<", "\\<")
-                                  .replace(">", "\\>")
+                    "label = \"%s\"",
+                    escapeGraphViz(endFinallyNode.toString())
                 );
 
-                output.writeLine("shape = \"record\"");
+                output.writeLine("shape = \"box\"");
 
                 output.unindent();
                 output.writeLine("];");
@@ -257,9 +246,30 @@ public final class ControlFlowGraph {
             final ControlFlowNode from = edge.getSource();
             final ControlFlowNode to = edge.getTarget();
 
-            output.writeLine("\"%s\":f0 -> \"%s\":f0 [", nodeName(from), nodeName(to));
+            output.writeLine("\"%s\" -> \"%s\" [", nodeName(from), nodeName(to));
             output.indent();
-            output.writeLine("label = \"%s\"", edge.getType());
+
+            switch (edge.getType()) {
+                case Normal:
+                    break;
+
+                case LeaveTry:
+                    output.writeLine("color = \"blue\"");
+                    break;
+
+                case EndFinally:
+                    output.writeLine("color = \"red\"");
+                    break;
+
+                case JumpToExceptionHandler:
+                    output.writeLine("color = \"gray\",");
+                    break;
+
+                default:
+                    output.writeLine("label = \"%s\"", edge.getType());
+                    break;
+            }
+
             output.unindent();
             output.writeLine("];");
         }
@@ -283,5 +293,31 @@ public final class ControlFlowGraph {
         }
 
         return name;
+    }
+
+    private final static Pattern SAFE_PATTERN = Pattern.compile("^[\\w\\d]+$");
+
+    private static String escapeGraphViz(final String text) {
+        return escapeGraphViz(text, false);
+    }
+
+    private static String escapeGraphViz(final String text, final boolean quote) {
+        if (SAFE_PATTERN.matcher(text).matches()) {
+            return quote ? "\"" + text + "\""
+                         : text;
+        }
+        else {
+            return (quote ? "\"" : "") +
+                   text.replace("\\", "\\\\")
+                       .replace("\r", "")
+                       .replace("\n", "\\l")
+                       .replace("|", "\\|")
+                       .replace("{", "\\{")
+                       .replace("}", "\\}")
+                       .replace("<", "\\<")
+                       .replace(">", "\\>")
+                       .replace("\"", "\\\"") +
+                   (quote ? "\"" : "");
+        }
     }
 }
