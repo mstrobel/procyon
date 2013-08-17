@@ -359,10 +359,12 @@ public final class TypeAnalysis {
         final StrongBox<Expression> a = new StrongBox<>();
 
         for (final Variable variable : _assignmentExpressions.keySet()) {
-            if (variable.getType() == null) {
+            final TypeReference type = variable.getType();
+
+            if (type == null || type == BuiltinTypes.Null) {
                 variable.setType(BuiltinTypes.Object);
             }
-            else if (variable.getType().getSimpleType() == JvmType.Boolean) {
+            else if (type.getSimpleType() == JvmType.Boolean) {
                 //
                 // Make sure constant assignments to boolean variables have boolean values,
                 // and not integer values.
@@ -382,7 +384,7 @@ public final class TypeAnalysis {
                     }
                 }
             }
-            else if (variable.getType().getSimpleType() == JvmType.Character) {
+            else if (type.getSimpleType() == JvmType.Character) {
                 //
                 // Make sure constant assignments to boolean variables have boolean values,
                 // and not integer values.
@@ -727,7 +729,7 @@ public final class TypeAnalysis {
 
                 case Load: {
                     final Variable v = (Variable) expression.getOperand();
-                    final TypeReference lastInferredType = _inferredVariableTypes.get(v);
+                    final TypeReference inferredType = inferTypeForVariable(v, expectedType);
                     final TypeDefinition thisType = _context.getCurrentType();
 
                     if (v.isParameter() &&
@@ -740,60 +742,57 @@ public final class TypeAnalysis {
                         return thisType;
                     }
 
-                    TypeReference result = null;
+                    TypeReference result = inferredType;
 
-                    if (expectedType != null) {
-                        if (shouldInferVariableType(v)) {
-                            if (expectedType.isGenericType()) {
-                                if (MetadataHelper.areGenericsSupported(thisType)) {
-                                    if (lastInferredType != null) {
-                                        result = MetadataHelper.asSubType(lastInferredType, expectedType);
-                                    }
+                    if (expectedType != null &&
+                        shouldInferVariableType(v)) {
 
-                                    if (result == null && v.getType() != null) {
-                                        result = MetadataHelper.asSubType(v.getType(), expectedType);
+                        TypeReference tempResult = null;
 
-                                        if (result == null) {
-                                            result = MetadataHelper.asSubType(MetadataHelper.eraseRecursive(v.getType()), expectedType);
-                                        }
-                                    }
+                        if (!MetadataHelper.isSubType(inferredType, expectedType)) {
+                            tempResult = MetadataHelper.asSubType(inferredType, expectedType);
+                        }
 
-                                    if (MetadataHelper.getUnboundGenericParameterCount(result) > 0 && lastInferredType != null) {
-                                        result = MetadataHelper.substituteGenericArguments(result, lastInferredType);
-                                    }
-                                }
-                                else {
-                                    result = new RawType(expectedType.getUnderlyingType());
-                                }
+                        if (tempResult == null && v.getType() != null) {
+                            tempResult = MetadataHelper.asSubType(v.getType(), expectedType);
 
-                                _inferredVariableTypes.put(v, result);
-
-                                if (result != null && lastInferredType == null ||
-                                    !MetadataHelper.isSameType(result, lastInferredType) &&
-                                    _previouslyInferred.add(Pair.create(v, result))) {
-
-                                    invalidateDependentExpressions(expression, v);
-                                }
+                            if (tempResult == null) {
+                                tempResult = MetadataHelper.asSubType(MetadataHelper.eraseRecursive(v.getType()), expectedType);
                             }
                         }
-                        else {
-                            result = v.isParameter() ? v.getOriginalParameter().getParameterType()
-                                                     : v.getOriginalVariable().getVariableType();
+
+                        if (tempResult == null) {
+                            tempResult = expectedType;
                         }
 
-                        if (_singleLoadVariables.contains(v) && v.getType() == null) {
-                            v.setType(result != null ? result : expectedType);
+                        result = tempResult;
+
+                        if (expectedType.isGenericType()) {
+                            if (MetadataHelper.areGenericsSupported(thisType)) {
+                                if (MetadataHelper.getUnboundGenericParameterCount(result) > 0) {
+                                    result = MetadataHelper.substituteGenericArguments(result, inferredType);
+                                }
+                            }
+                            else {
+                                result = new RawType(inferredType.getUnderlyingType());
+                            }
                         }
-
-                        return result != null ? result : v.getType();
                     }
 
-                    if (shouldInferVariableType(v)) {
-                        return lastInferredType != null ? lastInferredType : v.getType();
+                    _inferredVariableTypes.put(v, result);
+
+                    if (result != null &&
+                        !MetadataHelper.isSameType(result, inferredType) &&
+                        _previouslyInferred.add(Pair.create(v, result))) {
+
+                        invalidateDependentExpressions(expression, v);
                     }
 
-                    return v.isParameter() ? v.getOriginalParameter().getParameterType()
-                                           : v.getOriginalVariable().getVariableType();
+                    if (_singleLoadVariables.contains(v) && v.getType() == null) {
+                        v.setType(result);
+                    }
+
+                    return result;
                 }
 
                 case InvokeDynamic: {
@@ -1185,7 +1184,7 @@ public final class TypeAnalysis {
                     if (expectedType != null && !expectedType.isPrimitive()) {
                         return expectedType;
                     }
-                    return null;
+                    return BuiltinTypes.Null;
                 }
 
                 case LdC: {
@@ -1552,19 +1551,8 @@ public final class TypeAnalysis {
                             binaryArguments = arguments;
                         }
 
-                        doInferTypeForExpression(
-                            binaryArguments.get(0),
-                            binaryArguments.get(0).getInferredType() != null ? binaryArguments.get(0).getInferredType()
-                                                                             : binaryArguments.get(0).getExpectedType(),
-                            true
-                        );
-
-                        doInferTypeForExpression(
-                            binaryArguments.get(1),
-                            binaryArguments.get(1).getInferredType() != null ? binaryArguments.get(1).getInferredType()
-                                                                             : binaryArguments.get(1).getExpectedType(),
-                            true
-                        );
+                        runInference(binaryArguments.get(0));
+                        runInference(binaryArguments.get(1));
 
                         binaryArguments.get(0).setExpectedType(binaryArguments.get(0).getInferredType());
                         binaryArguments.get(1).setExpectedType(binaryArguments.get(0).getInferredType());

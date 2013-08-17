@@ -2821,7 +2821,7 @@ public final class AstBuilder {
             parameterMap[parameter.getSlot()] = parameter;
         }
 
-        final Set<Integer> undefinedSlots = new HashSet<>();
+        final Set<Pair<Integer, JvmType>> undefinedSlots = new HashSet<>();
         final List<VariableReference> varReferences = new ArrayList<>();
         final Map<String, VariableDefinition> lookup = makeVariableLookup(variables);
 
@@ -2833,7 +2833,7 @@ public final class AstBuilder {
             if (b.operand instanceof VariableReference && !(b.operand instanceof VariableDefinition)) {
                 final VariableReference reference = (VariableReference) b.operand;
 
-                if (undefinedSlots.add(reference.getSlot())) {
+                if (undefinedSlots.add(Pair.create(reference.getSlot(), getStackType(reference)))) {
                     varReferences.add(reference);
                 }
             }
@@ -2866,7 +2866,7 @@ public final class AstBuilder {
                     }
                 }
                 else if (b.operand instanceof VariableReference &&
-                         ((VariableReference) b.operand).getSlot() == vRef.getSlot()) {
+                         variablesMatch(vRef, (VariableReference) b.operand)) {
 
                     if (b.isVariableDefinition()) {
                         definitions.add(b);
@@ -2923,8 +2923,7 @@ public final class AstBuilder {
                     for (final ByteCode b : definitions) {
                         final FrameValue stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
 
-                        if (stackValue != FrameValue.NULL &&
-                            stackValue != FrameValue.UNINITIALIZED &&
+                        if (stackValue != FrameValue.UNINITIALIZED &&
                             stackValue != FrameValue.UNINITIALIZED_THIS) {
 
                             final TypeReference variableType;
@@ -2963,6 +2962,9 @@ public final class AstBuilder {
                                     break;
                                 case Address:
                                     variableType = BuiltinTypes.Integer;
+                                    break;
+                                case Null:
+                                    variableType = BuiltinTypes.Null;
                                     break;
                                 default:
                                     if (vDef != null) {
@@ -3045,6 +3047,9 @@ public final class AstBuilder {
                                 break;
                             case Address:
                                 variableType = BuiltinTypes.Integer;
+                                break;
+                            case Null:
+                                variableType = BuiltinTypes.Null;
                                 break;
                             default:
                                 if (vDef != null) {
@@ -3133,7 +3138,9 @@ public final class AstBuilder {
                             mergedReferences
                         );
 
+                        mergedVariable.variable.setType(mergeVariableType(mergeVariables));
                         mergedVariable.references.add(ref);
+
                         newVariables.removeAll(mergeVariables);
                         newVariables.add(mergedVariable);
                     }
@@ -3152,6 +3159,62 @@ public final class AstBuilder {
                 }
             }
         }
+    }
+
+    private TypeReference mergeVariableType(final List<VariableInfo> info) {
+        TypeReference result = first(info).variable.getType();
+
+        for (int i = 0; i < info.size(); i++) {
+            final VariableInfo variableInfo = info.get(i);
+            final TypeReference t = variableInfo.variable.getType();
+
+            if (result == BuiltinTypes.Null) {
+                result = t;
+            }
+            else if (t == BuiltinTypes.Null) {
+                continue;
+            }
+            else {
+                result = MetadataHelper.findCommonSuperType(result, t);
+            }
+        }
+
+        return result != null ? result : BuiltinTypes.Object;
+    }
+
+    private JvmType getStackType(final VariableReference variable) {
+        final JvmType type = variable.getVariableType().getSimpleType();
+
+        switch (type) {
+            case Boolean:
+            case Byte:
+            case Character:
+            case Short:
+            case Integer:
+                return JvmType.Integer;
+
+            case Long:
+            case Float:
+            case Double:
+                return type;
+
+            default:
+                return JvmType.Object;
+        }
+    }
+
+    private boolean variablesMatch(final VariableReference v1, final VariableReference v2) {
+        if (v1.getSlot() == v2.getSlot()) {
+            final JvmType t1 = getStackType(v1);
+            final JvmType t2 = getStackType(v2);
+
+            if (t1 == t2) {
+                return true;
+            }
+
+            return false;
+        }
+        return false;
     }
 
     private static Map<String, VariableDefinition> makeVariableLookup(final VariableDefinitionCollection variables) {
