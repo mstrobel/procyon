@@ -135,22 +135,41 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
 
         @Override
         public ResolveResult visitMemberReferenceExpression(final MemberReferenceExpression node, final Void _) {
+            final ResolveResult targetResult = node.getTarget().acceptVisitor(this, _);
+
             MemberReference memberReference = node.getUserData(Keys.MEMBER_REFERENCE);
 
             if (memberReference == null) {
                 if (StringUtilities.equals(node.getMemberName(), "length")) {
-                    final ResolveResult targetResult = node.getTarget().acceptVisitor(this, _);
-
                     if (targetResult != null &&
                         targetResult.getType() != null &&
                         targetResult.getType().isArray()) {
 
                         return new ResolveResult(BuiltinTypes.Integer);
                     }
-
                 }
                 if (node.getParent() instanceof InvocationExpression) {
                     memberReference = node.getParent().getUserData(Keys.MEMBER_REFERENCE);
+                }
+            }
+            else if (targetResult != null &&
+                     targetResult.getType() != null) {
+
+                if (memberReference instanceof FieldReference) {
+                    final FieldDefinition resolvedField = ((FieldReference) memberReference).resolve();
+
+                    memberReference = MetadataHelper.asMemberOf(
+                        resolvedField != null ? resolvedField : (FieldReference) memberReference,
+                        targetResult.getType()
+                    );
+                }
+                else {
+                    final MethodDefinition resolvedMethod = ((MethodReference) memberReference).resolve();
+
+                    memberReference = MetadataHelper.asMemberOf(
+                        resolvedMethod != null ? resolvedMethod : (MethodReference) memberReference,
+                        targetResult.getType()
+                    );
                 }
             }
 
@@ -757,7 +776,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         private static Object divide(final JvmType type, final Object left, final Object right) {
             if (left instanceof Number && right instanceof Number) {
                 if (type.isIntegral() && ((Number) right).longValue() == 0L) {
-                   return null;
+                    return null;
                 }
                 switch (type) {
                     case Byte:

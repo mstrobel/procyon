@@ -213,10 +213,18 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
             final FieldDefinition candidate = candidates.get(i);
 
             if (StringComparator.Ordinal.equals(candidate.getName(), reference.getName())) {
-                final TypeReference referenceFieldType = reference.getFieldType();
+                final TypeReference referenceType = reference.getFieldType();
+                final TypeReference candidateType = candidate.getFieldType();
 
-                if (areEquivalent(candidate.getFieldType(), referenceFieldType)) {
-                    return candidate;
+                if (candidateType.isGenericParameter() && !referenceType.isGenericParameter()) {
+                    if (areEquivalent(MetadataHelper.getUpperBound(candidateType), referenceType)) {
+                        return candidate;
+                    }
+                }
+                else {
+                    if (areEquivalent(candidateType, referenceType)) {
+                        return candidate;
+                    }
                 }
             }
         }

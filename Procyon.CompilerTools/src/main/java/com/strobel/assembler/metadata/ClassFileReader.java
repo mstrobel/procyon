@@ -33,6 +33,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import static com.strobel.core.CollectionUtilities.last;
+
 /**
  * @author Mike Strobel
  */
@@ -944,6 +946,22 @@ public final class ClassFileReader extends MetadataReader {
                             }
 
                             parameter.setFlags(entry.getFlags());
+                        }
+                    }
+
+                    if (methodDefinition.isSynthetic() &&
+                        methodDefinition.isPackagePrivate() &&
+                        parameters.size() > 0) {
+
+                        final ParameterDefinition parameter = last(parameters);
+                        final TypeReference parameterType = parameter.getParameterType();
+                        final TypeDefinition resolvedParameterType = parameterType.resolve();
+
+                        if (resolvedParameterType != null &&
+                            (resolvedParameterType.isAnonymous() ||
+                             resolvedParameterType.isSynthetic())) {
+
+                            parameter.setFlags(parameter.getFlags() | Flags.SYNTHETIC);
                         }
                     }
 

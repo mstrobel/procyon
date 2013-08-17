@@ -10,11 +10,7 @@ import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
 
@@ -511,6 +507,7 @@ public final class RedundantCastUtility {
 
             List<TypeReference> newTypes = null;
             int syntheticLeadingCount = 0;
+            int syntheticTrailingCount = 0;
 
             for (final ParameterDefinition parameter : parameters) {
                 if (parameter.isSynthetic()) {
@@ -520,6 +517,10 @@ public final class RedundantCastUtility {
                 else {
                     break;
                 }
+            }
+
+            //noinspection StatementWithEmptyBody
+            for (int i = parameters.size() - 1; i >= 0 && parameters.get(i).isSynthetic(); --i, ++syntheticTrailingCount) {
             }
 
             for (final Expression argument : arguments) {
@@ -532,10 +533,16 @@ public final class RedundantCastUtility {
                 originalTypes.add(argumentType);
             }
 
+            final int realParametersEnd = parameters.size() - syntheticTrailingCount;
+
+            for (int i = realParametersEnd; i < parameters.size(); i++) {
+                originalTypes.add(parameters.get(i).getParameterType());
+            }
+
             int i = syntheticLeadingCount;
 
             for (Expression a = arguments.firstOrNullObject();
-                 a != null && !a.isNull();
+                 i < realParametersEnd && a != null && !a.isNull();
                  a = (Expression) a.getNextSibling(Roles.ARGUMENT), ++i) {
 
                 final Expression arg = removeParentheses(a);
@@ -594,10 +601,20 @@ public final class RedundantCastUtility {
                     continue;
                 }
 
-                final boolean sameMethod = StringUtilities.equals(
-                    method.getErasedSignature(),
-                    result.getMethod().getErasedSignature()
-                );
+                final boolean sameMethod;
+
+                if (method.isGenericMethod()) {
+                    sameMethod = StringUtilities.equals(
+                        method.getSignature(),
+                        result.getMethod().getSignature()
+                    );
+                }
+                else {
+                    sameMethod = StringUtilities.equals(
+                        method.getErasedSignature(),
+                        result.getMethod().getErasedSignature()
+                    );
+                }
 
                 if (sameMethod) {
                     addToResults(cast, false);

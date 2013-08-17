@@ -114,7 +114,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     @Override
     public boolean equals(final Object obj) {
         return obj instanceof TypeReference &&
-               MetadataResolver.areEquivalent(this, (TypeReference) obj);
+               MetadataHelper.isSameType(this, (TypeReference) obj, true);
     }
 
     // <editor-fold defaultstate="collapsed" desc="Specification Factories">

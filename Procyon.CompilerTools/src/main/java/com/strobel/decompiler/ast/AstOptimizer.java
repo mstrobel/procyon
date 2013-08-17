@@ -300,6 +300,7 @@ public final class AstOptimizer {
         final BasicBlock entryBlock = first(ofType(method.getBody(), BasicBlock.class));
         final Set<Label> liveLabels = new LinkedHashSet<>();
 
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         final Map<BasicBlock, List<Label>> embeddedLabels = new DefaultMap<>(
             new Supplier<List<Label>>() {
                 @Override
@@ -616,27 +617,6 @@ public final class AstOptimizer {
         );
 
         if (removeAll) {
-            //
-            // Determine which variables we are unlocking; we will need these to search for additional,
-            // equivalent monitorexit instructions.
-            //
-
-            final Set<Variable> lockVariables = new HashSet<>();
-
-            if (lockInfo != null &&
-                tryCatch.getCatchBlocks().isEmpty()) {
-
-                lockVariables.add(lockInfo.lock);
-
-                if (lockInfo.lockCopy != null) {
-                    lockVariables.add(lockInfo.lockCopy);
-                }
-            }
-
-            for (final Node node : monitorExitNodes) {
-                lockVariables.add((Variable) single(((Expression) node).getArguments()).getOperand());
-            }
-
             //
             // Remove the monitorexit instructions that we've already found.  Thank you, SubList.clear().
             //

@@ -545,7 +545,7 @@ final class Inlining {
                 // Variables can be copied only if both the variable and the target copy variable are generated,
                 // and if the variable has only a single assignment.
                 //
-                return v.isGenerated() &&
+                return //v.isGenerated() &&
                        copyVariable.isGenerated() &&
                        count(storeCounts, v) == 1;
             }

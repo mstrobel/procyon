@@ -27,6 +27,7 @@ import com.strobel.core.VerifyArgument;
 import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.indexOfByIdentity;
 
 public final class MetadataHelper {
     public static boolean areGenericsSupported(final TypeDefinition t) {
@@ -2159,7 +2160,7 @@ public final class MetadataHelper {
             final IGenericParameterProvider owner1 = gp1.getOwner();
             final IGenericParameterProvider owner2 = gp2.getOwner();
 
-            if (owner1.getGenericParameters().indexOf(gp1) != owner1.getGenericParameters().indexOf(gp2)) {
+            if (indexOfByIdentity(owner1.getGenericParameters(), gp1) != indexOfByIdentity(owner2.getGenericParameters(), gp2)) {
                 return false;
             }
 
@@ -2326,8 +2327,8 @@ public final class MetadataHelper {
 
             for (final TypeReference a : sTypeArguments) {
                 if (a.isGenericParameter() &&
-                    resultTypeArguments.contains(a) &&
-                    !tTypeArguments.contains(a)) {
+                    indexOfByIdentity(resultTypeArguments, a) >= 0 &&
+                    indexOfByIdentity(tTypeArguments, a) < 0) {
 
                     if (openGenericParameters == null) {
                         openGenericParameters = new ArrayList<>();

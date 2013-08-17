@@ -728,40 +728,57 @@ public final class TypeAnalysis {
                 case Load: {
                     final Variable v = (Variable) expression.getOperand();
                     final TypeReference lastInferredType = _inferredVariableTypes.get(v);
+                    final TypeDefinition thisType = _context.getCurrentType();
+
+                    if (v.isParameter() &&
+                        v.getOriginalParameter() == _context.getCurrentMethod().getBody().getThisParameter()) {
+
+                        if (_singleLoadVariables.contains(v) && v.getType() == null) {
+                            v.setType(thisType);
+                        }
+
+                        return thisType;
+                    }
+
+                    TypeReference result = null;
 
                     if (expectedType != null) {
-                        TypeReference result = null;
+                        if (shouldInferVariableType(v)) {
+                            if (expectedType.isGenericType()) {
+                                if (MetadataHelper.areGenericsSupported(thisType)) {
+                                    if (lastInferredType != null) {
+                                        result = MetadataHelper.asSubType(lastInferredType, expectedType);
+                                    }
 
-                        if (expectedType.isGenericType()) {
-                            if (MetadataHelper.areGenericsSupported(_context.getCurrentType())) {
-                                if (lastInferredType != null) {
-                                    result = MetadataHelper.asSubType(lastInferredType, expectedType);
-                                }
+                                    if (result == null && v.getType() != null) {
+                                        result = MetadataHelper.asSubType(v.getType(), expectedType);
 
-                                if (result == null && v.getType() != null) {
-                                    result = MetadataHelper.asSubType(v.getType(), expectedType);
+                                        if (result == null) {
+                                            result = MetadataHelper.asSubType(MetadataHelper.eraseRecursive(v.getType()), expectedType);
+                                        }
+                                    }
 
-                                    if (result == null) {
-                                        result = MetadataHelper.asSubType(MetadataHelper.eraseRecursive(v.getType()), expectedType);
+                                    if (MetadataHelper.getUnboundGenericParameterCount(result) > 0 && lastInferredType != null) {
+                                        result = MetadataHelper.substituteGenericArguments(result, lastInferredType);
                                     }
                                 }
+                                else {
+                                    result = new RawType(expectedType.getUnderlyingType());
+                                }
 
-                                if (MetadataHelper.getUnboundGenericParameterCount(result) > 0 && lastInferredType != null) {
-                                    result = MetadataHelper.substituteGenericArguments(result, lastInferredType);
+                                _inferredVariableTypes.put(v, result);
+
+                                if (result != null && lastInferredType == null ||
+                                    !MetadataHelper.isSameType(result, lastInferredType) &&
+                                    _previouslyInferred.add(Pair.create(v, result))) {
+
+                                    invalidateDependentExpressions(expression, v);
                                 }
                             }
-                            else {
-                                result = new RawType(expectedType.getUnderlyingType());
-                            }
-
-                            _inferredVariableTypes.put(v, result);
-
-                            if (result != null && lastInferredType == null ||
-                                !MetadataHelper.isSameType(result, lastInferredType) &&
-                                _previouslyInferred.add(Pair.create(v, result))) {
-
-                                invalidateDependentExpressions(expression, v);
-                            }
+                        }
+                        else {
+                            result = v.isParameter() ? v.getOriginalParameter().getParameterType()
+                                                     : v.getOriginalVariable().getVariableType();
                         }
 
                         if (_singleLoadVariables.contains(v) && v.getType() == null) {
@@ -771,7 +788,12 @@ public final class TypeAnalysis {
                         return result != null ? result : v.getType();
                     }
 
-                    return lastInferredType != null ? lastInferredType : v.getType();
+                    if (shouldInferVariableType(v)) {
+                        return lastInferredType != null ? lastInferredType : v.getType();
+                    }
+
+                    return v.isParameter() ? v.getOriginalParameter().getParameterType()
+                                           : v.getOriginalVariable().getVariableType();
                 }
 
                 case InvokeDynamic: {
@@ -1016,10 +1038,12 @@ public final class TypeAnalysis {
                     final FieldReference field = (FieldReference) operand;
 
                     if (forceInferChildren) {
+                        final FieldDefinition resolvedField = field.resolve();
+                        final FieldReference effectiveField = resolvedField != null ? resolvedField : field;
                         final TypeReference targetType = inferTypeForExpression(arguments.get(0), field.getDeclaringType());
 
                         if (targetType != null) {
-                            final FieldReference asMember = MetadataHelper.asMemberOf(field, targetType);
+                            final FieldReference asMember = MetadataHelper.asMemberOf(effectiveField, targetType);
 
                             return asMember.getFieldType();
                         }

@@ -45,6 +45,11 @@ final class GenericMethodInstance extends MethodReference implements IGenericIns
     }
 
     @Override
+    public final List<GenericParameter> getGenericParameters() {
+        return _genericDefinition.getGenericParameters();
+    }
+
+    @Override
     public final TypeReference getReturnType() {
         return _returnType;
     }
