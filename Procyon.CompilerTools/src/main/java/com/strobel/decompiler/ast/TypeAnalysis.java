@@ -302,20 +302,19 @@ public final class TypeAnalysis {
         boolean ignoreSingleLoadDependencies = false;
         boolean assignVariableTypesBasedOnPartialInformation = false;
 
+        final Predicate<Variable> dependentVariableTypesKnown = new Predicate<Variable>() {
+            @Override
+            public boolean test(final Variable v) {
+                return inferTypeForVariable(v, null) != null || _singleLoadVariables.contains(v);
+            }
+        };
+
         while (numberOfExpressionsAlreadyInferred < _allExpressions.size()) {
             final int oldCount = numberOfExpressionsAlreadyInferred;
 
             for (final ExpressionToInfer e : _allExpressions) {
                 if (!e.done &&
-                    trueForAll(
-                        e.dependencies,
-                        new Predicate<Variable>() {
-                            @Override
-                            public boolean test(final Variable v) {
-                                return inferTypeForVariable(v, null) != null || _singleLoadVariables.contains(v);
-                            }
-                        }
-                    ) &&
+                    trueForAll(e.dependencies, dependentVariableTypesKnown) &&
                     (e.dependsOnSingleLoad == null || e.dependsOnSingleLoad.getType() != null || ignoreSingleLoadDependencies)) {
 
                     runInference(e.expression);
@@ -478,6 +477,7 @@ public final class TypeAnalysis {
                                 c.setInferredType(null);
                             }
 
+                            e.done = false;
                             runInference(e.expression);
                         }
                     }
@@ -622,6 +622,7 @@ public final class TypeAnalysis {
                     c.setInferredType(null);
                 }
 
+                e.done = false;
                 runInference(e.expression);
             }
         }
@@ -1159,7 +1160,7 @@ public final class TypeAnalysis {
                 }
 
                 case AConstNull: {
-                    return null;
+                    return BuiltinTypes.Null;
                 }
 
                 case LdC: {
