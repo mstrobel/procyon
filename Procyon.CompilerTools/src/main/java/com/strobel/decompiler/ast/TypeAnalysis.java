@@ -477,7 +477,6 @@ public final class TypeAnalysis {
                                 c.setInferredType(null);
                             }
 
-                            e.done = false;
                             runInference(e.expression);
                         }
                     }
@@ -622,7 +621,6 @@ public final class TypeAnalysis {
                     c.setInferredType(null);
                 }
 
-                e.done = false;
                 runInference(e.expression);
             }
         }
@@ -1160,7 +1158,7 @@ public final class TypeAnalysis {
                 }
 
                 case AConstNull: {
-                    return BuiltinTypes.Null;
+                    return null;
                 }
 
                 case LdC: {
