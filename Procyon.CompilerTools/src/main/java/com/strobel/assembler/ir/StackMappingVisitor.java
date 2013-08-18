@@ -774,14 +774,39 @@ public class StackMappingVisitor implements MethodVisitor {
                 final FrameValue frameValue = _temp.pop();
                 final Object parameter = frameValue.getParameter();
 
-                if (parameter instanceof TypeReference) {
-                    push(((TypeReference) parameter).getElementType());
-                }
-                else if (frameValue.getType() == FrameValueType.Null) {
-                    push(FrameValue.NULL);
-                }
-                else {
-                    push(FrameValue.TOP);
+                switch (code) {
+                    case BALOAD:
+                    case CALOAD:
+                    case SALOAD:
+                    case IALOAD:
+                        push(FrameValue.INTEGER);
+                        break;
+
+                    case LALOAD:
+                        push(FrameValue.LONG);
+                        push(FrameValue.TOP);
+                        break;
+
+                    case FALOAD:
+                        push(FrameValue.FLOAT);
+                        break;
+
+                    case DALOAD:
+                        push(FrameValue.DOUBLE);
+                        push(FrameValue.TOP);
+                        break;
+
+                    case AALOAD:
+                        if (parameter instanceof TypeReference) {
+                            push(((TypeReference) parameter).getElementType());
+                        }
+                        else if (frameValue.getType() == FrameValueType.Null) {
+                            push(FrameValue.NULL);
+                        }
+                        else {
+                            push(FrameValue.TOP);
+                        }
+                        break;
                 }
 
                 return;

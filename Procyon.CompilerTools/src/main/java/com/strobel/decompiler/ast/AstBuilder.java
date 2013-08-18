@@ -2224,6 +2224,8 @@ public final class AstBuilder {
                     new ByteCode[] { loadException }
                 )
             };
+
+            handlerAgenda.addLast(handlerStart);
         }
 
         body.get(0).stackBefore = EMPTY_STACK;
@@ -2234,7 +2236,7 @@ public final class AstBuilder {
         //
         // Process agenda.
         //
-        while (!agenda.isEmpty() || !handlerAgenda.isEmpty()) {
+        while (!(agenda.isEmpty() && handlerAgenda.isEmpty())) {
             final ByteCode byteCode = agenda.isEmpty() ? handlerAgenda.removeFirst() : agenda.removeFirst();
 
             //
@@ -2422,10 +2424,7 @@ public final class AstBuilder {
                     final List<FrameValue> stack = mergedFrame.getStackValues();
                     final List<FrameValue> locals = mergedFrame.getLocalValues();
 
-                    if (isHandlerStart) {
-                        handlerAgenda.addLast(branchTarget);
-                    }
-                    else {
+                    if (!isHandlerStart) {
                         final StackSlot[] oldStack = branchTarget.stackBefore;
 
                         final int oldStart = oldStack != null && oldStack.length > stackSize ? oldStack.length - 1
