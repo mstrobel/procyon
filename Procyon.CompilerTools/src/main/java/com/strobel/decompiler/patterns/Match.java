@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.patterns;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.Pair;
 import com.strobel.core.StringUtilities;
 
@@ -60,6 +61,7 @@ public final class Match {
         }
 
         return new Iterable<T>() {
+            @NotNull
             @Override
             public final Iterator<T> iterator() {
                 return new Iterator<T>() {

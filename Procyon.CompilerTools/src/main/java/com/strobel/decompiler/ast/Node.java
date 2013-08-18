@@ -25,6 +25,13 @@ import java.util.Collections;
 import java.util.List;
 
 public abstract class Node {
+    public final static Node NULL = new Node() {
+        @Override
+        public void writeTo(final ITextOutput output) {
+            output.writeKeyword("null");
+        }
+    };
+
     public abstract void writeTo(final ITextOutput output);
 
     @Override

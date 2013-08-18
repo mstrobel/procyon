@@ -37,6 +37,17 @@ public class EnhancedTryTests extends DecompilerTest {
         }
     }
 
+    private final static class C {
+        public void test() throws IOException {
+            try (final StringWriter writer = new StringWriter()) {
+                writer.write("This is only a test.");
+            }
+            try (final StringWriter writer = new StringWriter()) {
+                writer.write("This is also a test.");
+            }
+        }
+    }
+
     @Test
     public void testEnhancedTryOneResource() throws Throwable {
         verifyOutput(
@@ -131,6 +142,70 @@ public class EnhancedTryTests extends DecompilerTest {
             "                        }\n" +
             "                    }\n" +
             "                    writer1.close();\n" +
+            "                }\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testEnhancedTryTwoSuccessive() throws Throwable {
+        verifyOutput(
+            C.class,
+            defaultSettings(),
+            "private static final class C {\n" +
+            "    public void test() throws IOException {\n" +
+            "        StringWriter writer = new StringWriter();\n" +
+            "        Throwable t = null;\n" +
+            "        try {\n" +
+            "            writer.write(\"This is only a test.\");\n" +
+            "        }\n" +
+            "        catch (Throwable t2) {\n" +
+            "            t = t2;\n" +
+            "            throw t2;\n" +
+            "        }\n" +
+            "        finally {\n" +
+            "            Label_0084: {\n" +
+            "                if (writer != null) {\n" +
+            "                    if (t != null) {\n" +
+            "                        try {\n" +
+            "                            writer.close();\n" +
+            "                            break Label_0084;\n" +
+            "                        }\n" +
+            "                        catch (Throwable x2) {\n" +
+            "                            t.addSuppressed(x2);\n" +
+            "                            break Label_0084;\n" +
+            "                        }\n" +
+            "                    }\n" +
+            "                    writer.close();\n" +
+            "                }\n" +
+            "            }\n" +
+            "        }\n" +
+            "        writer = new StringWriter();\n" +
+            "        Throwable t3 = null;\n" +
+            "        try {\n" +
+            "            writer.write(\"This is also a test.\");\n" +
+            "        }\n" +
+            "        catch (Throwable t4) {\n" +
+            "            t3 = t4;\n" +
+            "            throw t4;\n" +
+            "        }\n" +
+            "        finally {\n" +
+            "            Label_0171: {\n" +
+            "                if (writer != null) {\n" +
+            "                    if (t3 != null) {\n" +
+            "                        try {\n" +
+            "                            writer.close();\n" +
+            "                            break Label_0171;\n" +
+            "                        }\n" +
+            "                        catch (Throwable x2) {\n" +
+            "                            t3.addSuppressed(x2);\n" +
+            "                            break Label_0171;\n" +
+            "                        }\n" +
+            "                    }\n" +
+            "                    writer.close();\n" +
             "                }\n" +
             "            }\n" +
             "        }\n" +

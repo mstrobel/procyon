@@ -16,9 +16,11 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
@@ -292,14 +294,19 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         if (canMoveVariableIntoSubBlocks) {
+        blockIterator:
             for (final Statement statement : block.getStatements()) {
-                if (statement instanceof ForStatement) {
+                if (!usesVariable(statement, variableName)) {
+                    continue;
+                }
+
+                if (statement instanceof ForStatement && statement == declarationPoint.get()) {
                     final ForStatement forStatement = (ForStatement) statement;
                     final AstNodeCollection<Statement> initializers = forStatement.getInitializers();
 
-                    if (initializers.size() == 1) {
-                        if (tryConvertAssignmentExpressionIntoVariableDeclaration(block, initializers.firstOrNullObject(), type, variableName)) {
-                            continue;
+                    for (final Statement initializer : initializers) {
+                        if (tryConvertAssignmentExpressionIntoVariableDeclaration(block, initializer, type, variableName)) {
+                            continue blockIterator;
                         }
                     }
                 }
@@ -389,12 +396,12 @@ public class DeclareVariablesTransform implements IAstTransform {
 
             if (usesVariable(statement, variableName)) {
                 if (declarationPoint.get() != null) {
-                    return canRedeclareVariable(statement, variableName);
+                    return canRedeclareVariable(analysis, block, statement, variableName);
                 }
 
                 declarationPoint.set(statement);
 
-                if (!canMoveVariableIntoSubBlock(statement, variableName, allowPassIntoLoops)) {
+                if (!canMoveVariableIntoSubBlock(analysis, block, statement, variableName, allowPassIntoLoops)) {
                     //
                     // If it's not possible to move the variable use into a nested block,
                     // we need to declare it in this block.
@@ -425,6 +432,8 @@ public class DeclareVariablesTransform implements IAstTransform {
     }
 
     private static boolean canMoveVariableIntoSubBlock(
+        final DefiniteAssignmentAnalysis analysis,
+        final BlockStatement block,
         final Statement statement,
         final String variableName,
         final boolean allowPassIntoLoops) {
@@ -441,6 +450,10 @@ public class DeclareVariablesTransform implements IAstTransform {
             //
 
             if (!forStatement.getInitializers().isEmpty()) {
+                boolean result = false;
+                TypeReference lastInitializerType = null;
+                StrongBox<Statement> declarationPoint = null;
+
                 for (final Statement initializer : forStatement.getInitializers()) {
                     if (initializer instanceof ExpressionStatement &&
                         ((ExpressionStatement) initializer).getExpression() instanceof AssignmentExpression) {
@@ -458,13 +471,52 @@ public class DeclareVariablesTransform implements IAstTransform {
                                 return false;
                             }
 
-                            if (StringUtilities.equals(identifier.getIdentifier(), variableName)) {
-                                return true;
+                            final Variable variable = identifier.getUserData(Keys.VARIABLE);
+
+                            if (variable == null) {
+                                return false;
+                            }
+
+                            final TypeReference variableType = variable.getType();
+
+                            if (lastInitializerType == null) {
+                                lastInitializerType = variableType;
+                            }
+                            else if (!MetadataHelper.isSameType(lastInitializerType, variableType)) {
+                                return false;
+                            }
+
+                            if (result) {
+                                if (declarationPoint == null) {
+                                    declarationPoint = new StrongBox<>();
+                                }
+
+                                //
+                                // We can only move the declaration if we can also move the declarations for all the other
+                                // variables initialized by the loop header.
+                                //
+
+                                if (!findDeclarationPoint(analysis, identifier.getIdentifier(), allowPassIntoLoops, block, declarationPoint, null) ||
+                                    declarationPoint.get() != statement) {
+
+                                    return false;
+                                }
+                            }
+                            else if (StringUtilities.equals(identifier.getIdentifier(), variableName)) {
+                                result = true;
                             }
                         }
                     }
                 }
+
+                if (result) {
+                    return true;
+                }
             }
+        }
+
+        if (statement instanceof ForEachStatement) {
+            assert Integer.parseInt("1") == 1;
         }
 
         //
@@ -555,7 +607,12 @@ public class DeclareVariablesTransform implements IAstTransform {
         return false;
     }
 
-    private static boolean canRedeclareVariable(final AstNode node, final String variableName) {
+    private static boolean canRedeclareVariable(
+        final DefiniteAssignmentAnalysis analysis,
+        final BlockStatement block,
+        final AstNode node,
+        final String variableName) {
+
         if (node instanceof ForStatement) {
             final ForStatement forLoop = (ForStatement) node;
 
@@ -603,7 +660,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                     return false;
                 }
 
-                if (!canMoveVariableIntoSubBlock(statement, variableName, true)) {
+                if (!canMoveVariableIntoSubBlock(analysis, block, statement, variableName, true)) {
                     return false;
                 }
             }

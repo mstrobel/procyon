@@ -15,24 +15,48 @@ package com.strobel.core;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.util.ContractUtils;
+import com.strobel.util.EmptyArrayCache;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
+import java.lang.reflect.Array;
+import java.util.*;
 
 /**
  * @author Mike Strobel
  */
 public final class CollectionUtilities {
+    public static <T> int indexOfByIdentity(final List<?> collection, final T item) {
+        for (int i = 0, n = collection.size(); i < n; i++) {
+            if (collection.get(i) == item)
+                return i;
+        }
+        return -1;
+    }
+
+    public static <T> int indexOfByIdentity(final Iterable<?> collection, final T item) {
+        VerifyArgument.notNull(collection, "collection");
+
+        if (collection instanceof List<?>) {
+            return indexOfByIdentity((List<?>) collection, item);
+        }
+
+        int i = -1;
+
+        for (final Object o : collection) {
+            ++i;
+
+            if (o == item) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     public static <T> int indexOf(final Iterable<? super T> collection, final T item) {
         VerifyArgument.notNull(collection, "collection");
 
         if (collection instanceof List<?>) {
-            return ((List<?>)collection).indexOf(item);
+            return ((List<?>) collection).indexOf(item);
         }
 
         int i = -1;
@@ -377,6 +401,28 @@ public final class CollectionUtilities {
         return true;
     }
 
+    public static <T> Iterable<T> where(final Iterable<T> source, final Predicate<? super T> filter) {
+        VerifyArgument.notNull(source, "source");
+        VerifyArgument.notNull(filter, "filter");
+
+        if (source instanceof WhereSelectIterableIterator<?, ?>) {
+            return ((WhereSelectIterableIterator<?, T>) source).where(filter);
+        }
+
+        return new WhereSelectIterableIterator<>(source, filter, null);
+    }
+
+    public static <T, R> Iterable<R> select(final Iterable<T> source, final Selector<? super T, ? extends R> selector) {
+        VerifyArgument.notNull(source, "source");
+        VerifyArgument.notNull(selector, "selector");
+
+        if (source instanceof WhereSelectIterableIterator<?, ?>) {
+            return ((WhereSelectIterableIterator<?, T>) source).select(selector);
+        }
+
+        return new WhereSelectIterableIterator<>(source, null, selector);
+    }
+
     public static int hashCode(final List<?> sequence) {
         VerifyArgument.notNull(sequence, "sequence");
 
@@ -545,6 +591,69 @@ public final class CollectionUtilities {
                    sequenceDeepEquals((List<?>) first, (List<?>) second);
         }
         return Comparer.deepEquals(first, second);
+    }
+
+    public static <E> E[] toArray(final Class<E> elementType, final Iterable<? extends E> sequence) {
+        VerifyArgument.notNull(elementType, "elementType");
+        VerifyArgument.notNull(sequence, "sequence");
+
+        return new Buffer<>(elementType, sequence.iterator()).toArray();
+    }
+
+    private final static class Buffer<E> {
+        final Class<E> elementType;
+
+        E[] items;
+        int count;
+
+        @SuppressWarnings("unchecked")
+        Buffer(final Class<E> elementType, final Iterator<? extends E> source) {
+            this.elementType = elementType;
+
+            E[] items = null;
+            int count = 0;
+
+            if (source instanceof Collection<?>) {
+                final Collection<E> collection = (Collection<E>) source;
+
+                count = collection.size();
+
+                if (count > 0) {
+                    items = (E[]) Array.newInstance(elementType, count);
+                    collection.toArray(items);
+                }
+            }
+            else {
+                while (source.hasNext()) {
+                    final E item = source.next();
+
+                    if (items == null) {
+                        items = (E[]) Array.newInstance(elementType, 4);
+                    }
+                    else if (items.length == count) {
+                        items = Arrays.copyOf(items, count * 2);
+                    }
+
+                    items[count] = item;
+                    count++;
+                }
+            }
+
+            this.items = items;
+            this.count = count;
+        }
+
+        E[] toArray() {
+            if (count == 0) {
+                return EmptyArrayCache.fromElementType(elementType);
+            }
+
+            if (items.length == count) {
+                return items;
+            }
+
+            return Arrays.copyOf(items, count);
+        }
     }
 
     private abstract static class AbstractIterator<T> implements Iterable<T>, Iterator<T> {
@@ -793,6 +902,72 @@ public final class CollectionUtilities {
             }
 
             return false;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private final static class WhereSelectIterableIterator<T, R> extends AbstractIterator<R> {
+        final Iterable<T> source;
+        final Predicate<? super T> filter;
+        final Selector<? super T, ? extends R> selector;
+
+        Iterator<T> iterator;
+
+        WhereSelectIterableIterator(final Iterable<T> source, final Predicate<? super T> filter, final Selector<? super T, ? extends R> selector) {
+            this.source = VerifyArgument.notNull(source, "source");
+            this.filter = filter;
+            this.selector = selector;
+        }
+
+        @Override
+        protected WhereSelectIterableIterator<T, R> clone() {
+            return new WhereSelectIterableIterator<>(source, filter, selector);
+        }
+
+        @Override
+        public boolean hasNext() {
+            switch (state) {
+                case STATE_NEED_NEXT:
+                    if (iterator == null) {
+                        iterator = source.iterator();
+                    }
+                    while (iterator.hasNext()) {
+                        final T item = iterator.next();
+                        if (filter == null || filter.test(item)) {
+                            next = selector != null ? selector.select(item) : (R) item;
+                            state = STATE_HAS_NEXT;
+                            return true;
+                        }
+                    }
+                    state = STATE_FINISHED;
+
+                case STATE_FINISHED:
+                    return false;
+
+                case STATE_HAS_NEXT:
+                    return true;
+            }
+            return false;
+        }
+
+        public Iterable<R> where(final Predicate<? super R> filter) {
+            if (this.selector != null) {
+                return new WhereSelectIterableIterator<>(this, filter, null);
+            }
+            return new WhereSelectIterableIterator<>(
+                this.source,
+                Predicates.and((Predicate<T>) this.filter, (Predicate<T>) filter),
+                null
+            );
+        }
+
+        public <R2> Iterable<R2> select(final Selector<? super R, ? extends R2> selector) {
+            return new WhereSelectIterableIterator<>(
+                this.source,
+                this.filter,
+                this.selector != null ? Selectors.combine(this.selector, selector)
+                                      : (Selector<T, R2>) selector
+            );
         }
     }
 }

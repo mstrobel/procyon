@@ -16,15 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
-import com.strobel.assembler.metadata.BuiltinTypes;
-import com.strobel.assembler.metadata.FieldDefinition;
-import com.strobel.assembler.metadata.FieldReference;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
-import com.strobel.assembler.metadata.VariableDefinition;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.IntegerBox;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
@@ -36,7 +28,6 @@ import com.strobel.decompiler.ast.Loop;
 import com.strobel.decompiler.ast.PatternMatching;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
-import com.strobel.assembler.metadata.JvmType;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -145,6 +136,19 @@ public class NameVariables {
 
         for (final Variable p : parameters) {
             nv.addExistingName(p.getName());
+        }
+
+        if (context.getCurrentMethod().isTypeInitializer()) {
+            //
+            // We cannot assign final static variables with a type qualifier, so make sure we
+            // don't have variable/field name collisions in type initializers which must assign
+            // those fields.
+            //
+            for (final FieldDefinition f : context.getCurrentType().getDeclaredFields()) {
+                if (f.isStatic() && f.isFinal() && !f.hasConstantValue()) {
+                    nv.addExistingName(f.getName());
+                }
+            }
         }
 
         for (final Variable v : variables) {

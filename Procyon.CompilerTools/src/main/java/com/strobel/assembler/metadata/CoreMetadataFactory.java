@@ -496,6 +496,7 @@ public class CoreMetadataFactory implements MetadataFactory {
             _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
             _packageName = declaringType.getPackageName();
             _genericParameters = new GenericParameterCollection(this);
+            _genericParameters.freeze();
         }
 
         UnresolvedType(final String packageName, final String name, final String shortName) {
@@ -504,6 +505,7 @@ public class CoreMetadataFactory implements MetadataFactory {
             _shortName = shortName;
             _declaringType = null;
             _genericParameters = new GenericParameterCollection(this);
+            _genericParameters.freeze();
         }
 
         UnresolvedType(final TypeReference declaringType, final String name, final String shortName, final List<GenericParameter> genericParameters) {
@@ -517,6 +519,8 @@ public class CoreMetadataFactory implements MetadataFactory {
             for (final GenericParameter genericParameter : genericParameters) {
                 _genericParameters.add(genericParameter);
             }
+
+            _genericParameters.freeze();
         }
 
         UnresolvedType(final String packageName, final String name, final String shortName, final List<GenericParameter> genericParameters) {

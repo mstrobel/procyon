@@ -226,13 +226,13 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
         final BlockStatement newBlock = new BlockStatement();
         final AstNodeCollection<Statement> blockStatements = newBlock.getStatements();
 
+        final AssessForLoopResult loopData = assessForLoop(commonAncestor, paths, label, labelInfo.gotoStatements);
+        final boolean rewriteAsLoop = !loopData.continueStatements.isEmpty();
+
         for (final AstNode node : orderedNodes) {
             node.remove();
             blockStatements.add((Statement) node);
         }
-
-        final AssessForLoopResult loopData = assessForLoop(commonAncestor, paths, label, labelInfo.gotoStatements);
-        final boolean rewriteAsLoop = !loopData.continueStatements.isEmpty();
 
         label.remove();
 

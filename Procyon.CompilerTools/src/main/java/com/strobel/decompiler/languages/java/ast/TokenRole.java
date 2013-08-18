@@ -23,6 +23,7 @@ import com.strobel.decompiler.patterns.Role;
 public final class TokenRole extends Role<JavaTokenNode> {
     public final static byte FLAG_KEYWORD = 0x01;
     public final static byte FLAG_OPERATOR = 0x02;
+    public final static byte FLAG_DELIMITER = 0x04;
 
     private final String _token;
     private final int _length;
@@ -42,6 +43,10 @@ public final class TokenRole extends Role<JavaTokenNode> {
 
     public final boolean isOperator() {
         return Flags.testAny(_flags, FLAG_OPERATOR);
+    }
+
+    public final boolean isDelimiter() {
+        return Flags.testAny(_flags, FLAG_DELIMITER);
     }
 
     public TokenRole(final String token) {

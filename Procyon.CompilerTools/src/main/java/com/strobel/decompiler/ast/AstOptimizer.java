@@ -249,6 +249,12 @@ public final class AstOptimizer {
             reduceComparisonInstructionSet(e);
         }
 
+        if (abortBeforeStep == AstOptimizationStep.MergeDisparateObjectInitializations) {
+            return;
+        }
+
+        mergeDisparateObjectInitializations(context, method);
+
         if (abortBeforeStep == AstOptimizationStep.RecombineVariables) {
             return;
         }
@@ -294,6 +300,7 @@ public final class AstOptimizer {
         final BasicBlock entryBlock = first(ofType(method.getBody(), BasicBlock.class));
         final Set<Label> liveLabels = new LinkedHashSet<>();
 
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         final Map<BasicBlock, List<Label>> embeddedLabels = new DefaultMap<>(
             new Supplier<List<Label>>() {
                 @Override
@@ -377,7 +384,7 @@ public final class AstOptimizer {
     // <editor-fold defaultstate="collapsed" desc="RewriteFinallyBlocks Optimization">
 
     private static void rewriteFinallyBlocks(final Block method) {
-        rewriteNestedSynchronized(method);
+        rewriteSynchronized(method);
 
         final List<Expression> a = new ArrayList<>();
         final StrongBox<Variable> v = new StrongBox<>();
@@ -448,13 +455,13 @@ public final class AstOptimizer {
                     matchGetArguments(body.get(body.size() - 1), AstCode.AThrow, a) &&
                     matchLoadAny(a.get(0), exceptionCopies)) {
 
-                    body.set(body.size() - 1, new Expression(AstCode.Leave, null));
+                    body.set(body.size() - 1, new Expression(AstCode.EndFinally, null));
                 }
             }
         }
     }
 
-    private static void rewriteNestedSynchronized(final Block method) {
+    private static void rewriteSynchronized(final Block method) {
         final StrongBox<LockInfo> lockInfoBox = new StrongBox<>();
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
@@ -480,7 +487,7 @@ public final class AstOptimizer {
                         if (finallyBody.size() == 3 &&
                             matchUnlock(finallyBody.get(1), lockInfo)) {
 
-                            if (rewriteNestedSynchronizedCore(tryCatch, lockInfo.operationCount)) {
+                            if (rewriteSynchronizedCore(tryCatch, lockInfo.operationCount)) {
                                 tryCatch.setSynchronized(true);
                             }
                             else {
@@ -511,7 +518,7 @@ public final class AstOptimizer {
         }
     }
 
-    private static boolean rewriteNestedSynchronizedCore(final TryCatchBlock tryCatch, final int depth) {
+    private static boolean rewriteSynchronizedCore(final TryCatchBlock tryCatch, final int depth) {
         final Block tryBlock = tryCatch.getTryBlock();
         final List<Node> tryBody = tryBlock.getBody();
 
@@ -545,7 +552,7 @@ public final class AstOptimizer {
 
                     if (finallyBody.size() == 3 &&
                         matchUnlock(finallyBody.get(1), lockInfo) &&
-                        rewriteNestedSynchronizedCore(nestedTry, depth + 1)) {
+                        rewriteSynchronizedCore(nestedTry, depth + 1)) {
 
                         tryCatch.setSynchronized(true);
                         inlineLockAccess(tryCatch, tryBody, lockInfo);
@@ -577,7 +584,7 @@ public final class AstOptimizer {
             final List<Node> innerTryBody = innerTry.getTryBlock().getBody();
 
             if (matchLock(innerTryBody, 0, lockInfoBox) &&
-                rewriteNestedSynchronizedCore(innerTry, depth)) {
+                rewriteSynchronizedCore(innerTry, depth)) {
 
                 inlineLockAccess(tryCatch, tryBody, lockInfo);
                 tryCatch.setSynchronized(true);
@@ -611,27 +618,6 @@ public final class AstOptimizer {
 
         if (removeAll) {
             //
-            // Determine which variables we are unlocking; we will need these to search for additional,
-            // equivalent monitorexit instructions.
-            //
-
-            final Set<Variable> lockVariables = new HashSet<>();
-
-            if (lockInfo != null &&
-                tryCatch.getCatchBlocks().isEmpty()) {
-
-                lockVariables.add(lockInfo.lock);
-
-                if (lockInfo.lockCopy != null) {
-                    lockVariables.add(lockInfo.lockCopy);
-                }
-            }
-
-            for (final Node node : monitorExitNodes) {
-                lockVariables.add((Variable) single(((Expression) node).getArguments()).getOperand());
-            }
-
-            //
             // Remove the monitorexit instructions that we've already found.  Thank you, SubList.clear().
             //
             monitorExitNodes.clear();
@@ -661,18 +647,46 @@ public final class AstOptimizer {
             return;
         }
 
+        boolean lockCopyUsed = false;
+
         final StrongBox<Expression> a = new StrongBox<>();
+        final List<Expression> lockAccesses = new ArrayList<>();
+        final Set<Expression> lockAccessLoads = new HashSet<>();
 
         for (final Expression e : owner.getSelfAndChildrenRecursive(Expression.class)) {
-            if ((matchGetArgument(e, AstCode.MonitorEnter, a) || matchGetArgument(e, AstCode.MonitorExit, a)) &&
-                matchLoad(a.get(), lockInfo.lock)) {
+            if (matchLoad(e, lockInfo.lock) && !lockAccessLoads.contains(e)) {
 
-                e.getArguments().set(0, lockInfo.lockInit.clone());
+                //
+                // The lock variable is used elsewhere; we can't remove it.
+                //
+                return;
+            }
+
+            if (lockInfo.lockCopy != null &&
+                matchLoad(e, lockInfo.lockCopy) &&
+                !lockAccessLoads.contains(e)) {
+
+                lockCopyUsed = true;
+            }
+            else if ((matchGetArgument(e, AstCode.MonitorEnter, a) || matchGetArgument(e, AstCode.MonitorExit, a)) &&
+                     (matchLoad(a.get(), lockInfo.lock) || lockInfo.lockCopy != null && matchLoad(a.get(), lockInfo.lockCopy))) {
+
+                lockAccesses.add(e);
+                lockAccessLoads.add(a.get());
             }
         }
 
+        for (final Expression e : lockAccesses) {
+            e.getArguments().set(0, lockInfo.lockInit.clone());
+        }
+
         body.remove(lockInfo.lockStore);
+
         lockInfo.lockAcquire.getArguments().set(0, lockInfo.lockInit.clone());
+
+        if (lockInfo.lockCopy != null && !lockCopyUsed) {
+            body.remove(lockInfo.lockStoreCopy);
+        }
     }
 
     // </editor-fold>
@@ -830,10 +844,7 @@ public final class AstOptimizer {
                 else if (node instanceof TryCatchBlock) {
                     final TryCatchBlock tryCatch = (TryCatchBlock) node;
 
-                    if (isEmptyTryCatch(tryCatch)) {
-
-                    }
-                    else {
+                    if (!isEmptyTryCatch(tryCatch)) {
                         newBody.add(node);
                     }
                 }
@@ -888,7 +899,7 @@ public final class AstOptimizer {
         return body.size() == 3 &&
                matchGetOperand(body.get(0), AstCode.Goto, label) &&
                body.get(1) == label.get() &&
-               match(body.get(2), AstCode.Leave);
+               match(body.get(2), AstCode.EndFinally);
     }
 
     // </editor-fold>
@@ -1838,6 +1849,10 @@ public final class AstOptimizer {
         }
 
         private static Expression simplify(final Expression head, final BooleanBox modified) {
+            if (match(head, AstCode.TernaryOp)) {
+                return simplifyTernaryDirect(head);
+            }
+
             final List<Expression> arguments = head.getArguments();
 
             for (int i = 0; i < arguments.size(); i++) {
@@ -1884,6 +1899,45 @@ public final class AstOptimizer {
             return invert ? new Expression(AstCode.LogicalNot, null, condition)
                           : condition;
         }
+
+        private static Expression simplifyTernaryDirect(final Expression head) {
+            final List<Expression> a = new ArrayList<>();
+
+            final StrongBox<Variable> v;
+            final StrongBox<Expression> left;
+            final StrongBox<Expression> right;
+
+            //
+            // c ? (v = a) : (v = b) => v = c ? a : b;
+            //
+            if (matchGetArguments(head, AstCode.TernaryOp, a) &&
+                matchGetArgument(a.get(1), AstCode.Store, v = new StrongBox<>(), left = new StrongBox<>()) &&
+                matchStore(a.get(2), v.get(), right = new StrongBox<>())) {
+
+                final Expression condition = a.get(0);
+                final Expression leftValue = left.value;
+                final Expression rightValue = right.value;
+
+                final Expression newTernary = new Expression(
+                    AstCode.TernaryOp,
+                    null,
+                    condition,
+                    leftValue,
+                    rightValue
+                );
+
+                head.setCode(AstCode.Store);
+                head.setOperand(v.get());
+                head.getArguments().clear();
+                head.getArguments().add(newTernary);
+
+                newTernary.getRanges().addAll(head.getRanges());
+
+                return head;
+            }
+
+            return head;
+        }
     }
 
     // </editor-fold>
@@ -1908,7 +1962,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="TransformArrayInitializers Step">
+    // <editor-fold defaultstate="collapsed" desc="TransformObjectInitializersOptimization Optimization">
 
     private final static class TransformObjectInitializersOptimization extends AbstractExpressionOptimization {
         protected TransformObjectInitializersOptimization(final DecompilerContext context, final Block method) {
@@ -1996,6 +2050,83 @@ public final class AstOptimizer {
             return false;
         }
     }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="MergeDisparateObjectInitializations Optimization">
+
+    private static void mergeDisparateObjectInitializations(final DecompilerContext context, final Block method) {
+        final Inlining inlining = new Inlining(context, method);
+        final Map<Node, Node> parentLookup = new IdentityHashMap<>();
+        final Map<Variable, Expression> newExpressions = new IdentityHashMap<>();
+
+        final StrongBox<Variable> variable = new StrongBox<>();
+        final StrongBox<MethodReference> ctor = new StrongBox<>();
+        final List<Expression> args = new ArrayList<>();
+
+        parentLookup.put(method, Node.NULL);
+
+        for (final Node node : method.getSelfAndChildrenRecursive(Node.class)) {
+            if (matchStore(node, variable, args) &&
+                match(single(args), AstCode.__New)) {
+
+                newExpressions.put(variable.get(), (Expression) node);
+            }
+
+            for (final Node child : node.getChildren()) {
+                if (parentLookup.containsKey(child)) {
+                    throw Error.expressionLinkedFromMultipleLocations(child);
+                }
+
+                parentLookup.put(child, node);
+            }
+        }
+
+        for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
+            if (matchGetArguments(e, AstCode.InvokeSpecial, ctor, args) &&
+                ctor.get().isConstructor() &&
+                args.size() > 0 &&
+                matchLoad(first(args), variable)) {
+
+                final Expression storeNew = newExpressions.get(variable.get());
+
+                if (storeNew != null &&
+                    Inlining.count(inlining.storeCounts, variable.get()) == 1) {
+
+                    final Node parent = parentLookup.get(storeNew);
+
+                    if (parent instanceof Block || parent instanceof BasicBlock) {
+                        final List<Node> body;
+
+                        if (parent instanceof Block) {
+                            body = ((Block) parent).getBody();
+                        }
+                        else {
+                            body = ((BasicBlock) parent).getBody();
+                        }
+
+                        body.remove(storeNew);
+
+                        final List<Expression> arguments = e.getArguments();
+                        final Expression initExpression = new Expression(AstCode.InitObject, ctor.get());
+
+                        arguments.remove(0);
+                        initExpression.getArguments().addAll(arguments);
+                        initExpression.getRanges().addAll(e.getRanges());
+
+                        e.setCode(AstCode.Store);
+                        e.setOperand(variable.get());
+                        e.getArguments().clear();
+                        e.getArguments().add(initExpression);
+                    }
+                }
+            }
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="TransformArrayInitializers Step">
 
     private final static class TransformArrayInitializersOptimization extends AbstractExpressionOptimization {
         protected TransformArrayInitializersOptimization(final DecompilerContext context, final Block method) {

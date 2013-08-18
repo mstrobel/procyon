@@ -26,7 +26,7 @@ import com.strobel.core.VerifyArgument;
 
 import java.util.*;
 
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 
 public final class MetadataHelper {
     public static boolean areGenericsSupported(final TypeDefinition t) {
@@ -564,7 +564,13 @@ public final class MetadataHelper {
             return null;
         }
 
-        return substituteGenericArguments(resolvedType.getBaseType(), type);
+        final TypeReference baseType = resolvedType.getBaseType();
+
+        if (baseType == null) {
+            return null;
+        }
+
+        return substituteGenericArguments(baseType, type);
     }
 
     public static List<TypeReference> getInterfaces(final TypeReference type) {
@@ -707,7 +713,79 @@ public final class MetadataHelper {
             ((GenericMethodInstance) asMember).setDeclaringType(base);
         }
 
+        return specializeIfNecessary(method, asMember, baseType);
+    }
+
+    private static MethodReference specializeIfNecessary(
+        final MethodReference originalMethod,
+        final MethodReference asMember,
+        final TypeReference baseType) {
+
+        if (baseType.isArray() &&
+            StringUtilities.equals(asMember.getName(), "clone") &&
+            asMember.getParameters().isEmpty()) {
+
+            return ensureReturnType(originalMethod, asMember, baseType, baseType);
+        }
+        else if (StringUtilities.equals(asMember.getName(), "getClass") &&
+                 asMember.getParameters().isEmpty()) {
+
+            TypeReference classType;
+            TypeDefinition resolvedClassType;
+            TypeDefinition resolvedType = baseType.resolve();
+
+            //noinspection UnusedAssignment
+            if (resolvedType == null ||
+                (classType = resolvedType.getResolver().lookupType("java/lang/Class")) == null ||
+                (resolvedClassType = classType.resolve()) == null) {
+
+                resolvedType = originalMethod.getDeclaringType().resolve();
+            }
+
+            if (resolvedType == null ||
+                (classType = resolvedType.getResolver().lookupType("java/lang/Class")) == null ||
+                (resolvedClassType = classType.resolve()) == null) {
+
+                return asMember;
+            }
+
+            if (resolvedClassType.isGenericType()) {
+                return ensureReturnType(originalMethod, asMember, resolvedClassType.makeGenericType(baseType), baseType);
+            }
+
+            return asMember;
+        }
+
         return asMember;
+    }
+
+    private static MethodReference ensureReturnType(
+        final MethodReference originalMethod,
+        final MethodReference method,
+        final TypeReference returnType,
+        final TypeReference declaringType) {
+
+        if (isSameType(method.getReturnType(), returnType, true)) {
+            return method;
+        }
+
+        final MethodDefinition resolvedMethod = originalMethod.resolve();
+        final List<TypeReference> typeArguments;
+
+        if (method instanceof IGenericInstance && method.isGenericMethod()) {
+            typeArguments = ((IGenericInstance) method).getTypeArguments();
+        }
+        else {
+            typeArguments = Collections.emptyList();
+        }
+
+        return new GenericMethodInstance(
+            declaringType,
+            resolvedMethod != null ? resolvedMethod : originalMethod,
+            returnType,
+            copyParameters(method.getParameters()),
+            typeArguments
+        );
     }
 
     public static FieldReference asMemberOf(final FieldReference field, final TypeReference baseType) {
@@ -1188,7 +1266,7 @@ public final class MetadataHelper {
     }
 
     private static boolean containsTypeEquivalent(final TypeReference t, final TypeReference s) {
-        return isSameType(t, s) ||
+        return s == t ||
                containsType(t, s) && containsType(s, t);
     }
 
@@ -1298,13 +1376,13 @@ public final class MetadataHelper {
             return genericParameters.size();
         }
 
-        final IGenericParameterProvider genericDefinition = ((IGenericInstance)t).getGenericDefinition();
+        final IGenericParameterProvider genericDefinition = ((IGenericInstance) t).getGenericDefinition();
 
         if (!genericDefinition.isGenericDefinition()) {
             return 0;
         }
 
-        final List<TypeReference> typeArguments = ((IGenericInstance)t).getTypeArguments();
+        final List<TypeReference> typeArguments = ((IGenericInstance) t).getTypeArguments();
 
         assert genericParameters.size() == typeArguments.size();
 
@@ -1463,14 +1541,15 @@ public final class MetadataHelper {
                     return jt == JvmType.Boolean;
 
                 case Byte:
-                    return js != JvmType.Character && jt.isIntegral() &&jt.bitWidth() <= js.bitWidth();
+                    return js != JvmType.Character && jt.isIntegral() && jt.bitWidth() <= js.bitWidth();
 
                 case Character:
                     return jt == JvmType.Character;
 
                 case Short:
-                    if (jt == JvmType.Character)
+                    if (jt == JvmType.Character) {
                         return false;
+                    }
                     // fall through
                 case Integer:
                 case Long:
@@ -1734,10 +1813,10 @@ public final class MetadataHelper {
                 return BuiltinTypes.Object;
             }
 
-            final TypeReference baseType = ((TypeDefinition) genericDefinition).getBaseType();
+            final TypeReference baseType = getBaseType(genericDefinition);
 
-            return baseType.isGenericType() ? eraseRecursive(baseType)
-                                            : baseType;
+            return baseType != null && baseType.isGenericType() ? eraseRecursive(baseType)
+                                                                : baseType;
         }
 
         @Override
@@ -1757,6 +1836,21 @@ public final class MetadataHelper {
             return null;
         }
     };
+
+    static List<ParameterDefinition> copyParameters(final List<ParameterDefinition> parameters) {
+        final List<ParameterDefinition> newParameters = new ArrayList<>();
+
+        for (final ParameterDefinition p : parameters) {
+            if (p.hasName()) {
+                newParameters.add(new ParameterDefinition(p.getSlot(), p.getName(), p.getParameterType()));
+            }
+            else {
+                newParameters.add(new ParameterDefinition(p.getSlot(), p.getParameterType()));
+            }
+        }
+
+        return newParameters;
+    }
 
     private final static class Adapter extends DefaultTypeVisitor<TypeReference, Void> {
         final ListBuffer<TypeReference> from = ListBuffer.lb();
@@ -2071,7 +2165,7 @@ public final class MetadataHelper {
             final IGenericParameterProvider owner1 = gp1.getOwner();
             final IGenericParameterProvider owner2 = gp2.getOwner();
 
-            if (owner1.getGenericParameters().indexOf(gp1) != owner1.getGenericParameters().indexOf(gp2)) {
+            if (indexOfByIdentity(owner1.getGenericParameters(), gp1) != indexOfByIdentity(owner2.getGenericParameters(), gp2)) {
                 return false;
             }
 
@@ -2238,8 +2332,8 @@ public final class MetadataHelper {
 
             for (final TypeReference a : sTypeArguments) {
                 if (a.isGenericParameter() &&
-                    resultTypeArguments.contains(a) &&
-                    !tTypeArguments.contains(a)) {
+                    indexOfByIdentity(resultTypeArguments, a) >= 0 &&
+                    indexOfByIdentity(tTypeArguments, a) < 0) {
 
                     if (openGenericParameters == null) {
                         openGenericParameters = new ArrayList<>();

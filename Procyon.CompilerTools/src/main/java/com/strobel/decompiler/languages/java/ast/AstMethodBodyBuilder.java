@@ -40,11 +40,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 
 public class AstMethodBodyBuilder {
     private final AstBuilder _astBuilder;
     private final MethodDefinition _method;
+    private final MetadataParser _parser;
     private final DecompilerContext _context;
     private final Set<Variable> _localVariablesToDefine = new LinkedHashSet<>();
 
@@ -80,6 +81,7 @@ public class AstMethodBodyBuilder {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private static BlockStatement createErrorBlock(
         final AstBuilder astBuilder,
         final DecompilerContext context,
@@ -166,6 +168,7 @@ public class AstMethodBodyBuilder {
         _astBuilder = astBuilder;
         _method = method;
         _context = context;
+        _parser = new MetadataParser(method.getDeclaringType());
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -334,7 +337,6 @@ public class AstMethodBodyBuilder {
 
                 final TryCatchBlock tryCatch = (TryCatchBlock) next;
                 final Block finallyBlock = tryCatch.getFinallyBlock();
-                final List<CatchBlock> catchBlocks = tryCatch.getCatchBlocks();
 
                 if (finallyBlock != null &&
                     finallyBlock.getBody().size() == 1) {
@@ -694,7 +696,17 @@ public class AstMethodBodyBuilder {
             }
 
             case ArrayLength:
-                return arg1.member("length");
+                final MemberReferenceExpression length = arg1.member("length");
+                final TypeReference arrayType = single(byteCode.getArguments()).getInferredType();
+
+                if (arrayType != null) {
+                    length.putUserData(
+                        Keys.MEMBER_REFERENCE,
+                        _parser.parseField(arrayType, "length", "I")
+                    );
+                }
+
+                return length;
 
             case AThrow:
                 return new ThrowStatement(arg1);
@@ -915,6 +927,7 @@ public class AstMethodBodyBuilder {
                 throw ContractUtils.unreachable();
 
             case Leave:
+            case EndFinally:
                 return null;
 
             case DefaultValue:
@@ -931,7 +944,7 @@ public class AstMethodBodyBuilder {
     }
 
     @SuppressWarnings("ConstantConditions")
-    private AstNode transformCall(
+    private Expression transformCall(
         final boolean isVirtual,
         final com.strobel.decompiler.ast.Expression byteCode,
         final List<Expression> arguments) {
@@ -1114,6 +1127,10 @@ public class AstMethodBodyBuilder {
 
                             if (!resolvedType.isStatic() && !_context.getSettings().getShowSyntheticMembers()) {
                                 ++start;
+                            }
+
+                            if (start > end) {
+                                return Collections.emptyList();
                             }
 
                             return adjustArgumentsForMethodCallCore(

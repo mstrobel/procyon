@@ -194,6 +194,10 @@ public class StackMappingVisitor implements MethodVisitor {
         }
 
         _locals.set(local, value);
+
+        if (value.getType().isDoubleWord()) {
+            _locals.set(local + 1, FrameValue.TOP);
+        }
     }
 
     protected final void set(final int local, final TypeReference type) {
@@ -681,7 +685,9 @@ public class StackMappingVisitor implements MethodVisitor {
 
                             final List<ParameterDefinition> parameters = method.getParameters();
 
-                            if (code == OpCode.INVOKESPECIAL) {
+                            if (code == OpCode.INVOKESPECIAL &&
+                                ((MethodReference) method).isConstructor()) {
+
                                 final FrameValue firstParameter = getStackValue(computeSize(parameters));
                                 final FrameValueType firstParameterType = firstParameter.getType();
 
@@ -768,20 +774,45 @@ public class StackMappingVisitor implements MethodVisitor {
                 final FrameValue frameValue = _temp.pop();
                 final Object parameter = frameValue.getParameter();
 
-                if (parameter instanceof TypeReference) {
-                    push(((TypeReference) parameter).getElementType());
-                }
-                else if (frameValue.getType() == FrameValueType.Null) {
-                    push(FrameValue.NULL);
-                }
-                else {
-                    push(FrameValue.TOP);
+                switch (code) {
+                    case BALOAD:
+                    case CALOAD:
+                    case SALOAD:
+                    case IALOAD:
+                        push(FrameValue.INTEGER);
+                        break;
+
+                    case LALOAD:
+                        push(FrameValue.LONG);
+                        push(FrameValue.TOP);
+                        break;
+
+                    case FALOAD:
+                        push(FrameValue.FLOAT);
+                        break;
+
+                    case DALOAD:
+                        push(FrameValue.DOUBLE);
+                        push(FrameValue.TOP);
+                        break;
+
+                    case AALOAD:
+                        if (parameter instanceof TypeReference) {
+                            push(((TypeReference) parameter).getElementType());
+                        }
+                        else if (frameValue.getType() == FrameValueType.Null) {
+                            push(FrameValue.NULL);
+                        }
+                        else {
+                            push(FrameValue.TOP);
+                        }
+                        break;
                 }
 
                 return;
             }
             else if (code == OpCode.JSR || code == OpCode.JSR) {
-                set(0, FrameValue.makeAddress(instruction));
+                set(0, FrameValue.makeAddress(instruction.getNext()));
             }
 
             switch (code.getStackBehaviorPush()) {
@@ -985,8 +1016,7 @@ public class StackMappingVisitor implements MethodVisitor {
 
                     if (returnType.getSimpleType() != JvmType.Void) {
                         if (code != OpCode.INVOKESTATIC &&
-                            code != OpCode.INVOKEDYNAMIC &&
-                            code != OpCode.INVOKESPECIAL) {
+                            code != OpCode.INVOKEDYNAMIC) {
 
                             final TypeReference typeReference;
 

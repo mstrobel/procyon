@@ -55,22 +55,22 @@ public final class Roles {
     // COMMON TOKENS                                                                                                      //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    public final static TokenRole LEFT_PARENTHESIS = new TokenRole("(");
-    public final static TokenRole RIGHT_PARENTHESIS = new TokenRole(")");
-    public final static TokenRole LEFT_BRACKET = new TokenRole("[");
-    public final static TokenRole RIGHT_BRACKET = new TokenRole("]");
-    public final static TokenRole LEFT_BRACE = new TokenRole("{");
-    public final static TokenRole RIGHT_BRACE = new TokenRole("}");
-    public final static TokenRole LEFT_CHEVRON = new TokenRole("<");
-    public final static TokenRole RIGHT_CHEVRON = new TokenRole(">");
-    public final static TokenRole COMMA = new TokenRole(",");
-    public final static TokenRole DOT = new TokenRole(".");
-    public final static TokenRole SEMICOLON = new TokenRole(";");
-    public final static TokenRole COLON = new TokenRole(":");
-    public final static TokenRole DOUBLE_COLON = new TokenRole("::");
+    public final static TokenRole LEFT_PARENTHESIS = new TokenRole("(", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole RIGHT_PARENTHESIS = new TokenRole(")", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole LEFT_BRACKET = new TokenRole("[", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole RIGHT_BRACKET = new TokenRole("]", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole LEFT_BRACE = new TokenRole("{", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole RIGHT_BRACE = new TokenRole("}", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole LEFT_CHEVRON = new TokenRole("<", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole RIGHT_CHEVRON = new TokenRole(">", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole COMMA = new TokenRole(",", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole DOT = new TokenRole(".", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole SEMICOLON = new TokenRole(";", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole COLON = new TokenRole(":", TokenRole.FLAG_DELIMITER);
+    public final static TokenRole DOUBLE_COLON = new TokenRole("::", TokenRole.FLAG_DELIMITER);
     public final static TokenRole ASSIGN = new TokenRole("=", TokenRole.FLAG_OPERATOR);
     public final static TokenRole PIPE = new TokenRole("|", TokenRole.FLAG_OPERATOR);
-    public final static TokenRole VARARGS = new TokenRole("...");
+    public final static TokenRole VARARGS = new TokenRole("...", TokenRole.FLAG_DELIMITER);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // KEYWORD TOKENS                                                                                                     //

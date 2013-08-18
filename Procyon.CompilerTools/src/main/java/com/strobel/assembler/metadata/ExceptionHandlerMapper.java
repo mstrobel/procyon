@@ -7,10 +7,10 @@ import com.strobel.assembler.flowanalysis.ControlFlowGraph;
 import com.strobel.assembler.flowanalysis.ControlFlowNode;
 import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
 import com.strobel.assembler.flowanalysis.JumpType;
-import com.strobel.assembler.ir.ExceptionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.FlowControl;
 import com.strobel.assembler.ir.Instruction;
+import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OperandType;
@@ -64,7 +64,11 @@ public final class ExceptionHandlerMapper {
             final ControlFlowNode handlerStart = handlerStartNodes.get(entry);
             final List<ControlFlowNode> dominatedNodes = new ArrayList<>();
 
-            dominatedNodes.addAll(findDominatedNodes(cfg, handlerStart));
+            for (final ControlFlowNode node : findDominatedNodes(cfg, handlerStart)) {
+                if (node.getNodeType() == ControlFlowNodeType.Normal) {
+                    dominatedNodes.add(node);
+                }
+            }
 
             Collections.sort(
                 dominatedNodes,
@@ -90,16 +94,16 @@ public final class ExceptionHandlerMapper {
 
             final Instruction lastInstruction = instructions.get(instructions.size() - 1);
 
-            final ExceptionBlock tryBlock;
+            final InstructionBlock tryBlock;
 
             if (entry.getEndOffset() == lastInstruction.getEndOffset()) {
-                tryBlock = new ExceptionBlock(
+                tryBlock = new InstructionBlock(
                     instructions.atOffset(entry.getStartOffset()),
                     lastInstruction
                 );
             }
             else {
-                tryBlock = new ExceptionBlock(
+                tryBlock = new InstructionBlock(
                     instructions.atOffset(entry.getStartOffset()),
                     instructions.atOffset(entry.getEndOffset()).getPrevious()
                 );
@@ -109,7 +113,7 @@ public final class ExceptionHandlerMapper {
                 handlers.add(
                     ExceptionHandler.createFinally(
                         tryBlock,
-                        new ExceptionBlock(handlerStart.getStart(), lastOrDefault(dominatedNodes).getEnd())
+                        new InstructionBlock(handlerStart.getStart(), lastOrDefault(dominatedNodes).getEnd())
                     )
                 );
             }
@@ -117,7 +121,7 @@ public final class ExceptionHandlerMapper {
                 handlers.add(
                     ExceptionHandler.createCatch(
                         tryBlock,
-                        new ExceptionBlock(handlerStart.getStart(), lastOrDefault(dominatedNodes).getEnd()),
+                        new InstructionBlock(handlerStart.getStart(), lastOrDefault(dominatedNodes).getEnd()),
                         entry.getCatchType()
                     )
                 );
@@ -159,10 +163,6 @@ public final class ExceptionHandlerMapper {
 
             agenda.remove(addNode);
 
-            if (addNode.getNodeType() != ControlFlowNodeType.Normal) {
-                continue;
-            }
-
             if (!head.dominates(addNode) &&
                 !shouldIncludeExceptionalExit(cfg, head, addNode)) {
 
@@ -182,6 +182,10 @@ public final class ExceptionHandlerMapper {
     }
 
     private static boolean shouldIncludeExceptionalExit(final ControlFlowGraph cfg, final ControlFlowNode head, final ControlFlowNode node) {
+        if (node.getNodeType() != ControlFlowNodeType.Normal) {
+            return false;
+        }
+
         if (!node.getDominanceFrontier().contains(cfg.getExceptionalExit()) &&
             !node.dominates(cfg.getExceptionalExit())) {
 
@@ -409,62 +413,54 @@ public final class ExceptionHandlerMapper {
         //
 
         for (final ControlFlowNode node : _nodes) {
-            if (node.getNodeType() != ControlFlowNodeType.Normal) {
-                continue;
-            }
+            if (node.getNodeType() == ControlFlowNodeType.Normal) {
+                final Instruction end = node.getEnd();
+                final ExceptionHandler innermostHandler = findInnermostExceptionHandler(node.getEnd().getOffset());
 
-            final Instruction end = node.getEnd();
-            final ExceptionHandler innermostHandler = findInnermostExceptionHandler(node.getEnd().getOffset());
-
-            if (innermostHandler != null) {
-                for (final ExceptionHandler other : _handlerPlaceholders) {
-                    if (other.getTryBlock().equals(innermostHandler.getTryBlock())) {
-                        final ControlFlowNode handlerNode = firstOrDefault(
-                            _nodes,
-                            new Predicate<ControlFlowNode>() {
-                                @Override
-                                public boolean test(final ControlFlowNode node) {
-                                    return node.getExceptionHandler() == other;
+                if (innermostHandler != null) {
+                    for (final ExceptionHandler other : _handlerPlaceholders) {
+                        if (other.getTryBlock().equals(innermostHandler.getTryBlock())) {
+                            final ControlFlowNode handlerNode = firstOrDefault(
+                                _nodes,
+                                new Predicate<ControlFlowNode>() {
+                                    @Override
+                                    public boolean test(final ControlFlowNode node) {
+                                        return node.getExceptionHandler() == other;
+                                    }
                                 }
-                            }
-                        );
+                            );
 
-                        if (node != handlerNode) {
-                            createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
+                            if (node != handlerNode) {
+                                createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
+                            }
                         }
                     }
                 }
-            }
-            else if (end.getOpCode() == OpCode.ATHROW) {
-                createEdge(node, _exceptionalExit, JumpType.JumpToExceptionHandler);
+                else if (end.getOpCode() == OpCode.ATHROW) {
+                    createEdge(node, _exceptionalExit, JumpType.JumpToExceptionHandler);
+                }
             }
 
             final ExceptionHandler exceptionHandler = node.getExceptionHandler();
 
             if (exceptionHandler != null) {
-                if (exceptionHandler.isFinally()) {
-                    final ControlFlowNode parentHandler = findParentExceptionHandlerNode(node);
+                final ControlFlowNode parentHandler = findParentExceptionHandlerNode(node);
 
-                    if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
-                        createEdge(node, parentHandler, JumpType.JumpToExceptionHandler);
-                    }
-
-                    if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
-                        for (final ExceptionHandler other : _handlerPlaceholders) {
-                            if (Comparer.equals(other.getTryBlock(), parentHandler.getExceptionHandler().getTryBlock())) {
-                                final ControlFlowNode handlerNode = firstOrDefault(
-                                    _nodes,
-                                    new Predicate<ControlFlowNode>() {
-                                        @Override
-                                        public boolean test(final ControlFlowNode node) {
-                                            return node.getExceptionHandler() == other;
-                                        }
+                if (parentHandler.getNodeType() != ControlFlowNodeType.ExceptionalExit) {
+                    for (final ExceptionHandler other : _handlerPlaceholders) {
+                        if (Comparer.equals(other.getTryBlock(), parentHandler.getExceptionHandler().getTryBlock())) {
+                            final ControlFlowNode handlerNode = firstOrDefault(
+                                _nodes,
+                                new Predicate<ControlFlowNode>() {
+                                    @Override
+                                    public boolean test(final ControlFlowNode node) {
+                                        return node.getExceptionHandler() == other;
                                     }
-                                );
-
-                                if (handlerNode != node && handlerNode != parentHandler) {
-                                    createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
                                 }
+                            );
+
+                            if (handlerNode != node) {
+                                createEdge(node, handlerNode, JumpType.JumpToExceptionHandler);
                             }
                         }
                     }
@@ -493,7 +489,7 @@ public final class ExceptionHandlerMapper {
                 break;
             }
 
-            final ExceptionBlock tryBlock = handler.getTryBlock();
+            final InstructionBlock tryBlock = handler.getTryBlock();
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
                 offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
@@ -530,11 +526,11 @@ public final class ExceptionHandlerMapper {
         ExceptionHandler result = null;
 
         for (final ExceptionHandler handler : _handlerPlaceholders) {
-            final ExceptionBlock tryBlock = handler.getTryBlock();
+            final InstructionBlock tryBlock = handler.getTryBlock();
 
             if (tryBlock.getFirstInstruction().getOffset() <= offsetInTryBlock &&
                 offsetInTryBlock < tryBlock.getLastInstruction().getEndOffset() &&
-                isNarrower(handler, result)) {
+                (result == null || isNarrower(handler, result))) {
 
                 result = handler;
             }
@@ -612,11 +608,11 @@ public final class ExceptionHandlerMapper {
 
             if (entry.getCatchType() == null) {
                 handler = ExceptionHandler.createFinally(
-                    new ExceptionBlock(
+                    new InstructionBlock(
                         _instructions.atOffset(entry.getStartOffset()),
                         afterTry != null ? afterTry.getPrevious() : last(_instructions)
                     ),
-                    new ExceptionBlock(
+                    new InstructionBlock(
                         _instructions.atOffset(entry.getHandlerOffset()),
                         _instructions.atOffset(entry.getHandlerOffset())
                     )
@@ -624,11 +620,11 @@ public final class ExceptionHandlerMapper {
             }
             else {
                 handler = ExceptionHandler.createCatch(
-                    new ExceptionBlock(
+                    new InstructionBlock(
                         _instructions.atOffset(entry.getStartOffset()),
                         afterTry != null ? afterTry.getPrevious() : last(_instructions)
                     ),
-                    new ExceptionBlock(
+                    new InstructionBlock(
                         _instructions.atOffset(entry.getHandlerOffset()),
                         _instructions.atOffset(entry.getHandlerOffset())
                     ),

@@ -185,7 +185,7 @@ public enum OpCode {
     IF_ACMPEQ(0xA5, FlowControl.ConditionalBranch, OpCodeType.Macro, OperandType.BranchTarget, StackBehavior.PopA_PopA, StackBehavior.Push0),
     IF_ACMPNE(0xA6, FlowControl.ConditionalBranch, OpCodeType.Macro, OperandType.BranchTarget, StackBehavior.PopA_PopA, StackBehavior.Push0),
     GOTO(0xA7, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.Push0),
-    JSR(0xA8, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.PushAddress),
+    JSR(0xA8, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.Push0),
     RET(0xA9, FlowControl.Branch, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.Push0),
     TABLESWITCH(0xAA, FlowControl.ConditionalBranch, OpCodeType.Primitive, OperandType.Switch, StackBehavior.PopI4, StackBehavior.Push0),
     LOOKUPSWITCH(0xAB, FlowControl.ConditionalBranch, OpCodeType.Primitive, OperandType.Switch, StackBehavior.PopI4, StackBehavior.Push0),
@@ -217,7 +217,7 @@ public enum OpCode {
     IFNULL(0xC6, FlowControl.ConditionalBranch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.PopA, StackBehavior.Push0),
     IFNONNULL(0xC7, FlowControl.ConditionalBranch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.PopA, StackBehavior.Push0),
     GOTO_W(0xC8, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.Push0),
-    JSR_W(0xC9, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.PushAddress),
+    JSR_W(0xC9, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.Push0),
     BREAKPOINT(0xC9, FlowControl.Breakpoint, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0),
     ILOAD_W(0xC415, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.PushI4),
     LLOAD_W(0xC416, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.PushI8),
@@ -232,7 +232,7 @@ public enum OpCode {
     IINC_W(0xC484, FlowControl.Next, OpCodeType.Primitive, OperandType.LocalI2, StackBehavior.Pop0, StackBehavior.Push0),
     RET_W(0xC4A9, FlowControl.Branch, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.Push0),
     LEAVE(0xFE, FlowControl.Branch, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0),
-    RESERVED_2(0xFF, FlowControl.Next, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0);
+    ENDFINALLY(0xFF, FlowControl.Branch, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0);
 
     private OpCode(
         final int code,
@@ -301,11 +301,22 @@ public enum OpCode {
         }
     }
 
+    public boolean isReturnFromSubroutine() {
+        switch (this) {
+            case RET:
+            case RET_W:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public boolean isLeave() {
         switch (this) {
             case JSR:
             case JSR_W:
             case LEAVE:
+            case ENDFINALLY:
                 return true;
             default:
                 return false;
@@ -419,7 +430,6 @@ public enum OpCode {
             case DSTORE_W:
             case ASTORE_W:
                 return true;
-
 
             default:
                 return false;

@@ -145,6 +145,11 @@ public class TextOutputFormatter implements IOutputFormatter {
     }
 
     @Override
+    public void writeDelimiter(final String token) {
+        output.writeDelimiter(token);
+    }
+
+    @Override
     public void writeToken(final String token) {
 /*
         final MemberReference member = getCurrentMemberReference();
@@ -213,7 +218,7 @@ public class TextOutputFormatter implements IOutputFormatter {
                 break;
         }
 
-        output.write("{");
+        output.writeDelimiter("{");
 
         if (style != BraceStyle.BannerStyle) {
             output.writeLine();
@@ -225,7 +230,7 @@ public class TextOutputFormatter implements IOutputFormatter {
     @Override
     public void closeBrace(final BraceStyle style) {
         output.unindent();
-        output.write('}');
+        output.writeDelimiter("}");
 
         switch (style) {
             case NextLineShifted:

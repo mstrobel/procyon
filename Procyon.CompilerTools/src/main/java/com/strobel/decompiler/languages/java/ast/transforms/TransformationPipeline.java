@@ -30,7 +30,6 @@ public final class TransformationPipeline {
             new AssertStatementTransform(context),
             new RemoveImplicitBoxingTransform(context),
             new RemoveRedundantCastsTransform(context),
-            new InsertNecessaryConversionsTransform(context),
             new PatternStatementTransform(context),
             new BreakTargetRelocation(context),
             new DeclareVariablesTransform(context),
@@ -40,7 +39,6 @@ public final class TransformationPipeline {
             new SimplifyAssignmentsTransform(context),
             new EliminateSyntheticAccessorsTransform(context),
             new LambdaTransform(context),
-            new IntroduceStringConcatenationTransform(context),
             new RewriteLocalClassesTransform(context),
             new IntroduceOuterClassReferencesTransform(context),
             new RewriteInnerClassConstructorCalls(context),
@@ -49,9 +47,12 @@ public final class TransformationPipeline {
             new FlattenSwitchBlocksTransform(context),
             new InlineFieldInitializersTransform(context),
             new RemoveHiddenMembersTransform(context),
+            new RemoveRedundantCastsTransform(context), // (again due to inlined synthetic accessors)
+            new InsertNecessaryConversionsTransform(context),
+            new IntroduceStringConcatenationTransform(context),
+            new SimplifyAssignmentsTransform(context), // (again due to inlined synthetic accessors, string concatenation)
             new VarArgsTransform(context),
-            new InsertConstantReferencesTransform(context),
-            new SimplifyAssignmentsTransform(context) // (again)
+            new InsertConstantReferencesTransform(context)
         };
     }
 

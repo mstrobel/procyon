@@ -1,8 +1,6 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
-import com.strobel.assembler.metadata.MemberReference;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.ParameterDefinition;
+import com.strobel.assembler.metadata.CommonTypeReferences;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
@@ -14,6 +12,7 @@ import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.NamedNode;
 import com.strobel.decompiler.patterns.OptionalNode;
 import com.strobel.decompiler.patterns.TypeReferenceDescriptorComparisonNode;
+import com.strobel.decompiler.semantics.ResolveResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,13 +69,22 @@ public class IntroduceStringConcatenationTransform extends ContextTrackingVisito
             final TypeReference typeReference = node.getType().toTypeReference();
 
             if (typeReference != null &&
-                StringUtilities.equals(typeReference.getInternalName(), "java/lang/StringBuilder")) {
+                isStringBuilder(typeReference)) {
 
                 convertStringBuilderToConcatenation(node, firstArgument);
             }
         }
 
         return super.visitObjectCreationExpression(node, data);
+    }
+
+    private boolean isStringBuilder(final TypeReference typeReference) {
+        if (StringUtilities.equals(typeReference.getInternalName(), "java/lang/StringBuilder"))
+            return true;
+
+        return context.getCurrentType() != null &&
+               context.getCurrentType().getCompilerMajorVersion() < 49 &&
+               StringUtilities.equals(typeReference.getInternalName(), "java/lang/StringBuffer");
     }
 
     private void convertStringBuilderToConcatenation(final ObjectCreationExpression node, final Expression firstArgument) {
@@ -93,8 +101,6 @@ public class IntroduceStringConcatenationTransform extends ContextTrackingVisito
         AstNode current;
         AstNode parent;
 
-        boolean atLeastOneStringArgument = false;
-
         for (current = node.getParent(), parent = current.getParent();
              current instanceof MemberReferenceExpression && parent instanceof InvocationExpression && parent.getParent() != null;
              current = parent.getParent(), parent = current.getParent()) {
@@ -102,39 +108,16 @@ public class IntroduceStringConcatenationTransform extends ContextTrackingVisito
             final String memberName = ((MemberReferenceExpression) current).getMemberName();
             final AstNodeCollection<Expression> arguments = ((InvocationExpression) parent).getArguments();
 
-            if (StringUtilities.equals(memberName, "append") &&
-                arguments.size() == 1) {
-
-                final Expression argument = arguments.firstOrNullObject();
-
-                operands.add(argument);
-
-                if (argument instanceof PrimitiveExpression &&
-                    ((PrimitiveExpression) argument).getValue() instanceof String) {
-
-                    atLeastOneStringArgument = true;
-                }
-                else {
-                    final MemberReference member = parent.getUserData(Keys.MEMBER_REFERENCE);
-
-                    if (member instanceof MethodReference) {
-                        final List<ParameterDefinition> p = ((MethodReference) member).getParameters();
-
-                        if (p.size() == 1 &&
-                            StringUtilities.equals(p.get(0).getParameterType().getInternalName(), "java/lang/String")) {
-
-                            atLeastOneStringArgument = true;
-                        }
-                    }
-                }
+            if (StringUtilities.equals(memberName, "append") && arguments.size() == 1) {
+                operands.add(arguments.firstOrNullObject());
             }
             else {
                 break;
             }
         }
 
-        if (atLeastOneStringArgument &&
-            operands.size() > 1 &&
+        if (operands.size() > 1 &&
+            anyIsString(operands.subList(0, 2)) &&
             current instanceof MemberReferenceExpression &&
             parent instanceof InvocationExpression &&
             StringUtilities.equals(((MemberReferenceExpression) current).getMemberName(), "toString") &&
@@ -152,5 +135,22 @@ public class IntroduceStringConcatenationTransform extends ContextTrackingVisito
 
             parent.replaceWith(concatenation);
         }
+    }
+
+    private boolean anyIsString(final List<Expression> expressions) {
+        final JavaResolver resolver = new JavaResolver(context);
+
+        for (int i = 0; i < expressions.size(); i++) {
+            final ResolveResult result = resolver.apply(expressions.get(i));
+
+            if (result != null &&
+                result.getType() != null &&
+                CommonTypeReferences.String.isEquivalentTo(result.getType())) {
+
+                return true;
+            }
+        }
+
+        return false;
     }
 }

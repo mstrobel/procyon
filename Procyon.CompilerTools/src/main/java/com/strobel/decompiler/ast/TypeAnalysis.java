@@ -19,6 +19,7 @@ package com.strobel.decompiler.ast;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
+import com.strobel.core.Pair;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
@@ -55,6 +56,7 @@ public final class TypeAnalysis {
         }
     };
 
+    private final Set<Pair<Variable, TypeReference>> _previouslyInferred = new LinkedHashSet<>();
     private final IdentityHashMap<Variable, TypeReference> _inferredVariableTypes = new IdentityHashMap<>();
 
     private DecompilerContext _context;
@@ -288,6 +290,7 @@ public final class TypeAnalysis {
 
     @SuppressWarnings("ConstantConditions")
     private void runInference() {
+        _previouslyInferred.clear();
         _inferredVariableTypes.clear();
 
         int numberOfExpressionsAlreadyInferred = 0;
@@ -299,20 +302,19 @@ public final class TypeAnalysis {
         boolean ignoreSingleLoadDependencies = false;
         boolean assignVariableTypesBasedOnPartialInformation = false;
 
+        final Predicate<Variable> dependentVariableTypesKnown = new Predicate<Variable>() {
+            @Override
+            public boolean test(final Variable v) {
+                return inferTypeForVariable(v, null) != null || _singleLoadVariables.contains(v);
+            }
+        };
+
         while (numberOfExpressionsAlreadyInferred < _allExpressions.size()) {
             final int oldCount = numberOfExpressionsAlreadyInferred;
 
             for (final ExpressionToInfer e : _allExpressions) {
                 if (!e.done &&
-                    trueForAll(
-                        e.dependencies,
-                        new Predicate<Variable>() {
-                            @Override
-                            public boolean test(final Variable v) {
-                                return inferTypeForVariable(v, null) != null || _singleLoadVariables.contains(v);
-                            }
-                        }
-                    ) &&
+                    trueForAll(e.dependencies, dependentVariableTypesKnown) &&
                     (e.dependsOnSingleLoad == null || e.dependsOnSingleLoad.getType() != null || ignoreSingleLoadDependencies)) {
 
                     runInference(e.expression);
@@ -357,10 +359,12 @@ public final class TypeAnalysis {
         final StrongBox<Expression> a = new StrongBox<>();
 
         for (final Variable variable : _assignmentExpressions.keySet()) {
-            if (variable.getType() == null) {
+            final TypeReference type = variable.getType();
+
+            if (type == null || type == BuiltinTypes.Null) {
                 variable.setType(BuiltinTypes.Object);
             }
-            else if (variable.getType().getSimpleType() == JvmType.Boolean) {
+            else if (type.getSimpleType() == JvmType.Boolean) {
                 //
                 // Make sure constant assignments to boolean variables have boolean values,
                 // and not integer values.
@@ -380,7 +384,7 @@ public final class TypeAnalysis {
                     }
                 }
             }
-            else if (variable.getType().getSimpleType() == JvmType.Character) {
+            else if (type.getSimpleType() == JvmType.Character) {
                 //
                 // Make sure constant assignments to boolean variables have boolean values,
                 // and not integer values.
@@ -487,7 +491,13 @@ public final class TypeAnalysis {
         final VariableDefinition variableDefinition = variable.getOriginalVariable();
 
         if (variable.isParameter()) {
-            final TypeReference parameterType = variable.getOriginalParameter().getParameterType();
+            final ParameterDefinition parameter = variable.getOriginalParameter();
+
+            if (parameter == _context.getCurrentMethod().getBody().getThisParameter()) {
+                return false;
+            }
+
+            final TypeReference parameterType = parameter.getParameterType();
 
             if (parameterType.isGenericType() || MetadataHelper.isRawType(parameterType)) {
                 return !_preserveMetadataGenericTypes;
@@ -586,7 +596,9 @@ public final class TypeAnalysis {
         }
 
         if (changedVariable != null) {
-            invalidateDependentExpressions(expression, changedVariable);
+            if (_previouslyInferred.add(Pair.create(changedVariable, changedVariable.getType()))) {
+                invalidateDependentExpressions(expression, changedVariable);
+            }
         }
     }
 
@@ -717,50 +729,70 @@ public final class TypeAnalysis {
 
                 case Load: {
                     final Variable v = (Variable) expression.getOperand();
-                    final TypeReference lastInferredType = _inferredVariableTypes.get(v);
+                    final TypeReference inferredType = inferTypeForVariable(v, expectedType);
+                    final TypeDefinition thisType = _context.getCurrentType();
 
-                    if (expectedType != null) {
-                        TypeReference result = null;
+                    if (v.isParameter() &&
+                        v.getOriginalParameter() == _context.getCurrentMethod().getBody().getThisParameter()) {
+
+                        if (_singleLoadVariables.contains(v) && v.getType() == null) {
+                            v.setType(thisType);
+                        }
+
+                        return thisType;
+                    }
+
+                    TypeReference result = inferredType;
+
+                    if (expectedType != null &&
+                        shouldInferVariableType(v)) {
+
+                        TypeReference tempResult = null;
+
+                        if (!MetadataHelper.isSubType(inferredType, expectedType)) {
+                            tempResult = MetadataHelper.asSubType(inferredType, expectedType);
+                        }
+
+                        if (tempResult == null && v.getType() != null) {
+                            tempResult = MetadataHelper.asSubType(v.getType(), expectedType);
+
+                            if (tempResult == null) {
+                                tempResult = MetadataHelper.asSubType(MetadataHelper.eraseRecursive(v.getType()), expectedType);
+                            }
+                        }
+
+                        if (tempResult == null) {
+                            tempResult = expectedType;
+                        }
+
+                        result = tempResult;
 
                         if (expectedType.isGenericType()) {
-                            if (MetadataHelper.areGenericsSupported(_context.getCurrentType())) {
-                                if (lastInferredType != null) {
-                                    result = MetadataHelper.asSubType(lastInferredType, expectedType);
-                                }
-
-                                if (result == null && v.getType() != null) {
-                                    result = MetadataHelper.asSubType(v.getType(), expectedType);
-
-                                    if (result == null) {
-                                        result = MetadataHelper.asSubType(MetadataHelper.eraseRecursive(v.getType()), expectedType);
-                                    }
-                                }
-
-                                if (MetadataHelper.getUnboundGenericParameterCount(result) > 0 && lastInferredType != null) {
-                                    result = MetadataHelper.substituteGenericArguments(result, lastInferredType);
+                            if (MetadataHelper.areGenericsSupported(thisType)) {
+                                if (MetadataHelper.getUnboundGenericParameterCount(result) > 0) {
+                                    result = MetadataHelper.substituteGenericArguments(result, inferredType);
                                 }
                             }
                             else {
-                                result = new RawType(expectedType.getUnderlyingType());
-                            }
-
-                            _inferredVariableTypes.put(v, result);
-
-                            if (result != null && lastInferredType == null ||
-                                !MetadataHelper.isSameType(result, lastInferredType)) {
-
-                                invalidateDependentExpressions(expression, v);
+                                result = new RawType(inferredType.getUnderlyingType());
                             }
                         }
-
-                        if (_singleLoadVariables.contains(v) && v.getType() == null) {
-                            v.setType(result != null ? result : expectedType);
-                        }
-
-                        return result != null ? result : v.getType();
                     }
 
-                    return lastInferredType != null ? lastInferredType : v.getType();
+                    _inferredVariableTypes.put(v, result);
+
+                    if (result != null &&
+                        !MetadataHelper.isSameType(result, inferredType) &&
+                        _previouslyInferred.add(Pair.create(v, result))) {
+
+                        invalidateDependentExpressions(expression, v);
+                    }
+
+                    if (_singleLoadVariables.contains(v) && v.getType() == null) {
+                        v.setType(result);
+                    }
+
+                    return result;
                 }
 
                 case InvokeDynamic: {
@@ -1005,10 +1037,12 @@ public final class TypeAnalysis {
                     final FieldReference field = (FieldReference) operand;
 
                     if (forceInferChildren) {
+                        final FieldDefinition resolvedField = field.resolve();
+                        final FieldReference effectiveField = resolvedField != null ? resolvedField : field;
                         final TypeReference targetType = inferTypeForExpression(arguments.get(0), field.getDeclaringType());
 
                         if (targetType != null) {
-                            final FieldReference asMember = MetadataHelper.asMemberOf(field, targetType);
+                            final FieldReference asMember = MetadataHelper.asMemberOf(effectiveField, targetType);
 
                             return asMember.getFieldType();
                         }
@@ -1147,7 +1181,10 @@ public final class TypeAnalysis {
                 }
 
                 case AConstNull: {
-                    return null;
+                    if (expectedType != null && !expectedType.isPrimitive()) {
+                        return expectedType;
+                    }
+                    return BuiltinTypes.Null;
                 }
 
                 case LdC: {
@@ -1514,19 +1551,8 @@ public final class TypeAnalysis {
                             binaryArguments = arguments;
                         }
 
-                        doInferTypeForExpression(
-                            binaryArguments.get(0),
-                            binaryArguments.get(0).getInferredType() != null ? binaryArguments.get(0).getInferredType()
-                                                                             : binaryArguments.get(0).getExpectedType(),
-                            true
-                        );
-
-                        doInferTypeForExpression(
-                            binaryArguments.get(1),
-                            binaryArguments.get(1).getInferredType() != null ? binaryArguments.get(1).getInferredType()
-                                                                             : binaryArguments.get(1).getExpectedType(),
-                            true
-                        );
+                        runInference(binaryArguments.get(0));
+                        runInference(binaryArguments.get(1));
 
                         binaryArguments.get(0).setExpectedType(binaryArguments.get(0).getInferredType());
                         binaryArguments.get(1).setExpectedType(binaryArguments.get(0).getInferredType());
@@ -1648,6 +1674,7 @@ public final class TypeAnalysis {
                 }
 
                 case Leave:
+                case EndFinally:
                 case Nop: {
                     return null;
                 }

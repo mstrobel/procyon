@@ -20,6 +20,7 @@ import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.CollectionUtilities;
+import com.strobel.core.Comparer;
 import com.strobel.core.HashUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerHelpers;
@@ -56,8 +57,8 @@ public final class Frame {
 
     public Frame(final FrameType frameType, final FrameValue[] localValues, final FrameValue[] stackValues) {
         _frameType = VerifyArgument.notNull(frameType, "frameType");
-        _localValues = ArrayUtilities.asUnmodifiableList(VerifyArgument.noNullElements(localValues, "localValues").clone());
-        _stackValues = ArrayUtilities.asUnmodifiableList(VerifyArgument.noNullElements(stackValues, "stackValues").clone());
+        _localValues = ArrayUtilities.asUnmodifiableList(VerifyArgument.notNull(localValues, "localValues").clone());
+        _stackValues = ArrayUtilities.asUnmodifiableList(VerifyArgument.notNull(stackValues, "stackValues").clone());
     }
 
     private Frame(final FrameType frameType, final List<FrameValue> localValues, final List<FrameValue> stackValues) {
@@ -314,6 +315,10 @@ public final class Frame {
     }
 
     private static FrameValue initialize(final Map<Instruction, TypeReference> initializations, FrameValue t) {
+        if (t == null) {
+            return t;
+        }
+
         final Object parameter = t.getParameter();
 
         if (parameter instanceof Instruction) {
@@ -330,7 +335,11 @@ public final class Frame {
     private static boolean merge(final FrameValue t, final FrameValue[] values, final int index) {
         final FrameValue u = values[index];
 
-        if (t.equals(u)) {
+        if (Comparer.equals(t, u)) {
+            return false;
+        }
+
+        if (t == FrameValue.EMPTY) {
             return false;
         }
 
@@ -340,7 +349,7 @@ public final class Frame {
             }
         }
 
-        if (u == null) {
+        if (u == FrameValue.EMPTY) {
             values[index] = t;
             return true;
         }

@@ -418,7 +418,7 @@ public class HandlerTests extends DecompilerTest {
             "                int k = 0;\n" +
             "                k = 1 / k;\n" +
             "            }\n" +
-            "            catch (Exception e2) {}\n" +
+            "            catch (Exception ex) {}\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
@@ -585,7 +585,7 @@ public class HandlerTests extends DecompilerTest {
             "private static class J {\n" +
             "    public int test(final int x) {\n" +
             "        try {\n" +
-            "            return x + 1;\n" +
+            "            return x;\n" +
             "        }\n" +
             "        finally {\n" +
             "            return x + 1;\n" +

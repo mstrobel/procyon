@@ -48,9 +48,19 @@ public class AnsiTextOutput extends PlainTextOutput {
     private final static Ansi TEXT_LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*48*/42), null);
     private final static Ansi COMMENT = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(244), null);
     private final static Ansi OPERATOR = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(247), null);
-    private final static Ansi DELIMITER = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(249), null);
+    private final static Ansi DELIMITER = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(252), null);
     private final static Ansi ATTRIBUTE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(214), null);
     private final static Ansi ERROR = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(196), null);
+
+    private final static class Delimiters {
+        final static String L = "L";
+        final static String T = "T";
+        final static String DOLLAR = "$";
+        final static String DOT = ".";
+        final static String SLASH = "/";
+        final static String LEFT_BRACKET = "[";
+        final static String SEMICOLON = ";";
+    }
 
     public AnsiTextOutput() {
     }
@@ -248,7 +258,8 @@ public class AnsiTextOutput extends PlainTextOutput {
             s = s.substring(arrayDepth);
         }
 
-        final boolean isSignature = s.startsWith("L") && s.endsWith(";");
+        final boolean isTypeVariable = s.startsWith("T") && s.endsWith(";");
+        final boolean isSignature = isTypeVariable || s.startsWith("L") && s.endsWith(";");
 
         if (isSignature) {
             s = s.substring(1, s.length() - 1);
@@ -264,11 +275,11 @@ public class AnsiTextOutput extends PlainTextOutput {
             final String[] packageParts = packageName.split("\\.");
 
             for (int i = 0; i < arrayDepth; i++) {
-                sb.append('[');
+                sb.append(DELIMITER.colorize(Delimiters.LEFT_BRACKET));
             }
 
             if (isSignature) {
-                sb.append('L');
+                sb.append(DELIMITER.colorize(isTypeVariable ? Delimiters.T : Delimiters.L));
             }
 
             for (int i = 0; i < packageParts.length; i++) {
@@ -288,14 +299,14 @@ public class AnsiTextOutput extends PlainTextOutput {
 
             for (int i = 0; i < typeParts.length; i++) {
                 if (i != 0) {
-                    sb.append(DELIMITER.colorize(dollar ? "$" : "."));
+                    sb.append(DELIMITER.colorize(dollar ? Delimiters.DOLLAR : Delimiters.DOT));
                 }
 
                 sb.append(typeColor.colorize(typeParts[i]));
             }
 
             if (isSignature) {
-                sb.append(';');
+                sb.append(DELIMITER.colorize(Delimiters.SEMICOLON));
             }
 
             return sb.toString();
