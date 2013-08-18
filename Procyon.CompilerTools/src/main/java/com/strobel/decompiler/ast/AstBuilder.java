@@ -2374,13 +2374,19 @@ public final class AstBuilder {
                 }
 
                 if (branchTarget.stackBefore == null && branchTarget.variablesBefore == null) {
-                    //
-                    // Do not share data for several bytecodes.
-                    //
-                    branchTarget.stackBefore = StackSlot.modifyStack(effectiveStack, 0, null);
-                    branchTarget.variablesBefore = VariableSlot.cloneVariableState(newVariableState);
+                    if (branchTargets.size() == 1) {
+                        branchTarget.stackBefore = effectiveStack;
+                        branchTarget.variablesBefore = newVariableState;
+                    }
+                    else {
+                        //
+                        // Do not share data for several bytecodes.
+                        //
+                        branchTarget.stackBefore = StackSlot.modifyStack(effectiveStack, 0, null);
+                        branchTarget.variablesBefore = VariableSlot.cloneVariableState(newVariableState);
+                    }
 
-                    agenda.addLast(branchTarget);
+                    agenda.push(branchTarget);
                 }
                 else {
                     final boolean isHandlerStart = handlerStarts.contains(branchTarget);
@@ -2402,6 +2408,7 @@ public final class AstBuilder {
                     final int stackSize = newStack.length;
 
                     final Frame outputFrame = createFrame(effectiveStack, newVariableState);
+                    @SuppressWarnings("UnnecessaryLocalVariable")
                     final Frame inputFrame = outputFrame; //createFrame(byteCode.stackBefore, byteCode.variablesBefore);
 
                     final Frame nextFrame = createFrame(
@@ -3176,6 +3183,7 @@ public final class AstBuilder {
                 result = t;
             }
             else if (t == BuiltinTypes.Null) {
+                //noinspection UnnecessaryContinue
                 continue;
             }
             else {
@@ -3212,11 +3220,7 @@ public final class AstBuilder {
             final JvmType t1 = getStackType(v1);
             final JvmType t2 = getStackType(v2);
 
-            if (t1 == t2) {
-                return true;
-            }
-
-            return false;
+            return t1 == t2;
         }
         return false;
     }
@@ -3839,11 +3843,7 @@ public final class AstBuilder {
 
             final StackSlot[] newStack = new StackSlot[stack.length - popCount + pushTypes.length];
 
-//            System.arraycopy(stack, 0, newStack, 0, stack.length - popCount);
-
-            for (int i = 0; i < stack.length - popCount; i++) {
-                newStack[i] = stack[i].clone();
-            }
+            System.arraycopy(stack, 0, newStack, 0, stack.length - popCount);
 
             for (int i = stack.length - popCount, j = 0; i < newStack.length; i++, j++) {
                 newStack[i] = new StackSlot(pushTypes[j], new ByteCode[] { pushDefinition });
@@ -3859,7 +3859,7 @@ public final class AstBuilder {
 
         @Override
         @SuppressWarnings("CloneDoesntCallSuperClone")
-        protected final StackSlot clone(){
+        protected final StackSlot clone() {
             return new StackSlot(value, definitions.clone(), loadFrom);
         }
     }
@@ -3880,13 +3880,7 @@ public final class AstBuilder {
         }
 
         public static VariableSlot[] cloneVariableState(final VariableSlot[] state) {
-            final VariableSlot[] clone = new VariableSlot[VerifyArgument.notNull(state, "state").length];
-
-            for (int i = 0; i < state.length; i++) {
-                clone[i] = state[i].clone();
-            }
-
-            return clone;
+            return state.clone();
         }
 
         public static VariableSlot[] makeUnknownState(final int variableCount) {
@@ -3905,7 +3899,7 @@ public final class AstBuilder {
 
         @Override
         @SuppressWarnings("CloneDoesntCallSuperClone")
-        protected final VariableSlot clone(){
+        protected final VariableSlot clone() {
             return new VariableSlot(value, definitions.clone());
         }
     }
