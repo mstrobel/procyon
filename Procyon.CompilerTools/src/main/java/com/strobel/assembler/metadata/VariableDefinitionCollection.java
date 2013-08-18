@@ -84,7 +84,26 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
         );
     }
 
+    public VariableReference tryFind(final int slot, final OpCode op, final int instructionOffset) {
+        final int effectiveOffset;
+
+        if (op.isStore()) {
+            effectiveOffset = instructionOffset + op.getSize() + op.getOperandType().getBaseSize();
+        }
+        else {
+            effectiveOffset = instructionOffset;
+        }
+
+        return tryFind(slot, effectiveOffset);
+    }
+
     public VariableReference reference(final int slot, final OpCode op, final int instructionOffset) {
+        final VariableReference variable = tryFind(slot, op, instructionOffset);
+
+        if (variable != null) {
+            return variable;
+        }
+
         final TypeReference variableType;
 
         switch (op) {
@@ -158,21 +177,10 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
                 break;
         }
 
-        final int effectiveOffset;
+        return makeReference(slot, variableType);
+    }
 
-        if (op.isStore()) {
-            effectiveOffset = instructionOffset + op.getSize() + op.getOperandType().getBaseSize();
-        }
-        else {
-            effectiveOffset = instructionOffset;
-        }
-
-        final VariableDefinition variable = tryFind(slot, effectiveOffset);
-
-        if (variable != null) {
-            return variable;
-        }
-
+    public VariableReference makeReference(final int slot, final TypeReference variableType) {
         return new UnknownVariableReference(
             variableType,
             slot,

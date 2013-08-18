@@ -184,24 +184,24 @@ public class EnhancedTryTests extends DecompilerTest {
             "            }\n" +
             "        }\n" +
             "        writer = new StringWriter();\n" +
-            "        t = null;\n" +
+            "        Throwable t3 = null;\n" +
             "        try {\n" +
             "            writer.write(\"This is also a test.\");\n" +
             "        }\n" +
-            "        catch (Throwable t3) {\n" +
-            "            t = t3;\n" +
-            "            throw t3;\n" +
+            "        catch (Throwable t4) {\n" +
+            "            t3 = t4;\n" +
+            "            throw t4;\n" +
             "        }\n" +
             "        finally {\n" +
             "            Label_0171: {\n" +
             "                if (writer != null) {\n" +
-            "                    if (t != null) {\n" +
+            "                    if (t3 != null) {\n" +
             "                        try {\n" +
             "                            writer.close();\n" +
             "                            break Label_0171;\n" +
             "                        }\n" +
             "                        catch (Throwable x2) {\n" +
-            "                            t.addSuppressed(x2);\n" +
+            "                            t3.addSuppressed(x2);\n" +
             "                            break Label_0171;\n" +
             "                        }\n" +
             "                    }\n" +

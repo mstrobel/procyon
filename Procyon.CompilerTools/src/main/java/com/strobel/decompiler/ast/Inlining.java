@@ -264,7 +264,7 @@ final class Inlining {
         if (findLoadInNext((Expression) n, variable, inlinedExpression, parent, position) == Boolean.TRUE) {
             if (!aggressive &&
                 !(variable.isGenerated() ||
-                  notFromMetadata(variable) && matchUnconditionalBranch(n) /* allow inline to return or throw */) &&
+                  notFromMetadata(variable) && matchReturnOrThrow(n) /* allow inline to return or throw */) &&
                 !nonAggressiveInlineInto((Expression) n, parent.get())) {
 
                 return false;

@@ -194,6 +194,10 @@ public class StackMappingVisitor implements MethodVisitor {
         }
 
         _locals.set(local, value);
+
+        if (value.getType().isDoubleWord()) {
+            _locals.set(local + 1, FrameValue.TOP);
+        }
     }
 
     protected final void set(final int local, final TypeReference type) {
@@ -681,7 +685,9 @@ public class StackMappingVisitor implements MethodVisitor {
 
                             final List<ParameterDefinition> parameters = method.getParameters();
 
-                            if (code == OpCode.INVOKESPECIAL) {
+                            if (code == OpCode.INVOKESPECIAL &&
+                                ((MethodReference) method).isConstructor()) {
+
                                 final FrameValue firstParameter = getStackValue(computeSize(parameters));
                                 final FrameValueType firstParameterType = firstParameter.getType();
 
@@ -985,8 +991,7 @@ public class StackMappingVisitor implements MethodVisitor {
 
                     if (returnType.getSimpleType() != JvmType.Void) {
                         if (code != OpCode.INVOKESTATIC &&
-                            code != OpCode.INVOKEDYNAMIC &&
-                            code != OpCode.INVOKESPECIAL) {
+                            code != OpCode.INVOKEDYNAMIC) {
 
                             final TypeReference typeReference;
 

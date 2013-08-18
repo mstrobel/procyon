@@ -647,18 +647,46 @@ public final class AstOptimizer {
             return;
         }
 
+        boolean lockCopyUsed = false;
+
         final StrongBox<Expression> a = new StrongBox<>();
+        final List<Expression> lockAccesses = new ArrayList<>();
+        final Set<Expression> lockAccessLoads = new HashSet<>();
 
         for (final Expression e : owner.getSelfAndChildrenRecursive(Expression.class)) {
-            if ((matchGetArgument(e, AstCode.MonitorEnter, a) || matchGetArgument(e, AstCode.MonitorExit, a)) &&
-                matchLoad(a.get(), lockInfo.lock)) {
+            if (matchLoad(e, lockInfo.lock) && !lockAccessLoads.contains(e)) {
 
-                e.getArguments().set(0, lockInfo.lockInit.clone());
+                //
+                // The lock variable is used elsewhere; we can't remove it.
+                //
+                return;
+            }
+
+            if (lockInfo.lockCopy != null &&
+                matchLoad(e, lockInfo.lockCopy) &&
+                !lockAccessLoads.contains(e)) {
+
+                lockCopyUsed = true;
+            }
+            else if ((matchGetArgument(e, AstCode.MonitorEnter, a) || matchGetArgument(e, AstCode.MonitorExit, a)) &&
+                     (matchLoad(a.get(), lockInfo.lock) || lockInfo.lockCopy != null && matchLoad(a.get(), lockInfo.lockCopy))) {
+
+                lockAccesses.add(e);
+                lockAccessLoads.add(a.get());
             }
         }
 
+        for (final Expression e : lockAccesses) {
+            e.getArguments().set(0, lockInfo.lockInit.clone());
+        }
+
         body.remove(lockInfo.lockStore);
+
         lockInfo.lockAcquire.getArguments().set(0, lockInfo.lockInit.clone());
+
+        if (lockInfo.lockCopy != null && !lockCopyUsed) {
+            body.remove(lockInfo.lockStoreCopy);
+        }
     }
 
     // </editor-fold>
