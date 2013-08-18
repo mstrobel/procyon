@@ -24,6 +24,34 @@ import java.util.*;
  * @author Mike Strobel
  */
 public final class CollectionUtilities {
+    public static <T> int indexOfByIdentity(final List<?> collection, final T item) {
+        for (int i = 0, n = collection.size(); i < n; i++) {
+            if (collection.get(i) == item)
+                return i;
+        }
+        return -1;
+    }
+
+    public static <T> int indexOfByIdentity(final Iterable<?> collection, final T item) {
+        VerifyArgument.notNull(collection, "collection");
+
+        if (collection instanceof List<?>) {
+            return indexOfByIdentity((List<?>) collection, item);
+        }
+
+        int i = -1;
+
+        for (final Object o : collection) {
+            ++i;
+
+            if (o == item) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     public static <T> int indexOf(final Iterable<? super T> collection, final T item) {
         VerifyArgument.notNull(collection, "collection");
 

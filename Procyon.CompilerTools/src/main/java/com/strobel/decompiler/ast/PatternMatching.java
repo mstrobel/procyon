@@ -449,6 +449,11 @@ public final class PatternMatching {
         return false;
     }
 
+    public static boolean matchReturnOrThrow(final Node node) {
+        return match(node, AstCode.Return) ||
+               match(node, AstCode.AThrow);
+    }
+
     public static Boolean matchTrue(final Node node) {
         return Boolean.TRUE.equals(matchBooleanConstant(node));
     }

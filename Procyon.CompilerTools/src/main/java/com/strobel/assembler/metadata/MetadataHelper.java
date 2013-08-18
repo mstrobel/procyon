@@ -26,7 +26,7 @@ import com.strobel.core.VerifyArgument;
 
 import java.util.*;
 
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 
 public final class MetadataHelper {
     public static boolean areGenericsSupported(final TypeDefinition t) {
@@ -564,7 +564,13 @@ public final class MetadataHelper {
             return null;
         }
 
-        return substituteGenericArguments(resolvedType.getBaseType(), type);
+        final TypeReference baseType = resolvedType.getBaseType();
+
+        if (baseType == null) {
+            return null;
+        }
+
+        return substituteGenericArguments(baseType, type);
     }
 
     public static List<TypeReference> getInterfaces(final TypeReference type) {
@@ -1807,10 +1813,10 @@ public final class MetadataHelper {
                 return BuiltinTypes.Object;
             }
 
-            final TypeReference baseType = ((TypeDefinition) genericDefinition).getBaseType();
+            final TypeReference baseType = getBaseType(genericDefinition);
 
-            return baseType.isGenericType() ? eraseRecursive(baseType)
-                                            : baseType;
+            return baseType != null && baseType.isGenericType() ? eraseRecursive(baseType)
+                                                                : baseType;
         }
 
         @Override
@@ -2159,7 +2165,7 @@ public final class MetadataHelper {
             final IGenericParameterProvider owner1 = gp1.getOwner();
             final IGenericParameterProvider owner2 = gp2.getOwner();
 
-            if (owner1.getGenericParameters().indexOf(gp1) != owner1.getGenericParameters().indexOf(gp2)) {
+            if (indexOfByIdentity(owner1.getGenericParameters(), gp1) != indexOfByIdentity(owner2.getGenericParameters(), gp2)) {
                 return false;
             }
 
@@ -2326,8 +2332,8 @@ public final class MetadataHelper {
 
             for (final TypeReference a : sTypeArguments) {
                 if (a.isGenericParameter() &&
-                    resultTypeArguments.contains(a) &&
-                    !tTypeArguments.contains(a)) {
+                    indexOfByIdentity(resultTypeArguments, a) >= 0 &&
+                    indexOfByIdentity(tTypeArguments, a) < 0) {
 
                     if (openGenericParameters == null) {
                         openGenericParameters = new ArrayList<>();

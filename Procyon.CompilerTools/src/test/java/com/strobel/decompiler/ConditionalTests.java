@@ -59,6 +59,13 @@ public class ConditionalTests extends DecompilerTest {
         }
     }
 
+    private static class C {
+        public boolean test(final boolean a, final boolean b) {
+            boolean c = false;
+            return (b && a == (c = b) && b) || !c;
+        }
+    }
+
     @Test
     public void testComplexIfElse() throws Throwable {
         verifyOutput(

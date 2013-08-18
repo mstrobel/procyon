@@ -25,13 +25,7 @@ import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
 import com.strobel.assembler.flowanalysis.JumpType;
 import com.strobel.assembler.ir.*;
 import com.strobel.assembler.metadata.*;
-import com.strobel.core.ArrayUtilities;
-import com.strobel.core.MutableInteger;
-import com.strobel.core.Pair;
-import com.strobel.core.Predicate;
-import com.strobel.core.StringUtilities;
-import com.strobel.core.StrongBox;
-import com.strobel.core.VerifyArgument;
+import com.strobel.core.*;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.InstructionHelper;
 import com.strobel.functions.Function;
@@ -613,16 +607,12 @@ public final class AstBuilder {
             if (diveIntoHandlers && addNode.getExceptionHandler() != null) {
                 addNode = findNode(cfg, addNode.getExceptionHandler().getHandlerBlock().getFirstInstruction());
             }
-//            else if (addNode.getNodeType() == ControlFlowNodeType.EndFinally) {
-//                for (final ControlFlowEdge edge : addNode.getOutgoing()) {
-//                    if (edge.getType() == JumpType.EndFinally) {
-//                        agenda.add(edge.getTarget());
-//                    }
-//                }
-//                continue;
-//            }
+            else if (diveIntoHandlers && addNode.getNodeType() == ControlFlowNodeType.EndFinally) {
+                agenda.addAll(addNode.getDominatorTreeChildren());
+                continue;
+            }
 
-            if (addNode.getNodeType() != ControlFlowNodeType.Normal) {
+            if (addNode == null || addNode.getNodeType() != ControlFlowNodeType.Normal) {
                 continue;
             }
 
@@ -808,18 +798,6 @@ public final class AstBuilder {
                             nextToLast.setOperand(null);
 
                             _removed.add(nextToLast);
-
-//                            if (nextToLast.getPrevious() != null &&
-//                                nextToLast.getPrevious().getOpCode().isUnconditionalBranch() &&
-//                                !nextToLast.getPrevious().getOpCode().isJumpToSubroutine()) {
-//
-//                                last.setOpCode(OpCode.NOP);
-//                                _removed.add(last);
-//                            }
-//                            else {
-//                                last.setOpCode(OpCode.ENDFINALLY);
-//								last.setOperand(null);
-//                            }
 
                             last.setOpCode(OpCode.ENDFINALLY);
                             last.setOperand(null);
@@ -2168,7 +2146,8 @@ public final class AstBuilder {
             next.previous = current;
         }
 
-        final Stack<ByteCode> agenda = new Stack<>();
+        final ArrayDeque<ByteCode> agenda = new ArrayDeque<>();
+        final ArrayDeque<ByteCode> handlerAgenda = new ArrayDeque<>();
         final int variableCount = _body.getMaxLocals();
         final VariableSlot[] unknownVariables = VariableSlot.makeUnknownState(variableCount);
         final MethodReference method = _body.getMethod();
@@ -2220,7 +2199,7 @@ public final class AstBuilder {
             handlerStarts.add(handlerStart);
 
             handlerStart.stackBefore = EMPTY_STACK;
-            handlerStart.variablesBefore = unknownVariables;
+            handlerStart.variablesBefore = VariableSlot.cloneVariableState(unknownVariables);
 
             final ByteCode loadException = new ByteCode();
             final TypeReference catchType;
@@ -2246,19 +2225,19 @@ public final class AstBuilder {
                 )
             };
 
-            agenda.push(handlerStart);
+            handlerAgenda.addLast(handlerStart);
         }
 
         body.get(0).stackBefore = EMPTY_STACK;
         body.get(0).variablesBefore = unknownVariables;
 
-        agenda.push(body.get(0));
+        agenda.addFirst(body.get(0));
 
         //
         // Process agenda.
         //
-        while (!agenda.isEmpty()) {
-            final ByteCode byteCode = agenda.pop();
+        while (!(agenda.isEmpty() && handlerAgenda.isEmpty())) {
+            final ByteCode byteCode = agenda.isEmpty() ? handlerAgenda.removeFirst() : agenda.removeFirst();
 
             //
             // Calculate new stack.
@@ -2303,6 +2282,13 @@ public final class AstBuilder {
                     stackMapper.getLocalValue(slot),
                     new ByteCode[] { byteCode }
                 );
+
+                if (newVariableState[slot].value.getType().isDoubleWord()) {
+                    newVariableState[slot + 1] = new VariableSlot(
+                        stackMapper.getLocalValue(slot + 1),
+                        new ByteCode[] { byteCode }
+                    );
+                }
             }
 
             //
@@ -2311,45 +2297,60 @@ public final class AstBuilder {
             final ArrayList<ByteCode> branchTargets = new ArrayList<>();
             final ControlFlowNode node = nodeMap.get(byteCode.instruction);
 
+            successors.clear();
+
+            //
+            // Add normal control first.
+            //
+
             if (byteCode.instruction != node.getEnd()) {
                 branchTargets.add(byteCode.next);
             }
-            else if (byteCode.code != AstCode.Return) {
-                successors.clear();
+            else {
+                if (!byteCode.instruction.getOpCode().isUnconditionalBranch()) {
+                    branchTargets.add(byteCode.next);
+                }
 
                 for (final ControlFlowNode successor : node.getSuccessors()) {
-                    if (successor.getNodeType() == ControlFlowNodeType.EndFinally) {
+                    if (successor.getNodeType() == ControlFlowNodeType.Normal) {
+                        successors.add(successor);
+                    }
+                    else if (successor.getNodeType() == ControlFlowNodeType.EndFinally) {
                         for (final ControlFlowNode s : successor.getSuccessors()) {
                             successors.add(s);
                         }
                     }
-                    else {
-                        final ExceptionHandler handler = successor.getExceptionHandler();
+                }
+            }
 
-                        if (handler != null) {
-                            successors.add(nodeMap.get(handler.getHandlerBlock().getFirstInstruction()));
-                        }
-                        else {
-                            successors.add(successor);
-                        }
-                    }
+            //
+            // Then add the exceptional control flow.
+            //
+
+            for (final ControlFlowNode successor : node.getSuccessors()) {
+                if (successor.getExceptionHandler() != null) {
+                    successors.add(
+                        nodeMap.get(
+                            successor.getExceptionHandler().getHandlerBlock().getFirstInstruction()
+                        )
+                    );
+                }
+            }
+
+            for (final ControlFlowNode successor : successors) {
+                if (successor.getNodeType() != ControlFlowNodeType.Normal) {
+                    continue;
                 }
 
-                for (final ControlFlowNode successor : successors) {
-                    if (successor.getNodeType() != ControlFlowNodeType.Normal) {
-                        continue;
-                    }
+                final Instruction targetInstruction = successor.getStart();
+                final ByteCode target = byteCodeMap.get(targetInstruction);
 
-                    final Instruction targetInstruction = successor.getStart();
-                    final ByteCode target = byteCodeMap.get(targetInstruction);
-
-                    if (target.label == null) {
-                        target.label = new Label();
-                        target.label.setName(target.makeLabelName());
-                    }
-
-                    branchTargets.add(target);
+                if (target.label == null) {
+                    target.label = new Label();
+                    target.label.setName(target.makeLabelName());
                 }
+
+                branchTargets.add(target);
             }
 
             //
@@ -2392,7 +2393,7 @@ public final class AstBuilder {
                 else {
                     final boolean isHandlerStart = handlerStarts.contains(branchTarget);
 
-                    if (branchTarget.stackBefore.length != effectiveStack.length && !isHandlerStart) {
+                    if (branchTarget.stackBefore.length != effectiveStack.length && !isHandlerStart && !isSubroutineJump) {
                         throw new IllegalStateException(
                             "Inconsistent stack size at " + branchTarget.name()
                             + " (coming from " + byteCode.name() + ")."
@@ -2406,20 +2407,44 @@ public final class AstBuilder {
 
                     boolean modified = false;
 
+                    final int stackSize = newStack.length;
+
+                    final Frame outputFrame = createFrame(effectiveStack, newVariableState);
+                    @SuppressWarnings("UnnecessaryLocalVariable")
+                    final Frame inputFrame = outputFrame; //createFrame(byteCode.stackBefore, byteCode.variablesBefore);
+
+                    final Frame nextFrame = createFrame(
+                        branchTarget.stackBefore.length > stackSize ? Arrays.copyOfRange(branchTarget.stackBefore, 0, stackSize)
+                                                                    : branchTarget.stackBefore,
+                        branchTarget.variablesBefore
+                    );
+
+                    final Frame mergedFrame = Frame.merge(inputFrame, outputFrame, nextFrame, initializations);
+
+                    final List<FrameValue> stack = mergedFrame.getStackValues();
+                    final List<FrameValue> locals = mergedFrame.getLocalValues();
+
                     if (!isHandlerStart) {
                         final StackSlot[] oldStack = branchTarget.stackBefore;
+
+                        final int oldStart = oldStack != null && oldStack.length > stackSize ? oldStack.length - 1
+                                                                                             : stackSize - 1;
+
                         //
                         // Merge stacks; modify the target.
                         //
-                        for (int i = effectiveStack.length - 1, j = oldStack.length - 1;
+                        for (int i = stack.size() - 1, j = oldStart;
                              i >= 0 && j >= 0;
                              i--, j--) {
+
+                            final FrameValue oldValue = oldStack[j].value;
+                            final FrameValue newValue = stack.get(i);
 
                             final ByteCode[] oldDefinitions = oldStack[j].definitions;
                             final ByteCode[] newDefinitions = ArrayUtilities.union(oldDefinitions, effectiveStack[i].definitions);
 
-                            if (newDefinitions.length > oldDefinitions.length) {
-                                oldStack[j] = new StackSlot(effectiveStack[i].value, newDefinitions);
+                            if (!Comparer.equals(newValue, oldValue) || newDefinitions.length > oldDefinitions.length) {
+                                oldStack[j] = new StackSlot(newValue, newDefinitions);
                                 modified = true;
                             }
                         }
@@ -2428,39 +2453,24 @@ public final class AstBuilder {
                     //
                     // Merge variables; modify the target;
                     //
-                    for (int i = 0; i < newVariableState.length; i++) {
+                    for (int i = 0, n = locals.size(); i < n; i++) {
                         final VariableSlot oldSlot = branchTarget.variablesBefore[i];
                         final VariableSlot newSlot = newVariableState[i];
 
-                        if (!oldSlot.isUninitialized()) {
-                            if (newSlot.isUninitialized()) {
-                                branchTarget.variablesBefore[i] = newSlot;
-                                modified = true;
-                            }
-                            else {
-                                final ByteCode[] oldDefinitions = oldSlot.definitions;
-                                final ByteCode[] newDefinitions = ArrayUtilities.union(oldSlot.definitions, newSlot.definitions);
+                        final FrameValue oldLocal = oldSlot.value;
+                        final FrameValue newLocal = locals.get(i);
 
-                                if (newDefinitions.length > oldDefinitions.length) {
-                                    branchTarget.variablesBefore[i] = new VariableSlot(oldSlot.value, newDefinitions);
-                                    modified = true;
-                                }
-                            }
-                        }
-                        else if (!newSlot.isUninitialized()) {
-                            //
-                            // TODO: Figure out why this variable update breaks horribly in most cases.
-                            //       For now, keep it for double and long variables to ensure proper stack pushes/pops.
-                            //
-                            if (newVariableState[i].value.getType().isDoubleWord()) {
-                                branchTarget.variablesBefore[i] = newSlot;
-                                modified = true;
-                            }
+                        final ByteCode[] oldDefinitions = oldSlot.definitions;
+                        final ByteCode[] newDefinitions = ArrayUtilities.union(oldSlot.definitions, newSlot.definitions);
+
+                        if (!Comparer.equals(oldLocal, newLocal) || newDefinitions.length > oldDefinitions.length) {
+                            branchTarget.variablesBefore[i] = new VariableSlot(newLocal, newDefinitions);
+                            modified = true;
                         }
                     }
 
                     if (modified) {
-                        agenda.push(branchTarget);
+                        agenda.addLast(branchTarget);
                     }
                 }
             }
@@ -2821,7 +2831,7 @@ public final class AstBuilder {
             parameterMap[parameter.getSlot()] = parameter;
         }
 
-        final Set<Integer> undefinedSlots = new HashSet<>();
+        final Set<Pair<Integer, JvmType>> undefinedSlots = new HashSet<>();
         final List<VariableReference> varReferences = new ArrayList<>();
         final Map<String, VariableDefinition> lookup = makeVariableLookup(variables);
 
@@ -2833,7 +2843,7 @@ public final class AstBuilder {
             if (b.operand instanceof VariableReference && !(b.operand instanceof VariableDefinition)) {
                 final VariableReference reference = (VariableReference) b.operand;
 
-                if (undefinedSlots.add(reference.getSlot())) {
+                if (undefinedSlots.add(Pair.create(reference.getSlot(), getStackType(reference)))) {
                     varReferences.add(reference);
                 }
             }
@@ -2866,7 +2876,7 @@ public final class AstBuilder {
                     }
                 }
                 else if (b.operand instanceof VariableReference &&
-                         ((VariableReference) b.operand).getSlot() == vRef.getSlot()) {
+                         variablesMatch(vRef, (VariableReference) b.operand)) {
 
                     if (b.isVariableDefinition()) {
                         definitions.add(b);
@@ -2923,8 +2933,7 @@ public final class AstBuilder {
                     for (final ByteCode b : definitions) {
                         final FrameValue stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
 
-                        if (stackValue != FrameValue.NULL &&
-                            stackValue != FrameValue.UNINITIALIZED &&
+                        if (stackValue != FrameValue.UNINITIALIZED &&
                             stackValue != FrameValue.UNINITIALIZED_THIS) {
 
                             final TypeReference variableType;
@@ -2963,6 +2972,9 @@ public final class AstBuilder {
                                     break;
                                 case Address:
                                     variableType = BuiltinTypes.Integer;
+                                    break;
+                                case Null:
+                                    variableType = BuiltinTypes.Null;
                                     break;
                                 default:
                                     if (vDef != null) {
@@ -3045,6 +3057,9 @@ public final class AstBuilder {
                                 break;
                             case Address:
                                 variableType = BuiltinTypes.Integer;
+                                break;
+                            case Null:
+                                variableType = BuiltinTypes.Null;
                                 break;
                             default:
                                 if (vDef != null) {
@@ -3133,7 +3148,9 @@ public final class AstBuilder {
                             mergedReferences
                         );
 
+                        mergedVariable.variable.setType(mergeVariableType(mergeVariables));
                         mergedVariable.references.add(ref);
+
                         newVariables.removeAll(mergeVariables);
                         newVariables.add(mergedVariable);
                     }
@@ -3152,6 +3169,59 @@ public final class AstBuilder {
                 }
             }
         }
+    }
+
+    private TypeReference mergeVariableType(final List<VariableInfo> info) {
+        TypeReference result = first(info).variable.getType();
+
+        for (int i = 0; i < info.size(); i++) {
+            final VariableInfo variableInfo = info.get(i);
+            final TypeReference t = variableInfo.variable.getType();
+
+            if (result == BuiltinTypes.Null) {
+                result = t;
+            }
+            else if (t == BuiltinTypes.Null) {
+                //noinspection UnnecessaryContinue
+                continue;
+            }
+            else {
+                result = MetadataHelper.findCommonSuperType(result, t);
+            }
+        }
+
+        return result != null ? result : BuiltinTypes.Object;
+    }
+
+    private JvmType getStackType(final VariableReference variable) {
+        final JvmType type = variable.getVariableType().getSimpleType();
+
+        switch (type) {
+            case Boolean:
+            case Byte:
+            case Character:
+            case Short:
+            case Integer:
+                return JvmType.Integer;
+
+            case Long:
+            case Float:
+            case Double:
+                return type;
+
+            default:
+                return JvmType.Object;
+        }
+    }
+
+    private boolean variablesMatch(final VariableReference v1, final VariableReference v2) {
+        if (v1.getSlot() == v2.getSlot()) {
+            final JvmType t1 = getStackType(v1);
+            final JvmType t2 = getStackType(v2);
+
+            return t1 == t2;
+        }
+        return false;
     }
 
     private static Map<String, VariableDefinition> makeVariableLookup(final VariableDefinitionCollection variables) {
@@ -3785,6 +3855,12 @@ public final class AstBuilder {
         public String toString() {
             return "StackSlot(" + value + ')';
         }
+
+        @Override
+        @SuppressWarnings("CloneDoesntCallSuperClone")
+        protected final StackSlot clone() {
+            return new StackSlot(value, definitions.clone(), loadFrom);
+        }
     }
 
     // </editor-fold>
@@ -3792,7 +3868,7 @@ public final class AstBuilder {
     // <editor-fold defaultstate="collapsed" desc="VariableSlot Class">
 
     private final static class VariableSlot {
-        final static VariableSlot UNKNOWN_INSTANCE = new VariableSlot(FrameValue.UNINITIALIZED, EMPTY_DEFINITIONS);
+        final static VariableSlot UNKNOWN_INSTANCE = new VariableSlot(FrameValue.EMPTY, EMPTY_DEFINITIONS);
 
         final ByteCode[] definitions;
         final FrameValue value;
@@ -3803,7 +3879,7 @@ public final class AstBuilder {
         }
 
         public static VariableSlot[] cloneVariableState(final VariableSlot[] state) {
-            return VerifyArgument.notNull(state, "state").clone();
+            return state.clone();
         }
 
         public static VariableSlot[] makeUnknownState(final int variableCount) {
@@ -3818,6 +3894,12 @@ public final class AstBuilder {
 
         public final boolean isUninitialized() {
             return value == FrameValue.UNINITIALIZED || value == FrameValue.UNINITIALIZED_THIS;
+        }
+
+        @Override
+        @SuppressWarnings("CloneDoesntCallSuperClone")
+        protected final VariableSlot clone() {
+            return new VariableSlot(value, definitions.clone());
         }
     }
 
@@ -3855,31 +3937,7 @@ public final class AstBuilder {
         }
 
         public final Frame getFrameBefore() {
-            final FrameValue[] stackValues;
-            final FrameValue[] variableValues;
-
-            if (stackBefore.length == 0) {
-                stackValues = FrameValue.EMPTY_VALUES;
-            }
-            else {
-                stackValues = new FrameValue[stackBefore.length];
-
-                for (int i = 0; i < stackBefore.length; i++) {
-                    stackValues[i] = stackBefore[i].value;
-                }
-            }
-            if (variablesBefore.length == 0) {
-                variableValues = FrameValue.EMPTY_VALUES;
-            }
-            else {
-                variableValues = new FrameValue[variablesBefore.length];
-
-                for (int i = 0; i < variablesBefore.length; i++) {
-                    variableValues[i] = variablesBefore[i].value;
-                }
-            }
-
-            return new Frame(FrameType.New, variableValues, stackValues);
+            return createFrame(stackBefore, variablesBefore);
         }
 
         public final boolean isVariableDefinition() {
@@ -4007,6 +4065,34 @@ public final class AstBuilder {
 
             return sb.toString();
         }
+    }
+
+    private static Frame createFrame(final StackSlot[] stack, final VariableSlot[] locals) {
+        final FrameValue[] stackValues;
+        final FrameValue[] variableValues;
+
+        if (stack.length == 0) {
+            stackValues = FrameValue.EMPTY_VALUES;
+        }
+        else {
+            stackValues = new FrameValue[stack.length];
+
+            for (int i = 0; i < stack.length; i++) {
+                stackValues[i] = stack[i].value;
+            }
+        }
+        if (locals.length == 0) {
+            variableValues = FrameValue.EMPTY_VALUES;
+        }
+        else {
+            variableValues = new FrameValue[locals.length];
+
+            for (int i = 0; i < locals.length; i++) {
+                variableValues[i] = locals[i].value;
+            }
+        }
+
+        return new Frame(FrameType.New, variableValues, stackValues);
     }
 
     // </editor-fold>

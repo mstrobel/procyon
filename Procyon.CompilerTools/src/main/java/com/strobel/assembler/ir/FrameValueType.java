@@ -17,6 +17,7 @@
 package com.strobel.assembler.ir;
 
 public enum FrameValueType {
+    Empty,
     Top,
     Integer,
     Float,

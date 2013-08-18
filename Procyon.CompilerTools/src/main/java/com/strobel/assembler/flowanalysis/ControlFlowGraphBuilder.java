@@ -248,7 +248,7 @@ public final class ControlFlowGraphBuilder {
                 final OpCode opCode = instruction.getOpCode();
 
                 if (opCode.getOperandType() == OperandType.BranchTarget) {
-                    createBranchControlFlow(node, instruction);
+                    createBranchControlFlow(node, instruction, instruction.<Instruction>getOperand(0));
                 }
                 else if (opCode.getOperandType() == OperandType.Switch) {
                     final SwitchInfo switchInfo = instruction.getOperand(0);
@@ -269,24 +269,6 @@ public final class ControlFlowGraphBuilder {
 
                 if (handlerBlock.getEndFinallyNode() != null) {
                     createEdge(node, handlerBlock.getEndFinallyNode(), JumpType.Normal);
-
-                    final Instruction next = end.getNext();
-
-                    if (next != null) {
-                        final boolean isHandlerStart = any(
-                            _exceptionHandlers,
-                            new Predicate<ExceptionHandler>() {
-                                @Override
-                                public boolean test(final ExceptionHandler handler) {
-                                    return handler.getHandlerBlock().getFirstInstruction() == next;
-                                }
-                            }
-                        );
-
-                        if (!isHandlerStart) {
-                            createEdge(handlerBlock.getEndFinallyNode(), next, JumpType.EndFinally);
-                        }
-                    }
                 }
             }
             else if (endOpCode == OpCode.LEAVE) {
@@ -419,8 +401,7 @@ public final class ControlFlowGraphBuilder {
         }
     }
 
-    private void createBranchControlFlow(final ControlFlowNode node, final Instruction jump) {
-        final Instruction target = jump.getOperand(0);
+    private void createBranchControlFlow(final ControlFlowNode node, final Instruction jump, final Instruction target) {
         final ControlFlowNode handlerNode = findInnermostHandlerBlock(jump.getOffset());
         final ControlFlowNode targetHandlerNode = findInnermostHandlerBlock(target.getOffset());
         final ExceptionHandler handler = handlerNode.getExceptionHandler();

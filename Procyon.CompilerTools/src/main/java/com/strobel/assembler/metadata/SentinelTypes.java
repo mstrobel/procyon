@@ -4,6 +4,7 @@ final class BottomType extends TypeDefinition {
     final static BottomType INSTANCE = new BottomType();
 
     private BottomType() {
+        setName("__Bottom");
     }
 
     @Override
@@ -31,6 +32,7 @@ final class NullType extends TypeDefinition {
     final static NullType INSTANCE = new NullType();
 
     private NullType() {
+        setName("__Null");
     }
 
     @Override

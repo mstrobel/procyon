@@ -23,6 +23,7 @@ import com.strobel.core.VerifyArgument;
 public final class FrameValue {
     public final static FrameValue[] EMPTY_VALUES = new FrameValue[0];
 
+    public final static FrameValue EMPTY = new FrameValue(FrameValueType.Empty);
     public final static FrameValue OUT_OF_SCOPE = new FrameValue(FrameValueType.Top);
     public final static FrameValue TOP = new FrameValue(FrameValueType.Top);
     public final static FrameValue INTEGER = new FrameValue(FrameValueType.Integer);
