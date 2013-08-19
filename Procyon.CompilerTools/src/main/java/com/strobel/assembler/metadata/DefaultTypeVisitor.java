@@ -55,12 +55,17 @@ public abstract class DefaultTypeVisitor<P, R> implements TypeMetadataVisitor<P,
     }
 
     @Override
-    public R visitRawType(final TypeReference t, final P p) {
+    public R visitRawType(final RawType t, final P p) {
         return visitClassType(t, p);
     }
 
     @Override
     public R visitWildcard(final WildcardType t, final P p) {
+        return visitType(t, p);
+    }
+
+    @Override
+    public R visitCapturedType(final CapturedType t, final P p) {
         return visitType(t, p);
     }
 }

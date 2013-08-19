@@ -258,7 +258,7 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
 
         final TypeReference declaringType = getDeclaringType();
 
-        if (declaringType != null) {
+        if (declaringType != null && !this.isStatic()) {
             return declaringType.findTypeVariable(name);
         }
 

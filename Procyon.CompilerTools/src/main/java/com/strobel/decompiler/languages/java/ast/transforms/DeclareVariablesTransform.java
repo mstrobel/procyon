@@ -153,7 +153,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         analysis.analyze(v.getName());
 
         final boolean needsInitializer = !analysis.getUnassignedVariableUses().isEmpty();
-        final IsSingleAssignmentVisitor isSingleAssignmentVisitor = new IsSingleAssignmentVisitor(v.getName());
+        final IsSingleAssignmentVisitor isSingleAssignmentVisitor = new IsSingleAssignmentVisitor(v.getName(), v.getReplacedAssignment());
 
         scope.acceptVisitor(isSingleAssignmentVisitor, null);
 
@@ -803,12 +803,14 @@ public class DeclareVariablesTransform implements IAstTransform {
 
     private final class IsSingleAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
         private final String _variableName;
+        private final AssignmentExpression _replacedAssignment;
         private boolean _abort;
-        private int _loopDepth;
+        private int _loopOrTryDepth;
         private int _assignmentCount;
 
-        IsSingleAssignmentVisitor(final String variableName) {
+        IsSingleAssignmentVisitor(final String variableName, final AssignmentExpression replacedAssignment) {
             _variableName = VerifyArgument.notNull(variableName, "variableName");
+            _replacedAssignment = replacedAssignment;
         }
 
         final boolean isAssigned() {
@@ -829,18 +831,18 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         @Override
         public Boolean visitForStatement(final ForStatement node, final Void _) {
-            ++_loopDepth;
+            ++_loopOrTryDepth;
             try {
                 return super.visitForStatement(node, _);
             }
             finally {
-                --_loopDepth;
+                --_loopOrTryDepth;
             }
         }
 
         @Override
         public Boolean visitForEachStatement(final ForEachStatement node, final Void _) {
-            ++_loopDepth;
+            ++_loopOrTryDepth;
             try {
                 if (StringUtilities.equals(node.getVariableName(), _variableName)) {
                     ++_assignmentCount;
@@ -848,29 +850,40 @@ public class DeclareVariablesTransform implements IAstTransform {
                 return super.visitForEachStatement(node, _);
             }
             finally {
-                --_loopDepth;
+                --_loopOrTryDepth;
             }
         }
 
         @Override
         public Boolean visitDoWhileStatement(final DoWhileStatement node, final Void _) {
-            ++_loopDepth;
+            ++_loopOrTryDepth;
             try {
                 return super.visitDoWhileStatement(node, _);
             }
             finally {
-                --_loopDepth;
+                --_loopOrTryDepth;
             }
         }
 
         @Override
         public Boolean visitWhileStatement(final WhileStatement node, final Void _) {
-            ++_loopDepth;
+            ++_loopOrTryDepth;
             try {
                 return super.visitWhileStatement(node, _);
             }
             finally {
-                --_loopDepth;
+                --_loopOrTryDepth;
+            }
+        }
+
+        @Override
+        public Boolean visitTryCatchStatement(final TryCatchStatement node, final Void data) {
+            ++_loopOrTryDepth;
+            try {
+                return super.visitTryCatchStatement(node, data);
+            }
+            finally {
+                --_loopOrTryDepth;
             }
         }
 
@@ -881,7 +894,7 @@ public class DeclareVariablesTransform implements IAstTransform {
             if (left instanceof IdentifierExpression &&
                 StringUtilities.equals(((IdentifierExpression) left).getIdentifier(), _variableName)) {
 
-                if (_loopDepth != 0) {
+                if (_loopOrTryDepth != 0 && _replacedAssignment != node) {
                     _abort = true;
                     return Boolean.FALSE;
                 }
@@ -909,7 +922,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                     if (operand instanceof IdentifierExpression &&
                         StringUtilities.equals(((IdentifierExpression) operand).getIdentifier(), _variableName)) {
 
-                        if (_loopDepth != 0) {
+                        if (_loopOrTryDepth != 0) {
                             _abort = true;
                             return Boolean.FALSE;
                         }

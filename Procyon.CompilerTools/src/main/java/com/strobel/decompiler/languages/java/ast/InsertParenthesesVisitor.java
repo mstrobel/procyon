@@ -21,6 +21,7 @@ import com.strobel.util.ContractUtils;
 
 public final class InsertParenthesesVisitor extends DepthFirstAstVisitor<Void, Void> {
     private final static int PRIMARY = 16;
+    private final static int CAST = 15;
     private final static int UNARY = 14;
     private final static int RELATIONAL_AND_TYPE_TESTING = 10;
     private final static int EQUALITY = 9;
@@ -58,7 +59,7 @@ public final class InsertParenthesesVisitor extends DepthFirstAstVisitor<Void, V
         }
 
         if (e instanceof CastExpression) {
-            return UNARY;
+            return CAST;
         }
 
         if (e instanceof BinaryOperatorExpression) {
@@ -186,9 +187,7 @@ public final class InsertParenthesesVisitor extends DepthFirstAstVisitor<Void, V
     public Void visitCastExpression(final CastExpression node, final Void data) {
         final Expression child = node.getExpression();
 
-        if (!(child instanceof CastExpression)) {
-            parenthesizeIfRequired(child, _insertParenthesesForReadability ? PRIMARY : UNARY);
-        }
+        parenthesizeIfRequired(child, UNARY);
 
         if (child instanceof UnaryOperatorExpression) {
             final UnaryOperatorExpression childUnary = (UnaryOperatorExpression) child;

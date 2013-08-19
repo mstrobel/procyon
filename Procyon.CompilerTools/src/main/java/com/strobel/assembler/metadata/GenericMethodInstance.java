@@ -2,6 +2,7 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.core.VerifyArgument;
 
+import java.util.Collections;
 import java.util.List;
 
 final class GenericMethodInstance extends MethodReference implements IGenericInstance {

@@ -189,7 +189,7 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
     }
 
     @Override
-    public TypeReference visitRawType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
+    public TypeReference visitRawType(final RawType t, final Map<TypeReference, TypeReference> map) {
         return t;
     }
 

@@ -2238,6 +2238,7 @@ public final class AstOptimizer {
 
                     if (matchGetArguments(node, AstCode.StoreElement, a) &&
                         matchLoad(a.get(0), v.get()) &&
+                        !a.get(2).containsReferenceTo(v.get()) &&
                         matchGetOperand(a.get(1), AstCode.LdC, Integer.class, arrayPosition) &&
                         arrayPosition.get() >= 0 &&
                         arrayPosition.get() < actualArrayLength &&

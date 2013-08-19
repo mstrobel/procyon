@@ -15,6 +15,9 @@ package com.strobel.decompiler;
 
 import org.junit.Test;
 
+import java.io.Serializable;
+import java.util.Arrays;
+
 public class ArrayCreationTests extends DecompilerTest {
     private static class A {
         public int[] test() {
@@ -56,6 +59,24 @@ public class ArrayCreationTests extends DecompilerTest {
             final double[][][] g = new double[3][4][5];
             final byte[][][][] h = new byte[3][4][5][6];
             final byte[][][][] i = new byte[3][4][5][];
+        }
+    }
+
+    private static class G {
+        public void test(final String[] args) {
+            final Object[] x = new Cloneable[4][];
+            final Serializable[][] y = new Serializable[4][2];
+
+            y[3] = args;
+            x[1] = y;
+            y[2][1] = x;
+
+            System.out.println(Arrays.deepToString(x));
+            System.out.println(Arrays.deepToString(y));
+            y[3][0] = x;
+
+            final long[] z = new long[1];
+            z[0] = (long) -(int) z[~+~0];
         }
     }
 
@@ -139,6 +160,28 @@ public class ArrayCreationTests extends DecompilerTest {
             "        final double[][][] g = new double[3][4][5];\n" +
             "        final byte[][][][] h = new byte[3][4][5][6];\n" +
             "        final byte[][][][] i = new byte[3][4][5][];\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testVarianceAndSelfReferencingAssignments() {
+        verifyOutput(
+            G.class,
+            defaultSettings(),
+            "private static class G {\n" +
+            "    public void test(final String[] args) {\n" +
+            "        final Object[] x = new Cloneable[4][];\n" +
+            "        final Serializable[][] y = new Serializable[4][2];\n" +
+            "        y[3] = args;\n" +
+            "        x[1] = y;\n" +
+            "        y[2][1] = x;\n" +
+            "        System.out.println(Arrays.deepToString(x));\n" +
+            "        System.out.println(Arrays.deepToString(y));\n" +
+            "        y[3][0] = x;\n" +
+            "        final long[] z = { 0L };\n" +
+            "        z[0] = -(int)z[0];\n" +
             "    }\n" +
             "}\n"
         );

@@ -76,7 +76,47 @@ public class TypeInferenceTests extends DecompilerTest {
         }
     }
 
-    @Test
+    @SuppressWarnings("ConstantConditions")
+    private static class G {
+        public static void test(final String[] args) throws Throwable {
+            String s = null;
+            String s2 = null;
+
+            try {
+                try {
+                    s2 = args[0];
+
+                    if (args == null) {
+                        throw (Exception) (Object) args;
+                    }
+
+                    s = args[1];
+                }
+                catch (ArrayIndexOutOfBoundsException e) {
+                }
+            }
+            catch (Throwable t) {
+                System.out.println(t instanceof NullPointerException);
+                throw t;
+            }
+
+            System.out.println(s2);
+            System.out.println(s);
+        }
+    }
+
+    private static class H {
+        private static class Outer<T> {
+            private static class Inner1 {
+                final Outer outer = null;
+            }
+            private class Inner2 {
+                final Outer<T> outer = null;
+            }
+        }
+    }
+
+        @Test
     public void testBooleanInference() throws Throwable {
         verifyOutput(
             A.class,
@@ -173,6 +213,36 @@ public class TypeInferenceTests extends DecompilerTest {
             "        return list;\n" +
             "    }\n" +
             "}\n"
+        );
+    }
+
+    @Test
+    public void testVariablesInitializedInTryNotDefinitelyAssigned() throws Throwable {
+        verifyOutput(
+            G.class,
+            defaultSettings(),
+            "private static class G {\n" +
+            "    public static void test(final String[] args) throws Throwable {\n" +
+            "        String s = null;\n" +
+            "        String s2 = null;\n" +
+            "        try {\n" +
+            "            try {\n" +
+            "                s2 = args[0];\n" +
+            "                if (args == null) {\n" +
+            "                    throw (Exception)(Object)args;\n" +
+            "                }\n" +
+            "                s = args[1];\n" +
+            "            }\n" +
+            "            catch (ArrayIndexOutOfBoundsException e) {}\n" +
+            "        }\n" +
+            "        catch (Throwable t) {\n" +
+            "            System.out.println(t instanceof NullPointerException);\n" +
+            "            throw t;\n" +
+            "        }\n" +
+            "        System.out.println(s2);\n" +
+            "        System.out.println(s);\n" +
+            "    }\n" +
+            "}"
         );
     }
 }

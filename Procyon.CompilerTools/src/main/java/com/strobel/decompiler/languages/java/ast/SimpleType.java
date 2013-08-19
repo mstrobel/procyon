@@ -16,7 +16,6 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
-import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
@@ -116,23 +115,23 @@ public class SimpleType extends AstType {
         return false;
     }
 
-    @Override
-    public TypeReference toTypeReference() {
-        final TypeReference typeReference = super.toTypeReference();
-        final AstNodeCollection<AstType> astTypeArguments = getTypeArguments();
-
-        if (astTypeArguments.isEmpty() || !typeReference.isGenericType()) {
-            return typeReference;
-        }
-
-        final TypeReference[] typeArguments = new TypeReference[astTypeArguments.size()];
-
-        int i = 0;
-
-        for (final AstType astTypeArgument : astTypeArguments) {
-            typeArguments[i++] = astTypeArgument.toTypeReference();
-        }
-
-        return typeReference.makeGenericType(typeArguments);
-    }
+//    @Override
+//    public TypeReference toTypeReference() {
+//        final TypeReference typeReference = super.toTypeReference();
+//        final AstNodeCollection<AstType> astTypeArguments = getTypeArguments();
+//
+//        if (astTypeArguments.isEmpty() || !typeReference.isGenericType()) {
+//            return typeReference;
+//        }
+//
+//        final TypeReference[] typeArguments = new TypeReference[astTypeArguments.size()];
+//
+//        int i = 0;
+//
+//        for (final AstType astTypeArgument : astTypeArguments) {
+//            typeArguments[i++] = astTypeArgument.toTypeReference();
+//        }
+//
+//        return typeReference.makeGenericType(typeArguments);
+//    }
 }
