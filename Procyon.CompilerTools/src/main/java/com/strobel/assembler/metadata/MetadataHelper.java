@@ -470,7 +470,8 @@ public final class MetadataHelper {
         }
 
         if (tPrimitive == sPrimitive) {
-            return isSubTypeUnchecked(source, target);
+            return allowUnchecked ? isSubTypeUnchecked(source, target)
+                                  : isSubType(source, target);
         }
 
         if (tPrimitive) {

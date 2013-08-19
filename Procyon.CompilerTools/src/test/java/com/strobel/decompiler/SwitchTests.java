@@ -115,7 +115,6 @@ public class SwitchTests extends DecompilerTest {
             System.out.println("Test");
         }
 
-
         public void g(final int x) {
             switch (x) {
                 case 0:
@@ -127,6 +126,33 @@ public class SwitchTests extends DecompilerTest {
                     System.out.println("2");
             }
             System.out.println("Test");
+        }
+    }
+
+    private static class G {
+        public static void test(final String args[]) {
+            int x = -1;
+
+            switch (args.length % -5) {
+                case 3:
+                    x += 3;
+                case 1:
+                    x--;
+                    if (x == -2) {
+                        break;
+                    }
+                case 0:
+                    x += (x << x);
+                    break;
+                case 2:
+                default:
+                    x = x ^ (int) 0xABCD000L;
+                case 4:
+                    x *= 4;
+                    break;
+            }
+
+            System.out.println(x);
         }
     }
 
@@ -172,15 +198,15 @@ public class SwitchTests extends DecompilerTest {
             "private static class B {\n" +
             "    public void test(final int i) {\n" +
             "        switch (i) {\n" +
-            "            case -3:\n" +
-            "            case -2:\n" +
-            "            case 1:\n" +
-            "                System.out.print(\"1\");\n" +
             "            case 0:\n" +
             "                System.out.print(\"0\");\n" +
             "            case -1:\n" +
             "                System.out.print(\"-1\");\n" +
             "                break;\n" +
+            "            case -3:\n" +
+            "            case -2:\n" +
+            "            case 1:\n" +
+            "                System.out.print(\"1\");\n" +
             "        }\n" +
             "        System.out.print(\"end of fall through\");\n" +
             "        System.out.println(\"after switch\");\n" +
@@ -271,6 +297,7 @@ public class SwitchTests extends DecompilerTest {
             "}\n"
         );
     }
+
     @Test
     public void testMultipleMethodsWithFallThrough() {
         //
@@ -307,6 +334,36 @@ public class SwitchTests extends DecompilerTest {
             "                break;\n" +
             "        }\n" +
             "        System.out.println(\"Test\");\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testSwitchFallThrough2() {
+        verifyOutput(
+            G.class,
+            createSettings(OPTION_FLATTEN_SWITCH_BLOCKS),
+            "private static class G {\n" +
+            "    public static void test(final String[] args) {\n" +
+            "        int x = -1;\n" +
+            "        switch (args.length % -5) {\n" +
+            "            case 3:\n" +
+            "                x += 3;\n" +
+            "            case 1:\n" +
+            "                if (--x == -2) {\n" +
+            "                    break;\n" +
+            "                }\n" +
+            "            case 0:\n" +
+            "                x += x << x;\n" +
+            "                break;\n" +
+            "            default:\n" +
+            "                x ^= 180146176;\n" +
+            "            case 4:\n" +
+            "                x *= 4;\n" +
+            "                break;\n" +
+            "        }\n" +
+            "        System.out.println(x);" +
             "    }\n" +
             "}\n"
         );
