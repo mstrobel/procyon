@@ -273,6 +273,9 @@ public final class MetadataHelper {
         }
 
         if (sourceRank != targetRank) {
+            if (isSameType(sourceElementType, BuiltinTypes.Object)) {
+                return ConversionType.EXPLICIT;
+            }
             return ConversionType.NONE;
         }
 
