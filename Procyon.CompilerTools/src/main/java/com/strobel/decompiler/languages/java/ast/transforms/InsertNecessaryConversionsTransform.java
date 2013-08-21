@@ -94,16 +94,21 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
     @Override
     public Void visitAssignmentExpression(final AssignmentExpression node, final Void data) {
         super.visitAssignmentExpression(node, data);
+
         addCastForAssignment(node.getLeft(), node.getRight());
+
         return null;
     }
 
     @Override
     public Void visitVariableDeclaration(final VariableDeclarationStatement node, final Void data) {
+        super.visitVariableDeclaration(node, data);
+
         for (final VariableInitializer initializer : node.getVariables()) {
             addCastForAssignment(node, initializer.getInitializer());
         }
-        return super.visitVariableDeclaration(node, data);
+
+        return null;
     }
 
     @Override
