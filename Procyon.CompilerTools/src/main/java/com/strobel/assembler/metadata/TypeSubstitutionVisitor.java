@@ -61,6 +61,10 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
 
         final TypeReference newBound = visit(oldBound, map);
 
+        if (newBound.isWildcardType() && newBound.isUnbounded()) {
+            return newBound;
+        }
+
         if (oldBound != newBound) {
             return t.hasExtendsBound() ? WildcardType.makeExtends(newBound)
                                        : WildcardType.makeSuper(newBound);
@@ -189,7 +193,7 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
     }
 
     @Override
-    public TypeReference visitRawType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
+    public TypeReference visitRawType(final RawType t, final Map<TypeReference, TypeReference> map) {
         return t;
     }
 

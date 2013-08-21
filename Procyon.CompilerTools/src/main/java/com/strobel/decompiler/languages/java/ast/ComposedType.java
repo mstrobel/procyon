@@ -47,7 +47,16 @@ public class ComposedType extends AstType {
 
     @Override
     public TypeReference toTypeReference() {
-        return getBaseType().toTypeReference().makeArrayType();
+        TypeReference typeReference = getBaseType().toTypeReference();
+
+        for (ArraySpecifier specifier = getArraySpecifiers().firstOrNullObject();
+             specifier != null;
+             specifier = (ArraySpecifier) specifier.getNextSibling(ARRAY_SPECIFIER_ROLE)) {
+
+            typeReference = typeReference.makeArrayType();
+        }
+
+        return typeReference;
     }
 
     @Override

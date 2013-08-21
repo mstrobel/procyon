@@ -138,8 +138,8 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
                 final SwitchSection fallThroughSection = (SwitchSection) fallThroughBlock.getParent();
 
                 if (fallThroughSection.getNextSibling() != targetSection) {
-                    targetSection.remove();
-                    parentSwitch.getSwitchSections().insertAfter(fallThroughSection, targetSection);
+                    fallThroughSection.remove();
+                    parentSwitch.getSwitchSections().insertBefore(targetSection, fallThroughSection);
                 }
 
                 final BlockStatement parentBlock = (BlockStatement) label.getParent();

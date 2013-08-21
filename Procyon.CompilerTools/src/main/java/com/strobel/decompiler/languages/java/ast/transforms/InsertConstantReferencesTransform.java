@@ -38,7 +38,7 @@ public class InsertConstantReferencesTransform extends ContextTrackingVisitor<Vo
                 fieldName = "POSITIVE_INFINITY";
             }
             else if (d == Double.NEGATIVE_INFINITY) {
-                fieldName = "POSITIVE_INFINITY";
+                fieldName = "NEGATIVE_INFINITY";
             }
             else if (Double.isNaN(d)) {
                 fieldName = "NaN";
@@ -65,7 +65,7 @@ public class InsertConstantReferencesTransform extends ContextTrackingVisitor<Vo
                 fieldName = "POSITIVE_INFINITY";
             }
             else if (f == Float.NEGATIVE_INFINITY) {
-                fieldName = "POSITIVE_INFINITY";
+                fieldName = "NEGATIVE_INFINITY";
             }
             else if (Float.isNaN(f)) {
                 fieldName = "NaN";

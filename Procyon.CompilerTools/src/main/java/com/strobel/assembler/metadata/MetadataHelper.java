@@ -69,6 +69,39 @@ public final class MetadataHelper {
                isEnclosedBy(resolvedInnerType.getBaseType(), outerType);
     }
 
+    public static boolean canReferenceTypeVariablesOf(final TypeReference declaringType, final TypeReference referenceSite) {
+        if (declaringType == null || referenceSite == null) {
+            return false;
+        }
+
+        if (declaringType == referenceSite) {
+            return declaringType.isGenericType();
+        }
+
+        for (TypeReference current = referenceSite.getDeclaringType();
+             current != null; ) {
+
+            if (isSameType(current, declaringType)) {
+                return true;
+            }
+
+            final TypeDefinition resolvedType = current.resolve();
+
+            if (resolvedType != null) {
+                final MethodReference declaringMethod = resolvedType.getDeclaringMethod();
+
+                if (declaringMethod != null) {
+                    current = declaringMethod.getDeclaringType();
+                    continue;
+                }
+            }
+
+            current = current.getDeclaringType();
+        }
+
+        return false;
+    }
+
     public static TypeReference findCommonSuperType(final TypeReference type1, final TypeReference type2) {
         VerifyArgument.notNull(type1, "type1");
         VerifyArgument.notNull(type2, "type2");
@@ -219,7 +252,7 @@ public final class MetadataHelper {
             return ConversionType.IDENTITY;
         }
 
-        if (isAssignableFrom(target, source)) {
+        if (isAssignableFrom(target, source, false)) {
             return ConversionType.IMPLICIT;
         }
 
@@ -437,7 +470,8 @@ public final class MetadataHelper {
         }
 
         if (tPrimitive == sPrimitive) {
-            return isSubTypeUnchecked(source, target);
+            return allowUnchecked ? isSubTypeUnchecked(source, target)
+                                  : isSubType(source, target);
         }
 
         if (tPrimitive) {
@@ -603,7 +637,7 @@ public final class MetadataHelper {
     }
 
     @SuppressWarnings("ConstantConditions")
-    public static Map<TypeReference, TypeReference> getSubTypeMappings(final TypeReference type, final TypeReference baseType) {
+    public static Map<TypeReference, TypeReference> getGenericSubTypeMappings(final TypeReference type, final TypeReference baseType) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(baseType, "baseType");
 
@@ -616,7 +650,7 @@ public final class MetadataHelper {
                 baseElementType = baseElementType.getElementType();
             }
 
-            return getSubTypeMappings(elementType, baseElementType);
+            return getGenericSubTypeMappings(elementType, baseElementType);
         }
 
         TypeReference current = type;
@@ -677,7 +711,7 @@ public final class MetadataHelper {
 
             if (resolvedBaseType != null && resolvedBaseType.isInterface()) {
                 for (final TypeReference interfaceType : getInterfaces(current)) {
-                    final Map<TypeReference, TypeReference> interfaceMap = getSubTypeMappings(interfaceType, baseType);
+                    final Map<TypeReference, TypeReference> interfaceMap = getGenericSubTypeMappings(interfaceType, baseType);
 
                     if (!interfaceMap.isEmpty()) {
                         return interfaceMap;
@@ -695,25 +729,34 @@ public final class MetadataHelper {
         VerifyArgument.notNull(method, "method");
         VerifyArgument.notNull(baseType, "baseType");
 
-        TypeReference base = baseType;
+        final MethodReference asMember;
 
-        while (base.isGenericParameter() || base.isWildcardType()) {
-            if (base.hasExtendsBound()) {
-                base = getUpperBound(base);
+        if (baseType instanceof RawType) {
+            asMember = erase(method);
+        }
+        else {
+            TypeReference base = baseType;
+
+            while (base.isGenericParameter() || base.isWildcardType()) {
+                if (base.hasExtendsBound()) {
+                    base = getUpperBound(base);
+                }
+                else {
+                    base = BuiltinTypes.Object;
+                }
             }
-            else {
-                base = BuiltinTypes.Object;
+
+            final Map<TypeReference, TypeReference> map = adapt(method.getDeclaringType(), base);
+            asMember = TypeSubstitutionVisitor.instance().visitMethod(method, map);
+
+            if (asMember != method && asMember instanceof GenericMethodInstance) {
+                ((GenericMethodInstance) asMember).setDeclaringType(base);
             }
         }
 
-        final Map<TypeReference, TypeReference> map = adapt(method.getDeclaringType(), base);
-        final MethodReference asMember = TypeSubstitutionVisitor.instance().visitMethod(method, map);
+        final MethodReference result = specializeIfNecessary(method, asMember, baseType);
 
-        if (asMember != method && asMember instanceof GenericMethodInstance) {
-            ((GenericMethodInstance) asMember).setDeclaringType(base);
-        }
-
-        return specializeIfNecessary(method, asMember, baseType);
+        return result;
     }
 
     private static MethodReference specializeIfNecessary(
@@ -750,7 +793,15 @@ public final class MetadataHelper {
             }
 
             if (resolvedClassType.isGenericType()) {
-                return ensureReturnType(originalMethod, asMember, resolvedClassType.makeGenericType(baseType), baseType);
+                final MethodDefinition resolvedMethod = originalMethod.resolve();
+
+                return new GenericMethodInstance(
+                    baseType,
+                    resolvedMethod != null ? resolvedMethod : asMember,
+                    resolvedClassType.makeGenericType(WildcardType.makeExtends(erase(baseType))),
+                    Collections.<ParameterDefinition>emptyList(),
+                    Collections.<TypeReference>emptyList()
+                );
             }
 
             return asMember;
@@ -1186,6 +1237,12 @@ public final class MetadataHelper {
     }
 
     public static boolean isSameType(final TypeReference t, final TypeReference s, final boolean strict) {
+        if (t == s) {
+            return true;
+        }
+        if (t == null || s == null) {
+            return false;
+        }
         return strict ? SAME_TYPE_VISITOR_STRICT.visit(t, s)
                       : SAME_TYPE_VISITOR_LOOSE.visit(t, s);
     }
@@ -1420,19 +1477,43 @@ public final class MetadataHelper {
     }
 
     public static TypeReference eraseRecursive(final TypeReference type) {
-        if (type.isGenericParameter() || type.isWildcardType()) {
-            if (type.hasExtendsBound()) {
-                return eraseRecursive(type.getExtendsBound());
-            }
-            return BuiltinTypes.Object;
+        return erase(type, true);
+    }
+
+    private static boolean eraseNotNeeded(final TypeReference type) {
+        return type == null ||
+               type.isPrimitive() ||
+               StringUtilities.equals(type.getInternalName(), CommonTypeReferences.String.getInternalName());
+    }
+
+    public static TypeReference erase(final TypeReference type) {
+        return erase(type, false);
+    }
+
+    public static TypeReference erase(final TypeReference type, final boolean recurse) {
+        if (eraseNotNeeded(type)) {
+            return type;
         }
 
-        //
-        // TODO: Implement recursive type erasure.
-        //
-        final TypeReference resolved = VerifyArgument.notNull(type, "type").resolve();
+        return type.accept(ERASE_VISITOR, recurse);
+    }
 
-        return resolved != null && resolved.isGenericDefinition() ? new RawType(resolved) : type;
+    public static MethodReference erase(final MethodReference method) {
+        if (method != null) {
+            MethodReference baseMethod = method;
+
+            final MethodDefinition resolvedMethod = baseMethod.resolve();
+
+            if (resolvedMethod != null) {
+                baseMethod = resolvedMethod;
+            }
+            else if (baseMethod instanceof IGenericInstance) {
+                baseMethod = (MethodReference) ((IGenericInstance) baseMethod).getGenericDefinition();
+            }
+
+            return new RawMethod(baseMethod);
+        }
+        return method;
     }
 
     private static TypeReference classBound(final TypeReference t) {
@@ -1453,6 +1534,11 @@ public final class MetadataHelper {
             }
             return t;
         }
+
+        @Override
+        public TypeReference visitCapturedType(final CapturedType t, final Void ignored) {
+            return t.getExtendsBound();
+        }
     };
 
     private final static TypeMapper<Void> LOWER_BOUND_VISITOR = new TypeMapper<Void>() {
@@ -1460,6 +1546,11 @@ public final class MetadataHelper {
         public TypeReference visitWildcard(final WildcardType t, final Void ignored) {
             return t.hasSuperBound() ? visit(t.getSuperBound())
                                      : BuiltinTypes.Bottom;
+        }
+
+        @Override
+        public TypeReference visitCapturedType(final CapturedType t, final Void ignored) {
+            return t.getSuperBound();
         }
     };
 
@@ -1568,7 +1659,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public Boolean visitRawType(final TypeReference t, final TypeReference s) {
+        public Boolean visitRawType(final RawType t, final TypeReference s) {
             return visitClassType(t, s);
         }
 
@@ -1578,6 +1669,14 @@ public final class MetadataHelper {
             // We shouldn't be here.  Return FALSE to avoid crash.
             //
             return Boolean.FALSE;
+        }
+
+        @Override
+        public Boolean visitCapturedType(final CapturedType t, final TypeReference s) {
+            return isSubTypeNoCapture(
+                t.hasExtendsBound() ? t.getExtendsBound() : BuiltinTypes.Object,
+                s
+            );
         }
 
         @Override
@@ -1704,7 +1803,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public TypeReference visitRawType(final TypeReference t, final TypeReference s) {
+        public TypeReference visitRawType(final RawType t, final TypeReference s) {
             return this.visitClassType(t, s);
         }
 
@@ -1735,7 +1834,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public TypeReference visitCompoundType(final CompoundTypeReference t, final Void aVoid) {
+        public TypeReference visitCompoundType(final CompoundTypeReference t, final Void ignored) {
             //
             // TODO: Is this correct?
             //
@@ -1806,11 +1905,17 @@ public final class MetadataHelper {
         }
 
         @Override
-        public TypeReference visitRawType(final TypeReference t, final Void ignored) {
-            final TypeReference genericDefinition = t.getUnderlyingType();
+        public TypeReference visitRawType(final RawType t, final Void ignored) {
+            TypeReference genericDefinition = t.getUnderlyingType();
 
-            if (!(genericDefinition instanceof TypeDefinition)) {
-                return BuiltinTypes.Object;
+            if (!genericDefinition.isGenericDefinition()) {
+                final TypeDefinition resolved = genericDefinition.resolve();
+
+                if (resolved == null || !resolved.isGenericDefinition()) {
+                    return BuiltinTypes.Object;
+                }
+
+                genericDefinition = resolved;
             }
 
             final TypeReference baseType = getBaseType(genericDefinition);
@@ -2067,7 +2172,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public Boolean visitRawType(final TypeReference t, final TypeReference s) {
+        public Boolean visitRawType(final RawType t, final TypeReference s) {
             return s.getSimpleType() == JvmType.Object &&
                    !s.isGenericType() &&
                    StringUtilities.equals(t.getInternalName(), s.getInternalName());
@@ -2362,6 +2467,137 @@ public final class MetadataHelper {
             }
 
             return result;
+        }
+    };
+
+    private final static DefaultTypeVisitor<Boolean, TypeReference> ERASE_VISITOR = new DefaultTypeVisitor<Boolean, TypeReference>() {
+        @Override
+        public TypeReference visitArrayType(final ArrayType t, final Boolean recurse) {
+            final TypeReference elementType = getElementType(t);
+            final TypeReference erasedElementType = erase(getElementType(t), recurse);
+
+            return erasedElementType == elementType ? t : erasedElementType.makeArrayType();
+        }
+
+        @Override
+        public TypeReference visitBottomType(final TypeReference t, final Boolean recurse) {
+            return t;
+        }
+
+        @Override
+        public TypeReference visitClassType(final TypeReference t, final Boolean recurse) {
+            if (t.isGenericType()) {
+                return new RawType(t);
+            }
+            else {
+                final TypeDefinition resolved = t.resolve();
+
+                if (resolved != null && resolved.isGenericDefinition()) {
+                    return new RawType(resolved);
+                }
+            }
+            return t;
+        }
+
+        @Override
+        public TypeReference visitCompoundType(final CompoundTypeReference t, final Boolean recurse) {
+            final TypeReference baseType = t.getBaseType();
+            return erase(baseType != null ? baseType : first(t.getInterfaces()), recurse);
+        }
+
+        @Override
+        public TypeReference visitGenericParameter(final GenericParameter t, final Boolean recurse) {
+            return erase(getUpperBound(t), recurse);
+        }
+
+        @Override
+        public TypeReference visitNullType(final TypeReference t, final Boolean recurse) {
+            return t;
+        }
+
+        @Override
+        public TypeReference visitPrimitiveType(final PrimitiveType t, final Boolean recurse) {
+            return t;
+        }
+
+        @Override
+        public TypeReference visitRawType(final RawType t, final Boolean recurse) {
+            return t;
+        }
+
+        @Override
+        public TypeReference visitType(final TypeReference t, final Boolean recurse) {
+            if (t.isGenericType()) {
+                return new RawType(t);
+            }
+            return t;
+        }
+
+        @Override
+        public TypeReference visitWildcard(final WildcardType t, final Boolean recurse) {
+            return erase(getUpperBound(t), recurse);
+        }
+    };
+
+    private static final DefaultTypeVisitor<Void, Boolean> IS_DECLARED_TYPE = new DefaultTypeVisitor<Void, Boolean>() {
+        @Override
+        public Boolean visitWildcard(final WildcardType t, final Void ignored) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitArrayType(final ArrayType t, final Void ignored) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitBottomType(final TypeReference t, final Void ignored) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitCapturedType(final CapturedType t, final Void ignored) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitClassType(final TypeReference t, final Void ignored) {
+            return true;
+        }
+
+        @Override
+        public Boolean visitCompoundType(final CompoundTypeReference t, final Void ignored) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitGenericParameter(final GenericParameter t, final Void ignored) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitNullType(final TypeReference t, final Void ignored) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitParameterizedType(final TypeReference t, final Void ignored) {
+            return true;
+        }
+
+        @Override
+        public Boolean visitPrimitiveType(final PrimitiveType t, final Void ignored) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitRawType(final RawType t, final Void ignored) {
+            return true;
+        }
+
+        @Override
+        public Boolean visitType(final TypeReference t, final Void ignored) {
+            return false;
         }
     };
 

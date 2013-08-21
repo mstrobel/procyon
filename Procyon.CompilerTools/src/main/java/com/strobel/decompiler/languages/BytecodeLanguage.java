@@ -344,13 +344,13 @@ public class BytecodeLanguage extends Language {
             }
 
             output.writeLine();
+
+            for (final SourceAttribute attribute : field.getSourceAttributes()) {
+                writeFieldAttribute(output, field, attribute);
+            }
         }
         finally {
             output.unindent();
-        }
-
-        for (final SourceAttribute attribute : field.getSourceAttributes()) {
-            writeFieldAttribute(output, field, attribute);
         }
     }
 

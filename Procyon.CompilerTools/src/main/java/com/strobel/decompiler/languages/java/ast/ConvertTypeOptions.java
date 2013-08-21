@@ -21,6 +21,7 @@ public final class ConvertTypeOptions {
     private boolean _includeTypeArguments = true;
     private boolean _includeTypeParameterDefinitions = true;
     private boolean _allowWildcards = true;
+    private boolean _addImports = true;
 
     public ConvertTypeOptions() {
     }
@@ -60,5 +61,13 @@ public final class ConvertTypeOptions {
 
     public void setIncludeTypeArguments(final boolean includeTypeArguments) {
         _includeTypeArguments = includeTypeArguments;
+    }
+
+    public boolean getAddImports() {
+        return _addImports;
+    }
+
+    public void setAddImports(final boolean addImports) {
+        _addImports = addImports;
     }
 }

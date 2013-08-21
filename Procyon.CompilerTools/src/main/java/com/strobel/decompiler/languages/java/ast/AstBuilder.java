@@ -261,6 +261,7 @@ public final class AstBuilder {
             }
 
             applyTypeArguments(baseType, typeArguments);
+            baseType.putUserData(Keys.TYPE_REFERENCE, type);
 
             return baseType;
         }
@@ -315,7 +316,7 @@ public final class AstBuilder {
                 unqualifiedName = nameSource.getSimpleName();
             }
 
-            if (!_typeDeclarations.containsKey(typeToImport.getInternalName())) {
+            if (options.getAddImports() && !_typeDeclarations.containsKey(typeToImport.getInternalName())) {
                 String importedName = _unqualifiedTypeNames.get(typeToImport.getSimpleName());
 
                 if (importedName == null) {
@@ -356,7 +357,7 @@ public final class AstBuilder {
 
         final SimpleType astType = new SimpleType(name);
 
-        astType.putUserData(Keys.TYPE_REFERENCE, nameSource);
+        astType.putUserData(Keys.TYPE_REFERENCE, type);
 
 /*
         if (nameSource.isGenericType() && includeTypeParameterDefinitions) {

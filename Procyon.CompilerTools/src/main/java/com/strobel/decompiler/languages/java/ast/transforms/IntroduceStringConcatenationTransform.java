@@ -5,13 +5,10 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
-import com.strobel.decompiler.patterns.AnyNode;
-import com.strobel.decompiler.patterns.Choice;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
-import com.strobel.decompiler.patterns.NamedNode;
 import com.strobel.decompiler.patterns.OptionalNode;
-import com.strobel.decompiler.patterns.TypeReferenceDescriptorComparisonNode;
+import com.strobel.decompiler.patterns.TypedExpression;
 import com.strobel.decompiler.semantics.ResolveResult;
 
 import java.util.ArrayList;
@@ -20,26 +17,16 @@ import java.util.List;
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public class IntroduceStringConcatenationTransform extends ContextTrackingVisitor<Void> {
+    private final INode _stringBuilderArgumentPattern;
+
     public IntroduceStringConcatenationTransform(final DecompilerContext context) {
         super(context);
-    }
 
-    private final static INode STRING_BUILDER_ARGUMENT_PATTERN;
-
-    static {
-        STRING_BUILDER_ARGUMENT_PATTERN = new OptionalNode(
-            new Choice(
-                new InvocationExpression(
-                    new MemberReferenceExpression(
-                        new TypeReferenceDescriptorComparisonNode("java/lang/String").toExpression(),
-                        "valueOf"
-                    ),
-                    new AnyNode("firstArgument").toExpression()
-                ),
-                new NamedNode(
-                    "firstArgument",
-                    new PrimitiveExpression(PrimitiveExpression.ANY_STRING)
-                )
+        _stringBuilderArgumentPattern = new OptionalNode(
+            new TypedExpression(
+                "firstArgument",
+                CommonTypeReferences.String,
+                new JavaResolver(context)
             )
         );
     }
@@ -54,7 +41,7 @@ public class IntroduceStringConcatenationTransform extends ContextTrackingVisito
             final Expression firstArgument;
 
             if (arguments.hasSingleElement()) {
-                final Match m = STRING_BUILDER_ARGUMENT_PATTERN.match(arguments.firstOrNullObject());
+                final Match m = _stringBuilderArgumentPattern.match(arguments.firstOrNullObject());
 
                 if (!m.success()) {
                     return super.visitObjectCreationExpression(node, data);
@@ -79,8 +66,9 @@ public class IntroduceStringConcatenationTransform extends ContextTrackingVisito
     }
 
     private boolean isStringBuilder(final TypeReference typeReference) {
-        if (StringUtilities.equals(typeReference.getInternalName(), "java/lang/StringBuilder"))
+        if (StringUtilities.equals(typeReference.getInternalName(), "java/lang/StringBuilder")) {
             return true;
+        }
 
         return context.getCurrentType() != null &&
                context.getCurrentType().getCompilerMajorVersion() < 49 &&

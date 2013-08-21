@@ -949,21 +949,21 @@ public final class ClassFileReader extends MetadataReader {
                         }
                     }
 
-                    if (methodDefinition.isSynthetic() &&
-                        methodDefinition.isPackagePrivate() &&
-                        parameters.size() > 0) {
-
-                        final ParameterDefinition parameter = last(parameters);
-                        final TypeReference parameterType = parameter.getParameterType();
-                        final TypeDefinition resolvedParameterType = parameterType.resolve();
-
-                        if (resolvedParameterType != null &&
-                            (resolvedParameterType.isAnonymous() ||
-                             resolvedParameterType.isSynthetic())) {
-
-                            parameter.setFlags(parameter.getFlags() | Flags.SYNTHETIC);
-                        }
-                    }
+//                    if (methodDefinition.isSynthetic() &&
+//                        methodDefinition.isPackagePrivate() &&
+//                        parameters.size() > 0) {
+//
+//                        final ParameterDefinition parameter = last(parameters);
+//                        final TypeReference parameterType = parameter.getParameterType();
+//                        final TypeDefinition resolvedParameterType = parameterType.resolve();
+//
+//                        if (resolvedParameterType != null &&
+//                            (resolvedParameterType.isAnonymous() ||
+//                             resolvedParameterType.isSynthetic())) {
+//
+//                            parameter.setFlags(parameter.getFlags() | Flags.SYNTHETIC);
+//                        }
+//                    }
 
                     inflateAttributes(method.attributes);
 

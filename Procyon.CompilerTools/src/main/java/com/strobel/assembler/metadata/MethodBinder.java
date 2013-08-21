@@ -501,7 +501,7 @@ public final class MethodBinder {
         }
 
         @Override
-        public Void visitRawType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
+        public Void visitRawType(final RawType t, final Map<TypeReference, TypeReference> map) {
             return null;
         }
     }

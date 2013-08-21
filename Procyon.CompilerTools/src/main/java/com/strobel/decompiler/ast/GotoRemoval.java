@@ -19,7 +19,6 @@ package com.strobel.decompiler.ast;
 import com.strobel.annotations.NotNull;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
-import com.strobel.decompiler.ITextOutput;
 import com.strobel.util.ContractUtils;
 
 import java.util.*;

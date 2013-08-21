@@ -12,7 +12,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "    public static void main(final String[] array) {\n" +
             "        System.out.println(\"Goodbye world\");\n" +
             "    }\n" +
-            "}\n"
+            "}"
         );
     }
 
@@ -42,7 +42,68 @@ public class ThirdPartyTests extends DecompilerTest {
             "    public static void takeMyBoolean(final boolean b) {\n" +
             "        System.out.println(b);\n" +
             "    }\n" +
-            "}\n"
+            "}"
+        );
+    }
+
+    @Test
+    public void testOddsAndEnds() throws Throwable {
+        verifyOutput(
+            Class.forName("OddsAndEnds"),
+            defaultSettings(),
+            "public final strictfp class OddsAndEnds {\n" +
+            "    private static strictfp void test(final float n, final Object o) {\n" +
+            "        synchronized (o) {\n" +
+            "            final long n2 = (long)n;\n" +
+            "            if (o instanceof Long) {\n" +
+            "                final long longValue = (long)o;\n" +
+            "                if (longValue <= n2) {\n" +
+            "                    System.out.println((float)(-longValue) % -n);\n" +
+            "                }\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public static strictfp void main(String[] array) {\n" +
+            "        if (array != null) {\n" +
+            "            final String[] array2 = array;\n" +
+            "            try {\n" +
+            "                final ArrayList list;\n" +
+            "                System.out.println(list = (ArrayList)(Object)array2);\n" +
+            "                array = (String[])list.toArray(new String[0]);\n" +
+            "            }\n" +
+            "            catch (ClassCastException ex) {\n" +
+            "                array = array;\n" +
+            "            }\n" +
+            "        }\n" +
+            "        test(42.24f, array);\n" +
+            "        test(4.224f, Long.valueOf(array[0]));\n" +
+            "        test(-0.0f, main(999999999L));\n" +
+            "    }\n" +
+            "    public static strictfp int main(final Object o) {\n" +
+            "        final int n = 0;\n" +
+            "        final int n2 = 1;\n" +
+            "        final int n3 = (((o == null) ? 1 : 0) == n) ? 1 : 0;\n" +
+            "        if (n2 != 0) {\n" +
+            "            if (n == 0) {\n" +
+            "                if (n != 0) {}\n" +
+            "            }\n" +
+            "        }\n" +
+            "        else if (n2 != 0) {}\n" +
+            "        Label_0078: {\n" +
+            "            if (n != 0) {\n" +
+            "                if (n2 == 0) {\n" +
+            "                    break Label_0078;\n" +
+            "                }\n" +
+            "            }\n" +
+            "            else if (n3 == 0) {\n" +
+            "                break Label_0078;\n" +
+            "            }\n" +
+            "            return ((Number)o).shortValue();\n" +
+            "        }\n" +
+            "        if (n3 != 0) {}\n" +
+            "        return ((Number)o).shortValue();\n" +
+            "    }\n" +
+            "}"
         );
     }
 }

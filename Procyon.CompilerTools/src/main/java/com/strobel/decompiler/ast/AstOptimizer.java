@@ -229,6 +229,12 @@ public final class AstOptimizer {
 
         duplicateReturnStatements(method);
 
+        if (abortBeforeStep == AstOptimizationStep.MergeDisparateObjectInitializations) {
+            return;
+        }
+
+        mergeDisparateObjectInitializations(context, method);
+
         if (abortBeforeStep == AstOptimizationStep.GotoRemoval2) {
             return;
         }
@@ -248,12 +254,6 @@ public final class AstOptimizer {
         for (final Expression e : method.getChildrenAndSelfRecursive(Expression.class)) {
             reduceComparisonInstructionSet(e);
         }
-
-        if (abortBeforeStep == AstOptimizationStep.MergeDisparateObjectInitializations) {
-            return;
-        }
-
-        mergeDisparateObjectInitializations(context, method);
 
         if (abortBeforeStep == AstOptimizationStep.RecombineVariables) {
             return;
@@ -2238,6 +2238,7 @@ public final class AstOptimizer {
 
                     if (matchGetArguments(node, AstCode.StoreElement, a) &&
                         matchLoad(a.get(0), v.get()) &&
+                        !a.get(2).containsReferenceTo(v.get()) &&
                         matchGetOperand(a.get(1), AstCode.LdC, Integer.class, arrayPosition) &&
                         arrayPosition.get() >= 0 &&
                         arrayPosition.get() < actualArrayLength &&
