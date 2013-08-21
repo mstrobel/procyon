@@ -637,7 +637,7 @@ public final class MetadataHelper {
     }
 
     @SuppressWarnings("ConstantConditions")
-    public static Map<TypeReference, TypeReference> getSubTypeMappings(final TypeReference type, final TypeReference baseType) {
+    public static Map<TypeReference, TypeReference> getGenericSubTypeMappings(final TypeReference type, final TypeReference baseType) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(baseType, "baseType");
 
@@ -650,7 +650,7 @@ public final class MetadataHelper {
                 baseElementType = baseElementType.getElementType();
             }
 
-            return getSubTypeMappings(elementType, baseElementType);
+            return getGenericSubTypeMappings(elementType, baseElementType);
         }
 
         TypeReference current = type;
@@ -711,7 +711,7 @@ public final class MetadataHelper {
 
             if (resolvedBaseType != null && resolvedBaseType.isInterface()) {
                 for (final TypeReference interfaceType : getInterfaces(current)) {
-                    final Map<TypeReference, TypeReference> interfaceMap = getSubTypeMappings(interfaceType, baseType);
+                    final Map<TypeReference, TypeReference> interfaceMap = getGenericSubTypeMappings(interfaceType, baseType);
 
                     if (!interfaceMap.isEmpty()) {
                         return interfaceMap;

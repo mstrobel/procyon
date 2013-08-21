@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.strobel.core.CollectionUtilities.getOrDefault;
+import static com.strobel.core.CollectionUtilities.single;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 import static java.lang.String.format;
 
@@ -411,11 +412,15 @@ final class Inlining {
         final Node node = body.get(position);
 
         if (matchGetArgument(node, AstCode.Store, variable, inlinedExpression)) {
-            if (inlineIfPossible(variable.get(), inlinedExpression.get(), getOrDefault(body, position + 1), aggressive)) {
+            final Node next = getOrDefault(body, position + 1);
+            final Variable v = variable.get();
+            final Expression e = inlinedExpression.get();
+
+            if (inlineIfPossible(v, e, next, aggressive)) {
                 //
                 // Assign the ranges of the Store instruction.
                 //
-                inlinedExpression.get().getRanges().addAll(((Expression) node).getRanges());
+                e.getRanges().addAll(((Expression) node).getRanges());
 
                 //
                 // Remove the store instruction.
@@ -423,14 +428,38 @@ final class Inlining {
                 body.remove(position);
                 return true;
             }
+            else if (matchStore(e, variable, inlinedExpression)) {
+                //
+                // Check to see if we have an expression like 'x = y = <some expression>` followed by an
+                // expression that loads 'y'.  If so, see if we can substitute 'x' for 'y' and remove 'y'.
+                //
 
-            if (count(loadCounts, variable.get()) == 0 &&
-                notFromMetadata(variable.get())) {
+                final Expression loadThisInstead = new Expression(AstCode.Load, v);
+
+                if (inlineIfPossible(variable.get(), loadThisInstead, next, aggressive)) {
+                    //
+                    // Hoist the inner store up, clear the load/store counts for the removed variable,
+                    // increment the load count for this variable.
+                    //
+
+                    ((Expression) node).getArguments().set(0, single(e.getArguments()));
+
+                    storeCounts.get(variable.get()).setValue(0);
+                    loadCounts.get(variable.get()).setValue(0);
+
+                    increment(loadCounts, v);
+
+                    return true;
+                }
+            }
+
+            if (count(loadCounts, v) == 0 &&
+                notFromMetadata(v)) {
 
                 //
                 // The variable is never loaded.
                 //
-                if (hasNoSideEffect(inlinedExpression.get())) {
+                if (hasNoSideEffect(e)) {
                     //
                     // Remove the expression completely.
                     //
@@ -438,16 +467,16 @@ final class Inlining {
                     return true;
                 }
 
-                if (canBeExpressionStatement(inlinedExpression.get())) {
+                if (canBeExpressionStatement(e)) {
                     //
                     // Assign the ranges of the Store instruction.
                     //
-                    inlinedExpression.get().getRanges().addAll(((Expression) node).getRanges());
+                    e.getRanges().addAll(((Expression) node).getRanges());
 
                     //
                     // Remove the store, but keep the inner expression;
                     //
-                    body.set(position, inlinedExpression.get());
+                    body.set(position, e);
                     return true;
                 }
             }
@@ -545,7 +574,7 @@ final class Inlining {
                 // Variables can be copied only if both the variable and the target copy variable are generated,
                 // and if the variable has only a single assignment.
                 //
-                return //v.isGenerated() &&
+                return v.isGenerated() &&
                        copyVariable.isGenerated() &&
                        count(storeCounts, v) == 1;
             }

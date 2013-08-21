@@ -72,6 +72,15 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
             return null;
         }
 
+        final ResolveResult valueResult = _resolver.apply(node.getTarget());
+
+        if (valueResult == null ||
+            valueResult.getType() == null ||
+            MetadataHelper.isAssignableFrom(member.getDeclaringType(), valueResult.getType(), true)) {
+
+            return null;
+        }
+
         final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
 
         if (astBuilder == null)

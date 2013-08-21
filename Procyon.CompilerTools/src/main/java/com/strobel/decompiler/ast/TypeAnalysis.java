@@ -855,13 +855,19 @@ public final class TypeAnalysis {
                                 );
                             }
 
+                            if (!(targetType instanceof RawType) &&
+                                MetadataHelper.isRawType(targetType) &&
+                                !MetadataHelper.canReferenceTypeVariablesOf(targetType, _context.getCurrentType())) {
+
+                                targetType = MetadataHelper.erase(targetType);
+                            }
+
+
                             final MethodReference m = targetType != null ? MetadataHelper.asMemberOf(r != null ? r : method, targetType)
                                                                        : method;
 
                             if (m != null) {
                                 actualMethod = m;
-                                boundMethod = m;
-                                expression.setOperand(m);
                             }
                             else {
                                 actualMethod = r != null ? r : boundMethod;
@@ -870,6 +876,9 @@ public final class TypeAnalysis {
                         else {
                             actualMethod = r != null ? r : boundMethod;
                         }
+
+                        boundMethod = actualMethod;
+                        expression.setOperand(boundMethod);
 
                         List<ParameterDefinition> p = method.getParameters();
 
@@ -880,8 +889,14 @@ public final class TypeAnalysis {
                             final Map<TypeReference, TypeReference> newMappings = new HashMap<>();
                             final Map<TypeReference, TypeReference> inferredMappings = new HashMap<>();
 
+                            if (targetType != null && targetType.isGenericType()) {
+                                oldMappings.putAll(MetadataHelper.getGenericSubTypeMappings(targetType.getUnderlyingType(), targetType));
+                            }
+
                             final List<ParameterDefinition> rp = r != null ? r.getParameters() : actualMethod.getParameters();
                             final List<ParameterDefinition> cp = boundMethod.getParameters();
+
+                            final boolean mapOld = method instanceof IGenericInstance;
 
                             for (int i = 0; i < parameters.size(); i++) {
                                 final TypeReference rType = rp.get(i).getParameterType();
@@ -889,7 +904,7 @@ public final class TypeAnalysis {
                                 final TypeReference cType = cp.get(i).getParameterType();
                                 final TypeReference aType = inferTypeForExpression(arguments.get(hasThis ? i + 1 : i), cType);
 
-                                if (rType != null && rType.containsGenericParameters()) {
+                                if (mapOld && rType != null && rType.containsGenericParameters()) {
                                     new AddMappingsForArgumentVisitor(pType).visit(rType, oldMappings);
                                 }
 
@@ -1048,7 +1063,7 @@ public final class TypeAnalysis {
                             );
 
                             if (inferredTargetType != null) {
-                                targetType = inferredTargetType;
+                                targetType = MetadataHelper.substituteGenericArguments(inferredTargetType, mappings);
 
                                 if (MetadataHelper.isRawType(targetType) &&
                                     !MetadataHelper.canReferenceTypeVariablesOf(targetType, _context.getCurrentType())) {

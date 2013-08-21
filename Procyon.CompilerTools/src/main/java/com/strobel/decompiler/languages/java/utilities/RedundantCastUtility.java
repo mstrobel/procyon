@@ -853,12 +853,12 @@ public final class RedundantCastUtility {
             }
             else if (castType instanceof IGenericInstance) {
                 if (MetadataHelper.isRawType(opType)) {
-                    return !MetadataHelper.isAssignableFrom(castType, opType, false);
+                    return !MetadataHelper.isAssignableFrom(castType, opType/*, false*/);
                 }
             }
             else if (MetadataHelper.isRawType(castType)) {
                 if (opType instanceof IGenericInstance) {
-                    return !MetadataHelper.isAssignableFrom(castType, opType, false);
+                    return !MetadataHelper.isAssignableFrom(castType, opType/*, false*/);
                 }
             }
 
