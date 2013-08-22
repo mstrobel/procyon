@@ -54,7 +54,7 @@ public final class MetadataHelper {
             return false;
         }
 
-        for (TypeReference current = innerType.getDeclaringType();
+        for (TypeReference current = innerType;
              current != null;
              current = current.getDeclaringType()) {
 
@@ -2273,7 +2273,12 @@ public final class MetadataHelper {
             final IGenericParameterProvider owner1 = gp1.getOwner();
             final IGenericParameterProvider owner2 = gp2.getOwner();
 
-            if (indexOfByIdentity(owner1.getGenericParameters(), gp1) != indexOfByIdentity(owner2.getGenericParameters(), gp2)) {
+            if (owner1 == null || owner2 == null) {
+                if (owner1 != owner2) {
+                    return false;
+                }
+            }
+            else if (indexOfByIdentity(owner1.getGenericParameters(), gp1) != indexOfByIdentity(owner2.getGenericParameters(), gp2)) {
                 return false;
             }
 

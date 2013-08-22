@@ -723,30 +723,51 @@ public final class AstBuilder {
                 return false;
             }
 
-            if (c1 == OpCode.LDC || c1 == OpCode.LDC_W || c1 == OpCode.LDC2_W) {
-                if (!Objects.equals(p1.getOperand(0), p2.getOperand(0))) {
-                    return false;
-                }
-            }
-
-            if (!c1.isLoad() && !c1.isStore()) {
-                if (p1.hasOperand() != p2.hasOperand()) {
-                    return false;
-                }
-
-                if (p1.hasOperand() && p1.getOperand(0) instanceof MemberReference) {
-                    if (!(p2.getOperand(0) instanceof MemberReference)) {
+            switch (c1.getOperandType()) {
+                case TypeReferenceU1:
+                    if (!Objects.equals(p1.getOperand(1), p2.getOperand(1))) {
                         return false;
                     }
+                    // fall through
+                case PrimitiveTypeCode:
+                case TypeReference: {
+                    if (!Objects.equals(p1.getOperand(0), p2.getOperand(0))) {
+                        return false;
+                    }
+                    break;
+                }
 
+                case MethodReference:
+                case FieldReference: {
                     final MemberReference m1 = p1.getOperand(0);
                     final MemberReference m2 = p2.getOperand(0);
 
                     if (!StringUtilities.equals(m1.getFullName(), m2.getFullName()) ||
-                        !StringUtilities.equals(m1.getSignature(), m2.getSignature())) {
+                        !StringUtilities.equals(m1.getErasedSignature(), m2.getErasedSignature())) {
 
                         return false;
                     }
+
+                    break;
+                }
+
+                case I1:
+                case I2:
+                case I8:
+                case Constant:
+                case WideConstant: {
+                    if (!Objects.equals(p1.getOperand(0), p2.getOperand(0))) {
+                        return false;
+                    }
+                    break;
+                }
+
+                case LocalI1:
+                case LocalI2: {
+                    if (!Objects.equals(p1.getOperand(1), p2.getOperand(1))) {
+                        return false;
+                    }
+                    break;
                 }
             }
         }
@@ -2901,7 +2922,7 @@ public final class AstBuilder {
 
             final ParameterDefinition parameter = parameterMap[slot];
 
-            if (parameter != null) {
+            /*if (parameter != null) {
                 final Variable variable = new Variable();
 
                 variable.setName(
@@ -3009,8 +3030,31 @@ public final class AstBuilder {
 
                 newVariables = Collections.singletonList(variableInfo);
             }
-            else {
+            else*/
+            {
                 newVariables = new ArrayList<>();
+
+                boolean parameterVariableAdded = false;
+                VariableInfo parameterVariable = null;
+
+                if (parameter != null) {
+                    final Variable variable = new Variable();
+
+                    variable.setName(
+                        StringUtilities.isNullOrEmpty(parameter.getName()) ? "p" + parameter.getPosition()
+                                                                           : parameter.getName()
+                    );
+
+                    variable.setType(parameter.getParameterType());
+                    variable.setOriginalParameter(parameter);
+                    variable.setOriginalVariable(vDef);
+
+                    parameterVariable = new VariableInfo(
+                        variable,
+                        new ArrayList<ByteCode>(),
+                        new ArrayList<ByteCode>()
+                    );
+                }
 
                 for (final ByteCode b : definitions) {
                     final Variable variable = new Variable();
@@ -3099,13 +3143,30 @@ public final class AstBuilder {
                 for (final ByteCode ref : references) {
                     final ByteCode[] refDefinitions = ref.variablesBefore[slot].definitions;
 
-                    if (refDefinitions.length == 1) {
+                    if (refDefinitions.length == 0 && parameterVariable != null) {
+                        parameterVariable.references.add(ref);
+
+                        if (!parameterVariableAdded) {
+                            newVariables.add(parameterVariable);
+                            parameterVariableAdded = true;
+                        }
+                    }
+                    else if (refDefinitions.length == 1) {
                         VariableInfo newVariable = null;
 
                         for (final VariableInfo v : newVariables) {
                             if (v.definitions.contains(refDefinitions[0])) {
                                 newVariable = v;
                                 break;
+                            }
+                        }
+
+                        if (newVariable == null && parameterVariable != null) {
+                            newVariable = parameterVariable;
+
+                            if (!parameterVariableAdded) {
+                                newVariables.add(parameterVariable);
+                                parameterVariableAdded = true;
                             }
                         }
 
@@ -3140,6 +3201,15 @@ public final class AstBuilder {
                         for (final VariableInfo v : mergeVariables) {
                             mergedDefinitions.addAll(v.definitions);
                             mergedReferences.addAll(v.references);
+                        }
+
+                        if (mergeVariables.isEmpty() && parameterVariable != null) {
+                            mergeVariables.add(parameterVariable);
+
+                            if (!parameterVariableAdded) {
+                                newVariables.add(parameterVariable);
+                                parameterVariableAdded = true;
+                            }
                         }
 
                         final VariableInfo mergedVariable = new VariableInfo(

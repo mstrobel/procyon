@@ -740,7 +740,39 @@ public class StackMappingVisitor implements MethodVisitor {
                                 }
                             }
 
-                            if (code != OpCode.INVOKESTATIC && code != OpCode.INVOKEDYNAMIC) {
+                            /*if (code == OpCode.INVOKEDYNAMIC) {
+                                final MethodDefinition resolved = method instanceof MethodReference ? ((MethodReference) method).resolve()
+                                                                                                    : null;
+
+                                if (resolved != null) {
+                                    if (!resolved.isStatic() && !resolved.isConstructor()) {
+                                        _temp.push(pop());
+                                    }
+                                }
+                                else {
+                                    final DynamicCallSite callSite = instruction.getOperand(0);
+                                    final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
+
+                                    if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
+                                        StringUtilities.equals("metaFactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) &&
+                                        callSite.getBootstrapArguments().size() == 3 &&
+                                        callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
+
+                                        final MethodHandle targetMethodHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
+
+                                        switch (targetMethodHandle.getHandleType()) {
+                                            case GetField:
+                                            case PutField:
+                                            case InvokeVirtual:
+                                            case InvokeInterface:
+                                            case InvokeSpecial:
+                                                _temp.push(pop());
+                                                break;
+                                        }
+                                    }
+                                }
+                            }
+                            else*/ if (code != OpCode.INVOKESTATIC && code != OpCode.INVOKEDYNAMIC) {
                                 _temp.push(pop());
                             }
 

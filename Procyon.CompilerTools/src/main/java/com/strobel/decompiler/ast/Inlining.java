@@ -24,20 +24,25 @@ import java.util.List;
 import java.util.Map;
 
 import static com.strobel.core.CollectionUtilities.getOrDefault;
-import static com.strobel.core.CollectionUtilities.single;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 import static java.lang.String.format;
 
 final class Inlining {
     private final DecompilerContext _context;
     private final Block _method;
+    private final boolean _aggressive;
 
     final Map<Variable, MutableInteger> loadCounts;
     final Map<Variable, MutableInteger> storeCounts;
 
     public Inlining(final DecompilerContext context, final Block method) {
+        this(context, method, false);
+    }
+
+    public Inlining(final DecompilerContext context, final Block method, final boolean aggressive) {
         _context = context;
         _method = method;
+        _aggressive = aggressive;
 
         loadCounts = new DefaultMap<>(MutableInteger.SUPPLIER);
         storeCounts = new DefaultMap<>(MutableInteger.SUPPLIER);
@@ -151,7 +156,7 @@ final class Inlining {
             final Node node = body.get(i);
 
             if (matchGetArgument(node, AstCode.Store, tempVariable, tempExpression) &&
-                inlineOneIfPossible(block.getBody(), i, false)) {
+                inlineOneIfPossible(block.getBody(), i, _aggressive)) {
 
                 modified = true;
                 i = 0;//Math.max(0, i - 1);
@@ -181,7 +186,7 @@ final class Inlining {
             final Node node = body.get(i);
 
             if (matchGetArgument(node, AstCode.Store, tempVariable, tempExpression) &&
-                inlineOneIfPossible(basicBlock.getBody(), i, false)) {
+                inlineOneIfPossible(basicBlock.getBody(), i, _aggressive)) {
 
                 modified = true;
                 i = Math.max(0, i - 1);
@@ -198,7 +203,7 @@ final class Inlining {
         final int currentPosition = position.getValue();
 
         if (inlineOneIfPossible(body, currentPosition, true)) {
-            position.setValue(currentPosition - inlineInto(body, currentPosition, false));
+            position.setValue(currentPosition - inlineInto(body, currentPosition, _aggressive));
             return true;
         }
 
@@ -243,6 +248,10 @@ final class Inlining {
         final int loadCount = count(loadCounts, variable);
 
         if (storeCount != 1 || loadCount > 1) {
+            return false;
+        }
+
+        if (!(aggressive ? notFromMetadata(variable) : variable.isGenerated())) {
             return false;
         }
 
@@ -412,15 +421,11 @@ final class Inlining {
         final Node node = body.get(position);
 
         if (matchGetArgument(node, AstCode.Store, variable, inlinedExpression)) {
-            final Node next = getOrDefault(body, position + 1);
-            final Variable v = variable.get();
-            final Expression e = inlinedExpression.get();
-
-            if (inlineIfPossible(v, e, next, aggressive)) {
+            if (inlineIfPossible(variable.get(), inlinedExpression.get(), getOrDefault(body, position + 1), aggressive)) {
                 //
                 // Assign the ranges of the Store instruction.
                 //
-                e.getRanges().addAll(((Expression) node).getRanges());
+                inlinedExpression.get().getRanges().addAll(((Expression) node).getRanges());
 
                 //
                 // Remove the store instruction.
@@ -428,38 +433,14 @@ final class Inlining {
                 body.remove(position);
                 return true;
             }
-            else if (matchStore(e, variable, inlinedExpression)) {
-                //
-                // Check to see if we have an expression like 'x = y = <some expression>` followed by an
-                // expression that loads 'y'.  If so, see if we can substitute 'x' for 'y' and remove 'y'.
-                //
 
-                final Expression loadThisInstead = new Expression(AstCode.Load, v);
-
-                if (inlineIfPossible(variable.get(), loadThisInstead, next, aggressive)) {
-                    //
-                    // Hoist the inner store up, clear the load/store counts for the removed variable,
-                    // increment the load count for this variable.
-                    //
-
-                    ((Expression) node).getArguments().set(0, single(e.getArguments()));
-
-                    storeCounts.get(variable.get()).setValue(0);
-                    loadCounts.get(variable.get()).setValue(0);
-
-                    increment(loadCounts, v);
-
-                    return true;
-                }
-            }
-
-            if (count(loadCounts, v) == 0 &&
-                notFromMetadata(v)) {
+            if (count(loadCounts, variable.get()) == 0 &&
+                (aggressive ? notFromMetadata(variable.get()) : variable.get().isGenerated())) {
 
                 //
                 // The variable is never loaded.
                 //
-                if (hasNoSideEffect(e)) {
+                if (hasNoSideEffect(inlinedExpression.get())) {
                     //
                     // Remove the expression completely.
                     //
@@ -467,16 +448,16 @@ final class Inlining {
                     return true;
                 }
 
-                if (canBeExpressionStatement(e)) {
+                if (canBeExpressionStatement(inlinedExpression.get())) {
                     //
                     // Assign the ranges of the Store instruction.
                     //
-                    e.getRanges().addAll(((Expression) node).getRanges());
+                    inlinedExpression.get().getRanges().addAll(((Expression) node).getRanges());
 
                     //
                     // Remove the store, but keep the inner expression;
                     //
-                    body.set(position, e);
+                    body.set(position, inlinedExpression.get());
                     return true;
                 }
             }
@@ -550,7 +531,7 @@ final class Inlining {
                     //
                     // Inlining may be possible after removal of body.get(i).
                     //
-                    inlineInto(body, i, false);
+                    inlineInto(body, i, _aggressive);
 
                     i -= uninlinedArgs.length + 1;
                 }
@@ -574,9 +555,9 @@ final class Inlining {
                 // Variables can be copied only if both the variable and the target copy variable are generated,
                 // and if the variable has only a single assignment.
                 //
-                return v.isGenerated() &&
-                       copyVariable.isGenerated() &&
-                       count(storeCounts, v) == 1;
+                return //v.isGenerated() &&
+                    copyVariable.isGenerated() &&
+                    count(storeCounts, v) == 1;
             }
 
             default: {

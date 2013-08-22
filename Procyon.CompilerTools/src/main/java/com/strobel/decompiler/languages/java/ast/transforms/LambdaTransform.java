@@ -16,22 +16,23 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
-import com.strobel.assembler.metadata.DynamicCallSite;
-import com.strobel.assembler.metadata.MemberReference;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.*;
+import com.strobel.core.Predicates;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class LambdaTransform extends ContextTrackingVisitor<Void> {
+    private final JavaResolver _resolver;
     private final Map<String, MethodDeclaration> _methodDeclarations;
 
     public LambdaTransform(final DecompilerContext context) {
         super(context);
         _methodDeclarations = new HashMap<>();
+        _resolver = new JavaResolver(context);
     }
 
     @Override
@@ -82,17 +83,17 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
 
         final BlockStatement body = (BlockStatement) declaration.getBody().clone();
         final AstNodeCollection<ParameterDeclaration> parameters = declaration.getParameters();
-        final Map<String, String> renamedVariables = new HashMap<>();
+        final Map<String, IdentifierExpression> renamedVariables = new HashMap<>();
         final AstNodeCollection<Expression> closureArguments = methodGroup.getClosureArguments();
 
         Expression a = closureArguments.firstOrNullObject();
 
         for (ParameterDeclaration p = parameters.firstOrNullObject();
              p != null && !p.isNull() && a != null && !a.isNull();
-             p = (ParameterDeclaration) p.getNextSibling(), a = (Expression) a.getNextSibling()) {
+             p = (ParameterDeclaration) p.getNextSibling(p.getRole()), a = (Expression) a.getNextSibling(a.getRole())) {
 
             if (a instanceof IdentifierExpression) {
-                renamedVariables.put(p.getName(), ((IdentifierExpression) a).getIdentifier());
+                renamedVariables.put(p.getName(), (IdentifierExpression) a);
             }
         }
 
@@ -103,10 +104,10 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
                     final String oldName = node.getName();
 
                     if (oldName != null) {
-                        final String newName = renamedVariables.get(oldName);
+                        final IdentifierExpression newName = renamedVariables.get(oldName);
 
-                        if (newName != null) {
-                            node.setName(newName);
+                        if (newName != null && newName.getIdentifier() != null) {
+                            node.setName(newName.getIdentifier());
                         }
                     }
 
@@ -118,10 +119,11 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
                     final String oldName = node.getIdentifier();
 
                     if (oldName != null) {
-                        final String newName = renamedVariables.get(oldName);
+                        final IdentifierExpression newName = renamedVariables.get(oldName);
 
                         if (newName != null) {
-                            node.setIdentifier(newName);
+                            node.replaceWith(newName.clone());
+                            return null;
                         }
                     }
 
@@ -133,9 +135,14 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
 
         final LambdaExpression lambda = new LambdaExpression();
         final DynamicCallSite callSite = methodGroup.getUserData(Keys.DYNAMIC_CALL_SITE);
+        final TypeReference lambdaType = methodGroup.getUserData(Keys.TYPE_REFERENCE);
 
         if (callSite != null) {
             lambda.putUserData(Keys.DYNAMIC_CALL_SITE, callSite);
+        }
+
+        if (lambdaType != null) {
+            lambda.putUserData(Keys.TYPE_REFERENCE, lambdaType);
         }
 
         body.remove();
@@ -154,6 +161,7 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
             lambda.setBody(body);
         }
 
+        int parameterCount = 0;
         int parametersToSkip = closureArguments.size();
 
         for (final ParameterDeclaration p : declaration.getParameters()) {
@@ -165,9 +173,66 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
 
             lambdaParameter.setType(AstType.NULL);
             lambda.addChild(lambdaParameter, Roles.PARAMETER);
+
+            ++parameterCount;
+        }
+
+        if (!MetadataHelper.isRawType(lambdaType)) {
+            final TypeDefinition resolvedType = lambdaType.resolve();
+
+            if (resolvedType != null) {
+                MethodReference functionMethod = null;
+
+                final List<MethodReference> methods = MetadataHelper.findMethods(
+                    resolvedType,
+                    callSite != null ? MetadataFilters.matchName(callSite.getMethodName())
+                                     : Predicates.<MemberReference>alwaysTrue()
+                );
+
+                for (final MethodReference m : methods) {
+                    final MethodDefinition r = m.resolve();
+
+                    if (r != null && r.isAbstract() && !r.isStatic() && !r.isDefault()) {
+                        functionMethod = r;
+                        break;
+                    }
+                }
+
+                if (functionMethod != null &&
+                    functionMethod.containsGenericParameters() &&
+                    functionMethod.getParameters().size() == parameterCount) {
+
+                    final TypeReference asMemberOf = MetadataHelper.asSuper(functionMethod.getDeclaringType(), lambdaType);
+
+                    if (asMemberOf != null && !MetadataHelper.isRawType(asMemberOf)) {
+                        functionMethod = MetadataHelper.asMemberOf(
+                            functionMethod,
+                            MetadataHelper.isRawType(asMemberOf) ? MetadataHelper.erase(asMemberOf)
+                                                                 : asMemberOf
+                        );
+
+                        lambda.putUserData(Keys.MEMBER_REFERENCE, functionMethod);
+
+                        if (functionMethod != null) {
+                            int i;
+                            ParameterDeclaration p;
+
+                            final List<ParameterDefinition> fp = functionMethod.getParameters();
+
+                            for (i = 0, p = lambda.getParameters().firstOrNullObject();
+                                 i < parameterCount;
+                                 i++, p = p.getNextSibling(Roles.PARAMETER)) {
+
+                                p.putUserData(Keys.PARAMETER_DEFINITION, fp.get(i));
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         methodGroup.replaceWith(lambda);
+        lambda.acceptVisitor(this, null);
     }
 
     private static String makeMethodKey(final MethodReference method) {

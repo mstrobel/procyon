@@ -2,12 +2,16 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.ConversionType;
+import com.strobel.assembler.metadata.IMethodSignature;
 import com.strobel.assembler.metadata.JvmType;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MetadataHelper;
+import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.Predicates;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.languages.java.utilities.RedundantCastUtility;
+import com.strobel.decompiler.languages.java.utilities.TypeUtilities;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
@@ -71,22 +75,33 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         if (member == null) {
             return null;
         }
+        final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
 
-        final ResolveResult valueResult = _resolver.apply(node.getTarget());
-
-        if (valueResult == null ||
-            valueResult.getType() == null ||
-            MetadataHelper.isAssignableFrom(member.getDeclaringType(), valueResult.getType(), true)) {
-
+        if (astBuilder == null) {
             return null;
         }
 
-        final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+        final ResolveResult valueResult = _resolver.apply(node.getTarget());
 
-        if (astBuilder == null)
-            return null;
+        TypeReference declaringType = member.getDeclaringType();
 
-        addCastForAssignment(astBuilder.convertType(member.getDeclaringType(), NO_IMPORT_OPTIONS), node.getTarget());
+        if (valueResult != null &&
+            valueResult.getType() != null &&
+            valueResult.getType().isGenericType() &&
+            !MetadataHelper.isAssignableFrom(declaringType, valueResult.getType())) {
+
+            if (declaringType.isGenericType() ||
+                MetadataHelper.isRawType(declaringType)) {
+
+                final TypeReference asSuper = MetadataHelper.asSuper(declaringType, valueResult.getType());
+
+                if (asSuper != null) {
+                    declaringType = asSuper;
+                }
+            }
+        }
+
+        addCastForAssignment(astBuilder.convertType(declaringType, NO_IMPORT_OPTIONS), node.getTarget());
 
         return null;
     }
@@ -115,13 +130,45 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
     public Void visitReturnStatement(final ReturnStatement node, final Void data) {
         super.visitReturnStatement(node, data);
 
-        final MethodDeclaration method = firstOrDefault(node.getAncestors(MethodDeclaration.class));
+        final AstNode function = firstOrDefault(
+            node.getAncestors(),
+            Predicates.or(
+                Predicates.<AstNode>instanceOf(MethodDeclaration.class),
+                Predicates.<AstNode>instanceOf(LambdaExpression.class)
+            )
+        );
 
-        if (method == null) {
+        if (function == null) {
             return null;
         }
 
-        final AstType left = method.getReturnType();
+        final AstType left;
+
+        if (function instanceof MethodDeclaration) {
+            left = ((MethodDeclaration) function).getReturnType();
+        }
+        else {
+            final TypeReference expectedType = TypeUtilities.getExpectedTypeByParent(_resolver, (Expression) function);
+
+            if (expectedType == null) {
+                return null;
+            }
+
+            final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+            if (astBuilder == null) {
+                return null;
+            }
+
+            final IMethodSignature method = TypeUtilities.getLambdaSignature((LambdaExpression) function);
+
+            if (method == null) {
+                return null;
+            }
+
+            left = astBuilder.convertType(method.getReturnType(), NO_IMPORT_OPTIONS);
+        }
+
         final Expression right = node.getExpression();
 
         addCastForAssignment(left, right);

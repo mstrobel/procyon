@@ -138,7 +138,13 @@ public final class Expression extends Node implements Cloneable, UserDataStore {
     @Override
     public final List<Node> getChildren() {
         final ArrayList<Node> childrenCopy = new ArrayList<>();
+
         childrenCopy.addAll(_arguments);
+
+        if (_operand instanceof Lambda) {
+            childrenCopy.add((Node) _operand);
+        }
+
         return childrenCopy;
     }
 

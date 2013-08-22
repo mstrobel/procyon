@@ -1295,6 +1295,48 @@ public final class ClassFileReader extends MetadataReader {
 
             return _constantPool.lookupConstant(token);
         }
+
+        @Override
+        public Object lookup(final int token) {
+            final ConstantPool.Entry entry = _constantPool.get(token);
+
+            if (entry == null)
+                return null;
+
+            switch (entry.getTag()) {
+                case Utf8StringConstant:
+                case IntegerConstant:
+                case FloatConstant:
+                case LongConstant:
+                case DoubleConstant:
+                case StringConstant:
+                    return lookupConstant(token);
+
+                case TypeInfo:
+                    return lookupType(token);
+
+                case FieldReference:
+                    return lookupField(token);
+
+                case MethodReference:
+                    return lookupMethod(token);
+
+                case InterfaceMethodReference:
+                    return lookupMethod(token);
+
+                case MethodHandle:
+                    return lookupMethodHandle(token);
+
+                case MethodType:
+                    return lookupMethodType(token);
+
+                case InvokeDynamicInfo:
+                    return lookupDynamicCallSite(token);
+
+                default:
+                    return null;
+            }
+        }
     }
 
     // </editor-fold>

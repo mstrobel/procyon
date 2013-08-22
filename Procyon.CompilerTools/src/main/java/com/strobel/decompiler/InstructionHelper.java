@@ -176,9 +176,39 @@ public final class InstructionHelper {
 
                 int count = parameters.size();
 
-                if (instruction.getOpCode() != OpCode.INVOKESTATIC &&
-                    instruction.getOpCode() != OpCode.INVOKEDYNAMIC) {
+                /*if (instruction.getOpCode() == OpCode.INVOKEDYNAMIC) {
+                    final MethodDefinition resolved = signature instanceof MethodReference ? ((MethodReference) signature).resolve()
+                                                                                           : null;
 
+                    if (resolved != null) {
+                        if (!resolved.isStatic() && !resolved.isConstructor()) {
+                            ++count;
+                        }
+                    }
+                    else {
+                        final DynamicCallSite callSite = instruction.getOperand(0);
+                        final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
+
+                        if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
+                            StringUtilities.equals("metaFactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) &&
+                            callSite.getBootstrapArguments().size() == 3 &&
+                            callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
+
+                            final MethodHandle targetMethodHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
+
+                            switch (targetMethodHandle.getHandleType()) {
+                                case GetField:
+                                case PutField:
+                                case InvokeVirtual:
+                                case InvokeInterface:
+                                case InvokeSpecial:
+                                    ++count;
+                                    break;
+                            }
+                        }
+                    }
+                }
+                else*/ if (code != OpCode.INVOKESTATIC && code != OpCode.INVOKEDYNAMIC) {
                     ++count;
                 }
 

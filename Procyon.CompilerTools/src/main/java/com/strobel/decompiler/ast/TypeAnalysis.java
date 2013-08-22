@@ -36,6 +36,7 @@ import static com.strobel.decompiler.ast.PatternMatching.*;
 public final class TypeAnalysis {
     private final List<ExpressionToInfer> _allExpressions = new ArrayList<>();
     private final Set<Variable> _singleLoadVariables = new LinkedHashSet<>();
+    private final Set<Variable> _allVariables = new LinkedHashSet<>();
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final Map<Variable, List<ExpressionToInfer>> _assignmentExpressions = new IdentityHashMap<Variable, List<ExpressionToInfer>>() {
@@ -155,8 +156,14 @@ public final class TypeAnalysis {
 
                 _assignmentExpressions.get(expression.getOperand()).add(expressionToInfer);
             }
+        }
+        else if (node instanceof Lambda) {
+            final Lambda lambda = (Lambda) node;
+            final List<Variable> parameters = lambda.getParameters();
 
-            return;
+            for (final Variable parameter : parameters) {
+                _assignmentExpressions.get(parameter);
+            }
         }
 
         for (final Node child : node.getChildren()) {
@@ -167,6 +174,12 @@ public final class TypeAnalysis {
     @SuppressWarnings("ConstantConditions")
     private void findNestedAssignments(final Expression expression, final ExpressionToInfer parent) {
         for (final Expression argument : expression.getArguments()) {
+            final Object operand = argument.getOperand();
+
+            if (operand instanceof Variable) {
+                _allVariables.add((Variable) operand);
+            }
+
             if (argument.getCode() == AstCode.Store) {
                 final ExpressionToInfer expressionToInfer = new ExpressionToInfer();
 
@@ -174,9 +187,7 @@ public final class TypeAnalysis {
 
                 _allExpressions.add(expressionToInfer);
 
-                findNestedAssignments(argument, expressionToInfer);
-
-                final Variable variable = (Variable) argument.getOperand();
+                final Variable variable = (Variable) operand;
 
                 if (shouldInferVariableType(variable)) {
                     _assignmentExpressions.get(variable).add(expressionToInfer);
@@ -194,7 +205,7 @@ public final class TypeAnalysis {
 
                 _allExpressions.add(expressionToInfer);
 
-                final Variable variable = (Variable) argument.getOperand();
+                final Variable variable = (Variable) operand;
 
                 if (shouldInferVariableType(variable)) {
                     _assignmentExpressions.get(variable).add(expressionToInfer);
@@ -219,27 +230,27 @@ public final class TypeAnalysis {
 
                 if (load != null &&
                     matchLoadOrRet(load, variable) &&
-                    shouldInferVariableType(variable.get())) {
+                    shouldInferVariableType(variable.value)) {
 
-                    _assignmentExpressions.get(variable.get()).add(expressionToInfer);
+                    _assignmentExpressions.get(variable.value).add(expressionToInfer);
 
                     //
                     // The instruction that consumes the Store result is handled as if it was reading the variable.
                     //
-                    parent.dependencies.add(variable.get());
+                    parent.dependencies.add(variable.value);
                 }
             }
             else {
                 final StrongBox<Variable> variable = new StrongBox<>();
 
                 if (matchLoadOrRet(argument, variable) &&
-                    shouldInferVariableType(variable.get())) {
+                    shouldInferVariableType(variable.value)) {
 
-                    parent.dependencies.add(variable.get());
+                    parent.dependencies.add(variable.value);
                 }
-
-                findNestedAssignments(argument, parent);
             }
+
+            findNestedAssignments(argument, parent);
         }
     }
 
@@ -358,11 +369,11 @@ public final class TypeAnalysis {
     private void verifyResults() {
         final StrongBox<Expression> a = new StrongBox<>();
 
-        for (final Variable variable : _assignmentExpressions.keySet()) {
+        for (final Variable variable : _allVariables) {
             final TypeReference type = variable.getType();
 
             if (type == null || type == BuiltinTypes.Null) {
-                variable.setType(BuiltinTypes.Object);
+                variable.setType(inferTypeForVariable(variable, BuiltinTypes.Object));
             }
             else if (type.getSimpleType() == JvmType.Boolean) {
                 //
@@ -372,14 +383,14 @@ public final class TypeAnalysis {
 
                 for (final ExpressionToInfer e : _assignmentExpressions.get(variable)) {
                     if (matchStore(e.expression, variable, a)) {
-                        final Boolean booleanConstant = matchBooleanConstant(a.get());
+                        final Boolean booleanConstant = matchBooleanConstant(a.value);
 
                         if (booleanConstant != null) {
                             e.expression.setExpectedType(BuiltinTypes.Boolean);
                             e.expression.setInferredType(BuiltinTypes.Boolean);
-                            a.get().setExpectedType(BuiltinTypes.Boolean);
-                            a.get().setInferredType(BuiltinTypes.Boolean);
-                            a.get().setOperand(booleanConstant);
+                            a.value.setExpectedType(BuiltinTypes.Boolean);
+                            a.value.setInferredType(BuiltinTypes.Boolean);
+                            a.value.setOperand(booleanConstant);
                         }
                     }
                 }
@@ -392,14 +403,14 @@ public final class TypeAnalysis {
 
                 for (final ExpressionToInfer e : _assignmentExpressions.get(variable)) {
                     if (matchStore(e.expression, variable, a)) {
-                        final Character characterConstant = matchCharacterConstant(a.get());
+                        final Character characterConstant = matchCharacterConstant(a.value);
 
                         if (characterConstant != null) {
                             e.expression.setExpectedType(BuiltinTypes.Character);
                             e.expression.setInferredType(BuiltinTypes.Character);
-                            a.get().setExpectedType(BuiltinTypes.Character);
-                            a.get().setInferredType(BuiltinTypes.Character);
-                            a.get().setOperand(characterConstant);
+                            a.value.setExpectedType(BuiltinTypes.Character);
+                            a.value.setInferredType(BuiltinTypes.Character);
+                            a.value.setOperand(characterConstant);
                         }
                     }
                 }
@@ -806,10 +817,7 @@ public final class TypeAnalysis {
                         return callSite.getMethodType().getReturnType();
                     }
 
-                    return MetadataHelper.substituteGenericArguments(
-                        expectedType,
-                        callSite.getMethodType().getReturnType()
-                    );
+                    return MetadataHelper.asSubType(callSite.getMethodType().getReturnType(), expectedType);
                 }
 
                 case InvokeVirtual:
@@ -864,7 +872,7 @@ public final class TypeAnalysis {
 
 
                             final MethodReference m = targetType != null ? MetadataHelper.asMemberOf(r != null ? r : method, targetType)
-                                                                       : method;
+                                                                         : method;
 
                             if (m != null) {
                                 actualMethod = m;
@@ -1690,11 +1698,265 @@ public final class TypeAnalysis {
                 case __DReturn:
                 case __AReturn:
                 case Return: {
+                    final Expression lambdaBinding = expression.getUserData(AstKeys.PARENT_LAMBDA_BINDING);
+
+                    if (lambdaBinding != null) {
+                        final Lambda lambda = (Lambda) lambdaBinding.getOperand();
+                        final MethodReference method = lambda.getMethod();
+
+                        if (method == null) {
+                            return null;
+                        }
+
+                        final TypeReference oldInferredType = lambda.getInferredReturnType();
+
+                        TypeReference inferredType = expectedType;
+
+                        TypeReference returnType = oldInferredType != null ? oldInferredType
+                                                                           : expectedType;
+
+                        if (forceInferChildren) {
+                            if (returnType == null) {
+                                returnType = lambda.getMethod().getReturnType();
+                            }
+
+                            if (returnType.containsGenericParameters()) {
+                                Map<TypeReference, TypeReference> mappings = null;
+                                TypeReference declaringType = method.getDeclaringType();
+
+                                if (declaringType.isGenericType()) {
+                                    for (final GenericParameter gp : declaringType.getGenericParameters()) {
+                                        final GenericParameter inScope = _context.getCurrentMethod().findTypeVariable(gp.getName());
+
+                                        if (inScope != null && MetadataHelper.isSameType(gp, inScope)) {
+                                            continue;
+                                        }
+
+                                        if (mappings == null) {
+                                            mappings = new HashMap<>();
+                                        }
+
+                                        if (!mappings.containsKey(gp)) {
+                                            mappings.put(gp, BuiltinTypes.Object);
+                                        }
+                                    }
+
+                                    if (mappings != null) {
+                                        declaringType = TypeSubstitutionVisitor.instance().visit(declaringType, mappings);
+
+                                        if (declaringType != null) {
+                                            final MethodReference boundMethod = MetadataHelper.asMemberOf(
+                                                method,
+                                                declaringType
+                                            );
+
+                                            if (boundMethod != null) {
+                                                returnType = boundMethod.getReturnType();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            inferredType = inferTypeForExpression(arguments.get(0), returnType);
+
+                            if (oldInferredType != null) {
+                                final TypeReference newInferredType = MetadataHelper.asSuper(
+                                    inferredType,
+                                    oldInferredType
+                                );
+
+                                if (newInferredType != null) {
+                                    inferredType = newInferredType;
+                                }
+                            }
+                        }
+
+                        lambda.setExpectedReturnType(returnType);
+                        lambda.setInferredReturnType(inferredType);
+
+                        return inferredType;
+                    }
+
                     final TypeReference returnType = _context.getCurrentMethod().getReturnType();
+
                     if (forceInferChildren && arguments.size() == 1) {
                         inferTypeForExpression(arguments.get(0), returnType);
                     }
                     return returnType;
+                }
+
+                case Bind: {
+                    final Lambda lambda = (Lambda) expression.getOperand();
+
+                    if (lambda == null) {
+                        return null;
+                    }
+
+                    final MethodReference method = lambda.getMethod();
+                    final List<Variable> parameters = lambda.getParameters();
+
+                    TypeReference functionType = lambda.getFunctionType();
+
+                    if (functionType != null && expectedType != null) {
+                        final TypeReference asSubType = MetadataHelper.asSubType(functionType, expectedType);
+
+                        if (asSubType != null) {
+                            functionType = asSubType;
+                        }
+                    }
+
+                    MethodReference boundMethod = MetadataHelper.asMemberOf(method, functionType);
+
+                    if (boundMethod == null) {
+                        boundMethod = method;
+                    }
+
+                    List<ParameterDefinition> methodParameters = boundMethod.getParameters();
+
+                    final int argumentCount = Math.min(arguments.size(), methodParameters.size());
+
+                    TypeReference inferredReturnType = null;
+
+                    if (forceInferChildren) {
+                        for (int i = 0, n = argumentCount; i < n; i++) {
+                            final Expression argument = arguments.get(i);
+
+                            inferTypeForExpression(
+                                argument,
+                                methodParameters.get(i).getParameterType()
+                            );
+                        }
+
+                        for (final Expression e : lambda.getChildrenAndSelfRecursive(Expression.class)) {
+                            if (match(e, AstCode.Return)) {
+                                runInference(e);
+
+                                if (e.getInferredType() != null) {
+                                    if (inferredReturnType != null) {
+                                        inferredReturnType = MetadataHelper.asSuper(e.getInferredType(), inferredReturnType);
+                                    }
+                                    else {
+                                        inferredReturnType = e.getInferredType();
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    final MethodDefinition r = boundMethod.resolve();
+
+                    if (functionType.containsGenericParameters() && boundMethod.containsGenericParameters() ||
+                        r != null && r.getDeclaringType().containsGenericParameters() && r.containsGenericParameters()) {
+
+                        final Map<TypeReference, TypeReference> mappings;
+                        final Map<TypeReference, TypeReference> oldMappings = new HashMap<>();
+                        final Map<TypeReference, TypeReference> newMappings = new HashMap<>();
+
+                        final List<ParameterDefinition> p = boundMethod.getParameters();
+                        final List<ParameterDefinition> rp = r != null ? r.getParameters() : method.getParameters();
+
+                        final TypeReference returnType = r != null ? r.getReturnType()
+                                                                   : method.getReturnType();
+
+                        if (inferredReturnType != null) {
+                            if (returnType.isGenericParameter()) {
+                                final TypeReference boundReturnType = ensureReferenceType(inferredReturnType);
+
+                                if (!MetadataHelper.isSameType(boundReturnType, returnType)) {
+                                    newMappings.put(returnType, boundReturnType);
+                                }
+                            }
+                            else if (returnType.containsGenericParameters()) {
+                                final Map<TypeReference, TypeReference> returnMappings = new HashMap<>();
+
+                                new AddMappingsForArgumentVisitor(returnType).visit(
+                                    inferredReturnType,
+                                    returnMappings
+                                );
+
+                                newMappings.putAll(returnMappings);
+                            }
+                        }
+
+                        for (int i = 0, j = Math.max(0, parameters.size() - arguments.size()); i < arguments.size(); i++, j++) {
+                            final Expression argument = arguments.get(i);
+                            final TypeReference rType = rp.get(j).getParameterType();
+                            final TypeReference pType = p.get(j).getParameterType();
+                            final TypeReference aType = argument.getInferredType();
+
+                            if (pType != null && rType.containsGenericParameters()) {
+                                new AddMappingsForArgumentVisitor(pType).visit(rType, oldMappings);
+                            }
+
+                            if (aType != null && rType.containsGenericParameters()) {
+                                new AddMappingsForArgumentVisitor(aType).visit(rType, newMappings);
+                            }
+                        }
+
+                        mappings = oldMappings;
+
+                        if (!newMappings.isEmpty()) {
+                            for (final TypeReference t : newMappings.keySet()) {
+                                final TypeReference oldMapping = oldMappings.get(t);
+                                final TypeReference newMapping = newMappings.get(t);
+
+                                if (oldMapping == null || MetadataHelper.isSubType(newMapping, oldMapping)) {
+                                    mappings.put(t, newMapping);
+                                }
+                            }
+                        }
+
+                        if (!mappings.isEmpty()) {
+                            final TypeReference declaringType = (r != null ? r : method).getDeclaringType();
+
+                            TypeReference boundDeclaringType = TypeSubstitutionVisitor.instance().visit(declaringType, mappings);
+
+                            if (boundDeclaringType != null && boundDeclaringType.isGenericType()) {
+                                for (final GenericParameter gp : boundDeclaringType.getGenericParameters()) {
+                                    final GenericParameter inScope = _context.getCurrentMethod().findTypeVariable(gp.getName());
+
+                                    if (inScope != null && MetadataHelper.isSameType(gp, inScope)) {
+                                        continue;
+                                    }
+
+                                    if (!mappings.containsKey(gp)) {
+                                        mappings.put(gp, BuiltinTypes.Object);
+                                    }
+                                }
+
+                                boundDeclaringType = TypeSubstitutionVisitor.instance().visit(boundDeclaringType, mappings);
+                            }
+
+                            if (boundDeclaringType != null) {
+                                functionType = boundDeclaringType;
+                            }
+
+                            final MethodReference newBoundMethod = MetadataHelper.asMemberOf(boundMethod, boundDeclaringType);
+
+                            if (newBoundMethod != null) {
+                                boundMethod = newBoundMethod;
+                                lambda.setMethod(boundMethod);
+                                methodParameters = boundMethod.getParameters();
+                            }
+                        }
+
+                        for (int i = 0; i < methodParameters.size(); i++) {
+                            final Variable variable = parameters.get(i);
+                            final TypeReference variableType = methodParameters.get(i).getParameterType();
+                            final TypeReference oldVariableType = variable.getType();
+
+                            _inferredVariableTypes.put(variable, variableType);
+
+                            variable.setType(variableType);
+
+                            if (oldVariableType == null || !MetadataHelper.isSameType(variableType, oldVariableType)) {
+                                invalidateDependentExpressions(expression, variable);
+                            }
+                        }
+                    }
+
+                    return functionType;
                 }
 
                 case Jsr: {
@@ -2151,8 +2413,12 @@ public final class TypeAnalysis {
 
             final TypeReference existingMapping = map.get(t);
 
+            TypeReference mappedType = argumentType;
+
+            mappedType = ensureReferenceType(mappedType);
+
             if (existingMapping == null) {
-                map.put(t, argumentType);
+                map.put(t, mappedType);
             }
             else {
                 map.put(t, MetadataHelper.findCommonSuperType(existingMapping, argumentType));
@@ -2215,5 +2481,34 @@ public final class TypeAnalysis {
         public Void visitRawType(final RawType t, final Map<TypeReference, TypeReference> map) {
             return null;
         }
+    }
+
+    private static TypeReference ensureReferenceType(final TypeReference mappedType) {
+        if (mappedType == null) {
+            return null;
+        }
+
+        if (mappedType.isPrimitive()) {
+            switch (mappedType.getSimpleType()) {
+                case Boolean:
+                    return CommonTypeReferences.Boolean;
+                case Byte:
+                    return CommonTypeReferences.Byte;
+                case Character:
+                    return CommonTypeReferences.Character;
+                case Short:
+                    return CommonTypeReferences.Short;
+                case Integer:
+                    return CommonTypeReferences.Integer;
+                case Long:
+                    return CommonTypeReferences.Long;
+                case Float:
+                    return CommonTypeReferences.Float;
+                case Double:
+                    return CommonTypeReferences.Double;
+            }
+        }
+
+        return mappedType;
     }
 }

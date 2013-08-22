@@ -65,10 +65,9 @@ public class ThirdPartyTests extends DecompilerTest {
             "    }\n" +
             "    public static strictfp void main(String[] array) {\n" +
             "        if (array != null) {\n" +
-            "            final String[] array2 = array;\n" +
             "            try {\n" +
             "                final ArrayList list;\n" +
-            "                System.out.println(list = (ArrayList)(Object)array2);\n" +
+            "                System.out.println(list = (ArrayList)(Object)array);\n" +
             "                array = (String[])list.toArray(new String[0]);\n" +
             "            }\n" +
             "            catch (ClassCastException ex) {\n" +
@@ -83,27 +82,12 @@ public class ThirdPartyTests extends DecompilerTest {
             "        final int n = 0;\n" +
             "        final int n2 = 1;\n" +
             "        final int n3 = (((o == null) ? 1 : 0) == n) ? 1 : 0;\n" +
-            "        if (n2 != 0) {\n" +
-            "            if (n == 0) {\n" +
-            "                if (n != 0) {}\n" +
-            "            }\n" +
-            "        }\n" +
-            "        else if (n2 != 0) {}\n" +
-            "        Label_0078: {\n" +
-            "            if (n != 0) {\n" +
-            "                if (n2 == 0) {\n" +
-            "                    break Label_0078;\n" +
-            "                }\n" +
-            "            }\n" +
-            "            else if (n3 == 0) {\n" +
-            "                break Label_0078;\n" +
-            "            }\n" +
-            "            return ((Number)o).shortValue();\n" +
-            "        }\n" +
-            "        if (n3 != 0) {}\n" +
+            "        final int n4 = (n2 != 0) ? ((n != 0) ? n2 : ((n != 0) ? n2 : n)) : ((n2 != 0) ? n : n2);\n" +
+            "        final int n5 = ((n != 0) ? (n2 != 0) : (n3 != 0)) ? n4 : ((n3 != 0) ? n2 : n);\n" +
             "        return ((Number)o).shortValue();\n" +
             "    }\n" +
             "}"
         );
     }
 }
+

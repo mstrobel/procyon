@@ -36,7 +36,14 @@ public final class Variable {
     }
 
     public final boolean isParameter() {
-        return _originalParameter != null;
+        if (_originalParameter != null) {
+            return true;
+        }
+
+        final VariableDefinition originalVariable = _originalVariable;
+
+        return originalVariable != null &&
+               originalVariable.isParameter();
     }
 
     public final boolean isGenerated() {
@@ -64,7 +71,19 @@ public final class Variable {
     }
 
     public final ParameterDefinition getOriginalParameter() {
-        return _originalParameter;
+        final ParameterDefinition originalParameter = _originalParameter;
+
+        if (originalParameter != null) {
+            return originalParameter;
+        }
+
+        final VariableDefinition originalVariable = _originalVariable;
+
+        if (originalVariable != null) {
+            return originalVariable.getParameter();
+        }
+
+        return null;
     }
 
     public final void setOriginalParameter(final ParameterDefinition originalParameter) {

@@ -36,6 +36,7 @@ public enum AstOptimizationStep {
     TransformArrayInitializers,
     MakeAssignmentExpressions,
     IntroducePostIncrement,
+    InlineLambdas,
     InlineVariables2,
     FindLoops,
     FindConditions,

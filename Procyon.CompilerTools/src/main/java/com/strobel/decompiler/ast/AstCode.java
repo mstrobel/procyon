@@ -291,6 +291,8 @@ public enum AstCode {
      */
     Wrap,
 
+    Bind,
+
     TernaryOp,
     LoopOrSwitchBreak,
     LoopContinue,
@@ -325,9 +327,10 @@ public enum AstCode {
     public final boolean isLoad() {
         switch (this) {
             case Load:
-            case PreIncrement:
-            case PostIncrement:
+//            case PreIncrement:
+//            case PostIncrement:
             case Ret:
+            case Inc:
                 return true;
 
             default:
@@ -339,8 +342,8 @@ public enum AstCode {
         switch (this) {
             case Store:
             case Inc:
-            case PreIncrement:
-            case PostIncrement:
+//            case PreIncrement:
+//            case PostIncrement:
                 return true;
 
             default:

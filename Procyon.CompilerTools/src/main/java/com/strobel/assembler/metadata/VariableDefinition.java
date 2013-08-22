@@ -31,6 +31,7 @@ public final class VariableDefinition extends VariableReference {
     private int _scopeEnd;
     private boolean _isTypeKnown;
     private boolean _fromMetadata;
+    private ParameterDefinition _parameter;
 
     public VariableDefinition(final int slot, final String name, final MethodDefinition declaringMethod) {
         super(name, VerifyArgument.notNull(declaringMethod, "declaringMethod").getDeclaringType());
@@ -41,6 +42,19 @@ public final class VariableDefinition extends VariableReference {
     public VariableDefinition(final int slot, final String name, final MethodDefinition declaringMethod, final TypeReference variableType) {
         this(slot, name, declaringMethod);
         setVariableType(variableType);
+    }
+
+    public final boolean isParameter() {
+        return _parameter != null;
+    }
+
+    public final ParameterDefinition getParameter() {
+        return _parameter;
+    }
+
+    public final void setParameter(final ParameterDefinition parameter) {
+        verifyNotFrozen();
+        _parameter = parameter;
     }
 
     @Override
@@ -61,6 +75,7 @@ public final class VariableDefinition extends VariableReference {
     }
 
     public final void setScopeStart(final int scopeStart) {
+        verifyNotFrozen();
         _scopeStart = scopeStart;
     }
 
@@ -69,6 +84,7 @@ public final class VariableDefinition extends VariableReference {
     }
 
     public final void setScopeEnd(final int scopeEnd) {
+        verifyNotFrozen();
         _scopeEnd = scopeEnd;
     }
 
@@ -77,6 +93,7 @@ public final class VariableDefinition extends VariableReference {
     }
 
     public final void setTypeKnown(final boolean typeKnown) {
+        verifyNotFrozen();
         _isTypeKnown = typeKnown;
     }
 
@@ -85,6 +102,7 @@ public final class VariableDefinition extends VariableReference {
     }
 
     public final void setFromMetadata(final boolean fromMetadata) {
+        verifyNotFrozen();
         _fromMetadata = fromMetadata;
     }
 

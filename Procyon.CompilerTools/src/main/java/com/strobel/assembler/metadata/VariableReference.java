@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.core.Freezable;
 import com.strobel.core.StringUtilities;
 
 /**
@@ -23,7 +24,7 @@ import com.strobel.core.StringUtilities;
  * Date: 1/6/13
  * Time: 2:07 PM
  */
-public abstract class VariableReference implements IMetadataTypeMember {
+public abstract class VariableReference extends Freezable implements IMetadataTypeMember {
     private String _name;
     private TypeReference _variableType;
 

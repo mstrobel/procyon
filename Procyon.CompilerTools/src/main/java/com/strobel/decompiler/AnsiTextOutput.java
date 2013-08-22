@@ -18,15 +18,7 @@ package com.strobel.decompiler;
 
 import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.OpCode;
-import com.strobel.assembler.metadata.FieldReference;
-import com.strobel.assembler.metadata.IMethodSignature;
-import com.strobel.assembler.metadata.Label;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.PackageReference;
-import com.strobel.assembler.metadata.ParameterReference;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
-import com.strobel.assembler.metadata.VariableReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.ast.AstCode;
 import com.strobel.decompiler.ast.Variable;
@@ -40,6 +32,7 @@ public class AnsiTextOutput extends PlainTextOutput {
     private final static Ansi INSTRUCTION = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*45*//*33*/141), null);
     private final static Ansi LABEL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(249), null);
     private final static Ansi TYPE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(45/*105*//*141*/), null);
+    private final static Ansi TYPE_VARIABLE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(79/*105*//*141*/), null);
     private final static Ansi PACKAGE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(111), null);
     private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*213*/212), null);
     private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(222/*216*/), null);
@@ -235,12 +228,14 @@ public class AnsiTextOutput extends PlainTextOutput {
         final String packageName = type.getPackageName();
         final TypeDefinition resolvedType = type.resolve();
 
+        Ansi typeColor = type.isGenericParameter() ? TYPE_VARIABLE : TYPE;
+
         if (StringUtilities.isNullOrEmpty(packageName)) {
             if (resolvedType != null && resolvedType.isAnnotation()) {
                 return ATTRIBUTE.colorize(text);
             }
             else {
-                return TYPE.colorize(text);
+                return typeColor.colorize(text);
             }
         }
 
@@ -270,8 +265,10 @@ public class AnsiTextOutput extends PlainTextOutput {
             packagePrefix = packageName.replace('.', delimiter) + delimiter;
         }
 
+        final String typeName;
+        final StringBuilder sb = new StringBuilder();
+
         if (StringUtilities.startsWith(s, packagePrefix)) {
-            final StringBuilder sb = new StringBuilder();
             final String[] packageParts = packageName.split("\\.");
 
             for (int i = 0; i < arrayDepth; i++) {
@@ -292,32 +289,30 @@ public class AnsiTextOutput extends PlainTextOutput {
 
             sb.append(DELIMITER.colorize(String.valueOf(delimiter)));
 
-            final String typeName = s.substring(packagePrefix.length());
-            final String[] typeParts = typeName.split("\\$|\\.");
-            final Ansi typeColor = resolvedType != null && resolvedType.isAnnotation() ? ATTRIBUTE : TYPE;
-            final boolean dollar = typeName.indexOf('$') >= 0;
-
-            for (int i = 0; i < typeParts.length; i++) {
-                if (i != 0) {
-                    sb.append(DELIMITER.colorize(dollar ? Delimiters.DOLLAR : Delimiters.DOT));
-                }
-
-                sb.append(typeColor.colorize(typeParts[i]));
-            }
-
-            if (isSignature) {
-                sb.append(DELIMITER.colorize(Delimiters.SEMICOLON));
-            }
-
-            return sb.toString();
-        }
-
-        if (resolvedType != null && resolvedType.isAnnotation()) {
-            return ATTRIBUTE.colorize(text);
+            typeName = s.substring(packagePrefix.length());
         }
         else {
-            return TYPE.colorize(text);
+            typeName = text;
         }
+
+        final String[] typeParts = typeName.split("\\$|\\.");
+        final boolean dollar = typeName.indexOf('$') >= 0;
+
+        typeColor = resolvedType != null && resolvedType.isAnnotation() ? ATTRIBUTE : typeColor;
+
+        for (int i = 0; i < typeParts.length; i++) {
+            if (i != 0) {
+                sb.append(DELIMITER.colorize(dollar ? Delimiters.DOLLAR : Delimiters.DOT));
+            }
+
+            sb.append(typeColor.colorize(typeParts[i]));
+        }
+
+        if (isSignature) {
+            sb.append(DELIMITER.colorize(Delimiters.SEMICOLON));
+        }
+
+        return sb.toString();
     }
 
     private String colorizePackage(final String text) {
