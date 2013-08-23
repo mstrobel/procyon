@@ -64,6 +64,9 @@ public class CommandLineOptions {
     @Parameter(names = { "-ln" }, description = "Include line numbers (raw bytecode mode only).")
     private boolean _includeLineNumbers;
 
+    @Parameter(names = { "-rps", "--remove-pointless-switches" }, description = "Lift the contents of switches having only a default label.")
+    private boolean _removePointlessSwitches;
+
     public final List<String> getClassNames() {
         return _classNames;
     }
@@ -170,5 +173,13 @@ public class CommandLineOptions {
 
     public final void setIncludeLineNumbers(final boolean includeLineNumbers) {
         _includeLineNumbers = includeLineNumbers;
+    }
+
+    public final boolean getRemovePointlessSwitches() {
+        return _removePointlessSwitches;
+    }
+
+    public final void setRemovePointlessSwitches(final boolean removePointlessSwitches) {
+        _removePointlessSwitches = removePointlessSwitches;
     }
 }
