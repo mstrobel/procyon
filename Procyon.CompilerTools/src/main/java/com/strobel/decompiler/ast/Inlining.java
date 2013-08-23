@@ -16,6 +16,8 @@
 
 package com.strobel.decompiler.ast;
 
+import com.strobel.assembler.metadata.MetadataHelper;
+import com.strobel.core.CollectionUtilities;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.StrongBox;
 import com.strobel.decompiler.DecompilerContext;
@@ -23,7 +25,7 @@ import com.strobel.decompiler.DecompilerContext;
 import java.util.List;
 import java.util.Map;
 
-import static com.strobel.core.CollectionUtilities.getOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 import static java.lang.String.format;
 
@@ -34,6 +36,7 @@ final class Inlining {
 
     final Map<Variable, MutableInteger> loadCounts;
     final Map<Variable, MutableInteger> storeCounts;
+    final Map<Variable, List<Expression>> loads;
 
     public Inlining(final DecompilerContext context, final Block method) {
         this(context, method, false);
@@ -46,6 +49,7 @@ final class Inlining {
 
         loadCounts = new DefaultMap<>(MutableInteger.SUPPLIER);
         storeCounts = new DefaultMap<>(MutableInteger.SUPPLIER);
+        loads = new DefaultMap<>(CollectionUtilities.<Expression>listFactory());
 
         analyzeMethod();
     }
@@ -70,6 +74,7 @@ final class Inlining {
 
                 if (code == AstCode.Load) {
                     increment(loadCounts, localVariable);
+                    loads.get(localVariable).add(expression);
                 }
                 else if (code == AstCode.Store) {
                     increment(storeCounts, localVariable);
@@ -77,13 +82,16 @@ final class Inlining {
                 else if (code == AstCode.Inc) {
                     increment(loadCounts, localVariable);
                     increment(storeCounts, localVariable);
+                    loads.get(localVariable).add(expression);
                 }
                 else if (code == AstCode.PostIncrement) {
                     increment(loadCounts, localVariable);
                     increment(storeCounts, localVariable);
+                    loads.get(localVariable).add(expression);
                 }
                 else if (code == AstCode.Ret) {
                     increment(loadCounts, localVariable);
+                    loads.get(localVariable).add(expression);
                 }
                 else {
                     throw new IllegalStateException("Unexpected AST op code: " + code.getName());
@@ -251,7 +259,7 @@ final class Inlining {
             return false;
         }
 
-        if (!(aggressive ? notFromMetadata(variable) : variable.isGenerated())) {
+        if (!canInline(aggressive, variable)) {
             return false;
         }
 
@@ -268,14 +276,25 @@ final class Inlining {
             return false;
         }
 
+        final StrongBox<Variable> v = new StrongBox<>();
         final StrongBox<Expression> parent = new StrongBox<>();
         final MutableInteger position = new MutableInteger();
+
+        if (matchStore(inlinedExpression, v, parent) &&
+            match(parent.value, AstCode.InitArray) &&
+            (match(n, AstCode.LoadElement) || match(n, AstCode.StoreElement))) {
+
+            //
+            // Don't allow creation of `(n = new X[] ( ... )[n]`.  It's ugly, and I hate it.
+            //
+            return false;
+        }
 
         if (findLoadInNext((Expression) n, variable, inlinedExpression, parent, position) == Boolean.TRUE) {
             if (!aggressive &&
                 !(variable.isGenerated() ||
                   notFromMetadata(variable) && matchReturnOrThrow(n) /* allow inline to return or throw */) &&
-                !nonAggressiveInlineInto((Expression) n, parent.get())) {
+                !nonAggressiveInlineInto((Expression) n, parent.get(), inlinedExpression)) {
 
                 return false;
             }
@@ -302,20 +321,30 @@ final class Inlining {
                !variable.isParameter() && !variable.getOriginalVariable().isFromMetadata();
     }
 
-    private boolean nonAggressiveInlineInto(final Expression next, final Expression parent) {
+    private boolean nonAggressiveInlineInto(
+        final Expression next,
+        final Expression parent,
+        final Expression inlinedExpression) {
+
+        if (inlinedExpression.getCode() == AstCode.DefaultValue) {
+            return true;
+        }
+
         switch (next.getCode()) {
             case Return:
             case IfTrue:
-            case TableSwitch:
-            case LookupSwitch:
+            case Switch: {
                 final List<Expression> arguments = next.getArguments();
                 return arguments.size() == 1 && arguments.get(0) == parent;
+            }
 
-            case DefaultValue:
+            case DefaultValue: {
                 return true;
+            }
 
-            default:
+            default: {
                 return false;
+            }
         }
     }
 
@@ -421,11 +450,16 @@ final class Inlining {
         final Node node = body.get(position);
 
         if (matchGetArgument(node, AstCode.Store, variable, inlinedExpression)) {
-            if (inlineIfPossible(variable.get(), inlinedExpression.get(), getOrDefault(body, position + 1), aggressive)) {
+            final Node next = getOrDefault(body, position + 1);
+            final Variable v = variable.get();
+            final Expression e = inlinedExpression.get();
+            final Expression current = (Expression) node;
+
+            if (inlineIfPossible(v, e, next, aggressive)) {
                 //
                 // Assign the ranges of the Store instruction.
                 //
-                inlinedExpression.get().getRanges().addAll(((Expression) node).getRanges());
+                e.getRanges().addAll(current.getRanges());
 
                 //
                 // Remove the store instruction.
@@ -434,13 +468,86 @@ final class Inlining {
                 return true;
             }
 
-            if (count(loadCounts, variable.get()) == 0 &&
-                (aggressive ? notFromMetadata(variable.get()) : variable.get().isGenerated())) {
+            if (match(e, AstCode.Store) &&
+                canInline(true, variable.value) &&
+                count(storeCounts, variable.value) == 1 &&
+                count(loadCounts, variable.value) <= 1 &&
+                count(loadCounts, (Variable) e.getOperand()) <= 1) {
+
+                //
+                // Check to see if we have an expression like 'x = y = <some expression>`, where both
+                // `x` and `y` are loaded at most once.  Remove one of them and replace the corresponding
+                // load operand.
+                //
+
+                final Variable currentVariable = variable.value;
+                final Variable nestedVariable = (Variable) e.getOperand();
+
+                if (MetadataHelper.isSameType(currentVariable.getType(), nestedVariable.getType())) {
+                    final List<Expression> currentLoads = loads.get(currentVariable);
+                    final List<Expression> nestedLoads = loads.get(nestedVariable);
+
+                    if (nestedVariable.isGenerated()) {
+                        for (final Expression load : nestedLoads) {
+                            load.setOperand(currentVariable);
+                            currentLoads.add(load);
+                            increment(loadCounts, currentVariable);
+                        }
+
+                        nestedLoads.clear();
+                    }
+                    else {
+                        current.setOperand(nestedVariable);
+
+                        for (final Expression load : currentLoads) {
+                            load.setOperand(nestedVariable);
+                            nestedLoads.add(load);
+                            increment(loadCounts, nestedVariable);
+                        }
+
+                        currentLoads.clear();
+                    }
+
+                    final Expression nestedValue = single(e.getArguments());
+
+                    current.getArguments().set(0, nestedValue);
+
+                    return true;
+                }
+            }
+
+            if (matchStore(e, variable, inlinedExpression)) {
+                //
+                // Check to see if we have an expression like 'x = y = <some expression>` followed by an
+                // expression that loads 'y'.  If so, see if we can substitute 'x' for 'y' and remove 'y'.
+                //
+
+                final Expression loadThisInstead = new Expression(AstCode.Load, v);
+
+                if (inlineIfPossible(variable.get(), loadThisInstead, next, aggressive)) {
+                    //
+                    // Hoist the inner store up, clear the load/store counts for the removed variable,
+                    // increment the load count for this variable.
+                    //
+
+                    current.getArguments().set(0, single(e.getArguments()));
+
+                    storeCounts.get(variable.get()).setValue(0);
+                    loadCounts.get(variable.get()).setValue(0);
+
+                    increment(loadCounts, v);
+
+                    return true;
+                }
+            }
+
+            if (count(loadCounts, v) == 0 &&
+                canInline(aggressive, v)) {
 
                 //
                 // The variable is never loaded.
                 //
-                if (hasNoSideEffect(inlinedExpression.get())) {
+                if (hasNoSideEffect(e)) {
                     //
                     // Remove the expression completely.
                     //
@@ -448,22 +555,26 @@ final class Inlining {
                     return true;
                 }
 
-                if (canBeExpressionStatement(inlinedExpression.get())) {
+                if (canBeExpressionStatement(e)) {
                     //
                     // Assign the ranges of the Store instruction.
                     //
-                    inlinedExpression.get().getRanges().addAll(((Expression) node).getRanges());
+                    e.getRanges().addAll(current.getRanges());
 
                     //
                     // Remove the store, but keep the inner expression;
                     //
-                    body.set(position, inlinedExpression.get());
+                    body.set(position, e);
                     return true;
                 }
             }
         }
 
         return false;
+    }
+
+    private boolean canInline(final boolean aggressive, final Variable variable) {
+        return aggressive ? notFromMetadata(variable) : variable.isGenerated();
     }
 
     // </editor-fold>
@@ -555,9 +666,9 @@ final class Inlining {
                 // Variables can be copied only if both the variable and the target copy variable are generated,
                 // and if the variable has only a single assignment.
                 //
-                return //v.isGenerated() &&
-                    copyVariable.isGenerated() &&
-                    count(storeCounts, v) == 1;
+                return v.isGenerated() &&
+                       copyVariable.isGenerated() &&
+                       count(storeCounts, v) == 1;
             }
 
             default: {

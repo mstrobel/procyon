@@ -19,6 +19,7 @@ package com.strobel.decompiler.ast;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.*;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.functions.Function;
 import com.strobel.functions.Supplier;
 import com.strobel.functions.Suppliers;
@@ -47,7 +48,7 @@ public final class AstOptimizer {
 
         final AstOptimizer optimizer = new AstOptimizer();
 
-        removeRedundantCode(method);
+        removeRedundantCode(method, context.getSettings());
 
         if (abortBeforeStep == AstOptimizationStep.ReduceBranchInstructionSet) {
             return;
@@ -158,7 +159,7 @@ public final class AstOptimizer {
                     break;
                 }
 
-                modified |= new Inlining(context, method).inlineAllInBlock(block);
+                modified |= new Inlining(context, method, true).inlineAllInBlock(block);
                 modified |= runOptimization(block, new TransformArrayInitializersOptimization(context, method));
 
                 if (abortBeforeStep == AstOptimizationStep.IntroducePostIncrement) {
@@ -201,7 +202,7 @@ public final class AstOptimizer {
         }
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
-            new LoopsAndConditions(context).findLoops(block);
+            new LoopsAndConditions().findLoops(block);
         }
 
         if (abortBeforeStep == AstOptimizationStep.FindConditions) {
@@ -209,7 +210,7 @@ public final class AstOptimizer {
         }
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
-            new LoopsAndConditions(context).findConditions(block);
+            new LoopsAndConditions().findConditions(block);
         }
 
         if (abortBeforeStep == AstOptimizationStep.FlattenNestedMovableBlocks) {
@@ -222,7 +223,7 @@ public final class AstOptimizer {
             return;
         }
 
-        removeRedundantCode(method);
+        removeRedundantCode(method, context.getSettings());
 
         if (abortBeforeStep == AstOptimizationStep.GotoRemoval) {
             return;
@@ -292,7 +293,7 @@ public final class AstOptimizer {
             return;
         }
 
-        GotoRemoval.removeRedundantCode(method);
+        GotoRemoval.removeRedundantCode(method, true);
 
         if (abortBeforeStep == AstOptimizationStep.CleanUpTryBlocks) {
             return;
@@ -415,7 +416,7 @@ public final class AstOptimizer {
                 body.remove(0);
                 exceptionCopies.add(v.get());
 
-                if (body.isEmpty() || !PatternMatching.matchLoadStore(body.get(0), v.get(), v)) {
+                if (body.isEmpty() || !matchLoadStore(body.get(0), v.get(), v)) {
                     v.set(null);
                 }
                 else {
@@ -701,7 +702,7 @@ public final class AstOptimizer {
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">
 
     @SuppressWarnings({ "ConstantConditions", "StatementWithEmptyBody" })
-    static void removeRedundantCode(final Block method) {
+    static void removeRedundantCode(final Block method, final DecompilerSettings settings) {
         final Map<Label, MutableInteger> labelReferenceCount = new IdentityHashMap<>();
 
         final List<Expression> branchExpressions = method.getSelfAndChildrenRecursive(
@@ -736,7 +737,7 @@ public final class AstOptimizer {
                 final StrongBox<Label> target = new StrongBox<>();
                 final List<Expression> args = new ArrayList<>();
 
-                if (PatternMatching.matchGetOperand(node, AstCode.Goto, target) &&
+                if (matchGetOperand(node, AstCode.Goto, target) &&
                     i + 1 < body.size() &&
                     body.get(i + 1) == target.get()) {
 
@@ -755,10 +756,10 @@ public final class AstOptimizer {
                     // Ignore NOP.
                     //
                 }
-                else if (PatternMatching.matchGetArguments(node, AstCode.Pop, args)) {
+                else if (matchGetArguments(node, AstCode.Pop, args)) {
                     final StrongBox<Variable> variable = new StrongBox<>();
 
-                    if (!PatternMatching.matchGetOperand(args.get(0), AstCode.Load, variable)) {
+                    if (!matchGetOperand(args.get(0), AstCode.Load, variable)) {
                         throw new IllegalStateException("Pop should just have Load at this stage.");
                     }
 
@@ -780,7 +781,7 @@ public final class AstOptimizer {
                         //
                     }
                 }
-                else if (PatternMatching.matchGetArguments(node, AstCode.Pop2, args)) {
+                else if (matchGetArguments(node, AstCode.Pop2, args)) {
                     final StrongBox<Variable> v1 = new StrongBox<>();
                     final StrongBox<Variable> v2 = new StrongBox<>();
 
@@ -788,7 +789,7 @@ public final class AstOptimizer {
                     final StrongBox<Expression> pe1 = new StrongBox<>();
 
                     if (args.size() == 1) {
-                        if (!PatternMatching.matchGetOperand(args.get(0), AstCode.Load, v1)) {
+                        if (!matchGetOperand(args.get(0), AstCode.Load, v1)) {
                             throw new IllegalStateException("Pop2 should just have Load arguments at this stage.");
                         }
 
@@ -812,8 +813,8 @@ public final class AstOptimizer {
                         }
                     }
                     else {
-                        if (!PatternMatching.matchGetOperand(args.get(0), AstCode.Load, v1) ||
-                            !PatternMatching.matchGetOperand(args.get(1), AstCode.Load, v2)) {
+                        if (!matchGetOperand(args.get(0), AstCode.Load, v1) ||
+                            !matchGetOperand(args.get(1), AstCode.Load, v2)) {
 
                             throw new IllegalStateException("Pop2 should just have Load arguments at this stage.");
                         }
@@ -854,6 +855,27 @@ public final class AstOptimizer {
                     if (!isEmptyTryCatch(tryCatch)) {
                         newBody.add(node);
                     }
+                }
+                else if (settings.getRemovePointlessSwitches() &&
+                         match(node, AstCode.Switch)) {
+
+                    final Expression e = (Expression) node;
+                    final Label[] targets = (Label[]) e.getOperand();
+
+                    if (targets.length == 1) {
+                        final Expression test = e.getArguments().get(0);
+
+                        e.setCode(AstCode.Goto);
+                        e.setOperand(targets[0]);
+
+                        if (Inlining.canBeExpressionStatement(test)) {
+                            newBody.add(test);
+                        }
+
+                        e.getArguments().clear();
+                    }
+
+                    newBody.add(node);
                 }
                 else {
                     newBody.add(node);
@@ -1182,8 +1204,9 @@ public final class AstOptimizer {
             final AstCode code;
 
             switch (e.getCode()) {
-                case TableSwitch:
-                case LookupSwitch: {
+                case __TableSwitch:
+                case __LookupSwitch:
+                case Switch: {
                     e.getArguments().get(0).getRanges().addAll(e.getRanges());
                     e.getRanges().clear();
                     continue;
@@ -2139,30 +2162,47 @@ public final class AstOptimizer {
             //
             // c ? (v = a) : (v = b) => v = c ? a : b;
             //
-            if (matchGetArguments(head, AstCode.TernaryOp, a) &&
-                matchGetArgument(a.get(1), AstCode.Store, v = new StrongBox<>(), left = new StrongBox<>()) &&
-                matchStore(a.get(2), v.get(), right = new StrongBox<>())) {
+            if (matchGetArguments(head, AstCode.TernaryOp, a)) {
+                if (matchGetArgument(a.get(1), AstCode.Store, v = new StrongBox<>(), left = new StrongBox<>()) &&
+                    matchStore(a.get(2), v.get(), right = new StrongBox<>())) {
 
-                final Expression condition = a.get(0);
-                final Expression leftValue = left.value;
-                final Expression rightValue = right.value;
+                    final Expression condition = a.get(0);
+                    final Expression leftValue = left.value;
+                    final Expression rightValue = right.value;
 
-                final Expression newTernary = new Expression(
-                    AstCode.TernaryOp,
-                    null,
-                    condition,
-                    leftValue,
-                    rightValue
-                );
+                    final Expression newTernary = new Expression(
+                        AstCode.TernaryOp,
+                        null,
+                        condition,
+                        leftValue,
+                        rightValue
+                    );
 
-                head.setCode(AstCode.Store);
-                head.setOperand(v.get());
-                head.getArguments().clear();
-                head.getArguments().add(newTernary);
+                    head.setCode(AstCode.Store);
+                    head.setOperand(v.get());
+                    head.getArguments().clear();
+                    head.getArguments().add(newTernary);
 
-                newTernary.getRanges().addAll(head.getRanges());
+                    newTernary.getRanges().addAll(head.getRanges());
 
-                return head;
+                    return head;
+                }
+                else {
+                    final Boolean ifTrue = matchBooleanConstant(head.getArguments().get(1));
+                    final Boolean ifFalse = matchBooleanConstant(head.getArguments().get(2));
+
+                    if (ifTrue == null || ifFalse == null || ifTrue.equals(ifFalse)) {
+                        return head;
+                    }
+
+                    final boolean invert = Boolean.FALSE.equals(ifTrue);
+                    final Expression condition = head.getArguments().get(0);
+
+                    condition.getRanges().addAll(head.getRanges());
+
+                    return invert ? new Expression(AstCode.LogicalNot, null, condition)
+                                  : condition;
+                }
             }
 
             return head;
@@ -2510,7 +2550,7 @@ public final class AstOptimizer {
             final StrongBox<Expression> storeArgument = new StrongBox<>();
             final List<Expression> storeArguments = new ArrayList<>();
 
-            if (matchGetArgument(head, AstCode.Store, ev, initializer)/* || !ev.get().isGenerated()*/) {
+            if (matchGetArgument(head, AstCode.Store, ev, initializer)/* && ev.get().isGenerated()*/) {
                 if (matchGetArgument(next, AstCode.Store, v, storeArgument) &&
                     matchLoad(storeArgument.get(), ev.get())) {
 
@@ -3403,21 +3443,6 @@ public final class AstOptimizer {
             if (i < body.size() && optimization.run(body, (BasicBlock) body.get(i), i)) {
                 modified = true;
                 ++i;
-            }
-        }
-
-        return modified;
-    }
-
-    private static boolean runOptimizationForward(final Block block, final BasicBlockOptimization optimization) {
-        boolean modified = false;
-
-        final List<Node> body = block.getBody();
-
-        for (int i = 0; i < body.size(); i++) {
-            if (i < body.size() && optimization.run(body, (BasicBlock) body.get(i), i)) {
-                modified = true;
-                --i;
             }
         }
 

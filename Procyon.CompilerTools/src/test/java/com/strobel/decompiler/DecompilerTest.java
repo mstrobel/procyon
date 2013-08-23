@@ -35,6 +35,7 @@ public abstract class DecompilerTest {
     protected final static int OPTION_INCLUDE_SYNTHETIC = 0x0004;
     protected final static int OPTION_RETAIN_CASTS = 0x0008;
     protected final static int OPTION_EXPLICIT_TYPE_ARGUMENTS = 0x0010;
+    protected final static int OPTION_REMOVE_POINTLESS_SWITCHES = 0x0020;
 
     protected final static Pattern WHITESPACE;
 
@@ -74,6 +75,10 @@ public abstract class DecompilerTest {
 
         if (testAny(options, OPTION_EXPLICIT_TYPE_ARGUMENTS)) {
             settings.setForceExplicitTypeArguments(true);
+        }
+
+        if (testAny(options, OPTION_REMOVE_POINTLESS_SWITCHES)) {
+            settings.setRemovePointlessSwitches(true);
         }
 
         return settings;

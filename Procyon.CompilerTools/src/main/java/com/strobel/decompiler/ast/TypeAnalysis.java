@@ -19,7 +19,7 @@ package com.strobel.decompiler.ast;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
-import com.strobel.core.Pair;
+import com.strobel.core.CollectionUtilities;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
@@ -30,16 +30,17 @@ import com.strobel.util.ContractUtils;
 
 import java.util.*;
 
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
 public final class TypeAnalysis {
     private final List<ExpressionToInfer> _allExpressions = new ArrayList<>();
+    private final Set<Variable> _singleStoreVariables = new LinkedHashSet<>();
     private final Set<Variable> _singleLoadVariables = new LinkedHashSet<>();
     private final Set<Variable> _allVariables = new LinkedHashSet<>();
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
-    private final Map<Variable, List<ExpressionToInfer>> _assignmentExpressions = new IdentityHashMap<Variable, List<ExpressionToInfer>>() {
+    private final Map<Variable, List<ExpressionToInfer>> _assignmentExpressions = new LinkedHashMap<Variable, List<ExpressionToInfer>>() {
         @Override
         @SuppressWarnings("unchecked")
         public List<ExpressionToInfer> get(final Object key) {
@@ -57,7 +58,7 @@ public final class TypeAnalysis {
         }
     };
 
-    private final Set<Pair<Variable, TypeReference>> _previouslyInferred = new LinkedHashSet<>();
+    private final Map<Variable, Set<TypeReference>> _previouslyInferred = new DefaultMap<>(CollectionUtilities.<TypeReference>setFactory());
     private final IdentityHashMap<Variable, TypeReference> _inferredVariableTypes = new IdentityHashMap<>();
 
     private DecompilerContext _context;
@@ -66,6 +67,7 @@ public final class TypeAnalysis {
     private boolean _preserveMetadataGenericTypes;
     private Stack<Expression> _stack = new Stack<>();
     private boolean _doneInitializing;
+    private int _numberOfExpressionsAlreadyInferred;
 
     public static void run(final DecompilerContext context, final Block method) {
         final TypeAnalysis ta = new TypeAnalysis();
@@ -122,6 +124,8 @@ public final class TypeAnalysis {
     }
 
     private void createDependencyGraph(final Node node) {
+        final StrongBox<Variable> v;
+
         if (node instanceof Condition) {
             ((Condition) node).getCondition().setExpectedType(BuiltinTypes.Boolean);
         }
@@ -150,11 +154,17 @@ public final class TypeAnalysis {
 
             findNestedAssignments(expression, expressionToInfer);
 
-            if (expression.getCode().isStore() &&
-                shouldInferVariableType((Variable) expression.getOperand())
-                /*((Variable) expression.getOperand()).getType() == null*/) {
+            if (expression.getCode().isStore()) {
+                if (expression.getOperand() instanceof Variable &&
+                    shouldInferVariableType((Variable) expression.getOperand())) {
 
-                _assignmentExpressions.get(expression.getOperand()).add(expressionToInfer);
+                    _assignmentExpressions.get(expression.getOperand()).add(expressionToInfer);
+                }
+                else if (matchLoad(expression.getArguments().get(0), v = new StrongBox<>()) &&
+                         shouldInferVariableType(v.value)) {
+
+                    _assignmentExpressions.get(v.value).add(expressionToInfer);
+                }
             }
         }
         else if (node instanceof Lambda) {
@@ -254,6 +264,15 @@ public final class TypeAnalysis {
         }
     }
 
+    private boolean isSingleStoreBoolean(final Variable variable) {
+        if (_singleStoreVariables.contains(variable)) {
+            final List<ExpressionToInfer> assignments = _assignmentExpressions.get(variable);
+            final ExpressionToInfer e = single(assignments);
+            return matchBooleanConstant(last(e.expression.getArguments())) != null;
+        }
+        return false;
+    }
+
     private void identifySingleLoadVariables() {
         @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         final Map<Variable, List<ExpressionToInfer>> groupedExpressions = new DefaultMap<>(
@@ -297,14 +316,19 @@ public final class TypeAnalysis {
                 }
             }
         }
+
+        for (final Variable variable : _assignmentExpressions.keySet()) {
+            if (_assignmentExpressions.get(variable).size() == 1) {
+                _singleStoreVariables.add(variable);
+            }
+        }
     }
 
     @SuppressWarnings("ConstantConditions")
     private void runInference() {
         _previouslyInferred.clear();
         _inferredVariableTypes.clear();
-
-        int numberOfExpressionsAlreadyInferred = 0;
+        _numberOfExpressionsAlreadyInferred = 0;
 
         //
         // Two flags that allow resolving cycles:
@@ -320,8 +344,8 @@ public final class TypeAnalysis {
             }
         };
 
-        while (numberOfExpressionsAlreadyInferred < _allExpressions.size()) {
-            final int oldCount = numberOfExpressionsAlreadyInferred;
+        while (_numberOfExpressionsAlreadyInferred < _allExpressions.size()) {
+            final int oldCount = _numberOfExpressionsAlreadyInferred;
 
             for (final ExpressionToInfer e : _allExpressions) {
                 if (!e.done &&
@@ -330,11 +354,11 @@ public final class TypeAnalysis {
 
                     runInference(e.expression);
                     e.done = true;
-                    numberOfExpressionsAlreadyInferred++;
+                    _numberOfExpressionsAlreadyInferred++;
                 }
             }
 
-            if (numberOfExpressionsAlreadyInferred == oldCount) {
+            if (_numberOfExpressionsAlreadyInferred == oldCount) {
                 if (ignoreSingleLoadDependencies) {
                     if (assignVariableTypesBasedOnPartialInformation) {
                         throw new IllegalStateException("Could not infer any expression.");
@@ -390,7 +414,7 @@ public final class TypeAnalysis {
                             e.expression.setInferredType(BuiltinTypes.Boolean);
                             a.value.setExpectedType(BuiltinTypes.Boolean);
                             a.value.setInferredType(BuiltinTypes.Boolean);
-                            a.value.setOperand(booleanConstant);
+//                            a.value.setOperand(booleanConstant);
                         }
                     }
                 }
@@ -410,7 +434,7 @@ public final class TypeAnalysis {
                             e.expression.setInferredType(BuiltinTypes.Character);
                             a.value.setExpectedType(BuiltinTypes.Character);
                             a.value.setInferredType(BuiltinTypes.Character);
-                            a.value.setOperand(characterConstant);
+//                            a.value.setOperand(characterConstant);
                         }
                     }
                 }
@@ -418,6 +442,7 @@ public final class TypeAnalysis {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private void inferTypesForVariables(final boolean assignVariableTypesBasedOnPartialInformation) {
         for (final Variable variable : _assignmentExpressions.keySet()) {
             final List<ExpressionToInfer> expressionsToInfer = _assignmentExpressions.get(variable);
@@ -430,8 +455,10 @@ public final class TypeAnalysis {
                 for (final ExpressionToInfer e : expressionsToInfer) {
                     final List<Expression> arguments = e.expression.getArguments();
 
-                    assert e.expression.getCode().isStore() &&
-                           arguments.size() == 1;
+                    assert e.expression.getCode().isStore() && arguments.size() == 1 ||
+                           e.expression.getCode() == AstCode.Inc ||
+                           e.expression.getCode() == AstCode.PreIncrement ||
+                           e.expression.getCode() == AstCode.PostIncrement;
 
                     final Expression assignedValue = arguments.get(0);
 
@@ -460,26 +487,25 @@ public final class TypeAnalysis {
                     variable.setType(inferredType);
                     _inferredVariableTypes.put(variable, inferredType);
 
-/*
-                    //
-                    // Assign inferred type to all the assignments (in case they used different inferred types).
-                    //
-                    for (final ExpressionToInfer e : expressionsToInfer) {
-                        e.expression.setInferredType(inferredType);
-                        runInference(single(e.expression.getArguments()));
-                    }
-*/
+//                    //
+//                    // Assign inferred type to all the assignments (in case they used different inferred types).
+//                    //
+//                    for (final ExpressionToInfer e : expressionsToInfer) {
+//                        e.expression.setInferredType(inferredType);
+//                    }
 
                     //
                     // Assign inferred types to all dependent expressions (in case they used different inferred types).
                     //
                     for (final ExpressionToInfer e : _allExpressions) {
-                        if (e.dependencies.contains(variable)/* ||
-                            expressionsToInfer.contains(e)*/) {
+                        if (e.dependencies.contains(variable) ||
+                            expressionsToInfer.contains(e)) {
 
                             if (_stack.contains(e.expression)) {
                                 continue;
                             }
+
+                            boolean invalidate = false;
 
                             for (final Expression c : e.expression.getSelfAndChildrenRecursive(Expression.class)) {
                                 if (_stack.contains(c)) {
@@ -488,9 +514,19 @@ public final class TypeAnalysis {
 
                                 c.setExpectedType(null);
                                 c.setInferredType(null);
+
+                                if ((matchLoad(c, variable) || matchStore(c, variable)) &&
+                                    !MetadataHelper.isSameType(c.getInferredType(), inferredType)) {
+
+                                    c.setExpectedType(inferredType);
+                                }
+
+                                invalidate = true;
                             }
 
-                            runInference(e.expression);
+                            if (invalidate) {
+                                runInference(e.expression);
+                            }
                         }
                     }
                 }
@@ -607,7 +643,7 @@ public final class TypeAnalysis {
         }
 
         if (changedVariable != null) {
-            if (_previouslyInferred.add(Pair.create(changedVariable, changedVariable.getType()))) {
+            if (_previouslyInferred.get(changedVariable).add(changedVariable.getType())) {
                 invalidateDependentExpressions(expression, changedVariable);
             }
         }
@@ -615,6 +651,7 @@ public final class TypeAnalysis {
 
     private void invalidateDependentExpressions(final Expression expression, final Variable variable) {
         final List<ExpressionToInfer> assignments = _assignmentExpressions.get(variable);
+        final TypeReference inferredType = _inferredVariableTypes.get(variable);
 
         for (final ExpressionToInfer e : _allExpressions) {
             if (_stack.contains(e.expression)) {
@@ -625,6 +662,12 @@ public final class TypeAnalysis {
                 (e.dependencies.contains(variable) ||
                  assignments.contains(e))) {
 
+                if (_stack.contains(e.expression)) {
+                    continue;
+                }
+
+                boolean invalidate = false;
+
                 for (final Expression c : e.expression.getSelfAndChildrenRecursive(Expression.class)) {
                     if (_stack.contains(c)) {
                         continue;
@@ -632,9 +675,22 @@ public final class TypeAnalysis {
 
                     c.setExpectedType(null);
                     c.setInferredType(null);
+
+                    if ((matchLoad(c, variable) || matchStore(c, variable)) &&
+                        !MetadataHelper.isSameType(c.getInferredType(), inferredType)) {
+
+                        c.setExpectedType(inferredType);
+                    }
+
+                    invalidate = true;
                 }
 
-                runInference(e.expression);
+                if (invalidate) {
+//                    if (e.done)
+//                        --_numberOfExpressionsAlreadyInferred;
+//                    e.done = false;
+                    runInference(e.expression);
+                }
             }
         }
     }
@@ -721,6 +777,13 @@ public final class TypeAnalysis {
                     final Variable v = (Variable) operand;
                     final TypeReference lastInferredType = _inferredVariableTypes.get(v);
 
+                    if (matchBooleanConstant(expression.getArguments().get(0)) != null &&
+                        shouldInferVariableType(v) &&
+                        isBoolean(inferTypeForVariable(v, expectedType != null ? expectedType : BuiltinTypes.Boolean, true))) {
+
+                        return BuiltinTypes.Boolean;
+                    }
+
                     if (forceInferChildren) {
                         //
                         // NOTE: Do not use 'expectedType' here!
@@ -798,7 +861,7 @@ public final class TypeAnalysis {
 
                     if (result != null &&
                         !MetadataHelper.isSameType(result, inferredType) &&
-                        _previouslyInferred.add(Pair.create(v, result))) {
+                        _previouslyInferred.get(v).add(result)) {
 
                         invalidateDependentExpressions(expression, v);
                     }
@@ -869,7 +932,6 @@ public final class TypeAnalysis {
 
                                 targetType = MetadataHelper.erase(targetType);
                             }
-
 
                             final MethodReference m = targetType != null ? MetadataHelper.asMemberOf(r != null ? r : method, targetType)
                                                                          : method;
@@ -1260,11 +1322,11 @@ public final class TypeAnalysis {
                 }
 
                 case LdC: {
-                    if (operand instanceof Boolean) {
+                    if (operand instanceof Boolean && matchBooleanConstant(expression) != null) {
                         return BuiltinTypes.Boolean;
                     }
 
-                    if (operand instanceof Character) {
+                    if (operand instanceof Character && matchCharacterConstant(expression) != null) {
                         return BuiltinTypes.Character;
                     }
 
@@ -1304,6 +1366,9 @@ public final class TypeAnalysis {
                                         }
                                         return BuiltinTypes.Integer;
                                 }
+                            }
+                            else if (matchBooleanConstant(expression) != null) {
+                                return BuiltinTypes.Boolean;
                             }
 
                             return BuiltinTypes.Integer;
@@ -1623,20 +1688,23 @@ public final class TypeAnalysis {
                             binaryArguments = arguments;
                         }
 
-                        runInference(binaryArguments.get(0));
-                        runInference(binaryArguments.get(1));
+                        final Expression left = binaryArguments.get(0);
+                        final Expression right = binaryArguments.get(1);
 
-                        binaryArguments.get(0).setExpectedType(binaryArguments.get(0).getInferredType());
-                        binaryArguments.get(1).setExpectedType(binaryArguments.get(0).getInferredType());
-                        binaryArguments.get(0).setInferredType(null);
-                        binaryArguments.get(1).setInferredType(null);
+                        runInference(left);
+                        runInference(right);
+
+                        left.setExpectedType(left.getInferredType());
+                        right.setExpectedType(left.getInferredType());
+                        left.setInferredType(null);
+                        right.setInferredType(null);
 
                         inferBinaryArguments(
-                            binaryArguments.get(0),
-                            binaryArguments.get(1),
+                            left,
+                            right,
                             typeWithMoreInformation(
-                                binaryArguments.get(0).getExpectedType(),
-                                binaryArguments.get(1).getExpectedType()
+                                left.getInferredType(),
+                                right.getInferredType()
                             ),
                             false,
                             null,
@@ -1683,8 +1751,7 @@ public final class TypeAnalysis {
                 }
 
                 case Goto:
-                case TableSwitch:
-                case LookupSwitch:
+                case Switch:
                 case AThrow:
                 case LoopOrSwitchBreak:
                 case LoopContinue:
@@ -1996,7 +2063,17 @@ public final class TypeAnalysis {
                 case __IInc:
                 case __IIncW:
                 case Inc: {
-                    return inferTypeForVariable((Variable) operand, expectedType);
+                    TypeReference inferredType = inferTypeForVariable((Variable) operand, BuiltinTypes.Integer);
+
+                    if (inferredType == null || inferredType == BuiltinTypes.Boolean) {
+                        inferredType = BuiltinTypes.Integer;
+                    }
+
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(0), inferredType, true);
+                    }
+
+                    return inferredType;
                 }
 
                 case Leave:
@@ -2021,10 +2098,26 @@ public final class TypeAnalysis {
     }
 
     private TypeReference inferTypeForVariable(final Variable v, final TypeReference expectedType) {
+        return inferTypeForVariable(v, expectedType, false);
+    }
+
+    private TypeReference inferTypeForVariable(
+        final Variable v,
+        final TypeReference expectedType,
+        final boolean favorExpectedOverActual) {
+
         final TypeReference lastInferredType = _inferredVariableTypes.get(v);
 
         if (lastInferredType != null) {
             return lastInferredType;
+        }
+
+        if (isSingleStoreBoolean(v)) {
+            return BuiltinTypes.Boolean;
+        }
+
+        if (favorExpectedOverActual && expectedType != null) {
+            return expectedType;
         }
 
         final TypeReference variableType = v.getType();

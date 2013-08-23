@@ -17,6 +17,7 @@
 package com.strobel.decompiler.ast;
 
 import com.strobel.annotations.NotNull;
+import com.strobel.core.CollectionUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
@@ -552,23 +553,34 @@ final class GotoRemoval {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     public static void removeRedundantCode(final Block method) {
+        removeRedundantCode(method, false);
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    public static void removeRedundantCode(final Block method, final boolean mergeAdjacentLabels) {
         //
         // Remove dead labels and NOPs.
         //
 
         final Set<Label> liveLabels = new LinkedHashSet<>();
         final StrongBox<Label> target = new StrongBox<>();
+        final Map<Label, List<Expression>> jumps = new DefaultMap<>(CollectionUtilities.<Expression>listFactory());
+
+        List<TryCatchBlock> tryCatchBlocks = null;
 
     outer:
         for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
             if (e.isBranch()) {
                 if (matchGetOperand(e, AstCode.Goto, target)) {
+                    if (tryCatchBlocks == null) {
+                        tryCatchBlocks = method.getSelfAndChildrenRecursive(TryCatchBlock.class);
+                    }
+
                     //
                     // See if the goto is an explicit jump to an outer finally.  If so, remove it.
                     //
-                    for (final TryCatchBlock tryCatchBlock : method.getSelfAndChildrenRecursive(TryCatchBlock.class)) {
+                    for (final TryCatchBlock tryCatchBlock : tryCatchBlocks) {
                         final Block finallyBlock = tryCatchBlock.getFinallyBlock();
 
 /*
@@ -602,7 +614,14 @@ final class GotoRemoval {
                         }
                     }
                 }
-                liveLabels.addAll(e.getBranchTargets());
+
+                final List<Label> branchTargets = e.getBranchTargets();
+
+                for (final Label label : branchTargets) {
+                    jumps.get(label).add(e);
+                }
+
+                liveLabels.addAll(branchTargets);
             }
         }
 
@@ -618,6 +637,31 @@ final class GotoRemoval {
                     n instanceof Label && !liveLabels.contains(n)) {
 
                     body.remove(i--);
+                }
+
+                if (mergeAdjacentLabels &&
+                    n instanceof Label &&
+                    i < body.size() - 1 &&
+                    body.get(i + 1) instanceof Label) {
+
+                    final Label newLabel = (Label) n;
+                    final Label oldLabel = (Label) body.remove(i + 1);
+                    final List<Expression> oldLabelJumps = jumps.get(oldLabel);
+
+                    for (final Expression jump : oldLabelJumps) {
+                        if (jump.getOperand() instanceof Label) {
+                            jump.setOperand(n);
+                        }
+                        else {
+                            final Label[] branchTargets = (Label[]) jump.getOperand();
+
+                            for (int j = 0; j < branchTargets.length; j++) {
+                                if (branchTargets[j] == oldLabel) {
+                                    branchTargets[j] = newLabel;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

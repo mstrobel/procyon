@@ -26,8 +26,6 @@ import com.strobel.assembler.metadata.SwitchInfo;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Predicate;
 import com.strobel.core.StrongBox;
-import com.strobel.core.VerifyArgument;
-import com.strobel.decompiler.DecompilerContext;
 
 import java.util.*;
 
@@ -37,13 +35,8 @@ import static com.strobel.decompiler.ast.PatternMatching.*;
 
 final class LoopsAndConditions {
     private final Map<Label, ControlFlowNode> labelsToNodes = new IdentityHashMap<>();
-    private final DecompilerContext _context;
 
     private int _nextLabelIndex;
-
-    public LoopsAndConditions(final DecompilerContext context) {
-        _context = VerifyArgument.notNull(context, "context");
-    }
 
     public final void findConditions(final Block block) {
         final List<Node> body = block.getBody();
@@ -459,11 +452,7 @@ final class LoopsAndConditions {
                 final StrongBox<Expression> switchArgument = new StrongBox<>();
                 final StrongBox<Label> tempTarget = new StrongBox<>();
 
-                AstCode switchCode;
-
-                if (matchLast(block, switchCode = AstCode.TableSwitch, caseLabels, switchArgument) ||
-                    matchLast(block, switchCode = AstCode.LookupSwitch, caseLabels, switchArgument)) {
-
+                if (matchLast(block, AstCode.Switch, caseLabels, switchArgument)) {
                     final Expression switchExpression = (Expression) blockBody.get(blockBody.size() - 1);
 
                     //
@@ -473,7 +462,7 @@ final class LoopsAndConditions {
                     final Switch switchNode = new Switch();
 
                     switchNode.setCondition(switchArgument.get());
-                    removeTail(blockBody, switchCode);
+                    removeTail(blockBody, AstCode.Switch);
                     blockBody.add(switchNode);
                     result.add(block);
 
@@ -564,11 +553,11 @@ final class LoopsAndConditions {
                         }
 
                         if (i != 0) {
-                            if (switchCode == AstCode.TableSwitch) {
-                                caseBlock.getValues().add(lowValue + i - 1);
+                            if (switchInfo.hasKeys()) {
+                                caseBlock.getValues().add(keys[i - 1]);
                             }
                             else {
-                                caseBlock.getValues().add(keys[i - 1]);
+                                caseBlock.getValues().add(lowValue + i - 1);
                             }
                         }
                     }

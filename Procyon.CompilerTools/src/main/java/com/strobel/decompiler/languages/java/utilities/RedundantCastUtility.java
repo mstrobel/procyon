@@ -279,7 +279,9 @@ public final class RedundantCastUtility {
                 final TypeReference innerOperandType = getType(innerOperand);
 
                 if (!innerCastType.isPrimitive()) {
-                    if (innerOperandType != null && MetadataHelper.isConvertible(innerOperandType, topCastType)) {
+                    if (innerOperandType != null &&
+                        MetadataHelper.getConversionType(topCastType, innerOperandType) != ConversionType.NONE) {
+
                         addToResults(innerCast, false);
                     }
                 }
@@ -571,7 +573,7 @@ public final class RedundantCastUtility {
 
             for (Expression a = arguments.firstOrNullObject();
                  i < realParametersEnd && a != null && !a.isNull();
-                 a = (Expression) a.getNextSibling(Roles.ARGUMENT), ++i) {
+                 a = a.getNextSibling(Roles.ARGUMENT), ++i) {
 
                 final Expression arg = removeParentheses(a);
 

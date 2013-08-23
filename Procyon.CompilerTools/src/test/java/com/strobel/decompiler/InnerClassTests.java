@@ -394,7 +394,7 @@ public class InnerClassTests extends DecompilerTest {
             "private static class C {\n" +
             "    public static void test() {\n" +
             "        final C c = null;\n" +
-            "        final A a = c.new A(6);\n" +
+            "        c.new A(6);\n" +
             "    }\n" +
             "    class A {\n" +
             "        int j;\n" +

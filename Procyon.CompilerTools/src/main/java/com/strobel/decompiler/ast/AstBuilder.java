@@ -191,21 +191,27 @@ public final class AstBuilder {
         final boolean nonEmpty = subroutine.start != subroutine.end && subroutine.start.getNext() != subroutine.end;
 
         if (nonEmpty) {
-            final int startIndex = instructions.indexOf(subroutine.start);
-            final int endIndex = instructions.indexOf(subroutine.end);
             final int jumpIndex = instructions.indexOf(reference);
+            final List<Instruction> originalContents = new ArrayList<>();
 
-            final List<Instruction> originalContents = instructions.subList(startIndex, endIndex + 1);
+            for (final ControlFlowNode node : subroutine.contents) {
+                for (Instruction p = node.getStart();
+                     p != null && p.getOffset() < node.getEnd().getEndOffset();
+                     p = p.getNext()) {
+
+                    originalContents.add(p);
+                }
+            }
 
             final Map<Instruction, Instruction> remappedJumps = new IdentityHashMap<>();
             final List<Instruction> contents = copyInstructions(originalContents);
 
-            for (int i = 1, n = originalContents.size(); i < n; i++) {
+            for (int i = 0, n = originalContents.size(); i < n; i++) {
                 remappedJumps.put(originalContents.get(i), contents.get(i));
                 originalInstructionMap.put(contents.get(i), mappedInstruction(originalInstructionMap, originalContents.get(i)));
             }
 
-            final Instruction newStart = first(contents).getNext();
+            final Instruction newStart = mappedInstruction(remappedJumps, subroutine.start);
 
             final Instruction newEnd = reference.getNext() != null ? reference.getNext()
                                                                    : mappedInstruction(remappedJumps, subroutine.end).getPrevious();
@@ -220,18 +226,24 @@ public final class AstBuilder {
                 }
             }
 
-            final List<Instruction> inlinedCode = toList(contents.subList(1, contents.size()));
+            newStart.setOpCode(OpCode.NOP);
+            newStart.setOperand(null);
 
-            instructions.addAll(jumpIndex, inlinedCode);
+            instructions.addAll(jumpIndex, toList(contents));
+
+            if (newStart != first(contents)) {
+                instructions.add(jumpIndex, new Instruction(OpCode.GOTO, newStart));
+            }
+
             instructions.remove(reference);
             instructions.recomputeOffsets();
 
-            remappedJumps.put(reference, newStart);
+            remappedJumps.put(reference, first(contents));
             remappedJumps.put(subroutine.end, newEnd);
             remappedJumps.put(subroutine.start, newStart);
 
             remapJumps(Collections.singletonMap(reference, newStart));
-            remapHandlersForInlinedSubroutine(reference, newStart, newEnd);
+            remapHandlersForInlinedSubroutine(reference, first(contents), last(contents));
             duplicateHandlersForInlinedSubroutine(subroutine, remappedJumps);
         }
         else {
@@ -2909,16 +2921,16 @@ public final class AstBuilder {
             }
 
             final List<VariableInfo> newVariables;
-            boolean fromUnknownDefinition = false;
-
-            if (_optimize) {
-                for (final ByteCode b : references) {
-                    if (b.variablesBefore[slot].isUninitialized()) {
-                        fromUnknownDefinition = true;
-                        break;
-                    }
-                }
-            }
+//            boolean fromUnknownDefinition = false;
+//
+//            if (_optimize) {
+//                for (final ByteCode b : references) {
+//                    if (b.variablesBefore[slot].isUninitialized()) {
+//                        fromUnknownDefinition = true;
+//                        break;
+//                    }
+//                }
+//            }
 
             final ParameterDefinition parameter = parameterMap[slot];
 
@@ -2937,7 +2949,7 @@ public final class AstBuilder {
 
                 newVariables = Collections.singletonList(variableInfo);
             }
-            else if (!_optimize || fromUnknownDefinition) {
+            else*/ if (!_optimize/* || fromUnknownDefinition*/) {
                 final Variable variable = new Variable();
 
                 if (vDef != null) {
@@ -3030,7 +3042,7 @@ public final class AstBuilder {
 
                 newVariables = Collections.singletonList(variableInfo);
             }
-            else*/
+            else
             {
                 newVariables = new ArrayList<>();
 
@@ -3826,7 +3838,7 @@ public final class AstBuilder {
                 expression.setCode(AstCode.Inc);
                 expression.getArguments().add(new Expression(AstCode.LdC, byteCode.secondOperand));
             }
-            else if (byteCode.code == AstCode.TableSwitch || byteCode.code == AstCode.LookupSwitch) {
+            else if (byteCode.code == AstCode.Switch) {
                 expression.putUserData(AstKeys.SWITCH_INFO, byteCode.instruction.<SwitchInfo>getOperand(0));
             }
 

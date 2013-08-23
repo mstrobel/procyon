@@ -86,12 +86,15 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         TypeReference declaringType = member.getDeclaringType();
 
         if (valueResult != null &&
-            valueResult.getType() != null &&
-            valueResult.getType().isGenericType() &&
-            !MetadataHelper.isAssignableFrom(declaringType, valueResult.getType())) {
+            valueResult.getType() != null) {
 
-            if (declaringType.isGenericType() ||
-                MetadataHelper.isRawType(declaringType)) {
+            if (MetadataHelper.isAssignableFrom(declaringType, valueResult.getType())) {
+                return null;
+            }
+
+            if (valueResult.getType().isGenericType() &&
+                (declaringType.isGenericType() ||
+                 MetadataHelper.isRawType(declaringType))) {
 
                 final TypeReference asSuper = MetadataHelper.asSuper(declaringType, valueResult.getType());
 
