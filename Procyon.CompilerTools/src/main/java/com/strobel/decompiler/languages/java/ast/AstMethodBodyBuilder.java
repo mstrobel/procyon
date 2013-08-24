@@ -881,7 +881,7 @@ public class AstMethodBodyBuilder {
                 name.putUserData(Keys.VARIABLE, variableOperand);
 
                 final PrimitiveExpression deltaExpression = (PrimitiveExpression) arg1;
-                final int delta = (Integer) deltaExpression.getValue();
+                final int delta = (int)JavaPrimitiveCast.cast(JvmType.Integer, deltaExpression.getValue());
 
                 switch (delta) {
                     case -1:

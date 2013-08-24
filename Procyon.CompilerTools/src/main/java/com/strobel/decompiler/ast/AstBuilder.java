@@ -1082,6 +1082,27 @@ public final class AstBuilder {
                                 allFinallyNodes.contains(nodeMap.get(tail.getNext())) ||
                                 !opCodesMatch(last, tail.getNext(), instructionCount, previous)) {
 
+                                if (last.getOpCode() == OpCode.JSR) {
+                                    //
+                                    // If we failed to match against the last instruction in our 'try' block, see if our
+                                    // subroutine jump follows the finally block instead.  This pattern has been seen
+                                    // in the wild.
+                                    //
+                                    final Instruction lastInTry = handlerInfo.handler.getTryBlock().getLastInstruction();
+
+                                    if (tail == lastInTry &&
+                                        (lastInTry.getOpCode() == OpCode.GOTO || lastInTry.getOpCode() == OpCode.GOTO_W)) {
+
+                                        final Instruction target = lastInTry.getOperand(0);
+
+                                        if (target.getOpCode() == OpCode.JSR &&
+                                            target.getOperand(0) == last.getOperand(0)) {
+
+                                            target.setOpCode(OpCode.NOP);
+                                            target.setOperand(null);
+                                        }
+                                    }
+                                }
                                 continue;
                             }
 
