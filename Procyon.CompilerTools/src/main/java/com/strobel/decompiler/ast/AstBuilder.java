@@ -77,7 +77,9 @@ public final class AstBuilder {
         builder._exceptionHandlers = remapHandlers(body.getExceptionHandlers(), builder._instructions);
 
         builder.pruneExceptionHandlers();
-        builder.removeInlinedFinallyCode();
+
+        FinallyInlining.run(builder._body, builder._instructions, builder._exceptionHandlers);
+
         builder.inlineSubroutines();
 
         builder._cfg = ControlFlowGraphBuilder.build(builder._instructions, builder._exceptionHandlers);
@@ -787,403 +789,6 @@ public final class AstBuilder {
         return true;
     }
 
-    @SuppressWarnings("ConstantConditions")
-    private void removeInlinedFinallyCode() {
-        final InstructionCollection instructions = _instructions;
-        final List<ExceptionHandler> handlers = _exceptionHandlers;
-
-        if (handlers.isEmpty()) {
-            return;
-        }
-
-        Collections.reverse(handlers);
-
-        try {
-            ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, handlers);
-
-            cfg.computeDominance();
-            cfg.computeDominanceFrontier();
-
-            for (int i = 0; i < handlers.size(); i++) {
-                final ExceptionHandler handler = handlers.get(i);
-
-                if (handler.isFinally()) {
-                    final InstructionBlock handlerBlock = handler.getHandlerBlock();
-                    final ControlFlowNode finallyHead = findNode(cfg, handler.getHandlerBlock().getFirstInstruction());
-                    final List<ControlFlowNode> finallyNodes = toList(findDominatedNodes(cfg, finallyHead, true));
-
-                    Collections.sort(finallyNodes);
-
-                    final Instruction first = handlerBlock.getFirstInstruction();
-
-                    Instruction last = last(finallyNodes).getEnd();
-                    Instruction nextToLast = last.getPrevious();
-
-                    boolean firstPass = true;
-
-                    while (true) {
-                        if (first.getOpCode().isStore() &&
-                            last.getOpCode() == OpCode.ATHROW &&
-                            nextToLast.getOpCode().isLoad() &&
-                            InstructionHelper.getLoadOrStoreSlot(first) == InstructionHelper.getLoadOrStoreSlot(nextToLast)) {
-
-                            nextToLast.setOpCode(OpCode.NOP);
-                            nextToLast.setOperand(null);
-
-                            _removed.add(nextToLast);
-
-                            last.setOpCode(OpCode.ENDFINALLY);
-                            last.setOperand(null);
-
-                            break;
-                        }
-
-                        if (firstPass = !firstPass) {
-                            break;
-                        }
-
-                        last = handlerBlock.getLastInstruction();
-                        nextToLast = last.getPrevious();
-                    }
-                }
-            }
-
-            cfg = ControlFlowGraphBuilder.build(instructions, handlers);
-            cfg.computeDominance();
-            cfg.computeDominanceFrontier();
-
-            final Map<Instruction, ControlFlowNode> nodeMap = createNodeMap(cfg);
-            final Set<ExceptionHandler> finallyHandlers = new LinkedHashSet<>();
-            final Map<ExceptionHandler, HandlerInfo> handlerMap = new IdentityHashMap<>();
-            final Set<ControlFlowNode> processedNodes = new LinkedHashSet<>();
-            final Set<ControlFlowNode> allFinallyNodes = new LinkedHashSet<>();
-
-            final Function<Instruction, Instruction> previous = new Function<Instruction, Instruction>() {
-                @Override
-                public Instruction apply(final Instruction i) {
-                    Instruction p = i.getPrevious();
-
-                    while (p != null && _removed.contains(p)) {
-                        p = p.getPrevious();
-                    }
-
-                    return p;
-                }
-            };
-
-            for (int i = 0; i < handlers.size(); i++) {
-                final ExceptionHandler handler = handlers.get(i);
-                final InstructionBlock handlerBlock = handler.getHandlerBlock();
-                final ControlFlowNode head = nodeMap.get(handlerBlock.getFirstInstruction());
-                final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
-
-                final List<ControlFlowNode> tryNodes = new ArrayList<>(findDominatedNodes(cfg, tryHead));
-                final List<ControlFlowNode> handlerNodes = new ArrayList<>(findDominatedNodes(cfg, head, false));
-
-                Collections.sort(tryNodes);
-                Collections.sort(handlerNodes);
-
-                final ControlFlowNode tail = last(handlerNodes);
-
-                final HandlerInfo handlerInfo = new HandlerInfo(
-                    handler,
-                    findHandlerNode(cfg, handler),
-                    head,
-                    tail,
-                    tryNodes,
-                    handlerNodes
-                );
-
-                handlerMap.put(handler, handlerInfo);
-
-                if (handler.isFinally()) {
-                    finallyHandlers.add(handler);
-                    allFinallyNodes.addAll(handlerNodes);
-                }
-            }
-
-            for (final ExceptionHandler handler : finallyHandlers) {
-                final HandlerInfo handlerInfo = handlerMap.get(handler);
-                final List<ControlFlowNode> successors = new ArrayList<>();
-                final Set<ControlFlowNode> toProcess = new LinkedHashSet<>();
-
-                Instruction first = handlerInfo.head.getStart();
-                Instruction last = handlerInfo.handler.getHandlerBlock().getLastInstruction();
-
-                if (last.getOpCode() == OpCode.ENDFINALLY) {
-                    first = first.getNext();
-                    last = previous.apply(last);
-                }
-                else {
-                    if (first.getOpCode().isStore() || first.getOpCode() == OpCode.POP) {
-                        first = first.getNext();
-                    }
-
-//                    if (last.getOpCode().getFlowControl() == FlowControl.Return) {
-//                        last = previous.apply(last);
-//                    }
-                }
-
-                if (first == null || last == null) {
-                    continue;
-                }
-
-                int instructionCount = 1;
-
-                for (Instruction p = first.getNext(); p != null && p.getOffset() < last.getEndOffset(); p = p.getNext()) {
-                    ++instructionCount;
-                }
-
-                final ControlFlowNode tryHead = nodeMap.get(handler.getTryBlock().getFirstInstruction());
-                final ControlFlowNode finallyTail = nodeMap.get(handler.getHandlerBlock().getLastInstruction());
-                final ControlFlowNode endFinallyNode = handlerInfo.handlerNode.getEndFinallyNode();
-                final Set<ControlFlowNode> exitOnlySuccessors = new HashSet<>();
-                final InstructionBlock tryBlock = handlerInfo.handler.getTryBlock();
-
-                if (endFinallyNode != null) {
-                    successors.add(handlerInfo.handlerNode);
-                }
-
-                for (final ControlFlowNode exit : cfg.getRegularExit().getPredecessors()) {
-                    if (exit.getNodeType() == ControlFlowNodeType.Normal &&
-                        tryBlock.contains(exit.getEnd())) {
-
-                        toProcess.add(exit);
-                    }
-                }
-
-                for (final ControlFlowNode exit : cfg.getExceptionalExit().getPredecessors()) {
-                    if (exit.getNodeType() == ControlFlowNodeType.Normal &&
-                        tryBlock.contains(exit.getEnd())) {
-
-                        toProcess.add(exit);
-                    }
-                }
-
-                for (int i = 0; i < successors.size(); i++) {
-                    final ControlFlowNode successor = successors.get(i);
-
-                    for (final ControlFlowEdge edge : successor.getIncoming()) {
-                        if (edge.getSource() == successor) {
-                            continue;
-                        }
-
-                        if (edge.getType() == JumpType.Normal &&
-                            edge.getSource().getNodeType() == ControlFlowNodeType.Normal &&
-                            !exitOnlySuccessors.contains(successor)) {
-
-                            toProcess.add(edge.getSource());
-                        }
-                        else if (edge.getType() == JumpType.JumpToExceptionHandler &&
-                                 edge.getSource().getNodeType() == ControlFlowNodeType.Normal &&
-                                 (edge.getSource().getEnd().getOpCode().isThrow() ||
-                                  edge.getSource().getEnd().getOpCode().isReturn())) {
-
-                            toProcess.add(edge.getSource());
-
-                            if (exitOnlySuccessors.contains(successor)) {
-                                exitOnlySuccessors.add(edge.getSource());
-                            }
-                        }
-                        else if (edge.getSource().getNodeType() == ControlFlowNodeType.CatchHandler) {
-                            final ControlFlowNode endCatch = findNode(
-                                cfg,
-                                edge.getSource().getExceptionHandler().getHandlerBlock().getLastInstruction()
-                            );
-
-                            if (handlerInfo.handler.getTryBlock().contains(endCatch.getEnd())) {
-                                toProcess.add(endCatch);
-                            }
-                        }
-                        else if (edge.getSource().getNodeType() == ControlFlowNodeType.FinallyHandler) {
-                            successors.add(edge.getSource());
-                            exitOnlySuccessors.add(edge.getSource());
-                        }
-                    }
-                }
-
-                processedNodes.clear();
-
-            nextNode:
-                for (ControlFlowNode node : toProcess) {
-                    final ExceptionHandler nodeHandler = node.getExceptionHandler();
-
-                    if (node.getNodeType() == ControlFlowNodeType.EndFinally) {
-                        continue;
-                    }
-
-                    if (nodeHandler != null) {
-                        node = nodeMap.get(nodeHandler.getHandlerBlock().getLastInstruction());
-                    }
-
-                    if (processedNodes.contains(node) || allFinallyNodes.contains(node)) {
-                        continue;
-                    }
-
-                    Instruction tail = node.getEnd();
-                    boolean isLeave = false;
-                    boolean tryNext = false;
-                    boolean tryPrevious = false;
-
-                    if (finallyTail.getEnd().getOpCode().isReturn() ||
-                        finallyTail.getEnd().getOpCode().isThrow()) {
-
-                        isLeave = true;
-                    }
-
-                    if (last.getOpCode() == OpCode.GOTO || last.getOpCode() == OpCode.GOTO_W) {
-                        tryNext = true;
-                    }
-
-                    if (tail.getOpCode().isUnconditionalBranch()) {
-                        switch (tail.getOpCode()) {
-                            case GOTO:
-                            case GOTO_W:
-                                tryPrevious = true;
-                                break;
-
-                            case RETURN:
-                                tail = previous.apply(tail);
-                                tryPrevious = true;
-                                break;
-
-                            case IRETURN:
-                            case LRETURN:
-                            case FRETURN:
-                            case DRETURN:
-                            case ARETURN:
-                                if (finallyTail.getEnd().getOpCode().getFlowControl() != FlowControl.Return) {
-                                    tail = previous.apply(tail);
-                                }
-                                tryPrevious = true;
-                                break;
-
-                            case ATHROW:
-                                tryNext = true;
-                                tryPrevious = true;
-                                break;
-                        }
-                    }
-
-                    while (tail != null && _removed.contains(tail)) {
-                        tail = previous.apply(tail);
-                    }
-
-                    if (tail == null) {
-                        continue;
-                    }
-
-                    if (allFinallyNodes.contains(nodeMap.get(tail)) || !opCodesMatch(last, tail, instructionCount, previous)) {
-                        if (!tryPrevious ||
-                            allFinallyNodes.contains(nodeMap.get(previous.apply(tail))) ||
-                            !opCodesMatch(last, previous.apply(tail), instructionCount, previous)) {
-
-                            if (!tryNext ||
-                                allFinallyNodes.contains(nodeMap.get(tail.getNext())) ||
-                                !opCodesMatch(last, tail.getNext(), instructionCount, previous)) {
-
-                                if (last.getOpCode() == OpCode.JSR) {
-                                    //
-                                    // If we failed to match against the last instruction in our 'try' block, see if our
-                                    // subroutine jump follows the finally block instead.  This pattern has been seen
-                                    // in the wild.
-                                    //
-                                    final Instruction lastInTry = handlerInfo.handler.getTryBlock().getLastInstruction();
-
-                                    if (tail == lastInTry &&
-                                        (lastInTry.getOpCode() == OpCode.GOTO || lastInTry.getOpCode() == OpCode.GOTO_W)) {
-
-                                        final Instruction target = lastInTry.getOperand(0);
-
-                                        if (target.getOpCode() == OpCode.JSR &&
-                                            target.getOperand(0) == last.getOperand(0)) {
-
-                                            target.setOpCode(OpCode.NOP);
-                                            target.setOperand(null);
-                                        }
-                                    }
-                                }
-                                continue;
-                            }
-
-                            tail = tail.getNext();
-                        }
-                        else {
-                            tail = previous.apply(tail);
-                        }
-
-                        if (tail == null) {
-                            continue;
-                        }
-                    }
-
-                    if (tail.getOffset() - tryHead.getOffset() == last.getOffset() - first.getOffset()) {
-                        //
-                        // If the try block exactly matches the finally, don't remove it.
-                        //
-                        continue;
-                    }
-
-                    for (int i = 0; i < instructionCount; i++) {
-                        _removed.add(tail);
-                        tail = previous.apply(tail);
-                        if (tail == null) {
-                            continue nextNode;
-                        }
-                    }
-
-                    if (isLeave) {
-                        if (tail != null &&
-                            tail.getOpCode().isStore() &&
-                            !_body.getMethod().getReturnType().isVoid()) {
-
-                            final Instruction load = InstructionHelper.reverseLoadOrStore(tail);
-                            final Instruction returnSite = node.getEnd();
-                            final Instruction loadSite = returnSite.getPrevious();
-
-                            loadSite.setOpCode(load.getOpCode());
-
-                            if (load.getOperandCount() == 1) {
-                                loadSite.setOperand(load.getOperand(0));
-                            }
-
-                            switch (load.getOpCode().name().charAt(0)) {
-                                case 'I':
-                                    returnSite.setOpCode(OpCode.IRETURN);
-                                    break;
-                                case 'L':
-                                    returnSite.setOpCode(OpCode.LRETURN);
-                                    break;
-                                case 'F':
-                                    returnSite.setOpCode(OpCode.FRETURN);
-                                    break;
-                                case 'D':
-                                    returnSite.setOpCode(OpCode.DRETURN);
-                                    break;
-                                case 'A':
-                                    returnSite.setOpCode(OpCode.ARETURN);
-                                    break;
-                            }
-
-                            returnSite.setOperand(null);
-
-                            _removed.remove(loadSite);
-                            _removed.remove(returnSite);
-                        }
-                        else {
-                            _removed.add(node.getEnd());
-                        }
-                    }
-
-                    processedNodes.add(node);
-                }
-            }
-        }
-        finally {
-            Collections.reverse(handlers);
-        }
-    }
-
     private static Map<Instruction, ControlFlowNode> createNodeMap(final ControlFlowGraph cfg) {
         final Map<Instruction, ControlFlowNode> nodeMap = new IdentityHashMap<>();
 
@@ -1885,7 +1490,7 @@ public final class AstBuilder {
         }
     }
 
-    private ControlFlowNode findHandlerNode(final ControlFlowGraph cfg, final ExceptionHandler handler) {
+    private static ControlFlowNode findHandlerNode(final ControlFlowGraph cfg, final ExceptionHandler handler) {
         final List<ControlFlowNode> nodes = cfg.getNodes();
 
         for (int i = nodes.size() - 1; i >= 0; i--) {
@@ -2970,7 +2575,8 @@ public final class AstBuilder {
 
                 newVariables = Collections.singletonList(variableInfo);
             }
-            else*/ if (!_optimize/* || fromUnknownDefinition*/) {
+            else*/
+            if (!_optimize/* || fromUnknownDefinition*/) {
                 final Variable variable = new Variable();
 
                 if (vDef != null) {
@@ -3063,8 +2669,7 @@ public final class AstBuilder {
 
                 newVariables = Collections.singletonList(variableInfo);
             }
-            else
-            {
+            else {
                 newVariables = new ArrayList<>();
 
                 boolean parameterVariableAdded = false;
@@ -4210,4 +3815,446 @@ public final class AstBuilder {
     };
 
     // </editor-fold>
+
+    private final static class FinallyInlining {
+        private final MethodBody _body;
+        private final InstructionCollection _instructions;
+        private final List<ExceptionHandler> _exceptionHandlers;
+        private final Set<Instruction> _removed;
+        private final Function<Instruction, Instruction> _previous;
+        private final ControlFlowGraph _cfg;
+
+        private final Map<Instruction, ControlFlowNode> _nodeMap;
+        private final Set<ExceptionHandler> _finallyHandlers = new LinkedHashSet<>();
+        private final Map<ExceptionHandler, HandlerInfo> _handlerMap = new IdentityHashMap<>();
+        private final Set<ControlFlowNode> _processedNodes = new LinkedHashSet<>();
+        private final Set<ControlFlowNode> _allFinallyNodes = new LinkedHashSet<>();
+
+        private FinallyInlining(
+            final MethodBody body,
+            final InstructionCollection instructions,
+            final List<ExceptionHandler> handlers) {
+
+            _body = body;
+            _instructions = instructions;
+            _exceptionHandlers = handlers;
+            _removed = new HashSet<>();
+            _previous = new Function<Instruction, Instruction>() {
+                @Override
+                public Instruction apply(final Instruction i) {
+                    return previous(i);
+                }
+            };
+
+            preProcess();
+
+            _cfg = ControlFlowGraphBuilder.build(instructions, handlers);
+            _cfg.computeDominance();
+            _cfg.computeDominanceFrontier();
+            _nodeMap = createNodeMap(_cfg);
+
+            for (int i = 0; i < handlers.size(); i++) {
+                final ExceptionHandler handler = handlers.get(i);
+                final InstructionBlock handlerBlock = handler.getHandlerBlock();
+                final ControlFlowNode head = _nodeMap.get(handlerBlock.getFirstInstruction());
+                final ControlFlowNode tryHead = _nodeMap.get(handler.getTryBlock().getFirstInstruction());
+
+                final List<ControlFlowNode> tryNodes = new ArrayList<>(findDominatedNodes(_cfg, tryHead));
+                final List<ControlFlowNode> handlerNodes = new ArrayList<>(findDominatedNodes(_cfg, head, false));
+
+                Collections.sort(tryNodes);
+                Collections.sort(handlerNodes);
+
+                final ControlFlowNode tail = last(handlerNodes);
+
+                final HandlerInfo handlerInfo = new HandlerInfo(
+                    handler,
+                    findHandlerNode(_cfg, handler),
+                    head,
+                    tail,
+                    tryNodes,
+                    handlerNodes
+                );
+
+                _handlerMap.put(handler, handlerInfo);
+
+                if (handler.isFinally()) {
+                    _finallyHandlers.add(handler);
+                    _allFinallyNodes.addAll(handlerNodes);
+                }
+            }
+        }
+
+        static void run(
+            final MethodBody body,
+            final InstructionCollection instructions,
+            final List<ExceptionHandler> handlers) {
+
+            Collections.reverse(handlers);
+
+            try {
+                new FinallyInlining(body, instructions, handlers).runCore();
+            }
+            finally {
+                Collections.reverse(handlers);
+            }
+        }
+
+        private void runCore() {
+            final List<ExceptionHandler> handlers = _exceptionHandlers;
+
+            if (handlers.isEmpty()) {
+                return;
+            }
+
+            for (final ExceptionHandler handler : _finallyHandlers) {
+                processFinally(handler);
+            }
+        }
+
+        @SuppressWarnings("ConstantConditions")
+        private void processFinally(final ExceptionHandler handler) {
+            final HandlerInfo handlerInfo = _handlerMap.get(handler);
+
+            Instruction first = handlerInfo.head.getStart();
+            Instruction last = handlerInfo.handler.getHandlerBlock().getLastInstruction();
+
+            if (last.getOpCode() == OpCode.ENDFINALLY) {
+                first = first.getNext();
+                last = previous(last);
+            }
+            else {
+                if (first.getOpCode().isStore() || first.getOpCode() == OpCode.POP) {
+                    first = first.getNext();
+                }
+            }
+
+            if (first == null || last == null) {
+                return;
+            }
+
+            int instructionCount = 1;
+
+            for (Instruction p = first.getNext(); p != null && p.getOffset() < last.getEndOffset(); p = p.getNext()) {
+                ++instructionCount;
+            }
+
+            final ControlFlowNode tryHead = _nodeMap.get(handler.getTryBlock().getFirstInstruction());
+            final ControlFlowNode finallyTail = _nodeMap.get(handler.getHandlerBlock().getLastInstruction());
+            final Set<ControlFlowNode> toProcess = collectNodes(handlerInfo);
+
+            _processedNodes.clear();
+
+        nextNode:
+            for (ControlFlowNode node : toProcess) {
+                final ExceptionHandler nodeHandler = node.getExceptionHandler();
+
+                if (node.getNodeType() == ControlFlowNodeType.EndFinally) {
+                    continue;
+                }
+
+                if (nodeHandler != null) {
+                    node = _nodeMap.get(nodeHandler.getHandlerBlock().getLastInstruction());
+                }
+
+                if (_processedNodes.contains(node) || _allFinallyNodes.contains(node)) {
+                    continue;
+                }
+
+                Instruction tail = node.getEnd();
+                boolean isLeave = false;
+                boolean tryNext = false;
+                boolean tryPrevious = false;
+
+                if (finallyTail.getEnd().getOpCode().isReturn() ||
+                    finallyTail.getEnd().getOpCode().isThrow()) {
+
+                    isLeave = true;
+                }
+
+                if (last.getOpCode() == OpCode.GOTO || last.getOpCode() == OpCode.GOTO_W) {
+                    tryNext = true;
+                }
+
+                if (tail.getOpCode().isUnconditionalBranch()) {
+                    switch (tail.getOpCode()) {
+                        case GOTO:
+                        case GOTO_W:
+                            tryPrevious = true;
+                            break;
+
+                        case RETURN:
+                            tail = previous(tail);
+                            tryPrevious = true;
+                            break;
+
+                        case IRETURN:
+                        case LRETURN:
+                        case FRETURN:
+                        case DRETURN:
+                        case ARETURN:
+                            if (finallyTail.getEnd().getOpCode().getFlowControl() != FlowControl.Return) {
+                                tail = previous(tail);
+                            }
+                            tryPrevious = true;
+                            break;
+
+                        case ATHROW:
+                            tryNext = true;
+                            tryPrevious = true;
+                            break;
+                    }
+                }
+
+                while (tail != null && _removed.contains(tail)) {
+                    tail = previous(tail);
+                }
+
+                if (tail == null) {
+                    continue;
+                }
+
+                if (_allFinallyNodes.contains(_nodeMap.get(tail)) || !opCodesMatch(last, tail, instructionCount, _previous)) {
+                    if (!tryPrevious ||
+                        _allFinallyNodes.contains(_nodeMap.get(previous(tail))) ||
+                        !opCodesMatch(last, previous(tail), instructionCount, _previous)) {
+
+                        if (!tryNext ||
+                            _allFinallyNodes.contains(_nodeMap.get(tail.getNext())) ||
+                            !opCodesMatch(last, tail.getNext(), instructionCount, _previous)) {
+
+                            if (last.getOpCode() == OpCode.JSR) {
+                                //
+                                // If we failed to match against the last instruction in our 'try' block, see if our
+                                // subroutine jump follows the finally block instead.  This pattern has been seen
+                                // in the wild.
+                                //
+                                final Instruction lastInTry = handlerInfo.handler.getTryBlock().getLastInstruction();
+
+                                if (tail == lastInTry &&
+                                    (lastInTry.getOpCode() == OpCode.GOTO || lastInTry.getOpCode() == OpCode.GOTO_W)) {
+
+                                    final Instruction target = lastInTry.getOperand(0);
+
+                                    if (target.getOpCode() == OpCode.JSR &&
+                                        target.getOperand(0) == last.getOperand(0)) {
+
+                                        target.setOpCode(OpCode.NOP);
+                                        target.setOperand(null);
+                                    }
+                                }
+                            }
+                            continue;
+                        }
+
+                        tail = tail.getNext();
+                    }
+                    else {
+                        tail = previous(tail);
+                    }
+
+                    if (tail == null) {
+                        continue;
+                    }
+                }
+
+                if (tail.getOffset() - tryHead.getOffset() == last.getOffset() - first.getOffset()) {
+                    //
+                    // If the try block exactly matches the finally, don't remove it.
+                    //
+                    continue;
+                }
+
+                for (int i = 0; i < instructionCount; i++) {
+                    _removed.add(tail);
+                    tail = previous(tail);
+                    if (tail == null) {
+                        continue nextNode;
+                    }
+                }
+
+                if (isLeave) {
+                    if (tail != null &&
+                        tail.getOpCode().isStore() &&
+                        !_body.getMethod().getReturnType().isVoid()) {
+
+                        final Instruction load = InstructionHelper.reverseLoadOrStore(tail);
+                        final Instruction returnSite = node.getEnd();
+                        final Instruction loadSite = returnSite.getPrevious();
+
+                        loadSite.setOpCode(load.getOpCode());
+
+                        if (load.getOperandCount() == 1) {
+                            loadSite.setOperand(load.getOperand(0));
+                        }
+
+                        switch (load.getOpCode().name().charAt(0)) {
+                            case 'I':
+                                returnSite.setOpCode(OpCode.IRETURN);
+                                break;
+                            case 'L':
+                                returnSite.setOpCode(OpCode.LRETURN);
+                                break;
+                            case 'F':
+                                returnSite.setOpCode(OpCode.FRETURN);
+                                break;
+                            case 'D':
+                                returnSite.setOpCode(OpCode.DRETURN);
+                                break;
+                            case 'A':
+                                returnSite.setOpCode(OpCode.ARETURN);
+                                break;
+                        }
+
+                        returnSite.setOperand(null);
+
+                        _removed.remove(loadSite);
+                        _removed.remove(returnSite);
+                    }
+                    else {
+                        _removed.add(node.getEnd());
+                    }
+                }
+
+                _processedNodes.add(node);
+            }
+        }
+
+        @SuppressWarnings("ConstantConditions")
+        private Set<ControlFlowNode> collectNodes(final HandlerInfo handlerInfo) {
+            final ControlFlowGraph cfg = _cfg;
+            final List<ControlFlowNode> successors = new ArrayList<>();
+            final Set<ControlFlowNode> toProcess = new LinkedHashSet<>();
+            final ControlFlowNode endFinallyNode = handlerInfo.handlerNode.getEndFinallyNode();
+            final Set<ControlFlowNode> exitOnlySuccessors = new LinkedHashSet<>();
+            final InstructionBlock tryBlock = handlerInfo.handler.getTryBlock();
+
+            if (endFinallyNode != null) {
+                successors.add(handlerInfo.handlerNode);
+            }
+
+            for (final ControlFlowNode exit : cfg.getRegularExit().getPredecessors()) {
+                if (exit.getNodeType() == ControlFlowNodeType.Normal &&
+                    tryBlock.contains(exit.getEnd())) {
+
+                    toProcess.add(exit);
+                }
+            }
+
+            for (final ControlFlowNode exit : cfg.getExceptionalExit().getPredecessors()) {
+                if (exit.getNodeType() == ControlFlowNodeType.Normal &&
+                    tryBlock.contains(exit.getEnd())) {
+
+                    toProcess.add(exit);
+                }
+            }
+
+            for (int i = 0; i < successors.size(); i++) {
+                final ControlFlowNode successor = successors.get(i);
+
+                for (final ControlFlowEdge edge : successor.getIncoming()) {
+                    if (edge.getSource() == successor) {
+                        continue;
+                    }
+
+                    if (edge.getType() == JumpType.Normal &&
+                        edge.getSource().getNodeType() == ControlFlowNodeType.Normal &&
+                        !exitOnlySuccessors.contains(successor)) {
+
+                        toProcess.add(edge.getSource());
+                    }
+                    else if (edge.getType() == JumpType.JumpToExceptionHandler &&
+                             edge.getSource().getNodeType() == ControlFlowNodeType.Normal &&
+                             (edge.getSource().getEnd().getOpCode().isThrow() ||
+                              edge.getSource().getEnd().getOpCode().isReturn())) {
+
+                        toProcess.add(edge.getSource());
+
+                        if (exitOnlySuccessors.contains(successor)) {
+                            exitOnlySuccessors.add(edge.getSource());
+                        }
+                    }
+                    else if (edge.getSource().getNodeType() == ControlFlowNodeType.CatchHandler) {
+                        final ControlFlowNode endCatch = findNode(
+                            cfg,
+                            edge.getSource().getExceptionHandler().getHandlerBlock().getLastInstruction()
+                        );
+
+                        if (handlerInfo.handler.getTryBlock().contains(endCatch.getEnd())) {
+                            toProcess.add(endCatch);
+                        }
+                    }
+                    else if (edge.getSource().getNodeType() == ControlFlowNodeType.FinallyHandler) {
+                        successors.add(edge.getSource());
+                        exitOnlySuccessors.add(edge.getSource());
+                    }
+                }
+            }
+
+            return toProcess;
+        }
+
+        private void preProcess() {
+            final InstructionCollection instructions = _instructions;
+            final List<ExceptionHandler> handlers = _exceptionHandlers;
+            final ControlFlowGraph cfg = ControlFlowGraphBuilder.build(instructions, handlers);
+
+            cfg.computeDominance();
+            cfg.computeDominanceFrontier();
+
+            for (int i = 0; i < handlers.size(); i++) {
+                final ExceptionHandler handler = handlers.get(i);
+
+                if (handler.isFinally()) {
+                    final InstructionBlock handlerBlock = handler.getHandlerBlock();
+                    final ControlFlowNode finallyHead = findNode(cfg, handler.getHandlerBlock().getFirstInstruction());
+                    final List<ControlFlowNode> finallyNodes = toList(findDominatedNodes(cfg, finallyHead, true));
+
+                    Collections.sort(finallyNodes);
+
+                    final Instruction first = handlerBlock.getFirstInstruction();
+
+                    Instruction last = last(finallyNodes).getEnd();
+                    Instruction nextToLast = last.getPrevious();
+
+                    boolean firstPass = true;
+
+                    while (true) {
+                        if (first.getOpCode().isStore() &&
+                            last.getOpCode() == OpCode.ATHROW &&
+                            nextToLast.getOpCode().isLoad() &&
+                            InstructionHelper.getLoadOrStoreSlot(first) == InstructionHelper.getLoadOrStoreSlot(nextToLast)) {
+
+                            nextToLast.setOpCode(OpCode.NOP);
+                            nextToLast.setOperand(null);
+
+                            _removed.add(nextToLast);
+
+                            last.setOpCode(OpCode.ENDFINALLY);
+                            last.setOperand(null);
+
+                            break;
+                        }
+
+                        if (firstPass = !firstPass) {
+                            break;
+                        }
+
+                        last = handlerBlock.getLastInstruction();
+                        nextToLast = last.getPrevious();
+                    }
+                }
+            }
+        }
+
+        private Instruction previous(final Instruction i) {
+            Instruction p = i.getPrevious();
+
+            while (p != null && _removed.contains(p)) {
+                p = p.getPrevious();
+            }
+
+            return p;
+        }
+    }
 }
