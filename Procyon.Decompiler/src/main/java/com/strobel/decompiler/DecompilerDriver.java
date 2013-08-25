@@ -21,14 +21,23 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.io.StringWriter;
 import java.io.Writer;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Formatter;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 public class DecompilerDriver {
+
     public static void main(final String[] args) {
         final CommandLineOptions options = new CommandLineOptions();
         final JCommander jCommander;
@@ -45,6 +54,8 @@ public class DecompilerDriver {
             System.exit(-1);
             return;
         }
+
+        configureLogging(options);
 
         final String jarFile = options.getJarFile();
         final boolean decompileJar = !StringUtilities.isNullOrWhitespace(jarFile);
@@ -66,15 +77,11 @@ public class DecompilerDriver {
         settings.setShowNestedTypes(options.getShowNestedTypes());
         settings.setOutputDirectory(options.getOutputDirectory());
         settings.setIncludeLineNumbersInBytecode(options.getIncludeLineNumbers());
-        settings.setRemovePointlessSwitches(options.getRemovePointlessSwitches());
+        settings.setRetainPointlessSwitches(options.getRetainPointlessSwitches());
         settings.setTypeLoader(new InputTypeLoader());
-
-        final StringWriter writer = new StringWriter();
-        final ITextOutput printer = new AnsiTextOutput(writer);
 
         if (options.isRawBytecode()) {
             settings.setLanguage(Languages.bytecode());
-            printer.setIndentToken("  ");
         }
         else if (options.isBytecodeAst()) {
             settings.setLanguage(
@@ -94,7 +101,7 @@ public class DecompilerDriver {
 
         if (decompileJar) {
             try {
-                decompileJar(jarFile, decompilationOptions);
+                decompileJar(jarFile, options, decompilationOptions);
             }
             catch (Throwable t) {
                 System.err.println(ExceptionUtilities.getMessage(t));
@@ -106,7 +113,7 @@ public class DecompilerDriver {
 
             for (final String typeName : typeNames) {
                 try {
-                    decompileType(metadataSystem, typeName, decompilationOptions, true);
+                    decompileType(metadataSystem, typeName, options, decompilationOptions, true);
                 }
                 catch (Throwable t) {
                     t.printStackTrace();
@@ -115,8 +122,54 @@ public class DecompilerDriver {
         }
     }
 
+    private static void configureLogging(final CommandLineOptions options) {
+        final Logger globalLogger = Logger.getGlobal();
+        final Logger rootLogger = Logger.getAnonymousLogger().getParent();
+
+        for (final Handler handler : globalLogger.getHandlers()) {
+            globalLogger.removeHandler(handler);
+        }
+
+        for (final Handler handler : rootLogger.getHandlers()) {
+            rootLogger.removeHandler(handler);
+        }
+
+        final Level verboseLevel;
+
+        switch (options.getVerboseLevel()) {
+            case 1:
+                verboseLevel = Level.INFO;
+                break;
+            case 2:
+                verboseLevel = Level.FINE;
+                break;
+            case 3:
+                verboseLevel = Level.FINER;
+                break;
+            case 4:
+                verboseLevel = Level.FINEST;
+                break;
+            case 0:
+            default:
+                verboseLevel = Level.SEVERE;
+                break;
+        }
+
+        globalLogger.setLevel(verboseLevel);
+        rootLogger.setLevel(verboseLevel);
+
+        final ConsoleHandler handler = new ConsoleHandler();
+
+        handler.setLevel(verboseLevel);
+        handler.setFormatter(new BriefLogFormatter());
+
+        globalLogger.addHandler(handler);
+        rootLogger.addHandler(handler);
+    }
+
     private static void decompileJar(
         final String jarFilePath,
+        final CommandLineOptions commandLineOptions,
         final DecompilationOptions decompilationOptions) throws IOException {
 
         final File jarFile = new File(jarFilePath);
@@ -152,7 +205,7 @@ public class DecompilerDriver {
             final String internalName = StringUtilities.removeRight(name, ".class");
 
             try {
-                decompileType(metadataSystem, internalName, decompilationOptions, false);
+                decompileType(metadataSystem, internalName, commandLineOptions, decompilationOptions, false);
             }
             catch (Throwable t) {
                 t.printStackTrace();
@@ -163,6 +216,7 @@ public class DecompilerDriver {
     private static void decompileType(
         final MetadataSystem metadataSystem,
         final String typeName,
+        final CommandLineOptions commandLineOptions,
         final DecompilationOptions options,
         final boolean includeNested) throws IOException {
 
@@ -195,11 +249,19 @@ public class DecompilerDriver {
         }
 
         final Writer writer = createWriter(resolvedType, settings);
-
         final boolean writeToFile = writer instanceof FileWriter;
+        final PlainTextOutput output;
 
-        final PlainTextOutput output = writeToFile ? new PlainTextOutput(writer)
-                                                   : new AnsiTextOutput(writer);
+        if (writeToFile) {
+            output = new PlainTextOutput(writer);
+        }
+        else {
+            output = new AnsiTextOutput(
+                writer,
+                commandLineOptions.getUseLightColorScheme() ? AnsiTextOutput.ColorScheme.LIGHT
+                                                            : AnsiTextOutput.ColorScheme.DARK
+            );
+        }
 
         if (settings.getLanguage() instanceof BytecodeLanguage) {
             output.setIndentToken("  ");
@@ -259,5 +321,29 @@ public class DecompilerDriver {
         }
 
         return new FileWriter(outputFile);
+    }
+}
+
+final class BriefLogFormatter extends Formatter {
+    private static final DateFormat format = new SimpleDateFormat("h:mm:ss");
+    private static final String lineSep = System.getProperty("line.separator");
+
+    /**
+     * A Custom format implementation that is designed for brevity.
+     */
+    public String format(final LogRecord record) {
+        String loggerName = record.getLoggerName();
+        if (loggerName == null) {
+            loggerName = "root";
+        }
+        return new StringBuilder()
+            .append(format.format(new Date(record.getMillis())))
+            .append(" [")
+            .append(record.getLevel())
+            .append("] ")
+            .append(loggerName)
+            .append(": ")
+            .append(record.getMessage()).append(' ')
+            .append(lineSep).toString();
     }
 }

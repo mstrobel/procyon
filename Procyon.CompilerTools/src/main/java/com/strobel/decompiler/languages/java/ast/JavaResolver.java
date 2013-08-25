@@ -130,6 +130,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                 return null;
             }
 
+/*
             if (variable.isParameter()) {
                 for (final AstNode n : node.getAncestors()) {
                     final AstNodeCollection<ParameterDeclaration> parameters = n.getChildrenByRole(Roles.PARAMETER);
@@ -141,12 +142,15 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                     for (final ParameterDeclaration p : parameters) {
                         final ParameterDefinition definition = p.getUserData(Keys.PARAMETER_DEFINITION);
 
-                        if (StringUtilities.equals(p.getName(), variable.getName())) {
-                            return resolveType(definition.getParameterType());
+                        if (definition != null) {
+                            if (StringUtilities.equals(p.getName(), variable.getName())) {
+                                return resolveType(definition.getParameterType());
+                            }
                         }
                     }
                 }
             }
+*/
 
             final ResolveResult result = resolveTypeFromVariable(variable);
 

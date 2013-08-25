@@ -25,26 +25,10 @@ import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 import com.strobel.io.Ansi;
 
+import java.io.StringWriter;
 import java.io.Writer;
 
 public class AnsiTextOutput extends PlainTextOutput {
-    private final static Ansi KEYWORD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(33/*39*/), null);
-    private final static Ansi INSTRUCTION = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*45*//*33*/141), null);
-    private final static Ansi LABEL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(249), null);
-    private final static Ansi TYPE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(45/*105*//*141*/), null);
-    private final static Ansi TYPE_VARIABLE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(79/*105*//*141*/), null);
-    private final static Ansi PACKAGE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(111), null);
-    private final static Ansi METHOD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*213*/212), null);
-    private final static Ansi FIELD = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(222/*216*/), null);
-    private final static Ansi LOCAL = new Ansi(Ansi.Attribute.NORMAL, /*new Ansi.AnsiColor(230)*/(Ansi.AnsiColor) null, null);
-    private final static Ansi LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(204), null);
-    private final static Ansi TEXT_LITERAL = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(/*48*/42), null);
-    private final static Ansi COMMENT = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(244), null);
-    private final static Ansi OPERATOR = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(247), null);
-    private final static Ansi DELIMITER = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(252), null);
-    private final static Ansi ATTRIBUTE = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(214), null);
-    private final static Ansi ERROR = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(196), null);
-
     private final static class Delimiters {
         final static String L = "L";
         final static String T = "T";
@@ -55,21 +39,66 @@ public class AnsiTextOutput extends PlainTextOutput {
         final static String SEMICOLON = ";";
     }
 
+    private final Ansi _keyword;
+    private final Ansi _instruction;
+    private final Ansi _label;
+    private final Ansi _type;
+    private final Ansi _typeVariable;
+    private final Ansi _package;
+    private final Ansi _method;
+    private final Ansi _field;
+    private final Ansi _local;
+    private final Ansi _literal;
+    private final Ansi _textLiteral;
+    private final Ansi _comment;
+    private final Ansi _operator;
+    private final Ansi _delimiter;
+    private final Ansi _attribute;
+    private final Ansi _error;
+
     public AnsiTextOutput() {
+        this(new StringWriter(), ColorScheme.DARK);
+    }
+
+    public AnsiTextOutput(final ColorScheme colorScheme) {
+        this(new StringWriter(), colorScheme);
     }
 
     public AnsiTextOutput(final Writer writer) {
+        this(writer, ColorScheme.DARK);
+    }
+
+    public AnsiTextOutput(final Writer writer, final ColorScheme colorScheme) {
         super(writer);
+
+        final boolean light = colorScheme == ColorScheme.LIGHT;
+
+        _keyword = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 21 : 33), null);
+        _instruction = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 91 : 141), null);
+        _label = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 249 : 249), null);
+        _type = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 25 : 45), null);
+        _typeVariable = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 29 : 79), null);
+        _package = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 32 : 111), null);
+        _method = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 162 : 212), null);
+        _field = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 136 : 222), null);
+        _local = new Ansi(Ansi.Attribute.NORMAL, (Ansi.AnsiColor) null, null);
+        _literal = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 197 : 204), null);
+        _textLiteral = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 28 : 42), null);
+        _comment = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 244 : 244), null);
+        _operator = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 242 : 247), null);
+        _delimiter = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 242 : 252), null);
+        _attribute = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 166 : 214), null);
+        _error = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 196 : 196), null);
     }
 
     @Override
     public void writeError(final String value) {
-        writeAnsi(value, ERROR.colorize(value));
+        writeAnsi(value, _error.colorize(value));
     }
 
     @Override
     public void writeLabel(final String value) {
-        writeAnsi(value, LABEL.colorize(value));
+        writeAnsi(value, _label.colorize(value));
     }
 
     protected final void writeAnsi(final String originalText, final String ansiText) {
@@ -83,44 +112,44 @@ public class AnsiTextOutput extends PlainTextOutput {
     @Override
     public void writeLiteral(final Object value) {
         final String literal = String.valueOf(value);
-        writeAnsi(literal, LITERAL.colorize(literal));
+        writeAnsi(literal, _literal.colorize(literal));
     }
 
     @Override
     public void writeTextLiteral(final Object value) {
         final String literal = String.valueOf(value);
-        writeAnsi(literal, TEXT_LITERAL.colorize(literal));
+        writeAnsi(literal, _textLiteral.colorize(literal));
     }
 
     @Override
     public void writeComment(final String value) {
-        writeAnsi(value, COMMENT.colorize(value));
+        writeAnsi(value, _comment.colorize(value));
     }
 
     @Override
     public void writeComment(final String format, final Object... args) {
         final String text = String.format(format, args);
-        writeAnsi(text, COMMENT.colorize(text));
+        writeAnsi(text, _comment.colorize(text));
     }
 
     @Override
     public void writeDelimiter(final String text) {
-        writeAnsi(text, DELIMITER.colorize(text));
+        writeAnsi(text, _delimiter.colorize(text));
     }
 
     @Override
     public void writeAttribute(final String text) {
-        writeAnsi(text, ATTRIBUTE.colorize(text));
+        writeAnsi(text, _attribute.colorize(text));
     }
 
     @Override
     public void writeOperator(final String text) {
-        writeAnsi(text, OPERATOR.colorize(text));
+        writeAnsi(text, _operator.colorize(text));
     }
 
     @Override
     public void writeKeyword(final String text) {
-        writeAnsi(text, KEYWORD.colorize(text));
+        writeAnsi(text, _keyword.colorize(text));
     }
 
     @Override
@@ -138,23 +167,23 @@ public class AnsiTextOutput extends PlainTextOutput {
             definition instanceof OpCode ||
             definition instanceof AstCode) {
 
-            colorizedText = INSTRUCTION.colorize(escapedText);
+            colorizedText = _instruction.colorize(escapedText);
         }
         else if (definition instanceof TypeReference) {
             colorizedText = colorizeType(escapedText, (TypeReference) definition);
         }
         else if (definition instanceof MethodReference ||
                  definition instanceof IMethodSignature) {
-            colorizedText = METHOD.colorize(escapedText);
+            colorizedText = _method.colorize(escapedText);
         }
         else if (definition instanceof FieldReference) {
-            colorizedText = FIELD.colorize(escapedText);
+            colorizedText = _field.colorize(escapedText);
         }
         else if (definition instanceof VariableReference ||
                  definition instanceof ParameterReference ||
                  definition instanceof Variable) {
 
-            colorizedText = LOCAL.colorize(escapedText);
+            colorizedText = _local.colorize(escapedText);
         }
         else if (definition instanceof PackageReference) {
             colorizedText = colorizePackage(escapedText);
@@ -162,7 +191,7 @@ public class AnsiTextOutput extends PlainTextOutput {
         else if (definition instanceof Label ||
                  definition instanceof com.strobel.decompiler.ast.Label) {
 
-            colorizedText = LABEL.colorize(escapedText);
+            colorizedText = _label.colorize(escapedText);
         }
         else {
             colorizedText = escapedText;
@@ -186,23 +215,23 @@ public class AnsiTextOutput extends PlainTextOutput {
             reference instanceof OpCode ||
             reference instanceof AstCode) {
 
-            colorizedText = INSTRUCTION.colorize(escapedText);
+            colorizedText = _instruction.colorize(escapedText);
         }
         else if (reference instanceof TypeReference) {
             colorizedText = colorizeType(escapedText, (TypeReference) reference);
         }
         else if (reference instanceof MethodReference ||
                  reference instanceof IMethodSignature) {
-            colorizedText = METHOD.colorize(escapedText);
+            colorizedText = _method.colorize(escapedText);
         }
         else if (reference instanceof FieldReference) {
-            colorizedText = FIELD.colorize(escapedText);
+            colorizedText = _field.colorize(escapedText);
         }
         else if (reference instanceof VariableReference ||
                  reference instanceof ParameterReference ||
                  reference instanceof Variable) {
 
-            colorizedText = LOCAL.colorize(escapedText);
+            colorizedText = _local.colorize(escapedText);
         }
         else if (reference instanceof PackageReference) {
             colorizedText = colorizePackage(escapedText);
@@ -210,7 +239,7 @@ public class AnsiTextOutput extends PlainTextOutput {
         else if (reference instanceof Label ||
                  reference instanceof com.strobel.decompiler.ast.Label) {
 
-            colorizedText = LABEL.colorize(escapedText);
+            colorizedText = _label.colorize(escapedText);
         }
         else {
             colorizedText = escapedText;
@@ -222,17 +251,17 @@ public class AnsiTextOutput extends PlainTextOutput {
     @SuppressWarnings("ConstantConditions")
     private String colorizeType(final String text, final TypeReference type) {
         if (type.isPrimitive()) {
-            return KEYWORD.colorize(text);
+            return _keyword.colorize(text);
         }
 
         final String packageName = type.getPackageName();
         final TypeDefinition resolvedType = type.resolve();
 
-        Ansi typeColor = type.isGenericParameter() ? TYPE_VARIABLE : TYPE;
+        Ansi typeColor = type.isGenericParameter() ? _typeVariable : _type;
 
         if (StringUtilities.isNullOrEmpty(packageName)) {
             if (resolvedType != null && resolvedType.isAnnotation()) {
-                return ATTRIBUTE.colorize(text);
+                return _attribute.colorize(text);
             }
             else {
                 return typeColor.colorize(text);
@@ -272,22 +301,22 @@ public class AnsiTextOutput extends PlainTextOutput {
             final String[] packageParts = packageName.split("\\.");
 
             for (int i = 0; i < arrayDepth; i++) {
-                sb.append(DELIMITER.colorize(Delimiters.LEFT_BRACKET));
+                sb.append(_delimiter.colorize(Delimiters.LEFT_BRACKET));
             }
 
             if (isSignature) {
-                sb.append(DELIMITER.colorize(isTypeVariable ? Delimiters.T : Delimiters.L));
+                sb.append(_delimiter.colorize(isTypeVariable ? Delimiters.T : Delimiters.L));
             }
 
             for (int i = 0; i < packageParts.length; i++) {
                 if (i != 0) {
-                    sb.append(DELIMITER.colorize(String.valueOf(delimiter)));
+                    sb.append(_delimiter.colorize(String.valueOf(delimiter)));
                 }
 
-                sb.append(PACKAGE.colorize(packageParts[i]));
+                sb.append(_package.colorize(packageParts[i]));
             }
 
-            sb.append(DELIMITER.colorize(String.valueOf(delimiter)));
+            sb.append(_delimiter.colorize(String.valueOf(delimiter)));
 
             typeName = s.substring(packagePrefix.length());
         }
@@ -298,18 +327,18 @@ public class AnsiTextOutput extends PlainTextOutput {
         final String[] typeParts = typeName.split("\\$|\\.");
         final boolean dollar = typeName.indexOf('$') >= 0;
 
-        typeColor = resolvedType != null && resolvedType.isAnnotation() ? ATTRIBUTE : typeColor;
+        typeColor = resolvedType != null && resolvedType.isAnnotation() ? _attribute : typeColor;
 
         for (int i = 0; i < typeParts.length; i++) {
             if (i != 0) {
-                sb.append(DELIMITER.colorize(dollar ? Delimiters.DOLLAR : Delimiters.DOT));
+                sb.append(_delimiter.colorize(dollar ? Delimiters.DOLLAR : Delimiters.DOT));
             }
 
             sb.append(typeColor.colorize(typeParts[i]));
         }
 
         if (isSignature) {
-            sb.append(DELIMITER.colorize(Delimiters.SEMICOLON));
+            sb.append(_delimiter.colorize(Delimiters.SEMICOLON));
         }
 
         return sb.toString();
@@ -321,7 +350,7 @@ public class AnsiTextOutput extends PlainTextOutput {
 
         for (int i = 0; i < packageParts.length; i++) {
             if (i != 0) {
-                sb.append(DELIMITER.colorize("."));
+                sb.append(_delimiter.colorize("."));
             }
 
             final String packagePart = packageParts[i];
@@ -330,10 +359,15 @@ public class AnsiTextOutput extends PlainTextOutput {
                 sb.append(packagePart);
             }
             else {
-                sb.append(PACKAGE.colorize(packagePart));
+                sb.append(_package.colorize(packagePart));
             }
         }
 
         return sb.toString();
+    }
+
+    public enum ColorScheme {
+        DARK,
+        LIGHT
     }
 }

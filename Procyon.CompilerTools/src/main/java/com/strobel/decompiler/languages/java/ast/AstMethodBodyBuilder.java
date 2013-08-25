@@ -709,11 +709,10 @@ public class AstMethodBodyBuilder {
 
                 for (final Variable v : lambda.getParameters()) {
                     final ParameterDefinition p = v.getOriginalParameter();
-                    final TypeReference type = p.getParameterType();
-                    final AstType astType = _astBuilder.convertType(type);
-                    final ParameterDeclaration d = new ParameterDeclaration(p.getName(), astType);
+                    final ParameterDeclaration d = new ParameterDeclaration(v.getName(), null);
 
                     d.putUserData(Keys.PARAMETER_DEFINITION, p);
+                    d.putUserData(Keys.VARIABLE, v);
 
                     for (final CustomAnnotation annotation : p.getAnnotations()) {
                         d.getAnnotations().add(_astBuilder.createAnnotation(annotation));
@@ -732,19 +731,23 @@ public class AstMethodBodyBuilder {
                 if (statements.hasSingleElement()) {
                     final Statement statement = statements.firstOrNullObject();
 
-                    if (statement instanceof ReturnStatement) {
+                    if (statement instanceof ExpressionStatement ||
+                        statement instanceof ReturnStatement) {
+
+                        statement.remove();
+
                         final Expression value = statement.getChildByRole(Roles.EXPRESSION);
 
                         if (value.isNull()) {
-                            lambdaExpression.setBody(statement);
+                            lambdaExpression.setBody(body);
                         }
                         else {
                             value.remove();
-                            lambdaExpression.setBody(new ExpressionStatement(value));
+                            lambdaExpression.setBody(value);
                         }
                     }
                     else {
-                        lambdaExpression.setBody(statement);
+                        lambdaExpression.setBody(body);
                     }
                 }
                 else {
@@ -1224,7 +1227,10 @@ public class AstMethodBodyBuilder {
             final Expression argument = arguments.get(i);
             final ResolveResult resolvedArgument = resolver.apply(argument);
 
-            if (resolvedArgument == null) {
+            if (resolvedArgument == null ||
+                argument instanceof LambdaExpression /*||
+                argument instanceof MethodGroupExpression*/) {
+
                 continue;
             }
 

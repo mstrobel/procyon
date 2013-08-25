@@ -26,12 +26,16 @@ import com.strobel.functions.Suppliers;
 import com.strobel.util.ContractUtils;
 
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
 @SuppressWarnings("ConstantConditions")
 public final class AstOptimizer {
+    private final static Logger LOG = Logger.getLogger(AstOptimizer.class.getSimpleName());
+
     private int _nextLabelIndex;
 
     public static void optimize(final DecompilerContext context, final Block method) {
@@ -42,7 +46,9 @@ public final class AstOptimizer {
         VerifyArgument.notNull(context, "context");
         VerifyArgument.notNull(method, "method");
 
-        if (abortBeforeStep == AstOptimizationStep.RemoveRedundantCode) {
+        LOG.info("Beginning bytecode AST optimization...");
+
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveRedundantCode)) {
             return;
         }
 
@@ -50,7 +56,7 @@ public final class AstOptimizer {
 
         removeRedundantCode(method, context.getSettings());
 
-        if (abortBeforeStep == AstOptimizationStep.ReduceBranchInstructionSet) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.ReduceBranchInstructionSet)) {
             return;
         }
 
@@ -60,7 +66,7 @@ public final class AstOptimizer {
             reduceBranchInstructionSet(block);
         }
 
-        if (abortBeforeStep == AstOptimizationStep.InlineVariables) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineVariables)) {
             return;
         }
 
@@ -70,19 +76,19 @@ public final class AstOptimizer {
             inliningPhase1.analyzeMethod();
         }
 
-        if (abortBeforeStep == AstOptimizationStep.CopyPropagation) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.CopyPropagation)) {
             return;
         }
 
         inliningPhase1.copyPropagation();
 
-        if (abortBeforeStep == AstOptimizationStep.RewriteFinallyBlocks) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RewriteFinallyBlocks)) {
             return;
         }
 
         rewriteFinallyBlocks(method);
 
-        if (abortBeforeStep == AstOptimizationStep.SplitToMovableBlocks) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SplitToMovableBlocks)) {
             return;
         }
 
@@ -90,13 +96,13 @@ public final class AstOptimizer {
             optimizer.splitToMovableBlocks(block);
         }
 
-        if (abortBeforeStep == AstOptimizationStep.RemoveUnreachableBlocks) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveUnreachableBlocks)) {
             return;
         }
 
         removeUnreachableBlocks(method);
 
-        if (abortBeforeStep == AstOptimizationStep.TypeInference) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.TypeInference)) {
             return;
         }
 
@@ -104,20 +110,31 @@ public final class AstOptimizer {
 
         boolean done = false;
 
+        LOG.fine("Performing block-level bytecode AST optimizations (enable FINER for more detail)...");
+
+        int blockNumber = 0;
+
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             boolean modified;
+            int blockRound = 0;
+
+            ++blockNumber;
 
             do {
+                if (LOG.isLoggable(Level.FINER)) {
+                    LOG.finer("Optimizing block #" + blockNumber + ", round " + ++blockRound + "...");
+                }
+
                 modified = false;
 
-                if (abortBeforeStep == AstOptimizationStep.RemoveInnerClassInitSecurityChecks) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveInnerClassInitSecurityChecks)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new RemoveInnerClassInitSecurityChecksOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.SimplifyShortCircuit) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyShortCircuit)) {
                     done = true;
                     break;
                 }
@@ -125,7 +142,7 @@ public final class AstOptimizer {
                 modified |= runOptimization(block, new SimplifyShortAssignmentCircuitOptimization(context, method));
                 modified |= runOptimization(block, new SimplifyShortCircuitOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.SimplifyTernaryOperator) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyTernaryOperator)) {
                     done = true;
                     break;
                 }
@@ -133,28 +150,28 @@ public final class AstOptimizer {
                 modified |= runOptimization(block, new SimplifyTernaryOperatorOptimization(context, method));
                 modified |= runOptimization(block, new SimplifyTernaryOperatorRoundTwoOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.JoinBasicBlocks) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.JoinBasicBlocks)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new JoinBasicBlocksOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.SimplifyLogicalNot) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyLogicalNot)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new SimplifyLogicalNotOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.TransformObjectInitializers) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.TransformObjectInitializers)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new TransformObjectInitializersOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.TransformArrayInitializers) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.TransformArrayInitializers)) {
                     done = true;
                     break;
                 }
@@ -162,27 +179,27 @@ public final class AstOptimizer {
                 modified |= new Inlining(context, method, true).inlineAllInBlock(block);
                 modified |= runOptimization(block, new TransformArrayInitializersOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.IntroducePostIncrement) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.IntroducePostIncrement)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new IntroducePostIncrementOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.MakeAssignmentExpressions) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.MakeAssignmentExpressions)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new MakeAssignmentExpressionsOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.InlineLambdas) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineLambdas)) {
                     return;
                 }
 
                 runOptimization(method, new InlineLambdasOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.InlineVariables2) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineVariables2)) {
                     done = true;
                     break;
                 }
@@ -197,7 +214,7 @@ public final class AstOptimizer {
             return;
         }
 
-        if (abortBeforeStep == AstOptimizationStep.FindLoops) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.FindLoops)) {
             return;
         }
 
@@ -205,7 +222,7 @@ public final class AstOptimizer {
             new LoopsAndConditions().findLoops(block);
         }
 
-        if (abortBeforeStep == AstOptimizationStep.FindConditions) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.FindConditions)) {
             return;
         }
 
@@ -213,49 +230,49 @@ public final class AstOptimizer {
             new LoopsAndConditions().findConditions(block);
         }
 
-        if (abortBeforeStep == AstOptimizationStep.FlattenNestedMovableBlocks) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.FlattenNestedMovableBlocks)) {
             return;
         }
 
         flattenBasicBlocks(method);
 
-        if (abortBeforeStep == AstOptimizationStep.RemoveRedundantCode2) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveRedundantCode2)) {
             return;
         }
 
         removeRedundantCode(method, context.getSettings());
 
-        if (abortBeforeStep == AstOptimizationStep.GotoRemoval) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.GotoRemoval)) {
             return;
         }
 
         new GotoRemoval().removeGotos(method);
 
-        if (abortBeforeStep == AstOptimizationStep.DuplicateReturns) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.DuplicateReturns)) {
             return;
         }
 
         duplicateReturnStatements(method);
 
-        if (abortBeforeStep == AstOptimizationStep.MergeDisparateObjectInitializations) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.MergeDisparateObjectInitializations)) {
             return;
         }
 
         mergeDisparateObjectInitializations(context, method);
 
-        if (abortBeforeStep == AstOptimizationStep.GotoRemoval2) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.GotoRemoval2)) {
             return;
         }
 
         new GotoRemoval().removeGotos(method);
 
-        if (abortBeforeStep == AstOptimizationStep.ReduceIfNesting) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.ReduceIfNesting)) {
             return;
         }
 
         reduceIfNesting(method);
 
-        if (abortBeforeStep == AstOptimizationStep.ReduceComparisonInstructionSet) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.ReduceComparisonInstructionSet)) {
             return;
         }
 
@@ -263,13 +280,13 @@ public final class AstOptimizer {
             reduceComparisonInstructionSet(e);
         }
 
-        if (abortBeforeStep == AstOptimizationStep.RecombineVariables) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RecombineVariables)) {
             return;
         }
 
         recombineVariables(method);
 
-        if (abortBeforeStep == AstOptimizationStep.InlineVariables3) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineVariables3)) {
             return;
         }
 
@@ -282,24 +299,45 @@ public final class AstOptimizer {
 
         inliningPhase3.inlineAllVariables();
 
-        if (abortBeforeStep == AstOptimizationStep.TypeInference2) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.TypeInference2)) {
             return;
         }
 
         TypeAnalysis.reset(context, method);
         TypeAnalysis.run(context, method);
 
-        if (abortBeforeStep == AstOptimizationStep.RemoveRedundantCode3) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveRedundantCode3)) {
             return;
         }
 
         GotoRemoval.removeRedundantCode(method, true);
 
-        if (abortBeforeStep == AstOptimizationStep.CleanUpTryBlocks) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.CleanUpTryBlocks)) {
             return;
         }
 
         cleanUpTryBlocks(method);
+
+        LOG.info("Finished bytecode AST optimization.");
+    }
+
+    private static boolean shouldPerformStep(final AstOptimizationStep abortBeforeStep, final AstOptimizationStep nextStep) {
+        if (abortBeforeStep == nextStep) {
+            return false;
+        }
+
+        if (nextStep.isBlockLevelOptimization()) {
+            if (LOG.isLoggable(Level.FINER)) {
+                LOG.finer("Performing block-level optimization: " + nextStep + ".");
+            }
+        }
+        else {
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Performing optimization: " + nextStep + ".");
+            }
+        }
+
+        return true;
     }
 
     // <editor-fold defaultstate="collapsed" desc="RemoveUnreachableBlocks Optimization">
@@ -856,9 +894,7 @@ public final class AstOptimizer {
                         newBody.add(node);
                     }
                 }
-                else if (settings.getRemovePointlessSwitches() &&
-                         match(node, AstCode.Switch)) {
-
+                else if (match(node, AstCode.Switch) && !settings.getRetainPointlessSwitches()) {
                     final Expression e = (Expression) node;
                     final Label[] targets = (Label[]) e.getOperand();
 
@@ -3262,12 +3298,12 @@ public final class AstOptimizer {
 
                 final List<Variable> lambdaParameters = lambda.getParameters();
 
-                if (methodBody.hasThis()) {
+                if (resolvedMethod.hasThis()) {
                     final Variable variable = new Variable();
 
                     variable.setName("this");
-                    variable.setType(resolvedMethod.getDeclaringType());
-                    variable.setOriginalParameter(methodBody.getThisParameter());
+                    variable.setType(context.getCurrentMethod().getDeclaringType());
+                    variable.setOriginalParameter(context.getCurrentMethod().getBody().getThisParameter());
 
                     parameterMap[0] = variable;
 
@@ -3280,6 +3316,7 @@ public final class AstOptimizer {
                     variable.setName(p.getName());
                     variable.setType(p.getParameterType());
                     variable.setOriginalParameter(p);
+                    variable.setLambdaParameter(true);
 
                     parameterMap[p.getSlot()] = variable;
 

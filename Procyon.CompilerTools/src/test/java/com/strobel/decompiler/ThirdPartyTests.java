@@ -219,7 +219,7 @@ public class ThirdPartyTests extends DecompilerTest {
     public void testSkipJsrKrakatau() throws Throwable {
         verifyOutput(
             Class.forName("SkipJSR"),
-            createSettings(OPTION_REMOVE_POINTLESS_SWITCHES),
+            defaultSettings(),
             "public class SkipJSR {\n" +
             "    public static void main(final String[] array) {\n" +
             "        int n = 1 + array.length;\n" +
@@ -268,9 +268,9 @@ public class ThirdPartyTests extends DecompilerTest {
             "        System.out.println(main((Object)array));\n" +
             "        System.out.println(main(array3));\n" +
             "        System.out.println(main(array2));\n" +
-            "        final int n = 67;\n" +
-            "        System.out.println((char)n);\n" +
-            "        System.out.println(n);\n" +
+            "        final char c = 'C';\n" +
+            "        System.out.println(c);\n" +
+            "        System.out.println((int)c);\n" +
             "    }\n" +
             "    public static byte[] main(final byte[][] array) {\n" +
             "        if (array.length > 0) {\n" +

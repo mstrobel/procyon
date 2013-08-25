@@ -54,5 +54,27 @@ public enum AstOptimizationStep {
     TypeInference2,
     RemoveRedundantCode3,
     CleanUpTryBlocks,
-    None
+    None;
+
+    public boolean isBlockLevelOptimization() {
+        switch (this) {
+           case RemoveInnerClassInitSecurityChecks:
+            case SimplifyShortCircuit:
+            case SimplifyTernaryOperator:
+            case JoinBasicBlocks:
+            case SimplifyLogicalNot:
+            case SimplifyShiftOperations:
+            case SimplifyLoadAndStore:
+            case TransformObjectInitializers:
+            case TransformArrayInitializers:
+            case MakeAssignmentExpressions:
+            case IntroducePostIncrement:
+            case InlineLambdas:
+            case InlineVariables2:
+                return true;
+
+            default:
+                return false;
+        }
+    }
 }

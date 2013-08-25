@@ -251,6 +251,9 @@ public final class Expression extends Node implements Cloneable, UserDataStore {
 
                 output.writeReference(member.getName(), member);
             }
+            else if (operand instanceof Node) {
+                ((Node) operand).writeTo(output);
+            }
             else {
                 DecompilerHelpers.writeOperand(output, operand);
             }

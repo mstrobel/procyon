@@ -106,6 +106,25 @@ public final class MetadataHelper {
         VerifyArgument.notNull(type1, "type1");
         VerifyArgument.notNull(type2, "type2");
 
+        if (type1 == type2) {
+            return type1;
+        }
+
+        if (type1.isPrimitive()) {
+            if (type2.isPrimitive()) {
+                if (isAssignableFrom(type1, type2)) {
+                    return type1;
+                }
+                if (isAssignableFrom(type2, type1)) {
+                    return type2;
+                }
+            }
+            return BuiltinTypes.Object;
+        }
+        else if (type2.isPrimitive()) {
+            return BuiltinTypes.Object;
+        }
+
         int rank1 = 0;
         int rank2 = 0;
 
@@ -1243,9 +1262,11 @@ public final class MetadataHelper {
         if (t == s) {
             return true;
         }
+
         if (t == null || s == null) {
             return false;
         }
+
         return strict ? SAME_TYPE_VISITOR_STRICT.visit(t, s)
                       : SAME_TYPE_VISITOR_LOOSE.visit(t, s);
     }

@@ -6,6 +6,7 @@ import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
+import com.strobel.decompiler.NameSyntax;
 
 import java.util.Collections;
 import java.util.List;
@@ -102,6 +103,10 @@ public class Lambda extends Node {
                 output.write(", ");
             }
             DecompilerHelpers.writeOperand(output, parameter);
+            if (parameter.getType() != null) {
+                output.writeDelimiter(":");
+                DecompilerHelpers.writeType(output, parameter.getType(), NameSyntax.SHORT_TYPE_NAME);
+            }
             comma = true;
         }
 

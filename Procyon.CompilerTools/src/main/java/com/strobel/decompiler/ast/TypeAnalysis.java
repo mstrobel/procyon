@@ -21,6 +21,7 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.CollectionUtilities;
 import com.strobel.core.Predicate;
+import com.strobel.core.StringComparison;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
@@ -159,11 +160,13 @@ public final class TypeAnalysis {
                     shouldInferVariableType((Variable) expression.getOperand())) {
 
                     _assignmentExpressions.get(expression.getOperand()).add(expressionToInfer);
+                    _allVariables.add((Variable) expression.getOperand());
                 }
                 else if (matchLoad(expression.getArguments().get(0), v = new StrongBox<>()) &&
                          shouldInferVariableType(v.value)) {
 
                     _assignmentExpressions.get(v.value).add(expressionToInfer);
+                    _allVariables.add(v.value);
                 }
             }
         }
@@ -201,6 +204,7 @@ public final class TypeAnalysis {
 
                 if (shouldInferVariableType(variable)) {
                     _assignmentExpressions.get(variable).add(expressionToInfer);
+                    _allVariables.add(variable);
 
                     //
                     // The instruction that consumes the Store result is handled as if it was reading the variable.
@@ -219,6 +223,7 @@ public final class TypeAnalysis {
 
                 if (shouldInferVariableType(variable)) {
                     _assignmentExpressions.get(variable).add(expressionToInfer);
+                    _allVariables.add(variable);
 
                     //
                     // The instruction that consumes the Store result is handled as if it was reading the variable.
@@ -243,6 +248,7 @@ public final class TypeAnalysis {
                     shouldInferVariableType(variable.value)) {
 
                     _assignmentExpressions.get(variable.value).add(expressionToInfer);
+                    _allVariables.add(variable.value);
 
                     //
                     // The instruction that consumes the Store result is handled as if it was reading the variable.
@@ -257,6 +263,7 @@ public final class TypeAnalysis {
                     shouldInferVariableType(variable.value)) {
 
                     parent.dependencies.add(variable.value);
+                    _allVariables.add(variable.value);
                 }
             }
 
@@ -434,7 +441,7 @@ public final class TypeAnalysis {
                             e.expression.setInferredType(BuiltinTypes.Character);
                             a.value.setExpectedType(BuiltinTypes.Character);
                             a.value.setInferredType(BuiltinTypes.Character);
-//                            a.value.setOperand(characterConstant);
+                            a.value.setOperand(characterConstant);
                         }
                     }
                 }
@@ -444,13 +451,23 @@ public final class TypeAnalysis {
 
     @SuppressWarnings("ConstantConditions")
     private void inferTypesForVariables(final boolean assignVariableTypesBasedOnPartialInformation) {
-        for (final Variable variable : _assignmentExpressions.keySet()) {
+        for (final Variable variable : _allVariables) {
             final List<ExpressionToInfer> expressionsToInfer = _assignmentExpressions.get(variable);
 
-            if (assignVariableTypesBasedOnPartialInformation ? anyDone(expressionsToInfer)
-                                                             : allDone(expressionsToInfer)) {
+            TypeReference inferredType = null;
 
-                TypeReference inferredType = null;
+            if (variable.isLambdaParameter()) {
+                inferredType = _inferredVariableTypes.get(variable);
+
+                if (inferredType == null) {
+                    continue;
+                }
+            }
+            else if (expressionsToInfer.isEmpty()) {
+                continue;
+            }
+            else if (assignVariableTypesBasedOnPartialInformation ? anyDone(expressionsToInfer)
+                                                                  : allDone(expressionsToInfer)) {
 
                 for (final ExpressionToInfer e : expressionsToInfer) {
                     final List<Expression> arguments = e.expression.getArguments();
@@ -474,59 +491,64 @@ public final class TypeAnalysis {
                         }
                     }
                 }
+            }
+            else {
+                continue;
+            }
 
-                if (inferredType == null) {
-                    inferredType = variable.getType();
-                }
-                else if (!inferredType.isUnbounded()) {
-                    inferredType = inferredType.hasSuperBound() ? inferredType.getSuperBound()
-                                                                : inferredType.getExtendsBound();
-                }
+            if (inferredType == null) {
+                inferredType = variable.getType();
+            }
+            else if (!inferredType.isUnbounded()) {
+                inferredType = inferredType.hasSuperBound() ? inferredType.getSuperBound()
+                                                            : inferredType.getExtendsBound();
+            }
 
-                if (shouldInferVariableType(variable) && inferredType != null) {
-                    variable.setType(inferredType);
-                    _inferredVariableTypes.put(variable, inferredType);
+            if (shouldInferVariableType(variable) && inferredType != null) {
+                variable.setType(inferredType);
+                _inferredVariableTypes.put(variable, inferredType);
 
-//                    //
-//                    // Assign inferred type to all the assignments (in case they used different inferred types).
-//                    //
-//                    for (final ExpressionToInfer e : expressionsToInfer) {
-//                        e.expression.setInferredType(inferredType);
-//                    }
+//                //
+//                // Assign inferred type to all the assignments (in case they used different inferred types).
+//                //
+//                for (final ExpressionToInfer e : expressionsToInfer) {
+//                    e.expression.setExpectedType(inferredType);
+//                    e.expression.setInferredType(inferredType);
+//                }
 
-                    //
-                    // Assign inferred types to all dependent expressions (in case they used different inferred types).
-                    //
-                    for (final ExpressionToInfer e : _allExpressions) {
-                        if (e.dependencies.contains(variable) ||
-                            expressionsToInfer.contains(e)) {
+                //
+                // Assign inferred types to all dependent expressions (in case they used different inferred types).
+                //
+                for (final ExpressionToInfer e : _allExpressions) {
+                    if (e.dependencies.contains(variable) ||
+                        expressionsToInfer.contains(e)) {
 
-                            if (_stack.contains(e.expression)) {
+                        if (_stack.contains(e.expression)) {
+                            continue;
+                        }
+
+                        boolean invalidate = false;
+
+                        for (final Expression c : e.expression.getSelfAndChildrenRecursive(Expression.class)) {
+                            if (_stack.contains(c)) {
                                 continue;
                             }
 
-                            boolean invalidate = false;
+                            c.setExpectedType(null);
 
-                            for (final Expression c : e.expression.getSelfAndChildrenRecursive(Expression.class)) {
-                                if (_stack.contains(c)) {
-                                    continue;
-                                }
+                            if ((matchLoad(c, variable) || matchStore(c, variable)) &&
+                                !MetadataHelper.isSameType(c.getInferredType(), inferredType)) {
 
-                                c.setExpectedType(null);
-                                c.setInferredType(null);
-
-                                if ((matchLoad(c, variable) || matchStore(c, variable)) &&
-                                    !MetadataHelper.isSameType(c.getInferredType(), inferredType)) {
-
-                                    c.setExpectedType(inferredType);
-                                }
-
-                                invalidate = true;
+                                c.setExpectedType(inferredType);
                             }
 
-                            if (invalidate) {
-                                runInference(e.expression);
-                            }
+                            c.setInferredType(null);
+
+                            invalidate = true;
+                        }
+
+                        if (invalidate) {
+                            runInference(e.expression);
                         }
                     }
                 }
@@ -536,6 +558,12 @@ public final class TypeAnalysis {
 
     private boolean shouldInferVariableType(final Variable variable) {
         final VariableDefinition variableDefinition = variable.getOriginalVariable();
+
+        if (variable.isGenerated() ||
+            variable.isLambdaParameter()) {
+
+            return true;
+        }
 
         if (variable.isParameter()) {
             final ParameterDefinition parameter = variable.getOriginalParameter();
@@ -570,6 +598,12 @@ public final class TypeAnalysis {
         final boolean preserveTypesFromMetadata,
         final boolean preserveGenericTypesFromMetadata) {
 
+        if (variable.isGenerated() ||
+            variable.isLambdaParameter()) {
+
+            return true;
+        }
+
         final VariableDefinition variableDefinition = variable.getOriginalVariable();
 
         //noinspection SimplifiableIfStatement
@@ -581,8 +615,7 @@ public final class TypeAnalysis {
             return false;
         }
 
-        return variable.isGenerated() ||
-               variableDefinition != null && variableDefinition.getVariableType() == BuiltinTypes.Integer ||
+        return variableDefinition != null && variableDefinition.getVariableType() == BuiltinTypes.Integer ||
                variableDefinition != null && !variableDefinition.isTypeKnown();
     }
 
@@ -674,7 +707,6 @@ public final class TypeAnalysis {
                     }
 
                     c.setExpectedType(null);
-                    c.setInferredType(null);
 
                     if ((matchLoad(c, variable) || matchStore(c, variable)) &&
                         !MetadataHelper.isSameType(c.getInferredType(), inferredType)) {
@@ -682,12 +714,15 @@ public final class TypeAnalysis {
                         c.setExpectedType(inferredType);
                     }
 
+                    c.setInferredType(null);
+
                     invalidate = true;
                 }
 
                 if (invalidate) {
-//                    if (e.done)
+//                    if (e.done) {
 //                        --_numberOfExpressionsAlreadyInferred;
+//                    }
 //                    e.done = false;
                     runInference(e.expression);
                 }
@@ -821,9 +856,12 @@ public final class TypeAnalysis {
                     if (expectedType != null &&
                         shouldInferVariableType(v)) {
 
-                        TypeReference tempResult = null;
+                        TypeReference tempResult;
 
-                        if (!MetadataHelper.isSubType(inferredType, expectedType)) {
+                        if (MetadataHelper.isSubType(inferredType, expectedType)) {
+                            tempResult = inferredType;
+                        }
+                        else {
                             tempResult = MetadataHelper.asSubType(inferredType, expectedType);
                         }
 
@@ -857,6 +895,10 @@ public final class TypeAnalysis {
                         }
                     }
 
+                    if (result == null && _assignmentExpressions.get(v).isEmpty()) {
+                        result = BuiltinTypes.Object;
+                    }
+
                     _inferredVariableTypes.put(v, result);
 
                     if (result != null &&
@@ -876,11 +918,76 @@ public final class TypeAnalysis {
                 case InvokeDynamic: {
                     final DynamicCallSite callSite = (DynamicCallSite) operand;
 
-                    if (expectedType == null) {
-                        return callSite.getMethodType().getReturnType();
+                    TypeReference inferredType = expression.getInferredType();
+
+                    if (inferredType == null) {
+                        inferredType = callSite.getMethodType().getReturnType();
                     }
 
-                    return MetadataHelper.asSubType(callSite.getMethodType().getReturnType(), expectedType);
+                    TypeReference result = expectedType == null ? inferredType
+                                                                : MetadataHelper.asSubType(inferredType, expectedType);
+
+                    if (result == null) {
+                        result = inferredType;
+                    }
+
+                    if (result.isGenericType()) {
+                        final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
+
+                        if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
+                            StringUtilities.equals("metafactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) &&
+                            callSite.getBootstrapArguments().size() == 3 &&
+                            callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
+
+                            final MethodHandle targetHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
+                            final MethodReference targetMethod = targetHandle.getMethod();
+                            final Map<TypeReference, TypeReference> mappings = new HashMap<>();
+
+                            MethodReference functionMethod = null;
+
+                            final TypeDefinition resolvedType = result.resolve();
+
+                            final List<MethodReference> methods = MetadataHelper.findMethods(
+                                resolvedType != null ? resolvedType : result,
+                                MetadataFilters.matchName(callSite.getMethodName())
+                            );
+
+                            for (final MethodReference m : methods) {
+                                final MethodDefinition r = m.resolve();
+
+                                if (r != null && r.isAbstract() && !r.isStatic() && !r.isDefault()) {
+                                    functionMethod = r;
+                                    break;
+                                }
+                            }
+
+                            if (functionMethod == null) {
+                                return null;
+                            }
+
+                            //
+                            // TODO: This is wrong.  Consider LambdaTest5: we need to bind the target METHOD's generic parameters.
+                            //
+
+                            new AddMappingsForArgumentVisitor(targetMethod.getReturnType()).visit(functionMethod.getReturnType(), mappings);
+
+                            final List<ParameterDefinition> tp = targetMethod.getParameters();
+                            final List<ParameterDefinition> fp = functionMethod.getParameters();
+
+                            if (tp.size() == fp.size()) {
+                                for (int i = 0; i < fp.size(); i++) {
+                                    new AddMappingsForArgumentVisitor(tp.get(i).getParameterType()).visit(fp.get(i).getParameterType(), mappings);
+                                }
+                            }
+
+                            result = TypeSubstitutionVisitor.instance().visit(
+                                resolvedType != null ? resolvedType : result,
+                                mappings
+                            );
+                        }
+                    }
+
+                    return result;
                 }
 
                 case InvokeVirtual:
@@ -1825,9 +1932,11 @@ public final class TypeAnalysis {
                                 }
                             }
 
-                            inferredType = inferTypeForExpression(arguments.get(0), returnType);
+                            if (!arguments.isEmpty() && returnType != BuiltinTypes.Void) {
+                                inferredType = inferTypeForExpression(arguments.get(0), returnType);
+                            }
 
-                            if (oldInferredType != null) {
+                            if (oldInferredType != null && inferredType != BuiltinTypes.Void) {
                                 final TypeReference newInferredType = MetadataHelper.asSuper(
                                     inferredType,
                                     oldInferredType
@@ -1850,6 +1959,7 @@ public final class TypeAnalysis {
                     if (forceInferChildren && arguments.size() == 1) {
                         inferTypeForExpression(arguments.get(0), returnType);
                     }
+
                     return returnType;
                 }
 
@@ -1893,6 +2003,12 @@ public final class TypeAnalysis {
                                 argument,
                                 methodParameters.get(i).getParameterType()
                             );
+                        }
+
+                        final List<Variable> lambdaParameters = lambda.getParameters();
+
+                        for (int i = 0, n = lambdaParameters.size(); i < n; i++) {
+                            invalidateDependentExpressions(expression, lambdaParameters.get(i));
                         }
 
                         for (final Expression e : lambda.getChildrenAndSelfRecursive(Expression.class)) {
@@ -2012,10 +2128,6 @@ public final class TypeAnalysis {
                             final Variable variable = parameters.get(i);
                             final TypeReference variableType = methodParameters.get(i).getParameterType();
                             final TypeReference oldVariableType = variable.getType();
-
-                            _inferredVariableTypes.put(variable, variableType);
-
-                            variable.setType(variableType);
 
                             if (oldVariableType == null || !MetadataHelper.isSameType(variableType, oldVariableType)) {
                                 invalidateDependentExpressions(expression, variable);
@@ -2168,11 +2280,23 @@ public final class TypeAnalysis {
             actualRightPreferred = doInferTypeForExpression(right, expectedType, forceInferChildren);
         }
 
+        if (actualLeftPreferred == BuiltinTypes.Character) {
+            if (actualRightPreferred == BuiltinTypes.Integer && matchCharacterConstant(right) != null) {
+                actualRightPreferred = BuiltinTypes.Character;
+            }
+        }
+        else if (actualRightPreferred == BuiltinTypes.Character) {
+            if (actualLeftPreferred == BuiltinTypes.Integer && matchCharacterConstant(left) != null) {
+                actualLeftPreferred = BuiltinTypes.Character;
+            }
+        }
+
         if (isSameType(actualLeftPreferred, actualRightPreferred)) {
             left.setInferredType(actualLeftPreferred);
             left.setExpectedType(actualLeftPreferred);
             right.setInferredType(actualLeftPreferred);
             right.setExpectedType(actualLeftPreferred);
+
             return actualLeftPreferred;
         }
 
@@ -2181,6 +2305,7 @@ public final class TypeAnalysis {
             left.setExpectedType(actualRightPreferred);
             right.setInferredType(actualRightPreferred);
             right.setExpectedType(actualRightPreferred);
+
             return actualRightPreferred;
         }
 
@@ -2189,6 +2314,7 @@ public final class TypeAnalysis {
             left.setExpectedType(actualLeftPreferred);
             right.setInferredType(actualLeftPreferred);
             right.setExpectedType(actualLeftPreferred);
+
             return actualLeftPreferred;
         }
 

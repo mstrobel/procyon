@@ -23,6 +23,7 @@ import com.strobel.assembler.metadata.VariableDefinition;
 public final class Variable {
     private String _name;
     private boolean _isGenerated;
+    private boolean _isLambdaParameter;
     private TypeReference _type;
     private VariableDefinition _originalVariable;
     private ParameterDefinition _originalParameter;
@@ -88,6 +89,14 @@ public final class Variable {
 
     public final void setOriginalParameter(final ParameterDefinition originalParameter) {
         _originalParameter = originalParameter;
+    }
+
+    public final boolean isLambdaParameter() {
+        return _isLambdaParameter;
+    }
+
+    public final void setLambdaParameter(final boolean lambdaParameter) {
+        _isLambdaParameter = lambdaParameter;
     }
 
     @Override

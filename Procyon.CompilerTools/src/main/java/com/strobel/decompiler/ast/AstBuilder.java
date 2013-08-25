@@ -31,12 +31,15 @@ import com.strobel.decompiler.InstructionHelper;
 import com.strobel.functions.Function;
 
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.match;
 import static java.lang.String.format;
 
 public final class AstBuilder {
+    private final static Logger LOG = Logger.getLogger(AstBuilder.class.getSimpleName());
     private final static AstCode[] CODES = AstCode.values();
     private final static StackSlot[] EMPTY_STACK = new StackSlot[0];
     private final static ByteCode[] EMPTY_DEFINITIONS = new ByteCode[0];
@@ -59,6 +62,16 @@ public final class AstBuilder {
         builder._optimize = optimize;
         builder._context = VerifyArgument.notNull(context, "context");
 
+        if (LOG.isLoggable(Level.INFO)) {
+            LOG.info(
+                format(
+                    "Beginning bytecode AST construction for %s:%s...",
+                    body.getMethod().getFullName(),
+                    body.getMethod().getSignature()
+                )
+            );
+        }
+
         if (body.getInstructions().isEmpty()) {
             return Collections.emptyList();
         }
@@ -78,7 +91,7 @@ public final class AstBuilder {
 
         builder.pruneExceptionHandlers();
 
-        FinallyInlining.run(builder._body, builder._instructions, builder._exceptionHandlers);
+        FinallyInlining.run(builder._body, builder._instructions, builder._exceptionHandlers, builder._removed);
 
         builder.inlineSubroutines();
 
@@ -86,7 +99,11 @@ public final class AstBuilder {
         builder._cfg.computeDominance();
         builder._cfg.computeDominanceFrontier();
 
+        LOG.fine("Performing stack analysis...");
+
         final List<ByteCode> byteCode = builder.performStackAnalysis();
+
+        LOG.fine("Creating bytecode AST...");
 
         @SuppressWarnings("UnnecessaryLocalVariable")
         final List<Node> ast = builder.convertToAst(
@@ -96,11 +113,23 @@ public final class AstBuilder {
             new MutableInteger(byteCode.size())
         );
 
+        if (LOG.isLoggable(Level.INFO)) {
+            LOG.info(
+                format(
+                    "Finished bytecode AST construction for %s:%s.",
+                    body.getMethod().getFullName(),
+                    body.getMethod().getSignature()
+                )
+            );
+        }
+
         return ast;
     }
 
     @SuppressWarnings("ConstantConditions")
     private void inlineSubroutines() {
+        LOG.fine("Inlining subroutines...");
+
         final List<SubroutineInfo> subroutines = findSubroutines();
 
         if (subroutines.isEmpty()) {
@@ -912,6 +941,8 @@ public final class AstBuilder {
 
     @SuppressWarnings("ConstantConditions")
     private void pruneExceptionHandlers() {
+        LOG.fine("Pruning exception handlers...");
+
         final List<ExceptionHandler> handlers = _exceptionHandlers;
 
         if (handlers.isEmpty()) {
@@ -2035,17 +2066,17 @@ public final class AstBuilder {
                 }
 
                 if (branchTarget.stackBefore == null && branchTarget.variablesBefore == null) {
-                    if (branchTargets.size() == 1) {
-                        branchTarget.stackBefore = effectiveStack;
-                        branchTarget.variablesBefore = newVariableState;
-                    }
-                    else {
+//                    if (branchTargets.size() == 1) {
+//                        branchTarget.stackBefore = effectiveStack;
+//                        branchTarget.variablesBefore = newVariableState;
+//                    }
+//                    else {
                         //
                         // Do not share data for several bytecodes.
                         //
                         branchTarget.stackBefore = StackSlot.modifyStack(effectiveStack, 0, null);
                         branchTarget.variablesBefore = VariableSlot.cloneVariableState(newVariableState);
-                    }
+//                    }
 
                     agenda.push(branchTarget);
                 }
@@ -3833,12 +3864,13 @@ public final class AstBuilder {
         private FinallyInlining(
             final MethodBody body,
             final InstructionCollection instructions,
-            final List<ExceptionHandler> handlers) {
+            final List<ExceptionHandler> handlers,
+            final Set<Instruction> removedInstructions) {
 
             _body = body;
             _instructions = instructions;
             _exceptionHandlers = handlers;
-            _removed = new HashSet<>();
+            _removed = removedInstructions;
             _previous = new Function<Instruction, Instruction>() {
                 @Override
                 public Instruction apply(final Instruction i) {
@@ -3888,12 +3920,17 @@ public final class AstBuilder {
         static void run(
             final MethodBody body,
             final InstructionCollection instructions,
-            final List<ExceptionHandler> handlers) {
+            final List<ExceptionHandler> handlers,
+            final Set<Instruction> removedInstructions) {
 
             Collections.reverse(handlers);
 
             try {
-                new FinallyInlining(body, instructions, handlers).runCore();
+                LOG.fine("Removing inlined `finally` code...");
+
+                final FinallyInlining inlining = new FinallyInlining(body, instructions, handlers, removedInstructions);
+
+                inlining.runCore();
             }
             finally {
                 Collections.reverse(handlers);

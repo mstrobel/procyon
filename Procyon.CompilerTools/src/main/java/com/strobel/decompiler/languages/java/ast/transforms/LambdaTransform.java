@@ -74,6 +74,7 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
         return super.visitMethodGroupExpression(node, data);
     }
 
+    @SuppressWarnings("ConstantConditions")
     private void inlineLambda(final MethodGroupExpression methodGroup, final MethodDefinition method) {
         final MethodDeclaration declaration = _methodDeclarations.get(makeMethodKey(method));
 
@@ -135,7 +136,8 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
 
         final LambdaExpression lambda = new LambdaExpression();
         final DynamicCallSite callSite = methodGroup.getUserData(Keys.DYNAMIC_CALL_SITE);
-        final TypeReference lambdaType = methodGroup.getUserData(Keys.TYPE_REFERENCE);
+
+        TypeReference lambdaType = methodGroup.getUserData(Keys.TYPE_REFERENCE);
 
         if (callSite != null) {
             lambda.putUserData(Keys.DYNAMIC_CALL_SITE, callSite);
@@ -143,6 +145,12 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
 
         if (lambdaType != null) {
             lambda.putUserData(Keys.TYPE_REFERENCE, lambdaType);
+        }
+        else if (callSite != null) {
+            lambdaType = callSite.getMethodType().getReturnType();
+        }
+        else {
+            return;
         }
 
         body.remove();

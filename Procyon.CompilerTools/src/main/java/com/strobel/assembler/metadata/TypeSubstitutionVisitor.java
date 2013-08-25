@@ -43,7 +43,34 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
             current = mappedType;
         }
 
-        return current != null ? current : t;
+        if (current == null) {
+            return t;
+        }
+
+        if (current.isPrimitive()) {
+            switch (current.getSimpleType()) {
+                case Boolean:
+                    return CommonTypeReferences.Boolean;
+                case Byte:
+                    return CommonTypeReferences.Byte;
+                case Character:
+                    return CommonTypeReferences.Character;
+                case Short:
+                    return CommonTypeReferences.Short;
+                case Integer:
+                    return CommonTypeReferences.Integer;
+                case Long:
+                    return CommonTypeReferences.Long;
+                case Float:
+                    return CommonTypeReferences.Float;
+                case Double:
+                    return CommonTypeReferences.Double;
+                case Void:
+                    return CommonTypeReferences.Void;
+            }
+        }
+
+        return current;
     }
 
     @Override
