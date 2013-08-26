@@ -119,26 +119,36 @@ public class InputTypeLoader implements ITypeLoader {
 
         final int packageEnd = internalName.lastIndexOf('/');
 
-        final String className;
-        final String packageName;
+        String head;
+        String tail;
 
         if (packageEnd < 0 || packageEnd >= internalName.length()) {
-            packageName = StringUtilities.EMPTY;
-            className = internalName;
+            head = StringUtilities.EMPTY;
+            tail = internalName;
         }
         else {
-            packageName = internalName.substring(0, packageEnd);
-            className = internalName.substring(packageEnd + 1);
+            head = internalName.substring(0, packageEnd);
+            tail = internalName.substring(packageEnd + 1);
         }
 
-        final LinkedHashSet<File> directories = _packageLocations.get(packageName);
+        while (true) {
+            final LinkedHashSet<File> directories = _packageLocations.get(head);
 
-        if (directories != null) {
-            for (final File directory : directories) {
-                if (tryLoadFile(internalName, new File(directory, className + ".class").getAbsolutePath(), buffer, true)) {
-                    return true;
+            if (directories != null) {
+                for (final File directory : directories) {
+                    if (tryLoadFile(internalName, new File(directory, tail + ".class").getAbsolutePath(), buffer, true)) {
+                        return true;
+                    }
                 }
             }
+
+            final int split = head.lastIndexOf('/');
+
+            if (split < 0)
+                break;
+
+            tail = head.substring(split + 1) + '/' + tail;
+            head = head.substring(0, split);
         }
 
         return false;

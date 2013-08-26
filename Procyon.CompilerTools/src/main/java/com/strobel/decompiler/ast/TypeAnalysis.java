@@ -905,6 +905,7 @@ public final class TypeAnalysis {
                         !MetadataHelper.isSameType(result, inferredType) &&
                         _previouslyInferred.get(v).add(result)) {
 
+                        expression.setInferredType(result);
                         invalidateDependentExpressions(expression, v);
                     }
 
@@ -916,362 +917,14 @@ public final class TypeAnalysis {
                 }
 
                 case InvokeDynamic: {
-                    final DynamicCallSite callSite = (DynamicCallSite) operand;
-
-                    TypeReference inferredType = expression.getInferredType();
-
-                    if (inferredType == null) {
-                        inferredType = callSite.getMethodType().getReturnType();
-                    }
-
-                    TypeReference result = expectedType == null ? inferredType
-                                                                : MetadataHelper.asSubType(inferredType, expectedType);
-
-                    if (result == null) {
-                        result = inferredType;
-                    }
-
-                    if (result.isGenericType()) {
-                        final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
-
-                        if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
-                            StringUtilities.equals("metafactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) &&
-                            callSite.getBootstrapArguments().size() == 3 &&
-                            callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
-
-                            final MethodHandle targetHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
-                            final MethodReference targetMethod = targetHandle.getMethod();
-                            final Map<TypeReference, TypeReference> mappings = new HashMap<>();
-
-                            MethodReference functionMethod = null;
-
-                            final TypeDefinition resolvedType = result.resolve();
-
-                            final List<MethodReference> methods = MetadataHelper.findMethods(
-                                resolvedType != null ? resolvedType : result,
-                                MetadataFilters.matchName(callSite.getMethodName())
-                            );
-
-                            for (final MethodReference m : methods) {
-                                final MethodDefinition r = m.resolve();
-
-                                if (r != null && r.isAbstract() && !r.isStatic() && !r.isDefault()) {
-                                    functionMethod = r;
-                                    break;
-                                }
-                            }
-
-                            if (functionMethod == null) {
-                                return null;
-                            }
-
-                            //
-                            // TODO: This is wrong.  Consider LambdaTest5: we need to bind the target METHOD's generic parameters.
-                            //
-
-                            new AddMappingsForArgumentVisitor(targetMethod.getReturnType()).visit(functionMethod.getReturnType(), mappings);
-
-                            final List<ParameterDefinition> tp = targetMethod.getParameters();
-                            final List<ParameterDefinition> fp = functionMethod.getParameters();
-
-                            if (tp.size() == fp.size()) {
-                                for (int i = 0; i < fp.size(); i++) {
-                                    new AddMappingsForArgumentVisitor(tp.get(i).getParameterType()).visit(fp.get(i).getParameterType(), mappings);
-                                }
-                            }
-
-                            result = TypeSubstitutionVisitor.instance().visit(
-                                resolvedType != null ? resolvedType : result,
-                                mappings
-                            );
-                        }
-                    }
-
-                    return result;
+                    return inferDynamicCall(expression, expectedType, forceInferChildren);
                 }
 
                 case InvokeVirtual:
                 case InvokeSpecial:
                 case InvokeStatic:
                 case InvokeInterface: {
-                    final MethodReference method = (MethodReference) operand;
-                    final List<ParameterDefinition> parameters = method.getParameters();
-                    final boolean hasThis = code != AstCode.InvokeStatic && code != AstCode.InvokeDynamic;
-
-                    TypeReference targetType = null;
-                    MethodReference boundMethod = method;
-
-                    if (forceInferChildren) {
-                        final MethodDefinition r = method.resolve();
-
-                        MethodReference actualMethod;
-
-                        if (hasThis) {
-                            final Expression thisArg = arguments.get(0);
-
-                            final TypeReference expectedTargetType = thisArg.getInferredType() != null ? thisArg.getInferredType()
-                                                                                                       : thisArg.getExpectedType();
-
-                            if (expectedTargetType != null &&
-                                expectedTargetType.isGenericType() &&
-                                !expectedTargetType.isGenericDefinition()) {
-
-                                boundMethod = MetadataHelper.asMemberOf(method, expectedTargetType);
-
-                                targetType = inferTypeForExpression(
-                                    arguments.get(0),
-                                    expectedTargetType
-                                );
-                            }
-                            else if (method.isConstructor()) {
-                                targetType = method.getDeclaringType();
-                            }
-                            else {
-                                targetType = inferTypeForExpression(
-                                    arguments.get(0),
-                                    method.getDeclaringType()
-                                );
-                            }
-
-                            if (!(targetType instanceof RawType) &&
-                                MetadataHelper.isRawType(targetType) &&
-                                !MetadataHelper.canReferenceTypeVariablesOf(targetType, _context.getCurrentType())) {
-
-                                targetType = MetadataHelper.erase(targetType);
-                            }
-
-                            final MethodReference m = targetType != null ? MetadataHelper.asMemberOf(r != null ? r : method, targetType)
-                                                                         : method;
-
-                            if (m != null) {
-                                actualMethod = m;
-                            }
-                            else {
-                                actualMethod = r != null ? r : boundMethod;
-                            }
-                        }
-                        else {
-                            actualMethod = r != null ? r : boundMethod;
-                        }
-
-                        boundMethod = actualMethod;
-                        expression.setOperand(boundMethod);
-
-                        List<ParameterDefinition> p = method.getParameters();
-
-                        Map<TypeReference, TypeReference> mappings = null;
-
-                        if (actualMethod.containsGenericParameters() || r != null && r.containsGenericParameters()) {
-                            final Map<TypeReference, TypeReference> oldMappings = new HashMap<>();
-                            final Map<TypeReference, TypeReference> newMappings = new HashMap<>();
-                            final Map<TypeReference, TypeReference> inferredMappings = new HashMap<>();
-
-                            if (targetType != null && targetType.isGenericType()) {
-                                oldMappings.putAll(MetadataHelper.getGenericSubTypeMappings(targetType.getUnderlyingType(), targetType));
-                            }
-
-                            final List<ParameterDefinition> rp = r != null ? r.getParameters() : actualMethod.getParameters();
-                            final List<ParameterDefinition> cp = boundMethod.getParameters();
-
-                            final boolean mapOld = method instanceof IGenericInstance;
-
-                            for (int i = 0; i < parameters.size(); i++) {
-                                final TypeReference rType = rp.get(i).getParameterType();
-                                final TypeReference pType = p.get(i).getParameterType();
-                                final TypeReference cType = cp.get(i).getParameterType();
-                                final TypeReference aType = inferTypeForExpression(arguments.get(hasThis ? i + 1 : i), cType);
-
-                                if (mapOld && rType != null && rType.containsGenericParameters()) {
-                                    new AddMappingsForArgumentVisitor(pType).visit(rType, oldMappings);
-                                }
-
-                                if (cType != null && rType.containsGenericParameters()) {
-                                    new AddMappingsForArgumentVisitor(cType).visit(rType, newMappings);
-                                }
-
-                                if (aType != null && rType.containsGenericParameters()) {
-                                    new AddMappingsForArgumentVisitor(aType).visit(rType, inferredMappings);
-                                }
-                            }
-
-                            if (expectedType != null) {
-                                final TypeReference returnType = r != null ? r.getReturnType()
-                                                                           : actualMethod.getReturnType();
-
-                                if (returnType.containsGenericParameters()) {
-                                    final Map<TypeReference, TypeReference> returnMappings = new HashMap<>();
-
-                                    new AddMappingsForArgumentVisitor(expectedType).visit(returnType, returnMappings);
-
-                                    newMappings.putAll(returnMappings);
-                                }
-                            }
-
-                            if (!oldMappings.isEmpty() || !newMappings.isEmpty() || !inferredMappings.isEmpty()) {
-                                mappings = oldMappings;
-
-                                for (final TypeReference t : newMappings.keySet()) {
-                                    final TypeReference oldMapping = mappings.get(t);
-                                    final TypeReference newMapping = newMappings.get(t);
-
-                                    if (oldMapping == null || MetadataHelper.isSubType(newMapping, oldMapping)) {
-                                        mappings.put(t, newMapping);
-                                    }
-                                }
-
-                                for (final TypeReference t : inferredMappings.keySet()) {
-                                    final TypeReference oldMapping = mappings.get(t);
-                                    final TypeReference newMapping = inferredMappings.get(t);
-
-                                    if (oldMapping == null || MetadataHelper.isSubType(newMapping, oldMapping)) {
-                                        mappings.put(t, newMapping);
-                                    }
-                                }
-                            }
-
-                            if (mappings != null) {
-                                boundMethod = TypeSubstitutionVisitor.instance().visitMethod(r != null ? r : actualMethod, mappings);
-                                actualMethod = boundMethod;
-                                expression.setOperand(boundMethod);
-                                p = boundMethod.getParameters();
-                            }
-
-                            final TypeReference boundDeclaringType = boundMethod.getDeclaringType();
-
-                            if (boundDeclaringType.isGenericType()) {
-                                if (mappings == null) {
-                                    mappings = new HashMap<>();
-                                }
-
-                                for (final GenericParameter gp : boundDeclaringType.getGenericParameters()) {
-                                    final GenericParameter inScope = _context.getCurrentMethod().findTypeVariable(gp.getName());
-
-                                    if (inScope != null && MetadataHelper.isSameType(gp, inScope)) {
-                                        continue;
-                                    }
-
-                                    if (!mappings.containsKey(gp)) {
-                                        mappings.put(gp, BuiltinTypes.Object);
-                                    }
-                                }
-
-                                boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
-                                expression.setOperand(boundMethod);
-                                p = boundMethod.getParameters();
-                            }
-
-                            if (boundMethod.isGenericMethod()) {
-                                if (mappings == null) {
-                                    mappings = new HashMap<>();
-                                }
-
-                                for (final GenericParameter gp : boundMethod.getGenericParameters()) {
-                                    if (!mappings.containsKey(gp)) {
-                                        mappings.put(gp, BuiltinTypes.Object);
-                                    }
-                                }
-
-                                boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
-                                expression.setOperand(boundMethod);
-                                p = boundMethod.getParameters();
-                            }
-
-                            if (r != null && method.isGenericMethod()) {
-                                final HashMap<TypeReference, TypeReference> tempMappings = new HashMap<>();
-                                final List<ParameterDefinition> bp = method.getParameters();
-
-                                for (int i = 0, n = bp.size(); i < n; i++) {
-                                    new AddMappingsForArgumentVisitor(bp.get(i).getParameterType()).visit(
-                                        rp.get(i).getParameterType(),
-                                        tempMappings
-                                    );
-                                }
-
-                                boolean changed = false;
-
-                                if (mappings == null) {
-                                    mappings = tempMappings;
-                                    changed = true;
-                                }
-                                else {
-                                    for (final TypeReference key : tempMappings.keySet()) {
-                                        if (!mappings.containsKey(key)) {
-                                            mappings.put(key, tempMappings.get(key));
-                                            changed = true;
-                                        }
-                                    }
-                                }
-
-                                if (changed) {
-                                    boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
-                                    expression.setOperand(boundMethod);
-                                    p = boundMethod.getParameters();
-                                }
-                            }
-                        }
-                        else {
-                            boundMethod = actualMethod;
-                        }
-
-                        if (hasThis && mappings != null) {
-                            TypeReference expectedTargetType;
-
-                            if (boundMethod.isConstructor()) {
-                                expectedTargetType = MetadataHelper.substituteGenericArguments(boundMethod.getDeclaringType(), mappings);
-                            }
-                            else {
-                                expectedTargetType = boundMethod.getDeclaringType();
-                            }
-
-                            if (expectedTargetType != null &&
-                                expectedTargetType.isGenericDefinition() &&
-                                arguments.get(0).getInferredType() != null) {
-
-                                expectedTargetType = MetadataHelper.asSuper(
-                                    expectedTargetType,
-                                    arguments.get(0).getInferredType()
-                                );
-                            }
-
-                            final TypeReference inferredTargetType = inferTypeForExpression(
-                                arguments.get(0),
-                                expectedTargetType,
-                                forceInferChildren
-                            );
-
-                            if (inferredTargetType != null) {
-                                targetType = MetadataHelper.substituteGenericArguments(inferredTargetType, mappings);
-
-                                if (MetadataHelper.isRawType(targetType) &&
-                                    !MetadataHelper.canReferenceTypeVariablesOf(targetType, _context.getCurrentType())) {
-
-                                    targetType = MetadataHelper.erase(targetType);
-                                }
-
-                                boundMethod = MetadataHelper.asMemberOf(boundMethod, targetType);
-                                p = boundMethod.getParameters();
-                                expression.setOperand(boundMethod);
-                            }
-                        }
-
-                        for (int i = 0; i < parameters.size(); i++) {
-                            final TypeReference pType = p.get(i).getParameterType();
-
-                            inferTypeForExpression(
-                                arguments.get(hasThis ? i + 1 : i),
-                                pType.isPrimitive() ? pType : null,
-                                forceInferChildren
-                            );
-                        }
-                    }
-
-                    if (hasThis) {
-                        if (boundMethod.isConstructor()) {
-                            return boundMethod.getDeclaringType();
-                        }
-                    }
-
-                    return boundMethod.getReturnType();
+                    return inferCall(expression, expectedType, forceInferChildren);
                 }
 
                 case GetField: {
@@ -2209,6 +1862,486 @@ public final class TypeAnalysis {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
+    private TypeReference inferDynamicCall(final Expression expression, final TypeReference expectedType, final boolean forceInferChildren) {
+        final List<Expression> arguments = expression.getArguments();
+        final DynamicCallSite callSite = (DynamicCallSite) expression.getOperand();
+
+        TypeReference inferredType = expression.getInferredType();
+
+        if (inferredType == null) {
+            inferredType = callSite.getMethodType().getReturnType();
+        }
+
+        TypeReference result = expectedType == null ? inferredType
+                                                    : MetadataHelper.asSubType(inferredType, expectedType);
+
+        if (result == null) {
+            result = inferredType;
+        }
+
+        if (result.isGenericType() || MetadataHelper.isRawType(result)) {
+            final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
+
+            if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
+                StringUtilities.equals("metafactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) &&
+                callSite.getBootstrapArguments().size() == 3 &&
+                callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
+
+                final MethodHandle targetHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
+                final MethodReference targetMethod = targetHandle.getMethod();
+                final Map<TypeReference, TypeReference> expectedMappings = new HashMap<>();
+                final Map<TypeReference, TypeReference> inferredMappings = new HashMap<>();
+
+                MethodReference functionMethod = null;
+
+                final TypeDefinition resolvedType = result.resolve();
+
+                final List<MethodReference> methods = MetadataHelper.findMethods(
+                    resolvedType != null ? resolvedType : result,
+                    MetadataFilters.matchName(callSite.getMethodName())
+                );
+
+                for (final MethodReference m : methods) {
+                    final MethodDefinition r = m.resolve();
+
+                    if (r != null && r.isAbstract() && !r.isStatic() && !r.isDefault()) {
+                        functionMethod = r;
+                        break;
+                    }
+                }
+
+                if (functionMethod == null) {
+                    return null;
+                }
+
+                boolean firstArgIsTarget = false;
+                MethodReference actualMethod = targetMethod;
+
+                switch (targetHandle.getHandleType()) {
+                    case GetField:
+                    case PutField:
+                    case InvokeVirtual:
+                    case InvokeSpecial:
+                    case InvokeInterface: {
+                        if (arguments.size() > 0) {
+                            final Expression arg = arguments.get(0);
+                            final TypeReference expectedArgType = targetMethod.getDeclaringType();
+
+                            if (forceInferChildren) {
+                                inferTypeForExpression(arg, expectedArgType, true);
+                            }
+
+                            final TypeReference targetType = arg.getInferredType();
+
+                            if (targetType != null &&
+                                MetadataHelper.isSubType(targetType, expectedArgType)) {
+
+                                firstArgIsTarget = true;
+
+                                final MethodReference asMember = MetadataHelper.asMemberOf(actualMethod, targetType);
+
+                                if (asMember != null) {
+                                    actualMethod = asMember;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (expectedType != null && expectedType.isGenericType() && !expectedType.isGenericDefinition()) {
+                    final List<GenericParameter> genericParameters;
+
+                    if (resolvedType != null) {
+                        genericParameters = resolvedType.getGenericParameters();
+                    }
+                    else {
+                        genericParameters = expectedType.getGenericParameters();
+                    }
+
+                    final List<TypeReference> typeArguments = ((IGenericInstance) expectedType).getTypeArguments();
+
+                    if (typeArguments.size() == genericParameters.size()) {
+                        for (int i = 0; i < genericParameters.size(); i++) {
+                            final TypeReference typeArgument = typeArguments.get(i);
+                            final GenericParameter genericParameter = genericParameters.get(i);
+
+                            if (!MetadataHelper.isSameType(typeArgument, genericParameter, true)) {
+                                expectedMappings.put(genericParameter, typeArgument);
+                            }
+                        }
+                    }
+                }
+
+                new AddMappingsForArgumentVisitor(actualMethod.getReturnType()).visit(functionMethod.getReturnType(), inferredMappings);
+
+                final List<ParameterDefinition> tp = actualMethod.getParameters();
+                final List<ParameterDefinition> fp = functionMethod.getParameters();
+
+                if (tp.size() == fp.size()) {
+                    for (int i = 0; i < fp.size(); i++) {
+                        new AddMappingsForArgumentVisitor(tp.get(i).getParameterType()).visit(fp.get(i).getParameterType(), inferredMappings);
+                    }
+                }
+
+                for (final TypeReference key : expectedMappings.keySet()) {
+                    final TypeReference expectedMapping = expectedMappings.get(key);
+                    final TypeReference inferredMapping = inferredMappings.get(key);
+
+                    if (inferredMapping == null || MetadataHelper.isSubType(expectedMapping, inferredMapping)) {
+                        inferredMappings.put(key, expectedMapping);
+                    }
+                }
+
+                result = TypeSubstitutionVisitor.instance().visit(
+                    resolvedType != null ? resolvedType : result,
+                    inferredMappings
+                );
+
+                if (!firstArgIsTarget || expectedType == null) {
+                    return result;
+                }
+
+                //
+                // If we have a target argument, see if we can improve its inferred type based on our result function type.
+                // For example, if our target method is Set<E>::add(E), and our function type is Function<String, Boolean>, then
+                // we should be able to infer that E is bound to String, and our target type is actually Set<String>.
+                //
+
+                TypeReference declaringType = actualMethod.getDeclaringType();
+
+                if (!declaringType.isGenericDefinition() && !MetadataHelper.isRawType(actualMethod.getDeclaringType())) {
+                    return result;
+                }
+
+                declaringType = declaringType.isGenericDefinition() ? declaringType : declaringType.resolve();
+
+                if (declaringType == null) {
+                    return result;
+                }
+
+                final MethodReference resultMethod = MetadataHelper.asMemberOf(functionMethod, result);
+
+                actualMethod = actualMethod.resolve();
+
+                if (resultMethod == null || actualMethod == null) {
+                    return result;
+                }
+
+                inferredMappings.clear();
+
+                final Map<TypeReference, TypeReference> argumentMappings = inferredMappings;
+
+                new AddMappingsForArgumentVisitor(resultMethod.getReturnType()).visit(actualMethod.getReturnType(), argumentMappings);
+
+                final List<ParameterDefinition> ap = actualMethod.getParameters();
+                final List<ParameterDefinition> rp = resultMethod.getParameters();
+
+                if (ap.size() == rp.size()) {
+                    for (int i = 0, n = ap.size(); i < n; i++) {
+                        new AddMappingsForArgumentVisitor(rp.get(i).getParameterType()).visit(ap.get(i).getParameterType(), argumentMappings);
+                    }
+                }
+
+                final TypeReference resolvedTargetType = TypeSubstitutionVisitor.instance().visit(declaringType, argumentMappings);
+
+                if (resolvedTargetType != null) {
+                    inferTypeForExpression(
+                        arguments.get(0),
+                        resolvedTargetType,
+                        true
+                    );
+                }
+            }
+        }
+
+        return result;
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private TypeReference inferCall(final Expression expression, final TypeReference expectedType, final boolean forceInferChildren) {
+        final AstCode code = expression.getCode();
+        final List<Expression> arguments = expression.getArguments();
+        final MethodReference method = (MethodReference) expression.getOperand();
+        final List<ParameterDefinition> parameters = method.getParameters();
+        final boolean hasThis = code != AstCode.InvokeStatic && code != AstCode.InvokeDynamic;
+
+        TypeReference targetType = null;
+        MethodReference boundMethod = method;
+
+        if (forceInferChildren) {
+            final MethodDefinition r = method.resolve();
+
+            MethodReference actualMethod;
+
+            if (hasThis) {
+                final Expression thisArg = arguments.get(0);
+
+                final TypeReference expectedTargetType = thisArg.getInferredType() != null ? thisArg.getInferredType()
+                                                                                           : thisArg.getExpectedType();
+
+                if (expectedTargetType != null &&
+                    expectedTargetType.isGenericType() &&
+                    !expectedTargetType.isGenericDefinition()) {
+
+                    boundMethod = MetadataHelper.asMemberOf(method, expectedTargetType);
+
+                    targetType = inferTypeForExpression(
+                        arguments.get(0),
+                        expectedTargetType
+                    );
+                }
+                else if (method.isConstructor()) {
+                    targetType = method.getDeclaringType();
+                }
+                else {
+                    targetType = inferTypeForExpression(
+                        arguments.get(0),
+                        method.getDeclaringType()
+                    );
+                }
+
+                if (!(targetType instanceof RawType) &&
+                    MetadataHelper.isRawType(targetType) &&
+                    !MetadataHelper.canReferenceTypeVariablesOf(targetType, _context.getCurrentType())) {
+
+                    targetType = MetadataHelper.erase(targetType);
+                }
+
+                final MethodReference m = targetType != null ? MetadataHelper.asMemberOf(r != null ? r : method, targetType)
+                                                             : method;
+
+                if (m != null) {
+                    actualMethod = m;
+                }
+                else {
+                    actualMethod = r != null ? r : boundMethod;
+                }
+            }
+            else {
+                actualMethod = r != null ? r : boundMethod;
+            }
+
+            boundMethod = actualMethod;
+            expression.setOperand(boundMethod);
+
+            List<ParameterDefinition> p = method.getParameters();
+
+            Map<TypeReference, TypeReference> mappings = null;
+
+            if (actualMethod.containsGenericParameters() || r != null && r.containsGenericParameters()) {
+                final Map<TypeReference, TypeReference> oldMappings = new HashMap<>();
+                final Map<TypeReference, TypeReference> newMappings = new HashMap<>();
+                final Map<TypeReference, TypeReference> inferredMappings = new HashMap<>();
+
+                if (targetType != null && targetType.isGenericType()) {
+                    oldMappings.putAll(MetadataHelper.getGenericSubTypeMappings(targetType.getUnderlyingType(), targetType));
+                }
+
+                final List<ParameterDefinition> rp = r != null ? r.getParameters() : actualMethod.getParameters();
+                final List<ParameterDefinition> cp = boundMethod.getParameters();
+
+                final boolean mapOld = method instanceof IGenericInstance;
+
+                for (int i = 0; i < parameters.size(); i++) {
+                    final TypeReference rType = rp.get(i).getParameterType();
+                    final TypeReference pType = p.get(i).getParameterType();
+                    final TypeReference cType = cp.get(i).getParameterType();
+                    final TypeReference aType = inferTypeForExpression(arguments.get(hasThis ? i + 1 : i), /*cType*/null);
+
+                    if (mapOld && rType != null && rType.containsGenericParameters()) {
+                        new AddMappingsForArgumentVisitor(pType).visit(rType, oldMappings);
+                    }
+
+                    if (cType != null && rType.containsGenericParameters()) {
+                        new AddMappingsForArgumentVisitor(cType).visit(rType, newMappings);
+                    }
+
+                    if (aType != null && rType.containsGenericParameters()) {
+                        new AddMappingsForArgumentVisitor(aType).visit(rType, inferredMappings);
+                    }
+                }
+
+                if (expectedType != null) {
+                    final TypeReference returnType = r != null ? r.getReturnType()
+                                                               : actualMethod.getReturnType();
+
+                    if (returnType.containsGenericParameters()) {
+                        final Map<TypeReference, TypeReference> returnMappings = new HashMap<>();
+
+                        new AddMappingsForArgumentVisitor(expectedType).visit(returnType, returnMappings);
+
+                        newMappings.putAll(returnMappings);
+                    }
+                }
+
+                if (!oldMappings.isEmpty() || !newMappings.isEmpty() || !inferredMappings.isEmpty()) {
+                    mappings = oldMappings;
+
+                    for (final TypeReference t : newMappings.keySet()) {
+                        final TypeReference oldMapping = mappings.get(t);
+                        final TypeReference newMapping = newMappings.get(t);
+
+                        if (oldMapping == null || MetadataHelper.isSubType(newMapping, oldMapping)) {
+                            mappings.put(t, newMapping);
+                        }
+                    }
+
+                    for (final TypeReference t : inferredMappings.keySet()) {
+                        final TypeReference oldMapping = mappings.get(t);
+                        final TypeReference newMapping = inferredMappings.get(t);
+
+                        if (oldMapping == null || MetadataHelper.isSubType(newMapping, oldMapping)) {
+                            mappings.put(t, newMapping);
+                        }
+                    }
+                }
+
+                if (mappings != null) {
+                    boundMethod = TypeSubstitutionVisitor.instance().visitMethod(r != null ? r : actualMethod, mappings);
+                    actualMethod = boundMethod;
+                    expression.setOperand(boundMethod);
+                    p = boundMethod.getParameters();
+                }
+
+                final TypeReference boundDeclaringType = boundMethod.getDeclaringType();
+
+                if (boundDeclaringType.isGenericType()) {
+                    if (mappings == null) {
+                        mappings = new HashMap<>();
+                    }
+
+                    for (final GenericParameter gp : boundDeclaringType.getGenericParameters()) {
+                        final GenericParameter inScope = _context.getCurrentMethod().findTypeVariable(gp.getName());
+
+                        if (inScope != null && MetadataHelper.isSameType(gp, inScope)) {
+                            continue;
+                        }
+
+                        if (!mappings.containsKey(gp)) {
+                            mappings.put(gp, BuiltinTypes.Object);
+                        }
+                    }
+
+                    boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
+                    expression.setOperand(boundMethod);
+                    p = boundMethod.getParameters();
+                }
+
+                if (boundMethod.isGenericMethod()) {
+                    if (mappings == null) {
+                        mappings = new HashMap<>();
+                    }
+
+                    for (final GenericParameter gp : boundMethod.getGenericParameters()) {
+                        if (!mappings.containsKey(gp)) {
+                            mappings.put(gp, BuiltinTypes.Object);
+                        }
+                    }
+
+                    boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
+                    expression.setOperand(boundMethod);
+                    p = boundMethod.getParameters();
+                }
+
+                if (r != null && method.isGenericMethod()) {
+                    final HashMap<TypeReference, TypeReference> tempMappings = new HashMap<>();
+                    final List<ParameterDefinition> bp = method.getParameters();
+
+                    for (int i = 0, n = bp.size(); i < n; i++) {
+                        new AddMappingsForArgumentVisitor(bp.get(i).getParameterType()).visit(
+                            rp.get(i).getParameterType(),
+                            tempMappings
+                        );
+                    }
+
+                    boolean changed = false;
+
+                    if (mappings == null) {
+                        mappings = tempMappings;
+                        changed = true;
+                    }
+                    else {
+                        for (final TypeReference key : tempMappings.keySet()) {
+                            if (!mappings.containsKey(key)) {
+                                mappings.put(key, tempMappings.get(key));
+                                changed = true;
+                            }
+                        }
+                    }
+
+                    if (changed) {
+                        boundMethod = TypeSubstitutionVisitor.instance().visitMethod(actualMethod, mappings);
+                        expression.setOperand(boundMethod);
+                        p = boundMethod.getParameters();
+                    }
+                }
+            }
+            else {
+                boundMethod = actualMethod;
+            }
+
+            if (hasThis && mappings != null) {
+                TypeReference expectedTargetType;
+
+                if (boundMethod.isConstructor()) {
+                    expectedTargetType = MetadataHelper.substituteGenericArguments(boundMethod.getDeclaringType(), mappings);
+                }
+                else {
+                    expectedTargetType = boundMethod.getDeclaringType();
+                }
+
+                if (expectedTargetType != null &&
+                    expectedTargetType.isGenericDefinition() &&
+                    arguments.get(0).getInferredType() != null) {
+
+                    expectedTargetType = MetadataHelper.asSuper(
+                        expectedTargetType,
+                        arguments.get(0).getInferredType()
+                    );
+                }
+
+                final TypeReference inferredTargetType = inferTypeForExpression(
+                    arguments.get(0),
+                    expectedTargetType,
+                    forceInferChildren
+                );
+
+                if (inferredTargetType != null) {
+                    targetType = MetadataHelper.substituteGenericArguments(inferredTargetType, mappings);
+
+                    if (MetadataHelper.isRawType(targetType) &&
+                        !MetadataHelper.canReferenceTypeVariablesOf(targetType, _context.getCurrentType())) {
+
+                        targetType = MetadataHelper.erase(targetType);
+                    }
+
+                    boundMethod = MetadataHelper.asMemberOf(boundMethod, targetType);
+                    p = boundMethod.getParameters();
+                    expression.setOperand(boundMethod);
+                }
+            }
+
+            for (int i = 0; i < parameters.size(); i++) {
+                final TypeReference pType = p.get(i).getParameterType();
+
+                inferTypeForExpression(
+                    arguments.get(hasThis ? i + 1 : i),
+                    pType,
+                    forceInferChildren
+                );
+            }
+        }
+
+        if (hasThis) {
+            if (boundMethod.isConstructor()) {
+                return boundMethod.getDeclaringType();
+            }
+        }
+
+        return boundMethod.getReturnType();
+    }
+
     private TypeReference inferTypeForVariable(final Variable v, final TypeReference expectedType) {
         return inferTypeForVariable(v, expectedType, false);
     }
@@ -2638,6 +2771,9 @@ public final class TypeAnalysis {
 
             if (existingMapping == null) {
                 map.put(t, mappedType);
+            }
+            else if (MetadataHelper.isSubType(argumentType, existingMapping)) {
+                map.put(t, argumentType);
             }
             else {
                 map.put(t, MetadataHelper.findCommonSuperType(existingMapping, argumentType));
