@@ -26,12 +26,16 @@ import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
 /**
  * @author Mike Strobel
  */
 public final class ClasspathTypeLoader implements ITypeLoader {
+    private final static Logger LOG = Logger.getLogger(ClasspathTypeLoader.class.getSimpleName());
+
     private final URLClassPath _classPath;
 
     public ClasspathTypeLoader() {
@@ -64,6 +68,10 @@ public final class ClasspathTypeLoader implements ITypeLoader {
 
     @Override
     public boolean tryLoadType(final String internalName, final Buffer buffer) {
+        if (LOG.isLoggable(Level.INFO)) {
+            LOG.info("Attempting to load type: " + internalName + "...");
+        }
+
         final String path = internalName.concat(".class");
         final Resource resource = _classPath.getResource(path, false);
 

@@ -865,6 +865,33 @@ public final class TypeAnalysis {
                             tempResult = MetadataHelper.asSubType(inferredType, expectedType);
                         }
 
+                        if (tempResult != null &&
+                            tempResult.containsGenericParameters()) {
+
+                            final Map<TypeReference, TypeReference> mappings = MetadataHelper.adapt(tempResult, inferredType);
+
+                            List<TypeReference> mappingsToRemove = null;
+
+                            for (final TypeReference key : mappings.keySet()) {
+                                final GenericParameter gp = _context.getCurrentMethod().findTypeVariable(key.getSimpleName());
+
+                                if (MetadataHelper.isSameType(gp, key, true)) {
+                                    if (mappingsToRemove == null) {
+                                        mappingsToRemove = new ArrayList<>();
+                                    }
+                                    mappingsToRemove.add(key);
+                                }
+                            }
+
+                            if (mappingsToRemove != null) {
+                                mappings.keySet().removeAll(mappingsToRemove);
+                            }
+
+                            if (!mappings.isEmpty()) {
+                                tempResult = TypeSubstitutionVisitor.instance().visit(tempResult, mappings);
+                            }
+                        }
+
                         if (tempResult == null && v.getType() != null) {
                             tempResult = MetadataHelper.asSubType(v.getType(), expectedType);
 
@@ -1973,7 +2000,10 @@ public final class TypeAnalysis {
                     }
                 }
 
-                new AddMappingsForArgumentVisitor(actualMethod.getReturnType()).visit(functionMethod.getReturnType(), inferredMappings);
+                new AddMappingsForArgumentVisitor(
+                    actualMethod.isConstructor() ? actualMethod.getDeclaringType()
+                                                 : actualMethod.getReturnType()
+                ).visit(functionMethod.getReturnType(), inferredMappings);
 
                 final List<ParameterDefinition> tp = actualMethod.getParameters();
                 final List<ParameterDefinition> fp = functionMethod.getParameters();
@@ -2147,7 +2177,7 @@ public final class TypeAnalysis {
                     final TypeReference rType = rp.get(i).getParameterType();
                     final TypeReference pType = p.get(i).getParameterType();
                     final TypeReference cType = cp.get(i).getParameterType();
-                    final TypeReference aType = inferTypeForExpression(arguments.get(hasThis ? i + 1 : i), /*cType*/null);
+                    final TypeReference aType = inferTypeForExpression(arguments.get(hasThis ? i + 1 : i), cType/*null*/);
 
                     if (mapOld && rType != null && rType.containsGenericParameters()) {
                         new AddMappingsForArgumentVisitor(pType).visit(rType, oldMappings);
