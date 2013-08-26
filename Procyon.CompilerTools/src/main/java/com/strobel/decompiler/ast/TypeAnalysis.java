@@ -1105,6 +1105,7 @@ public final class TypeAnalysis {
                     if (expectedType != null && !expectedType.isPrimitive()) {
                         return expectedType;
                     }
+
                     return BuiltinTypes.Null;
                 }
 
@@ -1486,12 +1487,21 @@ public final class TypeAnalysis {
                         left.setInferredType(null);
                         right.setInferredType(null);
 
+                        if (code != AstCode.CmpEq && code != AstCode.CmpNe) {
+                            if (left.getExpectedType() == BuiltinTypes.Boolean) {
+                                left.setExpectedType(BuiltinTypes.Integer);
+                            }
+                            if (right.getExpectedType() == BuiltinTypes.Boolean) {
+                                right.setExpectedType(BuiltinTypes.Integer);
+                            }
+                        }
+
                         inferBinaryArguments(
                             left,
                             right,
                             typeWithMoreInformation(
-                                left.getInferredType(),
-                                right.getInferredType()
+                                doInferTypeForExpression(left, left.getExpectedType(), false),
+                                doInferTypeForExpression(right, right.getExpectedType(), false)
                             ),
                             false,
                             null,
@@ -2443,6 +2453,17 @@ public final class TypeAnalysis {
             actualRightPreferred = doInferTypeForExpression(right, expectedType, forceInferChildren);
         }
 
+        if (actualLeftPreferred == BuiltinTypes.Null) {
+            if (actualRightPreferred != null && !actualRightPreferred.isPrimitive()) {
+                actualLeftPreferred = actualRightPreferred;
+            }
+        }
+        else if (actualRightPreferred == BuiltinTypes.Null) {
+            if (actualLeftPreferred != null && !actualLeftPreferred.isPrimitive()) {
+                actualRightPreferred = actualLeftPreferred;
+            }
+        }
+
         if (actualLeftPreferred == BuiltinTypes.Character) {
             if (actualRightPreferred == BuiltinTypes.Integer && matchCharacterConstant(right) != null) {
                 actualRightPreferred = BuiltinTypes.Character;
@@ -2516,7 +2537,7 @@ public final class TypeAnalysis {
     }
 
     private static int getInformationAmount(final TypeReference type) {
-        if (type == null) {
+        if (type == null || type == BuiltinTypes.Null) {
             return 0;
         }
 

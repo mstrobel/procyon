@@ -1,14 +1,9 @@
 package com.strobel.decompiler;
 
 import com.beust.jcommander.JCommander;
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.InputTypeLoader;
-import com.strobel.assembler.metadata.CompositeTypeLoader;
-import com.strobel.assembler.metadata.IMetadataResolver;
-import com.strobel.assembler.metadata.JarTypeLoader;
-import com.strobel.assembler.metadata.MetadataParser;
-import com.strobel.assembler.metadata.MetadataSystem;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.languages.BytecodeLanguage;
@@ -26,7 +21,9 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.logging.ConsoleHandler;
@@ -37,7 +34,6 @@ import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 public class DecompilerDriver {
-
     public static void main(final String[] args) {
         final CommandLineOptions options = new CommandLineOptions();
         final JCommander jCommander;
@@ -109,7 +105,7 @@ public class DecompilerDriver {
             }
         }
         else {
-            final MetadataSystem metadataSystem = new MetadataSystem(settings.getTypeLoader());
+            final MetadataSystem metadataSystem = new NoRetryMetadataSystem(settings.getTypeLoader());
 
             for (final String typeName : typeNames) {
                 try {
@@ -189,7 +185,7 @@ public class DecompilerDriver {
             )
         );
 
-        final MetadataSystem metadataSystem = new MetadataSystem(settings.getTypeLoader());
+        final MetadataSystem metadataSystem = new NoRetryMetadataSystem(settings.getTypeLoader());
 
         while (entries.hasMoreElements()) {
             final JarEntry entry = entries.nextElement();
@@ -328,7 +324,7 @@ final class BriefLogFormatter extends Formatter {
     /**
      * A Custom format implementation that is designed for brevity.
      */
-    public String format(final LogRecord record) {
+    public String format(@NotNull final LogRecord record) {
         String loggerName = record.getLoggerName();
         if (loggerName == null) {
             loggerName = "root";
@@ -342,5 +338,36 @@ final class BriefLogFormatter extends Formatter {
             .append(": ")
             .append(record.getMessage()).append(' ')
             .append(lineSep).toString();
+    }
+}
+
+final class NoRetryMetadataSystem extends MetadataSystem {
+    private final Set<String> _failedTypes = new HashSet<>();
+
+    NoRetryMetadataSystem() {
+    }
+
+    NoRetryMetadataSystem(final String classPath) {
+        super(classPath);
+    }
+
+    NoRetryMetadataSystem(final ITypeLoader typeLoader) {
+        super(typeLoader);
+    }
+
+    @Override
+    protected TypeDefinition resolveType(final String descriptor, final boolean mightBePrimitive) {
+        if (_failedTypes.contains(descriptor)) {
+            return null;
+        }
+
+        final TypeDefinition result = super.resolveType(descriptor, mightBePrimitive);
+
+        if (result == null) {
+            _failedTypes.add(descriptor);
+        }
+
+        return result;
+
     }
 }

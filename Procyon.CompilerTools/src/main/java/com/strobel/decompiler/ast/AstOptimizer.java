@@ -206,6 +206,12 @@ public final class AstOptimizer {
 
                 modified |= new Inlining(context, method, true).inlineAllInBlock(block);
                 new Inlining(context, method).copyPropagation();
+
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.MergeDisparateObjectInitializations)) {
+                    return;
+                }
+
+                modified |= mergeDisparateObjectInitializations(context, block);
             }
             while (modified);
         }
@@ -253,12 +259,6 @@ public final class AstOptimizer {
         }
 
         duplicateReturnStatements(method);
-
-        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.MergeDisparateObjectInitializations)) {
-            return;
-        }
-
-        mergeDisparateObjectInitializations(context, method);
 
         if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.GotoRemoval2)) {
             return;
@@ -2360,7 +2360,7 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="MergeDisparateObjectInitializations Optimization">
 
-    private static void mergeDisparateObjectInitializations(final DecompilerContext context, final Block method) {
+    private static boolean mergeDisparateObjectInitializations(final DecompilerContext context, final Block method) {
         final Inlining inlining = new Inlining(context, method);
         final Map<Node, Node> parentLookup = new IdentityHashMap<>();
         final Map<Variable, Expression> newExpressions = new IdentityHashMap<>();
@@ -2368,6 +2368,8 @@ public final class AstOptimizer {
         final StrongBox<Variable> variable = new StrongBox<>();
         final StrongBox<MethodReference> ctor = new StrongBox<>();
         final List<Expression> args = new ArrayList<>();
+
+        boolean anyChanged = false;
 
         parentLookup.put(method, Node.NULL);
 
@@ -2393,10 +2395,10 @@ public final class AstOptimizer {
                 args.size() > 0 &&
                 matchLoad(first(args), variable)) {
 
-                final Expression storeNew = newExpressions.get(variable.get());
+                final Expression storeNew = newExpressions.get(variable.value);
 
                 if (storeNew != null &&
-                    Inlining.count(inlining.storeCounts, variable.get()) == 1) {
+                    Inlining.count(inlining.storeCounts, variable.value) == 1) {
 
                     final Node parent = parentLookup.get(storeNew);
 
@@ -2410,23 +2412,47 @@ public final class AstOptimizer {
                             body = ((BasicBlock) parent).getBody();
                         }
 
-                        body.remove(storeNew);
+                        boolean moveInitToNew = false;
+
+                        if (parentLookup.get(e) == parent) {
+                            final int newIndex = body.indexOf(storeNew);
+                            final int initIndex = body.indexOf(e);
+
+                            if (initIndex > newIndex) {
+                                for (int i = newIndex + 1; i < initIndex; i++) {
+                                    if (references(body.get(i), variable.value)) {
+                                        moveInitToNew = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        final Expression toRemove = moveInitToNew ? e : storeNew;
+                        final Expression toRewrite = moveInitToNew ? storeNew : e;
 
                         final List<Expression> arguments = e.getArguments();
                         final Expression initExpression = new Expression(AstCode.InitObject, ctor.get());
 
                         arguments.remove(0);
+
                         initExpression.getArguments().addAll(arguments);
                         initExpression.getRanges().addAll(e.getRanges());
 
-                        e.setCode(AstCode.Store);
-                        e.setOperand(variable.get());
-                        e.getArguments().clear();
-                        e.getArguments().add(initExpression);
+                        body.remove(toRemove);
+
+                        toRewrite.setCode(AstCode.Store);
+                        toRewrite.setOperand(variable.value);
+                        toRewrite.getArguments().clear();
+                        toRewrite.getArguments().add(initExpression);
+
+                        anyChanged = true;
                     }
                 }
             }
         }
+
+        return anyChanged;
     }
 
     // </editor-fold>
@@ -2586,7 +2612,9 @@ public final class AstOptimizer {
             final StrongBox<Expression> storeArgument = new StrongBox<>();
             final List<Expression> storeArguments = new ArrayList<>();
 
-            if (matchGetArgument(head, AstCode.Store, ev, initializer)/* && ev.get().isGenerated()*/) {
+            if (matchGetArgument(head, AstCode.Store, ev, initializer) &&
+                !match(initializer.value, AstCode.__New)) {
+
                 if (matchGetArgument(next, AstCode.Store, v, storeArgument) &&
                     matchLoad(storeArgument.get(), ev.get())) {
 

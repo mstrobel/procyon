@@ -38,14 +38,14 @@ public enum AstOptimizationStep {
     IntroducePostIncrement,
     InlineLambdas,
     InlineVariables2,
+    MergeDisparateObjectInitializations,
     FindLoops,
     FindConditions,
     FlattenNestedMovableBlocks,
-//    RemoveEndFinally,
+    //    RemoveEndFinally,
     RemoveRedundantCode2,
     GotoRemoval,
     DuplicateReturns,
-    MergeDisparateObjectInitializations,
     GotoRemoval2,
     ReduceIfNesting,
     InlineVariables3,
@@ -58,7 +58,7 @@ public enum AstOptimizationStep {
 
     public boolean isBlockLevelOptimization() {
         switch (this) {
-           case RemoveInnerClassInitSecurityChecks:
+            case RemoveInnerClassInitSecurityChecks:
             case SimplifyShortCircuit:
             case SimplifyTernaryOperator:
             case JoinBasicBlocks:
@@ -71,6 +71,7 @@ public enum AstOptimizationStep {
             case IntroducePostIncrement:
             case InlineLambdas:
             case InlineVariables2:
+            case MergeDisparateObjectInitializations:
                 return true;
 
             default:
