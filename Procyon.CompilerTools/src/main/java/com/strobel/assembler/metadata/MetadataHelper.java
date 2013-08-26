@@ -1536,7 +1536,9 @@ public final class MetadataHelper {
                 baseMethod = (MethodReference) ((IGenericInstance) baseMethod).getGenericDefinition();
             }
 
-            return new RawMethod(baseMethod);
+            if (baseMethod != null) {
+                return new RawMethod(baseMethod);
+            }
         }
         return method;
     }

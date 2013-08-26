@@ -39,7 +39,10 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
         TypeReference current = t;
         TypeReference mappedType;
 
-        while ((mappedType = map.get(current)) != null && mappedType != current) {
+        while ((mappedType = map.get(current)) != null &&
+               mappedType != current &&
+               map.get(mappedType) != current) {
+
             current = mappedType;
         }
 
