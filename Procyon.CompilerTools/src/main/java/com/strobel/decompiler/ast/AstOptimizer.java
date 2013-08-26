@@ -46,7 +46,7 @@ public final class AstOptimizer {
         VerifyArgument.notNull(context, "context");
         VerifyArgument.notNull(method, "method");
 
-        LOG.info("Beginning bytecode AST optimization...");
+        LOG.fine("Beginning bytecode AST optimization...");
 
         if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveRedundantCode)) {
             return;
@@ -318,7 +318,7 @@ public final class AstOptimizer {
 
         cleanUpTryBlocks(method);
 
-        LOG.info("Finished bytecode AST optimization.");
+        LOG.fine("Finished bytecode AST optimization.");
     }
 
     private static boolean shouldPerformStep(final AstOptimizationStep abortBeforeStep, final AstOptimizationStep nextStep) {

@@ -2799,6 +2799,10 @@ public final class TypeAnalysis {
 
             mappedType = ensureReferenceType(mappedType);
 
+            if (!(mappedType instanceof RawType) && MetadataHelper.isRawType(mappedType)) {
+                mappedType = MetadataHelper.erase(mappedType);
+            }
+
             if (existingMapping == null) {
                 map.put(t, mappedType);
             }

@@ -1506,6 +1506,7 @@ public final class MetadataHelper {
 
     private static boolean eraseNotNeeded(final TypeReference type) {
         return type == null ||
+               type instanceof RawType ||
                type.isPrimitive() ||
                StringUtilities.equals(type.getInternalName(), CommonTypeReferences.String.getInternalName());
     }
@@ -2054,6 +2055,9 @@ public final class MetadataHelper {
                 else if (value.hasExtendsBound() && target.hasExtendsBound()) {
                     value = isSubType(getUpperBound(value), getUpperBound(target)) ? value
                                                                                    : target;
+                }
+                else if (value.isWildcardType() && value.isUnbounded()) {
+                    // do nothing
                 }
                 else if (!isSameType(value, target)) {
                     throw new AdaptFailure();

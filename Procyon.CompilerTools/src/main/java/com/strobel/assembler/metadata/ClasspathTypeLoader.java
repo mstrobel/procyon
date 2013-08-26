@@ -68,8 +68,8 @@ public final class ClasspathTypeLoader implements ITypeLoader {
 
     @Override
     public boolean tryLoadType(final String internalName, final Buffer buffer) {
-        if (LOG.isLoggable(Level.INFO)) {
-            LOG.info("Attempting to load type: " + internalName + "...");
+        if (LOG.isLoggable(Level.FINE)) {
+            LOG.fine("Attempting to load type: " + internalName + "...");
         }
 
         final String path = internalName.concat(".class");

@@ -67,7 +67,7 @@ public class CommandLineOptions {
     @Parameter(names = { "-ps", "--retain-pointless-switches" }, description = "Do not lift the contents of switches having only a default label.")
     private boolean _retainPointlessSwitches;
 
-    @Parameter(names = { "-v", "--verbose" }, description = "Set the level of log verbosity (0-4).", arity = 1)
+    @Parameter(names = { "-v", "--verbose" }, description = "Set the level of log verbosity (0-3).", arity = 1)
     private int _verboseLevel;
 
     @Parameter(names = { "--light" }, description = "Use a color scheme designed for light-background consoles (dark-on-light).")

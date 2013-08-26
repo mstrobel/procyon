@@ -137,21 +137,18 @@ public class DecompilerDriver {
         final Level verboseLevel;
 
         switch (options.getVerboseLevel()) {
-            case 1:
-                verboseLevel = Level.INFO;
+            case 0:
+                verboseLevel = Level.SEVERE;
                 break;
-            case 2:
+            case 1:
                 verboseLevel = Level.FINE;
                 break;
-            case 3:
+            case 2:
                 verboseLevel = Level.FINER;
                 break;
-            case 4:
-                verboseLevel = Level.FINEST;
-                break;
-            case 0:
+            case 3:
             default:
-                verboseLevel = Level.SEVERE;
+                verboseLevel = Level.FINEST;
                 break;
         }
 

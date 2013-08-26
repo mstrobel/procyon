@@ -56,8 +56,8 @@ public class InputTypeLoader implements ITypeLoader {
         VerifyArgument.notNull(typeNameOrPath, "typeNameOrPath");
         VerifyArgument.notNull(buffer, "buffer");
 
-        if (LOG.isLoggable(Level.INFO)) {
-            LOG.info("Attempting to load type: " + typeNameOrPath + "...");
+        if (LOG.isLoggable(Level.FINE)) {
+            LOG.fine("Attempting to load type: " + typeNameOrPath + "...");
         }
 
         final boolean hasExtension = StringUtilities.endsWithIgnoreCase(typeNameOrPath, ".class");

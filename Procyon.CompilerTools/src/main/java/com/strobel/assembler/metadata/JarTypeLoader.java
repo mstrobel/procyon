@@ -27,8 +27,8 @@ public class JarTypeLoader implements ITypeLoader {
     @Override
     public boolean tryLoadType(final String internalName, final Buffer buffer) {
         try {
-            if (LOG.isLoggable(Level.INFO)) {
-                LOG.info("Attempting to load type: " + internalName + "...");
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Attempting to load type: " + internalName + "...");
             }
 
             final JarEntry entry = _jarFile.getJarEntry(internalName + ".class");

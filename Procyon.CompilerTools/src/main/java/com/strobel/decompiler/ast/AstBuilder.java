@@ -62,8 +62,8 @@ public final class AstBuilder {
         builder._optimize = optimize;
         builder._context = VerifyArgument.notNull(context, "context");
 
-        if (LOG.isLoggable(Level.INFO)) {
-            LOG.info(
+        if (LOG.isLoggable(Level.FINE)) {
+            LOG.fine(
                 format(
                     "Beginning bytecode AST construction for %s:%s...",
                     body.getMethod().getFullName(),
@@ -113,8 +113,8 @@ public final class AstBuilder {
             new MutableInteger(byteCode.size())
         );
 
-        if (LOG.isLoggable(Level.INFO)) {
-            LOG.info(
+        if (LOG.isLoggable(Level.FINE)) {
+            LOG.fine(
                 format(
                     "Finished bytecode AST construction for %s:%s.",
                     body.getMethod().getFullName(),
