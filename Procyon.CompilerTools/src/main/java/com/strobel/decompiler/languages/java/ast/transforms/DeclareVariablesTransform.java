@@ -515,10 +515,6 @@ public class DeclareVariablesTransform implements IAstTransform {
             }
         }
 
-        if (statement instanceof ForEachStatement) {
-            assert Integer.parseInt("1") == 1;
-        }
-
         //
         // We can move the variable into a sub-block only if the variable is used only in that
         // sub-block (and not in expressions such as the loop condition).

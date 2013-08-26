@@ -14,6 +14,7 @@
 package com.strobel.core;
 
 import com.strobel.annotations.NotNull;
+import com.strobel.functions.Supplier;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
 
@@ -24,10 +25,71 @@ import java.util.*;
  * @author Mike Strobel
  */
 public final class CollectionUtilities {
+    private final static Supplier IDENTITY_MAP_SUPPLIER = new Supplier() {
+        @Override
+        public Map get() {
+            return new IdentityHashMap<>();
+        }
+    };
+
+    private final static Supplier HASH_MAP_SUPPLIER = new Supplier() {
+        @Override
+        public Map get() {
+            return new HashMap<>();
+        }
+    };
+
+    private final static Supplier LINKED_HASH_MAP_SUPPLIER = new Supplier() {
+        @Override
+        public Map get() {
+            return new LinkedHashMap<>();
+        }
+    };
+
+    private final static Supplier LIST_SUPPLIER = new Supplier() {
+        @Override
+        public List get() {
+            return new ArrayList<>();
+        }
+    };
+
+    private final static Supplier SET_SUPPLIER = new Supplier() {
+        @Override
+        public Set get() {
+            return new LinkedHashSet<>();
+        }
+    };
+
+    @SuppressWarnings("unchecked")
+    public static <T> Supplier<Set<T>> setFactory() {
+        return (Supplier<Set<T>>) SET_SUPPLIER;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> Supplier<List<T>> listFactory() {
+        return (Supplier<List<T>>) LIST_SUPPLIER;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <K, V> Supplier<Map<K, V>> hashMapFactory() {
+        return (Supplier<Map<K, V>>) HASH_MAP_SUPPLIER;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <K, V> Supplier<Map<K, V>> linekdHashMapFactory() {
+        return (Supplier<Map<K, V>>) LINKED_HASH_MAP_SUPPLIER;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <K, V> Supplier<Map<K, V>> identityMapFactory() {
+        return (Supplier<Map<K, V>>) IDENTITY_MAP_SUPPLIER;
+    }
+
     public static <T> int indexOfByIdentity(final List<?> collection, final T item) {
         for (int i = 0, n = collection.size(); i < n; i++) {
-            if (collection.get(i) == item)
+            if (collection.get(i) == item) {
                 return i;
+            }
         }
         return -1;
     }

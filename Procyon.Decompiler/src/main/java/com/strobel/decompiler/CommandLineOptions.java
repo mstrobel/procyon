@@ -64,6 +64,15 @@ public class CommandLineOptions {
     @Parameter(names = { "-ln" }, description = "Include line numbers (raw bytecode mode only).")
     private boolean _includeLineNumbers;
 
+    @Parameter(names = { "-ps", "--retain-pointless-switches" }, description = "Do not lift the contents of switches having only a default label.")
+    private boolean _retainPointlessSwitches;
+
+    @Parameter(names = { "-v", "--verbose" }, description = "Set the level of log verbosity (0-3).", arity = 1)
+    private int _verboseLevel;
+
+    @Parameter(names = { "--light" }, description = "Use a color scheme designed for light-background consoles (dark-on-light).")
+    private boolean _useLightColorScheme;
+
     public final List<String> getClassNames() {
         return _classNames;
     }
@@ -170,5 +179,29 @@ public class CommandLineOptions {
 
     public final void setIncludeLineNumbers(final boolean includeLineNumbers) {
         _includeLineNumbers = includeLineNumbers;
+    }
+
+    public final boolean getRetainPointlessSwitches() {
+        return _retainPointlessSwitches;
+    }
+
+    public final void setRetainPointlessSwitches(final boolean retainPointlessSwitches) {
+        _retainPointlessSwitches = retainPointlessSwitches;
+    }
+
+    public final int getVerboseLevel() {
+        return _verboseLevel;
+    }
+
+    public final void setVerboseLevel(final int verboseLevel) {
+        _verboseLevel = verboseLevel;
+    }
+
+    public final boolean getUseLightColorScheme() {
+        return _useLightColorScheme;
+    }
+
+    public final void setUseLightColorScheme(final boolean useLightColorScheme) {
+        _useLightColorScheme = useLightColorScheme;
     }
 }

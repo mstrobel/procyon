@@ -628,8 +628,9 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             }
         }
 
-        final IdentifierExpression array = m.<IdentifierExpression>get("array").iterator().next();
-        final IdentifierExpression item = m.<IdentifierExpression>get("item").iterator().next();
+        final IdentifierExpression array = first(m.<IdentifierExpression>get("array"));
+        final IdentifierExpression item = first(m.<IdentifierExpression>get("item"));
+        final IdentifierExpression index = first(m.<IdentifierExpression>get("index"));
 
         //
         // Find the declaration of the item variable.  Because we look only outside the loop,
@@ -670,6 +671,15 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             if (analysis.getStatusAfter(loopBody) != DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED) {
                 //
                 // We can't transform into a for-each loop because the array variable is reassigned.
+                //
+                return null;
+            }
+
+            analysis.analyze(index.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+
+            if (!analysis.getUnassignedVariableUses().isEmpty()) {
+                //
+                // We can't eliminate the index variable because it's used in the loop.
                 //
                 return null;
             }

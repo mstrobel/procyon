@@ -114,7 +114,7 @@ public final class InsertParenthesesVisitor extends DepthFirstAstVisitor<Void, V
             return CONDITIONAL;
         }
 
-        if (e instanceof AssignmentExpression) {
+        if (e instanceof AssignmentExpression || e instanceof LambdaExpression) {
             return ASSIGNMENT;
         }
 

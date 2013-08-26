@@ -27,6 +27,7 @@ package com.strobel.assembler.metadata.signatures;
 
 import com.strobel.assembler.metadata.TypeReference;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -51,6 +52,8 @@ public final class Reifier implements TypeTreeVisitor<TypeReference> {
         for (int i = 0; i < tas.length; i++) {
             tas[i].accept(this);
             ts[i] = resultType;
+            if (ts[i] == null)
+                System.err.println("BAD TYPE ARGUMENTS: " + Arrays.toString(tas) + "; " + Arrays.toString(ts));
             assert ts[i] != null;
         }
         return ts;

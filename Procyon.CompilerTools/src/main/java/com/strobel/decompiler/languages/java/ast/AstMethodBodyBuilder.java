@@ -18,9 +18,11 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.assembler.metadata.*;
+import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.Comparer;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.Predicate;
+import com.strobel.core.StringComparison;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilationOptions;
@@ -33,6 +35,7 @@ import com.strobel.decompiler.languages.Languages;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.util.ContractUtils;
 
+import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -650,7 +653,7 @@ public class AstMethodBodyBuilder {
                 final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
 
                 if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
-                    "metaFactory".equals(bootstrapMethod.getName()) &&
+                    StringUtilities.equals("metaFactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) &&
                     callSite.getBootstrapArguments().size() == 3 &&
                     callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
 
@@ -667,8 +670,8 @@ public class AstMethodBodyBuilder {
                         case InvokeVirtual:
                         case InvokeInterface:
                         case InvokeSpecial:
-                            assert arg1 != null;
-                            hasInstanceArgument = true;
+//                            assert arg1 != null;
+                            hasInstanceArgument = arg1 != null;
                             break;
 
                         default:
@@ -689,10 +692,71 @@ public class AstMethodBodyBuilder {
                     methodGroup.putUserData(Keys.DYNAMIC_CALL_SITE, callSite);
                     methodGroup.putUserData(Keys.MEMBER_REFERENCE, targetMethod);
 
+                    if (byteCode.getInferredType() != null) {
+                        methodGroup.putUserData(Keys.TYPE_REFERENCE, byteCode.getInferredType());
+                    }
+
                     return methodGroup;
                 }
 
                 break;
+            }
+
+            case Bind: {
+                final Lambda lambda = (Lambda) byteCode.getOperand();
+                final LambdaExpression lambdaExpression = new LambdaExpression();
+                final AstNodeCollection<ParameterDeclaration> declarations = lambdaExpression.getParameters();
+
+                for (final Variable v : lambda.getParameters()) {
+                    final ParameterDefinition p = v.getOriginalParameter();
+                    final ParameterDeclaration d = new ParameterDeclaration(v.getName(), null);
+
+                    d.putUserData(Keys.PARAMETER_DEFINITION, p);
+                    d.putUserData(Keys.VARIABLE, v);
+
+                    for (final CustomAnnotation annotation : p.getAnnotations()) {
+                        d.getAnnotations().add(_astBuilder.createAnnotation(annotation));
+                    }
+
+                    declarations.add(d);
+
+                    if (p.isFinal()) {
+                        EntityDeclaration.addModifier(d, Modifier.FINAL);
+                    }
+                }
+
+                final BlockStatement body = transformBlock(lambda.getBody());
+                final AstNodeCollection<Statement> statements = body.getStatements();
+
+                if (statements.hasSingleElement()) {
+                    final Statement statement = statements.firstOrNullObject();
+
+                    if (statement instanceof ExpressionStatement ||
+                        statement instanceof ReturnStatement) {
+
+                        statement.remove();
+
+                        final Expression value = statement.getChildByRole(Roles.EXPRESSION);
+
+                        if (value.isNull()) {
+                            lambdaExpression.setBody(body);
+                        }
+                        else {
+                            value.remove();
+                            lambdaExpression.setBody(value);
+                        }
+                    }
+                    else {
+                        lambdaExpression.setBody(body);
+                    }
+                }
+                else {
+                    lambdaExpression.setBody(body);
+                }
+
+                lambdaExpression.putUserData(Keys.TYPE_REFERENCE, byteCode.getInferredType());
+
+                return lambdaExpression;
             }
 
             case ArrayLength:
@@ -820,7 +884,7 @@ public class AstMethodBodyBuilder {
                 name.putUserData(Keys.VARIABLE, variableOperand);
 
                 final PrimitiveExpression deltaExpression = (PrimitiveExpression) arg1;
-                final int delta = (Integer) deltaExpression.getValue();
+                final int delta = (int)JavaPrimitiveCast.cast(JvmType.Integer, deltaExpression.getValue());
 
                 switch (delta) {
                     case -1:
@@ -1163,7 +1227,10 @@ public class AstMethodBodyBuilder {
             final Expression argument = arguments.get(i);
             final ResolveResult resolvedArgument = resolver.apply(argument);
 
-            if (resolvedArgument == null) {
+            if (resolvedArgument == null ||
+                argument instanceof LambdaExpression /*||
+                argument instanceof MethodGroupExpression*/) {
+
                 continue;
             }
 

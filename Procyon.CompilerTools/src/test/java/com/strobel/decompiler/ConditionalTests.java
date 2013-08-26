@@ -59,10 +59,62 @@ public class ConditionalTests extends DecompilerTest {
         }
     }
 
-    private static class C {
-        public boolean test(final boolean a, final boolean b) {
-            boolean c = false;
-            return (b && a == (c = b) && b) || !c;
+//    private static class C {
+////        public boolean test(final boolean a, final boolean b) {
+////            boolean c = false;
+////            System.out.println("(b && a == (c = b) && b) || !c");
+////            final boolean d = (b && a == (c = b) && b) || !c;
+////            return c;
+////        }
+////        public boolean test2(final boolean a, final boolean b) {
+////            boolean c = false;
+////            System.out.println("(b && a == (c = b)) || !c");
+////            final boolean d = (b && a == (c = b)) || !c;
+////            return c;
+////        }
+////        public boolean test3(final boolean a, final boolean b) {
+////            boolean c = false;
+////            System.out.println("(b && a || (c = b)) || !c");
+////            final boolean d = (b && a || (c = b)) || !c;
+////            return c;
+////        }
+//        public boolean test4(final boolean a, final boolean b) {
+//            boolean c = false;
+//            System.out.println("(b && (c = a)) || !c");
+//            final boolean d = (b && (c = a)) || !c;
+//            return c;
+//        }
+//        public boolean test5(final boolean a, final boolean b) {
+//            boolean c = false;
+//            System.out.println("b || (c = a) || !c");
+//            final boolean d = b || (c = a) || !c;
+//            return c;
+//        }
+//        public boolean test6(final boolean a, final boolean b) {
+//            boolean c = false;
+//            System.out.println("b && (c = a)");
+//            final boolean d = b && (c = a);
+//            return c;
+//        }
+//        public boolean test7(final boolean a, final boolean b) {
+//            boolean c = false;
+//            System.out.println("b || (c = a)");
+//            final boolean d = b || (c = a);
+//            return c;
+//        }
+////        public boolean test8(final boolean a, final boolean b, boolean c) {
+////            System.out.println("(b && a == (c = b) && b && c)");
+////            final boolean d = (b && a == (c = b) && b && c);
+////            return c;
+////        }
+//        public boolean test(final boolean a, final boolean b, final boolean c, final boolean d) {
+//            return (a ? b : c) ? d : (c ? b : a);
+//        }
+//    }
+
+    private static class D {
+        public boolean test(final boolean a, final boolean b, final boolean c, final boolean d) {
+            return (a ? b : c) ? d : (c ? b : a);
         }
     }
 
@@ -120,6 +172,19 @@ public class ConditionalTests extends DecompilerTest {
             "            System.out.println(\"E\");\n" +
             "        }\n" +
             "        return true;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testTernaryWithTernaryCondition() throws Throwable {
+        verifyOutput(
+            D.class,
+            defaultSettings(),
+            "private static class D {\n" +
+            "    public boolean test(final boolean a, final boolean b, final boolean c, final boolean d) {\n" +
+            "        return (a ? b : c) ? d : (c ? b : a);\n" +
             "    }\n" +
             "}\n"
         );

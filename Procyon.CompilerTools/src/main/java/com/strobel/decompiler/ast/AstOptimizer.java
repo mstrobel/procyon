@@ -19,18 +19,23 @@ package com.strobel.decompiler.ast;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.*;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.functions.Function;
 import com.strobel.functions.Supplier;
 import com.strobel.functions.Suppliers;
 import com.strobel.util.ContractUtils;
 
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
 @SuppressWarnings("ConstantConditions")
 public final class AstOptimizer {
+    private final static Logger LOG = Logger.getLogger(AstOptimizer.class.getSimpleName());
+
     private int _nextLabelIndex;
 
     public static void optimize(final DecompilerContext context, final Block method) {
@@ -41,15 +46,17 @@ public final class AstOptimizer {
         VerifyArgument.notNull(context, "context");
         VerifyArgument.notNull(method, "method");
 
-        if (abortBeforeStep == AstOptimizationStep.RemoveRedundantCode) {
+        LOG.fine("Beginning bytecode AST optimization...");
+
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveRedundantCode)) {
             return;
         }
 
         final AstOptimizer optimizer = new AstOptimizer();
 
-        removeRedundantCode(method);
+        removeRedundantCode(method, context.getSettings());
 
-        if (abortBeforeStep == AstOptimizationStep.ReduceBranchInstructionSet) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.ReduceBranchInstructionSet)) {
             return;
         }
 
@@ -59,7 +66,7 @@ public final class AstOptimizer {
             reduceBranchInstructionSet(block);
         }
 
-        if (abortBeforeStep == AstOptimizationStep.InlineVariables) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineVariables)) {
             return;
         }
 
@@ -69,19 +76,19 @@ public final class AstOptimizer {
             inliningPhase1.analyzeMethod();
         }
 
-        if (abortBeforeStep == AstOptimizationStep.CopyPropagation) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.CopyPropagation)) {
             return;
         }
 
         inliningPhase1.copyPropagation();
 
-        if (abortBeforeStep == AstOptimizationStep.RewriteFinallyBlocks) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RewriteFinallyBlocks)) {
             return;
         }
 
         rewriteFinallyBlocks(method);
 
-        if (abortBeforeStep == AstOptimizationStep.SplitToMovableBlocks) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SplitToMovableBlocks)) {
             return;
         }
 
@@ -89,13 +96,13 @@ public final class AstOptimizer {
             optimizer.splitToMovableBlocks(block);
         }
 
-        if (abortBeforeStep == AstOptimizationStep.RemoveUnreachableBlocks) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveUnreachableBlocks)) {
             return;
         }
 
         removeUnreachableBlocks(method);
 
-        if (abortBeforeStep == AstOptimizationStep.TypeInference) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.TypeInference)) {
             return;
         }
 
@@ -103,27 +110,39 @@ public final class AstOptimizer {
 
         boolean done = false;
 
+        LOG.fine("Performing block-level bytecode AST optimizations (enable FINER for more detail)...");
+
+        int blockNumber = 0;
+
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             boolean modified;
+            int blockRound = 0;
+
+            ++blockNumber;
 
             do {
+                if (LOG.isLoggable(Level.FINER)) {
+                    LOG.finer("Optimizing block #" + blockNumber + ", round " + ++blockRound + "...");
+                }
+
                 modified = false;
 
-                if (abortBeforeStep == AstOptimizationStep.RemoveInnerClassInitSecurityChecks) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveInnerClassInitSecurityChecks)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new RemoveInnerClassInitSecurityChecksOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.SimplifyShortCircuit) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyShortCircuit)) {
                     done = true;
                     break;
                 }
 
+                modified |= runOptimization(block, new SimplifyShortAssignmentCircuitOptimization(context, method));
                 modified |= runOptimization(block, new SimplifyShortCircuitOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.SimplifyTernaryOperator) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyTernaryOperator)) {
                     done = true;
                     break;
                 }
@@ -131,56 +150,68 @@ public final class AstOptimizer {
                 modified |= runOptimization(block, new SimplifyTernaryOperatorOptimization(context, method));
                 modified |= runOptimization(block, new SimplifyTernaryOperatorRoundTwoOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.JoinBasicBlocks) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.JoinBasicBlocks)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new JoinBasicBlocksOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.SimplifyLogicalNot) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyLogicalNot)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new SimplifyLogicalNotOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.TransformObjectInitializers) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.TransformObjectInitializers)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new TransformObjectInitializersOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.TransformArrayInitializers) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.TransformArrayInitializers)) {
                     done = true;
                     break;
                 }
 
-                modified |= new Inlining(context, method).inlineAllInBlock(block);
+                modified |= new Inlining(context, method, true).inlineAllInBlock(block);
                 modified |= runOptimization(block, new TransformArrayInitializersOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.IntroducePostIncrement) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.IntroducePostIncrement)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new IntroducePostIncrementOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.MakeAssignmentExpressions) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.MakeAssignmentExpressions)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new MakeAssignmentExpressionsOptimization(context, method));
 
-                if (abortBeforeStep == AstOptimizationStep.InlineVariables2) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineLambdas)) {
+                    return;
+                }
+
+                runOptimization(method, new InlineLambdasOptimization(context, method));
+
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineVariables2)) {
                     done = true;
                     break;
                 }
 
-                modified |= new Inlining(context, method).inlineAllInBlock(block);
+                modified |= new Inlining(context, method, true).inlineAllInBlock(block);
                 new Inlining(context, method).copyPropagation();
+
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.MergeDisparateObjectInitializations)) {
+                    return;
+                }
+
+                modified |= mergeDisparateObjectInitializations(context, block);
             }
             while (modified);
         }
@@ -189,65 +220,59 @@ public final class AstOptimizer {
             return;
         }
 
-        if (abortBeforeStep == AstOptimizationStep.FindLoops) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.FindLoops)) {
             return;
         }
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
-            new LoopsAndConditions(context).findLoops(block);
+            new LoopsAndConditions().findLoops(block);
         }
 
-        if (abortBeforeStep == AstOptimizationStep.FindConditions) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.FindConditions)) {
             return;
         }
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
-            new LoopsAndConditions(context).findConditions(block);
+            new LoopsAndConditions().findConditions(block);
         }
 
-        if (abortBeforeStep == AstOptimizationStep.FlattenNestedMovableBlocks) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.FlattenNestedMovableBlocks)) {
             return;
         }
 
         flattenBasicBlocks(method);
 
-        if (abortBeforeStep == AstOptimizationStep.RemoveRedundantCode2) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveRedundantCode2)) {
             return;
         }
 
-        removeRedundantCode(method);
+        removeRedundantCode(method, context.getSettings());
 
-        if (abortBeforeStep == AstOptimizationStep.GotoRemoval) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.GotoRemoval)) {
             return;
         }
 
         new GotoRemoval().removeGotos(method);
 
-        if (abortBeforeStep == AstOptimizationStep.DuplicateReturns) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.DuplicateReturns)) {
             return;
         }
 
         duplicateReturnStatements(method);
 
-        if (abortBeforeStep == AstOptimizationStep.MergeDisparateObjectInitializations) {
-            return;
-        }
-
-        mergeDisparateObjectInitializations(context, method);
-
-        if (abortBeforeStep == AstOptimizationStep.GotoRemoval2) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.GotoRemoval2)) {
             return;
         }
 
         new GotoRemoval().removeGotos(method);
 
-        if (abortBeforeStep == AstOptimizationStep.ReduceIfNesting) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.ReduceIfNesting)) {
             return;
         }
 
         reduceIfNesting(method);
 
-        if (abortBeforeStep == AstOptimizationStep.ReduceComparisonInstructionSet) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.ReduceComparisonInstructionSet)) {
             return;
         }
 
@@ -255,13 +280,13 @@ public final class AstOptimizer {
             reduceComparisonInstructionSet(e);
         }
 
-        if (abortBeforeStep == AstOptimizationStep.RecombineVariables) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RecombineVariables)) {
             return;
         }
 
         recombineVariables(method);
 
-        if (abortBeforeStep == AstOptimizationStep.InlineVariables3) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineVariables3)) {
             return;
         }
 
@@ -270,28 +295,49 @@ public final class AstOptimizer {
         // introduction of ternary operators may open up additional inlining possibilities.
         //
 
-        final Inlining inliningPhase3 = new Inlining(context, method);
+        final Inlining inliningPhase3 = new Inlining(context, method, true);
 
         inliningPhase3.inlineAllVariables();
 
-        if (abortBeforeStep == AstOptimizationStep.TypeInference2) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.TypeInference2)) {
             return;
         }
 
         TypeAnalysis.reset(context, method);
         TypeAnalysis.run(context, method);
 
-        if (abortBeforeStep == AstOptimizationStep.RemoveRedundantCode3) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveRedundantCode3)) {
             return;
         }
 
-        GotoRemoval.removeRedundantCode(method);
+        GotoRemoval.removeRedundantCode(method, true);
 
-        if (abortBeforeStep == AstOptimizationStep.CleanUpTryBlocks) {
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.CleanUpTryBlocks)) {
             return;
         }
 
         cleanUpTryBlocks(method);
+
+        LOG.fine("Finished bytecode AST optimization.");
+    }
+
+    private static boolean shouldPerformStep(final AstOptimizationStep abortBeforeStep, final AstOptimizationStep nextStep) {
+        if (abortBeforeStep == nextStep) {
+            return false;
+        }
+
+        if (nextStep.isBlockLevelOptimization()) {
+            if (LOG.isLoggable(Level.FINER)) {
+                LOG.finer("Performing block-level optimization: " + nextStep + ".");
+            }
+        }
+        else {
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Performing optimization: " + nextStep + ".");
+            }
+        }
+
+        return true;
     }
 
     // <editor-fold defaultstate="collapsed" desc="RemoveUnreachableBlocks Optimization">
@@ -408,7 +454,7 @@ public final class AstOptimizer {
                 body.remove(0);
                 exceptionCopies.add(v.get());
 
-                if (body.isEmpty() || !PatternMatching.matchLoadStore(body.get(0), v.get(), v)) {
+                if (body.isEmpty() || !matchLoadStore(body.get(0), v.get(), v)) {
                     v.set(null);
                 }
                 else {
@@ -694,7 +740,7 @@ public final class AstOptimizer {
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">
 
     @SuppressWarnings({ "ConstantConditions", "StatementWithEmptyBody" })
-    static void removeRedundantCode(final Block method) {
+    static void removeRedundantCode(final Block method, final DecompilerSettings settings) {
         final Map<Label, MutableInteger> labelReferenceCount = new IdentityHashMap<>();
 
         final List<Expression> branchExpressions = method.getSelfAndChildrenRecursive(
@@ -729,7 +775,7 @@ public final class AstOptimizer {
                 final StrongBox<Label> target = new StrongBox<>();
                 final List<Expression> args = new ArrayList<>();
 
-                if (PatternMatching.matchGetOperand(node, AstCode.Goto, target) &&
+                if (matchGetOperand(node, AstCode.Goto, target) &&
                     i + 1 < body.size() &&
                     body.get(i + 1) == target.get()) {
 
@@ -748,10 +794,10 @@ public final class AstOptimizer {
                     // Ignore NOP.
                     //
                 }
-                else if (PatternMatching.matchGetArguments(node, AstCode.Pop, args)) {
+                else if (matchGetArguments(node, AstCode.Pop, args)) {
                     final StrongBox<Variable> variable = new StrongBox<>();
 
-                    if (!PatternMatching.matchGetOperand(args.get(0), AstCode.Load, variable)) {
+                    if (!matchGetOperand(args.get(0), AstCode.Load, variable)) {
                         throw new IllegalStateException("Pop should just have Load at this stage.");
                     }
 
@@ -773,7 +819,7 @@ public final class AstOptimizer {
                         //
                     }
                 }
-                else if (PatternMatching.matchGetArguments(node, AstCode.Pop2, args)) {
+                else if (matchGetArguments(node, AstCode.Pop2, args)) {
                     final StrongBox<Variable> v1 = new StrongBox<>();
                     final StrongBox<Variable> v2 = new StrongBox<>();
 
@@ -781,7 +827,7 @@ public final class AstOptimizer {
                     final StrongBox<Expression> pe1 = new StrongBox<>();
 
                     if (args.size() == 1) {
-                        if (!PatternMatching.matchGetOperand(args.get(0), AstCode.Load, v1)) {
+                        if (!matchGetOperand(args.get(0), AstCode.Load, v1)) {
                             throw new IllegalStateException("Pop2 should just have Load arguments at this stage.");
                         }
 
@@ -805,8 +851,8 @@ public final class AstOptimizer {
                         }
                     }
                     else {
-                        if (!PatternMatching.matchGetOperand(args.get(0), AstCode.Load, v1) ||
-                            !PatternMatching.matchGetOperand(args.get(1), AstCode.Load, v2)) {
+                        if (!matchGetOperand(args.get(0), AstCode.Load, v1) ||
+                            !matchGetOperand(args.get(1), AstCode.Load, v2)) {
 
                             throw new IllegalStateException("Pop2 should just have Load arguments at this stage.");
                         }
@@ -847,6 +893,25 @@ public final class AstOptimizer {
                     if (!isEmptyTryCatch(tryCatch)) {
                         newBody.add(node);
                     }
+                }
+                else if (match(node, AstCode.Switch) && !settings.getRetainPointlessSwitches()) {
+                    final Expression e = (Expression) node;
+                    final Label[] targets = (Label[]) e.getOperand();
+
+                    if (targets.length == 1) {
+                        final Expression test = e.getArguments().get(0);
+
+                        e.setCode(AstCode.Goto);
+                        e.setOperand(targets[0]);
+
+                        if (Inlining.canBeExpressionStatement(test)) {
+                            newBody.add(test);
+                        }
+
+                        e.getArguments().clear();
+                    }
+
+                    newBody.add(node);
                 }
                 else {
                     newBody.add(node);
@@ -1175,8 +1240,9 @@ public final class AstOptimizer {
             final AstCode code;
 
             switch (e.getCode()) {
-                case TableSwitch:
-                case LookupSwitch: {
+                case __TableSwitch:
+                case __LookupSwitch:
+                case Switch: {
                     e.getArguments().get(0).getRanges().addAll(e.getRanges());
                     e.getRanges().clear();
                     continue;
@@ -1532,6 +1598,10 @@ public final class AstOptimizer {
             final StrongBox<Label> trueLabel = new StrongBox<>();
             final StrongBox<Label> falseLabel = new StrongBox<>();
 
+            final StrongBox<Expression> nextCondition = new StrongBox<>();
+            final StrongBox<Label> nextTrueLabel = new StrongBox<>();
+            final StrongBox<Label> nextFalseLabel = new StrongBox<>();
+
             if (matchLastAndBreak(head, AstCode.IfTrue, trueLabel, condition, falseLabel)) {
                 for (int pass = 0; pass < 2; pass++) {
                     //
@@ -1545,14 +1615,15 @@ public final class AstOptimizer {
 
                     final BasicBlock nextBasicBlock = labelToBasicBlock.get(nextLabel);
 
-                    final StrongBox<Expression> nextCondition = new StrongBox<>();
-                    final StrongBox<Label> nextTrueLabel = new StrongBox<>();
-                    final StrongBox<Label> nextFalseLabel = new StrongBox<>();
-
-                    //noinspection SuspiciousMethodCalls
+                    //
+                    // Try to match short circuit operators, e.g.,:
+                    //
+                    // c = a || b
+                    // c = a && b
+                    //
                     if (body.contains(nextBasicBlock) &&
                         nextBasicBlock != head &&
-                        labelGlobalRefCount.get(nextBasicBlock.getBody().get(0)).getValue() == 1 &&
+                        labelGlobalRefCount.get(nextLabel).getValue() == 1 &&
                         matchSingleAndBreak(nextBasicBlock, AstCode.IfTrue, nextTrueLabel, nextCondition, nextFalseLabel) &&
                         (otherLabel == nextFalseLabel.get() || otherLabel == nextTrueLabel.get())) {
 
@@ -1583,12 +1654,136 @@ public final class AstOptimizer {
                         headBody.add(new Expression(AstCode.IfTrue, nextTrueLabel.get(), logicExpression));
                         headBody.add(new Expression(AstCode.Goto, nextFalseLabel.get()));
 
+                        labelGlobalRefCount.get(trueLabel.get()).decrement();
+                        labelGlobalRefCount.get(falseLabel.get()).decrement();
+
                         //
                         // Remove the inlined branch from scope.
                         //
                         removeOrThrow(body, nextBasicBlock);
 
                         return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
+    private static final class SimplifyShortAssignmentCircuitOptimization extends AbstractBasicBlockOptimization {
+        public SimplifyShortAssignmentCircuitOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public final boolean run(final List<Node> body, final BasicBlock head, final int position) {
+            assert body.contains(head);
+
+            final StrongBox<Expression> condition = new StrongBox<>();
+            final StrongBox<Label> trueLabel = new StrongBox<>();
+            final StrongBox<Label> falseLabel = new StrongBox<>();
+
+            if (matchLastAndBreak(head, AstCode.IfTrue, trueLabel, condition, falseLabel)) {
+                //
+                // Try to match conditional assignments, e.g.:
+                //
+                // d = b || (c = a)
+                // d = b && (c = a)
+                //
+
+                final BasicBlock trueBlock = labelToBasicBlock.get(trueLabel.get());
+                final BasicBlock falseBlock = labelToBasicBlock.get(falseLabel.get());
+
+                final StrongBox<Label> falseAndTrueLabel = new StrongBox<>();
+                final StrongBox<Label> falseAndFalseLabel = new StrongBox<>();
+                final StrongBox<Variable> variable = new StrongBox<>();
+                final StrongBox<Variable> altVariable = new StrongBox<>();
+                final StrongBox<Expression> falseCondition = new StrongBox<>();
+                final StrongBox<Expression> assignedValue = new StrongBox<>();
+                final StrongBox<Expression> falseComparand = new StrongBox<>();
+                final StrongBox<Boolean> boolComparand = new StrongBox<>();
+
+                for (int pass = 0; pass < 2; pass++) {
+                    //
+                    // On second pass, swap labels and negate expression of the first branch.
+                    // It is slightly ugly, but much better than copy-pasting the whole block.
+                    //
+
+                    final Label nextLabel = pass == 0 ? trueLabel.get() : falseLabel.get();
+                    final Label otherLabel = pass == 0 ? falseLabel.get() : trueLabel.get();
+                    final boolean negate = pass == 1;
+
+                    if (body.contains(trueBlock) &&
+                        body.contains(falseBlock) &&
+                        trueBlock != head &&
+                        falseBlock != head &&
+                        matchAssignAndConditionalBreak(falseBlock, variable, assignedValue, falseCondition, falseAndTrueLabel, falseAndFalseLabel)) {
+
+                        if (labelGlobalRefCount.get(nextLabel).getValue() == 1 &&
+                            labelGlobalRefCount.get(otherLabel).getValue() <= (trueLabel.get() == falseAndTrueLabel.get() ? 3 : 2) &&
+                            matchBooleanComparison(falseCondition.get(), falseComparand, boolComparand) &&
+                            (matchLoad(falseComparand.get(), variable.get()) ||
+                             (matchLoad(assignedValue.get(), altVariable) &&
+                              matchLoad(falseComparand.get(), altVariable.get()))) &&
+                            (otherLabel == falseAndTrueLabel.get() || otherLabel == falseAndFalseLabel.get())) {
+
+                            final boolean isLogicalAnd = trueLabel.get() == falseAndTrueLabel.get();
+                            final Label targetLabel = (isLogicalAnd ? falseAndFalseLabel : falseAndTrueLabel).get();
+                            final int targetRefCount = labelGlobalRefCount.get(targetLabel).getValue();
+
+                            if (targetRefCount > (isLogicalAnd ? 2 : 3)) {
+                                return false;
+                            }
+
+                            //
+                            // Create short circuit branch.
+                            //
+                            final Expression assignment = (Expression) falseBlock.getBody().get(1);
+                            final Expression effectiveAssignment;
+
+                            if (boolComparand.get()) {
+                                effectiveAssignment = new Expression(AstCode.LogicalNot, null, assignment);
+                                effectiveAssignment.getRanges().addAll(assignment.getRanges());
+                            }
+                            else {
+                                effectiveAssignment = assignment;
+                            }
+
+                            final Expression logicExpression;
+
+                            if (isLogicalAnd) {
+                                logicExpression = makeLeftAssociativeShortCircuit(
+                                    AstCode.LogicalAnd,
+                                    negate ? new Expression(AstCode.LogicalNot, null, condition.get()) : condition.get(),
+                                    effectiveAssignment
+                                );
+                            }
+                            else {
+                                logicExpression = makeLeftAssociativeShortCircuit(
+                                    AstCode.LogicalOr,
+                                    negate ? condition.get() : new Expression(AstCode.LogicalNot, null, condition.get()),
+                                    effectiveAssignment
+                                );
+                            }
+
+                            final List<Node> headBody = head.getBody();
+
+                            removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
+
+                            labelGlobalRefCount.get(trueLabel.get()).decrement();
+                            labelGlobalRefCount.get(falseLabel.get()).decrement();
+
+                            headBody.add(new Expression(AstCode.IfTrue, falseAndFalseLabel.get(), logicExpression));
+                            headBody.add(new Expression(AstCode.Goto, falseAndTrueLabel.get()));
+
+                            //
+                            // Remove the inlined branch from scope.
+                            //
+                            removeOrThrow(body, falseBlock);
+
+                            return true;
+                        }
                     }
                 }
             }
@@ -1672,155 +1867,248 @@ public final class AstOptimizer {
             final StrongBox<Variable> falseVariable = new StrongBox<>();
             final StrongBox<Expression> falseExpression = new StrongBox<>();
             final StrongBox<Label> falseFall = new StrongBox<>();
+
             final StrongBox<Object> unused = new StrongBox<>();
 
             if (matchLastAndBreak(head, AstCode.IfTrue, trueLabel, condition, falseLabel) &&
                 labelGlobalRefCount.get(trueLabel.get()).getValue() == 1 &&
                 labelGlobalRefCount.get(falseLabel.get()).getValue() == 1 &&
-                ((matchSingleAndBreak(labelToBasicBlock.get(trueLabel.get()), AstCode.Store, trueVariable, trueExpression, trueFall) &&
-                  matchSingleAndBreak(labelToBasicBlock.get(falseLabel.get()), AstCode.Store, falseVariable, falseExpression, falseFall) &&
-                  trueVariable.get() == falseVariable.get() &&
-                  trueFall.get() == falseFall.get()) ||
-                 (matchSingle(labelToBasicBlock.get(trueLabel.get()), AstCode.Return, unused, trueExpression) &&
-                  matchSingle(labelToBasicBlock.get(falseLabel.get()), AstCode.Return, unused, falseExpression))) &&
                 body.contains(labelToBasicBlock.get(trueLabel.get())) &&
                 body.contains(labelToBasicBlock.get(falseLabel.get()))) {
 
-                final boolean isStore = trueVariable.get() != null;
-                final AstCode opCode = isStore ? AstCode.Store : AstCode.Return;
-                final TypeReference returnType = isStore ? trueVariable.get().getType() : context.getCurrentMethod().getReturnType();
+                if (((matchSingleAndBreak(labelToBasicBlock.get(trueLabel.get()), AstCode.Store, trueVariable, trueExpression, trueFall) &&
+                      matchSingleAndBreak(labelToBasicBlock.get(falseLabel.get()), AstCode.Store, falseVariable, falseExpression, falseFall) &&
+                      trueVariable.get() == falseVariable.get() &&
+                      trueFall.get() == falseFall.get()) ||
+                     (matchSingle(labelToBasicBlock.get(trueLabel.get()), AstCode.Return, unused, trueExpression) &&
+                      matchSingle(labelToBasicBlock.get(falseLabel.get()), AstCode.Return, unused, falseExpression)))) {
 
-                final boolean returnTypeIsBoolean = TypeAnalysis.isBoolean(returnType);
+                    final boolean isStore = trueVariable.get() != null;
+                    final AstCode opCode = isStore ? AstCode.Store : AstCode.Return;
+                    final TypeReference returnType = isStore ? trueVariable.get().getType() : context.getCurrentMethod().getReturnType();
 
-                final StrongBox<Boolean> leftBooleanValue = new StrongBox<>();
-                final StrongBox<Boolean> rightBooleanValue = new StrongBox<>();
+                    final boolean returnTypeIsBoolean = TypeAnalysis.isBoolean(returnType);
 
-                final Expression newExpression;
+                    final StrongBox<Boolean> leftBooleanValue = new StrongBox<>();
+                    final StrongBox<Boolean> rightBooleanValue = new StrongBox<>();
 
-                // a ? true:false  is equivalent to  a
-                // a ? false:true  is equivalent to  !a
-                // a ? true : b    is equivalent to  a || b
-                // a ? b : true    is equivalent to  !a || b
-                // a ? b : false   is equivalent to  a && b
-                // a ? false : b   is equivalent to  !a && b
+                    final Expression newExpression;
 
-                if (returnTypeIsBoolean &&
-                    matchBooleanConstant(trueExpression.get(), leftBooleanValue) &&
-                    matchBooleanConstant(falseExpression.get(), rightBooleanValue) &&
-                    (leftBooleanValue.get() && !rightBooleanValue.get() ||
-                     !leftBooleanValue.get() && rightBooleanValue.get())) {
+                    // a ? true:false  is equivalent to  a
+                    // a ? false:true  is equivalent to  !a
+                    // a ? true : b    is equivalent to  a || b
+                    // a ? b : true    is equivalent to  !a || b
+                    // a ? b : false   is equivalent to  a && b
+                    // a ? false : b   is equivalent to  !a && b
 
-                    //
-                    // It can be expressed as a trivial expression.
-                    //
-                    if (leftBooleanValue.get()) {
-                        newExpression = condition.get();
+                    if (returnTypeIsBoolean &&
+                        matchBooleanConstant(trueExpression.get(), leftBooleanValue) &&
+                        matchBooleanConstant(falseExpression.get(), rightBooleanValue) &&
+                        (leftBooleanValue.get() && !rightBooleanValue.get() ||
+                         !leftBooleanValue.get() && rightBooleanValue.get())) {
+
+                        //
+                        // It can be expressed as a trivial expression.
+                        //
+                        if (leftBooleanValue.get()) {
+                            newExpression = condition.get();
+                        }
+                        else {
+                            newExpression = new Expression(AstCode.LogicalNot, null, condition.get());
+                            newExpression.setInferredType(BuiltinTypes.Boolean);
+                        }
+                    }
+                    else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(falseExpression.get().getInferredType())) &&
+                             matchBooleanConstant(trueExpression.get(), leftBooleanValue)) {
+
+                        //
+                        // It can be expressed as a logical expression.
+                        //
+                        if (leftBooleanValue.get()) {
+                            newExpression = makeLeftAssociativeShortCircuit(
+                                AstCode.LogicalOr,
+                                condition.get(),
+                                falseExpression.get()
+                            );
+                        }
+                        else {
+                            newExpression = makeLeftAssociativeShortCircuit(
+                                AstCode.LogicalAnd,
+                                new Expression(AstCode.LogicalNot, null, condition.get()),
+                                falseExpression.get()
+                            );
+                        }
+                    }
+                    else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(trueExpression.get().getInferredType())) &&
+                             matchBooleanConstant(falseExpression.get(), rightBooleanValue)) {
+
+                        //
+                        // It can be expressed as a logical expression.
+                        //
+                        if (rightBooleanValue.get()) {
+                            newExpression = makeLeftAssociativeShortCircuit(
+                                AstCode.LogicalOr,
+                                new Expression(AstCode.LogicalNot, null, condition.get()),
+                                trueExpression.get()
+                            );
+                        }
+                        else {
+                            newExpression = makeLeftAssociativeShortCircuit(
+                                AstCode.LogicalAnd,
+                                condition.get(),
+                                trueExpression.get()
+                            );
+                        }
                     }
                     else {
-                        newExpression = new Expression(AstCode.LogicalNot, null, condition.get());
-                        newExpression.setInferredType(BuiltinTypes.Boolean);
+                        //
+                        // Ternary operator tends to create long, complicated return statements.
+                        //
+                        if (opCode == AstCode.Return) {
+                            return false;
+                        }
+
+                        //
+                        // Only simplify generated variables.
+                        //
+                        if (opCode == AstCode.Store && !trueVariable.get().isGenerated()) {
+                            return false;
+                        }
+
+                        //
+                        // Create ternary expression.
+                        //
+                        // Default behavior seems to be to invert the condition.  Try to reverse it.
+                        //
+
+                        if (simplifyLogicalNotArgument(condition.get())) {
+                            newExpression = new Expression(
+                                AstCode.TernaryOp,
+                                null,
+                                condition.get(),
+                                falseExpression.get(),
+                                trueExpression.get()
+                            );
+                        }
+                        else {
+                            newExpression = new Expression(
+                                AstCode.TernaryOp,
+                                null,
+                                condition.get(),
+                                trueExpression.get(),
+                                falseExpression.get()
+                            );
+                        }
                     }
-                }
-                else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(falseExpression.get().getInferredType())) &&
-                         matchBooleanConstant(trueExpression.get(), leftBooleanValue)) {
+
+                    final List<Node> headBody = head.getBody();
+
+                    removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
+                    headBody.add(new Expression(opCode, trueVariable.get(), newExpression));
+
+                    if (isStore) {
+                        headBody.add(new Expression(AstCode.Goto, trueFall.get()));
+                    }
 
                     //
-                    // It can be expressed as a logical expression.
+                    // Remove the old basic blocks.
                     //
-                    if (leftBooleanValue.get()) {
-                        newExpression = makeLeftAssociativeShortCircuit(
-                            AstCode.LogicalOr,
-                            condition.get(),
-                            falseExpression.get()
-                        );
-                    }
-                    else {
-                        newExpression = makeLeftAssociativeShortCircuit(
-                            AstCode.LogicalAnd,
-                            new Expression(AstCode.LogicalNot, null, condition.get()),
-                            falseExpression.get()
-                        );
-                    }
-                }
-                else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(trueExpression.get().getInferredType())) &&
-                         matchBooleanConstant(falseExpression.get(), rightBooleanValue)) {
 
-                    //
-                    // It can be expressed as a logical expression.
-                    //
-                    if (rightBooleanValue.get()) {
-                        newExpression = makeLeftAssociativeShortCircuit(
-                            AstCode.LogicalOr,
-                            new Expression(AstCode.LogicalNot, null, condition.get()),
-                            trueExpression.get()
-                        );
-                    }
-                    else {
-                        newExpression = makeLeftAssociativeShortCircuit(
-                            AstCode.LogicalAnd,
-                            condition.get(),
-                            trueExpression.get()
-                        );
-                    }
+                    removeOrThrow(body, labelToBasicBlock.get(trueLabel.get()));
+                    removeOrThrow(body, labelToBasicBlock.get(falseLabel.get()));
+
+                    return true;
                 }
                 else {
-                    //
-                    // Ternary operator tends to create long, complicated return statements.
-                    //
-                    if (opCode == AstCode.Return) {
-                        return false;
-                    }
+                    final StrongBox<Label> innerTrueLabel = new StrongBox<>();
+                    final StrongBox<Label> innerFalseLabel = new StrongBox<>();
+                    final StrongBox<Expression> innerTrueExpression = new StrongBox<>();
+                    final StrongBox<Label> innerTrueFall = new StrongBox<>();
+                    final StrongBox<Expression> innerFalseExpression = new StrongBox<>();
+                    final StrongBox<Label> innerFalseFall = new StrongBox<>();
 
                     //
-                    // Only simplify generated variables.
+                    // (a ? b : c) ? d : e
                     //
-                    if (opCode == AstCode.Store && !trueVariable.get().isGenerated()) {
-                        return false;
-                    }
+                    if (matchSingleAndBreak(labelToBasicBlock.get(trueLabel.get()), AstCode.IfTrue, innerTrueLabel, trueExpression, trueFall) &&
+                        matchSingleAndBreak(labelToBasicBlock.get(falseLabel.get()), AstCode.IfTrue, unused, falseExpression, falseFall) &&
+                        unused.get() == innerTrueLabel.get() &&
+                        matchLast(labelToBasicBlock.get(falseFall.get()), AstCode.Goto, innerFalseLabel) &&
+                        labelGlobalRefCount.get(innerTrueLabel.get()).getValue() == 2 &&
+                        labelGlobalRefCount.get(innerFalseLabel.get()).getValue() == 2 &&
+                        matchSingleAndBreak(labelToBasicBlock.get(innerTrueLabel.get()), AstCode.Store, trueVariable, innerTrueExpression, innerTrueFall) &&
+                        matchSingleAndBreak(labelToBasicBlock.get(innerFalseLabel.get()), AstCode.Store, falseVariable, innerFalseExpression, innerFalseFall) &&
+                        trueVariable.get() == falseVariable.get() &&
+                        trueFall.get() == innerFalseLabel.get() &&
+                        innerTrueFall.get() == innerFalseFall.get()) {
 
-                    //
-                    // Create ternary expression.
-                    //
-                    // Default behavior seems to be to invert the condition.  Try to reverse it.
-                    //
+                        final Expression newCondition;
+                        final Expression newExpression;
 
-                    if (simplifyLogicalNotArgument(condition.get())) {
-                        newExpression = new Expression(
-                            AstCode.TernaryOp,
-                            null,
-                            condition.get(),
-                            falseExpression.get(),
-                            trueExpression.get()
-                        );
-                    }
-                    else {
-                        newExpression = new Expression(
-                            AstCode.TernaryOp,
-                            null,
-                            condition.get(),
-                            trueExpression.get(),
-                            falseExpression.get()
-                        );
+                        final boolean negateInner = simplifyLogicalNotArgument(trueExpression.get());
+
+                        if (negateInner && !simplifyLogicalNotArgument(falseExpression.get())) {
+                            final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.get());
+                            newFalseExpression.getRanges().addAll(falseExpression.get().getRanges());
+                            falseExpression.set(newFalseExpression);
+                        }
+
+                        if (simplifyLogicalNotArgument(condition.get())) {
+                            newCondition = new Expression(
+                                AstCode.TernaryOp,
+                                null,
+                                condition.get(),
+                                falseExpression.get(),
+                                trueExpression.get()
+                            );
+                        }
+                        else {
+                            newCondition = new Expression(
+                                AstCode.TernaryOp,
+                                null,
+                                condition.get(),
+                                trueExpression.get(),
+                                falseExpression.get()
+                            );
+                        }
+
+                        if (negateInner) {
+                            newExpression = new Expression(
+                                AstCode.TernaryOp,
+                                null,
+                                newCondition,
+                                innerFalseExpression.get(),
+                                innerTrueExpression.get()
+                            );
+                        }
+                        else {
+                            newExpression = new Expression(
+                                AstCode.TernaryOp,
+                                null,
+                                newCondition,
+                                innerTrueExpression.get(),
+                                innerFalseExpression.get()
+                            );
+                        }
+
+                        final List<Node> headBody = head.getBody();
+
+                        removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
+
+                        headBody.add(new Expression(AstCode.Store, trueVariable.get(), newExpression));
+                        headBody.add(new Expression(AstCode.Goto, innerTrueFall.get()));
+
+                        //
+                        // Remove the old basic blocks.
+                        //
+
+                        removeOrThrow(body, labelToBasicBlock.get(trueLabel.get()));
+                        removeOrThrow(body, labelToBasicBlock.get(falseLabel.get()));
+                        removeOrThrow(body, labelToBasicBlock.get(falseFall.get()));
+                        removeOrThrow(body, labelToBasicBlock.get(innerTrueLabel.get()));
+                        removeOrThrow(body, labelToBasicBlock.get(innerFalseLabel.get()));
                     }
                 }
-
-                final List<Node> headBody = head.getBody();
-
-                removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
-                headBody.add(new Expression(opCode, trueVariable.get(), newExpression));
-
-                if (isStore) {
-                    headBody.add(new Expression(AstCode.Goto, trueFall.get()));
-                }
-
-                //
-                // Remove the old basic blocks.
-                //
-
-                removeOrThrow(body, labelToBasicBlock.get(trueLabel.get()));
-                removeOrThrow(body, labelToBasicBlock.get(falseLabel.get()));
-
-                return true;
             }
 
             return false;
@@ -1910,30 +2198,47 @@ public final class AstOptimizer {
             //
             // c ? (v = a) : (v = b) => v = c ? a : b;
             //
-            if (matchGetArguments(head, AstCode.TernaryOp, a) &&
-                matchGetArgument(a.get(1), AstCode.Store, v = new StrongBox<>(), left = new StrongBox<>()) &&
-                matchStore(a.get(2), v.get(), right = new StrongBox<>())) {
+            if (matchGetArguments(head, AstCode.TernaryOp, a)) {
+                if (matchGetArgument(a.get(1), AstCode.Store, v = new StrongBox<>(), left = new StrongBox<>()) &&
+                    matchStore(a.get(2), v.get(), right = new StrongBox<>())) {
 
-                final Expression condition = a.get(0);
-                final Expression leftValue = left.value;
-                final Expression rightValue = right.value;
+                    final Expression condition = a.get(0);
+                    final Expression leftValue = left.value;
+                    final Expression rightValue = right.value;
 
-                final Expression newTernary = new Expression(
-                    AstCode.TernaryOp,
-                    null,
-                    condition,
-                    leftValue,
-                    rightValue
-                );
+                    final Expression newTernary = new Expression(
+                        AstCode.TernaryOp,
+                        null,
+                        condition,
+                        leftValue,
+                        rightValue
+                    );
 
-                head.setCode(AstCode.Store);
-                head.setOperand(v.get());
-                head.getArguments().clear();
-                head.getArguments().add(newTernary);
+                    head.setCode(AstCode.Store);
+                    head.setOperand(v.get());
+                    head.getArguments().clear();
+                    head.getArguments().add(newTernary);
 
-                newTernary.getRanges().addAll(head.getRanges());
+                    newTernary.getRanges().addAll(head.getRanges());
 
-                return head;
+                    return head;
+                }
+                else {
+                    final Boolean ifTrue = matchBooleanConstant(head.getArguments().get(1));
+                    final Boolean ifFalse = matchBooleanConstant(head.getArguments().get(2));
+
+                    if (ifTrue == null || ifFalse == null || ifTrue.equals(ifFalse)) {
+                        return head;
+                    }
+
+                    final boolean invert = Boolean.FALSE.equals(ifTrue);
+                    final Expression condition = head.getArguments().get(0);
+
+                    condition.getRanges().addAll(head.getRanges());
+
+                    return invert ? new Expression(AstCode.LogicalNot, null, condition)
+                                  : condition;
+                }
             }
 
             return head;
@@ -2055,7 +2360,7 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="MergeDisparateObjectInitializations Optimization">
 
-    private static void mergeDisparateObjectInitializations(final DecompilerContext context, final Block method) {
+    private static boolean mergeDisparateObjectInitializations(final DecompilerContext context, final Block method) {
         final Inlining inlining = new Inlining(context, method);
         final Map<Node, Node> parentLookup = new IdentityHashMap<>();
         final Map<Variable, Expression> newExpressions = new IdentityHashMap<>();
@@ -2063,6 +2368,8 @@ public final class AstOptimizer {
         final StrongBox<Variable> variable = new StrongBox<>();
         final StrongBox<MethodReference> ctor = new StrongBox<>();
         final List<Expression> args = new ArrayList<>();
+
+        boolean anyChanged = false;
 
         parentLookup.put(method, Node.NULL);
 
@@ -2088,10 +2395,10 @@ public final class AstOptimizer {
                 args.size() > 0 &&
                 matchLoad(first(args), variable)) {
 
-                final Expression storeNew = newExpressions.get(variable.get());
+                final Expression storeNew = newExpressions.get(variable.value);
 
                 if (storeNew != null &&
-                    Inlining.count(inlining.storeCounts, variable.get()) == 1) {
+                    Inlining.count(inlining.storeCounts, variable.value) == 1) {
 
                     final Node parent = parentLookup.get(storeNew);
 
@@ -2105,23 +2412,47 @@ public final class AstOptimizer {
                             body = ((BasicBlock) parent).getBody();
                         }
 
-                        body.remove(storeNew);
+                        boolean moveInitToNew = false;
+
+                        if (parentLookup.get(e) == parent) {
+                            final int newIndex = body.indexOf(storeNew);
+                            final int initIndex = body.indexOf(e);
+
+                            if (initIndex > newIndex) {
+                                for (int i = newIndex + 1; i < initIndex; i++) {
+                                    if (references(body.get(i), variable.value)) {
+                                        moveInitToNew = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        final Expression toRemove = moveInitToNew ? e : storeNew;
+                        final Expression toRewrite = moveInitToNew ? storeNew : e;
 
                         final List<Expression> arguments = e.getArguments();
                         final Expression initExpression = new Expression(AstCode.InitObject, ctor.get());
 
                         arguments.remove(0);
+
                         initExpression.getArguments().addAll(arguments);
                         initExpression.getRanges().addAll(e.getRanges());
 
-                        e.setCode(AstCode.Store);
-                        e.setOperand(variable.get());
-                        e.getArguments().clear();
-                        e.getArguments().add(initExpression);
+                        body.remove(toRemove);
+
+                        toRewrite.setCode(AstCode.Store);
+                        toRewrite.setOperand(variable.value);
+                        toRewrite.getArguments().clear();
+                        toRewrite.getArguments().add(initExpression);
+
+                        anyChanged = true;
                     }
                 }
             }
         }
+
+        return anyChanged;
     }
 
     // </editor-fold>
@@ -2281,7 +2612,9 @@ public final class AstOptimizer {
             final StrongBox<Expression> storeArgument = new StrongBox<>();
             final List<Expression> storeArguments = new ArrayList<>();
 
-            if (matchGetArgument(head, AstCode.Store, ev, initializer)/* || !ev.get().isGenerated()*/) {
+            if (matchGetArgument(head, AstCode.Store, ev, initializer) &&
+                !match(initializer.value, AstCode.__New)) {
+
                 if (matchGetArgument(next, AstCode.Store, v, storeArgument) &&
                     matchLoad(storeArgument.get(), ev.get())) {
 
@@ -2717,11 +3050,11 @@ public final class AstOptimizer {
             block.getBody().clear();
             block.getBody().addAll(flatBody);
         }
-        else if (node instanceof Expression) {
-            //
-            // Optimization: no need to check expressions.
-            //
-        }
+//        else if (node instanceof Expression) {
+//            //
+//            // Optimization: no need to check expressions.
+//            //
+//        }
         else if (node != null) {
             for (final Node child : node.getChildren()) {
                 flattenBasicBlocks(child);
@@ -2904,6 +3237,211 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
+    private final static class InlineLambdasOptimization extends AbstractExpressionOptimization {
+        private final MutableInteger _lambdaCount = new MutableInteger();
+
+        protected InlineLambdasOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public boolean run(final List<Node> body, final Expression head, final int position) {
+            final StrongBox<DynamicCallSite> c = new StrongBox<>();
+            final List<Expression> a = new ArrayList<>();
+
+            boolean modified = false;
+
+            for (final Expression e : head.getChildrenAndSelfRecursive(Expression.class)) {
+                if (matchGetArguments(e, AstCode.InvokeDynamic, c, a)) {
+                    final Lambda lambda = tryInlineLambda(e, c.value);
+
+                    if (lambda != null) {
+                        modified = true;
+                    }
+                }
+            }
+
+            return modified;
+        }
+
+        private Lambda tryInlineLambda(final Expression site, final DynamicCallSite callSite) {
+            final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
+
+            if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
+                StringUtilities.equals("metafactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) &&
+                callSite.getBootstrapArguments().size() == 3 &&
+                callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
+
+                final MethodHandle targetMethodHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
+                final MethodReference targetMethod = targetMethodHandle.getMethod();
+                final MethodDefinition resolvedMethod = targetMethod.resolve();
+
+                if (resolvedMethod == null ||
+                    resolvedMethod.getBody() == null ||
+                    !resolvedMethod.isSynthetic() ||
+                    !MetadataHelper.isEnclosedBy(resolvedMethod.getDeclaringType(), context.getCurrentType()) ||
+                    (StringUtilities.equals(resolvedMethod.getFullName(), context.getCurrentMethod().getFullName()) &&
+                     StringUtilities.equals(resolvedMethod.getSignature(), context.getCurrentMethod().getSignature()))) {
+
+                    return null;
+                }
+
+                final TypeReference functionType = callSite.getMethodType().getReturnType();
+
+                final List<MethodReference> methods = MetadataHelper.findMethods(
+                    functionType,
+                    MetadataFilters.matchName(callSite.getMethodName())
+                );
+
+                MethodReference functionMethod = null;
+
+                for (final MethodReference m : methods) {
+                    final MethodDefinition r = m.resolve();
+
+                    if (r != null && r.isAbstract() && !r.isStatic() && !r.isDefault()) {
+                        functionMethod = r;
+                        break;
+                    }
+                }
+
+                if (functionMethod == null) {
+                    return null;
+                }
+
+                final DecompilerContext innerContext = new DecompilerContext(context.getSettings());
+
+                innerContext.setCurrentType(resolvedMethod.getDeclaringType());
+                innerContext.setCurrentMethod(resolvedMethod);
+
+                final MethodBody methodBody = resolvedMethod.getBody();
+                final List<ParameterDefinition> parameters = resolvedMethod.getParameters();
+                final Variable[] parameterMap = new Variable[methodBody.getMaxLocals()];
+
+                final List<Node> nodes = new ArrayList<>();
+                final Block body = new Block();
+                final Lambda lambda = new Lambda(body, functionType);
+
+                lambda.setMethod(functionMethod);
+                lambda.setCallSite(callSite);
+
+                final List<Variable> lambdaParameters = lambda.getParameters();
+
+                if (resolvedMethod.hasThis()) {
+                    final Variable variable = new Variable();
+
+                    variable.setName("this");
+                    variable.setType(context.getCurrentMethod().getDeclaringType());
+                    variable.setOriginalParameter(context.getCurrentMethod().getBody().getThisParameter());
+
+                    parameterMap[0] = variable;
+
+                    lambdaParameters.add(variable);
+                }
+
+                for (final ParameterDefinition p : parameters) {
+                    final Variable variable = new Variable();
+
+                    variable.setName(p.getName());
+                    variable.setType(p.getParameterType());
+                    variable.setOriginalParameter(p);
+                    variable.setLambdaParameter(true);
+
+                    parameterMap[p.getSlot()] = variable;
+
+                    lambdaParameters.add(variable);
+                }
+
+                final List<Expression> arguments = site.getArguments();
+
+                for (int i = 0; i < arguments.size(); i++) {
+                    final Variable v = lambdaParameters.get(0);
+
+                    v.setOriginalParameter(null);
+                    v.setGenerated(true);
+
+                    nodes.add(new Expression(AstCode.Store, v, arguments.get(i).clone()));
+
+                    lambdaParameters.remove(0);
+                }
+
+                arguments.clear();
+                nodes.addAll(AstBuilder.build(methodBody, true, innerContext));
+                body.getBody().addAll(nodes);
+
+                for (final Expression e : body.getSelfAndChildrenRecursive(Expression.class)) {
+                    final Object operand = e.getOperand();
+
+                    if (operand instanceof Variable) {
+                        final Variable oldVariable = (Variable) operand;
+
+                        if (oldVariable.isParameter() &&
+                            oldVariable.getOriginalParameter().getMethod() == resolvedMethod) {
+
+                            final Variable newVariable = parameterMap[oldVariable.getOriginalParameter().getSlot()];
+
+                            if (newVariable != null) {
+                                e.setOperand(newVariable);
+                            }
+                        }
+                    }
+                }
+
+                AstOptimizer.optimize(innerContext, body, AstOptimizationStep.InlineVariables2);
+
+                final int lambdaId = _lambdaCount.increment().getValue();
+                final Set<Label> renamedLabels = new HashSet<>();
+
+                for (final Node n : body.getSelfAndChildrenRecursive()) {
+                    if (n instanceof Label) {
+                        final Label label = (Label) n;
+                        if (renamedLabels.add(label)) {
+                            label.setName(label.getName() + "_" + lambdaId);
+                        }
+                        continue;
+                    }
+
+                    if (!(n instanceof Expression)) {
+                        continue;
+                    }
+
+                    final Expression e = (Expression) n;
+                    final Object operand = e.getOperand();
+
+                    if (operand instanceof Label) {
+                        final Label label = (Label) operand;
+                        if (renamedLabels.add(label)) {
+                            label.setName(label.getName() + "_" + lambdaId);
+                        }
+                    }
+                    else if (operand instanceof Label[]) {
+                        for (final Label label : (Label[]) operand) {
+                            if (renamedLabels.add(label)) {
+                                label.setName(label.getName() + "_" + lambdaId);
+                            }
+                        }
+                    }
+
+                    if (match(e, AstCode.Return)) {
+                        e.putUserData(AstKeys.PARENT_LAMBDA_BINDING, site);
+                    }
+                }
+
+                site.setCode(AstCode.Bind);
+                site.setOperand(lambda);
+
+                final com.strobel.assembler.Collection<Range> ranges = site.getRanges();
+
+                for (final Expression e : lambda.getSelfAndChildrenRecursive(Expression.class)) {
+                    ranges.addAll(e.getRanges());
+                }
+
+                return lambda;
+            }
+
+            return null;
+        }
+    }
+
     // <editor-fold defaultstate="collapsed" desc="Optimization Helpers">
 
     private interface BasicBlockOptimization {
@@ -2969,6 +3507,7 @@ public final class AstOptimizer {
         for (int i = body.size() - 1; i >= 0; i--) {
             if (i < body.size() && optimization.run(body, (BasicBlock) body.get(i), i)) {
                 modified = true;
+                ++i;
             }
         }
 

@@ -10,7 +10,11 @@ import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static com.strobel.core.CollectionUtilities.*;
 
@@ -183,6 +187,19 @@ public final class RedundantCastUtility {
         }
 
         @Override
+        public Void visitFieldDeclaration(final FieldDeclaration node, final Void data) {
+            final TypeReference leftType = getType(node.getReturnType());
+
+            if (leftType != null) {
+                for (final VariableInitializer initializer : node.getVariables()) {
+                    processPossibleTypeCast(initializer.getInitializer(), leftType);
+                }
+            }
+
+            return super.visitFieldDeclaration(node, data);
+        }
+
+        @Override
         public Void visitReturnStatement(final ReturnStatement node, final Void data) {
             final MethodDeclaration methodDeclaration = firstOrDefault(node.getAncestors(MethodDeclaration.class));
 
@@ -211,8 +228,9 @@ public final class RedundantCastUtility {
 
         @Override
         public Void visitInvocationExpression(final InvocationExpression node, final Void data) {
+            super.visitInvocationExpression(node, data);
             processCall(node);
-            return super.visitInvocationExpression(node, data);
+            return null;
         }
 
         @Override
@@ -261,7 +279,9 @@ public final class RedundantCastUtility {
                 final TypeReference innerOperandType = getType(innerOperand);
 
                 if (!innerCastType.isPrimitive()) {
-                    if (innerOperandType != null && MetadataHelper.isConvertible(innerOperandType, topCastType)) {
+                    if (innerOperandType != null &&
+                        MetadataHelper.getConversionType(topCastType, innerOperandType) != ConversionType.NONE) {
+
                         addToResults(innerCast, false);
                     }
                 }
@@ -346,18 +366,28 @@ public final class RedundantCastUtility {
                         return null;
                     }
 
-                    //
-                    // TODO: Implement getFunctionalInterfaceType().
-                    //
+                    final ResolveResult lambdaResult = _resolver.apply(e);
+                    final TypeReference functionalInterfaceType;
 
-                    final DynamicCallSite callSite = e.getUserData(Keys.DYNAMIC_CALL_SITE);
+                    if (lambdaResult != null && lambdaResult.getType() != null) {
+                        final TypeReference asSubType = MetadataHelper.asSubType(lambdaResult.getType(), topCastType);
 
-                    if (callSite == null) {
-                        return null;
+                        functionalInterfaceType = asSubType != null ? asSubType
+                                                                    : lambdaResult.getType();
                     }
+                    else {
+                        //
+                        // TODO: Implement getFunctionalInterfaceType().
+                        //
 
-                    final MethodReference method = (MethodReference) callSite.getBootstrapArguments().get(0);
-                    final TypeReference functionalInterfaceType = method.getDeclaringType();
+                        final DynamicCallSite callSite = e.getUserData(Keys.DYNAMIC_CALL_SITE);
+
+                        if (callSite == null) {
+                            return null;
+                        }
+
+                        functionalInterfaceType = callSite.getMethodType().getReturnType();
+                    }
 
                     if (!MetadataHelper.isAssignableFrom(topCastType, functionalInterfaceType, false)) {
                         return null;
@@ -543,7 +573,7 @@ public final class RedundantCastUtility {
 
             for (Expression a = arguments.firstOrNullObject();
                  i < realParametersEnd && a != null && !a.isNull();
-                 a = (Expression) a.getNextSibling(Roles.ARGUMENT), ++i) {
+                 a = a.getNextSibling(Roles.ARGUMENT), ++i) {
 
                 final Expression arg = removeParentheses(a);
 

@@ -115,6 +115,21 @@ public final class DecompilerHelpers {
             return;
         }
 
+        if (operand instanceof SwitchInfo) {
+            final SwitchInfo switchInfo = (SwitchInfo) operand;
+
+            writer.write('[');
+            writeOffsetReference(writer, switchInfo.getDefaultTarget());
+
+            for (final Instruction target : switchInfo.getTargets()) {
+                writer.write(", ");
+                writeOffsetReference(writer, target);
+            }
+
+            writer.write(']');
+            return;
+        }
+
         if (operand instanceof VariableReference) {
             final VariableReference variable = (VariableReference) operand;
 

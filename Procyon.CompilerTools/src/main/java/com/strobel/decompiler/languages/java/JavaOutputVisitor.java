@@ -293,7 +293,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeSpecialsUpToRole(Roles.COMMA, nextNode);
         space(policy.SpaceBeforeBracketComma);
 
-        formatter.writeToken(",");
+        formatter.writeDelimiter(",");
         lastWritten = LastWritten.Other;
         space(!noSpaceAfterComma && policy.SpaceAfterBracketComma);
     }

@@ -359,7 +359,6 @@ public class BytecodeLanguage extends Language {
             case AttributeNames.ConstantValue: {
                 final Object constantValue = ((ConstantValueAttribute) attribute).getValue();
 
-                output.indent();
                 output.writeAttribute("ConstantValue");
                 output.write(": ");
 
@@ -380,7 +379,6 @@ public class BytecodeLanguage extends Language {
 
                 DecompilerHelpers.writeOperand(output, constantValue);
                 output.writeLine();
-                output.unindent();
                 break;
             }
 

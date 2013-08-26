@@ -36,15 +36,16 @@ public enum AstOptimizationStep {
     TransformArrayInitializers,
     MakeAssignmentExpressions,
     IntroducePostIncrement,
+    InlineLambdas,
     InlineVariables2,
+    MergeDisparateObjectInitializations,
     FindLoops,
     FindConditions,
     FlattenNestedMovableBlocks,
-//    RemoveEndFinally,
+    //    RemoveEndFinally,
     RemoveRedundantCode2,
     GotoRemoval,
     DuplicateReturns,
-    MergeDisparateObjectInitializations,
     GotoRemoval2,
     ReduceIfNesting,
     InlineVariables3,
@@ -53,5 +54,28 @@ public enum AstOptimizationStep {
     TypeInference2,
     RemoveRedundantCode3,
     CleanUpTryBlocks,
-    None
+    None;
+
+    public boolean isBlockLevelOptimization() {
+        switch (this) {
+            case RemoveInnerClassInitSecurityChecks:
+            case SimplifyShortCircuit:
+            case SimplifyTernaryOperator:
+            case JoinBasicBlocks:
+            case SimplifyLogicalNot:
+            case SimplifyShiftOperations:
+            case SimplifyLoadAndStore:
+            case TransformObjectInitializers:
+            case TransformArrayInitializers:
+            case MakeAssignmentExpressions:
+            case IntroducePostIncrement:
+            case InlineLambdas:
+            case InlineVariables2:
+            case MergeDisparateObjectInitializations:
+                return true;
+
+            default:
+                return false;
+        }
+    }
 }

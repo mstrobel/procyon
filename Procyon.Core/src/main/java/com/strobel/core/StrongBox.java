@@ -43,4 +43,11 @@ public final class StrongBox<T> implements IStrongBox, Block<T> {
     public void accept(final T input) {
         this.value = input;
     }
+
+    @Override
+    public String toString() {
+        return "StrongBox{" +
+               "value=" + value +
+               '}';
+    }
 }

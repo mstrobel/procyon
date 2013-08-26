@@ -78,6 +78,9 @@ public final class JavaPrimitiveCast {
                 if (input instanceof String) {
                     return Integer.parseInt((String) input);
                 }
+                if (input instanceof Character) {
+                    return (int)((Character) input).charValue();
+                }
                 break;
 
             case Long:
