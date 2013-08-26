@@ -548,7 +548,7 @@ public class CoreMetadataFactory implements MetadataFactory {
 
         public String getFullName() {
             if (_fullName == null) {
-                _fullName = super.getInternalName();
+                _fullName = super.getFullName();
             }
             return _fullName;
         }

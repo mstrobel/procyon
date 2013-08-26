@@ -9,6 +9,7 @@ import java.util.List;
 
 public final class AstKeys {
     public final static Key<SwitchInfo> SWITCH_INFO = Key.create("SwitchInfo");
+    public final static Key<Expression> PARENT_LAMBDA_BINDING = Key.create("ParentLambdaBinding");
     public final static Key<List<TypeReference>> TYPE_ARGUMENTS = Key.create("TypeArguments");
 
     private AstKeys() {

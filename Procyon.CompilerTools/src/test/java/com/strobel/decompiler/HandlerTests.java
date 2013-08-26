@@ -295,7 +295,7 @@ public class HandlerTests extends DecompilerTest {
     }
 
     private static final class M {
-        public int test(final int x) {
+        public int test() {
         exit:
             {
                 try {
@@ -315,7 +315,7 @@ public class HandlerTests extends DecompilerTest {
             throw new RuntimeException();
         }
 
-        public int test1(final int x) {
+        public int test1() {
         bob:
             {
                 try {
@@ -329,6 +329,38 @@ public class HandlerTests extends DecompilerTest {
             }
             System.out.println("TEST!");
             return 1;
+        }
+    }
+
+    private static final class O {
+        private static void f() {
+        }
+
+        public void test1() {
+            do {
+                try {
+                    try {
+                        System.out.print(1);
+                        try {
+                            System.out.print(2);
+                            f();
+                            System.out.print(3);
+                        }
+                        catch (IllegalStateException e) {
+                            System.out.print(4);
+                        }
+                        System.out.print(5);
+                    }
+                    catch (RuntimeException e) {
+                        System.out.print(6);
+                    }
+                    System.out.print(7);
+                }
+                finally {
+                    System.out.print(8);
+                }
+            }
+            while (true);
         }
     }
 
@@ -674,9 +706,66 @@ public class HandlerTests extends DecompilerTest {
             M.class,
             defaultSettings(),
             "private static final class M {\n" +
-            "    public int test(final int x) {\n" +
+            "    public int test() {\n" +
             "        System.out.println(\"TEST\");\n" +
             "        return 1;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testBreakOutOfFinallyWithPossibleThrowInTry() throws Throwable {
+        verifyOutput(
+            N.class,
+            defaultSettings(),
+            "private static final class N {\n" +
+            "    int callWhichThrows() {\n" +
+            "        throw new RuntimeException();\n" +
+            "    }\n" +
+            "    public int test1() {\n" +
+            "        try {\n" +
+            "            this.callWhichThrows();\n" +
+            "        }\n" +
+            "        catch (Throwable t) {}\n" +
+            "        System.out.println(\"TEST!\");\n" +
+            "        return 1;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+    @Test
+    public void testNestedTryCatchFinallyInLoop() throws Throwable {
+        verifyOutput(
+            O.class,
+            defaultSettings(),
+            "private static final class O {\n" +
+            "    private static void f() {\n" +
+            "    }\n" +
+            "    public void test1() {\n" +
+            "        while (true) {\n" +
+            "            try {\n" +
+            "                try {\n" +
+            "                    System.out.print(1);\n" +
+            "                    try {\n" +
+            "                        System.out.print(2);\n" +
+            "                        f();\n" +
+            "                        System.out.print(3);\n" +
+            "                    }\n" +
+            "                    catch (IllegalStateException e) {\n" +
+            "                        System.out.print(4);\n" +
+            "                    }\n" +
+            "                    System.out.print(5);\n" +
+            "                }\n" +
+            "                catch (RuntimeException e2) {\n" +
+            "                    System.out.print(6);\n" +
+            "                }\n" +
+            "                System.out.print(7);\n" +
+            "            }\n" +
+            "            finally {\n" +
+            "                System.out.print(8);\n" +
+            "            }\n" +
+            "        }\n" +
             "    }\n" +
             "}\n"
         );

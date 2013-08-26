@@ -1,6 +1,5 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
-import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MetadataFilters;
 import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MethodBinder;
@@ -15,8 +14,6 @@ import com.strobel.decompiler.semantics.ResolveResult;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.strobel.core.CollectionUtilities.lastOrDefault;
-
 public class VarArgsTransform extends ContextTrackingVisitor<Void> {
     private final JavaResolver _resolver;
 
@@ -30,7 +27,12 @@ public class VarArgsTransform extends ContextTrackingVisitor<Void> {
         super.visitInvocationExpression(node, data);
 
         final AstNodeCollection<Expression> arguments = node.getArguments();
-        final Expression arrayArg = lastOrDefault(arguments);
+        final Expression lastArgument = arguments.lastOrNullObject();
+
+        Expression arrayArg = lastArgument;
+
+        if (arrayArg instanceof CastExpression)
+            arrayArg = ((CastExpression) arrayArg).getExpression();
 
         if (arrayArg == null ||
             arrayArg.isNull() ||
@@ -59,10 +61,26 @@ public class VarArgsTransform extends ContextTrackingVisitor<Void> {
             return null;
         }
 
-        final ResolveResult targetResult = _resolver.apply(target.getTarget());
+        final List<MethodReference> candidates;
+        final Expression invocationTarget = target.getTarget();
 
-        if (targetResult == null || targetResult.getType() == null) {
-            return null;
+        if (invocationTarget == null || invocationTarget.isNull()) {
+            candidates = MetadataHelper.findMethods(
+                context.getCurrentType(),
+                MetadataFilters.matchName(resolved.getName())
+            );
+        }
+        else {
+            final ResolveResult targetResult = _resolver.apply(invocationTarget);
+
+            if (targetResult == null || targetResult.getType() == null) {
+                return null;
+            }
+
+            candidates = MetadataHelper.findMethods(
+                targetResult.getType(),
+                MetadataFilters.matchName(resolved.getName())
+            );
         }
 
         final List<TypeReference> argTypes = new ArrayList<>();
@@ -76,11 +94,6 @@ public class VarArgsTransform extends ContextTrackingVisitor<Void> {
 
             argTypes.add(argResult.getType());
         }
-
-        final List<MethodReference> candidates = MetadataHelper.findMethods(
-            targetResult.getType(),
-            MetadataFilters.matchName(resolved.getName())
-        );
 
         final MethodBinder.BindResult c1 = MethodBinder.selectMethod(candidates, argTypes);
 
@@ -114,7 +127,7 @@ public class VarArgsTransform extends ContextTrackingVisitor<Void> {
             return null;
         }
 
-        newArray.remove();
+        lastArgument.remove();
 
         if (!hasElements) {
             return null;

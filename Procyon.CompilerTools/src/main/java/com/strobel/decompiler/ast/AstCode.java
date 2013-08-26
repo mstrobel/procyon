@@ -192,8 +192,8 @@ public enum AstCode {
     Goto,
     Jsr,
     Ret,
-    TableSwitch,
-    LookupSwitch,
+    __TableSwitch,
+    __LookupSwitch,
     __IReturn,
     __LReturn,
     __FReturn,
@@ -286,10 +286,14 @@ public enum AstCode {
     InitObject,
     InitArray,
 
+    Switch,
+
     /**
      * Defines a barrier between the parent expression and the argument expression that prevents combining them.
      */
     Wrap,
+
+    Bind,
 
     TernaryOp,
     LoopOrSwitchBreak,
@@ -325,9 +329,10 @@ public enum AstCode {
     public final boolean isLoad() {
         switch (this) {
             case Load:
-            case PreIncrement:
-            case PostIncrement:
+//            case PreIncrement:
+//            case PostIncrement:
             case Ret:
+            case Inc:
                 return true;
 
             default:
@@ -419,6 +424,7 @@ public enum AstCode {
             case LoopOrSwitchBreak:
             case Return:
             case Leave:
+            case Switch:
             case EndFinally:
                 return true;
 
@@ -816,6 +822,11 @@ public enum AstCode {
             case __IXor:
             case __LXor:
                 code.set(Xor);
+                return true;
+
+            case __LookupSwitch:
+            case __TableSwitch:
+                code.set(Switch);
                 return true;
 
             default:

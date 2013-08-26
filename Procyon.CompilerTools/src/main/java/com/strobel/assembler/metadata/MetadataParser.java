@@ -368,12 +368,27 @@ public final class MetadataParser {
 
                 needPopGenericContext = true;
 
+                //
+                // Reify generic parameters in two passes so that if a parameter has bounds depending
+                // on a successor parameter, the successor can be resolved.
+                //
+
                 for (int i = 0; i < gp.length; i++) {
-                    genericParameterSignatures[i].accept(reifier);
-                    gp[i] = (GenericParameter) reifier.getResult();
+                    gp[i] = _factory.makeTypeVariable(
+                        genericParameterSignatures[i].getName(),
+                        EmptyArrayCache.fromElementType(FieldTypeSignature.class)
+                    );
                 }
 
                 genericParameters = ArrayUtilities.asUnmodifiableList(gp);
+
+                for (int i = 0; i < gp.length; i++) {
+                    final FieldTypeSignature[] bounds = genericParameterSignatures[i].getBounds();
+
+                    if (!ArrayUtilities.isNullOrEmpty(bounds)) {
+                        gp[i].setExtendsBound(_factory.makeTypeBound(bounds));
+                    }
+                }
             }
 
             baseTypeSignature.accept(reifier);

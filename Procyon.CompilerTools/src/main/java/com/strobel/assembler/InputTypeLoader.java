@@ -31,8 +31,12 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Stack;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class InputTypeLoader implements ITypeLoader {
+    private final static Logger LOG = Logger.getLogger(InputTypeLoader.class.getSimpleName());
+
     private final ITypeLoader _defaultTypeLoader;
     private final Map<String, LinkedHashSet<File>> _packageLocations;
     private final Map<String, File> _knownFiles;
@@ -52,6 +56,10 @@ public class InputTypeLoader implements ITypeLoader {
         VerifyArgument.notNull(typeNameOrPath, "typeNameOrPath");
         VerifyArgument.notNull(buffer, "buffer");
 
+        if (LOG.isLoggable(Level.FINE)) {
+            LOG.fine("Attempting to load type: " + typeNameOrPath + "...");
+        }
+
         final boolean hasExtension = StringUtilities.endsWithIgnoreCase(typeNameOrPath, ".class");
 
         if (hasExtension && tryLoadFile(null, typeNameOrPath, buffer, true)) {
@@ -63,10 +71,14 @@ public class InputTypeLoader implements ITypeLoader {
         }
 
         String internalName = (hasExtension ? typeNameOrPath.substring(0, typeNameOrPath.length() - 6)
-                                            : typeNameOrPath).replace('.', '/');
+                                            : typeNameOrPath.replace('.', '/'));
 
         if (tryLoadTypeFromName(internalName, buffer)) {
             return true;
+        }
+
+        if (hasExtension) {
+            return false;
         }
 
         //
@@ -119,26 +131,37 @@ public class InputTypeLoader implements ITypeLoader {
 
         final int packageEnd = internalName.lastIndexOf('/');
 
-        final String className;
-        final String packageName;
+        String head;
+        String tail;
 
         if (packageEnd < 0 || packageEnd >= internalName.length()) {
-            packageName = StringUtilities.EMPTY;
-            className = internalName;
+            head = StringUtilities.EMPTY;
+            tail = internalName;
         }
         else {
-            packageName = internalName.substring(0, packageEnd);
-            className = internalName.substring(packageEnd + 1);
+            head = internalName.substring(0, packageEnd);
+            tail = internalName.substring(packageEnd + 1);
         }
 
-        final LinkedHashSet<File> directories = _packageLocations.get(packageName);
+        while (true) {
+            final LinkedHashSet<File> directories = _packageLocations.get(head);
 
-        if (directories != null) {
-            for (final File directory : directories) {
-                if (tryLoadFile(internalName, new File(directory, className + ".class").getAbsolutePath(), buffer, true)) {
-                    return true;
+            if (directories != null) {
+                for (final File directory : directories) {
+                    if (tryLoadFile(internalName, new File(directory, tail + ".class").getAbsolutePath(), buffer, true)) {
+                        return true;
+                    }
                 }
             }
+
+            final int split = head.lastIndexOf('/');
+
+            if (split <= 0) {
+                break;
+            }
+
+            tail = head.substring(split + 1) + '/' + tail;
+            head = head.substring(0, split);
         }
 
         return false;
@@ -245,7 +268,7 @@ public class InputTypeLoader implements ITypeLoader {
             final int delimiterIndex = packageName.indexOf('/');
             final String rootPackage = delimiterIndex < 0 ? packageName : packageName.substring(0, delimiterIndex);
 
-            if (directoryPath.endsWith(packageName)) {
+            if (!StringUtilities.equals(directoryPath, "/") && directoryPath.endsWith(packageName)) {
                 final String pathLeft = StringUtilities.removeRight(directoryPath, packageName);
                 final File rootDirectory = new File(PathHelper.combine(pathLeft, rootPackage));
 

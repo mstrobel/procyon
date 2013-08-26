@@ -7,6 +7,7 @@ public final class CommonTypeReferences {
     public final static TypeReference String;
     public final static TypeReference Serializable;
 
+    public final static TypeReference Void;
     public final static TypeReference Boolean;
     public final static TypeReference Character;
     public final static TypeReference Byte;
@@ -23,6 +24,7 @@ public final class CommonTypeReferences {
         String = parser.parseTypeDescriptor("java/lang/String");
         Serializable = parser.parseTypeDescriptor("java/lang/Serializable");
 
+        Void = parser.parseTypeDescriptor("java/lang/Void");
         Boolean = parser.parseTypeDescriptor("java/lang/Boolean");
         Character = parser.parseTypeDescriptor("java/lang/Character");
         Byte = parser.parseTypeDescriptor("java/lang/Byte");

@@ -31,6 +31,7 @@ public class DecompilerSettings {
     private boolean _flattenSwitchBlocks;
     private boolean _showNestedTypes;
     private boolean _retainRedundantCasts;
+    private boolean _retainPointlessSwitches;
     private boolean _includeErrorDiagnostics = true;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
@@ -150,5 +151,13 @@ public class DecompilerSettings {
 
     public final void setIncludeLineNumbersInBytecode(final boolean value) {
         _includeLineNumbersInBytecode = value;
+    }
+
+    public final boolean getRetainPointlessSwitches() {
+        return _retainPointlessSwitches;
+    }
+
+    public final void setRetainPointlessSwitches(final boolean retainPointlessSwitches) {
+        _retainPointlessSwitches = retainPointlessSwitches;
     }
 }

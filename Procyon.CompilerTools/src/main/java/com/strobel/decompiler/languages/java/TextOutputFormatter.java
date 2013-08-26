@@ -84,12 +84,7 @@ public class TextOutputFormatter implements IOutputFormatter {
 
     @Override
     public void writeIdentifier(final String identifier) {
-        Object reference = getCurrentTypeReference();
-
-        if (reference != null) {
-            output.writeReference(identifier, reference);
-            return;
-        }
+        Object reference;
 
         reference = getCurrentLocalReference();
 
@@ -99,6 +94,13 @@ public class TextOutputFormatter implements IOutputFormatter {
         }
 
         reference = getCurrentMemberReference();
+
+        if (reference != null) {
+            output.writeReference(identifier, reference);
+            return;
+        }
+
+        reference = getCurrentTypeReference();
 
         if (reference != null) {
             output.writeReference(identifier, reference);

@@ -200,6 +200,32 @@ public final class PatternMatching {
         return false;
     }
 
+    public static boolean matchAssignAndConditionalBreak(
+        final BasicBlock block,
+        final StrongBox<Variable> variable,
+        final StrongBox<Expression> assignedValue,
+        final StrongBox<Expression> condition,
+        final StrongBox<Label> trueLabel,
+        final StrongBox<Label> falseLabel) {
+
+        final List<Node> body = block.getBody();
+
+        if (body.size() == 4 &&
+            body.get(0) instanceof Label &&
+            matchStore(body.get(1), variable, assignedValue) &&
+            matchLastAndBreak(block, AstCode.IfTrue, trueLabel, condition, falseLabel)) {
+
+            return true;
+        }
+
+        variable.set(null);
+        assignedValue.set(null);
+        condition.set(null);
+        trueLabel.set(null);
+        falseLabel.set(null);
+        return false;
+    }
+
     public static boolean matchLast(final BasicBlock block, final AstCode code) {
         final List<Node> body = block.getBody();
 
@@ -396,6 +422,32 @@ public final class PatternMatching {
             if (matchLoadStore(node, variable, targetVariable)) {
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    public static boolean matchBooleanComparison(final Node node, final StrongBox<Expression> argument, final StrongBox<Boolean> comparand) {
+        final List<Expression> a = new ArrayList<>(2);
+
+        if (matchGetArguments(node, AstCode.CmpEq, a) || matchGetArguments(node, AstCode.CmpNe, a)) {
+            comparand.set(matchBooleanConstant(a.get(0)));
+
+            if (comparand.get() == null) {
+                comparand.set(matchBooleanConstant(a.get(1)));
+
+                if (comparand.get() == null) {
+                    return false;
+                }
+
+                argument.set(a.get(0));
+            }
+            else {
+                argument.set(a.get(1));
+            }
+
+            comparand.set(match(node, AstCode.CmpEq) ^ (comparand.get() == Boolean.FALSE));
+            return true;
         }
 
         return false;

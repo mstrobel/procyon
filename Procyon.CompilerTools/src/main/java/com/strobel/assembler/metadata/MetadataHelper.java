@@ -54,7 +54,7 @@ public final class MetadataHelper {
             return false;
         }
 
-        for (TypeReference current = innerType.getDeclaringType();
+        for (TypeReference current = innerType;
              current != null;
              current = current.getDeclaringType()) {
 
@@ -105,6 +105,25 @@ public final class MetadataHelper {
     public static TypeReference findCommonSuperType(final TypeReference type1, final TypeReference type2) {
         VerifyArgument.notNull(type1, "type1");
         VerifyArgument.notNull(type2, "type2");
+
+        if (type1 == type2) {
+            return type1;
+        }
+
+        if (type1.isPrimitive()) {
+            if (type2.isPrimitive()) {
+                if (isAssignableFrom(type1, type2)) {
+                    return type1;
+                }
+                if (isAssignableFrom(type2, type1)) {
+                    return type2;
+                }
+            }
+            return BuiltinTypes.Object;
+        }
+        else if (type2.isPrimitive()) {
+            return BuiltinTypes.Object;
+        }
 
         int rank1 = 0;
         int rank2 = 0;
@@ -1243,9 +1262,11 @@ public final class MetadataHelper {
         if (t == s) {
             return true;
         }
+
         if (t == null || s == null) {
             return false;
         }
+
         return strict ? SAME_TYPE_VISITOR_STRICT.visit(t, s)
                       : SAME_TYPE_VISITOR_LOOSE.visit(t, s);
     }
@@ -1485,6 +1506,7 @@ public final class MetadataHelper {
 
     private static boolean eraseNotNeeded(final TypeReference type) {
         return type == null ||
+               type instanceof RawType ||
                type.isPrimitive() ||
                StringUtilities.equals(type.getInternalName(), CommonTypeReferences.String.getInternalName());
     }
@@ -1514,7 +1536,9 @@ public final class MetadataHelper {
                 baseMethod = (MethodReference) ((IGenericInstance) baseMethod).getGenericDefinition();
             }
 
-            return new RawMethod(baseMethod);
+            if (baseMethod != null) {
+                return new RawMethod(baseMethod);
+            }
         }
         return method;
     }
@@ -2034,6 +2058,9 @@ public final class MetadataHelper {
                     value = isSubType(getUpperBound(value), getUpperBound(target)) ? value
                                                                                    : target;
                 }
+                else if (value.isWildcardType() && value.isUnbounded()) {
+                    // do nothing
+                }
                 else if (!isSameType(value, target)) {
                     throw new AdaptFailure();
                 }
@@ -2273,7 +2300,12 @@ public final class MetadataHelper {
             final IGenericParameterProvider owner1 = gp1.getOwner();
             final IGenericParameterProvider owner2 = gp2.getOwner();
 
-            if (indexOfByIdentity(owner1.getGenericParameters(), gp1) != indexOfByIdentity(owner2.getGenericParameters(), gp2)) {
+            if (owner1 == null || owner2 == null) {
+                if (owner1 != owner2) {
+                    return false;
+                }
+            }
+            else if (indexOfByIdentity(owner1.getGenericParameters(), gp1) != indexOfByIdentity(owner2.getGenericParameters(), gp2)) {
                 return false;
             }
 

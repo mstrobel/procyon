@@ -10,8 +10,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class JarTypeLoader implements ITypeLoader {
+    private final static Logger LOG = Logger.getLogger(JarTypeLoader.class.getSimpleName());
+
     private final JarFile _jarFile;
     private final Map<String, String> _knownMappings;
 
@@ -23,6 +27,10 @@ public class JarTypeLoader implements ITypeLoader {
     @Override
     public boolean tryLoadType(final String internalName, final Buffer buffer) {
         try {
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Attempting to load type: " + internalName + "...");
+            }
+
             final JarEntry entry = _jarFile.getJarEntry(internalName + ".class");
 
             if (entry == null) {

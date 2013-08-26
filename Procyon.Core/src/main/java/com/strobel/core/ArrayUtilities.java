@@ -512,8 +512,6 @@ public final class ArrayUtilities {
             return append(array, values);
         }
 
-        Arrays.sort(matchIndices);
-
         final T[] newArray = Arrays.copyOf(array, array.length + values.length - matchCount);
 
         for (int i = 0, j = array.length; i < count; i++) {

@@ -76,6 +76,12 @@ public class MethodReader {
         final List<ParameterDefinition> parameters = _methodDefinition.getParameters();
 
         if (hasThis) {
+            final ParameterDefinition thisParameter = new ParameterDefinition(
+                0,
+                "this",
+                _declaringType
+            );
+
             final VariableDefinition thisVariable = new VariableDefinition(
                 0,
                 "this",
@@ -85,11 +91,12 @@ public class MethodReader {
 
             thisVariable.setScopeStart(0);
             thisVariable.setScopeEnd(_code.getCodeSize());
-            thisVariable.setFromMetadata(true);
+            thisVariable.setFromMetadata(false);
+            thisVariable.setParameter(thisParameter);
 
             variables.add(thisVariable);
 
-            _methodBody.setThisParameter(new ParameterDefinition(0, "this", _declaringType));
+            _methodBody.setThisParameter(thisParameter);
         }
 
         for (int i = 0; i < parameters.size(); i++) {
@@ -106,7 +113,8 @@ public class MethodReader {
             variable.setScopeStart(0);
             variable.setScopeEnd(_code.getCodeSize());
             variable.setTypeKnown(true);
-            variable.setFromMetadata(true);
+            variable.setFromMetadata(false);
+            variable.setParameter(parameter);
 
             variables.add(variable);
         }
@@ -117,6 +125,13 @@ public class MethodReader {
 
         if (localVariableTypeTable != null) {
             processLocalVariableTable(variables, localVariableTypeTable, parameters);
+        }
+
+        for (final VariableDefinition variable : variables) {
+            if (!variable.isFromMetadata()) {
+                variable.setScopeStart(-1);
+                variable.setScopeEnd(-1);
+            }
         }
 
         @SuppressWarnings("unchecked")

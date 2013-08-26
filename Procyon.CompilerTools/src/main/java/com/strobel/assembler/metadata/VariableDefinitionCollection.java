@@ -53,6 +53,7 @@ public final class VariableDefinitionCollection extends Collection<VariableDefin
 
             if (variable.getSlot() == slot &&
                 (instructionOffset < 0 ||
+                 variable.getScopeStart() >= 0 &&
                  variable.getScopeStart() <= instructionOffset &&
                  (variable.getScopeEnd() < 0 || variable.getScopeEnd() >= instructionOffset)) &&
                 (result == null || variable.getScopeStart() > result.getScopeStart())) {

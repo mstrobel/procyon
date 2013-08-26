@@ -248,14 +248,26 @@ public abstract class MetadataReader {
                     final List<ParameterDefinition> parameters = bootstrapMethod.getParameters();
 
                     if (parameters.size() != arguments.length + 3) {
-                        throw Error.invalidBootstrapMethodEntry(bootstrapMethod, parameters.size(), arguments.length);
+                        final MethodDefinition resolved = bootstrapMethod.resolve();
+
+                        if (resolved == null || !resolved.isVarArgs() || parameters.size() >= arguments.length + 3) {
+                            throw Error.invalidBootstrapMethodEntry(bootstrapMethod, parameters.size(), arguments.length);
+                        }
                     }
 
                     for (int j = 0; j < arguments.length; j++) {
-                        final ParameterReference parameter = parameters.get(j + (parameters.size() - arguments.length));
+                        final TypeReference parameterType;
                         final int token = buffer.readUnsignedShort();
+                        final int parameterIndex = j + 3;
 
-                        switch (parameter.getParameterType().getInternalName()) {
+                        if (parameterIndex < parameters.size()) {
+                            parameterType = parameters.get(parameterIndex).getParameterType();
+                        }
+                        else {
+                            parameterType = BuiltinTypes.Object;
+                        }
+
+                        switch (parameterType.getInternalName()) {
                             case "java/lang/invoke/MethodHandle":
                                 arguments[j] = scope.lookupMethodHandle(token);
                                 continue;
@@ -265,7 +277,7 @@ public abstract class MetadataReader {
                                 continue;
 
                             default:
-                                arguments[j] = scope.lookupConstant(token);
+                                arguments[j] = scope.lookup(token);
                                 continue;
                         }
                     }

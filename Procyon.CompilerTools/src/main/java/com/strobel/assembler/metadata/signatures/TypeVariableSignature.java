@@ -43,4 +43,9 @@ public final class TypeVariableSignature implements FieldTypeSignature {
     public void accept(final TypeTreeVisitor<?> v) {
         v.visitTypeVariableSignature(this);
     }
+
+    @Override
+    public String toString() {
+        return "T" + _name + ";";
+    }
 }

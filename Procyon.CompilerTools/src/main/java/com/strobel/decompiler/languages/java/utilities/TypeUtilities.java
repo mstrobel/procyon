@@ -2,13 +2,9 @@ package com.strobel.decompiler.languages.java.utilities;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.annotations.Nullable;
-import com.strobel.assembler.metadata.CommonTypeReferences;
-import com.strobel.assembler.metadata.DynamicCallSite;
-import com.strobel.assembler.metadata.JvmType;
-import com.strobel.assembler.metadata.MetadataHelper;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.Comparer;
+import com.strobel.core.Predicates;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.languages.java.ast.*;
@@ -17,6 +13,7 @@ import com.strobel.functions.Function;
 
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
@@ -300,5 +297,68 @@ public final class TypeUtilities {
         }
 
         return null;
+    }
+
+    public static IMethodSignature getLambdaSignature(final MethodGroupExpression node) {
+        return getLambdaSignatureCore(node);
+    }
+
+    public static IMethodSignature getLambdaSignature(final LambdaExpression node) {
+        return getLambdaSignatureCore(node);
+    }
+
+    private static IMethodSignature getLambdaSignatureCore(final Expression node) {
+        VerifyArgument.notNull(node, "node");
+
+        final TypeReference lambdaType = node.getUserData(Keys.TYPE_REFERENCE);
+        final DynamicCallSite callSite = node.getUserData(Keys.DYNAMIC_CALL_SITE);
+
+        if (lambdaType == null) {
+            if (callSite == null) {
+                return null;
+            }
+
+            return (IMethodSignature) callSite.getBootstrapArguments().get(2);
+        }
+
+        final TypeDefinition resolvedType = lambdaType.resolve();
+
+        if (resolvedType == null) {
+            if (callSite == null) {
+                return null;
+            }
+
+            return (IMethodSignature) callSite.getBootstrapArguments().get(2);
+        }
+
+        MethodReference functionMethod = null;
+
+        final List<MethodReference> methods = MetadataHelper.findMethods(
+            resolvedType,
+            callSite != null ? MetadataFilters.matchName(callSite.getMethodName())
+                             : Predicates.<MemberReference>alwaysTrue()
+        );
+
+        for (final MethodReference m : methods) {
+            final MethodDefinition r = m.resolve();
+
+            if (r != null && r.isAbstract() && !r.isStatic() && !r.isDefault()) {
+                functionMethod = r;
+                break;
+            }
+        }
+
+        if (functionMethod != null) {
+            final TypeReference asMemberOf = MetadataHelper.asSuper(functionMethod.getDeclaringType(), lambdaType);
+            final TypeReference effectiveType = asMemberOf != null ? asMemberOf : lambdaType;
+
+            if (MetadataHelper.isRawType(effectiveType)) {
+                return MetadataHelper.erase(functionMethod);
+            }
+
+            functionMethod = MetadataHelper.asMemberOf(functionMethod, effectiveType);
+        }
+
+        return functionMethod;
     }
 }

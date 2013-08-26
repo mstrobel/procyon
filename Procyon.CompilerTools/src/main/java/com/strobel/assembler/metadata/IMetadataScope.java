@@ -29,4 +29,5 @@ public interface IMetadataScope {
     public abstract FieldReference lookupField(final int typeToken, final int nameAndTypeToken);
     public abstract MethodReference lookupMethod(final int typeToken, final int nameAndTypeToken);
     public abstract <T> T lookupConstant(final int token);
+    public abstract Object lookup(final int token);
 }

@@ -124,13 +124,67 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
 
         @Override
         public ResolveResult visitIdentifierExpression(final IdentifierExpression node, final Void data) {
-            final ResolveResult result = resolveTypeFromVariable(node.getUserData(Keys.VARIABLE));
+            final Variable variable = node.getUserData(Keys.VARIABLE);
+
+            if (variable == null) {
+                return null;
+            }
+
+/*
+            if (variable.isParameter()) {
+                for (final AstNode n : node.getAncestors()) {
+                    final AstNodeCollection<ParameterDeclaration> parameters = n.getChildrenByRole(Roles.PARAMETER);
+
+                    if (parameters.isEmpty()) {
+                        continue;
+                    }
+
+                    for (final ParameterDeclaration p : parameters) {
+                        final ParameterDefinition definition = p.getUserData(Keys.PARAMETER_DEFINITION);
+
+                        if (definition != null) {
+                            if (StringUtilities.equals(p.getName(), variable.getName())) {
+                                return resolveType(definition.getParameterType());
+                            }
+                        }
+                    }
+                }
+            }
+*/
+
+            final ResolveResult result = resolveTypeFromVariable(variable);
 
             if (result != null) {
                 return result;
             }
 
             return super.visitIdentifierExpression(node, data);
+        }
+
+        protected ResolveResult resolveLambda(final AstNode node) {
+            final TypeReference lambdaType = node.getUserData(Keys.TYPE_REFERENCE);
+
+            if (lambdaType != null) {
+                return resolveType(lambdaType);
+            }
+
+            final DynamicCallSite callSite = node.getUserData(Keys.DYNAMIC_CALL_SITE);
+
+            if (callSite != null) {
+                return resolveType(callSite.getMethodType().getReturnType());
+            }
+
+            return null;
+        }
+
+        @Override
+        public ResolveResult visitMethodGroupExpression(final MethodGroupExpression node, final Void data) {
+            return resolveLambda(node);
+        }
+
+        @Override
+        public ResolveResult visitLambdaExpression(final LambdaExpression node, final Void data) {
+            return resolveLambda(node);
         }
 
         @Override

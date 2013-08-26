@@ -16,19 +16,16 @@
 
 package com.strobel.decompiler.ast;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.flowanalysis.ControlFlowEdge;
 import com.strobel.assembler.flowanalysis.ControlFlowGraph;
 import com.strobel.assembler.flowanalysis.ControlFlowNode;
 import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
 import com.strobel.assembler.flowanalysis.JumpType;
-import com.strobel.assembler.ir.InstructionCollection;
-import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.metadata.SwitchInfo;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Predicate;
 import com.strobel.core.StrongBox;
-import com.strobel.core.VerifyArgument;
-import com.strobel.decompiler.DecompilerContext;
 
 import java.util.*;
 
@@ -38,13 +35,8 @@ import static com.strobel.decompiler.ast.PatternMatching.*;
 
 final class LoopsAndConditions {
     private final Map<Label, ControlFlowNode> labelsToNodes = new IdentityHashMap<>();
-    private final DecompilerContext _context;
 
     private int _nextLabelIndex;
-
-    public LoopsAndConditions(final DecompilerContext context) {
-        _context = VerifyArgument.notNull(context, "context");
-    }
 
     public final void findConditions(final Block block) {
         final List<Node> body = block.getBody();
@@ -421,7 +413,7 @@ final class LoopsAndConditions {
             sortedResult,
             new Comparator<ControlFlowNode>() {
                 @Override
-                public int compare(final ControlFlowNode o1, final ControlFlowNode o2) {
+                public int compare(@NotNull final ControlFlowNode o1, @NotNull final ControlFlowNode o2) {
                     return Integer.compare(o1.getBlockIndex(), o2.getBlockIndex());
                 }
             }
@@ -438,8 +430,6 @@ final class LoopsAndConditions {
         final List<Node> result = new ArrayList<>();
         final Set<ControlFlowNode> scope = new HashSet<>(scopeNodes);
         final Stack<ControlFlowNode> agenda = new Stack<>();
-        final MethodBody methodBody = _context.getCurrentMethod().getBody();
-        final InstructionCollection instructions = methodBody.getInstructions();
 
         agenda.push(entryNode);
 
@@ -460,15 +450,10 @@ final class LoopsAndConditions {
 
                 final StrongBox<Label[]> caseLabels = new StrongBox<>();
                 final StrongBox<Expression> switchArgument = new StrongBox<>();
-                final StrongBox<Label> fallLabel = new StrongBox<>();
                 final StrongBox<Label> tempTarget = new StrongBox<>();
 
-                AstCode switchCode;
-
-                if (matchLastAndBreak(block, switchCode = AstCode.TableSwitch, caseLabels, switchArgument, fallLabel) ||
-                    matchLastAndBreak(block, switchCode = AstCode.LookupSwitch, caseLabels, switchArgument, fallLabel)) {
-
-                    final Expression switchExpression = (Expression) blockBody.get(blockBody.size() - 2);
+                if (matchLast(block, AstCode.Switch, caseLabels, switchArgument)) {
+                    final Expression switchExpression = (Expression) blockBody.get(blockBody.size() - 1);
 
                     //
                     // Replace the switch code with a Switch node.
@@ -477,7 +462,7 @@ final class LoopsAndConditions {
                     final Switch switchNode = new Switch();
 
                     switchNode.setCondition(switchArgument.get());
-                    removeTail(blockBody, switchCode, AstCode.Goto);
+                    removeTail(blockBody, AstCode.Switch);
                     blockBody.add(switchNode);
                     result.add(block);
 
@@ -568,11 +553,11 @@ final class LoopsAndConditions {
                         }
 
                         if (i != 0) {
-                            if (switchCode == AstCode.TableSwitch) {
-                                caseBlock.getValues().add(lowValue + i - 1);
+                            if (switchInfo.hasKeys()) {
+                                caseBlock.getValues().add(keys[i - 1]);
                             }
                             else {
-                                caseBlock.getValues().add(keys[i - 1]);
+                                caseBlock.getValues().add(lowValue + i - 1);
                             }
                         }
                     }
@@ -601,10 +586,6 @@ final class LoopsAndConditions {
 
                         defaultBlock.getBody().add(explicitBreak);
                     }
-
-                    //
-                    // TODO: Arrange the case blocks such that fall-throughs go to the right block.
-                    //
                 }
 
                 //

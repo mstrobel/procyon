@@ -23,6 +23,7 @@ import com.strobel.assembler.metadata.VariableDefinition;
 public final class Variable {
     private String _name;
     private boolean _isGenerated;
+    private boolean _isLambdaParameter;
     private TypeReference _type;
     private VariableDefinition _originalVariable;
     private ParameterDefinition _originalParameter;
@@ -36,7 +37,14 @@ public final class Variable {
     }
 
     public final boolean isParameter() {
-        return _originalParameter != null;
+        if (_originalParameter != null) {
+            return true;
+        }
+
+        final VariableDefinition originalVariable = _originalVariable;
+
+        return originalVariable != null &&
+               originalVariable.isParameter();
     }
 
     public final boolean isGenerated() {
@@ -64,11 +72,31 @@ public final class Variable {
     }
 
     public final ParameterDefinition getOriginalParameter() {
-        return _originalParameter;
+        final ParameterDefinition originalParameter = _originalParameter;
+
+        if (originalParameter != null) {
+            return originalParameter;
+        }
+
+        final VariableDefinition originalVariable = _originalVariable;
+
+        if (originalVariable != null) {
+            return originalVariable.getParameter();
+        }
+
+        return null;
     }
 
     public final void setOriginalParameter(final ParameterDefinition originalParameter) {
         _originalParameter = originalParameter;
+    }
+
+    public final boolean isLambdaParameter() {
+        return _isLambdaParameter;
+    }
+
+    public final void setLambdaParameter(final boolean lambdaParameter) {
+        _isLambdaParameter = lambdaParameter;
     }
 
     @Override
