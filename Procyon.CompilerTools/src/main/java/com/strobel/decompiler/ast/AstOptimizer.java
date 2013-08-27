@@ -394,7 +394,7 @@ public final class AstOptimizer {
     // <editor-fold defaultstate="collapsed" desc="CleanUpTryBlocks Optimization">
 
     private static void cleanUpTryBlocks(final Block method) {
-        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+        for (final Block block : method.getChildrenAndSelfRecursive(Block.class)) {
             final List<Node> body = block.getBody();
 
             for (int i = 0; i < body.size(); i++) {
