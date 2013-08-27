@@ -2790,15 +2790,6 @@ public final class AstBuilder {
                 }
 
                 for (final ByteCode b : definitions) {
-                    final Variable variable = new Variable();
-
-                    if (vDef != null && !StringUtilities.isNullOrEmpty(vDef.getName())) {
-                        variable.setName(vDef.getName());
-                    }
-                    else {
-                        variable.setName(format("var_%1$d_%2$02X", slot, b.offset));
-                    }
-
                     final TypeReference variableType;
                     final FrameValue stackValue;
 
@@ -2810,7 +2801,7 @@ public final class AstBuilder {
                     }
 
                     if (vDef != null && vDef.isFromMetadata()) {
-                        variable.setType(vDef.getVariableType());
+                        variableType = vDef.getVariableType();
                     }
                     else {
                         switch (stackValue.getType()) {
@@ -2847,9 +2838,30 @@ public final class AstBuilder {
                                 }
                                 break;
                         }
-
-                        variable.setType(variableType);
                     }
+
+                    if (parameterVariable != null &&
+                        MetadataHelper.isSameType(variableType, parameterVariable.variable.getType())) {
+
+                        if (!parameterVariableAdded) {
+                            newVariables.add(parameterVariable);
+                            parameterVariableAdded = true;
+                        }
+
+                        parameterVariable.definitions.add(b);
+                        continue;
+                    }
+
+                    final Variable variable = new Variable();
+
+                    if (vDef != null && !StringUtilities.isNullOrEmpty(vDef.getName())) {
+                        variable.setName(vDef.getName());
+                    }
+                    else {
+                        variable.setName(format("var_%1$d_%2$02X", slot, b.offset));
+                    }
+
+                    variable.setType(variableType);
 
                     if (vDef == null) {
                         variable.setOriginalVariable(new VariableDefinition(slot, variable.getName(), method, variable.getType()));
@@ -2928,21 +2940,27 @@ public final class AstBuilder {
                             }
                         }
 
+//                        if (!mergeVariables.isEmpty()) {
+//                            for (final VariableInfo v : newVariables) {
+//                                if (!mergeVariables.contains(v) &&
+//                                    MetadataHelper.isSameType(mergeVariables.get(0).variable.getType(), v.variable.getType())) {
+//
+//                                    mergeVariables.add(v);
+//                                }
+//                            }
+//                        }
+
                         final ArrayList<ByteCode> mergedDefinitions = new ArrayList<>();
                         final ArrayList<ByteCode> mergedReferences = new ArrayList<>();
+
+                        if (mergeVariables.isEmpty() && parameterVariable != null) {
+                            mergeVariables.add(parameterVariable);
+                            parameterVariableAdded = true;
+                        }
 
                         for (final VariableInfo v : mergeVariables) {
                             mergedDefinitions.addAll(v.definitions);
                             mergedReferences.addAll(v.references);
-                        }
-
-                        if (mergeVariables.isEmpty() && parameterVariable != null) {
-                            mergeVariables.add(parameterVariable);
-
-                            if (!parameterVariableAdded) {
-                                newVariables.add(parameterVariable);
-                                parameterVariableAdded = true;
-                            }
                         }
 
                         final VariableInfo mergedVariable = new VariableInfo(

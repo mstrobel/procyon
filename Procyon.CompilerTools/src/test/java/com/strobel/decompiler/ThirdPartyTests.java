@@ -64,20 +64,20 @@ public class ThirdPartyTests extends DecompilerTest {
             "            }\n" +
             "        }\n" +
             "    }\n" +
-            "    public static strictfp void main(final String[] array) {\n" +
-            "        String[] array2 = null;\n" +
+            "    public static strictfp void main(String[] array) {\n" +
             "        if (array != null) {\n" +
+            "            final String[] array2 = array;\n" +
             "            try {\n" +
             "                final ArrayList list;\n" +
-            "                System.out.println(list = (ArrayList)(Object)array);\n" +
-            "                array2 = (String[])list.toArray(new String[0]);\n" +
+            "                System.out.println(list = (ArrayList)(Object)array2);\n" +
+            "                array = (String[])list.toArray(new String[0]);\n" +
             "            }\n" +
             "            catch (ClassCastException ex) {\n" +
-            "                array2 = array2;\n" +
+            "                array = array;\n" +
             "            }\n" +
             "        }\n" +
-            "        test(42.24f, array2);\n" +
-            "        test(4.224f, Long.valueOf(array2[0]));\n" +
+            "        test(42.24f, array);\n" +
+            "        test(4.224f, Long.valueOf(array[0]));\n" +
             "        test(-0.0f, main(999999999L));\n" +
             "    }\n" +
             "    public static strictfp int main(final Object o) {\n" +

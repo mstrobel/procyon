@@ -9,3 +9,4 @@ out/
 .gradle/
 *.iml
 build/
+cache.txt
