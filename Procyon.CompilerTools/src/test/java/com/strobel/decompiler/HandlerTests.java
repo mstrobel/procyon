@@ -226,6 +226,7 @@ public class HandlerTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private static class K {
         private static String zero() {
             return "zero";
@@ -315,7 +316,7 @@ public class HandlerTests extends DecompilerTest {
             throw new RuntimeException();
         }
 
-        public int test1() {
+        public int test() {
         bob:
             {
                 try {
@@ -336,7 +337,7 @@ public class HandlerTests extends DecompilerTest {
         private static void f() {
         }
 
-        public void test1() {
+        public void test() {
             do {
                 try {
                     try {
@@ -361,6 +362,57 @@ public class HandlerTests extends DecompilerTest {
                 }
             }
             while (true);
+        }
+    }
+
+    private static final class P {
+        private static void f() {
+        }
+
+        public void test() {
+            try {
+                System.out.println("A");
+                f();
+            }
+            finally {
+                try {
+                    System.out.println("B");
+                    f();
+                }
+                finally {
+                    System.out.println("C");
+                }
+            }
+        }
+    }
+
+    private static final class Q {
+        private static void f() {
+        }
+
+        public void test() {
+            try {
+                System.out.println("A");
+                f();
+            }
+            finally {
+                try {
+                    try {
+                        System.out.println("B");
+                        f();
+                    }
+                    finally {
+                        try {
+                            System.out.println("C");
+                            f();
+                        } finally {
+                            System.out.println("D");
+                        }
+                    }
+                } finally {
+                    System.out.println("E");
+                }
+            }
         }
     }
 
@@ -723,7 +775,7 @@ public class HandlerTests extends DecompilerTest {
             "    int callWhichThrows() {\n" +
             "        throw new RuntimeException();\n" +
             "    }\n" +
-            "    public int test1() {\n" +
+            "    public int test() {\n" +
             "        try {\n" +
             "            this.callWhichThrows();\n" +
             "        }\n" +
@@ -734,6 +786,7 @@ public class HandlerTests extends DecompilerTest {
             "}\n"
         );
     }
+
     @Test
     public void testNestedTryCatchFinallyInLoop() throws Throwable {
         verifyOutput(
@@ -742,7 +795,7 @@ public class HandlerTests extends DecompilerTest {
             "private static final class O {\n" +
             "    private static void f() {\n" +
             "    }\n" +
-            "    public void test1() {\n" +
+            "    public void test() {\n" +
             "        while (true) {\n" +
             "            try {\n" +
             "                try {\n" +
@@ -764,6 +817,68 @@ public class HandlerTests extends DecompilerTest {
             "            }\n" +
             "            finally {\n" +
             "                System.out.print(8);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testFinallyWithinFinally() throws Throwable {
+        verifyOutput(
+            P.class,
+            defaultSettings(),
+            "private static final class P {\n" +
+            "    private static void f() {\n" +
+            "    }\n" +
+            "    public void test() {\n" +
+            "        try {\n" +
+            "            System.out.println(\"A\");\n" +
+            "            f();\n" +
+            "        }\n" +
+            "        finally {\n" +
+            "            try {\n" +
+            "                System.out.println(\"B\");\n" +
+            "                f();\n" +
+            "            }\n" +
+            "            finally {\n" +
+            "                System.out.println(\"C\");\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+    @Test
+    public void testFinallyWithinFinallyFourLevels() throws Throwable {
+        verifyOutput(
+            Q.class,
+            defaultSettings(),
+            "private static final class Q {\n" +
+            "    private static void f() {\n" +
+            "    }\n" +
+            "    public void test() {\n" +
+            "        try {\n" +
+            "            System.out.println(\"A\");\n" +
+            "            f();\n" +
+            "        }\n" +
+            "        finally {\n" +
+            "            try {\n" +
+            "                try {\n" +
+            "                    System.out.println(\"B\");\n" +
+            "                    f();\n" +
+            "                }\n" +
+            "                finally {\n" +
+            "                    try {\n" +
+            "                        System.out.println(\"C\");\n" +
+            "                        f();\n" +
+            "                    } finally {\n" +
+            "                        System.out.println(\"D\");\n" +
+            "                    }\n" +
+            "                }\n" +
+            "            } finally {\n" +
+            "                System.out.println(\"E\");\n" +
             "            }\n" +
             "        }\n" +
             "    }\n" +

@@ -139,7 +139,7 @@ public final class AstOptimizer {
                     break;
                 }
 
-                modified |= runOptimization(block, new SimplifyShortAssignmentCircuitOptimization(context, method));
+                modified |= runOptimization(block, new SimplifyShortCircuitAssignments(context, method));
                 modified |= runOptimization(block, new SimplifyShortCircuitOptimization(context, method));
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyTernaryOperator)) {
@@ -394,7 +394,7 @@ public final class AstOptimizer {
     // <editor-fold defaultstate="collapsed" desc="CleanUpTryBlocks Optimization">
 
     private static void cleanUpTryBlocks(final Block method) {
-        for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
+        for (final Block block : method.getChildrenAndSelfRecursive(Block.class)) {
             final List<Node> body = block.getBody();
 
             for (int i = 0; i < body.size(); i++) {
@@ -1671,8 +1671,12 @@ public final class AstOptimizer {
         }
     }
 
-    private static final class SimplifyShortAssignmentCircuitOptimization extends AbstractBasicBlockOptimization {
-        public SimplifyShortAssignmentCircuitOptimization(final DecompilerContext context, final Block method) {
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="SimplifyShortCircuitAssignments Optimization">
+
+    private static final class SimplifyShortCircuitAssignments extends AbstractBasicBlockOptimization {
+        public SimplifyShortCircuitAssignments(final DecompilerContext context, final Block method) {
             super(context, method);
         }
 
@@ -1685,105 +1689,42 @@ public final class AstOptimizer {
             final StrongBox<Label> falseLabel = new StrongBox<>();
 
             if (matchLastAndBreak(head, AstCode.IfTrue, trueLabel, condition, falseLabel)) {
-                //
-                // Try to match conditional assignments, e.g.:
-                //
-                // d = b || (c = a)
-                // d = b && (c = a)
-                //
-
-                final BasicBlock trueBlock = labelToBasicBlock.get(trueLabel.get());
-                final BasicBlock falseBlock = labelToBasicBlock.get(falseLabel.get());
-
-                final StrongBox<Label> falseAndTrueLabel = new StrongBox<>();
-                final StrongBox<Label> falseAndFalseLabel = new StrongBox<>();
                 final StrongBox<Variable> variable = new StrongBox<>();
-                final StrongBox<Variable> altVariable = new StrongBox<>();
-                final StrongBox<Expression> falseCondition = new StrongBox<>();
+                final StrongBox<Variable> sourceVariable = new StrongBox<>();
                 final StrongBox<Expression> assignedValue = new StrongBox<>();
-                final StrongBox<Expression> falseComparand = new StrongBox<>();
-                final StrongBox<Boolean> boolComparand = new StrongBox<>();
+                final StrongBox<Expression> left = new StrongBox<>();
+                final StrongBox<Expression> right = new StrongBox<>();
 
-                for (int pass = 0; pass < 2; pass++) {
-                    //
-                    // On second pass, swap labels and negate expression of the first branch.
-                    // It is slightly ugly, but much better than copy-pasting the whole block.
-                    //
+                final Label thenLabel = trueLabel.value;
+                final Label elseLabel = falseLabel.value;
+                final BasicBlock thenSuccessor = labelToBasicBlock.get(thenLabel);
+                final BasicBlock elseSuccessor = labelToBasicBlock.get(elseLabel);
 
-                    final Label nextLabel = pass == 0 ? trueLabel.get() : falseLabel.get();
-                    final Label otherLabel = pass == 0 ? falseLabel.get() : trueLabel.get();
-                    final boolean negate = pass == 1;
+                if (matchAssignAndConditionalBreak(elseSuccessor, variable, assignedValue, condition, trueLabel, falseLabel) &&
+                    matchLoad(assignedValue.value, sourceVariable) &&
+                    matchComparison(condition.value, left, right)) {
 
-                    if (body.contains(trueBlock) &&
-                        body.contains(falseBlock) &&
-                        trueBlock != head &&
-                        falseBlock != head &&
-                        matchAssignAndConditionalBreak(falseBlock, variable, assignedValue, falseCondition, falseAndTrueLabel, falseAndFalseLabel)) {
+                    if (matchLoad(left.value, sourceVariable.value)) {
+                        condition.value.getArguments().set(0, (Expression) elseSuccessor.getBody().get(1));
+                        elseSuccessor.getBody().remove(1);
+                    }
+                    else if (matchLoad(right.value, sourceVariable.value) && !references(left.value, variable.value)) {
+                        condition.value.getArguments().set(1, (Expression) elseSuccessor.getBody().get(1));
+                        elseSuccessor.getBody().remove(1);
+                    }
+                }
 
-                        if (labelGlobalRefCount.get(nextLabel).getValue() == 1 &&
-                            labelGlobalRefCount.get(otherLabel).getValue() <= (trueLabel.get() == falseAndTrueLabel.get() ? 3 : 2) &&
-                            matchBooleanComparison(falseCondition.get(), falseComparand, boolComparand) &&
-                            (matchLoad(falseComparand.get(), variable.get()) ||
-                             (matchLoad(assignedValue.get(), altVariable) &&
-                              matchLoad(falseComparand.get(), altVariable.get()))) &&
-                            (otherLabel == falseAndTrueLabel.get() || otherLabel == falseAndFalseLabel.get())) {
+                if (matchAssignAndConditionalBreak(thenSuccessor, variable, assignedValue, condition, trueLabel, falseLabel) &&
+                    matchLoad(assignedValue.value, sourceVariable) &&
+                    matchComparison(condition.value, left, right)) {
 
-                            final boolean isLogicalAnd = trueLabel.get() == falseAndTrueLabel.get();
-                            final Label targetLabel = (isLogicalAnd ? falseAndFalseLabel : falseAndTrueLabel).get();
-                            final int targetRefCount = labelGlobalRefCount.get(targetLabel).getValue();
-
-                            if (targetRefCount > (isLogicalAnd ? 2 : 3)) {
-                                return false;
-                            }
-
-                            //
-                            // Create short circuit branch.
-                            //
-                            final Expression assignment = (Expression) falseBlock.getBody().get(1);
-                            final Expression effectiveAssignment;
-
-                            if (boolComparand.get()) {
-                                effectiveAssignment = new Expression(AstCode.LogicalNot, null, assignment);
-                                effectiveAssignment.getRanges().addAll(assignment.getRanges());
-                            }
-                            else {
-                                effectiveAssignment = assignment;
-                            }
-
-                            final Expression logicExpression;
-
-                            if (isLogicalAnd) {
-                                logicExpression = makeLeftAssociativeShortCircuit(
-                                    AstCode.LogicalAnd,
-                                    negate ? new Expression(AstCode.LogicalNot, null, condition.get()) : condition.get(),
-                                    effectiveAssignment
-                                );
-                            }
-                            else {
-                                logicExpression = makeLeftAssociativeShortCircuit(
-                                    AstCode.LogicalOr,
-                                    negate ? condition.get() : new Expression(AstCode.LogicalNot, null, condition.get()),
-                                    effectiveAssignment
-                                );
-                            }
-
-                            final List<Node> headBody = head.getBody();
-
-                            removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
-
-                            labelGlobalRefCount.get(trueLabel.get()).decrement();
-                            labelGlobalRefCount.get(falseLabel.get()).decrement();
-
-                            headBody.add(new Expression(AstCode.IfTrue, falseAndFalseLabel.get(), logicExpression));
-                            headBody.add(new Expression(AstCode.Goto, falseAndTrueLabel.get()));
-
-                            //
-                            // Remove the inlined branch from scope.
-                            //
-                            removeOrThrow(body, falseBlock);
-
-                            return true;
-                        }
+                    if (matchLoad(left.value, sourceVariable.value)) {
+                        condition.value.getArguments().set(0, (Expression) thenSuccessor.getBody().get(1));
+                        thenSuccessor.getBody().remove(1);
+                    }
+                    else if (matchLoad(right.value, sourceVariable.value) && !references(left.value, variable.value)) {
+                        condition.value.getArguments().set(1, (Expression) thenSuccessor.getBody().get(1));
+                        thenSuccessor.getBody().remove(1);
                     }
                 }
             }

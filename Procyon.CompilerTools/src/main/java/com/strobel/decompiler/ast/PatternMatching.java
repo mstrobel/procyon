@@ -453,6 +453,30 @@ public final class PatternMatching {
         return false;
     }
 
+    public static boolean matchComparison(final Node node, final StrongBox<Expression> left, final StrongBox<Expression> right) {
+        if (node instanceof Expression) {
+            final Expression e = (Expression) node;
+
+            switch (e.getCode()) {
+                case CmpEq:
+                case CmpNe:
+                case CmpLt:
+                case CmpGt:
+                case CmpLe:
+                case CmpGe: {
+                    final List<Expression> arguments = e.getArguments();
+                    left.set(arguments.get(0));
+                    right.set(arguments.get(1));
+                    return true;
+                }
+            }
+        }
+
+        left.set(null);
+        right.set(null);
+        return false;
+    }
+
     public static boolean matchSimplifiableComparison(final Node node) {
         if (node instanceof Expression) {
             final Expression e = (Expression) node;

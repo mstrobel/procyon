@@ -689,7 +689,7 @@ public final class AstBuilder {
         if (!node.getDominanceFrontier().contains(cfg.getExceptionalExit()) &&
             !node.dominates(cfg.getExceptionalExit())) {
 
-            final ControlFlowNode innermostHandlerNode = findInnermostExceptionHandlerNode(cfg, node.getEnd().getOffset());
+            final ControlFlowNode innermostHandlerNode = findInnermostExceptionHandlerNode(cfg, node.getEnd().getOffset(), false);
 
             if (innermostHandlerNode == null || !node.getDominanceFrontier().contains(innermostHandlerNode)) {
                 return false;
@@ -704,7 +704,10 @@ public final class AstBuilder {
                InstructionHelper.getLoadOrStoreSlot(head.getStart()) == InstructionHelper.getLoadOrStoreSlot(node.getStart());
     }
 
-    private static ControlFlowNode findInnermostExceptionHandlerNode(final ControlFlowGraph cfg, final int offsetInTryBlock) {
+    private static ControlFlowNode findInnermostExceptionHandlerNode(
+        final ControlFlowGraph cfg,
+        final int offsetInTryBlock,
+        final boolean finallyOnly) {
         ExceptionHandler result = null;
         ControlFlowNode resultNode = null;
 
@@ -716,6 +719,10 @@ public final class AstBuilder {
 
             if (handler == null) {
                 break;
+            }
+
+            if (finallyOnly && handler.isCatch()) {
+                continue;
             }
 
             final InstructionBlock tryBlock = handler.getTryBlock();
@@ -732,6 +739,63 @@ public final class AstBuilder {
 
         return resultNode != null ? resultNode
                                   : cfg.getExceptionalExit();
+    }
+
+    private static boolean isNarrower(final InstructionBlock block, final InstructionBlock anchor) {
+        if (block == null || anchor == null) {
+            return false;
+        }
+
+        final Instruction start = block.getFirstInstruction();
+        final Instruction anchorStart = anchor.getFirstInstruction();
+        final Instruction end = block.getLastInstruction();
+        final Instruction anchorEnd = anchor.getLastInstruction();
+
+        if (start.getOffset() > anchorStart.getOffset()) {
+            return end.getOffset() < anchorEnd.getEndOffset();
+        }
+
+        return start.getOffset() == anchorStart.getOffset() &&
+               end.getOffset() < anchorEnd.getOffset();
+    }
+
+    private static ControlFlowNode findParentFinallyNode(
+        final ControlFlowGraph cfg,
+        final ExceptionHandler anchor,
+        final List<ExceptionHandler> handlers) {
+
+        ExceptionHandler result = null;
+        InstructionBlock resultBlock = null;
+
+        final int instructionOffset = anchor.getHandlerBlock().getLastInstruction().getOffset();
+
+        for (final ExceptionHandler handler : handlers) {
+            if (handler.isCatch() || handler == anchor) {
+                continue;
+            }
+
+            final InstructionBlock handlerBlock = handler.getHandlerBlock();
+
+            if (handlerBlock.getFirstInstruction().getOffset() <= instructionOffset &&
+                instructionOffset < handlerBlock.getLastInstruction().getEndOffset() &&
+                (resultBlock == null || isNarrower(handler.getHandlerBlock(), resultBlock))) {
+
+                result = handler;
+                resultBlock = handlerBlock;
+            }
+        }
+
+        if (result == null) {
+            return cfg.getExceptionalExit();
+        }
+
+        for (final ControlFlowNode node : cfg.getNodes()) {
+            if (node.getExceptionHandler() == result && node.getCopyFrom() == null) {
+                return node;
+            }
+        }
+
+        throw new IllegalStateException("Could not find innermost handler block!");
     }
 
     private static boolean opCodesMatch(
@@ -815,7 +879,7 @@ public final class AstBuilder {
             }
         }
 
-        return true;
+        return i == count;
     }
 
     private static Map<Instruction, ControlFlowNode> createNodeMap(final ControlFlowGraph cfg) {
@@ -2071,11 +2135,11 @@ public final class AstBuilder {
 //                        branchTarget.variablesBefore = newVariableState;
 //                    }
 //                    else {
-                        //
-                        // Do not share data for several bytecodes.
-                        //
-                        branchTarget.stackBefore = StackSlot.modifyStack(effectiveStack, 0, null);
-                        branchTarget.variablesBefore = VariableSlot.cloneVariableState(newVariableState);
+                    //
+                    // Do not share data for several bytecodes.
+                    //
+                    branchTarget.stackBefore = StackSlot.modifyStack(effectiveStack, 0, null);
+                    branchTarget.variablesBefore = VariableSlot.cloneVariableState(newVariableState);
 //                    }
 
                     agenda.push(branchTarget);
@@ -2726,15 +2790,6 @@ public final class AstBuilder {
                 }
 
                 for (final ByteCode b : definitions) {
-                    final Variable variable = new Variable();
-
-                    if (vDef != null && !StringUtilities.isNullOrEmpty(vDef.getName())) {
-                        variable.setName(vDef.getName());
-                    }
-                    else {
-                        variable.setName(format("var_%1$d_%2$02X", slot, b.offset));
-                    }
-
                     final TypeReference variableType;
                     final FrameValue stackValue;
 
@@ -2746,7 +2801,7 @@ public final class AstBuilder {
                     }
 
                     if (vDef != null && vDef.isFromMetadata()) {
-                        variable.setType(vDef.getVariableType());
+                        variableType = vDef.getVariableType();
                     }
                     else {
                         switch (stackValue.getType()) {
@@ -2783,9 +2838,30 @@ public final class AstBuilder {
                                 }
                                 break;
                         }
-
-                        variable.setType(variableType);
                     }
+
+                    if (parameterVariable != null &&
+                        MetadataHelper.isSameType(variableType, parameterVariable.variable.getType())) {
+
+                        if (!parameterVariableAdded) {
+                            newVariables.add(parameterVariable);
+                            parameterVariableAdded = true;
+                        }
+
+                        parameterVariable.definitions.add(b);
+                        continue;
+                    }
+
+                    final Variable variable = new Variable();
+
+                    if (vDef != null && !StringUtilities.isNullOrEmpty(vDef.getName())) {
+                        variable.setName(vDef.getName());
+                    }
+                    else {
+                        variable.setName(format("var_%1$d_%2$02X", slot, b.offset));
+                    }
+
+                    variable.setType(variableType);
 
                     if (vDef == null) {
                         variable.setOriginalVariable(new VariableDefinition(slot, variable.getName(), method, variable.getType()));
@@ -2864,21 +2940,27 @@ public final class AstBuilder {
                             }
                         }
 
+//                        if (!mergeVariables.isEmpty()) {
+//                            for (final VariableInfo v : newVariables) {
+//                                if (!mergeVariables.contains(v) &&
+//                                    MetadataHelper.isSameType(mergeVariables.get(0).variable.getType(), v.variable.getType())) {
+//
+//                                    mergeVariables.add(v);
+//                                }
+//                            }
+//                        }
+
                         final ArrayList<ByteCode> mergedDefinitions = new ArrayList<>();
                         final ArrayList<ByteCode> mergedReferences = new ArrayList<>();
+
+                        if (mergeVariables.isEmpty() && parameterVariable != null) {
+                            mergeVariables.add(parameterVariable);
+                            parameterVariableAdded = true;
+                        }
 
                         for (final VariableInfo v : mergeVariables) {
                             mergedDefinitions.addAll(v.definitions);
                             mergedReferences.addAll(v.references);
-                        }
-
-                        if (mergeVariables.isEmpty() && parameterVariable != null) {
-                            mergeVariables.add(parameterVariable);
-
-                            if (!parameterVariableAdded) {
-                                newVariables.add(parameterVariable);
-                                parameterVariableAdded = true;
-                            }
                         }
 
                         final VariableInfo mergedVariable = new VariableInfo(
@@ -3135,7 +3217,7 @@ public final class AstBuilder {
 
                 final Node lastInTry = lastOrDefault(tryAst, NOT_A_LABEL_OR_NOP);
 
-                if (lastInTry != null && !lastInTry.isUnconditionalControlFlow()) {
+                if (lastInTry == null || !lastInTry.isUnconditionalControlFlow()) {
                     tryAst.add(new Expression(AstCode.Leave, null));
                 }
 
@@ -3268,7 +3350,7 @@ public final class AstBuilder {
                     tailStartIndex = tempIndex.getValue();
                 }
 
-                if (lastInHandler != null && !lastInHandler.isUnconditionalControlFlow()) {
+                if (lastInHandler == null || !lastInHandler.isUnconditionalControlFlow()) {
                     handlerAst.add(new Expression(eh.isCatch() ? AstCode.Leave : AstCode.EndFinally, null));
                 }
 
@@ -3944,12 +4026,22 @@ public final class AstBuilder {
                 return;
             }
 
+            inlineRegularFinallyHandlers();
+            inlineNestedFinallyHandlers();
+        }
+
+        private void inlineRegularFinallyHandlers() {
             for (final ExceptionHandler handler : _finallyHandlers) {
                 processFinally(handler);
             }
         }
 
-        @SuppressWarnings("ConstantConditions")
+        private void inlineNestedFinallyHandlers() {
+            for (final ExceptionHandler handler : _finallyHandlers) {
+                processNestedFinally(handler);
+            }
+        }
+
         private void processFinally(final ExceptionHandler handler) {
             final HandlerInfo handlerInfo = _handlerMap.get(handler);
 
@@ -3976,11 +4068,77 @@ public final class AstBuilder {
                 ++instructionCount;
             }
 
-            final ControlFlowNode tryHead = _nodeMap.get(handler.getTryBlock().getFirstInstruction());
-            final ControlFlowNode finallyTail = _nodeMap.get(handler.getHandlerBlock().getLastInstruction());
             final Set<ControlFlowNode> toProcess = collectNodes(handlerInfo);
+            final Set<ControlFlowNode> forbiddenNodes = new LinkedHashSet<>(_allFinallyNodes);
+
+            final ControlFlowNode parentFinallyNode = findParentFinallyNode(_cfg, handler, _exceptionHandlers);
+
+            if (parentFinallyNode.getNodeType() == ControlFlowNodeType.FinallyHandler) {
+                final ExceptionHandler parentFinally = parentFinallyNode.getExceptionHandler();
+                final HandlerInfo parentInfo = _handlerMap.get(parentFinally);
+
+                forbiddenNodes.removeAll(parentInfo.handlerNodes);
+            }
 
             _processedNodes.clear();
+
+            processNodes(handlerInfo, first, last, instructionCount, toProcess, forbiddenNodes);
+        }
+
+        private void processNestedFinally(final ExceptionHandler handler) {
+            final ControlFlowNode parentFinallyNode = findParentFinallyNode(_cfg, handler, _exceptionHandlers);
+
+            if (parentFinallyNode.getNodeType() != ControlFlowNodeType.FinallyHandler) {
+                return;
+            }
+
+            final ExceptionHandler parentFinally = parentFinallyNode.getExceptionHandler();
+            final HandlerInfo handlerInfo = _handlerMap.get(handler);
+            final HandlerInfo parentInfo = _handlerMap.get(parentFinally);
+            final Instruction first = handler.getTryBlock().getFirstInstruction();
+            final InstructionBlock handlerBlock = handlerInfo.handler.getHandlerBlock();
+            final Instruction last = handlerBlock.getLastInstruction();
+
+            if (first == null || last == null) {
+                return;
+            }
+
+            int instructionCount = 0;
+
+            for (Instruction p = last; p != null && p.getOffset() >= first.getOffset(); p = previous(p)) {
+                ++instructionCount;
+            }
+
+            final Set<ControlFlowNode> toProcess = new LinkedHashSet<>(collectNodes(parentInfo));
+            final Set<ControlFlowNode> forbiddenNodes = new LinkedHashSet<>(_allFinallyNodes);
+
+            forbiddenNodes.removeAll(parentInfo.tryNodes);
+
+            for (final ExceptionHandler h : _exceptionHandlers) {
+                if (h.isFinally() && parentFinally.getTryBlock().contains(h.getHandlerBlock())) {
+                    final HandlerInfo info = _handlerMap.get(h);
+
+                    forbiddenNodes.removeAll(info.handlerNodes);
+                }
+            }
+
+            _processedNodes.clear();
+
+            processNodes(handlerInfo, first, last, instructionCount, toProcess, forbiddenNodes);
+        }
+
+        @SuppressWarnings("ConstantConditions")
+        private void processNodes(
+            final HandlerInfo handlerInfo,
+            final Instruction first,
+            final Instruction last,
+            final int instructionCount,
+            final Set<ControlFlowNode> toProcess,
+            final Set<ControlFlowNode> forbiddenNodes) {
+
+            final ExceptionHandler handler = handlerInfo.handler;
+            final ControlFlowNode tryHead = _nodeMap.get(handler.getTryBlock().getFirstInstruction());
+            final ControlFlowNode finallyTail = _nodeMap.get(handler.getHandlerBlock().getLastInstruction());
 
         nextNode:
             for (ControlFlowNode node : toProcess) {
@@ -3994,7 +4152,7 @@ public final class AstBuilder {
                     node = _nodeMap.get(nodeHandler.getHandlerBlock().getLastInstruction());
                 }
 
-                if (_processedNodes.contains(node) || _allFinallyNodes.contains(node)) {
+                if (_processedNodes.contains(node) || forbiddenNodes.contains(node)) {
                     continue;
                 }
 
@@ -4051,13 +4209,13 @@ public final class AstBuilder {
                     continue;
                 }
 
-                if (_allFinallyNodes.contains(_nodeMap.get(tail)) || !opCodesMatch(last, tail, instructionCount, _previous)) {
+                if (forbiddenNodes.contains(_nodeMap.get(tail)) || !opCodesMatch(last, tail, instructionCount, _previous)) {
                     if (!tryPrevious ||
-                        _allFinallyNodes.contains(_nodeMap.get(previous(tail))) ||
+                        forbiddenNodes.contains(_nodeMap.get(previous(tail))) ||
                         !opCodesMatch(last, previous(tail), instructionCount, _previous)) {
 
                         if (!tryNext ||
-                            _allFinallyNodes.contains(_nodeMap.get(tail.getNext())) ||
+                            forbiddenNodes.contains(_nodeMap.get(tail.getNext())) ||
                             !opCodesMatch(last, tail.getNext(), instructionCount, _previous)) {
 
                             if (last.getOpCode() == OpCode.JSR) {
