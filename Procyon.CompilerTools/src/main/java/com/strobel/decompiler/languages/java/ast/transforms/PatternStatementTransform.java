@@ -378,7 +378,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                     return null;
                 }
 
-                final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(declaration, forLoop);
+                final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(context, declaration, forLoop);
 
                 if (declarationPoint != tempOuter) {
                     variableType = null;
@@ -647,7 +647,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         // Now verify that we can move the variable declaration in front of the loop.
         //
 
-        final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(itemDeclaration, loop);
+        final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(context, itemDeclaration, loop);
 
         //
         // We ignore the return value because we don't care whether we can move the variable into the loop
@@ -755,7 +755,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                         final VariableDeclarationStatement arrayDeclaration = findVariableDeclaration(forEach, array.getIdentifier());
 
                         if (arrayDeclaration != null && arrayDeclaration.getParent() instanceof BlockStatement) {
-                            final Statement arrayDeclarationPoint = canMoveVariableDeclarationIntoStatement(arrayDeclaration, forEach);
+                            final Statement arrayDeclarationPoint = canMoveVariableDeclarationIntoStatement(context, arrayDeclaration, forEach);
 
                             if (arrayDeclarationPoint == tempOuter) {
                                 initializer.remove();
@@ -915,7 +915,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         // Now verify that we can move the variable declaration in front of the loop.
         //
 
-        Statement declarationPoint = canMoveVariableDeclarationIntoStatement(itemDeclaration, loop);
+        Statement declarationPoint = canMoveVariableDeclarationIntoStatement(context, itemDeclaration, loop);
 
         //
         // We ignore the return value because we don't care whether we can move the variable into the loop
@@ -969,7 +969,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         // move the iterator into the foreach loop.
         //
 
-        declarationPoint = canMoveVariableDeclarationIntoStatement(iteratorDeclaration, forEach);
+        declarationPoint = canMoveVariableDeclarationIntoStatement(context, iteratorDeclaration, forEach);
 
         if (declarationPoint != forEach) {
             //
@@ -1235,7 +1235,8 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         return null;
     }
 
-    final Statement canMoveVariableDeclarationIntoStatement(
+    static Statement canMoveVariableDeclarationIntoStatement(
+        final DecompilerContext context,
         final VariableDeclarationStatement declaration,
         final Statement targetStatement) {
 

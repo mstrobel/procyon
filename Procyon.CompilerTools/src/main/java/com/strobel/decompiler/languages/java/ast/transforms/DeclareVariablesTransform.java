@@ -515,6 +515,23 @@ public class DeclareVariablesTransform implements IAstTransform {
             }
         }
 
+        if (statement instanceof TryCatchStatement) {
+            final TryCatchStatement tryCatch = (TryCatchStatement) statement;
+
+            //
+            // TryCatchStatements with resources are a special case: we can move the resource declarations
+            // into the resource list.
+            //
+
+            if (!tryCatch.getResources().isEmpty()) {
+                for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+                    if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
         //
         // We can move the variable into a sub-block only if the variable is used only in that
         // sub-block (and not in expressions such as the loop condition).
@@ -572,6 +589,18 @@ public class DeclareVariablesTransform implements IAstTransform {
                             return false;
                         }
                     }
+                }
+            }
+        }
+        if (node instanceof TryCatchStatement) {
+            final TryCatchStatement tryCatch = (TryCatchStatement) node;
+
+            for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+                if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
+                    //
+                    // No need to introduce the variable here.
+                    //
+                    return false;
                 }
             }
         }
@@ -642,6 +671,16 @@ public class DeclareVariablesTransform implements IAstTransform {
         if (node instanceof ForEachStatement) {
             if (StringUtilities.equals(((ForEachStatement) node).getVariableName(), variableName)) {
                 return true;
+            }
+        }
+
+        if (node instanceof TryCatchStatement) {
+            final TryCatchStatement tryCatch = (TryCatchStatement) node;
+
+            for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+                if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
+                    return true;
+                }
             }
         }
 

@@ -403,6 +403,7 @@ public final class ControlFlowGraphBuilder {
 
     private void createBranchControlFlow(final ControlFlowNode node, final Instruction jump, final Instruction target) {
         final ControlFlowNode handlerNode = findInnermostHandlerBlock(jump.getOffset());
+        final ControlFlowNode outerFinally = findInnermostHandlerBlock(jump.getOffset(), true);
         final ControlFlowNode targetHandlerNode = findInnermostHandlerBlock(target.getOffset());
         final ExceptionHandler handler = handlerNode.getExceptionHandler();
 
@@ -422,17 +423,24 @@ public final class ControlFlowGraphBuilder {
             //
             // First look for an immediately adjacent finally handler.
             //
-            ControlFlowNode finallyHandler = findInnermostFinallyHandlerNode(handler.getTryBlock().getLastInstruction().getOffset());
+            ControlFlowNode finallyHandlerNode = findInnermostFinallyHandlerNode(handler.getTryBlock().getLastInstruction().getOffset());
 
-            if (finallyHandler.getNodeType() != ControlFlowNodeType.FinallyHandler) {
+            final ExceptionHandler finallyHandler = finallyHandlerNode.getExceptionHandler();
+            final ExceptionHandler outerFinallyHandler = outerFinally.getExceptionHandler();
+
+            if (finallyHandlerNode.getNodeType() != ControlFlowNodeType.FinallyHandler ||
+                (outerFinally.getNodeType() == ControlFlowNodeType.FinallyHandler &&
+                 finallyHandler.getTryBlock().contains(outerFinallyHandler.getHandlerBlock()))) {
+
                 //
-                // We don't have an adjacent finally handler, so look for an outer handler.
+                // We don't have an adjacent finally handler, or our containing finally handler is
+                // protected by the adjacent finally handler's try block.  Use the containing finally.
                 //
-                finallyHandler = findInnermostFinallyHandlerNode(jump.getOffset());
+                finallyHandlerNode = outerFinally;
             }
 
-            if (finallyHandler.getNodeType() == ControlFlowNodeType.FinallyHandler &&
-                finallyHandler != targetHandlerNode) {
+            if (finallyHandlerNode.getNodeType() == ControlFlowNodeType.FinallyHandler &&
+                finallyHandlerNode != targetHandlerNode) {
 
                 //
                 // We are jumping out of a try or catch block by way of a finally block.
@@ -474,22 +482,23 @@ public final class ControlFlowGraphBuilder {
         createEdge(node, target, JumpType.Normal);
     }
 
+    @SuppressWarnings("UnusedParameters")
     private void createReturnControlFlow(final ControlFlowNode node, final Instruction end) {
-        final ControlFlowNode handlerNode = findInnermostHandlerBlock(end.getOffset());
-        final ControlFlowNode finallyNode;
-
-        if (handlerNode.getNodeType() == ControlFlowNodeType.CatchHandler) {
-            finallyNode = findInnermostFinallyHandlerNode(
-                handlerNode.getExceptionHandler().getTryBlock().getLastInstruction().getOffset()
-            );
-        }
-        else if (handlerNode.getNodeType() == ControlFlowNodeType.FinallyHandler) {
-            finallyNode = handlerNode;
-        }
-        else {
-            finallyNode = _exceptionalExit;
-        }
-
+//        final ControlFlowNode handlerNode = findInnermostHandlerBlock(end.getOffset());
+//        final ControlFlowNode finallyNode;
+//
+//        if (handlerNode.getNodeType() == ControlFlowNodeType.CatchHandler) {
+//            finallyNode = findInnermostFinallyHandlerNode(
+//                handlerNode.getExceptionHandler().getTryBlock().getLastInstruction().getOffset()
+//            );
+//        }
+//        else if (handlerNode.getNodeType() == ControlFlowNodeType.FinallyHandler) {
+//            finallyNode = handlerNode;
+//        }
+//        else {
+//            finallyNode = _exceptionalExit;
+//        }
+//
 //        if (finallyNode.getNodeType() == ControlFlowNodeType.FinallyHandler) {
 //            createEdge(node, _regularExit, JumpType.LeaveTry);
 //        }

@@ -31,6 +31,11 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
         super(context);
     }
 
+    @Override
+    public Void visitCompilationUnit(final CompilationUnit node, final Void data) {
+        return super.visitCompilationUnit(node, data);    //To change body of overridden methods use File | Settings | File Templates.
+    }
+
     private final static class LabelInfo {
         final String name;
         final List<GotoStatement> gotoStatements = new ArrayList<>();

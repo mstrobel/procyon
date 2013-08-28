@@ -139,7 +139,7 @@ public final class AstOptimizer {
                     break;
                 }
 
-                modified |= runOptimization(block, new SimplifyShortCircuitAssignments(context, method));
+                modified |= runOptimization(block, new SimplifyShortCircuitAssignmentsOptimization(context, method));
                 modified |= runOptimization(block, new SimplifyShortCircuitOptimization(context, method));
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyTernaryOperator)) {
@@ -1675,8 +1675,8 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="SimplifyShortCircuitAssignments Optimization">
 
-    private static final class SimplifyShortCircuitAssignments extends AbstractBasicBlockOptimization {
-        public SimplifyShortCircuitAssignments(final DecompilerContext context, final Block method) {
+    private static final class SimplifyShortCircuitAssignmentsOptimization extends AbstractBasicBlockOptimization {
+        public SimplifyShortCircuitAssignmentsOptimization(final DecompilerContext context, final Block method) {
             super(context, method);
         }
 

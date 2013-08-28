@@ -1235,12 +1235,18 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     @Override
     public Void visitVariableDeclaration(final VariableDeclarationStatement node, final Void _) {
+        return writeVariableDeclaration(node, true);
+    }
+
+    private Void writeVariableDeclaration(final VariableDeclarationStatement node, final boolean semicolon) {
         startNode(node);
         writeModifiers(node.getChildrenByRole(VariableDeclarationStatement.MODIFIER_ROLE));
-        node.getType().acceptVisitor(this, _);
+        node.getType().acceptVisitor(this, null);
         space();
         writeCommaSeparatedList(node.getVariables());
-        semicolon();
+        if (semicolon) {
+            semicolon();
+        }
         endNode(node);
         return null;
     }
@@ -2260,6 +2266,34 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public Void visitTryCatchStatement(final TryCatchStatement node, final Void _) {
         startNode(node);
         writeKeyword(TryCatchStatement.TRY_KEYWORD_ROLE);
+
+        final AstNodeCollection<VariableDeclarationStatement> resources = node.getResources();
+
+        if (!resources.isEmpty()) {
+            space();
+            leftParenthesis();
+
+            final VariableDeclarationStatement firstResource = resources.firstOrNullObject();
+
+            for (VariableDeclarationStatement resource = firstResource;
+                 resource != null;
+                 resource = resource.getNextSibling(TryCatchStatement.TRY_RESOURCE_ROLE)) {
+
+                if (resource != firstResource) {
+                    semicolon();
+                    space();
+                    space();
+                    space();
+                    space();
+                    space();
+                }
+
+                writeVariableDeclaration(resource, false);
+            }
+
+            rightParenthesis();
+        }
+
         node.getTryBlock().acceptVisitor(this, _);
 
         for (final CatchClause catchClause : node.getCatchClauses()) {

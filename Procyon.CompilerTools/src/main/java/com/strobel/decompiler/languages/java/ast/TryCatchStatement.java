@@ -26,6 +26,7 @@ public class TryCatchStatement extends Statement {
     public static final Role<CatchClause> CATCH_CLAUSE_ROLE = new Role<>("CatchClause", CatchClause.class);
     public static final TokenRole FINALLY_KEYWORD_ROLE = new TokenRole("finally", TokenRole.FLAG_KEYWORD);
     public static final Role<BlockStatement> FINALLY_BLOCK_ROLE = new Role<>("FinallyBlock", BlockStatement.class, BlockStatement.NULL);
+    public static final Role<VariableDeclarationStatement> TRY_RESOURCE_ROLE = new Role<>("TryResource", VariableDeclarationStatement.class);
 
     public final JavaTokenNode getTryToken() {
         return getChildByRole(TRY_KEYWORD_ROLE);
@@ -37,6 +38,10 @@ public class TryCatchStatement extends Statement {
 
     public final AstNodeCollection<CatchClause> getCatchClauses() {
         return getChildrenByRole(CATCH_CLAUSE_ROLE);
+    }
+
+    public final AstNodeCollection<VariableDeclarationStatement> getResources() {
+        return getChildrenByRole(TRY_RESOURCE_ROLE);
     }
 
     public final BlockStatement getTryBlock() {

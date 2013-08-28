@@ -16,7 +16,13 @@
 
 package com.strobel.assembler.ir;
 
-import com.strobel.assembler.metadata.*;
+import com.strobel.assembler.metadata.DynamicCallSite;
+import com.strobel.assembler.metadata.FieldReference;
+import com.strobel.assembler.metadata.Label;
+import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.SwitchInfo;
+import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.VariableReference;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerHelpers;
@@ -30,7 +36,7 @@ import java.lang.reflect.Array;
  * Date: 1/6/13
  * Time: 1:31 AM
  */
-public final class Instruction {
+public final class Instruction implements Comparable<Instruction> {
     private int _offset = -1;
     private OpCode _opCode;
     private Object _operand;
@@ -76,7 +82,7 @@ public final class Instruction {
     }
 
     public int getEndOffset() {
-        return  _offset + getSize();
+        return _offset + getSize();
     }
 
     public OpCode getOpCode() {
@@ -156,7 +162,7 @@ public final class Instruction {
         copy._label = _label != null ? new Label(_label.getIndex()) : null;
 
         if (ArrayUtilities.isArray(_operand)) {
-            copy._operand = ((Object[])_operand).clone();
+            copy._operand = ((Object[]) _operand).clone();
         }
         else {
             copy._operand = _operand;
@@ -559,6 +565,15 @@ public final class Instruction {
                 );
                 break;
         }
+    }
+
+    @Override
+    public final int compareTo(final Instruction o) {
+        if (o == null) {
+            return 1;
+        }
+
+        return Integer.compare(_offset, o._offset);
     }
 
     // </editor-fold>

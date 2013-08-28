@@ -292,6 +292,18 @@ public final class CollectionUtilities {
         return it.hasNext() ? it.next() : null;
     }
 
+    public static <T> T first(final Iterable<T> collection, final Predicate<T> predicate) {
+        VerifyArgument.notNull(predicate, "predicate");
+
+        for (final T item : VerifyArgument.notNull(collection, "collection")) {
+            if (predicate.test(item)) {
+                return item;
+            }
+        }
+
+        throw Error.sequenceHasNoElements();
+    }
+
     public static <T> T firstOrDefault(final Iterable<T> collection, final Predicate<T> predicate) {
         VerifyArgument.notNull(predicate, "predicate");
 
@@ -384,6 +396,27 @@ public final class CollectionUtilities {
         }
 
         return lastMatch;
+    }
+
+    public static <T> T last(final Iterable<T> collection, final Predicate<T> predicate) {
+        VerifyArgument.notNull(collection, "collection");
+        VerifyArgument.notNull(predicate, "predicate");
+
+        T lastMatch = null;
+        boolean matchFound = false;
+
+        for (final T item : VerifyArgument.notNull(collection, "collection")) {
+            if (predicate.test(item)) {
+                lastMatch = item;
+                matchFound = true;
+            }
+        }
+
+        if (matchFound) {
+            return lastMatch;
+        }
+
+        throw Error.sequenceHasNoElements();
     }
 
     public static <T> T lastOrDefault(final Iterable<T> collection, final Predicate<T> predicate) {
