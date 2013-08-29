@@ -73,6 +73,9 @@ public class CommandLineOptions {
     @Parameter(names = { "--light" }, description = "Use a color scheme designed for light-background consoles (dark-on-light).")
     private boolean _useLightColorScheme;
 
+    @Parameter(names = { "--unicode" }, description = "Enable Unicode output (no printable characters are escaped).")
+    private boolean _isUnicodeOutputEnabled;
+
     public final List<String> getClassNames() {
         return _classNames;
     }
@@ -203,5 +206,13 @@ public class CommandLineOptions {
 
     public final void setUseLightColorScheme(final boolean useLightColorScheme) {
         _useLightColorScheme = useLightColorScheme;
+    }
+
+    public final boolean isUnicodeOutputEnabled() {
+        return _isUnicodeOutputEnabled;
+    }
+
+    public final void setUnicodeOutputEnabled(final boolean unicodeOutputEnabled) {
+        _isUnicodeOutputEnabled = unicodeOutputEnabled;
     }
 }

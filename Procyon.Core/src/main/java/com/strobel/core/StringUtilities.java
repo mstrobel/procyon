@@ -526,70 +526,55 @@ public final class StringUtilities {
     }
 
     public static String escape(final char ch) {
-        switch (ch) {
-            case '\\':
-                return "\\\\";
-            case '\0':
-                return "\\0";
-            case '\b':
-                return "\\b";
-            case '\f':
-                return "\\f";
-            case '\n':
-                return "\\n";
-            case '\r':
-                return "\\r";
-            case '\t':
-                return "\\t";
-            case '"':
-                return "\\\"";
+        return escapeCharacter(ch, false);
+    }
 
-            default:
-                if (ch >= 192 ||
-                    Character.isISOControl(ch) ||
-                    Character.isSurrogate(ch) ||
-                    Character.isWhitespace(ch) && ch != ' ') {
-
+    private static String escapeCharacter(final char ch, final boolean isUnicodeSupported) {
+        if (shouldEscape(ch, false, isUnicodeSupported)) {
+            switch (ch) {
+                case '\0':
+                    return "\\0";
+                case '\b':
+                    return "\\b";
+                case '\f':
+                    return "\\f";
+                default:
                     return format("\\u%1$04x", (int) ch);
-                }
-                else {
-                    return String.valueOf(ch);
-                }
+            }
         }
+        return String.valueOf(ch);
     }
 
     public static String escape(final char ch, final boolean quote) {
+        return escape(ch, quote, false);
+    }
+
+    public static String escape(final char ch, final boolean quote, final boolean isUnicodeSupported) {
         if (quote) {
-            switch (ch) {
-                case '\\':
-                    return "'\\\\'";
-                case '\0':
-                    return "'\\0'";
-                case '\b':
-                    return "'\\b'";
-                case '\f':
-                    return "'\\f'";
-                case '\n':
-                    return "'\\n'";
-                case '\r':
-                    return "'\\r'";
-                case '\t':
-                    return "'\\t'";
-                case '"':
-                    return "'\\\"'";
-
-                default:
-                    if (ch >= 192 ||
-                        Character.isISOControl(ch) ||
-                        Character.isSurrogate(ch) ||
-                        Character.isWhitespace(ch) && ch != ' ') {
-
+            if (shouldEscape(ch, true, isUnicodeSupported)) {
+                switch (ch) {
+                    case '\0':
+                        return "'\\0'";
+                    case '\t':
+                        return "'\\t'";
+                    case '\b':
+                        return "'\\b'";
+                    case '\n':
+                        return "'\\n'";
+                    case '\r':
+                        return "'\\r'";
+                    case '\f':
+                        return "'\\f'";
+                    case '\"':
+                        return "'\\\"'";
+                    case '\\':
+                        return "'\\\\'";
+                    default:
                         return format("'\\u%1$04x'", (int) ch);
-                    }
-                    else {
-                        return "'" + ch + "'";
-                    }
+                }
             }
+
+            return "'" + ch + "'";
         }
 
         return escape(ch);
@@ -600,52 +585,78 @@ public final class StringUtilities {
     }
 
     public static String escape(final String value, final boolean quote) {
-        final StringBuilder sb = new StringBuilder();
+        return escape(value, quote, false);
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    public static String escape(final String value, final boolean quote, final boolean isUnicodeSupported) {
+        if (value == null) {
+            return null;
+        }
+
+        StringBuilder sb;
 
         if (quote) {
+            sb = new StringBuilder(value.length());
             sb.append('"');
+        }
+        else {
+            sb = null;
         }
 
         for (int i = 0, n = value.length(); i < n; i++) {
             final char ch = value.charAt(i);
+            final boolean shouldEscape = shouldEscape(ch, quote, isUnicodeSupported);
 
-            switch (ch) {
-                case '\t':
-                    sb.append('\\');
-                    sb.append('t');
-                    break;
-                case '\b':
-                    sb.append('\\');
-                    sb.append('b');
-                    break;
-                case '\n':
-                    sb.append('\\');
-                    sb.append('n');
-                    break;
-                case '\r':
-                    sb.append('\\');
-                    sb.append('r');
-                    break;
-                case '\f':
-                    sb.append('\\');
-                    sb.append('f');
-                    break;
-                case '\"':
-                    sb.append('\\');
-                    sb.append('"');
-                    break;
-                case '\\':
-                    sb.append('\\');
-                    sb.append('\\');
-                    break;
-                default:
-                    if (ch >= 192) {
-                        sb.append(String.format("\\u%1$04x;", (int) ch));
+            if (shouldEscape) {
+                if (sb == null) {
+                    sb = new StringBuilder();
+
+                    if (i != 0) {
+                        sb.append(value, 0, i);
                     }
-                    else {
-                        sb.append(ch);
-                    }
-                    break;
+                }
+
+                switch (ch) {
+                    case '\0':
+                        sb.append('\\');
+                        sb.append('0');
+                        continue;
+                    case '\t':
+                        sb.append('\\');
+                        sb.append('t');
+                        continue;
+                    case '\b':
+                        sb.append('\\');
+                        sb.append('b');
+                        continue;
+                    case '\n':
+                        sb.append('\\');
+                        sb.append('n');
+                        continue;
+                    case '\r':
+                        sb.append('\\');
+                        sb.append('r');
+                        continue;
+                    case '\f':
+                        sb.append('\\');
+                        sb.append('f');
+                        continue;
+                    case '\"':
+                        sb.append('\\');
+                        sb.append('"');
+                        continue;
+                    case '\\':
+                        sb.append('\\');
+                        sb.append('\\');
+                        continue;
+                    default:
+                        sb.append(format("\\u%1$04x", (int) ch));
+                        continue;
+                }
+            }
+            else if (sb != null) {
+                sb.append(ch);
             }
         }
 
@@ -653,7 +664,83 @@ public final class StringUtilities {
             sb.append('"');
         }
 
+        if (sb == null) {
+            return value;
+        }
+
         return sb.toString();
+    }
+
+    public static String escapeIdentifier(final String value, final boolean isUnicodeSupported) {
+        if (isNullOrEmpty(value)) {
+            return value;
+        }
+
+        StringBuilder sb = null;
+
+        final char start = value.charAt(0);
+
+        if (!Character.isJavaIdentifierStart(start)) {
+            sb = new StringBuilder(value.length() * 2);
+            sb.append(start);
+        }
+
+        for (int i = 1, n = value.length(); i < n; i++) {
+            final char ch = value.charAt(i);
+
+            final boolean valid = Character.isJavaIdentifierPart(ch) &&
+                                  (isUnicodeSupported || ch < 192);
+
+            if (valid && sb == null) {
+                continue;
+            }
+
+            if (sb == null) {
+                sb = new StringBuilder(value.length() * 2);
+            }
+
+            if (valid) {
+                sb.append(ch);
+            }
+            else {
+                sb.append(format("\\u%1$04x", (int) ch));
+            }
+        }
+
+        if (sb == null) {
+            return value;
+        }
+
+        return sb.toString();
+    }
+
+    private static boolean shouldEscape(final char ch, final boolean quote, final boolean isUnicodeSupported) {
+        switch (ch) {
+            case '\0':
+            case '\b':
+            case '\f':
+                return true;
+
+            case '\"':
+            case '\\':
+            case '\n':
+            case '\r':
+            case '\t':
+                return quote;
+
+            default: {
+                switch (Character.getType(ch)) {
+                    case Character.CONTROL:
+                    case Character.FORMAT:
+                    case Character.UNASSIGNED:
+                        return true;
+
+                    default:
+                        return !isUnicodeSupported && ch >= 192 ||
+                               quote && Character.isWhitespace(ch) && ch != ' ';
+                }
+            }
+        }
     }
 
     public static String repeat(final char ch, final int length) {

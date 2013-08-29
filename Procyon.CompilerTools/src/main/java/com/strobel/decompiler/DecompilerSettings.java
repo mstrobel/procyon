@@ -32,6 +32,7 @@ public class DecompilerSettings {
     private boolean _showNestedTypes;
     private boolean _retainRedundantCasts;
     private boolean _retainPointlessSwitches;
+    private boolean _isUnicodeOutputEnabled;
     private boolean _includeErrorDiagnostics = true;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
@@ -159,5 +160,19 @@ public class DecompilerSettings {
 
     public final void setRetainPointlessSwitches(final boolean retainPointlessSwitches) {
         _retainPointlessSwitches = retainPointlessSwitches;
+    }
+
+    public final boolean isUnicodeOutputEnabled() {
+        return _isUnicodeOutputEnabled;
+    }
+
+    public final void setUnicodeOutputEnabled(final boolean unicodeOutputEnabled) {
+        _isUnicodeOutputEnabled = unicodeOutputEnabled;
+    }
+
+    public static DecompilerSettings javaDefaults() {
+        final DecompilerSettings settings = new DecompilerSettings();
+        settings.setFormattingOptions(JavaFormattingOptions.createDefault());
+        return settings;
     }
 }

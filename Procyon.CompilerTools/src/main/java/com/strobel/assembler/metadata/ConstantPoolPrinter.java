@@ -20,8 +20,8 @@ import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerHelpers;
+import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
-import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import static java.lang.String.format;
 
@@ -43,10 +43,16 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
     }
 
     private final ITextOutput _output;
+    private final DecompilerSettings _settings;
     private boolean _isHeaderPrinted;
 
     public ConstantPoolPrinter(final ITextOutput output) {
+        this(output, DecompilerSettings.javaDefaults());
+    }
+
+    public ConstantPoolPrinter(final ITextOutput output, final DecompilerSettings settings) {
         _output = VerifyArgument.notNull(output, "output");
+        _settings = VerifyArgument.notNull(settings, "settings");
     }
 
     protected void printTag(final ConstantPool.Tag tag) {
@@ -79,7 +85,7 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
     public void visitTypeInfo(final ConstantPool.TypeInfoEntry info) {
         _output.writeDelimiter("#");
         _output.writeLiteral(format("%1$-14d", info.nameIndex));
-        _output.writeComment(format("//  %1$s", JavaOutputVisitor.escapeUnicode(info.getName())));
+        _output.writeComment(format("//  %1$s", StringUtilities.escape(info.getName())), false, _settings.isUnicodeOutputEnabled());
     }
 
     @Override
@@ -105,9 +111,9 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s.%2$s:%3$s",
-                JavaOutputVisitor.escapeUnicode(info.getClassName()),
-                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getName()),
-                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getType())
+                StringUtilities.escape(info.getClassName(), false, _settings.isUnicodeOutputEnabled()),
+                StringUtilities.escape(nameAndTypeInfo.getName(), false, _settings.isUnicodeOutputEnabled()),
+                StringUtilities.escape(nameAndTypeInfo.getType(), false, _settings.isUnicodeOutputEnabled())
             )
         );
     }
@@ -140,9 +146,9 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s.%2$s:%3$s",
-                JavaOutputVisitor.escapeUnicode(info.getClassName()),
-                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getName()),
-                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getType())
+                StringUtilities.escape(info.getClassName(), false, _settings.isUnicodeOutputEnabled()),
+                StringUtilities.escape(nameAndTypeInfo.getName(), false, _settings.isUnicodeOutputEnabled()),
+                StringUtilities.escape(nameAndTypeInfo.getType(), false, _settings.isUnicodeOutputEnabled())
             )
         );
     }
@@ -167,8 +173,8 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s:%2$s",
-                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getName()),
-                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getType())
+                StringUtilities.escape(nameAndTypeInfo.getName(), false, _settings.isUnicodeOutputEnabled()),
+                StringUtilities.escape(nameAndTypeInfo.getType(), false, _settings.isUnicodeOutputEnabled())
             )
         );
     }
@@ -195,8 +201,8 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s:%2$s",
-                JavaOutputVisitor.escapeUnicode(info.getName()),
-                JavaOutputVisitor.escapeUnicode(info.getType())
+                StringUtilities.escape(info.getName(), false, _settings.isUnicodeOutputEnabled()),
+                StringUtilities.escape(info.getType(), false, _settings.isUnicodeOutputEnabled())
             )
         );
     }
@@ -219,9 +225,9 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s.%2$s:%3$s",
-                JavaOutputVisitor.escapeUnicode(info.getClassName()),
-                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getName()),
-                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getType())
+                StringUtilities.escape(info.getClassName(), false, _settings.isUnicodeOutputEnabled()),
+                StringUtilities.escape(nameAndTypeInfo.getName(), false, _settings.isUnicodeOutputEnabled()),
+                StringUtilities.escape(nameAndTypeInfo.getType(), false, _settings.isUnicodeOutputEnabled())
             )
         );
     }
@@ -247,9 +253,9 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
         _output.writeComment(
             format(
                 paddingText + " //  %1$s.%2$s:%3$s",
-                JavaOutputVisitor.escapeUnicode(reference.getClassName()),
-                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getName()),
-                JavaOutputVisitor.escapeUnicode(nameAndTypeInfo.getType())
+                StringUtilities.escape(reference.getClassName(), false, _settings.isUnicodeOutputEnabled()),
+                StringUtilities.escape(nameAndTypeInfo.getName(), false, _settings.isUnicodeOutputEnabled()),
+                StringUtilities.escape(nameAndTypeInfo.getType(), false, _settings.isUnicodeOutputEnabled())
             )
         );
     }
@@ -263,7 +269,7 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
     public void visitStringConstant(final ConstantPool.StringConstantEntry info) {
         _output.writeDelimiter("#");
         _output.writeLiteral(format("%1$-14d", info.stringIndex));
-        _output.writeComment(format("//  %1$s", JavaOutputVisitor.convertString(info.getValue(), true)));
+        _output.writeComment(format("//  %1$s", StringUtilities.escape(info.getValue(), true, _settings.isUnicodeOutputEnabled())));
     }
 
     @Override

@@ -16,18 +16,17 @@
 
 package com.strobel.decompiler;
 
-import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.ir.ExceptionHandler;
 import com.strobel.assembler.ir.Frame;
 import com.strobel.assembler.ir.FrameType;
 import com.strobel.assembler.ir.FrameValue;
 import com.strobel.assembler.ir.FrameValueType;
 import com.strobel.assembler.ir.Instruction;
+import com.strobel.assembler.ir.InstructionBlock;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ast.Variable;
-import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import java.util.List;
 import java.util.Stack;
@@ -100,6 +99,10 @@ public final class DecompilerHelpers {
     }
 
     public static void writeOperand(final ITextOutput writer, final Object operand) {
+        writeOperand(writer, operand, false);
+    }
+
+    public static void writeOperand(final ITextOutput writer, final Object operand, final boolean isUnicodeSupported) {
         VerifyArgument.notNull(writer, "writer");
         VerifyArgument.notNull(operand, "operand");
 
@@ -774,10 +777,10 @@ public final class DecompilerHelpers {
         }
 
         if (value instanceof String) {
-            output.writeTextLiteral(JavaOutputVisitor.convertString(value.toString(), true));
+            output.writeTextLiteral(StringUtilities.escape(value.toString(), true, true));
         }
         else if (value instanceof Character) {
-            output.writeTextLiteral("'" + JavaOutputVisitor.convertCharacter((Character) value) + "'");
+            output.writeTextLiteral(StringUtilities.escape((char) value, true, true));
         }
         else if (value instanceof Float) {
             final float f = (Float) value;

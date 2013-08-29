@@ -36,6 +36,7 @@ public abstract class DecompilerTest {
     protected final static int OPTION_RETAIN_CASTS = 0x0008;
     protected final static int OPTION_EXPLICIT_TYPE_ARGUMENTS = 0x0010;
     protected final static int OPTION_RETAIN_POINTLESS_SWITCHES = 0x0020;
+    protected final static int OPTION_ENABLE_UNICODE_OUTPUT = 0x0040;
 
     protected final static Pattern WHITESPACE;
 
@@ -81,6 +82,10 @@ public abstract class DecompilerTest {
             settings.setRetainPointlessSwitches(true);
         }
 
+        if (testAny(options, OPTION_ENABLE_UNICODE_OUTPUT)) {
+            settings.setUnicodeOutputEnabled(true);
+        }
+
         return settings;
     }
 
@@ -89,6 +94,8 @@ public abstract class DecompilerTest {
             final PlainTextOutput writer = new PlainTextOutput();
             final String packageRoot = VerifyArgument.notNull(type, "type").getProtectionDomain().getCodeSource().getLocation().getFile();
             final String path = PathHelper.combine(packageRoot, type.getName().replace('.', '/') + ".class");
+
+            writer.setUnicodeOutputEnabled(settings.isUnicodeOutputEnabled());
 
             Decompiler.decompile(
                 new File(path).getCanonicalPath(),
