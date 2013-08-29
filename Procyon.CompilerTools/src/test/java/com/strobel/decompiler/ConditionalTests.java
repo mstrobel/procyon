@@ -59,6 +59,7 @@ public class ConditionalTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
     private static class C {
         public boolean test1(final boolean a, final boolean b, boolean c) {
             System.out.println((b && a == (c = b) && b) || !c);
@@ -102,8 +103,31 @@ public class ConditionalTests extends DecompilerTest {
     }
 
     private static class D {
-        public boolean test(final boolean a, final boolean b, boolean c, final boolean d) {
+        public boolean test(final boolean a, final boolean b, final boolean c, final boolean d) {
             return (a ? b : c) ? d : (c ? b : a);
+        }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private static class E {
+        public boolean test1(final boolean a, final boolean b, final boolean c) {
+            System.out.println(a || (c ? a : b));
+            return c;
+        }
+
+        public boolean test2(final boolean a, final boolean b, final boolean c) {
+            System.out.println(a && (c ? a : b));
+            return c;
+        }
+
+        public boolean test3(final boolean a, final boolean b, final boolean c) {
+            System.out.println(!a || (c ? a : b));
+            return c;
+        }
+
+        public boolean test4(final boolean a, final boolean b, final boolean c) {
+            System.out.println(!a && (c ? a : b));
+            return c;
         }
     }
 
@@ -207,7 +231,6 @@ public class ConditionalTests extends DecompilerTest {
             "}"
         );
     }
-
     @Test
     public void testTernaryWithTernaryCondition() throws Throwable {
         verifyOutput(
@@ -218,6 +241,32 @@ public class ConditionalTests extends DecompilerTest {
             "        return (a ? b : c) ? d : (c ? b : a);\n" +
             "    }\n" +
             "}\n"
+        );
+    }
+
+    @Test
+    public void testLogicalAndOrWithConditionals() throws Throwable {
+        verifyOutput(
+            E.class,
+            defaultSettings(),
+            "private static class E {\n" +
+            "    public boolean test1(final boolean a, final boolean b, final boolean c) {\n" +
+            "        System.out.println(a || (c ? a : b));\n" +
+            "        return c;\n" +
+            "    }\n" +
+            "    public boolean test2(final boolean a, final boolean b, final boolean c) {\n" +
+            "        System.out.println(a && (c ? a : b));\n" +
+            "        return c;\n" +
+            "    }\n" +
+            "    public boolean test3(final boolean a, final boolean b, final boolean c) {\n" +
+            "        System.out.println(!a || (c ? a : b));\n" +
+            "        return c;\n" +
+            "    }\n" +
+            "    public boolean test4(final boolean a, final boolean b, final boolean c) {\n" +
+            "        System.out.println(!a && (c ? a : b));\n" +
+            "        return c;\n" +
+            "    }\n" +
+            "}"
         );
     }
 }

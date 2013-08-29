@@ -1961,93 +1961,205 @@ public final class AstOptimizer {
                     return true;
                 }
                 else {
-                    final StrongBox<Label> innerTrueLabel = new StrongBox<>();
-                    final StrongBox<Label> innerFalseLabel = new StrongBox<>();
+                    final StrongBox<Label> innerTrue = new StrongBox<>();
+                    final StrongBox<Label> innerFalse = new StrongBox<>();
                     final StrongBox<Expression> innerTrueExpression = new StrongBox<>();
                     final StrongBox<Label> innerTrueFall = new StrongBox<>();
                     final StrongBox<Expression> innerFalseExpression = new StrongBox<>();
                     final StrongBox<Label> innerFalseFall = new StrongBox<>();
 
-                    //
-                    // (a ? b : c) ? d : e
-                    //
-                    if (matchSingleAndBreak(labelToBasicBlock.get(trueLabel.get()), AstCode.IfTrue, innerTrueLabel, trueExpression, trueFall) &&
+                    if (matchSingleAndBreak(labelToBasicBlock.get(trueLabel.get()), AstCode.IfTrue, innerTrue, trueExpression, trueFall) &&
                         matchSingleAndBreak(labelToBasicBlock.get(falseLabel.get()), AstCode.IfTrue, unused, falseExpression, falseFall) &&
-                        unused.get() == innerTrueLabel.get() &&
-                        matchLast(labelToBasicBlock.get(falseFall.get()), AstCode.Goto, innerFalseLabel) &&
-                        labelGlobalRefCount.get(innerTrueLabel.get()).getValue() == 2 &&
-                        labelGlobalRefCount.get(innerFalseLabel.get()).getValue() == 2 &&
-                        matchSingleAndBreak(labelToBasicBlock.get(innerTrueLabel.get()), AstCode.Store, trueVariable, innerTrueExpression, innerTrueFall) &&
-                        matchSingleAndBreak(labelToBasicBlock.get(innerFalseLabel.get()), AstCode.Store, falseVariable, innerFalseExpression, innerFalseFall) &&
-                        trueVariable.get() == falseVariable.get() &&
-                        trueFall.get() == innerFalseLabel.get() &&
-                        innerTrueFall.get() == innerFalseFall.get()) {
-
-                        final Expression newCondition;
-                        final Expression newExpression;
-
-                        final boolean negateInner = simplifyLogicalNotArgument(trueExpression.get());
-
-                        if (negateInner && !simplifyLogicalNotArgument(falseExpression.get())) {
-                            final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.get());
-                            newFalseExpression.getRanges().addAll(falseExpression.get().getRanges());
-                            falseExpression.set(newFalseExpression);
-                        }
-
-                        if (simplifyLogicalNotArgument(condition.get())) {
-                            newCondition = new Expression(
-                                AstCode.TernaryOp,
-                                null,
-                                condition.get(),
-                                falseExpression.get(),
-                                trueExpression.get()
-                            );
-                        }
-                        else {
-                            newCondition = new Expression(
-                                AstCode.TernaryOp,
-                                null,
-                                condition.get(),
-                                trueExpression.get(),
-                                falseExpression.get()
-                            );
-                        }
-
-                        if (negateInner) {
-                            newExpression = new Expression(
-                                AstCode.TernaryOp,
-                                null,
-                                newCondition,
-                                innerFalseExpression.get(),
-                                innerTrueExpression.get()
-                            );
-                        }
-                        else {
-                            newExpression = new Expression(
-                                AstCode.TernaryOp,
-                                null,
-                                newCondition,
-                                innerTrueExpression.get(),
-                                innerFalseExpression.get()
-                            );
-                        }
-
-                        final List<Node> headBody = head.getBody();
-
-                        removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
-
-                        headBody.add(new Expression(AstCode.Store, trueVariable.get(), newExpression));
-                        headBody.add(new Expression(AstCode.Goto, innerTrueFall.get()));
+                        unused.get() == innerTrue.get() &&
+                        matchLast(labelToBasicBlock.get(falseFall.get()), AstCode.Goto, innerFalse)) {
 
                         //
-                        // Remove the old basic blocks.
+                        // (a ? b : c) ? d : e
                         //
+                        if (labelGlobalRefCount.get(innerTrue.get()).getValue() == 2 &&
+                            labelGlobalRefCount.get(innerFalse.get()).getValue() == 2 &&
+                            matchSingleAndBreak(labelToBasicBlock.get(innerTrue.get()), AstCode.Store, trueVariable, innerTrueExpression, innerTrueFall) &&
+                            matchSingleAndBreak(labelToBasicBlock.get(innerFalse.get()), AstCode.Store, falseVariable, innerFalseExpression, innerFalseFall) &&
+                            trueVariable.get() == falseVariable.get() &&
+                            trueFall.get() == innerFalse.get() &&
+                            innerTrueFall.get() == innerFalseFall.get()) {
 
-                        removeOrThrow(body, labelToBasicBlock.get(trueLabel.get()));
-                        removeOrThrow(body, labelToBasicBlock.get(falseLabel.get()));
-                        removeOrThrow(body, labelToBasicBlock.get(falseFall.get()));
-                        removeOrThrow(body, labelToBasicBlock.get(innerTrueLabel.get()));
-                        removeOrThrow(body, labelToBasicBlock.get(innerFalseLabel.get()));
+                            final Expression newCondition;
+                            final Expression newExpression;
+
+                            final boolean negateInner = simplifyLogicalNotArgument(trueExpression.get());
+
+                            if (negateInner && !simplifyLogicalNotArgument(falseExpression.get())) {
+                                final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.get());
+                                newFalseExpression.getRanges().addAll(falseExpression.get().getRanges());
+                                falseExpression.set(newFalseExpression);
+                            }
+
+                            if (simplifyLogicalNotArgument(condition.get())) {
+                                newCondition = new Expression(
+                                    AstCode.TernaryOp,
+                                    null,
+                                    condition.get(),
+                                    falseExpression.get(),
+                                    trueExpression.get()
+                                );
+                            }
+                            else {
+                                newCondition = new Expression(
+                                    AstCode.TernaryOp,
+                                    null,
+                                    condition.get(),
+                                    trueExpression.get(),
+                                    falseExpression.get()
+                                );
+                            }
+
+                            if (negateInner) {
+                                newExpression = new Expression(
+                                    AstCode.TernaryOp,
+                                    null,
+                                    newCondition,
+                                    innerFalseExpression.get(),
+                                    innerTrueExpression.get()
+                                );
+                            }
+                            else {
+                                newExpression = new Expression(
+                                    AstCode.TernaryOp,
+                                    null,
+                                    newCondition,
+                                    innerTrueExpression.get(),
+                                    innerFalseExpression.get()
+                                );
+                            }
+
+                            final List<Node> headBody = head.getBody();
+
+                            removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
+
+                            headBody.add(new Expression(AstCode.Store, trueVariable.get(), newExpression));
+                            headBody.add(new Expression(AstCode.Goto, innerTrueFall.get()));
+
+                            //
+                            // Remove the old basic blocks.
+                            //
+
+                            removeOrThrow(body, labelToBasicBlock.get(trueLabel.get()));
+                            removeOrThrow(body, labelToBasicBlock.get(falseLabel.get()));
+                            removeOrThrow(body, labelToBasicBlock.get(falseFall.get()));
+                            removeOrThrow(body, labelToBasicBlock.get(innerTrue.get()));
+                            removeOrThrow(body, labelToBasicBlock.get(innerFalse.get()));
+
+                            return true;
+                        }
+
+                        if (position == 0 || !(body.get(position - 1) instanceof BasicBlock)) {
+                            return false;
+                        }
+
+                        final BasicBlock prev = (BasicBlock) body.get(position - 1);
+                        final Expression condExpression = condition.get();
+                        final Label innerTrueLabel = innerTrue.get();
+                        final Label innerFalseLabel = innerFalse.get();
+                        final StrongBox<Label> prevTrue = innerTrue;
+                        final StrongBox<Label> prevFalse = innerFalse;
+                        final StrongBox<Expression> prevCondition = condition;
+
+                        final int innerTrueRefCount = labelGlobalRefCount.get(innerTrueLabel).getValue();
+                        final int innerFalseRefCount = labelGlobalRefCount.get(innerFalseLabel).getValue();
+
+                        //
+                        // d || (a ? b : c)
+                        // d && (a ? b : c)
+                        //
+                        if (matchLastAndBreak(prev, AstCode.IfTrue, prevTrue, prevCondition, prevFalse) &&
+                            (prevTrue.get() == innerTrueLabel || prevTrue.get() == innerFalseLabel) &&
+                            innerTrueRefCount == (prevTrue.get() == innerTrueLabel ? 3 : 2) &&
+                            innerFalseRefCount == (prevTrue.get() == innerFalseLabel ? 3 : 2) &&
+                            matchSingleAndBreak(labelToBasicBlock.get(innerTrueLabel), AstCode.Store, trueVariable, innerTrueExpression, innerTrueFall) &&
+                            matchSingleAndBreak(labelToBasicBlock.get(innerFalseLabel), AstCode.Store, falseVariable, innerFalseExpression, innerFalseFall) &&
+                            trueVariable.get() == falseVariable.get() &&
+                            trueFall.get() == innerFalseLabel &&
+                            innerTrueFall.get() == innerFalseFall.get()) {
+
+                            final Expression newCondition;
+
+                            Expression newExpression;
+
+                            final boolean negatePrev = (prevTrue.get() == innerTrueLabel) ^ canSimplifyLogicalNotArgument(condition.get());
+                            final boolean negateInner = simplifyLogicalNotArgument(trueExpression.get());
+
+                            if (negateInner && !simplifyLogicalNotArgument(falseExpression.get())) {
+                                final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.get());
+                                newFalseExpression.getRanges().addAll(falseExpression.get().getRanges());
+                                falseExpression.set(newFalseExpression);
+                            }
+
+                            if (simplifyLogicalNotArgument(condExpression)) {
+                                newCondition = new Expression(
+                                    AstCode.TernaryOp,
+                                    null,
+                                    condExpression,
+                                    falseExpression.get(),
+                                    trueExpression.get()
+                                );
+                            }
+                            else {
+                                newCondition = new Expression(
+                                    AstCode.TernaryOp,
+                                    null,
+                                    condExpression,
+                                    trueExpression.get(),
+                                    falseExpression.get()
+                                );
+                            }
+
+                            if (negateInner) {
+                                newExpression = new Expression(
+                                    AstCode.TernaryOp,
+                                    null,
+                                    newCondition,
+                                    innerFalseExpression.get(),
+                                    innerTrueExpression.get()
+                                );
+                            }
+                            else {
+                                newExpression = new Expression(
+                                    AstCode.TernaryOp,
+                                    null,
+                                    newCondition,
+                                    innerTrueExpression.get(),
+                                    innerFalseExpression.get()
+                                );
+                            }
+
+                            newExpression = new Expression(
+                                prevTrue.get() == innerTrueLabel ? AstCode.LogicalAnd : AstCode.LogicalOr,
+                                null,
+                                negatePrev ? condition.value : new Expression(AstCode.LogicalNot, null, condition.value),
+                                newExpression
+                            );
+
+                            final List<Node> prevBody = prev.getBody();
+
+                            removeTail(prevBody, AstCode.IfTrue, AstCode.Goto);
+
+                            prevBody.add(new Expression(AstCode.Store, trueVariable.get(), newExpression));
+                            prevBody.add(new Expression(AstCode.Goto, innerTrueFall.get()));
+
+                            //
+                            // Remove the old basic blocks.
+                            //
+
+                            removeOrThrow(body, head);
+                            removeOrThrow(body, labelToBasicBlock.get(trueLabel.get()));
+                            removeOrThrow(body, labelToBasicBlock.get(falseLabel.get()));
+                            removeOrThrow(body, labelToBasicBlock.get(falseFall.get()));
+                            removeOrThrow(body, labelToBasicBlock.get(innerTrueLabel));
+                            removeOrThrow(body, labelToBasicBlock.get(innerFalseLabel));
+
+                            return true;
+                        }
                     }
                 }
             }

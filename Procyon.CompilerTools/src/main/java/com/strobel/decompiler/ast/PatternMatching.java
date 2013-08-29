@@ -200,6 +200,34 @@ public final class PatternMatching {
         return false;
     }
 
+    public static boolean matchSimpleBreak(final BasicBlock block, final StrongBox<Label> label) {
+        final List<Node> body = block.getBody();
+
+        if (body.size() == 2 &&
+            body.get(0) instanceof Label &&
+            matchGetOperand(body.get(1), AstCode.Goto, label)) {
+
+            return true;
+        }
+
+        label.set(null);
+        return false;
+    }
+
+    public static boolean matchSimpleBreak(final BasicBlock block, final Label label) {
+        final List<Node> body = block.getBody();
+
+        if (body.size() == 2 &&
+            body.get(0) instanceof Label &&
+            match(body.get(1), AstCode.Goto) &&
+            ((Expression)body.get(1)).getOperand() == label) {
+
+            return true;
+        }
+
+        return false;
+    }
+
     public static boolean matchAssignAndConditionalBreak(
         final BasicBlock block,
         final StrongBox<Variable> variable,
