@@ -2086,7 +2086,7 @@ public final class AstOptimizer {
 
                             Expression newExpression;
 
-                            final boolean negatePrev = (prevTrue.get() == innerTrueLabel) ^ canSimplifyLogicalNotArgument(condition.get());
+                            final boolean doNotNegatePrev = (prevTrue.get() == innerTrueLabel) ^ canSimplifyLogicalNotArgument(condition.get());
                             final boolean negateInner = simplifyLogicalNotArgument(trueExpression.get());
 
                             if (negateInner && !simplifyLogicalNotArgument(falseExpression.get())) {
@@ -2136,7 +2136,8 @@ public final class AstOptimizer {
                             newExpression = new Expression(
                                 prevTrue.get() == innerTrueLabel ? AstCode.LogicalAnd : AstCode.LogicalOr,
                                 null,
-                                negatePrev ? condition.value : new Expression(AstCode.LogicalNot, null, condition.value),
+                                doNotNegatePrev ? condition.value
+                                                : new Expression(AstCode.LogicalNot, null, condition.value),
                                 newExpression
                             );
 
