@@ -23,8 +23,16 @@ public final class InsertParenthesesVisitor extends DepthFirstAstVisitor<Void, V
     private final static int PRIMARY = 16;
     private final static int CAST = 15;
     private final static int UNARY = 14;
+    private static final int MULTIPLICATIVE = 13;
+    private static final int ADDITIVE = 12;
+    private static final int SHIFT = 11;
     private final static int RELATIONAL_AND_TYPE_TESTING = 10;
     private final static int EQUALITY = 9;
+    private static final int BITWISE_AND = 8;
+    private static final int EXCLUSIVE_OR = 7;
+    private static final int BITWISE_OR = 6;
+    private static final int LOGICAL_AND = 5;
+    private static final int LOGICAL_OR = 4;
     private final static int CONDITIONAL = 2;
     private final static int ASSIGNMENT = 1;
 
@@ -69,16 +77,16 @@ public final class InsertParenthesesVisitor extends DepthFirstAstVisitor<Void, V
                 case MULTIPLY:
                 case DIVIDE:
                 case MODULUS:
-                    return 13;
+                    return MULTIPLICATIVE;
 
                 case ADD:
                 case SUBTRACT:
-                    return 12;
+                    return ADDITIVE;
 
                 case SHIFT_LEFT:
                 case SHIFT_RIGHT:
                 case UNSIGNED_SHIFT_RIGHT:
-                    return 11;
+                    return SHIFT;
 
                 case GREATER_THAN:
                 case GREATER_THAN_OR_EQUAL:
@@ -91,15 +99,15 @@ public final class InsertParenthesesVisitor extends DepthFirstAstVisitor<Void, V
                     return EQUALITY;
 
                 case BITWISE_AND:
-                    return 8;
+                    return BITWISE_AND;
                 case EXCLUSIVE_OR:
-                    return 7;
+                    return EXCLUSIVE_OR;
                 case BITWISE_OR:
-                    return 6;
+                    return BITWISE_OR;
                 case LOGICAL_AND:
-                    return 5;
+                    return LOGICAL_AND;
                 case LOGICAL_OR:
-                    return 4;
+                    return LOGICAL_OR;
 
                 default:
                     throw ContractUtils.unsupported();

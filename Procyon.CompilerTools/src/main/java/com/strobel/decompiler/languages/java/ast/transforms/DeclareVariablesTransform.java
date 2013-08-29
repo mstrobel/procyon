@@ -496,7 +496,8 @@ public class DeclareVariablesTransform implements IAstTransform {
                                 // variables initialized by the loop header.
                                 //
 
-                                if (!findDeclarationPoint(analysis, identifier.getIdentifier(), allowPassIntoLoops, block, declarationPoint, null) ||
+                                if (!StringUtilities.equals(identifier.getIdentifier(), variableName) && // Issue #109: Duplicate initializer -> stack overflow
+                                    !findDeclarationPoint(analysis, identifier.getIdentifier(), allowPassIntoLoops, block, declarationPoint, null) ||
                                     declarationPoint.get() != statement) {
 
                                     return false;

@@ -129,6 +129,16 @@ public class ConditionalTests extends DecompilerTest {
             System.out.println(!a && (c ? a : b));
             return c;
         }
+
+        public boolean test5(final boolean a, final boolean b, final boolean c) {
+            System.out.println(a && (c ? (b ? a : c) : (b ? c : a)));
+            return c;
+        }
+
+        public boolean test6(final boolean a, final boolean b, final boolean c) {
+            System.out.println(a || (c ? (b ? a : c) : (b ? c : a)));
+            return c;
+        }
     }
 
     @Test
@@ -231,6 +241,7 @@ public class ConditionalTests extends DecompilerTest {
             "}"
         );
     }
+
     @Test
     public void testTernaryWithTernaryCondition() throws Throwable {
         verifyOutput(
@@ -264,6 +275,14 @@ public class ConditionalTests extends DecompilerTest {
             "    }\n" +
             "    public boolean test4(final boolean a, final boolean b, final boolean c) {\n" +
             "        System.out.println(!a && (c ? a : b));\n" +
+            "        return c;\n" +
+            "    }\n" +
+            "    public boolean test5(final boolean a, final boolean b, final boolean c) {\n" +
+            "        System.out.println(a && (c ? (b ? a : c) : (b ? c : a)));\n" +
+            "        return c;\n" +
+            "    }\n" +
+            "    public boolean test6(final boolean a, final boolean b, final boolean c) {\n" +
+            "        System.out.println(a || (c ? (b ? a : c) : (b ? c : a)));\n" +
             "        return c;\n" +
             "    }\n" +
             "}"

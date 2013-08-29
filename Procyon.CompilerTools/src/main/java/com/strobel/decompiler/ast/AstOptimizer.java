@@ -1152,11 +1152,11 @@ public final class AstOptimizer {
         }
 
         final Variable n = tVar.get();
-        final StrongBox<Object> _ = new StrongBox<>();
+        final StrongBox<Object> unused = new StrongBox<>();
         final boolean field;
 
         if (!matchGetArguments(e1, AstCode.Store, tVar, a) ||
-            !((field = match(a.get(0), AstCode.GetField)) ? matchGetArguments(a.get(0), AstCode.GetField, _, a)
+            !((field = match(a.get(0), AstCode.GetField)) ? matchGetArguments(a.get(0), AstCode.GetField, unused, a)
                                                           : matchGetArguments(a.get(0), AstCode.LoadElement, a)) ||
             !matchLoad(a.get(field ? 0 : 1), n)) {
 
@@ -1165,7 +1165,7 @@ public final class AstOptimizer {
 
         final Variable t = tVar.get();
         final Variable o = field ? null : (Variable) a.get(0).getOperand();
-        final FieldReference f = field ? (FieldReference) _.get() : null;
+        final FieldReference f = field ? (FieldReference) unused.get() : null;
         final Expression e2 = (Expression) body.get(i + 1);
         final StrongBox<Integer> amount = new StrongBox<>();
 
@@ -1195,9 +1195,9 @@ public final class AstOptimizer {
         final Variable v = tVar.get();
         final Expression e4 = (Expression) body.get(i + 3);
 
-        if (!(field ? matchGetArguments(e4, AstCode.PutField, _, a)
+        if (!(field ? matchGetArguments(e4, AstCode.PutField, unused, a)
                     : matchGetArguments(e4, AstCode.StoreElement, a)) ||
-            !(field ? StringUtilities.equals(f.getFullName(), ((FieldReference) _.get()).getFullName())
+            !(field ? StringUtilities.equals(f.getFullName(), ((FieldReference) unused.get()).getFullName())
                     : matchLoad(a.get(0), o)) ||
             !matchLoad(a.get(field ? 0 : 1), n) ||
             !matchLoad(a.get(field ? 1 : 2), v)) {
@@ -1812,21 +1812,21 @@ public final class AstOptimizer {
             final StrongBox<Object> unused = new StrongBox<>();
 
             if (matchLastAndBreak(head, AstCode.IfTrue, trueLabel, condition, falseLabel) &&
-                labelGlobalRefCount.get(trueLabel.get()).getValue() == 1 &&
-                labelGlobalRefCount.get(falseLabel.get()).getValue() == 1 &&
-                body.contains(labelToBasicBlock.get(trueLabel.get())) &&
-                body.contains(labelToBasicBlock.get(falseLabel.get()))) {
+                labelGlobalRefCount.get(trueLabel.value).getValue() == 1 &&
+                labelGlobalRefCount.get(falseLabel.value).getValue() == 1 &&
+                body.contains(labelToBasicBlock.get(trueLabel.value)) &&
+                body.contains(labelToBasicBlock.get(falseLabel.value))) {
 
-                if (((matchSingleAndBreak(labelToBasicBlock.get(trueLabel.get()), AstCode.Store, trueVariable, trueExpression, trueFall) &&
-                      matchSingleAndBreak(labelToBasicBlock.get(falseLabel.get()), AstCode.Store, falseVariable, falseExpression, falseFall) &&
-                      trueVariable.get() == falseVariable.get() &&
-                      trueFall.get() == falseFall.get()) ||
-                     (matchSingle(labelToBasicBlock.get(trueLabel.get()), AstCode.Return, unused, trueExpression) &&
-                      matchSingle(labelToBasicBlock.get(falseLabel.get()), AstCode.Return, unused, falseExpression)))) {
+                if (((matchSingleAndBreak(labelToBasicBlock.get(trueLabel.value), AstCode.Store, trueVariable, trueExpression, trueFall) &&
+                      matchSingleAndBreak(labelToBasicBlock.get(falseLabel.value), AstCode.Store, falseVariable, falseExpression, falseFall) &&
+                      trueVariable.value == falseVariable.value &&
+                      trueFall.value == falseFall.value) ||
+                     (matchSingle(labelToBasicBlock.get(trueLabel.value), AstCode.Return, unused, trueExpression) &&
+                      matchSingle(labelToBasicBlock.get(falseLabel.value), AstCode.Return, unused, falseExpression)))) {
 
-                    final boolean isStore = trueVariable.get() != null;
+                    final boolean isStore = trueVariable.value != null;
                     final AstCode opCode = isStore ? AstCode.Store : AstCode.Return;
-                    final TypeReference returnType = isStore ? trueVariable.get().getType() : context.getCurrentMethod().getReturnType();
+                    final TypeReference returnType = isStore ? trueVariable.value.getType() : context.getCurrentMethod().getReturnType();
 
                     final boolean returnTypeIsBoolean = TypeAnalysis.isBoolean(returnType);
 
@@ -1843,61 +1843,61 @@ public final class AstOptimizer {
                     // a ? false : b   is equivalent to  !a && b
 
                     if (returnTypeIsBoolean &&
-                        matchBooleanConstant(trueExpression.get(), leftBooleanValue) &&
-                        matchBooleanConstant(falseExpression.get(), rightBooleanValue) &&
-                        (leftBooleanValue.get() && !rightBooleanValue.get() ||
-                         !leftBooleanValue.get() && rightBooleanValue.get())) {
+                        matchBooleanConstant(trueExpression.value, leftBooleanValue) &&
+                        matchBooleanConstant(falseExpression.value, rightBooleanValue) &&
+                        (leftBooleanValue.value && !rightBooleanValue.value ||
+                         !leftBooleanValue.value && rightBooleanValue.value)) {
 
                         //
                         // It can be expressed as a trivial expression.
                         //
-                        if (leftBooleanValue.get()) {
-                            newExpression = condition.get();
+                        if (leftBooleanValue.value) {
+                            newExpression = condition.value;
                         }
                         else {
-                            newExpression = new Expression(AstCode.LogicalNot, null, condition.get());
+                            newExpression = new Expression(AstCode.LogicalNot, null, condition.value);
                             newExpression.setInferredType(BuiltinTypes.Boolean);
                         }
                     }
-                    else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(falseExpression.get().getInferredType())) &&
-                             matchBooleanConstant(trueExpression.get(), leftBooleanValue)) {
+                    else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(falseExpression.value.getInferredType())) &&
+                             matchBooleanConstant(trueExpression.value, leftBooleanValue)) {
 
                         //
                         // It can be expressed as a logical expression.
                         //
-                        if (leftBooleanValue.get()) {
+                        if (leftBooleanValue.value) {
                             newExpression = makeLeftAssociativeShortCircuit(
                                 AstCode.LogicalOr,
-                                condition.get(),
-                                falseExpression.get()
+                                condition.value,
+                                falseExpression.value
                             );
                         }
                         else {
                             newExpression = makeLeftAssociativeShortCircuit(
                                 AstCode.LogicalAnd,
-                                new Expression(AstCode.LogicalNot, null, condition.get()),
-                                falseExpression.get()
+                                new Expression(AstCode.LogicalNot, null, condition.value),
+                                falseExpression.value
                             );
                         }
                     }
-                    else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(trueExpression.get().getInferredType())) &&
-                             matchBooleanConstant(falseExpression.get(), rightBooleanValue)) {
+                    else if ((returnTypeIsBoolean || TypeAnalysis.isBoolean(trueExpression.value.getInferredType())) &&
+                             matchBooleanConstant(falseExpression.value, rightBooleanValue)) {
 
                         //
                         // It can be expressed as a logical expression.
                         //
-                        if (rightBooleanValue.get()) {
+                        if (rightBooleanValue.value) {
                             newExpression = makeLeftAssociativeShortCircuit(
                                 AstCode.LogicalOr,
-                                new Expression(AstCode.LogicalNot, null, condition.get()),
-                                trueExpression.get()
+                                new Expression(AstCode.LogicalNot, null, condition.value),
+                                trueExpression.value
                             );
                         }
                         else {
                             newExpression = makeLeftAssociativeShortCircuit(
                                 AstCode.LogicalAnd,
-                                condition.get(),
-                                trueExpression.get()
+                                condition.value,
+                                trueExpression.value
                             );
                         }
                     }
@@ -1912,7 +1912,7 @@ public final class AstOptimizer {
                         //
                         // Only simplify generated variables.
                         //
-                        if (opCode == AstCode.Store && !trueVariable.get().isGenerated()) {
+                        if (opCode == AstCode.Store && !trueVariable.value.isGenerated()) {
                             return false;
                         }
 
@@ -1922,22 +1922,22 @@ public final class AstOptimizer {
                         // Default behavior seems to be to invert the condition.  Try to reverse it.
                         //
 
-                        if (simplifyLogicalNotArgument(condition.get())) {
+                        if (simplifyLogicalNotArgument(condition.value)) {
                             newExpression = new Expression(
                                 AstCode.TernaryOp,
                                 null,
-                                condition.get(),
-                                falseExpression.get(),
-                                trueExpression.get()
+                                condition.value,
+                                falseExpression.value,
+                                trueExpression.value
                             );
                         }
                         else {
                             newExpression = new Expression(
                                 AstCode.TernaryOp,
                                 null,
-                                condition.get(),
-                                trueExpression.get(),
-                                falseExpression.get()
+                                condition.value,
+                                trueExpression.value,
+                                falseExpression.value
                             );
                         }
                     }
@@ -1945,72 +1945,74 @@ public final class AstOptimizer {
                     final List<Node> headBody = head.getBody();
 
                     removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
-                    headBody.add(new Expression(opCode, trueVariable.get(), newExpression));
+                    headBody.add(new Expression(opCode, trueVariable.value, newExpression));
 
                     if (isStore) {
-                        headBody.add(new Expression(AstCode.Goto, trueFall.get()));
+                        headBody.add(new Expression(AstCode.Goto, trueFall.value));
                     }
 
                     //
                     // Remove the old basic blocks.
                     //
 
-                    removeOrThrow(body, labelToBasicBlock.get(trueLabel.get()));
-                    removeOrThrow(body, labelToBasicBlock.get(falseLabel.get()));
+                    removeOrThrow(body, labelToBasicBlock.get(trueLabel.value));
+                    removeOrThrow(body, labelToBasicBlock.get(falseLabel.value));
 
                     return true;
                 }
                 else {
                     final StrongBox<Label> innerTrue = new StrongBox<>();
                     final StrongBox<Label> innerFalse = new StrongBox<>();
-                    final StrongBox<Expression> innerTrueExpression = new StrongBox<>();
-                    final StrongBox<Label> innerTrueFall = new StrongBox<>();
-                    final StrongBox<Expression> innerFalseExpression = new StrongBox<>();
-                    final StrongBox<Label> innerFalseFall = new StrongBox<>();
+                    final StrongBox<Label> trueBreak = new StrongBox<>();
+                    final StrongBox<Label> falseBreak = new StrongBox<>();
+                    final StrongBox<Label> intermediateJump = new StrongBox<>();
 
-                    if (matchSingleAndBreak(labelToBasicBlock.get(trueLabel.get()), AstCode.IfTrue, innerTrue, trueExpression, trueFall) &&
-                        matchSingleAndBreak(labelToBasicBlock.get(falseLabel.get()), AstCode.IfTrue, unused, falseExpression, falseFall) &&
-                        unused.get() == innerTrue.get() &&
-                        matchLast(labelToBasicBlock.get(falseFall.get()), AstCode.Goto, innerFalse)) {
+                    if (matchSingleAndBreak(labelToBasicBlock.get(trueLabel.value), AstCode.IfTrue, innerTrue, trueExpression, trueFall) &&
+                        matchSingleAndBreak(labelToBasicBlock.get(falseLabel.value), AstCode.IfTrue, unused, falseExpression, falseFall) &&
+                        unused.value == innerTrue.value &&
+                        matchLast(labelToBasicBlock.get(falseFall.value), AstCode.Goto, innerFalse)) {
+
+                        final StrongBox<Expression> innerTrueExpression = new StrongBox<>();
+                        final StrongBox<Expression> innerFalseExpression = new StrongBox<>();
 
                         //
                         // (a ? b : c) ? d : e
                         //
-                        if (labelGlobalRefCount.get(innerTrue.get()).getValue() == 2 &&
-                            labelGlobalRefCount.get(innerFalse.get()).getValue() == 2 &&
-                            matchSingleAndBreak(labelToBasicBlock.get(innerTrue.get()), AstCode.Store, trueVariable, innerTrueExpression, innerTrueFall) &&
-                            matchSingleAndBreak(labelToBasicBlock.get(innerFalse.get()), AstCode.Store, falseVariable, innerFalseExpression, innerFalseFall) &&
-                            trueVariable.get() == falseVariable.get() &&
-                            trueFall.get() == innerFalse.get() &&
-                            innerTrueFall.get() == innerFalseFall.get()) {
+                        if (labelGlobalRefCount.get(innerTrue.value).getValue() == 2 &&
+                            labelGlobalRefCount.get(innerFalse.value).getValue() == 2 &&
+                            matchSingleAndBreak(labelToBasicBlock.get(innerTrue.value), AstCode.Store, trueVariable, innerTrueExpression, trueBreak) &&
+                            matchSingleAndBreak(labelToBasicBlock.get(innerFalse.value), AstCode.Store, falseVariable, innerFalseExpression, falseBreak) &&
+                            trueVariable.value == falseVariable.value &&
+                            trueFall.value == innerFalse.value &&
+                            trueBreak.value == falseBreak.value) {
 
                             final Expression newCondition;
                             final Expression newExpression;
 
-                            final boolean negateInner = simplifyLogicalNotArgument(trueExpression.get());
+                            final boolean negateInner = simplifyLogicalNotArgument(trueExpression.value);
 
-                            if (negateInner && !simplifyLogicalNotArgument(falseExpression.get())) {
-                                final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.get());
-                                newFalseExpression.getRanges().addAll(falseExpression.get().getRanges());
+                            if (negateInner && !simplifyLogicalNotArgument(falseExpression.value)) {
+                                final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.value);
+                                newFalseExpression.getRanges().addAll(falseExpression.value.getRanges());
                                 falseExpression.set(newFalseExpression);
                             }
 
-                            if (simplifyLogicalNotArgument(condition.get())) {
+                            if (simplifyLogicalNotArgument(condition.value)) {
                                 newCondition = new Expression(
                                     AstCode.TernaryOp,
                                     null,
-                                    condition.get(),
-                                    falseExpression.get(),
-                                    trueExpression.get()
+                                    condition.value,
+                                    falseExpression.value,
+                                    trueExpression.value
                                 );
                             }
                             else {
                                 newCondition = new Expression(
                                     AstCode.TernaryOp,
                                     null,
-                                    condition.get(),
-                                    trueExpression.get(),
-                                    falseExpression.get()
+                                    condition.value,
+                                    trueExpression.value,
+                                    falseExpression.value
                                 );
                             }
 
@@ -2019,8 +2021,8 @@ public final class AstOptimizer {
                                     AstCode.TernaryOp,
                                     null,
                                     newCondition,
-                                    innerFalseExpression.get(),
-                                    innerTrueExpression.get()
+                                    innerFalseExpression.value,
+                                    innerTrueExpression.value
                                 );
                             }
                             else {
@@ -2028,8 +2030,8 @@ public final class AstOptimizer {
                                     AstCode.TernaryOp,
                                     null,
                                     newCondition,
-                                    innerTrueExpression.get(),
-                                    innerFalseExpression.get()
+                                    innerTrueExpression.value,
+                                    innerFalseExpression.value
                                 );
                             }
 
@@ -2037,127 +2039,80 @@ public final class AstOptimizer {
 
                             removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
 
-                            headBody.add(new Expression(AstCode.Store, trueVariable.get(), newExpression));
-                            headBody.add(new Expression(AstCode.Goto, innerTrueFall.get()));
+                            headBody.add(new Expression(AstCode.Store, trueVariable.value, newExpression));
+                            headBody.add(new Expression(AstCode.Goto, trueBreak.value));
 
                             //
                             // Remove the old basic blocks.
                             //
 
-                            removeOrThrow(body, labelToBasicBlock.get(trueLabel.get()));
-                            removeOrThrow(body, labelToBasicBlock.get(falseLabel.get()));
-                            removeOrThrow(body, labelToBasicBlock.get(falseFall.get()));
-                            removeOrThrow(body, labelToBasicBlock.get(innerTrue.get()));
-                            removeOrThrow(body, labelToBasicBlock.get(innerFalse.get()));
+                            removeOrThrow(body, labelToBasicBlock.get(trueLabel.value));
+                            removeOrThrow(body, labelToBasicBlock.get(falseLabel.value));
+                            removeOrThrow(body, labelToBasicBlock.get(falseFall.value));
+                            removeOrThrow(body, labelToBasicBlock.get(innerTrue.value));
+                            removeOrThrow(body, labelToBasicBlock.get(innerFalse.value));
 
                             return true;
                         }
 
-                        if (position == 0 || !(body.get(position - 1) instanceof BasicBlock)) {
-                            return false;
-                        }
-
-                        final BasicBlock prev = (BasicBlock) body.get(position - 1);
-                        final Expression condExpression = condition.get();
-                        final Label innerTrueLabel = innerTrue.get();
-                        final Label innerFalseLabel = innerFalse.get();
-                        final StrongBox<Label> prevTrue = innerTrue;
-                        final StrongBox<Label> prevFalse = innerFalse;
-                        final StrongBox<Expression> prevCondition = condition;
-
-                        final int innerTrueRefCount = labelGlobalRefCount.get(innerTrueLabel).getValue();
-                        final int innerFalseRefCount = labelGlobalRefCount.get(innerFalseLabel).getValue();
-
                         //
-                        // d || (a ? b : c)
-                        // d && (a ? b : c)
+                        // (a ? b : c)
                         //
-                        if (matchLastAndBreak(prev, AstCode.IfTrue, prevTrue, prevCondition, prevFalse) &&
-                            (prevTrue.get() == innerTrueLabel || prevTrue.get() == innerFalseLabel) &&
-                            innerTrueRefCount == (prevTrue.get() == innerTrueLabel ? 3 : 2) &&
-                            innerFalseRefCount == (prevTrue.get() == innerFalseLabel ? 3 : 2) &&
-                            matchSingleAndBreak(labelToBasicBlock.get(innerTrueLabel), AstCode.Store, trueVariable, innerTrueExpression, innerTrueFall) &&
-                            matchSingleAndBreak(labelToBasicBlock.get(innerFalseLabel), AstCode.Store, falseVariable, innerFalseExpression, innerFalseFall) &&
-                            trueVariable.get() == falseVariable.get() &&
-                            trueFall.get() == innerFalseLabel &&
-                            innerTrueFall.get() == innerFalseFall.get()) {
+                        if (matchSingleAndBreak(labelToBasicBlock.get(innerTrue.value), AstCode.Store, trueVariable, innerTrueExpression, trueBreak) &&
+                            (matchSingleAndBreak(labelToBasicBlock.get(falseFall.value), AstCode.Store, falseVariable, innerFalseExpression, falseBreak) ||
+                             (matchSimpleBreak(labelToBasicBlock.get(falseFall.value), intermediateJump) &&
+                              matchSingleAndBreak(labelToBasicBlock.get(intermediateJump.value), AstCode.Store, falseVariable, innerFalseExpression, falseBreak))) &&
+                            trueVariable.value == falseVariable.value &&
+                            trueBreak.value == falseBreak.value) {
 
-                            final Expression newCondition;
+                            final boolean negateInner = simplifyLogicalNotArgument(trueExpression.value);
 
-                            Expression newExpression;
-
-                            final boolean doNotNegatePrev = (prevTrue.get() == innerTrueLabel) ^ canSimplifyLogicalNotArgument(condition.get());
-                            final boolean negateInner = simplifyLogicalNotArgument(trueExpression.get());
-
-                            if (negateInner && !simplifyLogicalNotArgument(falseExpression.get())) {
-                                final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.get());
-                                newFalseExpression.getRanges().addAll(falseExpression.get().getRanges());
+                            if (negateInner && !simplifyLogicalNotArgument(falseExpression.value)) {
+                                final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.value);
+                                newFalseExpression.getRanges().addAll(falseExpression.value.getRanges());
                                 falseExpression.set(newFalseExpression);
                             }
 
-                            if (simplifyLogicalNotArgument(condExpression)) {
-                                newCondition = new Expression(
-                                    AstCode.TernaryOp,
-                                    null,
-                                    condExpression,
-                                    falseExpression.get(),
-                                    trueExpression.get()
-                                );
+                            final List<Expression> arguments = condition.value.getArguments();
+                            final Expression oldCondition = arguments.get(0);
+
+                            condition.value.setCode(AstCode.TernaryOp);
+                            arguments.clear();
+
+                            Collections.addAll(
+                                arguments,
+                                simplifyLogicalNot(oldCondition),
+                                simplifyLogicalNot((negateInner ? falseExpression : trueExpression).value),
+                                simplifyLogicalNot((negateInner ? trueExpression : falseExpression).value)
+                            );
+
+                            final List<Node> headBody = head.getBody();
+
+                            ((Expression) headBody.get(headBody.size() - 2)).setOperand(innerTrue.value);
+
+                            if (matchSimpleBreak(labelToBasicBlock.get(falseFall.value), intermediateJump)) {
+                                if (labelGlobalRefCount.get(falseFall.value).getValue() == 1) {
+                                    removeOrThrow(body, labelToBasicBlock.get(falseFall.value));
+                                }
+                                ((Expression) headBody.get(headBody.size() - 1)).setOperand(intermediateJump.value);
                             }
                             else {
-                                newCondition = new Expression(
-                                    AstCode.TernaryOp,
-                                    null,
-                                    condExpression,
-                                    trueExpression.get(),
-                                    falseExpression.get()
-                                );
+                                ((Expression) headBody.get(headBody.size() - 1)).setOperand(falseFall.value);
                             }
 
                             if (negateInner) {
-                                newExpression = new Expression(
-                                    AstCode.TernaryOp,
-                                    null,
-                                    newCondition,
-                                    innerFalseExpression.get(),
-                                    innerTrueExpression.get()
-                                );
-                            }
-                            else {
-                                newExpression = new Expression(
-                                    AstCode.TernaryOp,
-                                    null,
-                                    newCondition,
-                                    innerTrueExpression.get(),
-                                    innerFalseExpression.get()
+                                ((Expression) headBody.get(headBody.size() - 2)).getArguments().set(
+                                    0,
+                                    simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.value))
                                 );
                             }
 
-                            newExpression = new Expression(
-                                prevTrue.get() == innerTrueLabel ? AstCode.LogicalAnd : AstCode.LogicalOr,
-                                null,
-                                doNotNegatePrev ? condition.value
-                                                : new Expression(AstCode.LogicalNot, null, condition.value),
-                                newExpression
-                            );
+                            if (labelGlobalRefCount.get(trueFall.value).getValue() == 1) {
+                                removeOrThrow(body, labelToBasicBlock.get(trueFall.value));
+                            }
 
-                            final List<Node> prevBody = prev.getBody();
-
-                            removeTail(prevBody, AstCode.IfTrue, AstCode.Goto);
-
-                            prevBody.add(new Expression(AstCode.Store, trueVariable.get(), newExpression));
-                            prevBody.add(new Expression(AstCode.Goto, innerTrueFall.get()));
-
-                            //
-                            // Remove the old basic blocks.
-                            //
-
-                            removeOrThrow(body, head);
-                            removeOrThrow(body, labelToBasicBlock.get(trueLabel.get()));
-                            removeOrThrow(body, labelToBasicBlock.get(falseLabel.get()));
-                            removeOrThrow(body, labelToBasicBlock.get(falseFall.get()));
-                            removeOrThrow(body, labelToBasicBlock.get(innerTrueLabel));
-                            removeOrThrow(body, labelToBasicBlock.get(innerFalseLabel));
+                            removeOrThrow(body, labelToBasicBlock.get(trueLabel.value));
+                            removeOrThrow(body, labelToBasicBlock.get(falseLabel.value));
 
                             return true;
                         }
@@ -3584,6 +3539,7 @@ public final class AstOptimizer {
 
                 if (n instanceof Expression && optimization.run(body, (Expression) n, i)) {
                     modified = true;
+                    ++i;
                 }
             }
         }
