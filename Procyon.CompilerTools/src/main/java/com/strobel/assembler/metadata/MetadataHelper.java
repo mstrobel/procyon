@@ -206,10 +206,24 @@ public final class MetadataHelper {
 
     private static TypeReference findCommonSuperTypeCore(final TypeReference type1, final TypeReference type2) {
         if (isAssignableFrom(type1, type2)) {
+            if (type2.isGenericType() && !type1.isGenericType()) {
+                final TypeDefinition resolved1 = type1.resolve();
+
+                if (resolved1 != null) {
+                    return substituteGenericArguments(resolved1, type2);
+                }
+            }
             return substituteGenericArguments(type1, type2);
         }
 
         if (isAssignableFrom(type2, type1)) {
+            if (type1.isGenericType() && !type2.isGenericType()) {
+                final TypeDefinition resolved2 = type2.resolve();
+
+                if (resolved2 != null) {
+                    return substituteGenericArguments(resolved2, type1);
+                }
+            }
             return substituteGenericArguments(type2, type1);
         }
 

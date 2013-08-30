@@ -172,15 +172,15 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
         final BlockStatement parent = (BlockStatement) node.getParent();
 
-        final AstNode p = node.getPreviousSibling();
-        final AstNode pp = p != null ? p.getPreviousSibling() : null;
+        final Statement p = node.getPreviousSibling(BlockStatement.STATEMENT_ROLE);
+        final Statement pp = p != null ? p.getPreviousSibling(BlockStatement.STATEMENT_ROLE) : null;
 
         if (pp == null) {
             return null;
         }
 
-        final Statement initializeResource = (Statement) pp;
-        final Statement clearCaughtException = (Statement) p;
+        final Statement initializeResource = pp;
+        final Statement clearCaughtException = p;
 
         final Match m = Match.createNew();
 

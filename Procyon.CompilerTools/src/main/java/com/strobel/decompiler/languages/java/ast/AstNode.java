@@ -159,10 +159,11 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         return _nextSibling;
     }
 
-    public final AstNode getPreviousSibling(final Role<?> role) {
+    @SuppressWarnings("unchecked")
+    public final <T extends AstNode> T getPreviousSibling(final Role<T> role) {
         for (AstNode current = _previousSibling; current != null; current = current.getPreviousSibling()) {
             if (current.getRole() == role) {
-                return current;
+                return (T) current;
             }
         }
         return null;
