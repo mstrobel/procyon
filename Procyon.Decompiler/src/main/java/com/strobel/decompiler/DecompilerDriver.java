@@ -177,7 +177,6 @@ public class DecompilerDriver {
         final JarFile jar = new JarFile(jarFile);
         final Enumeration<JarEntry> entries = jar.entries();
 
-        settings.setExcludeNestedTypes(true);
         settings.setShowSyntheticMembers(false);
 
         settings.setTypeLoader(
