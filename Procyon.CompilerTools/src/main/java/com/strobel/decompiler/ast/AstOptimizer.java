@@ -286,26 +286,6 @@ public final class AstOptimizer {
 
         recombineVariables(method);
 
-        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineVariables3)) {
-            return;
-        }
-
-        //
-        // The second inlining pass is necessary because the DuplicateReturns step and the
-        // introduction of ternary operators may open up additional inlining possibilities.
-        //
-
-        final Inlining inliningPhase3 = new Inlining(context, method, true);
-
-        inliningPhase3.inlineAllVariables();
-
-        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.TypeInference2)) {
-            return;
-        }
-
-        TypeAnalysis.reset(context, method);
-        TypeAnalysis.run(context, method);
-
         if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveRedundantCode3)) {
             return;
         }
@@ -317,6 +297,26 @@ public final class AstOptimizer {
         }
 
         cleanUpTryBlocks(method);
+
+        //
+        // This final inlining pass is necessary because the DuplicateReturns step and the
+        // introduction of ternary operators may open up additional inlining possibilities.
+        //
+
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineVariables3)) {
+            return;
+        }
+
+        final Inlining inliningPhase3 = new Inlining(context, method, true);
+
+        inliningPhase3.inlineAllVariables();
+
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.TypeInference2)) {
+            return;
+        }
+
+        TypeAnalysis.reset(context, method);
+        TypeAnalysis.run(context, method);
 
         LOG.fine("Finished bytecode AST optimization.");
     }

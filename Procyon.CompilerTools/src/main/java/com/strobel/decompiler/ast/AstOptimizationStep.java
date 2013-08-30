@@ -48,12 +48,12 @@ public enum AstOptimizationStep {
     DuplicateReturns,
     GotoRemoval2,
     ReduceIfNesting,
-    InlineVariables3,
     ReduceComparisonInstructionSet,
     RecombineVariables,
-    TypeInference2,
     RemoveRedundantCode3,
     CleanUpTryBlocks,
+    InlineVariables3,
+    TypeInference2,
     None;
 
     public boolean isBlockLevelOptimization() {

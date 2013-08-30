@@ -769,6 +769,7 @@ public final class MetadataHelper {
             }
 
             final Map<TypeReference, TypeReference> map = adapt(method.getDeclaringType(), base);
+
             asMember = TypeSubstitutionVisitor.instance().visitMethod(method, map);
 
             if (asMember != method && asMember instanceof GenericMethodInstance) {
