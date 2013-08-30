@@ -100,7 +100,7 @@ public class BytecodeLanguage extends Language {
             output.unindent();
         }
 
-        if (options.getSettings().getShowNestedTypes()) {
+        if (!options.getSettings().getExcludeNestedTypes()) {
             for (final TypeDefinition innerType : type.getDeclaredTypes()) {
                 output.writeLine();
                 decompileType(innerType, output, options);

@@ -247,7 +247,7 @@ public class SwitchTests extends DecompilerTest {
     public void testEnumSwitch() {
         verifyOutput(
             SwitchTests$D.class,
-            createSettings(OPTION_FLATTEN_SWITCH_BLOCKS),
+            createSettings(OPTION_EXCLUDE_NESTED | OPTION_FLATTEN_SWITCH_BLOCKS),
             "final class SwitchTests$D {\n" +
             "    public void test(final Color color) {\n" +
             "        switch (color) {\n" +

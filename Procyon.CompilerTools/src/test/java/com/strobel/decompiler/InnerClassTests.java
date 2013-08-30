@@ -260,7 +260,7 @@ public class InnerClassTests extends DecompilerTest {
 
         verifyOutput(
             T.class,
-            defaultSettings(),
+            createSettings(OPTION_EXCLUDE_NESTED),
             "private class T\n" +
             "{\n" +
             "    void test() {\n" +
@@ -286,7 +286,7 @@ public class InnerClassTests extends DecompilerTest {
 
         verifyOutput(
             T.A.class,
-            defaultSettings(),
+            createSettings(OPTION_EXCLUDE_NESTED),
             "public class A extends T\n" +
             "{\n" +
             "}"
@@ -294,7 +294,7 @@ public class InnerClassTests extends DecompilerTest {
 
         verifyOutput(
             T.A.B.class,
-            defaultSettings(),
+            createSettings(OPTION_EXCLUDE_NESTED),
             "public class B extends A\n" +
             "{\n" +
             "    public B(final A a) {\n" +
@@ -305,7 +305,7 @@ public class InnerClassTests extends DecompilerTest {
 
         verifyOutput(
             T.A.B.C.class,
-            defaultSettings(),
+            createSettings(OPTION_EXCLUDE_NESTED),
             "public class C extends B\n" +
             "{\n" +
             "    public C(final A a) {\n" +
@@ -316,7 +316,7 @@ public class InnerClassTests extends DecompilerTest {
 
         verifyOutput(
             T.A.D.class,
-            defaultSettings(),
+            createSettings(OPTION_EXCLUDE_NESTED),
             "public class D extends B.C\n" +
             "{\n" +
             "    public D(final A a, final B b) {\n" +
@@ -359,7 +359,7 @@ public class InnerClassTests extends DecompilerTest {
     public void testNamedLocalClassCreation() {
         verifyOutput(
             B.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private static class B {\n" +
             "    private boolean x;\n" +
             "    public Iterable<String> test(final boolean b) {\n" +
@@ -390,7 +390,7 @@ public class InnerClassTests extends DecompilerTest {
     public void testNullQualifiedInnerClassCreation() {
         verifyOutput(
             C.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private static class C {\n" +
             "    public static void test() {\n" +
             "        final C c = null;\n" +
@@ -411,7 +411,7 @@ public class InnerClassTests extends DecompilerTest {
     public void testAnonymousClassWithAssignmentAsConstructorParameter() {
         verifyOutput(
             D.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private static class D {\n" +
             "    final int k;\n" +
             "    D(final int k) {\n" +
@@ -462,7 +462,7 @@ public class InnerClassTests extends DecompilerTest {
     public void testInnerClassSetsOuterClassField() {
         verifyOutput(
             G.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private static class G {\n" +
             "    private static int x;\n" +
             "    private int y;\n" +
@@ -483,7 +483,7 @@ public class InnerClassTests extends DecompilerTest {
     public void testInnerClassSyntheticConstructorInitializersInlined() {
         verifyOutput(
             H.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private static class H {\n" +
             "    private static final Runnable runnable;\n" +
             "    public static void test() {\n" +
@@ -505,7 +505,7 @@ public class InnerClassTests extends DecompilerTest {
     public void testInnerClassSyntheticPrivateBridge() {
         verifyOutput(
             J.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private static class J {\n" +
             "    Integer f(final int x, final Function<Integer, Integer> h) {\n" +
             "        return h.apply(x);\n" +
@@ -523,7 +523,7 @@ public class InnerClassTests extends DecompilerTest {
     public void testInnerClassSyntheticCallWrappers() {
         verifyOutput(
             K.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private static class K {\n" +
             "    private static int f(final int x) {\n" +
             "        return x / 2;\n" +

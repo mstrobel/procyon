@@ -13,7 +13,7 @@ public class AssertTests extends DecompilerTest {
     public void testSimpleAssert() throws Throwable {
         verifyOutput(
             A.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private static class A {\n" +
             "    public void test(final String s) {\n" +
             "        assert s.equals(\"foo\");\n" +

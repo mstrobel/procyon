@@ -30,7 +30,7 @@ import static com.strobel.assembler.metadata.Flags.testAny;
 import static org.junit.Assert.*;
 
 public abstract class DecompilerTest {
-    protected final static int OPTION_INCLUDE_NESTED = 0x0001;
+    protected final static int OPTION_EXCLUDE_NESTED = 0x0001;
     protected final static int OPTION_FLATTEN_SWITCH_BLOCKS = 0x0002;
     protected final static int OPTION_INCLUDE_SYNTHETIC = 0x0004;
     protected final static int OPTION_RETAIN_CASTS = 0x0008;
@@ -58,8 +58,8 @@ public abstract class DecompilerTest {
         settings.setLanguage(VerifyArgument.notNull(language, "language"));
         settings.setTypeLoader(new InputTypeLoader());
 
-        if (testAny(options, OPTION_INCLUDE_NESTED)) {
-            settings.setShowNestedTypes(true);
+        if (testAny(options, OPTION_EXCLUDE_NESTED)) {
+            settings.setExcludeNestedTypes(true);
         }
 
         if (testAny(options, OPTION_FLATTEN_SWITCH_BLOCKS)) {

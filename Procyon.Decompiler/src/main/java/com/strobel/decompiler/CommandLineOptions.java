@@ -52,8 +52,8 @@ public class CommandLineOptions {
     @Parameter(names = { "-u", "--unoptimized" }, description = "Show unoptimized code (only in combination with -b).")
     private boolean _unoptimized;
 
-    @Parameter(names = { "-n", "--show-nested" }, description = "Decompile nested types along with their enclosing type.")
-    private boolean _showNestedTypes;
+    @Parameter(names = { "-ent", "--exclude-nested" }, description = "Exclude nested types when decompiling their enclosing types.")
+    private boolean _excludeNestedTypes;
 
     @Parameter(names = { "-o", "--output-directory" }, description = "Write decompiled results to specified directory instead of stdout.")
     private String _outputDirectory;
@@ -70,7 +70,7 @@ public class CommandLineOptions {
     @Parameter(names = { "-v", "--verbose" }, description = "Set the level of log verbosity (0-3).", arity = 1)
     private int _verboseLevel;
 
-    @Parameter(names = { "--light" }, description = "Use a color scheme designed for light-background consoles (dark-on-light).")
+    @Parameter(names = { "-lc", "--light" }, description = "Use a color scheme designed for light-background consoles (dark-on-light).")
     private boolean _useLightColorScheme;
 
     @Parameter(names = { "--unicode" }, description = "Enable Unicode output (no printable characters are escaped).")
@@ -92,12 +92,12 @@ public class CommandLineOptions {
         return _flattenSwitchBlocks;
     }
 
-    public final boolean getShowNestedTypes() {
-        return _showNestedTypes;
+    public final boolean getExcludeNestedTypes() {
+        return _excludeNestedTypes;
     }
 
-    public final void setShowNestedTypes(final boolean showNestedTypes) {
-        _showNestedTypes = showNestedTypes;
+    public final void setExcludeNestedTypes(final boolean excludeNestedTypes) {
+        _excludeNestedTypes = excludeNestedTypes;
     }
 
     public final void setFlattenSwitchBlocks(final boolean flattenSwitchBlocks) {

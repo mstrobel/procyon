@@ -71,7 +71,7 @@ public class DecompilerDriver {
         settings.setForceExplicitTypeArguments(options.getForceExplicitTypeArguments());
         settings.setRetainRedundantCasts(options.getRetainRedundantCasts());
         settings.setShowSyntheticMembers(options.getShowSyntheticMembers());
-        settings.setShowNestedTypes(options.getShowNestedTypes());
+        settings.setExcludeNestedTypes(options.getExcludeNestedTypes());
         settings.setOutputDirectory(options.getOutputDirectory());
         settings.setIncludeLineNumbersInBytecode(options.getIncludeLineNumbers());
         settings.setRetainPointlessSwitches(options.getRetainPointlessSwitches());
@@ -177,7 +177,7 @@ public class DecompilerDriver {
         final JarFile jar = new JarFile(jarFile);
         final Enumeration<JarEntry> entries = jar.entries();
 
-        settings.setShowNestedTypes(true);
+        settings.setExcludeNestedTypes(true);
         settings.setShowSyntheticMembers(false);
 
         settings.setTypeLoader(

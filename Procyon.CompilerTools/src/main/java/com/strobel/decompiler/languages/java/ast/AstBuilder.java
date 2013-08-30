@@ -739,7 +739,7 @@ public final class AstBuilder {
 
         if (member instanceof TypeReference &&
             ((TypeReference) member).isNested() &&
-            !settings.getShowNestedTypes()) {
+            settings.getExcludeNestedTypes()) {
 
             final TypeDefinition resolvedType = ((TypeReference) member).resolve();
 
