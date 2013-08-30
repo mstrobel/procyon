@@ -114,7 +114,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "                break;\n" +
             "            }\n" +
             "            default: {\n" +
-            "                n ^= 180146176;\n" +
+            "                n ^= 0xABCD000;\n" +
             "            }\n" +
             "            case 4: {\n" +
             "                n *= 4;\n" +

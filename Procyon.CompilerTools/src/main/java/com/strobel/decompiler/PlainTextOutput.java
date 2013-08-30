@@ -18,7 +18,6 @@ package com.strobel.decompiler;
 
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
-import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -32,6 +31,7 @@ public class PlainTextOutput implements ITextOutput {
     private String _indentToken = "    ";
     private int _indent;
     private boolean _needsIndent;
+    private boolean _isUnicodeOutputEnabled;
 
     protected int line = 1;
     protected int column = 1;
@@ -53,6 +53,14 @@ public class PlainTextOutput implements ITextOutput {
     @Override
     public final void setIndentToken(final String indentToken) {
         _indentToken = indentToken;
+    }
+
+    public final boolean isUnicodeOutputEnabled() {
+        return _isUnicodeOutputEnabled;
+    }
+
+    public final void setUnicodeOutputEnabled(final boolean unicodeOutputEnabled) {
+        _isUnicodeOutputEnabled = unicodeOutputEnabled;
     }
 
     protected void writeIndent() {
@@ -98,7 +106,12 @@ public class PlainTextOutput implements ITextOutput {
     public void write(final char ch) {
         writeIndent();
         try {
-            _writer.write(ch);
+            if (isUnicodeOutputEnabled()) {
+                _writer.write(ch);
+            }
+            else {
+                _writer.write(StringUtilities.escape(ch));
+            }
             column++;
         }
         catch (IOException e) {
@@ -108,6 +121,16 @@ public class PlainTextOutput implements ITextOutput {
 
     @Override
     public void write(final String text) {
+        writeRaw(isUnicodeOutputEnabled() ? text : StringUtilities.escape(text));
+    }
+
+    /**
+     * Write the specified text without applying any escaping.
+     *
+     * @param text
+     *     The text to write
+     */
+    protected void writeRaw(final String text) {
         writeIndent();
 
         try {
@@ -227,7 +250,7 @@ public class PlainTextOutput implements ITextOutput {
 
     @Override
     public void writeDefinition(final String text, final Object definition, final boolean isLocal) {
-        write(JavaOutputVisitor.escapeUnicode(text));
+        write(text);
     }
 
     @Override
@@ -237,7 +260,7 @@ public class PlainTextOutput implements ITextOutput {
 
     @Override
     public void writeReference(final String text, final Object reference, final boolean isLocal) {
-        write(JavaOutputVisitor.escapeUnicode(text));
+        write(text);
     }
 
     @Override

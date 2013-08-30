@@ -24,6 +24,7 @@ import com.strobel.core.CollectionUtilities;
 import com.strobel.core.Freezable;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.PlainTextOutput;
 import com.strobel.decompiler.languages.Region;
@@ -158,10 +159,11 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         return _nextSibling;
     }
 
-    public final AstNode getPreviousSibling(final Role<?> role) {
+    @SuppressWarnings("unchecked")
+    public final <T extends AstNode> T getPreviousSibling(final Role<T> role) {
         for (AstNode current = _previousSibling; current != null; current = current.getPreviousSibling()) {
             if (current.getRole() == role) {
-                return current;
+                return (T) current;
             }
         }
         return null;
@@ -855,7 +857,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
 
         final ITextOutput output = new PlainTextOutput();
-        final JavaOutputVisitor visitor = new JavaOutputVisitor(output, JavaFormattingOptions.createDefault());
+        final JavaOutputVisitor visitor = new JavaOutputVisitor(output, DecompilerSettings.javaDefaults());
 
         acceptVisitor(visitor, null);
 

@@ -22,7 +22,7 @@ public class CallTests extends DecompilerTest {
     public void testSuperMethodCall() throws Throwable {
         verifyOutput(
             A.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private static class A {\n" +
             "    void f() {\n" +
             "    }\n" +

@@ -125,10 +125,8 @@ final class Inlining {
     final boolean inlineAllVariables() {
         boolean modified = false;
 
-        final Inlining inlining = new Inlining(_context, _method);
-
         for (final Block block : _method.getSelfAndChildrenRecursive(Block.class)) {
-            modified |= inlining.inlineAllInBlock(block);
+            modified |= inlineAllInBlock(block);
         }
 
         return modified;

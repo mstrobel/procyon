@@ -877,7 +877,7 @@ final class DebugViewWriter extends ExpressionVisitor {
         else if (value instanceof Character &&
                  node.getType() == PrimitiveTypes.Character) {
 
-            out(StringUtilities.escape((Character) value, true));
+            out(StringUtilities.escape((char) value, true));
         }
         else if (value instanceof Integer && node.getType() == PrimitiveTypes.Integer ||
                  value instanceof Boolean && node.getType() == PrimitiveTypes.Boolean) {

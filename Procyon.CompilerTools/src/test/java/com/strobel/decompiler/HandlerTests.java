@@ -412,6 +412,7 @@ public class HandlerTests extends DecompilerTest {
                 } finally {
                     System.out.println("E");
                 }
+                System.out.println("F");
             }
         }
     }
@@ -880,6 +881,7 @@ public class HandlerTests extends DecompilerTest {
             "            } finally {\n" +
             "                System.out.println(\"E\");\n" +
             "            }\n" +
+            "            System.out.println(\"F\");\n" +
             "        }\n" +
             "    }\n" +
             "}\n"

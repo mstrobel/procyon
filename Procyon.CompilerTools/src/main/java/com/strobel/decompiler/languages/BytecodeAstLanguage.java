@@ -90,7 +90,7 @@ public class BytecodeAstLanguage extends Language {
                 decompileMethod(method, output, options);
             }
 
-            if (options.getSettings().getShowNestedTypes()) {
+            if (!options.getSettings().getExcludeNestedTypes()) {
                 for (final TypeDefinition innerType : type.getDeclaredTypes()) {
                     output.writeLine();
                     decompileType(innerType, output, options);

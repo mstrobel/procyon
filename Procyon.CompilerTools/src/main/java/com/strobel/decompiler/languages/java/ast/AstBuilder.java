@@ -727,7 +727,7 @@ public final class AstBuilder {
         }
 
         _compileUnit.acceptVisitor(new InsertParenthesesVisitor(), null);
-        _compileUnit.acceptVisitor(new JavaOutputVisitor(output, _context.getSettings().getFormattingOptions()), null);
+        _compileUnit.acceptVisitor(new JavaOutputVisitor(output, _context.getSettings()), null);
     }
 
     public static boolean isMemberHidden(final IMemberDefinition member, final DecompilerContext context) {
@@ -739,7 +739,7 @@ public final class AstBuilder {
 
         if (member instanceof TypeReference &&
             ((TypeReference) member).isNested() &&
-            !settings.getShowNestedTypes()) {
+            settings.getExcludeNestedTypes()) {
 
             final TypeDefinition resolvedType = ((TypeReference) member).resolve();
 

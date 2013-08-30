@@ -13,10 +13,11 @@ import com.strobel.io.PathHelper;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.Charset;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -70,10 +71,11 @@ public class DecompilerDriver {
         settings.setForceExplicitTypeArguments(options.getForceExplicitTypeArguments());
         settings.setRetainRedundantCasts(options.getRetainRedundantCasts());
         settings.setShowSyntheticMembers(options.getShowSyntheticMembers());
-        settings.setShowNestedTypes(options.getShowNestedTypes());
+        settings.setExcludeNestedTypes(options.getExcludeNestedTypes());
         settings.setOutputDirectory(options.getOutputDirectory());
         settings.setIncludeLineNumbersInBytecode(options.getIncludeLineNumbers());
         settings.setRetainPointlessSwitches(options.getRetainPointlessSwitches());
+        settings.setUnicodeOutputEnabled(options.isUnicodeOutputEnabled());
         settings.setTypeLoader(new InputTypeLoader());
 
         if (options.isRawBytecode()) {
@@ -175,7 +177,7 @@ public class DecompilerDriver {
         final JarFile jar = new JarFile(jarFile);
         final Enumeration<JarEntry> entries = jar.entries();
 
-        settings.setShowNestedTypes(true);
+        settings.setExcludeNestedTypes(true);
         settings.setShowSyntheticMembers(false);
 
         settings.setTypeLoader(
@@ -242,7 +244,7 @@ public class DecompilerDriver {
         }
 
         final Writer writer = createWriter(resolvedType, settings);
-        final boolean writeToFile = writer instanceof FileWriter;
+        final boolean writeToFile = writer instanceof FileOutputWriter;
         final PlainTextOutput output;
 
         if (writeToFile) {
@@ -255,6 +257,8 @@ public class DecompilerDriver {
                                                             : AnsiTextOutput.ColorScheme.DARK
             );
         }
+
+        output.setUnicodeOutputEnabled(settings.isUnicodeOutputEnabled());
 
         if (settings.getLanguage() instanceof BytecodeLanguage) {
             output.setIndentToken("  ");
@@ -273,7 +277,11 @@ public class DecompilerDriver {
         final String outputDirectory = settings.getOutputDirectory();
 
         if (StringUtilities.isNullOrWhitespace(outputDirectory)) {
-            return new OutputStreamWriter(System.out);
+            return new OutputStreamWriter(
+                System.out,
+                settings.isUnicodeOutputEnabled() ? Charset.forName("UTF-8")
+                                                  : Charset.defaultCharset()
+            );
         }
 
         final String outputPath;
@@ -313,7 +321,17 @@ public class DecompilerDriver {
             );
         }
 
-        return new FileWriter(outputFile);
+        return new FileOutputWriter(outputFile, settings);
+    }
+}
+
+final class FileOutputWriter extends OutputStreamWriter {
+    FileOutputWriter(final File file, final DecompilerSettings settings) throws IOException {
+        super(
+            new FileOutputStream(file),
+            settings.isUnicodeOutputEnabled() ? Charset.forName("UTF-8")
+                                              : Charset.defaultCharset()
+        );
     }
 }
 
@@ -368,6 +386,5 @@ final class NoRetryMetadataSystem extends MetadataSystem {
         }
 
         return result;
-
     }
 }

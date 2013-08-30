@@ -496,7 +496,8 @@ public class DeclareVariablesTransform implements IAstTransform {
                                 // variables initialized by the loop header.
                                 //
 
-                                if (!findDeclarationPoint(analysis, identifier.getIdentifier(), allowPassIntoLoops, block, declarationPoint, null) ||
+                                if (!StringUtilities.equals(identifier.getIdentifier(), variableName) && // Issue #109: Duplicate initializer -> stack overflow
+                                    !findDeclarationPoint(analysis, identifier.getIdentifier(), allowPassIntoLoops, block, declarationPoint, null) ||
                                     declarationPoint.get() != statement) {
 
                                     return false;
@@ -511,6 +512,23 @@ public class DeclareVariablesTransform implements IAstTransform {
 
                 if (result) {
                     return true;
+                }
+            }
+        }
+
+        if (statement instanceof TryCatchStatement) {
+            final TryCatchStatement tryCatch = (TryCatchStatement) statement;
+
+            //
+            // TryCatchStatements with resources are a special case: we can move the resource declarations
+            // into the resource list.
+            //
+
+            if (!tryCatch.getResources().isEmpty()) {
+                for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+                    if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
+                        return true;
+                    }
                 }
             }
         }
@@ -572,6 +590,18 @@ public class DeclareVariablesTransform implements IAstTransform {
                             return false;
                         }
                     }
+                }
+            }
+        }
+        if (node instanceof TryCatchStatement) {
+            final TryCatchStatement tryCatch = (TryCatchStatement) node;
+
+            for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+                if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
+                    //
+                    // No need to introduce the variable here.
+                    //
+                    return false;
                 }
             }
         }
@@ -642,6 +672,16 @@ public class DeclareVariablesTransform implements IAstTransform {
         if (node instanceof ForEachStatement) {
             if (StringUtilities.equals(((ForEachStatement) node).getVariableName(), variableName)) {
                 return true;
+            }
+        }
+
+        if (node instanceof TryCatchStatement) {
+            final TryCatchStatement tryCatch = (TryCatchStatement) node;
+
+            for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+                if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
+                    return true;
+                }
             }
         }
 

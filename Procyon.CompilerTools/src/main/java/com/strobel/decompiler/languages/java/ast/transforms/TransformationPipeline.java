@@ -20,7 +20,12 @@ import com.strobel.core.Predicate;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.AstNode;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 public final class TransformationPipeline {
+    private final static Logger LOG = Logger.getLogger(TransformationPipeline.class.getSimpleName());
+
     @SuppressWarnings("UnusedParameters")
     public static IAstTransform[] createPipeline(final DecompilerContext context) {
         return new IAstTransform[] {
@@ -32,10 +37,10 @@ public final class TransformationPipeline {
             new RemoveRedundantCastsTransform(context),
             new PatternStatementTransform(context),
             new BreakTargetRelocation(context),
+            new TryWithResourcesTransform(context),
             new DeclareVariablesTransform(context),
             new StringSwitchRewriterTransform(context),
             new EclipseStringSwitchRewriterTransform(context),
-            new CollapseImportsTransform(context),
             new SimplifyAssignmentsTransform(context),
             new EliminateSyntheticAccessorsTransform(context),
             new LambdaTransform(context),
@@ -52,7 +57,9 @@ public final class TransformationPipeline {
             new IntroduceStringConcatenationTransform(context),
             new SimplifyAssignmentsTransform(context), // (again due to inlined synthetic accessors, string concatenation)
             new VarArgsTransform(context),
-            new InsertConstantReferencesTransform(context)
+            new InsertConstantReferencesTransform(context),
+            new SimplifyArithmeticExpressionsTransform(context),
+            new CollapseImportsTransform(context)
         };
     }
 
@@ -68,6 +75,10 @@ public final class TransformationPipeline {
         for (final IAstTransform transform : createPipeline(context)) {
             if (abortCondition != null && abortCondition.test(transform)) {
                 return;
+            }
+
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Running Java AST transform: " + transform.getClass().getSimpleName() + "...");
             }
 
             transform.run(node);

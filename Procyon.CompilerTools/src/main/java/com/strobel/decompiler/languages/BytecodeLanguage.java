@@ -17,25 +17,17 @@
 package com.strobel.decompiler.languages;
 
 import com.strobel.annotations.NotNull;
-import com.strobel.assembler.ir.ConstantPool;
-import com.strobel.assembler.ir.ErrorOperand;
-import com.strobel.assembler.ir.ExceptionHandler;
-import com.strobel.assembler.ir.Instruction;
-import com.strobel.assembler.ir.InstructionCollection;
-import com.strobel.assembler.ir.InstructionVisitor;
-import com.strobel.assembler.ir.OpCode;
-import com.strobel.assembler.ir.OpCodeHelpers;
-import com.strobel.assembler.ir.StackMapFrame;
+import com.strobel.assembler.ir.*;
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilationOptions;
 import com.strobel.decompiler.DecompilerHelpers;
+import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.NameSyntax;
 import com.strobel.decompiler.PlainTextOutput;
-import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -91,7 +83,7 @@ public class BytecodeLanguage extends Language {
             final ConstantPool constantPool = type.getConstantPool();
 
             if (constantPool != null) {
-                constantPool.accept(new ConstantPoolPrinter(output));
+                constantPool.accept(new ConstantPoolPrinter(output, options.getSettings()));
             }
 
             for (final FieldDefinition field : type.getDeclaredFields()) {
@@ -108,7 +100,7 @@ public class BytecodeLanguage extends Language {
             output.unindent();
         }
 
-        if (options.getSettings().getShowNestedTypes()) {
+        if (!options.getSettings().getExcludeNestedTypes()) {
             for (final TypeDefinition innerType : type.getDeclaredTypes()) {
                 output.writeLine();
                 decompileType(innerType, output, options);
@@ -825,7 +817,7 @@ public class BytecodeLanguage extends Language {
                     lineNumbers = null;
                 }
 
-                final InstructionPrinter printer = new InstructionPrinter(output, method, lineNumbers);
+                final InstructionPrinter printer = new InstructionPrinter(output, method, options.getSettings(), lineNumbers);
 
                 for (final Instruction instruction : instructions) {
                     printer.visit(instruction);
@@ -996,13 +988,15 @@ public class BytecodeLanguage extends Language {
             OPCODE_NAMES = names;
         }
 
+        private final DecompilerSettings _settings;
         private final ITextOutput _output;
         private final MethodBody _body;
         private final int[] _lineNumbers;
 
         private int _currentOffset = -1;
 
-        private InstructionPrinter(final ITextOutput output, final MethodDefinition method, final int[] lineNumbers) {
+        private InstructionPrinter(final ITextOutput output, final MethodDefinition method, final DecompilerSettings settings, final int[] lineNumbers) {
+            _settings = settings;
             _output = VerifyArgument.notNull(output, "output");
             _body = VerifyArgument.notNull(method, "method").getBody();
             _lineNumbers = lineNumbers;
@@ -1086,7 +1080,10 @@ public class BytecodeLanguage extends Language {
                         variable.hasName() &&
                         variable.isFromMetadata()) {
 
-                        _output.writeComment(" /* %s */", JavaOutputVisitor.escapeUnicode(variable.getName()));
+                        _output.writeComment(
+                            " /* %s */",
+                            StringUtilities.escape(variable.getName(), false, _settings.isUnicodeOutputEnabled())
+                        );
                     }
                 }
             }
@@ -1160,7 +1157,7 @@ public class BytecodeLanguage extends Language {
             printOpCode(op);
 
             _output.write(' ');
-            _output.writeTextLiteral(StringUtilities.escape(value, true));
+            _output.writeTextLiteral(StringUtilities.escape(value, true, _settings.isUnicodeOutputEnabled()));
 
             _output.writeLine();
         }

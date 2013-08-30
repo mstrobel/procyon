@@ -22,7 +22,6 @@ import com.strobel.assembler.metadata.*;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.ast.AstCode;
 import com.strobel.decompiler.ast.Variable;
-import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 import com.strobel.io.Ansi;
 
 import java.io.StringWriter;
@@ -91,18 +90,22 @@ public class AnsiTextOutput extends PlainTextOutput {
         _error = new Ansi(Ansi.Attribute.NORMAL, new Ansi.AnsiColor(light ? 196 : 196), null);
     }
 
+    private String colorize(final String value, final Ansi ansi) {
+        return ansi.colorize(StringUtilities.escape(value, false, isUnicodeOutputEnabled()));
+    }
+
     @Override
     public void writeError(final String value) {
-        writeAnsi(value, _error.colorize(value));
+        writeAnsi(value, colorize(value, _error));
     }
 
     @Override
     public void writeLabel(final String value) {
-        writeAnsi(value, _label.colorize(value));
+        writeAnsi(value, colorize(value, _label));
     }
 
     protected final void writeAnsi(final String originalText, final String ansiText) {
-        super.write(ansiText);
+        super.writeRaw(ansiText);
 
         if (originalText != null && ansiText != null) {
             super.column -= (ansiText.length() - originalText.length());
@@ -112,52 +115,50 @@ public class AnsiTextOutput extends PlainTextOutput {
     @Override
     public void writeLiteral(final Object value) {
         final String literal = String.valueOf(value);
-        writeAnsi(literal, _literal.colorize(literal));
+        writeAnsi(literal, colorize(literal, _literal));
     }
 
     @Override
     public void writeTextLiteral(final Object value) {
         final String literal = String.valueOf(value);
-        writeAnsi(literal, _textLiteral.colorize(literal));
+        writeAnsi(literal, colorize(literal, _textLiteral));
     }
 
     @Override
     public void writeComment(final String value) {
-        writeAnsi(value, _comment.colorize(value));
+        writeAnsi(value, colorize(value, _comment));
     }
 
     @Override
     public void writeComment(final String format, final Object... args) {
         final String text = String.format(format, args);
-        writeAnsi(text, _comment.colorize(text));
+        writeAnsi(text, colorize(text, _comment));
     }
 
     @Override
     public void writeDelimiter(final String text) {
-        writeAnsi(text, _delimiter.colorize(text));
+        writeAnsi(text, colorize(text, _delimiter));
     }
 
     @Override
     public void writeAttribute(final String text) {
-        writeAnsi(text, _attribute.colorize(text));
+        writeAnsi(text, colorize(text, _attribute));
     }
 
     @Override
     public void writeOperator(final String text) {
-        writeAnsi(text, _operator.colorize(text));
+        writeAnsi(text, colorize(text, _operator));
     }
 
     @Override
     public void writeKeyword(final String text) {
-        writeAnsi(text, _keyword.colorize(text));
+        writeAnsi(text, colorize(text, _keyword));
     }
 
     @Override
     public void writeDefinition(final String text, final Object definition, final boolean isLocal) {
-        final String escapedText = JavaOutputVisitor.escapeUnicode(text);
-
-        if (escapedText == null) {
-            super.write(escapedText);
+        if (text == null) {
+            super.write(text);
             return;
         }
 
@@ -167,45 +168,43 @@ public class AnsiTextOutput extends PlainTextOutput {
             definition instanceof OpCode ||
             definition instanceof AstCode) {
 
-            colorizedText = _instruction.colorize(escapedText);
+            colorizedText = colorize(text, _instruction);
         }
         else if (definition instanceof TypeReference) {
-            colorizedText = colorizeType(escapedText, (TypeReference) definition);
+            colorizedText = colorizeType(text, (TypeReference) definition);
         }
         else if (definition instanceof MethodReference ||
                  definition instanceof IMethodSignature) {
-            colorizedText = _method.colorize(escapedText);
+            colorizedText = colorize(text, _method);
         }
         else if (definition instanceof FieldReference) {
-            colorizedText = _field.colorize(escapedText);
+            colorizedText = colorize(text, _field);
         }
         else if (definition instanceof VariableReference ||
                  definition instanceof ParameterReference ||
                  definition instanceof Variable) {
 
-            colorizedText = _local.colorize(escapedText);
+            colorizedText = colorize(text, _local);
         }
         else if (definition instanceof PackageReference) {
-            colorizedText = colorizePackage(escapedText);
+            colorizedText = colorizePackage(text);
         }
         else if (definition instanceof Label ||
                  definition instanceof com.strobel.decompiler.ast.Label) {
 
-            colorizedText = _label.colorize(escapedText);
+            colorizedText = colorize(text, _label);
         }
         else {
-            colorizedText = escapedText;
+            colorizedText = text;
         }
 
-        writeAnsi(escapedText, colorizedText);
+        writeAnsi(text, colorizedText);
     }
 
     @Override
     public void writeReference(final String text, final Object reference, final boolean isLocal) {
-        final String escapedText = JavaOutputVisitor.escapeUnicode(text);
-
-        if (escapedText == null) {
-            super.write(escapedText);
+        if (text == null) {
+            super.write(text);
             return;
         }
 
@@ -215,43 +214,43 @@ public class AnsiTextOutput extends PlainTextOutput {
             reference instanceof OpCode ||
             reference instanceof AstCode) {
 
-            colorizedText = _instruction.colorize(escapedText);
+            colorizedText = colorize(text, _instruction);
         }
         else if (reference instanceof TypeReference) {
-            colorizedText = colorizeType(escapedText, (TypeReference) reference);
+            colorizedText = colorizeType(text, (TypeReference) reference);
         }
         else if (reference instanceof MethodReference ||
                  reference instanceof IMethodSignature) {
-            colorizedText = _method.colorize(escapedText);
+            colorizedText = colorize(text, _method);
         }
         else if (reference instanceof FieldReference) {
-            colorizedText = _field.colorize(escapedText);
+            colorizedText = colorize(text, _field);
         }
         else if (reference instanceof VariableReference ||
                  reference instanceof ParameterReference ||
                  reference instanceof Variable) {
 
-            colorizedText = _local.colorize(escapedText);
+            colorizedText = colorize(text, _local);
         }
         else if (reference instanceof PackageReference) {
-            colorizedText = colorizePackage(escapedText);
+            colorizedText = colorizePackage(text);
         }
         else if (reference instanceof Label ||
                  reference instanceof com.strobel.decompiler.ast.Label) {
 
-            colorizedText = _label.colorize(escapedText);
+            colorizedText = colorize(text, _label);
         }
         else {
-            colorizedText = escapedText;
+            colorizedText = StringUtilities.escape(text, false, isUnicodeOutputEnabled());
         }
 
-        writeAnsi(escapedText, colorizedText);
+        writeAnsi(text, colorizedText);
     }
 
     @SuppressWarnings("ConstantConditions")
     private String colorizeType(final String text, final TypeReference type) {
         if (type.isPrimitive()) {
-            return _keyword.colorize(text);
+            return colorize(text, _keyword);
         }
 
         final String packageName = type.getPackageName();
@@ -261,10 +260,10 @@ public class AnsiTextOutput extends PlainTextOutput {
 
         if (StringUtilities.isNullOrEmpty(packageName)) {
             if (resolvedType != null && resolvedType.isAnnotation()) {
-                return _attribute.colorize(text);
+                return colorize(text, _attribute);
             }
             else {
-                return typeColor.colorize(text);
+                return colorize(text, typeColor);
             }
         }
 
@@ -301,22 +300,22 @@ public class AnsiTextOutput extends PlainTextOutput {
             final String[] packageParts = packageName.split("\\.");
 
             for (int i = 0; i < arrayDepth; i++) {
-                sb.append(_delimiter.colorize(Delimiters.LEFT_BRACKET));
+                sb.append(colorize(Delimiters.LEFT_BRACKET, _delimiter));
             }
 
             if (isSignature) {
-                sb.append(_delimiter.colorize(isTypeVariable ? Delimiters.T : Delimiters.L));
+                sb.append(colorize(isTypeVariable ? Delimiters.T : Delimiters.L, _delimiter));
             }
 
             for (int i = 0; i < packageParts.length; i++) {
                 if (i != 0) {
-                    sb.append(_delimiter.colorize(String.valueOf(delimiter)));
+                    sb.append(colorize(String.valueOf(delimiter), _delimiter));
                 }
 
-                sb.append(_package.colorize(packageParts[i]));
+                sb.append(colorize(packageParts[i], _package));
             }
 
-            sb.append(_delimiter.colorize(String.valueOf(delimiter)));
+            sb.append(colorize(String.valueOf(delimiter), _delimiter));
 
             typeName = s.substring(packagePrefix.length());
         }
@@ -331,14 +330,14 @@ public class AnsiTextOutput extends PlainTextOutput {
 
         for (int i = 0; i < typeParts.length; i++) {
             if (i != 0) {
-                sb.append(_delimiter.colorize(dollar ? Delimiters.DOLLAR : Delimiters.DOT));
+                sb.append(colorize(dollar ? Delimiters.DOLLAR : Delimiters.DOT, _delimiter));
             }
 
-            sb.append(typeColor.colorize(typeParts[i]));
+            sb.append(colorize(typeParts[i], typeColor));
         }
 
         if (isSignature) {
-            sb.append(_delimiter.colorize(Delimiters.SEMICOLON));
+            sb.append(colorize(Delimiters.SEMICOLON, _delimiter));
         }
 
         return sb.toString();
@@ -350,7 +349,7 @@ public class AnsiTextOutput extends PlainTextOutput {
 
         for (int i = 0; i < packageParts.length; i++) {
             if (i != 0) {
-                sb.append(_delimiter.colorize("."));
+                sb.append(colorize(".", _delimiter));
             }
 
             final String packagePart = packageParts[i];
@@ -359,7 +358,7 @@ public class AnsiTextOutput extends PlainTextOutput {
                 sb.append(packagePart);
             }
             else {
-                sb.append(_package.colorize(packagePart));
+                sb.append(colorize(packagePart, _package));
             }
         }
 

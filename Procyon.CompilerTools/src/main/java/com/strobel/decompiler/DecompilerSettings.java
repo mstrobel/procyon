@@ -29,9 +29,10 @@ public class DecompilerSettings {
     private boolean _forceExplicitImports;
     private boolean _forceExplicitTypeArguments;
     private boolean _flattenSwitchBlocks;
-    private boolean _showNestedTypes;
+    private boolean _excludeNestedTypes;
     private boolean _retainRedundantCasts;
     private boolean _retainPointlessSwitches;
+    private boolean _isUnicodeOutputEnabled;
     private boolean _includeErrorDiagnostics = true;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
@@ -41,12 +42,12 @@ public class DecompilerSettings {
     public DecompilerSettings() {
     }
 
-    public final boolean getShowNestedTypes() {
-        return _showNestedTypes;
+    public final boolean getExcludeNestedTypes() {
+        return _excludeNestedTypes;
     }
 
-    public final void setShowNestedTypes(final boolean showNestedTypes) {
-        _showNestedTypes = showNestedTypes;
+    public final void setExcludeNestedTypes(final boolean excludeNestedTypes) {
+        _excludeNestedTypes = excludeNestedTypes;
     }
 
     public final boolean getFlattenSwitchBlocks() {
@@ -159,5 +160,19 @@ public class DecompilerSettings {
 
     public final void setRetainPointlessSwitches(final boolean retainPointlessSwitches) {
         _retainPointlessSwitches = retainPointlessSwitches;
+    }
+
+    public final boolean isUnicodeOutputEnabled() {
+        return _isUnicodeOutputEnabled;
+    }
+
+    public final void setUnicodeOutputEnabled(final boolean unicodeOutputEnabled) {
+        _isUnicodeOutputEnabled = unicodeOutputEnabled;
+    }
+
+    public static DecompilerSettings javaDefaults() {
+        final DecompilerSettings settings = new DecompilerSettings();
+        settings.setFormattingOptions(JavaFormattingOptions.createDefault());
+        return settings;
     }
 }

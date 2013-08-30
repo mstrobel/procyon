@@ -162,6 +162,25 @@ public class DefiniteAssignmentAnalysis {
         }
     }
 
+    public boolean isPotentiallyAssigned() {
+        for (final DefiniteAssignmentNode node : allNodes) {
+            final DefiniteAssignmentStatus status = node.getNodeStatus();
+
+            if (status == null)
+                return true;
+
+            switch (status) {
+                case POTENTIALLY_ASSIGNED:
+                case DEFINITELY_ASSIGNED:
+                case ASSIGNED_AFTER_TRUE_EXPRESSION:
+                case ASSIGNED_AFTER_FALSE_EXPRESSION:
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
     public DefiniteAssignmentStatus getStatusBefore(final Statement statement) {
         return beginNodeMap.get(statement).getNodeStatus();
     }
@@ -226,8 +245,8 @@ public class DefiniteAssignmentAnalysis {
                     }
                     break;
                 }
-                //
 
+                //
                 // Fall through to LoopCondition if next statement is If/Else...
                 //
             }
@@ -558,6 +577,12 @@ public class DefiniteAssignmentAnalysis {
                     return DefiniteAssignmentStatus.ASSIGNED_AFTER_FALSE_EXPRESSION;
                 }
 
+                if (afterLeft == DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED &&
+                    afterRight == DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED) {
+
+                    return DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED;
+                }
+
                 return DefiniteAssignmentStatus.POTENTIALLY_ASSIGNED;
             }
 
@@ -610,6 +635,12 @@ public class DefiniteAssignmentAnalysis {
                     afterRight == DefiniteAssignmentStatus.ASSIGNED_AFTER_TRUE_EXPRESSION) {
 
                     return DefiniteAssignmentStatus.ASSIGNED_AFTER_TRUE_EXPRESSION;
+                }
+
+                if (afterLeft == DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED &&
+                    afterRight == DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED) {
+
+                    return DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED;
                 }
 
                 return DefiniteAssignmentStatus.POTENTIALLY_ASSIGNED;
@@ -715,6 +746,11 @@ public class DefiniteAssignmentAnalysis {
 
         public void setNodeStatus(final DefiniteAssignmentStatus nodeStatus) {
             this._nodeStatus = nodeStatus;
+        }
+
+        @Override
+        public String toString() {
+            return "[" + _index + "] " + _nodeStatus;
         }
     }
 

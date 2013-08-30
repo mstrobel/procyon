@@ -1,11 +1,13 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.IMetadataResolver;
 import com.strobel.assembler.metadata.JvmType;
 import com.strobel.assembler.metadata.MetadataParser;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 
@@ -21,7 +23,7 @@ public class InsertConstantReferencesTransform extends ContextTrackingVisitor<Vo
         if (value instanceof Number) {
             tryRewriteConstant(node, value);
         }
-        
+
         return null;
     }
 
@@ -159,6 +161,56 @@ public class InsertConstantReferencesTransform extends ContextTrackingVisitor<Vo
 
         final TypeReference declaringType = parser.parseTypeDescriptor("java/lang/" + jvmType.name());
         final FieldReference field = parser.parseField(declaringType, fieldName, jvmType.getDescriptorPrefix());
+
+        if (currentType != null &&
+            node.getParent() instanceof VariableInitializer &&
+            node.getParent().getParent() instanceof FieldDeclaration &&
+            StringUtilities.equals(currentType.getInternalName(), declaringType.getInternalName())) {
+
+            final FieldDeclaration declaration = (FieldDeclaration) node.getParent().getParent();
+            final FieldDefinition actualField = declaration.getUserData(Keys.FIELD_DEFINITION);
+
+            if (actualField == null || StringUtilities.equals(actualField.getName(), fieldName)) {
+                switch (fieldName) {
+                    case "POSITIVE_INFINITY": {
+                        node.replaceWith(
+                            new BinaryOperatorExpression(
+                                new PrimitiveExpression(jvmType == JvmType.Double ? 1d : 1f),
+                                BinaryOperatorType.DIVIDE,
+                                new PrimitiveExpression(jvmType == JvmType.Double ? 0d : 0f)
+                            )
+                        );
+                        return;
+                    }
+
+                    case "NEGATIVE_INFINITY": {
+                        node.replaceWith(
+                            new BinaryOperatorExpression(
+                                new PrimitiveExpression(jvmType == JvmType.Double ? -1d : -1f),
+                                BinaryOperatorType.DIVIDE,
+                                new PrimitiveExpression(jvmType == JvmType.Double ? 0d : 0f)
+                            )
+                        );
+                        return;
+                    }
+
+                    case "NaN": {
+                        node.replaceWith(
+                            new BinaryOperatorExpression(
+                                new PrimitiveExpression(jvmType == JvmType.Double ? 0d : 0f),
+                                BinaryOperatorType.DIVIDE,
+                                new PrimitiveExpression(jvmType == JvmType.Double ? 0d : 0f)
+                            )
+                        );
+                        return;
+                    }
+
+                    default: {
+                        return;
+                    }
+                }
+            }
+        }
 
         final AstType astType;
         final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);

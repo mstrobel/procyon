@@ -43,7 +43,7 @@ public class AnnotationTests extends DecompilerTest {
     public void testAnnotationWithDefault() {
         verifyOutput(
             A.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private @interface A {\n" +
             "    String[] value();\n" +
             "    int intValue() default 42;\n" +
@@ -55,7 +55,7 @@ public class AnnotationTests extends DecompilerTest {
     public void testComplexAnnotation() {
         verifyOutput(
             B.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private @interface B {\n" +
             "    String value() default \"\";\n" +
             "    String name() default \"\";\n" +
@@ -71,7 +71,7 @@ public class AnnotationTests extends DecompilerTest {
     public void testAnnotationWithInnerClassAndConstants() {
         verifyOutput(
             C.class,
-            createSettings(OPTION_INCLUDE_NESTED),
+            defaultSettings(),
             "private @interface C {\n" +
             "    public static final int x = 3;\n" +
             "    public static final int y = 3;\n" +

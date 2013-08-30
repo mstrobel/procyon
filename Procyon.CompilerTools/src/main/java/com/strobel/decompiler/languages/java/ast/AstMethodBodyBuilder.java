@@ -32,6 +32,11 @@ import com.strobel.decompiler.PlainTextOutput;
 import com.strobel.decompiler.ast.*;
 import com.strobel.decompiler.ast.Label;
 import com.strobel.decompiler.languages.Languages;
+import com.strobel.decompiler.patterns.AnyNode;
+import com.strobel.decompiler.patterns.Choice;
+import com.strobel.decompiler.patterns.INode;
+import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.OptionalNode;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.util.ContractUtils;
 
@@ -51,6 +56,24 @@ public class AstMethodBodyBuilder {
     private final MetadataParser _parser;
     private final DecompilerContext _context;
     private final Set<Variable> _localVariablesToDefine = new LinkedHashSet<>();
+
+    private final static INode LAMBDA_BODY_PATTERN;
+    private final static INode EMPTY_LAMBDA_BODY_PATTERN;
+
+    static {
+        LAMBDA_BODY_PATTERN = new Choice(
+            new BlockStatement(
+                new ExpressionStatement(new AnyNode("body").toExpression()),
+                new OptionalNode(new ReturnStatement()).toStatement()
+            ),
+            new BlockStatement(
+                new ReturnStatement(new AnyNode("body").toExpression())
+            ),
+            new AnyNode("body").toBlockStatement()
+        );
+
+        EMPTY_LAMBDA_BODY_PATTERN = new BlockStatement(new ReturnStatement());
+    }
 
     public static BlockStatement createMethodBody(
         final AstBuilder astBuilder,
@@ -726,28 +749,15 @@ public class AstMethodBodyBuilder {
                 }
 
                 final BlockStatement body = transformBlock(lambda.getBody());
-                final AstNodeCollection<Statement> statements = body.getStatements();
+                final Match m = LAMBDA_BODY_PATTERN.match(body);
 
-                if (statements.hasSingleElement()) {
-                    final Statement statement = statements.firstOrNullObject();
+                if (m.success()) {
+                    final AstNode bodyNode = first(m.<AstNode>get("body"));
+                    bodyNode.remove();
+                    lambdaExpression.setBody(bodyNode);
 
-                    if (statement instanceof ExpressionStatement ||
-                        statement instanceof ReturnStatement) {
-
-                        statement.remove();
-
-                        final Expression value = statement.getChildByRole(Roles.EXPRESSION);
-
-                        if (value.isNull()) {
-                            lambdaExpression.setBody(body);
-                        }
-                        else {
-                            value.remove();
-                            lambdaExpression.setBody(value);
-                        }
-                    }
-                    else {
-                        lambdaExpression.setBody(body);
+                    if (EMPTY_LAMBDA_BODY_PATTERN.matches(bodyNode)) {
+                        bodyNode.getChildrenByRole(BlockStatement.STATEMENT_ROLE).clear();
                     }
                 }
                 else {
@@ -884,7 +894,7 @@ public class AstMethodBodyBuilder {
                 name.putUserData(Keys.VARIABLE, variableOperand);
 
                 final PrimitiveExpression deltaExpression = (PrimitiveExpression) arg1;
-                final int delta = (int)JavaPrimitiveCast.cast(JvmType.Integer, deltaExpression.getValue());
+                final int delta = (int) JavaPrimitiveCast.cast(JvmType.Integer, deltaExpression.getValue());
 
                 switch (delta) {
                     case -1:

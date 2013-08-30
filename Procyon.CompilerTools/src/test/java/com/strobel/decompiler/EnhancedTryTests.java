@@ -19,7 +19,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 
 public class EnhancedTryTests extends DecompilerTest {
-    private final static class A {
+    private static final class A {
         public void test() throws IOException {
             try (final StringWriter writer = new StringWriter()) {
                 writer.write("This is only a test.");
@@ -27,7 +27,7 @@ public class EnhancedTryTests extends DecompilerTest {
         }
     }
 
-    private final static class B {
+    private static final class B {
         public void test() throws IOException {
             try (final StringWriter writer1 = new StringWriter();
                  final StringWriter writer2 = new StringWriter()) {
@@ -37,13 +37,89 @@ public class EnhancedTryTests extends DecompilerTest {
         }
     }
 
-    private final static class C {
+    private static final class C {
         public void test() throws IOException {
             try (final StringWriter writer = new StringWriter()) {
                 writer.write("This is only a test.");
             }
             try (final StringWriter writer = new StringWriter()) {
                 writer.write("This is also a test.");
+            }
+        }
+    }
+
+    private static final class D {
+        public void test() throws IOException {
+            try (final StringWriter writer1 = new StringWriter()) {
+                writer1.write("This is only a test.");
+                try (final StringWriter writer2 = new StringWriter()) {
+                    writer2.write("This is also a test.");
+                }
+            }
+        }
+    }
+
+    private static final class E {
+        public void test() throws IOException {
+            try (final StringWriter writer1 = new StringWriter()) {
+                try (final StringWriter writer2 = new StringWriter()) {
+                    writer1.write("This is only a test.");
+                    writer2.write("This is also a test.");
+                }
+            }
+        }
+    }
+
+    private static final class F {
+        public void test() throws IOException {
+            try (final StringWriter writer1 = new StringWriter();
+                 final StringWriter writer2 = new StringWriter()) {
+                writer1.write("This is only a test.");
+                writer2.write("This is also a test.");
+            }
+            catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
+    }
+
+    private static final class G {
+        public void test() throws IOException {
+            try (final StringWriter writer1 = new StringWriter();
+                 final StringWriter writer2 = new StringWriter()) {
+                writer1.write("This is only a test.");
+                writer2.write("This is also a test.");
+            }
+            catch (RuntimeException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static final class H {
+        public void test() throws IOException {
+            try (final StringWriter writer1 = new StringWriter()) {
+                try (final StringWriter writer2 = new StringWriter()) {
+                    writer1.write("This is only a test.");
+                    writer2.write("This is also a test.");
+                }
+                catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private static final class I {
+        public void test() throws IOException {
+            try (final StringWriter writer1 = new StringWriter()) {
+                try (final StringWriter writer2 = new StringWriter()) {
+                    writer1.write("This is only a test.");
+                    writer2.write("This is also a test.");
+                }
+                catch (RuntimeException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -55,31 +131,8 @@ public class EnhancedTryTests extends DecompilerTest {
             defaultSettings(),
             "private static final class A {\n" +
             "    public void test() throws IOException {\n" +
-            "        final StringWriter writer = new StringWriter();\n" +
-            "        Throwable t = null;\n" +
-            "        try {\n" +
+            "        try (final StringWriter writer = new StringWriter()) {\n" +
             "            writer.write(\"This is only a test.\");\n" +
-            "        }\n" +
-            "        catch (Throwable t2) {\n" +
-            "            t = t2;\n" +
-            "            throw t2;\n" +
-            "        }\n" +
-            "        finally {\n" +
-            "            Label_0084: {\n" +
-            "                if (writer != null) {\n" +
-            "                    if (t != null) {\n" +
-            "                        try {\n" +
-            "                            writer.close();\n" +
-            "                            break Label_0084;\n" +
-            "                        }\n" +
-            "                        catch (Throwable x2) {\n" +
-            "                            t.addSuppressed(x2);\n" +
-            "                            break Label_0084;\n" +
-            "                        }\n" +
-            "                    }\n" +
-            "                    writer.close();\n" +
-            "                }\n" +
-            "            }\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
@@ -93,57 +146,10 @@ public class EnhancedTryTests extends DecompilerTest {
             defaultSettings(),
             "private static final class B {\n" +
             "    public void test() throws IOException {\n" +
-            "        final StringWriter writer1 = new StringWriter();\n" +
-            "        Throwable t = null;\n" +
-            "        try {\n" +
-            "            final StringWriter writer2 = new StringWriter();\n" +
-            "            Throwable t2 = null;\n" +
-            "            try {\n" +
-            "                writer1.write(\"This is only a test.\");\n" +
-            "                writer2.write(\"This is also a test.\");\n" +
-            "            }\n" +
-            "            catch (Throwable t3) {\n" +
-            "                t2 = t3;\n" +
-            "                throw t3;\n" +
-            "            }\n" +
-            "            finally {\n" +
-            "            Label_0111: {\n" +
-            "                    if (writer2 != null) {\n" +
-            "                        if (t2 != null) {\n" +
-            "                            try {\n" +
-            "                                writer2.close();\n" +
-            "                                break Label_0111;\n" +
-            "                            }\n" +
-            "                            catch (Throwable x2) {\n" +
-            "                                t2.addSuppressed(x2);\n" +
-            "                                break Label_0111;\n" +
-            "                            }\n" +
-            "                        }\n" +
-            "                        writer2.close();\n" +
-            "                    }\n" +
-            "                }\n" +
-            "            }\n" +
-            "        }\n" +
-            "        catch (Throwable t4) {\n" +
-            "            t = t4;\n" +
-            "            throw t4;\n" +
-            "        }\n" +
-            "        finally {\n" +
-            "        Label_0182: {\n" +
-            "                if (writer1 != null) {\n" +
-            "                    if (t != null) {\n" +
-            "                        try {\n" +
-            "                            writer1.close();\n" +
-            "                            break Label_0182;\n" +
-            "                        }\n" +
-            "                        catch (Throwable x2) {\n" +
-            "                            t.addSuppressed(x2);\n" +
-            "                            break Label_0182;\n" +
-            "                        }\n" +
-            "                    }\n" +
-            "                    writer1.close();\n" +
-            "                }\n" +
-            "            }\n" +
+            "        try (final StringWriter writer1 = new StringWriter();\n" +
+            "             final StringWriter writer2 = new StringWriter()) {\n" +
+            "            writer1.write(\"This is only a test.\");\n" +
+            "            writer2.write(\"This is also a test.\");\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
@@ -157,56 +163,127 @@ public class EnhancedTryTests extends DecompilerTest {
             defaultSettings(),
             "private static final class C {\n" +
             "    public void test() throws IOException {\n" +
-            "        StringWriter writer = new StringWriter();\n" +
-            "        Throwable t = null;\n" +
-            "        try {\n" +
+            "        try (final StringWriter writer = new StringWriter()) {\n" +
             "            writer.write(\"This is only a test.\");\n" +
             "        }\n" +
-            "        catch (Throwable t2) {\n" +
-            "            t = t2;\n" +
-            "            throw t2;\n" +
-            "        }\n" +
-            "        finally {\n" +
-            "            Label_0084: {\n" +
-            "                if (writer != null) {\n" +
-            "                    if (t != null) {\n" +
-            "                        try {\n" +
-            "                            writer.close();\n" +
-            "                            break Label_0084;\n" +
-            "                        }\n" +
-            "                        catch (Throwable x2) {\n" +
-            "                            t.addSuppressed(x2);\n" +
-            "                            break Label_0084;\n" +
-            "                        }\n" +
-            "                    }\n" +
-            "                    writer.close();\n" +
-            "                }\n" +
-            "            }\n" +
-            "        }\n" +
-            "        writer = new StringWriter();\n" +
-            "        Throwable t3 = null;\n" +
-            "        try {\n" +
+            "        try (final StringWriter writer = new StringWriter()) {\n" +
             "            writer.write(\"This is also a test.\");\n" +
             "        }\n" +
-            "        catch (Throwable t4) {\n" +
-            "            t3 = t4;\n" +
-            "            throw t4;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testEnhancedTryTwoNestedWithIntermediateStatement() throws Throwable {
+        verifyOutput(
+            D.class,
+            defaultSettings(),
+            "private static final class D {\n" +
+            "    public void test() throws IOException {\n" +
+            "        try (final StringWriter writer1 = new StringWriter()) {\n" +
+            "            writer1.write(\"This is only a test.\");\n" +
+            "            try (final StringWriter writer2 = new StringWriter()) {\n" +
+            "                writer2.write(\"This is also a test.\");\n" +
+            "            }\n" +
             "        }\n" +
-            "        finally {\n" +
-            "            Label_0171: {\n" +
-            "                if (writer != null) {\n" +
-            "                    if (t3 != null) {\n" +
-            "                        try {\n" +
-            "                            writer.close();\n" +
-            "                            break Label_0171;\n" +
-            "                        }\n" +
-            "                        catch (Throwable x2) {\n" +
-            "                            t3.addSuppressed(x2);\n" +
-            "                            break Label_0171;\n" +
-            "                        }\n" +
-            "                    }\n" +
-            "                    writer.close();\n" +
-            "                }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testEnhancedTryTwoNested() throws Throwable {
+        verifyOutput(
+            E.class,
+            defaultSettings(),
+            "private static final class E {\n" +
+            "    public void test() throws IOException {\n" +
+            "        try (final StringWriter writer1 = new StringWriter();" +
+            "             final StringWriter writer2 = new StringWriter()) {\n" +
+            "            writer1.write(\"This is only a test.\");\n" +
+            "            writer2.write(\"This is also a test.\");\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testEnhancedTryTwoNestedOuterCatchesThrowable() throws Throwable {
+        verifyOutput(
+            F.class,
+            defaultSettings(),
+            "private static final class F {\n" +
+            "    public void test() throws IOException {\n" +
+            "        try (final StringWriter writer1 = new StringWriter();\n" +
+            "             final StringWriter writer2 = new StringWriter()) {\n" +
+            "            writer1.write(\"This is only a test.\");\n" +
+            "            writer2.write(\"This is also a test.\");\n" +
+            "        }\n" +
+            "        catch (Throwable t) {\n" +
+            "            t.printStackTrace();\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testEnhancedTryTwoNestedOuterCatchesRuntimeException() throws Throwable {
+        verifyOutput(
+            G.class,
+            defaultSettings(),
+            "private static final class G {\n" +
+            "    public void test() throws IOException {\n" +
+            "        try (final StringWriter writer1 = new StringWriter();\n" +
+            "             final StringWriter writer2 = new StringWriter()) {\n" +
+            "            writer1.write(\"This is only a test.\");\n" +
+            "            writer2.write(\"This is also a test.\");\n" +
+            "        }\n" +
+            "        catch (RuntimeException e) {\n" +
+            "            e.printStackTrace();\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testEnhancedTryTwoNestedInnerCatchesThrowable() throws Throwable {
+        verifyOutput(
+            H.class,
+            defaultSettings(),
+            "private static final class H {\n" +
+            "    public void test() throws IOException {\n" +
+            "        try (final StringWriter writer1 = new StringWriter()) {\n" +
+            "            try (final StringWriter writer2 = new StringWriter()) {\n" +
+            "                writer1.write(\"This is only a test.\");\n" +
+            "                writer2.write(\"This is also a test.\");\n" +
+            "            }\n" +
+            "            catch (Throwable t) {\n" +
+            "                t.printStackTrace();\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testEnhancedTryTwoNestedInnerCatchesRuntimeException() throws Throwable {
+        verifyOutput(
+            I.class,
+            defaultSettings(),
+            "private static final class I {\n" +
+            "    public void test() throws IOException {\n" +
+            "        try (final StringWriter writer1 = new StringWriter()) {\n" +
+            "            try (final StringWriter writer2 = new StringWriter()) {\n" +
+            "                writer1.write(\"This is only a test.\");\n" +
+            "                writer2.write(\"This is also a test.\");\n" +
+            "            }\n" +
+            "            catch (RuntimeException e) {\n" +
+            "                e.printStackTrace();\n" +
             "            }\n" +
             "        }\n" +
             "    }\n" +
