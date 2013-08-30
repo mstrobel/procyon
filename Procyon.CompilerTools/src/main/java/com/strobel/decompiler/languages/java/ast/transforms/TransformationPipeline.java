@@ -41,7 +41,6 @@ public final class TransformationPipeline {
             new DeclareVariablesTransform(context),
             new StringSwitchRewriterTransform(context),
             new EclipseStringSwitchRewriterTransform(context),
-            new CollapseImportsTransform(context),
             new SimplifyAssignmentsTransform(context),
             new EliminateSyntheticAccessorsTransform(context),
             new LambdaTransform(context),
@@ -58,7 +57,9 @@ public final class TransformationPipeline {
             new IntroduceStringConcatenationTransform(context),
             new SimplifyAssignmentsTransform(context), // (again due to inlined synthetic accessors, string concatenation)
             new VarArgsTransform(context),
-            new InsertConstantReferencesTransform(context)
+            new InsertConstantReferencesTransform(context),
+            new SimplifyArithmeticExpressionsTransform(context),
+            new CollapseImportsTransform(context)
         };
     }
 

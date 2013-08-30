@@ -786,9 +786,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         analysis.setAnalyzedRange(firstStatement, lastStatement);
         analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
 
-        final DefiniteAssignmentStatus status = analysis.getStatusAfter(lastStatement);
-
-        if (status == DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED) {
+        if (!analysis.isPotentiallyAssigned()) {
             forEach.addVariableModifier(Modifier.FINAL);
         }
 
@@ -1017,9 +1015,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         analysis.setAnalyzedRange(firstStatement, lastStatement);
         analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
 
-        final DefiniteAssignmentStatus status = analysis.getStatusAfter(lastStatement);
-
-        if (status == DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED) {
+        if (!analysis.isPotentiallyAssigned()) {
             forEach.addVariableModifier(Modifier.FINAL);
         }
 

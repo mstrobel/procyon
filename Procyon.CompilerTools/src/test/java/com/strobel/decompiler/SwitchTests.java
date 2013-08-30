@@ -358,7 +358,7 @@ public class SwitchTests extends DecompilerTest {
             "                x += x << x;\n" +
             "                break;\n" +
             "            default:\n" +
-            "                x ^= 180146176;\n" +
+            "                x ^= 0xABCD000;\n" +
             "            case 4:\n" +
             "                x *= 4;\n" +
             "                break;\n" +

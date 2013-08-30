@@ -212,11 +212,22 @@ public final class TypeUtilities {
     }
 
     @Nullable
-    private static AstNode skipParenthesesUp(final AstNode e) {
+    public static AstNode skipParenthesesUp(final AstNode e) {
         AstNode result = e;
 
         while (result instanceof ParenthesizedExpression) {
             result = result.getParent();
+        }
+
+        return result;
+    }
+
+    @Nullable
+    public static AstNode skipParenthesesDown(final AstNode e) {
+        AstNode result = e;
+
+        while (result instanceof ParenthesizedExpression) {
+            result = ((ParenthesizedExpression) result).getExpression();
         }
 
         return result;

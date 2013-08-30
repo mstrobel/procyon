@@ -340,7 +340,7 @@ public final class AstOptimizer {
         return true;
     }
 
-    // <editor-fold defaultstate="collapsed" desc="RemoveUnreachableBlocks Optimization">
+    // <editor-fold defaultstate="collapsed" desc="RemoveUnreachableBlocks Step">
 
     private static void removeUnreachableBlocks(final Block method) {
         final BasicBlock entryBlock = first(ofType(method.getBody(), BasicBlock.class));
@@ -391,7 +391,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="CleanUpTryBlocks Optimization">
+    // <editor-fold defaultstate="collapsed" desc="CleanUpTryBlocks Step">
 
     private static void cleanUpTryBlocks(final Block method) {
         for (final Block block : method.getChildrenAndSelfRecursive(Block.class)) {
@@ -427,7 +427,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="RewriteFinallyBlocks Optimization">
+    // <editor-fold defaultstate="collapsed" desc="RewriteFinallyBlocks Step">
 
     private static void rewriteFinallyBlocks(final Block method) {
         rewriteSynchronized(method);
@@ -949,7 +949,7 @@ public final class AstOptimizer {
     }
 
     private static boolean isEmptyTryCatch(final TryCatchBlock tryCatch) {
-        if (tryCatch.getFinallyBlock() != null) {
+        if (tryCatch.getFinallyBlock() != null && !tryCatch.getFinallyBlock().getBody().isEmpty()) {
             return false;
         }
 
@@ -1583,7 +1583,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="SimplifyShortCircuit Optimization">
+    // <editor-fold defaultstate="collapsed" desc="SimplifyShortCircuit Step">
 
     private static final class SimplifyShortCircuitOptimization extends AbstractBasicBlockOptimization {
         public SimplifyShortCircuitOptimization(final DecompilerContext context, final Block method) {
@@ -1673,7 +1673,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="SimplifyShortCircuitAssignments Optimization">
+    // <editor-fold defaultstate="collapsed" desc="SimplifyShortCircuitAssignments Step">
 
     private static final class SimplifyShortCircuitAssignmentsOptimization extends AbstractBasicBlockOptimization {
         public SimplifyShortCircuitAssignmentsOptimization(final DecompilerContext context, final Block method) {
@@ -1735,7 +1735,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="JoinBasicBlocks Optimization">
+    // <editor-fold defaultstate="collapsed" desc="JoinBasicBlocks Step">
 
     private final static class JoinBasicBlocksOptimization extends AbstractBasicBlockOptimization {
         protected JoinBasicBlocksOptimization(final DecompilerContext context, final Block method) {
@@ -1790,7 +1790,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="SimplifyTernaryOperator Optimization">
+    // <editor-fold defaultstate="collapsed" desc="SimplifyTernaryOperator Step">
 
     private final static class SimplifyTernaryOperatorOptimization extends AbstractBasicBlockOptimization {
         protected SimplifyTernaryOperatorOptimization(final DecompilerContext context, final Block method) {
@@ -2126,7 +2126,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="SimplifyTernaryOperatorRoundTwoOptimization Optimization">
+    // <editor-fold defaultstate="collapsed" desc="SimplifyTernaryOperatorRoundTwo Step">
 
     private final static class SimplifyTernaryOperatorRoundTwoOptimization extends AbstractExpressionOptimization {
         protected SimplifyTernaryOperatorRoundTwoOptimization(final DecompilerContext context, final Block method) {
@@ -2256,7 +2256,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="SimplifyLogicalNot Optimization">
+    // <editor-fold defaultstate="collapsed" desc="SimplifyLogicalNot Step">
 
     private final static class SimplifyLogicalNotOptimization extends AbstractExpressionOptimization {
         protected SimplifyLogicalNotOptimization(final DecompilerContext context, final Block method) {
@@ -2276,7 +2276,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="TransformObjectInitializersOptimization Optimization">
+    // <editor-fold defaultstate="collapsed" desc="TransformObjectInitializers Step">
 
     private final static class TransformObjectInitializersOptimization extends AbstractExpressionOptimization {
         protected TransformObjectInitializersOptimization(final DecompilerContext context, final Block method) {
@@ -2367,7 +2367,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="MergeDisparateObjectInitializations Optimization">
+    // <editor-fold defaultstate="collapsed" desc="MergeDisparateObjectInitializations Step">
 
     private static boolean mergeDisparateObjectInitializations(final DecompilerContext context, final Block method) {
         final Inlining inlining = new Inlining(context, method);
@@ -2599,7 +2599,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="MakeAssignmentExpressions Optimization">
+    // <editor-fold defaultstate="collapsed" desc="MakeAssignmentExpressions Step">
 
     private final static class MakeAssignmentExpressionsOptimization extends AbstractExpressionOptimization {
         protected MakeAssignmentExpressionsOptimization(final DecompilerContext context, final Block method) {
@@ -2751,7 +2751,7 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="IntroducePostIncrement Optimization">
+    // <editor-fold defaultstate="collapsed" desc="IntroducePostIncrement Step">
 
     private final static class IntroducePostIncrementOptimization extends AbstractExpressionOptimization {
         protected IntroducePostIncrementOptimization(final DecompilerContext context, final Block method) {
@@ -3246,6 +3246,8 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="InlineLambdas Step">
+
     private final static class InlineLambdasOptimization extends AbstractExpressionOptimization {
         private final MutableInteger _lambdaCount = new MutableInteger();
 
@@ -3450,6 +3452,8 @@ public final class AstOptimizer {
             return null;
         }
     }
+
+    // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Optimization Helpers">
 

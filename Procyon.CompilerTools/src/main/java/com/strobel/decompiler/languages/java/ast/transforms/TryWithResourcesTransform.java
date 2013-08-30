@@ -283,9 +283,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                 analysis.setAnalyzedRange(firstStatement, lastStatement);
                 analysis.analyze(resource.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
 
-                final DefiniteAssignmentStatus status = analysis.getStatusAfter(lastStatement);
-
-                if (status == DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED) {
+                if (!analysis.isPotentiallyAssigned()) {
                     newResourceDeclaration.addModifier(Modifier.FINAL);
                 }
             }

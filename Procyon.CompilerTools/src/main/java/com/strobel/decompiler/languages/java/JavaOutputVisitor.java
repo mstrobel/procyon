@@ -29,6 +29,7 @@ import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.languages.java.utilities.TypeUtilities;
 import com.strobel.decompiler.patterns.*;
 import com.strobel.util.ContractUtils;
 
@@ -1683,14 +1684,85 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public Void visitPrimitiveExpression(final PrimitiveExpression node, final Void ignored) {
         node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
+
         if (!StringUtilities.isNullOrEmpty(node.getLiteralValue())) {
             formatter.writeLiteral(node.getLiteralValue());
+        }
+        else if (node.getValue() instanceof Number) {
+            final long longValue = ((Number) node.getValue()).longValue();
+
+            if (longValue != -1L && isBitwiseContext(node.getParent(), node)) {
+                formatter.writeLiteral(
+                    String.format(
+                        node.getValue() instanceof Long ? "0x%1$XL" : "0x%1$X",
+                        node.getValue()
+                    )
+                );
+            }
+            else {
+                writePrimitiveValue(node.getValue());
+            }
         }
         else {
             writePrimitiveValue(node.getValue());
         }
+
         endNode(node);
         return null;
+    }
+
+    private boolean isBitwiseContext(AstNode parent, AstNode node) {
+        parent = parent != null ? TypeUtilities.skipParenthesesUp(parent) : null;
+        node = node != null ? TypeUtilities.skipParenthesesUp(node) : null;
+
+        if (parent instanceof BinaryOperatorExpression ||
+            parent instanceof AssignmentExpression) {
+
+            final BinaryOperatorType operator;
+
+            if (parent instanceof BinaryOperatorExpression) {
+                operator = ((BinaryOperatorExpression) parent).getOperator();
+            }
+            else {
+                operator = AssignmentExpression.getCorrespondingBinaryOperator(((AssignmentExpression) parent).getOperator());
+            }
+
+            if (operator == null) {
+                return false;
+            }
+
+            switch (operator) {
+                case BITWISE_AND:
+                case BITWISE_OR:
+                case EXCLUSIVE_OR: {
+                    return true;
+                }
+
+                case EQUALITY:
+                case INEQUALITY: {
+                    if (node != null) {
+                        final BinaryOperatorExpression binary = (BinaryOperatorExpression) parent;
+                        final AstNode comparand = node == binary.getLeft() ? binary.getRight() : binary.getLeft();
+
+                        return isBitwiseContext(TypeUtilities.skipParenthesesDown(comparand), null);
+                    }
+                }
+
+                default: {
+                    return false;
+                }
+            }
+        }
+        else if (parent instanceof UnaryOperatorExpression) {
+            switch (((UnaryOperatorExpression) parent).getOperator()) {
+                case BITWISE_NOT:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        return false;
     }
 
     void writePrimitiveValue(final Object val) {
@@ -1714,7 +1786,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Character) {
-            formatter.writeTextLiteral(StringUtilities.escape((char)val, true, settings.isUnicodeOutputEnabled()));
+            formatter.writeTextLiteral(StringUtilities.escape((char) val, true, settings.isUnicodeOutputEnabled()));
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Float) {
@@ -1762,8 +1834,44 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             formatter.writeLiteral(number);
             lastWritten = LastWritten.KeywordOrIdentifier;
         }
-        else if (val instanceof Long) {
-            formatter.writeLiteral(String.valueOf(val) + "L");
+        else if (val instanceof Number) {
+            final long longValue = ((Number) val).longValue();
+
+            boolean writeHex = longValue == 0x0000BADBADBADBADL ||
+                               longValue == 0xBADC0FFEE0DDF00DL;
+
+            if (!writeHex) {
+                final long msb = longValue & 0xFFFFFFFF00000000L;
+                final long lsb = longValue & 0x00000000FFFFFFFFL;
+
+                if (msb == 0L) {
+                    switch ((int) lsb) {
+                        case 0x1BADB002:
+                        case 0xABABABAB:
+                        case 0xABADBABE:
+                        case 0xABADCAFE:
+                        case 0xBADDCAFE:
+                        case 0xBBADBEEF:
+                        case 0xBEEFCACE:
+                        case 0xCAFEBABE:
+                        case 0xCAFED00D:
+                        case 0xCAFEEFAC:
+                        case 0xDEADBABE:
+                        case 0xDEADBEEF:
+                        case 0xDEADC0DE:
+                        case 0xDEADF00D:
+                        case 0xDEFEC8ED:
+                        case 0xFADEDEAD:
+                            writeHex = true;
+                            break;
+                    }
+                }
+            }
+
+            final String stringValue = writeHex ? String.format("0x%1$X", longValue)
+                                                : String.valueOf(val);
+
+            formatter.writeLiteral(val instanceof Long ? stringValue + "L" : stringValue);
             lastWritten = LastWritten.Other;
         }
         else {
