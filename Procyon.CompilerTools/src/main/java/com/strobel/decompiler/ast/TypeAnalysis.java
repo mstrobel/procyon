@@ -850,6 +850,7 @@ public final class TypeAnalysis {
                     TypeReference result = inferredType;
 
                     if (expectedType != null &&
+                        expectedType != BuiltinTypes.Null &&
                         shouldInferVariableType(v)) {
 
                         TypeReference tempResult;
