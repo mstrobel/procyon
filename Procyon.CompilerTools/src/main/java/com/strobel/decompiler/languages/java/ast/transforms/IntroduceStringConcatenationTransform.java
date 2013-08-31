@@ -108,6 +108,7 @@ public class IntroduceStringConcatenationTransform extends ContextTrackingVisito
             anyIsString(operands.subList(0, 2)) &&
             current instanceof MemberReferenceExpression &&
             parent instanceof InvocationExpression &&
+            !(parent.getParent() instanceof ExpressionStatement) &&
             StringUtilities.equals(((MemberReferenceExpression) current).getMemberName(), "toString") &&
             ((InvocationExpression) parent).getArguments().isEmpty()) {
 

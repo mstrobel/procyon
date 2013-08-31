@@ -25,7 +25,7 @@ import com.strobel.util.ContractUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.strobel.core.CollectionUtilities.any;
+import static com.strobel.core.CollectionUtilities.*;
 
 public final class PatternMatching {
     private PatternMatching() {
@@ -220,7 +220,7 @@ public final class PatternMatching {
         if (body.size() == 2 &&
             body.get(0) instanceof Label &&
             match(body.get(1), AstCode.Goto) &&
-            ((Expression)body.get(1)).getOperand() == label) {
+            ((Expression) body.get(1)).getOperand() == label) {
 
             return true;
         }
@@ -228,29 +228,106 @@ public final class PatternMatching {
         return false;
     }
 
-    public static boolean matchAssignAndConditionalBreak(
+    public static boolean matchAssignmentAndConditionalBreak(
         final BasicBlock block,
-        final StrongBox<Variable> variable,
         final StrongBox<Expression> assignedValue,
         final StrongBox<Expression> condition,
         final StrongBox<Label> trueLabel,
-        final StrongBox<Label> falseLabel) {
+        final StrongBox<Label> falseLabel,
+        final StrongBox<Expression> equivalentLoad) {
 
         final List<Node> body = block.getBody();
 
-        if (body.size() == 4 &&
+        if (body.size() >= 4 &&
             body.get(0) instanceof Label &&
-            matchStore(body.get(1), variable, assignedValue) &&
+            body.get(body.size() - 3) instanceof Expression &&
             matchLastAndBreak(block, AstCode.IfTrue, trueLabel, condition, falseLabel)) {
 
-            return true;
+            final Expression e = (Expression) body.get(body.size() - 3);
+
+            if (match(e, AstCode.Store)) {
+                assignedValue.set(e.getArguments().get(0));
+                equivalentLoad.set(new Expression(AstCode.Load, e.getOperand()));
+                return true;
+            }
+
+            if (match(e, AstCode.PutStatic)) {
+                assignedValue.set(e.getArguments().get(0));
+                equivalentLoad.set(new Expression(AstCode.GetStatic, e.getOperand()));
+                return true;
+            }
+
+            if (match(e, AstCode.StoreElement)) {
+                assignedValue.set(e.getArguments().get(2));
+                equivalentLoad.set(new Expression(AstCode.LoadElement, null, e.getArguments().get(0).clone(), e.getArguments().get(1).clone()));
+                return true;
+            }
+
+            if (match(e, AstCode.PutField)) {
+                assignedValue.set(e.getArguments().get(1));
+                equivalentLoad.set(new Expression(AstCode.GetField, null, e.getArguments().get(0).clone()));
+                return true;
+            }
+
         }
 
-        variable.set(null);
         assignedValue.set(null);
         condition.set(null);
         trueLabel.set(null);
         falseLabel.set(null);
+        return false;
+    }
+
+    public static boolean matchAssignment(final Node node, final StrongBox<Expression> assignedValue) {
+        if (match(node, AstCode.Store) || match(node, AstCode.PutStatic)) {
+            assignedValue.set(((Expression) node).getArguments().get(0));
+            return true;
+        }
+
+        if (match(node, AstCode.StoreElement)) {
+            assignedValue.set(((Expression) node).getArguments().get(2));
+            return true;
+        }
+
+        if (match(node, AstCode.PutField)) {
+            assignedValue.set(((Expression) node).getArguments().get(1));
+            return true;
+        }
+
+        assignedValue.set(null);
+        return false;
+    }
+
+    public static boolean matchAssignment(final Node node, final StrongBox<Expression> assignedValue, final StrongBox<Expression> equivalentLoad) {
+        if (node instanceof Expression) {
+            final Expression e = (Expression) node;
+
+            if (match(e, AstCode.Store)) {
+                assignedValue.set(e.getArguments().get(0));
+                equivalentLoad.set(new Expression(AstCode.Load, e.getOperand()));
+                return true;
+            }
+
+            if (match(e, AstCode.PutStatic)) {
+                assignedValue.set(e.getArguments().get(0));
+                equivalentLoad.set(new Expression(AstCode.GetStatic, e.getOperand()));
+                return true;
+            }
+
+            if (match(e, AstCode.StoreElement)) {
+                assignedValue.set(e.getArguments().get(2));
+                equivalentLoad.set(new Expression(AstCode.LoadElement, null, e.getArguments().get(0).clone(), e.getArguments().get(1).clone()));
+                return true;
+            }
+
+            if (match(e, AstCode.PutField)) {
+                assignedValue.set(e.getArguments().get(1));
+                equivalentLoad.set(new Expression(AstCode.GetField, e.getOperand(), e.getArguments().get(0).clone()));
+                return true;
+            }
+        }
+
+        assignedValue.set(null);
         return false;
     }
 

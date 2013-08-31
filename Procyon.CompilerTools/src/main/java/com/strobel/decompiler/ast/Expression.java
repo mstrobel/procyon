@@ -28,6 +28,7 @@ import com.strobel.componentmodel.UserDataStore;
 import com.strobel.componentmodel.UserDataStoreBase;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Comparer;
+import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
@@ -288,6 +289,57 @@ public final class Expression extends Node implements Cloneable, UserDataStore {
         }
 
         return clone;
+    }
+
+    public boolean isEquivalentTo(final Expression e) {
+        if (e == null || _code != e._code) {
+            return false;
+        }
+
+        if (_operand instanceof FieldReference) {
+            if (!(e._operand instanceof FieldReference)) {
+                return false;
+            }
+
+            final FieldReference f1 = (FieldReference) _operand;
+            final FieldReference f2 = (FieldReference) e._operand;
+
+            if (!StringUtilities.equals(f1.getFullName(), f2.getFullName())) {
+                return false;
+            }
+        }
+        else if (_operand instanceof MethodReference) {
+            if (!(e._operand instanceof MethodReference)) {
+                return false;
+            }
+
+            final MethodReference f1 = (MethodReference) _operand;
+            final MethodReference f2 = (MethodReference) e._operand;
+
+            if (!StringUtilities.equals(f1.getFullName(), f2.getFullName()) ||
+                !StringUtilities.equals(f1.getErasedSignature(), f2.getErasedSignature())) {
+
+                return false;
+            }
+        }
+        else if (!Comparer.equals(e._operand, _operand)) {
+            return false;
+        }
+
+        if (_arguments.size() != e._arguments.size()) {
+            return false;
+        }
+
+        for (int i = 0, n = _arguments.size(); i < n; i++) {
+            final Expression a1 = _arguments.get(i);
+            final Expression a2 = e._arguments.get(i);
+
+            if (!a1.isEquivalentTo(a2)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     @Override

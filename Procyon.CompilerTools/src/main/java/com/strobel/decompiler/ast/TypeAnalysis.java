@@ -68,7 +68,6 @@ public final class TypeAnalysis {
     private boolean _preserveMetadataGenericTypes;
     private Stack<Expression> _stack = new Stack<>();
     private boolean _doneInitializing;
-    private int _numberOfExpressionsAlreadyInferred;
 
     public static void run(final DecompilerContext context, final Block method) {
         final TypeAnalysis ta = new TypeAnalysis();
@@ -335,7 +334,8 @@ public final class TypeAnalysis {
     private void runInference() {
         _previouslyInferred.clear();
         _inferredVariableTypes.clear();
-        _numberOfExpressionsAlreadyInferred = 0;
+
+        int numberOfExpressionsAlreadyInferred = 0;
 
         //
         // Two flags that allow resolving cycles:
@@ -351,8 +351,8 @@ public final class TypeAnalysis {
             }
         };
 
-        while (_numberOfExpressionsAlreadyInferred < _allExpressions.size()) {
-            final int oldCount = _numberOfExpressionsAlreadyInferred;
+        while (numberOfExpressionsAlreadyInferred < _allExpressions.size()) {
+            final int oldCount = numberOfExpressionsAlreadyInferred;
 
             for (final ExpressionToInfer e : _allExpressions) {
                 if (!e.done &&
@@ -361,11 +361,11 @@ public final class TypeAnalysis {
 
                     runInference(e.expression);
                     e.done = true;
-                    _numberOfExpressionsAlreadyInferred++;
+                    numberOfExpressionsAlreadyInferred++;
                 }
             }
 
-            if (_numberOfExpressionsAlreadyInferred == oldCount) {
+            if (numberOfExpressionsAlreadyInferred == oldCount) {
                 if (ignoreSingleLoadDependencies) {
                     if (assignVariableTypesBasedOnPartialInformation) {
                         throw new IllegalStateException("Could not infer any expression.");
@@ -574,11 +574,8 @@ public final class TypeAnalysis {
 
             final TypeReference parameterType = parameter.getParameterType();
 
-            if (parameterType.isGenericType() || MetadataHelper.isRawType(parameterType)) {
-                return !_preserveMetadataGenericTypes;
-            }
-
-            return false;
+            return !_preserveMetadataGenericTypes &&
+                   (parameterType.isGenericType() || MetadataHelper.isRawType(parameterType));
         }
 
         //noinspection RedundantIfStatement
@@ -687,10 +684,6 @@ public final class TypeAnalysis {
         final TypeReference inferredType = _inferredVariableTypes.get(variable);
 
         for (final ExpressionToInfer e : _allExpressions) {
-            if (_stack.contains(e.expression)) {
-                continue;
-            }
-
             if (e.expression != expression &&
                 (e.dependencies.contains(variable) ||
                  assignments.contains(e))) {
@@ -854,6 +847,7 @@ public final class TypeAnalysis {
                     TypeReference result = inferredType;
 
                     if (expectedType != null &&
+                        expectedType != BuiltinTypes.Null &&
                         shouldInferVariableType(v)) {
 
                         TypeReference tempResult;
@@ -1630,7 +1624,7 @@ public final class TypeAnalysis {
                     TypeReference inferredReturnType = null;
 
                     if (forceInferChildren) {
-                        for (int i = 0, n = argumentCount; i < n; i++) {
+                        for (int i = 0; i < argumentCount; i++) {
                             final Expression argument = arguments.get(i);
 
                             inferTypeForExpression(
@@ -1876,11 +1870,15 @@ public final class TypeAnalysis {
             }
 
             default: {
-                if (left.getExpectedType() == BuiltinTypes.Boolean) {
+                if (left.getExpectedType() == BuiltinTypes.Boolean ||
+                    left.getExpectedType() == null && matchBooleanConstant(left) != null) {
+
                     left.setExpectedType(BuiltinTypes.Integer);
                 }
 
-                if (right.getExpectedType() == BuiltinTypes.Boolean) {
+                if (right.getExpectedType() == BuiltinTypes.Boolean ||
+                    right.getExpectedType() == null && matchBooleanConstant(right) != null) {
+
                     right.setExpectedType(BuiltinTypes.Integer);
                 }
 
@@ -2096,20 +2094,18 @@ public final class TypeAnalysis {
 
                 inferredMappings.clear();
 
-                final Map<TypeReference, TypeReference> argumentMappings = inferredMappings;
-
-                new AddMappingsForArgumentVisitor(resultMethod.getReturnType()).visit(actualMethod.getReturnType(), argumentMappings);
+                new AddMappingsForArgumentVisitor(resultMethod.getReturnType()).visit(actualMethod.getReturnType(), inferredMappings);
 
                 final List<ParameterDefinition> ap = actualMethod.getParameters();
                 final List<ParameterDefinition> rp = resultMethod.getParameters();
 
                 if (ap.size() == rp.size()) {
                     for (int i = 0, n = ap.size(); i < n; i++) {
-                        new AddMappingsForArgumentVisitor(rp.get(i).getParameterType()).visit(ap.get(i).getParameterType(), argumentMappings);
+                        new AddMappingsForArgumentVisitor(rp.get(i).getParameterType()).visit(ap.get(i).getParameterType(), inferredMappings);
                     }
                 }
 
-                final TypeReference resolvedTargetType = TypeSubstitutionVisitor.instance().visit(declaringType, argumentMappings);
+                final TypeReference resolvedTargetType = TypeSubstitutionVisitor.instance().visit(declaringType, inferredMappings);
 
                 if (resolvedTargetType != null) {
                     inferTypeForExpression(

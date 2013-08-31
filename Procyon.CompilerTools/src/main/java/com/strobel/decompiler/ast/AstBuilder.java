@@ -190,25 +190,14 @@ public final class AstBuilder {
                 }
 
                 p.setOpCode(OpCode.NOP);
-                p.setOperand(OpCode.NOP);
+                p.setOperand(null);
+
                 _removed.add(p);
             }
 
-            for (int i = 0; i < handlers.size(); i++) {
-                final ExceptionHandler handler = handlers.get(i);
-
+            for (final ExceptionHandler handler : subroutine.containedHandlers) {
                 if (originalHandlers.contains(handler)) {
-                    final InstructionBlock tryBlock = handler.getTryBlock();
-                    final InstructionBlock handlerBlock = handler.getHandlerBlock();
-
-                    final Set<ControlFlowNode> tryNodes = findDominatedNodes(subroutine.cfg, findNode(subroutine.cfg, tryBlock.getFirstInstruction()));
-                    final Set<ControlFlowNode> handlerNodes = findDominatedNodes(subroutine.cfg, findNode(subroutine.cfg, handlerBlock.getFirstInstruction()));
-
-                    if (subroutine.contents.containsAll(tryNodes) &&
-                        subroutine.contents.containsAll(handlerNodes)) {
-
-                        handlers.remove(i--);
-                    }
+                    handlers.remove(handler);
                 }
             }
         }
@@ -651,10 +640,6 @@ public final class AstBuilder {
         }
 
         return null;
-    }
-
-    private static Set<ControlFlowNode> findDominatedNodes(final ControlFlowGraph cfg, final ControlFlowNode head) {
-        return findDominatedNodes(cfg, head, false, Collections.<ControlFlowNode>emptySet());
     }
 
     private static Set<ControlFlowNode> findDominatedNodes(
@@ -3913,7 +3898,6 @@ public final class AstBuilder {
         private final ControlFlowGraph _cfg;
 
         private final Map<Instruction, ControlFlowNode> _nodeMap;
-        private final Set<ExceptionHandler> _finallyHandlers = new LinkedHashSet<>();
         private final Map<ExceptionHandler, HandlerInfo> _handlerMap = new IdentityHashMap<>();
         private final Set<ControlFlowNode> _processedNodes = new LinkedHashSet<>();
         private final Set<ControlFlowNode> _allFinallyNodes = new LinkedHashSet<>();
@@ -4002,7 +3986,6 @@ public final class AstBuilder {
                 _handlerMap.put(handler, handlerInfo);
 
                 if (handler.isFinally()) {
-                    _finallyHandlers.add(handler);
                     _allFinallyNodes.addAll(handlerNodes);
                 }
 

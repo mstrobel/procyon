@@ -262,7 +262,7 @@ public final class ControlFlowGraph {
                     break;
 
                 case JumpToExceptionHandler:
-                    output.writeLine("color = \"gray\",");
+                    output.writeLine("color = \"gray\"");
                     break;
 
                 default:

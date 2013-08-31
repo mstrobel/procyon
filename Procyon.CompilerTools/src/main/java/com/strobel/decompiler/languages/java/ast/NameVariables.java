@@ -217,8 +217,11 @@ public class NameVariables {
     }
 
     public String getAlternativeName(final String oldVariableName) {
-        if (!_typeNames.containsKey(oldVariableName)) {
-            _typeNames.put(oldVariableName, 1);
+        final IntegerBox number = new IntegerBox();
+        final String nameWithoutDigits = splitName(oldVariableName, number);
+
+        if (!_typeNames.containsKey(nameWithoutDigits) && !JavaOutputVisitor.isKeyword(oldVariableName)) {
+            _typeNames.put(nameWithoutDigits, Math.min(number.value, 1));
             return oldVariableName;
         }
 
@@ -236,9 +239,6 @@ public class NameVariables {
             }
         }
 
-        final IntegerBox number = new IntegerBox();
-        final String nameWithoutDigits = splitName(oldVariableName, number);
-
         if (!_typeNames.containsKey(nameWithoutDigits)) {
             _typeNames.put(nameWithoutDigits, number.value - 1);
         }
@@ -247,7 +247,7 @@ public class NameVariables {
 
         _typeNames.put(nameWithoutDigits, count);
 
-        if (count != 1) {
+        if (count != 1 || JavaOutputVisitor.isKeyword(nameWithoutDigits)) {
             return nameWithoutDigits + count;
         }
         else {
