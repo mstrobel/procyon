@@ -1,5 +1,5 @@
 /*
- * PrimitiveTypeNode.java
+ * TypedPrimitiveValueNode.java
  *
  * Copyright (c) 2013 Mike Strobel
  *

@@ -1,5 +1,5 @@
 /*
- * PushNegationTransform.java
+ * SimplifyAssignmentsTransform.java
  *
  * Copyright (c) 2013 Mike Strobel
  *

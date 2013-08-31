@@ -13,6 +13,7 @@
  *
  * You must not remove this notice, or any other, from this software.
  */
+
 package com.strobel.decompiler.languages.java;
 
 @SuppressWarnings("PublicField")

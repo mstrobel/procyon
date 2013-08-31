@@ -1,5 +1,5 @@
 /*
- * RegexNode.java
+ * IdentifierExpressionRegexNode.java
  *
  * Copyright (c) 2013 Mike Strobel
  *

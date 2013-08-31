@@ -1,5 +1,5 @@
 /*
- * VariableDeclarationBackReference.java
+ * DeclaredVariableBackReference.java
  *
  * Copyright (c) 2013 Mike Strobel
  *

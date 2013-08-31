@@ -1,5 +1,5 @@
 /*
- * ExceptionBlock.java
+ * InstructionBlock.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
