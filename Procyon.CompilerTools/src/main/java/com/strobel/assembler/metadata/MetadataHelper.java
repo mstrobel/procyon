@@ -2472,7 +2472,15 @@ public final class MetadataHelper {
                 return null;
             }
 
-            final Map<TypeReference, TypeReference> mappings = adapt(base, t);
+            Map<TypeReference, TypeReference> mappings;
+
+            try {
+                mappings = adapt(base, t);
+            }
+            catch (AdaptFailure ignored) {
+                mappings = getGenericSubTypeMappings(t, base);
+            }
+
             final TypeReference result = substituteGenericArguments(s, mappings);
 
             if (!isSubType(result, t)) {
