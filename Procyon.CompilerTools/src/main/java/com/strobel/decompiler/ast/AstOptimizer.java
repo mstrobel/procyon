@@ -1689,9 +1689,9 @@ public final class AstOptimizer {
             final StrongBox<Label> falseLabel = new StrongBox<>();
 
             if (matchLastAndBreak(head, AstCode.IfTrue, trueLabel, condition, falseLabel)) {
-                final StrongBox<Variable> variable = new StrongBox<>();
                 final StrongBox<Variable> sourceVariable = new StrongBox<>();
                 final StrongBox<Expression> assignedValue = new StrongBox<>();
+                final StrongBox<Expression> equivalentLoad = new StrongBox<>();
                 final StrongBox<Expression> left = new StrongBox<>();
                 final StrongBox<Expression> right = new StrongBox<>();
 
@@ -1700,33 +1700,45 @@ public final class AstOptimizer {
                 final BasicBlock thenSuccessor = labelToBasicBlock.get(thenLabel);
                 final BasicBlock elseSuccessor = labelToBasicBlock.get(elseLabel);
 
-                if (matchAssignAndConditionalBreak(elseSuccessor, variable, assignedValue, condition, trueLabel, falseLabel) &&
+                boolean modified = false;
+
+                if (matchAssignmentAndConditionalBreak(elseSuccessor, assignedValue, condition, trueLabel, falseLabel, equivalentLoad) &&
                     matchLoad(assignedValue.value, sourceVariable) &&
                     matchComparison(condition.value, left, right)) {
 
+                    final List<Node> b = elseSuccessor.getBody();
+
                     if (matchLoad(left.value, sourceVariable.value)) {
-                        condition.value.getArguments().set(0, (Expression) elseSuccessor.getBody().get(1));
-                        elseSuccessor.getBody().remove(1);
+                        condition.value.getArguments().set(0, (Expression) b.get(b.size() - 3));
+                        b.remove(b.size() - 3);
+                        modified = true;
                     }
-                    else if (matchLoad(right.value, sourceVariable.value) && !references(left.value, variable.value)) {
-                        condition.value.getArguments().set(1, (Expression) elseSuccessor.getBody().get(1));
-                        elseSuccessor.getBody().remove(1);
+                    else if (matchLoad(right.value, sourceVariable.value) && !containsMatch(left.value, equivalentLoad.value)) {
+                        condition.value.getArguments().set(1, (Expression) b.get(b.size() - 3));
+                        b.remove(b.size() - 3);
+                        modified = true;
                     }
                 }
 
-                if (matchAssignAndConditionalBreak(thenSuccessor, variable, assignedValue, condition, trueLabel, falseLabel) &&
+                if (matchAssignmentAndConditionalBreak(thenSuccessor, assignedValue, condition, trueLabel, falseLabel, equivalentLoad) &&
                     matchLoad(assignedValue.value, sourceVariable) &&
                     matchComparison(condition.value, left, right)) {
 
+                    final List<Node> b = thenSuccessor.getBody();
+
                     if (matchLoad(left.value, sourceVariable.value)) {
-                        condition.value.getArguments().set(0, (Expression) thenSuccessor.getBody().get(1));
-                        thenSuccessor.getBody().remove(1);
+                        condition.value.getArguments().set(0, (Expression) b.get(b.size() - 3));
+                        b.remove(b.size() - 3);
+                        modified = true;
                     }
-                    else if (matchLoad(right.value, sourceVariable.value) && !references(left.value, variable.value)) {
-                        condition.value.getArguments().set(1, (Expression) thenSuccessor.getBody().get(1));
-                        thenSuccessor.getBody().remove(1);
+                    else if (matchLoad(right.value, sourceVariable.value) && !containsMatch(left.value, equivalentLoad.value)) {
+                        condition.value.getArguments().set(1, (Expression) b.get(b.size() - 3));
+                        b.remove(b.size() - 3);
+                        modified = true;
                     }
                 }
+
+                return modified;
             }
 
             return false;
@@ -2061,7 +2073,13 @@ public final class AstOptimizer {
                         if (matchSingleAndBreak(labelToBasicBlock.get(innerTrue.value), AstCode.Store, trueVariable, innerTrueExpression, trueBreak) &&
                             (matchSingleAndBreak(labelToBasicBlock.get(falseFall.value), AstCode.Store, falseVariable, innerFalseExpression, falseBreak) ||
                              (matchSimpleBreak(labelToBasicBlock.get(falseFall.value), intermediateJump) &&
-                              matchSingleAndBreak(labelToBasicBlock.get(intermediateJump.value), AstCode.Store, falseVariable, innerFalseExpression, falseBreak))) &&
+                              matchSingleAndBreak(
+                                  labelToBasicBlock.get(intermediateJump.value),
+                                  AstCode.Store,
+                                  falseVariable,
+                                  innerFalseExpression,
+                                  falseBreak
+                              ))) &&
                             trueVariable.value == falseVariable.value &&
                             trueBreak.value == falseBreak.value) {
 
@@ -2314,32 +2332,6 @@ public final class AstOptimizer {
                     body.remove(position + 1);
 
                     return true;
-                }
-                else if (v.get().isGenerated()) {
-                    int i = position + 1;
-
-                    while (++i < body.size()) {
-                        final Node current = body.get(i);
-
-                        //
-                        // If we have extraneous expressions between the New and InvokeSpecial operations,
-                        // but none of the intermediate expressions touch the uninitialized object, we can
-                        // safely inline the New assignment.
-                        //
-
-                        if (matchGetArguments(current, AstCode.InvokeSpecial, constructor, arguments) &&
-                            matchLoad(arguments.get(0), v.get()) &&
-                            i - position > arguments.size() - 1) {
-
-                            body.remove(position);
-                            ((Expression) current).getArguments().set(0, head);
-
-                            return true;
-                        }
-                        else if (references(current, v.get())) {
-                            break;
-                        }
-                    }
                 }
             }
 
@@ -2616,10 +2608,8 @@ public final class AstOptimizer {
             final StrongBox<Expression> initializer = new StrongBox<>();
 
             final Node next = getOrDefault(body, position + 1);
-            final StrongBox<FieldReference> field = new StrongBox<>();
             final StrongBox<Variable> v = new StrongBox<>();
             final StrongBox<Expression> storeArgument = new StrongBox<>();
-            final List<Expression> storeArguments = new ArrayList<>();
 
             if (matchGetArgument(head, AstCode.Store, ev, initializer) &&
                 !match(initializer.value, AstCode.__New)) {
@@ -2686,30 +2676,30 @@ public final class AstOptimizer {
                 return false;
             }
 
-            if ((matchGetOperand(head, AstCode.Store, v) ||
-                 (matchGetArguments(head, AstCode.PutStatic, field, storeArguments) &&
-                  matchGetOperand(storeArguments.get(0), AstCode.Load, v)) ||
-                 (matchGetArguments(head, AstCode.PutField, field, storeArguments) &&
-                  matchGetOperand(storeArguments.get(1), AstCode.Load, v))) &&
-                next instanceof Expression &&
-                countReferences(next, v.get()) == 1) {
+            final StrongBox<Expression> equivalentLoad = new StrongBox<>();
 
-                if (field.get() != null) {
-                    final FieldDefinition resolvedField = field.get().resolve();
+            if (matchAssignment(head, initializer, equivalentLoad) &&
+                next instanceof Expression) {
 
-                    if (resolvedField == null || resolvedField.isSynthetic()) {
+                if (equivalentLoad.get().getCode() == AstCode.GetField) {
+                    final FieldReference field = (FieldReference) equivalentLoad.get().getOperand();
+                    final FieldDefinition resolvedField = field != null ? field.resolve() : null;
+
+                    if (resolvedField != null && resolvedField.isSynthetic()) {
                         return false;
                     }
                 }
 
+                final boolean isLoad = matchLoad(initializer.value, v);
                 final ArrayDeque<Expression> agenda = new ArrayDeque<>();
 
                 agenda.push((Expression) next);
 
+            processNext:
                 while (!agenda.isEmpty()) {
                     final Expression e = agenda.removeFirst();
 
-                    if (e.getCode().isShortCircuiting()) {
+                    if (e.getCode().isShortCircuiting() || e.getCode() == AstCode.Store) {
                         break;
                     }
 
@@ -2718,10 +2708,17 @@ public final class AstOptimizer {
                     for (int i = 0; i < arguments.size(); i++) {
                         final Expression a = arguments.get(i);
 
-                        if (matchLoad(a, v.get())) {
+                        if (a.isEquivalentTo(equivalentLoad.value) ||
+                            isLoad && matchLoad(a, v.get()) ||
+                            Inlining.hasNoSideEffect(initializer.get()) && a.isEquivalentTo(initializer.get())) {
+
                             arguments.set(i, head);
                             body.remove(position);
                             return true;
+                        }
+
+                        if (!Inlining.isSafeForInlineOver(a, head)) {
+                            break processNext;
                         }
 
                         agenda.push(a);
@@ -3801,6 +3798,15 @@ public final class AstOptimizer {
         }
 
         return references;
+    }
+
+    private static boolean containsMatch(final Node node, final Expression pattern) {
+        for (final Expression e : node.getSelfAndChildrenRecursive(Expression.class)) {
+            if (e.isEquivalentTo(pattern)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // </editor-fold>

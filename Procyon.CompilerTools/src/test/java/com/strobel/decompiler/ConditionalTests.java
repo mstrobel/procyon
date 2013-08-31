@@ -141,6 +141,241 @@ public class ConditionalTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("ConstantConditions")
+    private static class F {
+        private boolean c;
+
+        public boolean test1(final boolean a, final boolean b) {
+            System.out.println((b && a == (this.c = b) && b) || !this.c);
+            return this.c;
+        }
+
+        public boolean test2(final boolean a, final boolean b) {
+            System.out.println((b && a == (this.c = b)) || !this.c);
+            return this.c;
+        }
+
+        public boolean test3(final boolean a, final boolean b) {
+            System.out.println((b && a) || (this.c = b) || !this.c);
+            return this.c;
+        }
+
+        public boolean test4(final boolean a, final boolean b) {
+            System.out.println((b && (this.c = a)) || !this.c);
+            return this.c;
+        }
+
+        public boolean test5(final boolean a, final boolean b) {
+            System.out.println(b || (this.c = a) || !this.c);
+            return this.c;
+        }
+
+        public boolean test6(final boolean a, final boolean b) {
+            System.out.println(b && (this.c = a));
+            return this.c;
+        }
+
+        public boolean test7(final boolean a, final boolean b) {
+            System.out.println(b || (this.c = a));
+            return this.c;
+        }
+
+        public boolean test8(final boolean a, final boolean b) {
+            System.out.println(b && a == (this.c = b) && b && this.c);
+            return this.c;
+        }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private static class G {
+        private static boolean c;
+
+        public boolean test1(final boolean a, final boolean b) {
+            System.out.println((b && a == (G.c = b) && b) || !G.c);
+            return G.c;
+        }
+
+        public boolean test2(final boolean a, final boolean b) {
+            System.out.println((b && a == (G.c = b)) || !G.c);
+            return G.c;
+        }
+
+        public boolean test3(final boolean a, final boolean b) {
+            System.out.println((b && a) || (G.c = b) || !G.c);
+            return G.c;
+        }
+
+        public boolean test4(final boolean a, final boolean b) {
+            System.out.println((b && (G.c = a)) || !G.c);
+            return G.c;
+        }
+
+        public boolean test5(final boolean a, final boolean b) {
+            System.out.println(b || (G.c = a) || !G.c);
+            return G.c;
+        }
+
+        public boolean test6(final boolean a, final boolean b) {
+            System.out.println(b && (G.c = a));
+            return G.c;
+        }
+
+        public boolean test7(final boolean a, final boolean b) {
+            System.out.println(b || (G.c = a));
+            return G.c;
+        }
+
+        public boolean test8(final boolean a, final boolean b) {
+            System.out.println(b && a == (G.c = b) && b && G.c);
+            return G.c;
+        }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private static class H {
+        public boolean test1(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println((b && a == (c[0] = b) && b) || !c[0]);
+            return c[0];
+        }
+
+        public boolean test2(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println((b && a == (c[0] = b)) || !c[0]);
+            return c[0];
+        }
+
+        public boolean test3(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println((b && a) || (c[0] = b) || !c[0]);
+            return c[0];
+        }
+
+        public boolean test4(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println((b && (c[0] = a)) || !c[0]);
+            return c[0];
+        }
+
+        public boolean test5(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println(b || (c[0] = a) || !c[0]);
+            return c[0];
+        }
+
+        public boolean test6(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println(b && (c[0] = a));
+            return c[0];
+        }
+
+        public boolean test7(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println(b || (c[0] = a));
+            return c[0];
+        }
+
+        public boolean test8(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println(b && a == (c[0] = b) && b && c[0]);
+            return c[0];
+        }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private static class I {
+        private boolean[] c;
+
+        public boolean test1(final boolean a, final boolean b) {
+            System.out.println((b && a == (this.c[0] = b) && b) || !this.c[0]);
+            return this.c[0];
+        }
+
+        public boolean test2(final boolean a, final boolean b) {
+            System.out.println((b && a == (this.c[0] = b)) || !this.c[0]);
+            return this.c[0];
+        }
+
+        public boolean test3(final boolean a, final boolean b) {
+            System.out.println((b && a) || (this.c[0] = b) || !this.c[0]);
+            return this.c[0];
+        }
+
+        public boolean test4(final boolean a, final boolean b) {
+            System.out.println((b && (this.c[0] = a)) || !this.c[0]);
+            return this.c[0];
+        }
+
+        public boolean test5(final boolean a, final boolean b) {
+            System.out.println(b || (this.c[0] = a) || !this.c[0]);
+            return this.c[0];
+        }
+
+        public boolean test6(final boolean a, final boolean b) {
+            System.out.println(b && (this.c[0] = a));
+            return this.c[0];
+        }
+
+        public boolean test7(final boolean a, final boolean b) {
+            System.out.println(b || (this.c[0] = a));
+            return this.c[0];
+        }
+
+        public boolean test8(final boolean a, final boolean b) {
+            System.out.println(b && a == (this.c[0] = b) && b && this.c[0]);
+            return this.c[0];
+        }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private static class J {
+        private static boolean[] c;
+
+        public boolean test1(final boolean a, final boolean b) {
+            System.out.println((b && a == (J.c[0] = b) && b) || !J.c[0]);
+            return J.c[0];
+        }
+
+        public boolean test2(final boolean a, final boolean b) {
+            System.out.println((b && a == (J.c[0] = b)) || !J.c[0]);
+            return J.c[0];
+        }
+
+        public boolean test3(final boolean a, final boolean b) {
+            System.out.println((b && a) || (J.c[0] = b) || !J.c[0]);
+            return J.c[0];
+        }
+
+        public boolean test4(final boolean a, final boolean b) {
+            System.out.println((b && (J.c[0] = a)) || !J.c[0]);
+            return J.c[0];
+        }
+
+        public boolean test5(final boolean a, final boolean b) {
+            System.out.println(b || (J.c[0] = a) || !J.c[0]);
+            return J.c[0];
+        }
+
+        public boolean test6(final boolean a, final boolean b) {
+            System.out.println(b && (J.c[0] = a));
+            return J.c[0];
+        }
+
+        public boolean test7(final boolean a, final boolean b) {
+            System.out.println(b || (J.c[0] = a));
+            return J.c[0];
+        }
+
+        public boolean test8(final boolean a, final boolean b) {
+            System.out.println(b && a == (J.c[0] = b) && b && J.c[0]);
+            return J.c[0];
+        }
+    }
+
+    private static class K {
+        public boolean test1(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println((a && c[0] == (c[0] = b) && b) || !c[0]);
+            return c[0];
+        }
+
+        public boolean test2(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println((b && a == (c[0] = !c[0])) || !c[0]);
+            return c[0];
+        }
+    }
+
     @Test
     public void testComplexIfElse() throws Throwable {
         verifyOutput(
@@ -286,6 +521,237 @@ public class ConditionalTests extends DecompilerTest {
             "        return c;\n" +
             "    }\n" +
             "}"
+        );
+    }
+
+    @Test
+    public void testShortCircuitEmbeddedInstanceFieldAssignments() throws Throwable {
+        verifyOutput(
+            F.class,
+            defaultSettings(),
+            "private static class F {\n" +
+            "    private boolean c;\n" +
+            "    public boolean test1(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a == (this.c = b) && b) || !this.c);\n" +
+            "        return this.c;\n" +
+            "    }\n" +
+            "    public boolean test2(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a == (this.c = b)) || !this.c);\n" +
+            "        return this.c;\n" +
+            "    }\n" +
+            "    public boolean test3(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a) || (this.c = b) || !this.c);\n" +
+            "        return this.c;\n" +
+            "    }\n" +
+            "    public boolean test4(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && (this.c = a)) || !this.c);\n" +
+            "        return this.c;\n" +
+            "    }\n" +
+            "    public boolean test5(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b || (this.c = a) || !this.c);\n" +
+            "        return this.c;\n" +
+            "    }\n" +
+            "    public boolean test6(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b && (this.c = a));\n" +
+            "        return this.c;\n" +
+            "    }\n" +
+            "    public boolean test7(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b || (this.c = a));\n" +
+            "        return this.c;\n" +
+            "    }\n" +
+            "    public boolean test8(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b && a == (this.c = b) && b && this.c);\n" +
+            "        return this.c;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testShortCircuitEmbeddedStaticFieldAssignments() throws Throwable {
+        verifyOutput(
+            G.class,
+            defaultSettings(),
+            "private static class G {\n" +
+            "    private static boolean c;\n" +
+            "    public boolean test1(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a == (G.c = b) && b) || !G.c);\n" +
+            "        return G.c;\n" +
+            "    }\n" +
+            "    public boolean test2(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a == (G.c = b)) || !G.c);\n" +
+            "        return G.c;\n" +
+            "    }\n" +
+            "    public boolean test3(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a) || (G.c = b) || !G.c);\n" +
+            "        return G.c;\n" +
+            "    }\n" +
+            "    public boolean test4(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && (G.c = a)) || !G.c);\n" +
+            "        return G.c;\n" +
+            "    }\n" +
+            "    public boolean test5(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b || (G.c = a) || !G.c);\n" +
+            "        return G.c;\n" +
+            "    }\n" +
+            "    public boolean test6(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b && (G.c = a));\n" +
+            "        return G.c;\n" +
+            "    }\n" +
+            "    public boolean test7(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b || (G.c = a));\n" +
+            "        return G.c;\n" +
+            "    }\n" +
+            "    public boolean test8(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b && a == (G.c = b) && b && G.c);\n" +
+            "        return G.c;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testShortCircuitEmbeddedArrayAssignments() throws Throwable {
+        verifyOutput(
+            H.class,
+            defaultSettings(),
+            "private static class H {\n" +
+            "    public boolean test1(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println((b && a == (c[0] = b) && b) || !c[0]);\n" +
+            "        return c[0];\n" +
+            "    }\n" +
+            "    public boolean test2(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println((b && a == (c[0] = b)) || !c[0]);\n" +
+            "        return c[0];\n" +
+            "    }\n" +
+            "    public boolean test3(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println((b && a) || (c[0] = b) || !c[0]);\n" +
+            "        return c[0];\n" +
+            "    }\n" +
+            "    public boolean test4(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println((b && (c[0] = a)) || !c[0]);\n" +
+            "        return c[0];\n" +
+            "    }\n" +
+            "    public boolean test5(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println(b || (c[0] = a) || !c[0]);\n" +
+            "        return c[0];\n" +
+            "    }\n" +
+            "    public boolean test6(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println(b && (c[0] = a));\n" +
+            "        return c[0];\n" +
+            "    }\n" +
+            "    public boolean test7(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println(b || (c[0] = a));\n" +
+            "        return c[0];\n" +
+            "    }\n" +
+            "    public boolean test8(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println(b && a == (c[0] = b) && b && c[0]);\n" +
+            "        return c[0];\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testShortCircuitEmbeddedInstanceArrayAssignments() throws Throwable {
+        verifyOutput(
+            I.class,
+            defaultSettings(),
+            "private static class I {\n" +
+            "    private boolean[] c;\n" +
+            "    public boolean test1(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a == (this.c[0] = b) && b) || !this.c[0]);\n" +
+            "        return this.c[0];\n" +
+            "    }\n" +
+            "    public boolean test2(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a == (this.c[0] = b)) || !this.c[0]);\n" +
+            "        return this.c[0];\n" +
+            "    }\n" +
+            "    public boolean test3(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a) || (this.c[0] = b) || !this.c[0]);\n" +
+            "        return this.c[0];\n" +
+            "    }\n" +
+            "    public boolean test4(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && (this.c[0] = a)) || !this.c[0]);\n" +
+            "        return this.c[0];\n" +
+            "    }\n" +
+            "    public boolean test5(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b || (this.c[0] = a) || !this.c[0]);\n" +
+            "        return this.c[0];\n" +
+            "    }\n" +
+            "    public boolean test6(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b && (this.c[0] = a));\n" +
+            "        return this.c[0];\n" +
+            "    }\n" +
+            "    public boolean test7(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b || (this.c[0] = a));\n" +
+            "        return this.c[0];\n" +
+            "    }\n" +
+            "    public boolean test8(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b && a == (this.c[0] = b) && b && this.c[0]);\n" +
+            "        return this.c[0];\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testShortCircuitEmbeddedStaticArrayAssignments() throws Throwable {
+        verifyOutput(
+            J.class,
+            defaultSettings(),
+            "private static class J {\n" +
+            "    private static boolean[] c;\n" +
+            "    public boolean test1(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a == (J.c[0] = b) && b) || !J.c[0]);\n" +
+            "        return J.c[0];\n" +
+            "    }\n" +
+            "    public boolean test2(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a == (J.c[0] = b)) || !J.c[0]);\n" +
+            "        return J.c[0];\n" +
+            "    }\n" +
+            "    public boolean test3(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && a) || (J.c[0] = b) || !J.c[0]);\n" +
+            "        return J.c[0];\n" +
+            "    }\n" +
+            "    public boolean test4(final boolean a, final boolean b) {\n" +
+            "        System.out.println((b && (J.c[0] = a)) || !J.c[0]);\n" +
+            "        return J.c[0];\n" +
+            "    }\n" +
+            "    public boolean test5(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b || (J.c[0] = a) || !J.c[0]);\n" +
+            "        return J.c[0];\n" +
+            "    }\n" +
+            "    public boolean test6(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b && (J.c[0] = a));\n" +
+            "        return J.c[0];\n" +
+            "    }\n" +
+            "    public boolean test7(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b || (J.c[0] = a));\n" +
+            "        return J.c[0];\n" +
+            "    }\n" +
+            "    public boolean test8(final boolean a, final boolean b) {\n" +
+            "        System.out.println(b && a == (J.c[0] = b) && b && J.c[0]);\n" +
+            "        return J.c[0];\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+    @Test
+    public void testShortCircuitEmbeddedSelfReferencingArrayAssignments() throws Throwable {
+        verifyOutput(
+            K.class,
+            defaultSettings(),
+            "private static class K {\n" +
+            "    public boolean test1(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println((a && c[0] == (c[0] = b) && b) || !c[0]);\n" +
+            "        return c[0];\n" +
+            "    }\n" +
+            "    public boolean test2(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println((b && a == (c[0] = !c[0])) || !c[0]);\n" +
+            "        return c[0];\n" +
+            "    }\n" +
+            "}\n"
         );
     }
 }

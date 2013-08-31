@@ -212,9 +212,9 @@ public class EnumRewriterTransform implements IAstTransform {
             final LinkedHashMap<String, FieldDeclaration> valueFields,
             final LinkedHashMap<String, ObjectCreationExpression> valueInitializers) {
 
-            assert valueFields.size() == valueInitializers.size();
+//            assert valueFields.size() == valueInitializers.size();
 
-            if (valueFields.isEmpty()) {
+            if (valueFields.isEmpty() || valueFields.size() != valueInitializers.size()) {
                 return;
             }
 

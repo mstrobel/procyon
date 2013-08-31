@@ -413,7 +413,7 @@ final class Inlining {
         return Boolean.FALSE;
     }
 
-    final boolean isSafeForInlineOver(final Expression expression, final Expression expressionBeingMoved) {
+    static boolean isSafeForInlineOver(final Expression expression, final Expression expressionBeingMoved) {
         switch (expression.getCode()) {
             case Load: {
                 final Variable loadedVariable = (Variable) expression.getOperand();
@@ -682,10 +682,31 @@ final class Inlining {
     static boolean hasNoSideEffect(final Expression expression) {
         switch (expression.getCode()) {
             case Load:
-            case LoadElement:
+//            case LoadElement:
             case AConstNull:
             case LdC:
                 return true;
+
+            case Add:
+            case Sub:
+            case Mul:
+            case Div:
+            case Rem:
+            case Shl:
+            case Shr:
+            case UShr:
+            case And:
+            case Or:
+            case Xor:
+                return hasNoSideEffect(expression.getArguments().get(0)) &&
+                       hasNoSideEffect(expression.getArguments().get(1));
+
+            case Not:
+            case Neg:
+                return hasNoSideEffect(expression.getArguments().get(0));
+
+//            case Store:
+//                return hasNoSideEffect(expression.getArguments().get(0));
 
             default:
                 return false;
