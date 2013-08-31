@@ -687,10 +687,6 @@ public final class TypeAnalysis {
         final TypeReference inferredType = _inferredVariableTypes.get(variable);
 
         for (final ExpressionToInfer e : _allExpressions) {
-            if (_stack.contains(e.expression)) {
-                continue;
-            }
-
             if (e.expression != expression &&
                 (e.dependencies.contains(variable) ||
                  assignments.contains(e))) {
@@ -1876,11 +1872,15 @@ public final class TypeAnalysis {
             }
 
             default: {
-                if (left.getExpectedType() == BuiltinTypes.Boolean) {
+                if (left.getExpectedType() == BuiltinTypes.Boolean ||
+                    left.getExpectedType() == null && matchBooleanConstant(left) != null) {
+
                     left.setExpectedType(BuiltinTypes.Integer);
                 }
 
-                if (right.getExpectedType() == BuiltinTypes.Boolean) {
+                if (right.getExpectedType() == BuiltinTypes.Boolean ||
+                    right.getExpectedType() == null && matchBooleanConstant(right) != null) {
+
                     right.setExpectedType(BuiltinTypes.Integer);
                 }
 
