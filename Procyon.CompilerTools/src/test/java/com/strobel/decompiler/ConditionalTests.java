@@ -365,6 +365,13 @@ public class ConditionalTests extends DecompilerTest {
     }
 
     private static class K {
+        private static int i;
+        private int j;
+
+        private static int index() {
+            return 0;
+        }
+
         public boolean test1(final boolean a, final boolean b, final boolean[] c) {
             System.out.println((a && c[0] == (c[0] = b) && b) || !c[0]);
             return c[0];
@@ -373,6 +380,26 @@ public class ConditionalTests extends DecompilerTest {
         public boolean test2(final boolean a, final boolean b, final boolean[] c) {
             System.out.println((b && a == (c[0] = !c[0])) || !c[0]);
             return c[0];
+        }
+
+        public boolean test3(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println((a && c[index()] == (c[index()] = b) && b) || !c[index()]);
+            return c[index()];
+        }
+
+        public boolean test4(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println((b && a == (c[index()] = !c[index()])) || !c[index()]);
+            return c[index()];
+        }
+
+        public boolean test5(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println((a && c[index() + K.i] == (c[index() + this.j] = b) && b) || !c[index() + this.j]);
+            return c[index() + K.i];
+        }
+
+        public boolean test6(final boolean a, final boolean b, final boolean[] c) {
+            System.out.println((b && a == (c[index() + K.i] = !c[index() + this.j])) || !c[index() + this.j]);
+            return c[index() + K.i];
         }
     }
 
@@ -737,12 +764,18 @@ public class ConditionalTests extends DecompilerTest {
             "}\n"
         );
     }
+
     @Test
     public void testShortCircuitEmbeddedSelfReferencingArrayAssignments() throws Throwable {
         verifyOutput(
             K.class,
             defaultSettings(),
             "private static class K {\n" +
+            "    private static int i;\n" +
+            "    private int j;\n" +
+            "    private static int index() {\n" +
+            "        return 0;\n" +
+            "    }\n" +
             "    public boolean test1(final boolean a, final boolean b, final boolean[] c) {\n" +
             "        System.out.println((a && c[0] == (c[0] = b) && b) || !c[0]);\n" +
             "        return c[0];\n" +
@@ -750,6 +783,22 @@ public class ConditionalTests extends DecompilerTest {
             "    public boolean test2(final boolean a, final boolean b, final boolean[] c) {\n" +
             "        System.out.println((b && a == (c[0] = !c[0])) || !c[0]);\n" +
             "        return c[0];\n" +
+            "    }\n" +
+            "    public boolean test3(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println((a && c[index()] == (c[index()] = b) && b) || !c[index()]);\n" +
+            "        return c[index()];\n" +
+            "    }\n" +
+            "    public boolean test4(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println((b && a == (c[index()] = !c[index()])) || !c[index()]);\n" +
+            "        return c[index()];\n" +
+            "    }\n" +
+            "    public boolean test5(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println((a && c[index() + K.i] == (c[index() + this.j] = b) && b) || !c[index() + this.j]);\n" +
+            "        return c[index() + K.i];\n" +
+            "    }\n" +
+            "    public boolean test6(final boolean a, final boolean b, final boolean[] c) {\n" +
+            "        System.out.println((b && a == (c[index() + K.i] = !c[index() + this.j])) || !c[index() + this.j]);\n" +
+            "        return c[index() + K.i];\n" +
             "    }\n" +
             "}\n"
         );
