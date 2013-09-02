@@ -815,7 +815,7 @@ public final class TypeAnalysis {
                         return BuiltinTypes.Boolean;
                     }
 
-                    if (forceInferChildren) {
+                    if (forceInferChildren || lastInferredType == null && v.getType() == null) {
                         //
                         // NOTE: Do not use 'expectedType' here!
                         //
@@ -994,7 +994,7 @@ public final class TypeAnalysis {
                         );
                     }
 
-                    return null; //getFieldType((FieldReference) operand);
+                    return getFieldType((FieldReference) operand);
                 }
 
                 case PutStatic: {
@@ -1005,7 +1005,7 @@ public final class TypeAnalysis {
                         );
                     }
 
-                    return null; //getFieldType((FieldReference) operand);
+                    return getFieldType((FieldReference) operand);
                 }
 
                 case __New: {
