@@ -401,19 +401,30 @@ public class AstMethodBodyBuilder {
 
         if (node instanceof Loop) {
             final Loop loop = (Loop) node;
-            final WhileStatement whileStatement = new WhileStatement();
+            final Statement loopStatement;
             final com.strobel.decompiler.ast.Expression loopCondition = loop.getCondition();
 
             if (loopCondition != null) {
-                whileStatement.setCondition((Expression) transformExpression(loopCondition, false));
+                if (loop.getLoopType() == LoopType.PostCondition) {
+                    final DoWhileStatement doWhileStatement = new DoWhileStatement();
+                    doWhileStatement.setCondition((Expression) transformExpression(loopCondition, false));
+                    loopStatement = doWhileStatement;
+                }
+                else {
+                    final WhileStatement whileStatement = new WhileStatement();
+                    whileStatement.setCondition((Expression) transformExpression(loopCondition, false));
+                    loopStatement = whileStatement;
+                }
             }
             else {
+                final WhileStatement whileStatement = new WhileStatement();
+                loopStatement = whileStatement;
                 whileStatement.setCondition(new PrimitiveExpression(true));
             }
 
-            whileStatement.setEmbeddedStatement(transformBlock(loop.getBody()));
+            loopStatement.setChildByRole(Roles.EMBEDDED_STATEMENT, transformBlock(loop.getBody()));
 
-            return whileStatement;
+            return loopStatement;
         }
 
         if (node instanceof Condition) {

@@ -103,16 +103,30 @@ final class GotoRemoval {
 
         visitedNodes.add(gotoExpression);
 
-        if (target == exit(gotoExpression, visitedNodes)) {
-            gotoExpression.setCode(AstCode.Nop);
-            gotoExpression.setOperand(null);
+        final boolean isRedundant = target == exit(gotoExpression, visitedNodes);
 
-            if (target instanceof Expression) {
-                ((Expression) target).getRanges().addAll(gotoExpression.getRanges());
+        if (isRedundant) {
+            final Node parent = parentLookup.get(gotoExpression);
+
+            //
+            // For now, only remove redundant goto expressions that are unlikely to be of the form
+            // `if (x) continue`.  This is an aesthetic choice.
+            //
+
+            if (!(parent instanceof Block &&
+                  ((Block) parent).getBody().size() == 1 &&
+                  parentLookup.get(parent) instanceof Condition)) {
+
+                gotoExpression.setCode(AstCode.Nop);
+                gotoExpression.setOperand(null);
+
+                if (target instanceof Expression) {
+                    ((Expression) target).getRanges().addAll(gotoExpression.getRanges());
+                }
+
+                gotoExpression.getRanges().clear();
+                return true;
             }
-
-            gotoExpression.getRanges().clear();
-            return true;
         }
 
         visitedNodes.clear();
@@ -135,6 +149,66 @@ final class GotoRemoval {
 
         visitedNodes.clear();
         visitedNodes.add(gotoExpression);
+
+        //
+        // Look for single-level `continue` statements first.
+        //
+
+        Loop continueBlock = null;
+
+        for (final Node parent : getParents(gotoExpression)) {
+            if (parent instanceof Loop) {
+                final Node enter = enter(parent, visitedNodes);
+
+                if (target == enter) {
+                    continueBlock = (Loop) parent;
+                    break;
+                }
+
+                if (enter instanceof TryCatchBlock) {
+                    final Node firstChild = firstOrDefault(enter.getChildren());
+
+                    if (firstChild != null) {
+                        visitedNodes.clear();
+                        if (enter(firstChild, visitedNodes) == target) {
+                            continueBlock = (Loop) parent;
+                            break;
+                        }
+                    }
+                }
+
+                break;
+            }
+        }
+
+        if (continueBlock != null) {
+            gotoExpression.setCode(AstCode.LoopContinue);
+            gotoExpression.setOperand(null);
+            return true;
+        }
+
+        //
+        // Remove redundant goto statements that are NOT conditional continue statements.
+        //
+
+        if (isRedundant) {
+            gotoExpression.setCode(AstCode.Nop);
+            gotoExpression.setOperand(null);
+
+            if (target instanceof Expression) {
+                ((Expression) target).getRanges().addAll(gotoExpression.getRanges());
+            }
+
+            gotoExpression.getRanges().clear();
+            return true;
+        }
+
+        visitedNodes.clear();
+        visitedNodes.add(gotoExpression);
+
+        //
+        // Now look for loop/switch break statements.
+        //
 
         int loopDepth = 0;
         int switchDepth = 0;
@@ -166,20 +240,14 @@ final class GotoRemoval {
             else if (parent instanceof Switch) {
                 ++switchDepth;
 
-                final Node nextNode = nextSibling.get(parent);
+                final Node exit = exit(parent, visitedNodes);
 
-                if (nextNode != null &&
-                    nextNode != Node.NULL &&
-                    nextNode == gotoExpression.getOperand()) {
-
+                if (target == exit) {
                     breakBlock = parent;
                     break;
                 }
             }
         }
-
-        visitedNodes.clear();
-        visitedNodes.add(gotoExpression);
 
         if (breakBlock != null) {
             gotoExpression.setCode(AstCode.LoopOrSwitchBreak);
@@ -187,8 +255,14 @@ final class GotoRemoval {
             return true;
         }
 
+        visitedNodes.clear();
+        visitedNodes.add(gotoExpression);
+
+        //
+        // Now look for outer loop continue statements.
+        //
+
         loopDepth = 0;
-        Loop continueBlock = null;
 
         for (final Node parent : getParents(gotoExpression)) {
             if (parent instanceof Loop) {
@@ -215,22 +289,18 @@ final class GotoRemoval {
             }
         }
 
-        visitedNodes.clear();
-        visitedNodes.add(gotoExpression);
-
         if (continueBlock != null) {
             gotoExpression.setCode(AstCode.LoopContinue);
             gotoExpression.setOperand(loopDepth > 1 ? gotoExpression.getOperand() : null);
             return true;
         }
 
-        if (tryInlineReturn(gotoExpression, target, AstCode.Return) ||
-            tryInlineReturn(gotoExpression, target, AstCode.AThrow)) {
+        //
+        // Lastly, try to duplicate return/throw statements at the target site.
+        //
 
-            return true;
-        }
-
-        return false;
+        return tryInlineReturn(gotoExpression, target, AstCode.Return) ||
+               tryInlineReturn(gotoExpression, target, AstCode.AThrow);
     }
 
     private boolean tryInlineReturn(final Expression gotoExpression, final Node target, final AstCode code) {
@@ -449,7 +519,7 @@ final class GotoRemoval {
         if (node instanceof Loop) {
             final Loop loop = (Loop) node;
 
-            if (loop.getCondition() != null) {
+            if (loop.getLoopType() == LoopType.PreCondition && loop.getCondition() != null) {
                 return loop.getCondition();
             }
 
@@ -565,6 +635,8 @@ final class GotoRemoval {
 
         final Set<Label> liveLabels = new LinkedHashSet<>();
         final StrongBox<Label> target = new StrongBox<>();
+
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         final Map<Label, List<Expression>> jumps = new DefaultMap<>(CollectionUtilities.<Expression>listFactory());
 
         List<TryCatchBlock> tryCatchBlocks = null;
@@ -674,7 +746,11 @@ final class GotoRemoval {
             final Block body = loop.getBody();
 
             if (matchLast(body, AstCode.LoopContinue)) {
-                body.getBody().remove(body.getBody().size() - 1);
+                final Expression last = (Expression) last(body.getBody());
+
+                if (last.getOperand() == null) {
+                    body.getBody().remove(last);
+                }
             }
         }
 

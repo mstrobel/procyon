@@ -25,10 +25,10 @@ import java.util.IdentityHashMap;
 /**
  * @author mstrobel
  */
-final class DefaultMap<K, V> extends IdentityHashMap<K, V> {
+public final class DefaultMap<K, V> extends IdentityHashMap<K, V> {
     private final Supplier<V> _defaultValueFactory;
 
-    DefaultMap(final Supplier<V> defaultValueFactory) {
+    public DefaultMap(final Supplier<V> defaultValueFactory) {
         _defaultValueFactory = VerifyArgument.notNull(defaultValueFactory, "defaultValueFactory");
     }
 

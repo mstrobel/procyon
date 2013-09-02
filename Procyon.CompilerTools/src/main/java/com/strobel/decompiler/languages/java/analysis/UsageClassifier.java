@@ -17,6 +17,7 @@
 package com.strobel.decompiler.languages.java.analysis;
 
 import com.strobel.decompiler.languages.java.ast.AssignmentExpression;
+import com.strobel.decompiler.languages.java.ast.AssignmentOperatorType;
 import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.decompiler.languages.java.ast.BinaryOperatorExpression;
 import com.strobel.decompiler.languages.java.ast.Expression;
@@ -32,7 +33,13 @@ public final class UsageClassifier {
 
         if (parent instanceof AssignmentExpression) {
             if (expression.matches(((AssignmentExpression) parent).getLeft())) {
-                return UsageType.Write;
+                final AssignmentOperatorType operator = ((AssignmentExpression) parent).getOperator();
+
+                if (operator == AssignmentOperatorType.ANY || operator == AssignmentOperatorType.ASSIGN) {
+                    return UsageType.Write;
+                }
+
+                return UsageType.ReadWrite;
             }
             return UsageType.Read;
         }

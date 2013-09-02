@@ -732,7 +732,8 @@ public final class AstBuilder {
             }
         }
 
-        return node.getNodeType() == ControlFlowNodeType.Normal &&
+        return head.getNodeType() == ControlFlowNodeType.Normal &&
+               node.getNodeType() == ControlFlowNodeType.Normal &&
                node.getStart().getNext() == node.getEnd() &&
                head.getStart().getOpCode().isStore() &&
                node.getStart().getOpCode().isLoad() &&
@@ -1629,8 +1630,7 @@ public final class AstBuilder {
 
                 if (branchInBetween != null &&
                     branchInBetween.getOpCode().isBranch() &&
-                    (lastInCurrent == beforeBranch || lastInCurrent == branchInBetween)
-                    /*true*/) {
+                    (lastInCurrent == beforeBranch || lastInCurrent == branchInBetween)) {
 
                     final ExceptionHandler newHandler;
 

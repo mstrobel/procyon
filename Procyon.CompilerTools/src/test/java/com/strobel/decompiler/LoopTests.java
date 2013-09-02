@@ -193,6 +193,123 @@ public class LoopTests extends DecompilerTest {
         }
     }
 
+    private final static class K {
+        public void cannotBeForLoop1() {
+            int i = 0;
+
+            while (true) {
+                if (i >= 10) {
+                    break;
+                }
+                if (i == 2) {
+                    continue;
+                }
+                System.out.println(i);
+                ++i;
+            }
+        }
+
+        public void cannotBeForLoop2() {
+            int i = 0;
+            int j = 0;
+
+            while (true) {
+                if (i >= 10 || j >= 10) {
+                    break;
+                }
+                if (i == 2) {
+                    ++i;
+                    continue;
+                }
+                System.out.println(i);
+                System.out.println(j);
+                ++i;
+                ++j;
+            }
+        }
+
+        public void canBeForLoop1() {
+            int i = 0;
+
+            while (true) {
+                if (i >= 10) {
+                    break;
+                }
+                if (i == 2) {
+                    ++i;
+                    continue;
+                }
+                System.out.println(i);
+                ++i;
+            }
+        }
+
+        public void canBeForLoop2() {
+            for (int i = 0; i < 10; i++) {
+                if (i == 2) {
+                    continue;
+                }
+                System.out.println(i);
+            }
+        }
+
+        public void couldBeForLoop3() {
+            int i = 0;
+
+            while (true) {
+                if (i >= 10) {
+                    break;
+                }
+                if (i == 2) {
+                    ++i;
+                    continue;
+                }
+                System.out.println(i);
+                ++i;
+            }
+        }
+
+        public void couldBeForLoop4() {
+            int i = 0;
+            int j = 0;
+
+            while (true) {
+                if (i >= 10 || j >= 10) {
+                    break;
+                }
+                if (i == 2) {
+                    ++j;
+                    continue;
+                }
+                System.out.println(i);
+                System.out.println(j);
+                ++i;
+                ++j;
+            }
+        }
+
+        public void canBeForLoop5() {
+            for (int i = 0; i < 10; i++) {
+                if (i == 2) {
+                    continue;
+                }
+                System.out.println(i);
+            }
+        }
+        public void canBeForLoop6() {
+            for (int i = 0, j = 0; i < 10 && j < 10; i++, j++) {
+                if (i == 2) {
+                    continue;
+                }
+                System.out.println(i);
+                if (j == 2) {
+                    continue;
+                }
+                System.out.println(j);
+            }
+        }
+    }
+
     @Test
     public void testEnhancedForInIterable() {
         verifyOutput(
@@ -395,6 +512,88 @@ public class LoopTests extends DecompilerTest {
             "            for (int i = 0; i < 10; ++i) {\n" +
             "                next = i;\n" +
             "                System.out.println(next);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testTrickyForLoopTransforms() {
+        verifyOutput(
+            K.class,
+            defaultSettings(),
+            "private static final class K {\n" +
+            "    public void cannotBeForLoop1() {\n" +
+            "        int i = 0;\n" +
+            "        while (i < 10) {\n" +
+            "            if (i == 2) {\n" +
+            "                continue;\n" +
+            "            }\n" +
+            "            System.out.println(i);\n" +
+            "            ++i;\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public void cannotBeForLoop2() {\n" +
+            "        int i = 0;\n" +
+            "        int j = 0;\n" +
+            "        while (i < 10 && j < 10) {\n" +
+            "            if (i == 2) {\n" +
+            "                ++i;\n" +
+            "            }\n" +
+            "            else {\n" +
+            "                System.out.println(i);\n" +
+            "                System.out.println(j);\n" +
+            "                ++i;\n" +
+            "                ++j;\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public void canBeForLoop1() {\n" +
+            "        for (int i = 0; i < 10; ++i) {\n" +
+            "            if (i != 2) {\n" +
+            "                System.out.println(i);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public void canBeForLoop2() {\n" +
+            "        for (int i = 0; i < 10; ++i) {\n" +
+            "            if (i != 2) {\n" +
+            "                System.out.println(i);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public void couldBeForLoop3() {\n" +
+            "        for (int i = 0; i < 10; ++i) {\n" +
+            "            if (i != 2) {\n" +
+            "                System.out.println(i);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public void couldBeForLoop4() {\n" +
+            "        for (int i = 0, j = 0; i < 10 && j < 10; ++j) {\n" +
+            "            if (i != 2) {\n" +
+            "                System.out.println(i);\n" +
+            "                System.out.println(j);\n" +
+            "                ++i;\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public void canBeForLoop5() {\n" +
+            "        for (int i = 0; i < 10; ++i) {\n" +
+            "            if (i != 2) {\n" +
+            "                System.out.println(i);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    public void canBeForLoop6() {\n" +
+            "        for (int i = 0, j = 0; i < 10 && j < 10; ++i, ++j) {\n" +
+            "            if (i != 2) {\n" +
+            "                System.out.println(i);\n" +
+            "                if (j != 2) {\n" +
+            "                    System.out.println(j);\n" +
+            "                }\n" +
             "            }\n" +
             "        }\n" +
             "    }\n" +

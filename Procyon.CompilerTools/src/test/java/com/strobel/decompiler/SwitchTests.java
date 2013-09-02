@@ -13,6 +13,7 @@
 
 package com.strobel.decompiler;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class SwitchTests extends DecompilerTest {
@@ -82,20 +83,29 @@ public class SwitchTests extends DecompilerTest {
     private static class E {
         public int test() {
         outer:
-            for (int x = 0; x < 10; ++x) {
-                switch (x) {
-                    case 1:
-                    case 2:
-                        return x;
-                    case 3:
-                    case 4:
-                        break outer;
-                    default:
-                        System.out.println("default");
-                        break;
+            do {
+            inner:
+                for (int x = 0; x < 10; ++x) {
+                    switch (x) {
+                        case 1:
+                            break;
+                        case 2:
+                            continue outer;
+                        case 3:
+                            continue inner;
+                        case 4:
+                            break outer;
+                        case 5:
+                            break inner;
+                        default:
+                            System.out.println("default");
+                            break;
+                    }
+                    System.out.println("after switch");
                 }
-                System.out.println("after switch");
+                System.out.println("after inner loop");
             }
+            while (Boolean.parseBoolean("false"));
             return -1;
         }
     }
@@ -274,24 +284,29 @@ public class SwitchTests extends DecompilerTest {
             createSettings(OPTION_FLATTEN_SWITCH_BLOCKS),
             "private static class E {\n" +
             "    public int test() {\n" +
-            "        int x = 0;\n" +
-            "        Label_0067: {\n" +
-            "            while (x < 10) {\n" +
+            "    Label_0097:\n" +
+            "        do {\n" +
+            "        Label_0081:\n" +
+            "            for (int x = 0; x < 10; ++x) {\n" +
             "                switch (x) {\n" +
             "                    case 1:\n" +
+            "                        break;\n" +
             "                    case 2:\n" +
-            "                        return x;\n" +
+            "                        continue Label_0097;\n" +
             "                    case 3:\n" +
+            "                        continue;\n" +
             "                    case 4:\n" +
-            "                        break Label_0067;\n" +
+            "                        break Label_0097;\n" +
+            "                    case 5:\n" +
+            "                        break Label_0081;\n" +
             "                    default:\n" +
             "                        System.out.println(\"default\");\n" +
-            "                        System.out.println(\"after switch\");\n" +
-            "                        ++x;\n" +
-            "                        continue;\n" +
+            "                        break;\n" +
             "                }\n" +
+            "                System.out.println(\"after switch\");\n" +
             "            }\n" +
-            "        }\n" +
+            "            System.out.println(\"after inner loop\");\n" +
+            "        } while (Boolean.parseBoolean(\"false\"));\n" +
             "        return -1;\n" +
             "    }\n" +
             "}\n"

@@ -406,6 +406,9 @@ public final class TypeAnalysis {
             if (type == null || type == BuiltinTypes.Null) {
                 variable.setType(inferTypeForVariable(variable, BuiltinTypes.Object));
             }
+            else if (type.isWildcardType()) {
+                variable.setType(MetadataHelper.getUpperBound(type));
+            }
             else if (type.getSimpleType() == JvmType.Boolean) {
                 //
                 // Make sure constant assignments to boolean variables have boolean values,
@@ -816,10 +819,14 @@ public final class TypeAnalysis {
                         //
                         // NOTE: Do not use 'expectedType' here!
                         //
-                        final TypeReference inferredType = inferTypeForExpression(
+                        TypeReference inferredType = inferTypeForExpression(
                             expression.getArguments().get(0),
                             inferTypeForVariable(v, null)
                         );
+
+                        if (inferredType != null && inferredType.isWildcardType()) {
+                            inferredType = MetadataHelper.getUpperBound(inferredType);
+                        }
 
                         if (inferredType != null) {
                             return inferredType;
@@ -918,6 +925,10 @@ public final class TypeAnalysis {
 
                     if (result == null && _assignmentExpressions.get(v).isEmpty()) {
                         result = BuiltinTypes.Object;
+                    }
+
+                    if (result != null && result.isWildcardType()) {
+                        result = MetadataHelper.getUpperBound(result);
                     }
 
                     _inferredVariableTypes.put(v, result);
@@ -1031,10 +1042,7 @@ public final class TypeAnalysis {
                 case Xor:
                 case Div:
                 case Rem: {
-                    if (forceInferChildren) {
-                        return inferBinaryExpression(code, arguments);
-                    }
-                    return inferBinaryArguments(arguments.get(0), arguments.get(1), expectedType, false, null, null);
+                    return inferBinaryExpression(code, arguments);
                 }
 
                 case Shl: {
@@ -1585,7 +1593,7 @@ public final class TypeAnalysis {
                     final TypeReference returnType = _context.getCurrentMethod().getReturnType();
 
                     if (forceInferChildren && arguments.size() == 1) {
-                        inferTypeForExpression(arguments.get(0), returnType);
+                        inferTypeForExpression(arguments.get(0), returnType, true);
                     }
 
                     return returnType;

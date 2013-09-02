@@ -189,9 +189,10 @@ public class ThirdPartyTests extends DecompilerTest {
             "        Block_4: {\n" +
             "            while (true) {\n" +
             "                if (WhileLoops.i2 < 0) {\n" +
-            "                    if (intValue <= 1111 || WhileLoops.i <= foo()) {\n" +
-            "                        break;\n" +
+            "                    if (intValue > 1111 && WhileLoops.i > foo()) {\n" +
+            "                        continue;\n" +
             "                    }\n" +
+            "                    break;\n" +
             "                }\n" +
             "                else {\n" +
             "                    WhileLoops.i = intValue;\n" +
@@ -211,7 +212,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "        }\n" +
             "        System.out.println(WhileLoops.i);\n" +
             "    }\n" +
-            "}"
+            "}\n"
         );
     }
 

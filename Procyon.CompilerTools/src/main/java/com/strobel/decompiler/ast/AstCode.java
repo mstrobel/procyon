@@ -391,6 +391,19 @@ public enum AstCode {
         }
     }
 
+    public final boolean isWriteOperation() {
+        switch (this) {
+            case Store:
+            case StoreElement:
+            case PutField:
+            case PutStatic:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
     public final AstCode reverse() {
         switch (this) {
             case CmpEq: return CmpNe;

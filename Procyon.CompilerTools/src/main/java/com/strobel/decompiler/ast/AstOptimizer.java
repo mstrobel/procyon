@@ -141,6 +141,7 @@ public final class AstOptimizer {
 
                 modified |= runOptimization(block, new SimplifyShortCircuitAssignmentsOptimization(context, method));
                 modified |= runOptimization(block, new SimplifyShortCircuitOptimization(context, method));
+                modified |= runOptimization(block, new JoinBranchConditionsOptimization(context, method));
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyTernaryOperator)) {
                     done = true;
@@ -2699,7 +2700,7 @@ public final class AstOptimizer {
                 while (!agenda.isEmpty()) {
                     final Expression e = agenda.removeFirst();
 
-                    if (e.getCode().isShortCircuiting() || e.getCode() == AstCode.Store) {
+                    if (e.getCode().isShortCircuiting() || e.getCode().isWriteOperation()) {
                         break;
                     }
 
@@ -2710,7 +2711,10 @@ public final class AstOptimizer {
 
                         if (a.isEquivalentTo(equivalentLoad.value) ||
                             isLoad && matchLoad(a, v.get()) ||
-                            Inlining.hasNoSideEffect(initializer.get()) && a.isEquivalentTo(initializer.get())) {
+                            (Inlining.hasNoSideEffect(initializer.get()) &&
+                             a.isEquivalentTo(initializer.get()) &&
+                             initializer.get().getInferredType() != null &&
+                             MetadataHelper.isSameType(initializer.get().getInferredType(), a.getInferredType(), true))) {
 
                             arguments.set(i, head);
                             body.remove(position);
@@ -3056,11 +3060,6 @@ public final class AstOptimizer {
             block.getBody().clear();
             block.getBody().addAll(flatBody);
         }
-//        else if (node instanceof Expression) {
-//            //
-//            // Optimization: no need to check expressions.
-//            //
-//        }
         else if (node != null) {
             for (final Node child : node.getChildren()) {
                 flattenBasicBlocks(child);
@@ -3452,6 +3451,116 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
+    // <editor-fold defaultstate="collapsed" desc="JoinBranchConditions Step">
+
+    private static final class JoinBranchConditionsOptimization extends AbstractBranchBlockOptimization {
+        public JoinBranchConditionsOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        protected boolean run(
+            final List<Node> body,
+            final BasicBlock branchBlock,
+            final Expression branchCondition,
+            final Label thenLabel,
+            final Label elseLabel,
+            final boolean negate) {
+
+            if (labelGlobalRefCount.get(elseLabel).getValue() != 1) {
+                return false;
+            }
+
+            final BasicBlock elseBlock = labelToBasicBlock.get(elseLabel);
+
+            if (matchSingleAndBreak(elseBlock, AstCode.IfTrue, label1, expression, label2)) {
+                final Label elseThenLabel = label1.get();
+                final Label elseElseLabel = label2.get();
+
+                final Expression elseCondition = expression.get();
+
+                return runCore(body, branchBlock, branchCondition, thenLabel, elseLabel, elseCondition, negate, elseThenLabel, elseElseLabel, false) ||
+                       runCore(body, branchBlock, branchCondition, thenLabel, elseLabel, elseCondition, negate, elseElseLabel, elseThenLabel, true);
+            }
+
+            return false;
+        }
+
+        private boolean runCore(
+            final List<Node> body,
+            final BasicBlock branchBlock,
+            final Expression branchCondition,
+            final Label thenLabel,
+            final Label elseLabel,
+            final Expression elseCondition,
+            final boolean negateFirst,
+            final Label elseThenLabel,
+            final Label elseElseLabel,
+            final boolean negateSecond) {
+
+            final BasicBlock thenBlock = labelToBasicBlock.get(thenLabel);
+            final BasicBlock elseThenBlock = labelToBasicBlock.get(elseThenLabel);
+
+            BasicBlock alsoRemove = null;
+            Label alsoDecrement = null;
+
+            if (elseThenBlock != thenBlock) {
+                if (matchSimpleBreak(elseThenBlock, label1) &&
+                    labelGlobalRefCount.get(label1.get()).getValue() <= 2) {
+
+                    final BasicBlock intermediateBlock = labelToBasicBlock.get(label1.get());
+
+                    if (intermediateBlock != thenBlock) {
+                        return false;
+                    }
+
+                    alsoRemove = elseThenBlock;
+                    alsoDecrement = label1.get();
+                }
+                else {
+                    return false;
+                }
+            }
+
+            final BasicBlock elseBlock = labelToBasicBlock.get(elseLabel);
+
+            final Expression logicExpression = new Expression(
+                AstCode.LogicalOr,
+                null,
+                negateFirst ? simplifyLogicalNotArgument(branchCondition) ? branchCondition
+                                                                          : new Expression(AstCode.LogicalNot, null, branchCondition)
+                            : branchCondition,
+                negateSecond ? simplifyLogicalNotArgument(elseCondition) ? elseCondition
+                                                                         : new Expression(AstCode.LogicalNot, null, elseCondition)
+                             : elseCondition
+            );
+
+            final List<Node> branchBody = branchBlock.getBody();
+
+            removeTail(branchBody, AstCode.IfTrue, AstCode.Goto);
+
+            branchBody.add(new Expression(AstCode.IfTrue, thenLabel, logicExpression));
+            branchBody.add(new Expression(AstCode.Goto, elseElseLabel));
+
+            labelGlobalRefCount.get(elseLabel).decrement();
+            labelGlobalRefCount.get(elseThenLabel).decrement();
+
+            body.remove(elseBlock);
+
+            if (alsoRemove != null) {
+                body.remove(alsoRemove);
+            }
+
+            if (alsoDecrement != null) {
+                labelGlobalRefCount.get(alsoDecrement).decrement();
+            }
+
+            return true;
+        }
+    }
+
+    // </editor-fold>
+
     // <editor-fold defaultstate="collapsed" desc="Optimization Helpers">
 
     private interface BasicBlockOptimization {
@@ -3546,6 +3655,39 @@ public final class AstOptimizer {
         }
 
         return modified;
+    }
+
+    private static abstract class AbstractBranchBlockOptimization extends AbstractBasicBlockOptimization {
+        protected final StrongBox<Expression> expression = new StrongBox<>();
+        protected final StrongBox<Label> label1 = new StrongBox<>();
+        protected final StrongBox<Label> label2 = new StrongBox<>();
+
+        public AbstractBranchBlockOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public final boolean run(final List<Node> body, final BasicBlock head, final int position) {
+            if (matchLastAndBreak(head, AstCode.IfTrue, label1, expression, label2)) {
+                final Label thenLabel = label1.get();
+                final Label elseLabel = label2.get();
+
+                final Expression condition = expression.get();
+
+                return run(body, head, condition, thenLabel, elseLabel, false) ||
+                       run(body, head, condition, elseLabel, thenLabel, true);
+            }
+
+            return false;
+        }
+
+        protected abstract boolean run(
+            final List<Node> body,
+            final BasicBlock branchBlock,
+            final Expression branchCondition,
+            final Label thenLabel,
+            final Label elseLabel,
+            final boolean negate);
     }
 
     // </editor-fold>
@@ -3786,18 +3928,6 @@ public final class AstOptimizer {
             }
         }
         return false;
-    }
-
-    private static int countReferences(final Node node, final Variable v) {
-        int references = 0;
-
-        for (final Expression e : node.getSelfAndChildrenRecursive(Expression.class)) {
-            if (matchLoad(e, v)) {
-                ++references;
-            }
-        }
-
-        return references;
     }
 
     private static boolean containsMatch(final Node node, final Expression pattern) {

@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 public final class Loop extends Node {
+    private LoopType _loopType = LoopType.PreCondition;
     private Expression _condition;
     private Block _body;
 
@@ -40,6 +41,14 @@ public final class Loop extends Node {
 
     public final void setBody(final Block body) {
         _body = body;
+    }
+
+    public final LoopType getLoopType() {
+        return _loopType;
+    }
+
+    public final void setLoopType(final LoopType loopType) {
+        _loopType = loopType;
     }
 
     @Override
@@ -60,12 +69,19 @@ public final class Loop extends Node {
 
     @Override
     public final void writeTo(final ITextOutput output) {
-        output.writeKeyword("loop");
-
         if (_condition != null) {
-            output.write(" (");
-            _condition.writeTo(output);
-            output.write(')');
+            if (_loopType == LoopType.PostCondition) {
+                output.writeKeyword("do");
+            }
+            else {
+                output.writeKeyword("while");
+                output.write(" (");
+                _condition.writeTo(output);
+                output.write(')');
+            }
+        }
+        else {
+            output.writeKeyword("loop");
         }
 
         output.writeLine(" {");
@@ -76,6 +92,18 @@ public final class Loop extends Node {
         }
 
         output.unindent();
-        output.writeLine("}");
+
+        if (_condition != null && _loopType == LoopType.PostCondition) {
+            output.write("} ");
+            output.writeKeyword("while");
+            output.write(" (");
+
+            _condition.writeTo(output);
+
+            output.writeLine(")");
+        }
+        else {
+            output.writeLine("}");
+        }
     }
 }
