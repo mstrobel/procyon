@@ -2700,7 +2700,7 @@ public final class AstOptimizer {
                 while (!agenda.isEmpty()) {
                     final Expression e = agenda.removeFirst();
 
-                    if (e.getCode().isShortCircuiting() || e.getCode().isWriteOperation()) {
+                    if (e.getCode().isShortCircuiting() || e.getCode().isStore() || e.getCode().isFieldWrite()) {
                         break;
                     }
 
