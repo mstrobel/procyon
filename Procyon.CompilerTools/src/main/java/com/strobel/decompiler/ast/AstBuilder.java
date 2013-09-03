@@ -2726,7 +2726,7 @@ public final class AstBuilder {
                         }
                     }
 
-                    if (variable.getType() == null) {
+                    if (variable.getType() == null || variable.getType() == BuiltinTypes.Null) {
                         variable.setType(BuiltinTypes.Object);
                     }
                 }
@@ -2841,7 +2841,10 @@ public final class AstBuilder {
                         variable.setName(format("var_%1$d_%2$02X", slot, b.offset));
                     }
 
-                    variable.setType(variableType);
+                    variable.setType(
+                        variableType != BuiltinTypes.Null ? variableType
+                                                          : BuiltinTypes.Object
+                    );
 
                     if (vDef == null) {
                         variable.setOriginalVariable(new VariableDefinition(slot, variable.getName(), method, variable.getType()));

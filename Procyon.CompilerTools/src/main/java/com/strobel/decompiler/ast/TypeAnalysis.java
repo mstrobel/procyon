@@ -404,7 +404,14 @@ public final class TypeAnalysis {
             final TypeReference type = variable.getType();
 
             if (type == null || type == BuiltinTypes.Null) {
-                variable.setType(inferTypeForVariable(variable, BuiltinTypes.Object));
+                final TypeReference inferredType = inferTypeForVariable(variable, BuiltinTypes.Object);
+
+                if (inferredType == null || inferredType == BuiltinTypes.Null) {
+                    variable.setType(BuiltinTypes.Object);
+                }
+                else {
+                    variable.setType(inferredType);
+                }
             }
             else if (type.isWildcardType()) {
                 variable.setType(MetadataHelper.getUpperBound(type));
