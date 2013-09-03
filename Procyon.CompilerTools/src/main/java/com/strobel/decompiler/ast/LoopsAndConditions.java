@@ -246,6 +246,7 @@ final class LoopsAndConditions {
     @SuppressWarnings("ConstantConditions")
     private List<Node> findLoops(final Set<ControlFlowNode> scopeNodes, final ControlFlowNode entryPoint, final boolean excludeEntryPoint) {
         final List<Node> result = new ArrayList<>();
+        final StrongBox<Label[]> switchLabels = new StrongBox<>();
         final Set<ControlFlowNode> scope = new LinkedHashSet<>(scopeNodes);
         final ArrayDeque<ControlFlowNode> agenda = new ArrayDeque<>();
 
@@ -316,7 +317,7 @@ final class LoopsAndConditions {
                                 continueGoto = (Expression) lastBlock.getBody().get(lastBlock.getBody().size() - 2);
                             }
 
-                            canWriteConditionalLoop = !hasJumps(loopContents, trueLabel.get(), continueGoto);
+                            canWriteConditionalLoop = countJumps(loopContents, trueLabel.get(), continueGoto) == 0;
                         }
                         else {
                             canWriteConditionalLoop = true;
@@ -415,6 +416,40 @@ final class LoopsAndConditions {
 
                     loop.setBody(bodyBlock);
 
+                    final Label exitLabel = findLoopExitLabel(loopContents);
+
+                    if (exitLabel != null) {
+                        //
+                        // See if our only exit comes from an inner switch's default label.  If so, pull it in
+                        // to the loop if there are no other references.
+                        //
+
+                        final ControlFlowNode postLoopTarget = labelsToNodes.get(exitLabel);
+
+                        if (postLoopTarget != null &&
+                            countJumps(scope, exitLabel, null) == 1) {
+
+                            final ControlFlowNode predecessor = firstOrDefault(postLoopTarget.getPredecessors());
+
+                            if (predecessor != null && loopContents.contains(predecessor)) {
+                                final BasicBlock b = (BasicBlock) predecessor.getUserData();
+
+                                if (matchLast(b, AstCode.Switch, switchLabels, condition) &&
+                                    !ArrayUtilities.isNullOrEmpty(switchLabels.get()) &&
+                                    exitLabel == switchLabels.get()[0]) {
+
+                                    final Set<ControlFlowNode> defaultContents = findDominatedNodes(scope, postLoopTarget);
+
+                                    for (final ControlFlowNode n : defaultContents) {
+                                        if (node.dominates(n)) {
+                                            loopContents.add(n);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     bodyBlock.setEntryGoto(new Expression(AstCode.Goto, basicBlock.getBody().get(0)));
                     bodyBlock.getBody().addAll(findLoops(loopContents, node, true));
 
@@ -447,17 +482,45 @@ final class LoopsAndConditions {
         return result;
     }
 
-    private boolean hasJumps(final Set<ControlFlowNode> nodes, final Label target, final Expression ignore) {
+    private Label findLoopExitLabel(final Set<ControlFlowNode> contents) {
+        Label exitLabel = null;
+
+        for (final ControlFlowNode node : contents) {
+            final BasicBlock basicBlock = (BasicBlock) node.getUserData();
+
+            for (final Expression e : basicBlock.getSelfAndChildrenRecursive(Expression.class)) {
+                for (final Label target : e.getBranchTargets()) {
+                    final ControlFlowNode targetNode = labelsToNodes.get(target);
+
+                    if (targetNode != null && !contents.contains(targetNode)) {
+                        if (exitLabel == null) {
+                            exitLabel = target;
+                        }
+                        else if (exitLabel != target) {
+                            return null;
+                        }
+                    }
+                }
+            }
+        }
+
+        return exitLabel;
+    }
+
+    private int countJumps(final Set<ControlFlowNode> nodes, final Label target, final Expression ignore) {
+        int jumpCount = 0;
+
         for (final ControlFlowNode node : nodes) {
             final BasicBlock basicBlock = (BasicBlock) node.getUserData();
 
             for (final Expression e : basicBlock.getSelfAndChildrenRecursive(Expression.class)) {
                 if (e != ignore && e.getBranchTargets().contains(target)) {
-                    return true;
+                    ++jumpCount;
                 }
             }
         }
-        return false;
+
+        return jumpCount;
     }
 
     private static Set<ControlFlowNode> findLoopContents(final Set<ControlFlowNode> scope, final ControlFlowNode head) {
