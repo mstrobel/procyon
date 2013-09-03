@@ -530,6 +530,10 @@ public final class StringUtilities {
     }
 
     private static String escapeCharacter(final char ch, final boolean isUnicodeSupported) {
+        if (ch == '\'') {
+            return "\\'";
+        }
+
         if (shouldEscape(ch, false, isUnicodeSupported)) {
             switch (ch) {
                 case '\0':
@@ -542,6 +546,7 @@ public final class StringUtilities {
                     return format("\\u%1$04x", (int) ch);
             }
         }
+
         return String.valueOf(ch);
     }
 
@@ -551,6 +556,10 @@ public final class StringUtilities {
 
     public static String escape(final char ch, final boolean quote, final boolean isUnicodeSupported) {
         if (quote) {
+            if (ch == '\'') {
+                return "'\\''";
+            }
+
             if (shouldEscape(ch, true, isUnicodeSupported)) {
                 switch (ch) {
                     case '\0':

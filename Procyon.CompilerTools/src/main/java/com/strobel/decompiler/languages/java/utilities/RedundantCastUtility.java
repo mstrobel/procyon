@@ -882,6 +882,13 @@ public final class RedundantCastUtility {
 
             if (castType instanceof PrimitiveType) {
                 if (opType instanceof PrimitiveType) {
+                    if ((opType == BuiltinTypes.Character) ^ (castType == BuiltinTypes.Character)) {
+                        //
+                        // Non-identity conversions to/from `char` should not be removed.
+                        //
+                        return true;
+                    }
+
                     final ConversionType conversionType = MetadataHelper.getNumericConversionType(castType, opType);
 
                     return conversionType != ConversionType.IDENTITY &&
