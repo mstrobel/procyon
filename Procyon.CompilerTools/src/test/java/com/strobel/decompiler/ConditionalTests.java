@@ -274,7 +274,7 @@ public class ConditionalTests extends DecompilerTest {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
+    @SuppressWarnings({ "ConstantConditions", "UnusedDeclaration" })
     private static class I {
         private boolean[] c;
 
@@ -319,7 +319,7 @@ public class ConditionalTests extends DecompilerTest {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
+    @SuppressWarnings({ "ConstantConditions", "UnusedDeclaration" })
     private static class J {
         private static boolean[] c;
 
@@ -364,6 +364,7 @@ public class ConditionalTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("UnusedDeclaration")
     private static class K {
         private static int i;
         private int j;

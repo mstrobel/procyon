@@ -28,7 +28,7 @@ public final class TryExpression extends Expression {
     private final ReadOnlyList<CatchBlock> _handlers;
     private final Expression _finallyBlock;
 
-    public TryExpression(
+    TryExpression(
         final Type type,
         final Expression body,
         final ReadOnlyList<CatchBlock> handlers,
