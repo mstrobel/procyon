@@ -156,7 +156,7 @@ public final class AstBuilder {
 
             for (final Instruction p : subroutine.deadReferences) {
                 p.setOpCode(OpCode.NOP);
-                p.setOperand(OpCode.NOP);
+                p.setOperand(null);
                 _removed.add(p);
             }
 
@@ -466,7 +466,8 @@ public final class AstBuilder {
                                               p.getOffset() < subroutine.end.getEndOffset();
                                    }
                                }
-                           );
+                           ) &&
+                           !subroutine.contents.containsAll(info.contents);
                 }
             }
         );
@@ -568,7 +569,25 @@ public final class AstBuilder {
             return Collections.emptyList();
         }
 
-        return toList(subroutineMap.values());
+        final List<SubroutineInfo> subroutines = toList(subroutineMap.values());
+
+        Collections.sort(
+            subroutines,
+            new Comparator<SubroutineInfo>() {
+                @Override
+                public int compare(final SubroutineInfo o1, final SubroutineInfo o2) {
+                    if (o1.contents.containsAll(o2.contents)) {
+                        return 1;
+                    }
+                    if (o2.contents.containsAll(o1.contents)) {
+                        return -1;
+                    }
+                    return Integer.compare(o2.start.getOffset(), o1.start.getOffset());
+                }
+            }
+        );
+
+        return subroutines;
     }
 
     private final static class SubroutineInfo {
@@ -713,7 +732,8 @@ public final class AstBuilder {
             }
         }
 
-        return node.getNodeType() == ControlFlowNodeType.Normal &&
+        return head.getNodeType() == ControlFlowNodeType.Normal &&
+               node.getNodeType() == ControlFlowNodeType.Normal &&
                node.getStart().getNext() == node.getEnd() &&
                head.getStart().getOpCode().isStore() &&
                node.getStart().getOpCode().isLoad() &&
@@ -1610,8 +1630,7 @@ public final class AstBuilder {
 
                 if (branchInBetween != null &&
                     branchInBetween.getOpCode().isBranch() &&
-                    (lastInCurrent == beforeBranch || lastInCurrent == branchInBetween)
-                    /*true*/) {
+                    (lastInCurrent == beforeBranch || lastInCurrent == branchInBetween)) {
 
                     final ExceptionHandler newHandler;
 
@@ -2928,6 +2947,11 @@ public final class AstBuilder {
                             mergedDefinitions,
                             mergedReferences
                         );
+
+                        if (parameterVariable != null && mergeVariables.contains(parameterVariable)) {
+                            parameterVariable = mergedVariable;
+                            parameterVariableAdded = true;
+                        }
 
                         mergedVariable.variable.setType(mergeVariableType(mergeVariables));
                         mergedVariable.references.add(ref);

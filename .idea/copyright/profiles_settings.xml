@@ -1,5 +1,7 @@
 <component name="CopyrightManager">
   <settings default="">
-    <module2copyright />
+    <module2copyright>
+      <element module="Procyon.CompilerTools" copyright="Assembler" />
+    </module2copyright>
   </settings>
 </component>

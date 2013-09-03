@@ -1,5 +1,5 @@
 /*
- * BootstrapTableEntry.java
+ * BootstrapMethodsTableEntry.java
  *
  * Copyright (c) 2013 Mike Strobel
  *

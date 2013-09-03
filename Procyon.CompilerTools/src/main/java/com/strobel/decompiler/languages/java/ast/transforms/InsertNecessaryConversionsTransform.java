@@ -1,3 +1,19 @@
+/*
+ * InsertNecessaryConversionsTransform.java
+ *
+ * Copyright (c) 2013 Mike Strobel
+ *
+ * This source code is based on Mono.Cecil from Jb Evain, Copyright (c) Jb Evain;
+ * and ILSpy/ICSharpCode from SharpDevelop, Copyright (c) AlphaSierraPapa.
+ *
+ * This source code is subject to terms and conditions of the Apache License, Version 2.0.
+ * A copy of the license can be found in the License.html file at the root of this distribution.
+ * By using this source code in any fashion, you are agreeing to be bound by the terms of the
+ * Apache License, Version 2.0.
+ *
+ * You must not remove this notice, or any other, from this software.
+ */
+
 package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.BuiltinTypes;
@@ -229,8 +245,8 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                         public AstNode apply(final AstNode input) {
                             return new ConditionalExpression(
                                 right,
-                                new PrimitiveExpression(new PrimitiveExpression(1)),
-                                new PrimitiveExpression(new PrimitiveExpression(0))
+                                new PrimitiveExpression(1),
+                                new PrimitiveExpression(0)
                             );
                         }
                     }
@@ -292,6 +308,77 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         return false;
     }
 
+    @Override
+    public Void visitBinaryOperatorExpression(final BinaryOperatorExpression node, final Void data) {
+        super.visitBinaryOperatorExpression(node, data);
+
+        switch (node.getOperator()) {
+            case GREATER_THAN:
+            case GREATER_THAN_OR_EQUAL:
+            case LESS_THAN:
+            case LESS_THAN_OR_EQUAL:
+            case ADD:
+            case SUBTRACT:
+            case MULTIPLY:
+            case DIVIDE:
+            case MODULUS:
+            case SHIFT_LEFT:
+            case SHIFT_RIGHT:
+            case UNSIGNED_SHIFT_RIGHT: {
+                final Expression left = node.getLeft();
+                final Expression right = node.getRight();
+
+                final ResolveResult leftResult = _resolver.apply(left);
+                final ResolveResult rightResult = _resolver.apply(right);
+
+                if (leftResult != null && leftResult.getType() == BuiltinTypes.Boolean) {
+                    promoteBooleanArithmeticOperand(left);
+                }
+
+                if (rightResult != null && rightResult.getType() == BuiltinTypes.Boolean) {
+                    promoteBooleanArithmeticOperand(right);
+                }
+
+                break;
+            }
+        }
+
+        return null;
+    }
+
+    private void promoteBooleanArithmeticOperand(final Expression operand) {
+        final boolean invert;
+
+        Expression e = operand;
+
+        if (e instanceof UnaryOperatorExpression &&
+            ((UnaryOperatorExpression) e).getOperator() == UnaryOperatorType.NOT) {
+
+            final Expression inner = ((UnaryOperatorExpression) e).getExpression();
+
+            inner.remove();
+            e.replaceWith(inner);
+            e = inner;
+            invert = true;
+        }
+        else {
+            invert = false;
+        }
+
+        e.replaceWith(
+            new Function<AstNode, AstNode>() {
+                @Override
+                public AstNode apply(final AstNode input) {
+                    return new ConditionalExpression(
+                        (Expression) input,
+                        new PrimitiveExpression(invert ? 0 : 1),
+                        new PrimitiveExpression(invert ? 1 : 0)
+                    );
+                }
+            }
+        );
+    }
+
     private void recurse(final AstNode replacement) {
         final AstNode parent = replacement.getParent();
 
@@ -303,4 +390,3 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         }
     }
 }
-

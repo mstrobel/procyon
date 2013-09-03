@@ -340,6 +340,28 @@ public enum AstCode {
         }
     }
 
+    public final boolean isFieldRead() {
+        switch (this) {
+            case GetStatic:
+            case GetField:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public final boolean isFieldWrite() {
+        switch (this) {
+            case PutStatic:
+            case PutField:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
     public final boolean isStore() {
         switch (this) {
             case Store:
@@ -384,6 +406,19 @@ public enum AstCode {
         switch (this) {
             case LogicalAnd:
             case LogicalOr:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public final boolean isWriteOperation() {
+        switch (this) {
+            case Store:
+            case StoreElement:
+            case PutField:
+            case PutStatic:
                 return true;
 
             default:

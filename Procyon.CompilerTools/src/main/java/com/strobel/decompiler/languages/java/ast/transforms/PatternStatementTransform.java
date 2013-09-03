@@ -23,8 +23,10 @@ import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.ast.DefaultMap;
 import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.analysis.ControlFlowEdge;
+import com.strobel.decompiler.languages.java.analysis.ControlFlowEdgeType;
 import com.strobel.decompiler.languages.java.analysis.ControlFlowGraphBuilder;
 import com.strobel.decompiler.languages.java.analysis.ControlFlowNode;
 import com.strobel.decompiler.languages.java.analysis.ControlFlowNodeType;
@@ -38,10 +40,7 @@ import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Repeat;
 
 import javax.lang.model.element.Modifier;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Stack;
+import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.languages.java.analysis.Correlator.areCorrelated;
@@ -116,10 +115,15 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
     public final ForStatement transformFor(final WhileStatement node) {
         final Expression condition = node.getCondition();
 
-        if (condition == null || condition.isNull()) {
+        if (condition == null || condition.isNull() || condition instanceof PrimitiveExpression) {
             return null;
         }
 
+        if (!(node.getEmbeddedStatement() instanceof BlockStatement)) {
+            return null;
+        }
+
+        final BlockStatement body = (BlockStatement) node.getEmbeddedStatement();
         final ControlFlowGraphBuilder graphBuilder = new ControlFlowGraphBuilder();
         final List<ControlFlowNode> nodes = graphBuilder.buildControlFlowGraph(node, new JavaResolver(context));
 
@@ -147,7 +151,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             final ControlFlowNode from = edge.getFrom();
             final Statement statement = from.getPreviousStatement();
 
-            if (statement != null && node.getEmbeddedStatement().isAncestorOf(statement)) {
+            if (statement != null && body.isAncestorOf(statement)) {
                 bodyNodes.add(from);
             }
         }
@@ -156,35 +160,125 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             return null;
         }
 
-        final List<Statement> iterators = new ArrayList<>();
-        final ControlFlowNode iteratorNode = bodyNodes.get(0);
-        final AstNodeCollection<Statement> loopBody = iteratorNode.getPreviousStatement()
-                                                                  .getChildrenByRole(BlockStatement.STATEMENT_ROLE);
+        final Set<Statement> incoming = new LinkedHashSet<>();
+        final Set<ControlFlowEdge> visited = new HashSet<>();
+        final ArrayDeque<ControlFlowEdge> agenda = new ArrayDeque<>();
 
-        final Statement firstIterator = firstOrDefault(
-            loopBody,
-            new Predicate<Statement>() {
-                @Override
-                public boolean test(final Statement s) {
-                    return s.isEmbeddable() && isSimpleIterator(s) && areCorrelated(condition, s);
+        agenda.addAll(conditionNode.getIncoming());
+        visited.addAll(conditionNode.getIncoming());
+
+        while (!agenda.isEmpty()) {
+            final ControlFlowEdge edge = agenda.removeFirst();
+            final ControlFlowNode from = edge.getFrom();
+
+            if (from == null) {
+                continue;
+            }
+
+            if (edge.getType() == ControlFlowEdgeType.Jump) {
+                final Statement jump = from.getNextStatement();
+                if (jump.getPreviousStatement() != null) {
+                    incoming.add(jump.getPreviousStatement());
+                }
+                else {
+                    incoming.add(jump);
+                }
+                continue;
+            }
+
+            final Statement previousStatement = from.getPreviousStatement();
+
+            if (previousStatement == null) {
+                continue;
+            }
+
+            if (from.getType() == ControlFlowNodeType.EndNode) {
+                if (previousStatement instanceof BlockStatement || hasNestedBlocks(previousStatement)) {
+                    for (final ControlFlowEdge e : from.getIncoming()) {
+                        if (visited.add(e)) {
+                            agenda.addLast(e);
+                        }
+                    }
+                }
+                else {
+                    incoming.add(previousStatement);
                 }
             }
-        );
+        }
 
-        if (firstIterator == null) {
+        if (incoming.isEmpty()) {
             return null;
         }
 
-        iterators.add(firstIterator);
+        final Statement[] iteratorSites = incoming.toArray(new Statement[incoming.size()]);
+        final List<Statement> iterators = new ArrayList<>();
+        final Set<Statement> iteratorCopies = new HashSet<>();
 
-        for (Statement s = firstIterator.getNextStatement(); s != null; s = s.getNextStatement()) {
-            if (s.isEmbeddable()) {
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
+        final Map<Statement, List<Statement>> iteratorCopyMap = new DefaultMap<>(CollectionUtilities.<Statement>listFactory());
+
+    collectIterators:
+        while (true) {
+            final Statement s = iteratorSites[0];
+
+            if (s != null && !s.isNull() && s.isEmbeddable() && isSimpleIterator(s)/* && areCorrelated(condition, s)*/) {
+                for (int i = 1; i < iteratorSites.length; i++) {
+                    final Statement o = iteratorSites[i];
+
+                    if (o == null || !s.matches(o)) {
+                        break collectIterators;
+                    }
+                }
+
                 iterators.add(s);
+
+                for (int i = 0; i < iteratorSites.length; i++) {
+                    iteratorCopies.add(iteratorSites[i]);
+                    iteratorCopyMap.get(s).add(iteratorSites[i]);
+                    iteratorSites[i] = iteratorSites[i].getPreviousStatement();
+                }
             }
             else {
-                return null;
+                break;
             }
         }
+
+        //
+        // We built up our iterator candidate list from the tail end, so reverse it.
+        //
+
+        Collections.reverse(iterators);
+
+        //
+        // Remove all leading iterator candidates which do not actually correlate with our loop
+        // condition.  Stop when we find one that does.
+        //
+
+        while (!iterators.isEmpty()) {
+            final Statement iterator = first(iterators);
+
+            if (areCorrelated(condition, iterator)) {
+                break;
+            }
+
+            for (final Statement copy : iteratorCopyMap.get(iterator)) {
+                iteratorCopies.remove(copy);
+            }
+
+            iterators.remove(0);
+        }
+
+        if (iterators.isEmpty()) {
+            //
+            // We don't want to create any 'for' loops without iterator statements.
+            //
+            return null;
+        }
+
+        //
+        // Build up our initializer list.  Only consider preceding assignments which correlate with
+        // variables in our loop condition and iterator statements.
+        //
 
         final ForStatement forLoop = new ForStatement();
         final Stack<Statement> initializers = new Stack<>();
@@ -218,14 +312,12 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             }
         }
 
-        if (loopBody.size() - iterators.size() == 0 && initializers.isEmpty()) {
+        if (body.getStatements().size() - iterators.size() <= 0 && initializers.isEmpty()) {
             //
             // Don't transform a 'while' loop into a 'for' loop with an empty body and no initializers.
             //
             return null;
         }
-
-        final Statement body = node.getEmbeddedStatement();
 
         condition.remove();
         body.remove();
@@ -233,12 +325,9 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         forLoop.setCondition(condition);
 
         if (body instanceof BlockStatement) {
-            for (final Statement s : ((BlockStatement) body).getStatements()) {
-                if (iterators.contains(s)) {
-                    s.remove();
-                }
+            for (final Statement copy : iteratorCopies) {
+                copy.remove();
             }
-
             forLoop.setEmbeddedStatement(body);
         }
 
@@ -300,6 +389,16 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         }
 
         return forLoop;
+    }
+
+    private static boolean hasNestedBlocks(final AstNode node) {
+        return AstNode.isLoop(node) ||
+               node instanceof TryCatchStatement ||
+               node instanceof CatchClause ||
+               node instanceof LabeledStatement ||
+               node instanceof SynchronizedStatement ||
+               node instanceof IfElseStatement ||
+               node instanceof SwitchSection;
     }
 
     private static boolean isSimpleIterator(final Statement statement) {
@@ -677,6 +776,13 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
 
             analysis.analyze(index.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
 
+            if (analysis.getStatusAfter(loopBody) != DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED) {
+                //
+                // We can't eliminate the index variable because it's reassigned in the loop.
+                //
+                return null;
+            }
+
             if (!analysis.getUnassignedVariableUses().isEmpty()) {
                 //
                 // We can't eliminate the index variable because it's used in the loop.
@@ -1034,13 +1140,23 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         doWhile.setCondition(new PrimitiveExpression(true));
 
         doWhile.setEmbeddedStatement(
-            new BlockStatement(
-                new Repeat(new AnyNode("statement")).toStatement(),
-                new IfElseStatement(
-                    new AnyNode("condition").toExpression(),
-                    new BlockStatement(new BreakStatement())
+            new Choice(
+                new BlockStatement(
+                    new Repeat(new AnyNode("statement")).toStatement(),
+                    new IfElseStatement(
+                        new AnyNode("breakCondition").toExpression(),
+                        new BlockStatement(new BreakStatement())
+                    )
+                ),
+                new BlockStatement(
+                    new Repeat(new AnyNode("statement")).toStatement(),
+                    new IfElseStatement(
+                        new AnyNode("continueCondition").toExpression(),
+                        new BlockStatement(new NamedNode("continueStatement", new ContinueStatement()).toStatement())
+                    ),
+                    new NamedNode("breakStatement", new BreakStatement()).toStatement()
                 )
-            )
+            ).toBlockStatement()
         );
 
         DO_WHILE_PATTERN = doWhile;
@@ -1049,24 +1165,33 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
     public final DoWhileStatement transformDoWhile(final WhileStatement loop) {
         final Match m = DO_WHILE_PATTERN.match(loop);
 
-        if (!m.success() || !canConvertWhileToDoWhile(loop)) {
+        if (!m.success() || !canConvertWhileToDoWhile(loop, firstOrDefault(m.<ContinueStatement>get("continueStatement")))) {
             return null;
         }
 
         final DoWhileStatement doWhile = new DoWhileStatement();
 
-        Expression condition = m.<Expression>get("condition").iterator().next();
+        Expression condition = firstOrDefault(m.<Expression>get("continueCondition"));
 
-        condition.remove();
+        final boolean hasContinueCondition = condition != null;
 
-        if (condition instanceof UnaryOperatorExpression &&
-            ((UnaryOperatorExpression) condition).getOperator() == UnaryOperatorType.NOT) {
-
-            condition = ((UnaryOperatorExpression) condition).getExpression();
+        if (hasContinueCondition) {
             condition.remove();
+            first(m.<Statement>get("breakStatement")).remove();
         }
         else {
-            condition = new UnaryOperatorExpression(UnaryOperatorType.NOT, condition);
+            condition = firstOrDefault(m.<Expression>get("breakCondition"));
+            condition.remove();
+
+            if (condition instanceof UnaryOperatorExpression &&
+                ((UnaryOperatorExpression) condition).getOperator() == UnaryOperatorType.NOT) {
+
+                condition = ((UnaryOperatorExpression) condition).getExpression();
+                condition.remove();
+            }
+            else {
+                condition = new UnaryOperatorExpression(UnaryOperatorType.NOT, condition);
+            }
         }
 
         doWhile.setCondition(condition);
@@ -1126,7 +1251,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         return doWhile;
     }
 
-    private boolean canConvertWhileToDoWhile(final WhileStatement loop) {
+    private boolean canConvertWhileToDoWhile(final WhileStatement loop, final ContinueStatement continueStatement) {
         final List<ContinueStatement> continueStatements = new ArrayList<>();
 
         for (final AstNode node : loop.getDescendantsAndSelf()) {
@@ -1142,7 +1267,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         for (final ContinueStatement cs : continueStatements) {
             final String label = cs.getLabel();
 
-            if (StringUtilities.isNullOrEmpty(label)) {
+            if (StringUtilities.isNullOrEmpty(label) && cs != continueStatement) {
                 return false;
             }
 

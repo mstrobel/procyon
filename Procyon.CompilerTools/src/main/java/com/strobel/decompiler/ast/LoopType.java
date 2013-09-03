@@ -1,5 +1,5 @@
 /*
- * MethodParametersAttribute.java
+ * LoopType.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -14,22 +14,9 @@
  * You must not remove this notice, or any other, from this software.
  */
 
-package com.strobel.assembler.ir.attributes;
+package com.strobel.decompiler.ast;
 
-import com.strobel.core.VerifyArgument;
-
-import java.util.List;
-
-public final class MethodParametersAttribute extends SourceAttribute {
-    private final List<MethodParameterEntry> _entries;
-
-    public MethodParametersAttribute(final List<MethodParameterEntry> entries) {
-        super(AttributeNames.MethodParameters, 1 + entries.size() * 4);
-        _entries = VerifyArgument.notNull(entries, "entries");
-    }
-
-    public List<MethodParameterEntry> getEntries() {
-        return _entries;
-    }
-
+public enum LoopType {
+    PreCondition,
+    PostCondition
 }

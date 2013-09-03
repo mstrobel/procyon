@@ -43,6 +43,7 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
         boolean labelIsLast;
         LabelStatement label;
         AstNode labelTarget;
+        LabeledStatement newLabeledStatement;
 
         LabelInfo(final String name) {
             this.name = name;
@@ -56,6 +57,7 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
     }
 
     @Override
+    @SuppressWarnings("ConstantConditions")
     public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
         super.visitMethodDeclaration(node, _);
 
@@ -95,7 +97,81 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
             run(labelInfo);
         }
 
+        for (final LabelInfo labelInfo : labels.values()) {
+            final String labelName = labelInfo.name;
+
+            if (labelInfo.label.getParent() != null) {
+                final Statement next = labelInfo.label.getNextStatement();
+
+                if (next == null) {
+                    continue;
+                }
+
+                if (next instanceof LabelStatement ||
+                    next instanceof LabeledStatement) {
+
+                    //
+                    // We have back-to-back labels; dump the first and redirect its references to the second.
+                    //
+
+                    final String nextLabel = next.getChildByRole(Roles.LABEL).getName();
+
+                    redirectLabels(node, labelName, nextLabel);
+
+                    labelInfo.label.remove();
+                }
+                else {
+                    //
+                    // Replace LabelStatement with LabeledStatement.
+                    //
+
+                    next.remove();
+
+                    labelInfo.label.replaceWith(
+                        new LabeledStatement(
+                            labelName,
+                            AstNode.isLoop(next) ? next : new BlockStatement(next)
+                        )
+                    );
+                }
+            }
+            else if (labelInfo.newLabeledStatement != null &&
+                     labelInfo.newLabeledStatement.getStatement() instanceof BlockStatement) {
+
+                final BlockStatement block = (BlockStatement) labelInfo.newLabeledStatement.getStatement();
+
+                if (block.getStatements().hasSingleElement() &&
+                    block.getStatements().firstOrNullObject() instanceof LabeledStatement) {
+
+                    final LabeledStatement nestedLabeledStatement = (LabeledStatement) block.getStatements().firstOrNullObject();
+                    //
+                    // We have back-to-back labels; dump the first and redirect its references to the second.
+                    //
+
+                    final String nextLabel = nestedLabeledStatement.getChildByRole(Roles.LABEL).getName();
+
+                    redirectLabels(node, labelName, nextLabel);
+
+                    nestedLabeledStatement.remove();
+                    labelInfo.newLabeledStatement.replaceWith(nestedLabeledStatement);
+                    labelInfo.newLabeledStatement = null;
+                }
+            }
+        }
+
         return null;
+    }
+
+    private void redirectLabels(final AstNode node, final String labelName, final String nextLabel) {
+        for (final AstNode n : node.getDescendantsAndSelf()) {
+            if (AstNode.isUnconditionalBranch(n)) {
+                final Identifier label = n.getChildByRole(Roles.IDENTIFIER);
+
+                if (!label.isNull() && StringUtilities.equals(label.getName(), labelName)) {
+                    label.setName(nextLabel);
+                }
+            }
+        }
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -178,6 +254,10 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
             return;
         }
 
+        if (convertToContinue(parent, labelInfo, paths)) {
+            return;
+        }
+
         final Set<AstNode> remainingNodes = new LinkedHashSet<>();
         final LinkedList<AstNode> orderedNodes = new LinkedList<>();
         final AstNode startNode = paths.get(0).peek();
@@ -253,17 +333,45 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
             }
 
             if (loopData.needsLabel) {
-                insertedStatement = new LabeledStatement(label.getLabel(), loop);
+                final LabeledStatement labeledStatement = new LabeledStatement(label.getLabel(), loop);
+                insertedStatement = labeledStatement;
+                labelInfo.newLabeledStatement = labeledStatement;
             }
             else {
                 insertedStatement = loop;
             }
         }
         else {
-            insertedStatement = new LabeledStatement(label.getLabel(), newBlock);
+            if (newBlock.getStatements().hasSingleElement() && AstNode.isLoop(newBlock.getStatements().firstOrNullObject())) {
+                final Statement loop = newBlock.getStatements().firstOrNullObject();
+
+                loop.remove();
+
+                final LabeledStatement labeledStatement = new LabeledStatement(label.getLabel(), loop);
+                insertedStatement = labeledStatement;
+                labelInfo.newLabeledStatement = labeledStatement;
+            }
+            else {
+                final LabeledStatement labeledStatement = new LabeledStatement(label.getLabel(), newBlock);
+                insertedStatement = labeledStatement;
+                labelInfo.newLabeledStatement = labeledStatement;
+            }
         }
 
-        if (insertBefore != null) {
+        if (parent.getParent() instanceof LabelStatement) {
+            AstNode insertionPoint = parent;
+
+            while (insertionPoint != null && insertionPoint.getParent() instanceof LabelStatement) {
+                insertionPoint = firstOrDefault(insertionPoint.getAncestors(BlockStatement.class));
+            }
+
+            if (insertionPoint == null) {
+                return;
+            }
+
+            insertionPoint.addChild(insertedStatement, BlockStatement.STATEMENT_ROLE);
+        }
+        else if (insertBefore != null) {
             parent.insertChildBefore(insertBefore, insertedStatement, BlockStatement.STATEMENT_ROLE);
         }
         else if (insertAfter != null) {
@@ -320,6 +428,87 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
                 }
             }
         }
+    }
+
+    private boolean convertToContinue(final BlockStatement parent, final LabelInfo labelInfo, final List<Stack<AstNode>> paths) {
+        if (!AstNode.isLoop(parent.getParent())) {
+            return false;
+        }
+
+        final AstNode loop = parent.getParent();
+        final AstNode nextAfterLoop = loop.getNextNode();
+
+        AstNode n = labelInfo.label;
+
+        while (n.getNextSibling() == null) {
+            n = n.getParent();
+        }
+
+        n = n.getNextSibling();
+
+        final boolean isContinue = n == nextAfterLoop ||
+                                   (loop instanceof ForStatement &&
+                                    n.getRole() == ForStatement.ITERATOR_ROLE &&
+                                    n.getParent() == loop);
+
+        if (!isContinue) {
+            return false;
+        }
+
+        boolean loopNeedsLabel = false;
+
+        for (final AstNode node : loop.getDescendantsAndSelf()) {
+            if (node instanceof ContinueStatement &&
+                StringUtilities.equals(((ContinueStatement) node).getLabel(), labelInfo.name)) {
+
+                loopNeedsLabel = true;
+            }
+            else if (node instanceof BreakStatement &&
+                     StringUtilities.equals(((BreakStatement) node).getLabel(), labelInfo.name)) {
+
+                loopNeedsLabel = true;
+            }
+        }
+
+        for (final Stack<AstNode> path : paths) {
+            final AstNode start = path.firstElement();
+
+            boolean continueNeedsLabel = false;
+
+            if (start instanceof GotoStatement) {
+                for (AstNode node = start;
+                     node != null && node != loop;
+                     node = node.getParent()) {
+
+                    if (AstNode.isLoop(node)) {
+                        loopNeedsLabel = continueNeedsLabel = true;
+                        break;
+                    }
+                }
+
+                if (continueNeedsLabel) {
+                    start.replaceWith(new ContinueStatement(labelInfo.name));
+                }
+                else {
+                    start.replaceWith(new ContinueStatement());
+                }
+            }
+        }
+
+        labelInfo.label.remove();
+
+        if (loopNeedsLabel) {
+            loop.replaceWith(
+                new Function<AstNode, AstNode>() {
+                    @Override
+                    public AstNode apply(final AstNode input) {
+                        return new LabeledStatement(labelInfo.name, (Statement) input);
+                    }
+                }
+            );
+        }
+
+        return true;
     }
 
     private final static class AssessForLoopResult {

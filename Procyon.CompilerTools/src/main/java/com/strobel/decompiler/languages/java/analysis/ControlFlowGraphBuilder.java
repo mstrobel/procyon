@@ -606,7 +606,7 @@ public class ControlFlowGraphBuilder {
 
         @Override
         public ControlFlowNode visitBreakStatement(final BreakStatement node, final ControlFlowNode data) {
-            if (StringUtilities.isNullOrEmpty(node.getLabel())) {
+            if (!StringUtilities.isNullOrEmpty(node.getLabel())) {
                 gotoStatements.add(data);
                 return createEndNode(node);
             }
@@ -620,7 +620,7 @@ public class ControlFlowGraphBuilder {
 
         @Override
         public ControlFlowNode visitContinueStatement(final ContinueStatement node, final ControlFlowNode data) {
-            if (StringUtilities.isNullOrEmpty(node.getLabel())) {
+            if (!StringUtilities.isNullOrEmpty(node.getLabel())) {
                 gotoStatements.add(data);
                 return createEndNode(node);
             }
