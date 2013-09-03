@@ -2770,7 +2770,8 @@ public final class AstBuilder {
                 }
 
                 for (final ByteCode b : definitions) {
-                    final TypeReference variableType;
+                    TypeReference variableType;
+
                     final FrameValue stackValue;
 
                     if (b.code == AstCode.Inc) {
@@ -2820,16 +2821,32 @@ public final class AstBuilder {
                         }
                     }
 
-                    if (parameterVariable != null &&
-                        MetadataHelper.isSameType(variableType, parameterVariable.variable.getType())) {
+                    if (variableType == BuiltinTypes.Null) {
+                        variableType = BuiltinTypes.Object;
+                    }
 
-                        if (!parameterVariableAdded) {
-                            newVariables.add(parameterVariable);
-                            parameterVariableAdded = true;
+                    if (parameterVariable != null) {
+                        final boolean useParameter;
+
+                        if (variableType.isPrimitive() || parameterVariable.variable.getType().isPrimitive()) {
+                            useParameter = variableType.getSimpleType() == parameterVariable.variable.getType().getSimpleType();
+                        }
+                        else if (variableType.isArray() || parameterVariable.variable.getType().isArray()) {
+                            useParameter = MetadataHelper.isSameType(variableType, parameterVariable.variable.getType());
+                        }
+                        else {
+                            useParameter = MetadataHelper.isSubType(variableType, parameterVariable.variable.getType());
                         }
 
-                        parameterVariable.definitions.add(b);
-                        continue;
+                        if (useParameter) {
+                            if (!parameterVariableAdded) {
+                                newVariables.add(parameterVariable);
+                                parameterVariableAdded = true;
+                            }
+
+                            parameterVariable.definitions.add(b);
+                            continue;
+                        }
                     }
 
                     final Variable variable = new Variable();
@@ -2841,10 +2858,7 @@ public final class AstBuilder {
                         variable.setName(format("var_%1$d_%2$02X", slot, b.offset));
                     }
 
-                    variable.setType(
-                        variableType != BuiltinTypes.Null ? variableType
-                                                          : BuiltinTypes.Object
-                    );
+                    variable.setType(variableType);
 
                     if (vDef == null) {
                         variable.setOriginalVariable(new VariableDefinition(slot, variable.getName(), method, variable.getType()));
