@@ -33,7 +33,7 @@ import com.strobel.decompiler.patterns.OptionalNode;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.TypedNode;
 
-import static com.strobel.core.CollectionUtilities.first;
+import static com.strobel.core.CollectionUtilities.*;
 
 public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
     public AssertStatementTransform(final DecompilerContext context) {
@@ -57,12 +57,7 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
                 new ThrowStatement(
                     new ObjectCreationExpression(
                         new SimpleType("AssertionError"),
-                        new OptionalNode(
-                            new NamedNode(
-                                "message",
-                                new PrimitiveExpression(PrimitiveExpression.ANY_STRING)
-                            )
-                        ).toExpression()
+                        new OptionalNode(new AnyNode("message")).toExpression()
                     )
                 )
             )
@@ -175,8 +170,15 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
         assertStatement.setCondition(condition);
 
         if (m.has("message")) {
-            final PrimitiveExpression message = m.<PrimitiveExpression>get("message").iterator().next();
-            assertStatement.setMessage((String) message.getValue());
+            Expression message = firstOrDefault(m.<Expression>get("message"));
+
+            while (message instanceof CastExpression) {
+                message = ((CastExpression) message).getExpression();
+            }
+
+            if (message instanceof PrimitiveExpression) {
+                assertStatement.setMessage(String.valueOf(((PrimitiveExpression) message).getValue()));
+            }
         }
 
         ifElse.replaceWith(assertStatement);
