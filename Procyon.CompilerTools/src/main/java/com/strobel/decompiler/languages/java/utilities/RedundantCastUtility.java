@@ -715,9 +715,17 @@ public final class RedundantCastUtility {
             }
 
             final TypeReference expectedType = TypeUtilities.getExpectedTypeByParent(_resolver, cast);
+            final boolean isCharConversion = (operandType == BuiltinTypes.Character) ^ (castTo == BuiltinTypes.Character);
 
             if (expectedType != null) {
+                if (isCharConversion && !expectedType.isPrimitive()) {
+                    return;
+                }
+
                 operandType = expectedType;
+            }
+            else if (isCharConversion) {
+                return;
             }
 
             if (operandType == BuiltinTypes.Null && castTo.isPrimitive()) {
@@ -882,13 +890,6 @@ public final class RedundantCastUtility {
 
             if (castType instanceof PrimitiveType) {
                 if (opType instanceof PrimitiveType) {
-                    if ((opType == BuiltinTypes.Character) ^ (castType == BuiltinTypes.Character)) {
-                        //
-                        // Non-identity conversions to/from `char` should not be removed.
-                        //
-                        return true;
-                    }
-
                     final ConversionType conversionType = MetadataHelper.getNumericConversionType(castType, opType);
 
                     return conversionType != ConversionType.IDENTITY &&
