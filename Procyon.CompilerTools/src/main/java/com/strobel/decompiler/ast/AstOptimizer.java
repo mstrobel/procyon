@@ -226,7 +226,7 @@ public final class AstOptimizer {
         }
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
-            new LoopsAndConditions().findLoops(block);
+            new LoopsAndConditions(context).findLoops(block);
         }
 
         if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.FindConditions)) {
@@ -234,7 +234,7 @@ public final class AstOptimizer {
         }
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
-            new LoopsAndConditions().findConditions(block);
+            new LoopsAndConditions(context).findConditions(block);
         }
 
         if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.FlattenNestedMovableBlocks)) {

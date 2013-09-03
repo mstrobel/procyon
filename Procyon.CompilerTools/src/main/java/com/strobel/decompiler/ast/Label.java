@@ -20,6 +20,7 @@ import com.strobel.decompiler.ITextOutput;
 
 public class Label extends Node {
     private String _name;
+    private int _offset = -1;
 
     public Label() {
     }
@@ -34,6 +35,14 @@ public class Label extends Node {
 
     public void setName(final String name) {
         _name = name;
+    }
+
+    public int getOffset() {
+        return _offset;
+    }
+
+    public void setOffset(final int offset) {
+        _offset = offset;
     }
 
     @Override

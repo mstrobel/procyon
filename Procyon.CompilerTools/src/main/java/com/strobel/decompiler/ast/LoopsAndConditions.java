@@ -24,8 +24,10 @@ import com.strobel.assembler.flowanalysis.ControlFlowNodeType;
 import com.strobel.assembler.flowanalysis.JumpType;
 import com.strobel.assembler.metadata.SwitchInfo;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.Pair;
 import com.strobel.core.Predicate;
 import com.strobel.core.StrongBox;
+import com.strobel.decompiler.DecompilerContext;
 
 import java.util.*;
 
@@ -35,8 +37,14 @@ import static com.strobel.decompiler.ast.PatternMatching.*;
 
 final class LoopsAndConditions {
     private final Map<Label, ControlFlowNode> labelsToNodes = new IdentityHashMap<>();
+    @SuppressWarnings({ "FieldCanBeLocal", "UnusedDeclaration" })
+    private final DecompilerContext context;
 
     private int _nextLabelIndex;
+
+    LoopsAndConditions(final DecompilerContext context) {
+        this.context = context;
+    }
 
     public final void findConditions(final Block block) {
         final List<Node> body = block.getBody();
@@ -383,7 +391,6 @@ final class LoopsAndConditions {
 
                             basicBlockBody.add(loop);
 
-
                             if (isPostCondition) {
                                 basicBlockBody.add(new Expression(AstCode.Goto, falseLabel.get()));
                             }
@@ -563,7 +570,7 @@ final class LoopsAndConditions {
 
                     boolean defaultFollowsSwitch = false;
 
-                    for (int i = 0; i < labels.length; i++) {
+                    for (int i = 1; i < labels.length; i++) {
                         final Label caseLabel = labels[i];
 
                         if (caseLabel == defaultLabel) {
@@ -591,30 +598,25 @@ final class LoopsAndConditions {
                             final ControlFlowNode caseTarget = labelsToNodes.get(caseLabel);
                             final List<Node> caseBody = caseBlock.getBody();
 
-                            if (caseLabel == defaultLabel) {
-                                continue;
+                            switchNode.getCaseBlocks().add(caseBlock);
+
+                            if (caseTarget != null) {
+                                if (caseTarget.getDominanceFrontier().contains(defaultTarget)) {
+                                    defaultFollowsSwitch = true;
+                                }
+
+                                final Set<ControlFlowNode> content = findDominatedNodes(scope, caseTarget);
+
+                                scope.removeAll(content);
+                                caseBody.addAll(findConditions(content, caseTarget));
                             }
                             else {
-                                switchNode.getCaseBlocks().add(caseBlock);
+                                final BasicBlock explicitGoto = new BasicBlock();
 
-                                if (caseTarget != null) {
-                                    if (caseTarget.getDominanceFrontier().contains(defaultTarget)) {
-                                        defaultFollowsSwitch = true;
-                                    }
+                                explicitGoto.getBody().add(new Label("SwitchGoto_" + _nextLabelIndex++));
+                                explicitGoto.getBody().add(new Expression(AstCode.Goto, caseLabel));
 
-                                    final Set<ControlFlowNode> content = findDominatedNodes(scope, caseTarget);
-
-                                    scope.removeAll(content);
-                                    caseBody.addAll(findConditions(content, caseTarget));
-                                }
-                                else {
-                                    final BasicBlock explicitGoto = new BasicBlock();
-
-                                    explicitGoto.getBody().add(new Label("SwitchGoto_" + _nextLabelIndex++));
-                                    explicitGoto.getBody().add(new Expression(AstCode.Goto, caseLabel));
-
-                                    caseBody.add(explicitGoto);
-                                }
+                                caseBody.add(explicitGoto);
                             }
 
                             if (caseBody.isEmpty() ||
@@ -635,18 +637,18 @@ final class LoopsAndConditions {
                             }
                         }
 
-                        if (caseLabel != defaultLabel) {
-                            if (switchInfo.hasKeys()) {
-                                caseBlock.getValues().add(keys[i - 1]);
-                            }
-                            else {
-                                caseBlock.getValues().add(lowValue + i - 1);
-                            }
+                        if (switchInfo.hasKeys()) {
+                            caseBlock.getValues().add(keys[i - 1]);
+                        }
+                        else {
+                            caseBlock.getValues().add(lowValue + i - 1);
                         }
                     }
 
                     if (!defaultFollowsSwitch) {
                         final CaseBlock defaultBlock = new CaseBlock();
+
+                        defaultBlock.setEntryGoto(new Expression(AstCode.Goto, defaultLabel));
 
                         switchNode.getCaseBlocks().add(defaultBlock);
 
@@ -667,6 +669,8 @@ final class LoopsAndConditions {
 
                         defaultBlock.getBody().add(explicitBreak);
                     }
+
+                    reorderCaseBlocks(switchNode);
                 }
 
                 //
@@ -759,6 +763,71 @@ final class LoopsAndConditions {
         }
 
         return result;
+    }
+
+    private void reorderCaseBlocks(final Switch switchNode) {
+        Collections.sort(
+            switchNode.getCaseBlocks(),
+            new Comparator<CaseBlock>() {
+                @Override
+                public int compare(@NotNull final CaseBlock o1, @NotNull final CaseBlock o2) {
+                    final Label l1 = (Label) o1.getEntryGoto().getOperand();
+                    final Label l2 = (Label) o2.getEntryGoto().getOperand();
+
+                    return Integer.compare(l1.getOffset(), l2.getOffset());
+                }
+            }
+        );
+
+        final List<CaseBlock> caseBlocks = switchNode.getCaseBlocks();
+        final Map<Label, Pair<CaseBlock, Integer>> caseLookup = new IdentityHashMap<>();
+
+        for (int i = 0; i < caseBlocks.size(); i++) {
+            final CaseBlock block = caseBlocks.get(i);
+            caseLookup.put((Label) block.getEntryGoto().getOperand(), Pair.create(block, i));
+        }
+
+        final StrongBox<Label> label = new StrongBox<>();
+
+        for (int i = 0; i < caseBlocks.size(); i++) {
+            final CaseBlock block = caseBlocks.get(i);
+            final List<Node> caseBody = block.getBody();
+
+            Node lastInCase = lastOrDefault(caseBody);
+
+            if (lastInCase instanceof BasicBlock) {
+                lastInCase = lastOrDefault(((BasicBlock)lastInCase).getBody());
+            }
+            else if (lastInCase instanceof Block) {
+                lastInCase = lastOrDefault(((Block)lastInCase).getBody());
+            }
+
+            if (matchGetOperand(lastInCase, AstCode.Goto, label)) {
+                final Pair<CaseBlock, Integer> caseInfo = caseLookup.get(label.get());
+
+                if (caseInfo == null) {
+                    continue;
+                }
+
+                //
+                // We have a switch section that should fall through to another section.  Make sure
+                // we are positioned immediately before the fall through target.
+                //
+
+                final int targetIndex = caseInfo.getSecond();
+
+                if (targetIndex == i + 1) {
+                    continue;
+                }
+
+                caseBlocks.remove(i);
+                caseBlocks.add(targetIndex, block);
+
+                if (targetIndex > i) {
+                    --i;
+                }
+            }
+        }
     }
 
     private static boolean hasSingleEdgeEnteringBlock(final ControlFlowNode node) {

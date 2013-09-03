@@ -2080,6 +2080,7 @@ public final class AstBuilder {
 
                 if (target.label == null) {
                     target.label = new Label();
+                    target.label.setOffset(target.offset);
                     target.label.setName(target.makeLabelName());
                 }
 
