@@ -410,6 +410,8 @@ final class LoopsAndConditions {
 
                         result.add(block);
                         scope.removeAll(loopContents);
+
+                        break;
                     }
                 }
 
