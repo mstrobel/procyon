@@ -26,6 +26,42 @@ public final class MetadataFilters {
         throw ContractUtils.unreachable();
     }
 
+    public static <T extends TypeReference> Predicate<T> isSubType(final TypeReference anchor) {
+        return new Predicate<T>() {
+            @Override
+            public final boolean test(final T t) {
+                return MetadataHelper.isSubType(t, anchor);
+            }
+        };
+    }
+
+    public static <T extends TypeReference> Predicate<T> isSuperType(final TypeReference anchor) {
+        return new Predicate<T>() {
+            @Override
+            public final boolean test(final T t) {
+                return MetadataHelper.isSubType(anchor, t);
+            }
+        };
+    }
+
+    public static <T extends TypeReference> Predicate<T> isAssignableFrom(final TypeReference sourceType) {
+        return new Predicate<T>() {
+            @Override
+            public final boolean test(final T t) {
+                return MetadataHelper.isAssignableFrom(t, sourceType);
+            }
+        };
+    }
+
+    public static <T extends TypeReference> Predicate<T> isAssignableTo(final TypeReference targetType) {
+        return new Predicate<T>() {
+            @Override
+            public final boolean test(final T t) {
+                return MetadataHelper.isAssignableFrom(targetType, t);
+            }
+        };
+    }
+
     public static <T extends MemberReference> Predicate<T> matchName(final String name) {
         return new Predicate<T>() {
             @Override
