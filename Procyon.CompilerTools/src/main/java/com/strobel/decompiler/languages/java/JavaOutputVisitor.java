@@ -2230,13 +2230,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         space();
         node.getCondition().acceptVisitor(this, ignored);
 
-        final String message = node.getMessage();
+        final Expression message = node.getMessage();
 
-        if (message != null) {
+        if (message != null && !message.isNull()) {
             space();
             writeToken(Roles.COLON);
             space();
-            formatter.writeTextLiteral(StringUtilities.escape(message, true, settings.isUnicodeOutputEnabled()));
+            message.acceptVisitor(this, ignored);
         }
 
         semicolon();
