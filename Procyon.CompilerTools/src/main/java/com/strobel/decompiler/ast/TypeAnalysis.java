@@ -2846,6 +2846,7 @@ public final class TypeAnalysis {
         }
 
         @Override
+        @SuppressWarnings("StatementWithEmptyBody")
         public Void visitGenericParameter(final GenericParameter t, final Map<TypeReference, TypeReference> map) {
             if (MetadataResolver.areEquivalent(argumentType, t)) {
                 return null;
@@ -2865,7 +2866,7 @@ public final class TypeAnalysis {
                 map.put(t, mappedType);
             }
             else if (MetadataHelper.isSubType(argumentType, existingMapping)) {
-                map.put(t, argumentType);
+//                map.put(t, argumentType);
             }
             else {
                 map.put(t, MetadataHelper.findCommonSuperType(existingMapping, argumentType));

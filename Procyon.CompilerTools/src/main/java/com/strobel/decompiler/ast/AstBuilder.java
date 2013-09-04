@@ -91,6 +91,8 @@ public final class AstBuilder {
 
         builder._exceptionHandlers = remapHandlers(body.getExceptionHandlers(), builder._instructions);
 
+        Collections.sort(builder._exceptionHandlers);
+
         builder.pruneExceptionHandlers();
 
         FinallyInlining.run(builder._body, builder._instructions, builder._exceptionHandlers, builder._removed);

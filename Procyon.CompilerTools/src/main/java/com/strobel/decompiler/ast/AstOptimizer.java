@@ -134,13 +134,25 @@ public final class AstOptimizer {
 
                 modified |= runOptimization(block, new RemoveInnerClassInitSecurityChecksOptimization(context, method));
 
-                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyShortCircuit)) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyShortCircuitAssignments)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new SimplifyShortCircuitAssignmentsOptimization(context, method));
+
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyShortCircuit)) {
+                    done = true;
+                    break;
+                }
+
                 modified |= runOptimization(block, new SimplifyShortCircuitOptimization(context, method));
+
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.JoinBranchConditions)) {
+                    done = true;
+                    break;
+                }
+
                 modified |= runOptimization(block, new JoinBranchConditionsOptimization(context, method));
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyTernaryOperator)) {

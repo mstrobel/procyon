@@ -275,13 +275,18 @@ final class LoopsAndConditions {
                 final ControlFlowNode lastInLoop = lastOrDefault(loopContents);
                 final BasicBlock lastBlock = (BasicBlock) lastInLoop.getUserData();
 
-                boolean isPostCondition = false;
+                for (int pass = 0; pass < 2; pass++) {
+                    final boolean isPostCondition = pass == 1;
 
-                //
-                // It has to be just IfTrue; any preceding code would introduce a goto.
-                //
-                if (matchSingleAndBreak(basicBlock, AstCode.IfTrue, trueLabel, condition, falseLabel) ||
-                    ((isPostCondition = true) && matchLastAndBreak(lastBlock, AstCode.IfTrue, trueLabel, condition, falseLabel))) {
+                    final boolean foundCondition = isPostCondition ? matchLastAndBreak(lastBlock, AstCode.IfTrue, trueLabel, condition, falseLabel)
+                                                                   : matchSingleAndBreak(basicBlock, AstCode.IfTrue, trueLabel, condition, falseLabel);
+
+                    //
+                    // It has to be just IfTrue; any preceding code would introduce a goto.
+                    //
+                    if (!foundCondition) {
+                        continue;
+                    }
 
                     final ControlFlowNode trueTarget = labelsToNodes.get(trueLabel.get());
                     final ControlFlowNode falseTarget = labelsToNodes.get(falseLabel.get());
@@ -289,119 +294,122 @@ final class LoopsAndConditions {
                     //
                     // If one point inside the loop and the other outside...
                     //
-                    if (loopContents.contains(falseTarget) && !loopContents.contains(trueTarget) ||
-                        loopContents.contains(trueTarget) && !loopContents.contains(falseTarget)) {
 
-                        final boolean flipped = loopContents.contains(falseTarget) || falseTarget == node;
+                    if ((!loopContents.contains(falseTarget) || loopContents.contains(trueTarget)) &&
+                        (!loopContents.contains(trueTarget) || loopContents.contains(falseTarget))) {
 
-                        //
-                        // If false means enter the loop, negate the condition.
-                        //
+                        continue;
+                    }
+
+                    final boolean flipped = loopContents.contains(falseTarget) || falseTarget == node;
+
+                    //
+                    // If false means enter the loop, negate the condition.
+                    //
+                    if (flipped) {
+                        final Label temp = trueLabel.get();
+
+                        trueLabel.set(falseLabel.get());
+                        falseLabel.set(temp);
+                        condition.set(AstOptimizer.simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.get())));
+                    }
+
+                    final boolean canWriteConditionalLoop;
+
+                    if (isPostCondition) {
+                        final Expression continueGoto;
+
                         if (flipped) {
-                            final Label temp = trueLabel.get();
-
-                            trueLabel.set(falseLabel.get());
-                            falseLabel.set(temp);
-                            condition.set(AstOptimizer.simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.get())));
-                        }
-
-                        final boolean canWriteConditionalLoop;
-
-                        if (isPostCondition) {
-                            final Expression continueGoto;
-
-                            if (flipped) {
-                                continueGoto = (Expression) last(lastBlock.getBody());
-                            }
-                            else {
-                                continueGoto = (Expression) lastBlock.getBody().get(lastBlock.getBody().size() - 2);
-                            }
-
-                            canWriteConditionalLoop = countJumps(loopContents, trueLabel.get(), continueGoto) == 0;
+                            continueGoto = (Expression) last(lastBlock.getBody());
                         }
                         else {
-                            canWriteConditionalLoop = true;
+                            continueGoto = (Expression) lastBlock.getBody().get(lastBlock.getBody().size() - 2);
                         }
 
-                        if (canWriteConditionalLoop) {
-                            removeOrThrow(loopContents, node);
-                            removeOrThrow(scope, node);
+                        canWriteConditionalLoop = countJumps(loopContents, trueLabel.get(), continueGoto) == 0;
+                    }
+                    else {
+                        canWriteConditionalLoop = true;
+                    }
 
-                            final ControlFlowNode postLoopTarget = labelsToNodes.get(falseLabel.get());
+                    if (canWriteConditionalLoop) {
+                        removeOrThrow(loopContents, node);
+                        removeOrThrow(scope, node);
 
-                            if (postLoopTarget != null) {
-                                //
-                                // Pull more nodes into the loop.
-                                //
-                                final Set<ControlFlowNode> postLoopContents = findDominatedNodes(scope, postLoopTarget);
-                                final LinkedHashSet<ControlFlowNode> pullIn = new LinkedHashSet<>(scope);
+                        final ControlFlowNode postLoopTarget = labelsToNodes.get(falseLabel.get());
 
-                                pullIn.removeAll(postLoopContents);
-
-                                for (final ControlFlowNode n : pullIn) {
-                                    if (node.dominates(n)) {
-                                        loopContents.add(n);
-                                    }
-                                }
-                            }
-
+                        if (postLoopTarget != null) {
                             //
-                            // Use loop to implement the IfTrue.
+                            // Pull more nodes into the loop.
                             //
-                            final BasicBlock block;
-                            final List<Node> basicBlockBody;
-                            final Label loopLabel;
+                            final Set<ControlFlowNode> postLoopContents = findDominatedNodes(scope, postLoopTarget);
+                            final LinkedHashSet<ControlFlowNode> pullIn = new LinkedHashSet<>(scope);
 
-                            if (isPostCondition) {
-                                block = new BasicBlock();
-                                basicBlockBody = block.getBody();
+                            pullIn.removeAll(postLoopContents);
 
-                                removeTail(lastBlock.getBody(), AstCode.IfTrue, AstCode.Goto);
-
-                                if (lastBlock.getBody().size() > 1) {
-                                    lastBlock.getBody().add(new Expression(AstCode.Goto, trueLabel.get()));
-                                    loopLabel = new Label("Loop_" + _nextLabelIndex++);
+                            for (final ControlFlowNode n : pullIn) {
+                                if (node.dominates(n)) {
+                                    loopContents.add(n);
                                 }
-                                else {
-                                    scope.remove(lastInLoop);
-                                    loopContents.remove(lastInLoop);
-                                    loopLabel = (Label) lastBlock.getBody().get(0);
-                                }
-
-                                basicBlockBody.add(loopLabel);
                             }
-                            else {
-                                block = basicBlock;
-                                basicBlockBody = block.getBody();
-                                removeTail(basicBlockBody, AstCode.IfTrue, AstCode.Goto);
-                            }
-
-                            final Loop loop = new Loop();
-                            final Block bodyBlock = new Block();
-
-                            loop.setCondition(condition.get());
-                            loop.setBody(bodyBlock);
-
-                            if (isPostCondition) {
-                                loop.setLoopType(LoopType.PostCondition);
-                                bodyBlock.getBody().add(basicBlock);
-                            }
-
-                            bodyBlock.setEntryGoto(new Expression(AstCode.Goto, trueLabel.get()));
-                            bodyBlock.getBody().addAll(findLoops(loopContents, node, isPostCondition));
-
-                            basicBlockBody.add(loop);
-
-                            if (isPostCondition) {
-                                basicBlockBody.add(new Expression(AstCode.Goto, falseLabel.get()));
-                            }
-                            else {
-                                basicBlockBody.add(new Expression(AstCode.Goto, falseLabel.get()));
-                            }
-
-                            result.add(block);
-                            scope.removeAll(loopContents);
                         }
+
+                        //
+                        // Use loop to implement the IfTrue.
+                        //
+                        final BasicBlock block;
+                        final List<Node> basicBlockBody;
+                        final Label loopLabel;
+
+                        if (isPostCondition) {
+                            block = new BasicBlock();
+                            basicBlockBody = block.getBody();
+
+                            removeTail(lastBlock.getBody(), AstCode.IfTrue, AstCode.Goto);
+
+                            if (lastBlock.getBody().size() > 1) {
+                                lastBlock.getBody().add(new Expression(AstCode.Goto, trueLabel.get()));
+                                loopLabel = new Label("Loop_" + _nextLabelIndex++);
+                            }
+                            else {
+                                scope.remove(lastInLoop);
+                                loopContents.remove(lastInLoop);
+                                loopLabel = (Label) lastBlock.getBody().get(0);
+                            }
+
+                            basicBlockBody.add(loopLabel);
+                        }
+                        else {
+                            block = basicBlock;
+                            basicBlockBody = block.getBody();
+                            removeTail(basicBlockBody, AstCode.IfTrue, AstCode.Goto);
+                        }
+
+                        final Loop loop = new Loop();
+                        final Block bodyBlock = new Block();
+
+                        loop.setCondition(condition.get());
+                        loop.setBody(bodyBlock);
+
+                        if (isPostCondition) {
+                            loop.setLoopType(LoopType.PostCondition);
+                            bodyBlock.getBody().add(basicBlock);
+                        }
+
+                        bodyBlock.setEntryGoto(new Expression(AstCode.Goto, trueLabel.get()));
+                        bodyBlock.getBody().addAll(findLoops(loopContents, node, isPostCondition));
+
+                        basicBlockBody.add(loop);
+
+                        if (isPostCondition) {
+                            basicBlockBody.add(new Expression(AstCode.Goto, falseLabel.get()));
+                        }
+                        else {
+                            basicBlockBody.add(new Expression(AstCode.Goto, falseLabel.get()));
+                        }
+
+                        result.add(block);
+                        scope.removeAll(loopContents);
                     }
                 }
 
@@ -859,10 +867,10 @@ final class LoopsAndConditions {
             Node lastInCase = lastOrDefault(caseBody);
 
             if (lastInCase instanceof BasicBlock) {
-                lastInCase = lastOrDefault(((BasicBlock)lastInCase).getBody());
+                lastInCase = lastOrDefault(((BasicBlock) lastInCase).getBody());
             }
             else if (lastInCase instanceof Block) {
-                lastInCase = lastOrDefault(((Block)lastInCase).getBody());
+                lastInCase = lastOrDefault(((Block) lastInCase).getBody());
             }
 
             if (matchGetOperand(lastInCase, AstCode.Goto, label)) {
