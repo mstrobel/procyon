@@ -138,7 +138,7 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
 
         final FieldDefinition resolvedField = ((FieldReference) reference).resolve();
 
-        if (!resolvedField.isSynthetic()) {
+        if (resolvedField == null || !resolvedField.isSynthetic()) {
             return;
         }
 

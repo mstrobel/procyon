@@ -110,8 +110,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
             new BlockStatement(
                 new ExpressionStatement(
                     new IdentifierExpressionBackReference("resource").toExpression().invoke("close")
-                ),
-                new NamedNode("break", new BreakStatement(Pattern.ANY_STRING)).toStatement()
+                )
             )
         );
 
@@ -122,8 +121,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                         "addSuppressed",
                         new NamedNode("caughtOnClose", new IdentifierExpression(Pattern.ANY_STRING)).toExpression()
                     )
-                ),
-                new NamedNode("break", new BreakStatement(Pattern.ANY_STRING)).toStatement()
+                )
             )
         );
 
@@ -134,26 +132,23 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
         tryPattern.setFinallyBlock(
             new BlockStatement(
-                new LabeledStatement(
-                    Pattern.ANY_STRING,
+                new IfElseStatement(
+                    new BinaryOperatorExpression(
+                        new IdentifierExpressionBackReference("resource").toExpression(),
+                        BinaryOperatorType.INEQUALITY,
+                        new NullReferenceExpression()
+                    ),
                     new BlockStatement(
                         new IfElseStatement(
                             new BinaryOperatorExpression(
-                                new IdentifierExpressionBackReference("resource").toExpression(),
+                                new IdentifierExpressionBackReference("savedException").toExpression(),
                                 BinaryOperatorType.INEQUALITY,
                                 new NullReferenceExpression()
                             ),
                             new BlockStatement(
-                                new IfElseStatement(
-                                    new BinaryOperatorExpression(
-                                        new IdentifierExpressionBackReference("savedException").toExpression(),
-                                        BinaryOperatorType.INEQUALITY,
-                                        new NullReferenceExpression()
-                                    ),
-                                    new BlockStatement(
-                                        disposeTry
-                                    )
-                                ),
+                                disposeTry
+                            ),
+                            new BlockStatement(
                                 new ExpressionStatement(
                                     new IdentifierExpressionBackReference("resource").toExpression().invoke("close")
                                 )
