@@ -239,18 +239,7 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                 targetResult.getType().getSimpleType() != JvmType.Boolean &&
                 targetResult.getType().getSimpleType().isNumeric()) {
 
-                replacement = right.replaceWith(
-                    new Function<AstNode, AstNode>() {
-                        @Override
-                        public AstNode apply(final AstNode input) {
-                            return new ConditionalExpression(
-                                right,
-                                new PrimitiveExpression(1),
-                                new PrimitiveExpression(0)
-                            );
-                        }
-                    }
-                );
+                replacement = convertBooleanToNumeric(right);
 
                 if (targetResult.getType().getSimpleType().bitWidth() < 32) {
                     final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
@@ -332,11 +321,11 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                 final ResolveResult rightResult = _resolver.apply(right);
 
                 if (leftResult != null && leftResult.getType() == BuiltinTypes.Boolean) {
-                    promoteBooleanArithmeticOperand(left);
+                    convertBooleanToNumeric(left);
                 }
 
                 if (rightResult != null && rightResult.getType() == BuiltinTypes.Boolean) {
-                    promoteBooleanArithmeticOperand(right);
+                    convertBooleanToNumeric(right);
                 }
 
                 break;
@@ -346,7 +335,7 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         return null;
     }
 
-    private void promoteBooleanArithmeticOperand(final Expression operand) {
+    private Expression convertBooleanToNumeric(final Expression operand) {
         final boolean invert;
 
         Expression e = operand;
@@ -365,7 +354,7 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
             invert = false;
         }
 
-        e.replaceWith(
+        return (Expression) e.replaceWith(
             new Function<AstNode, AstNode>() {
                 @Override
                 public AstNode apply(final AstNode input) {
