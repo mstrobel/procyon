@@ -312,9 +312,9 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             }
         }
 
-        if (body.getStatements().size() - iterators.size() <= 0 && initializers.isEmpty()) {
+        if (initializers.isEmpty()) {
             //
-            // Don't transform a 'while' loop into a 'for' loop with an empty body and no initializers.
+            // Don't transform a 'while' loop into a 'for' loop with no initializers.
             //
             return null;
         }
