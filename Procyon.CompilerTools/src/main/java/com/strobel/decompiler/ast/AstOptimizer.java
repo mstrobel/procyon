@@ -221,7 +221,8 @@ public final class AstOptimizer {
                 new Inlining(context, method).copyPropagation();
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.MergeDisparateObjectInitializations)) {
-                    return;
+                    done = true;
+                    break;
                 }
 
                 modified |= mergeDisparateObjectInitializations(context, block);
@@ -1140,9 +1141,9 @@ public final class AstOptimizer {
         // | storeelement(o, n, v)     |
         // +---------------------------+
         //   |
-        //   |    +-----------------------+
-        //   +--> | v = loadelement(a, n) |
-        //        +-----------------------+
+        //   |    +-----------------------------------------+
+        //   +--> | v = postincrement(1, loadelement(a, n)) |
+        //        +-----------------------------------------+
         //
 
         if (!(body.get(i) instanceof Expression &&
