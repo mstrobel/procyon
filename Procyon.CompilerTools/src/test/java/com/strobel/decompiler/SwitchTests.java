@@ -13,7 +13,6 @@
 
 package com.strobel.decompiler;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class SwitchTests extends DecompilerTest {
@@ -174,14 +173,14 @@ public class SwitchTests extends DecompilerTest {
             "private static class A {\n" +
             "    public void test(final int i) {\n" +
             "        switch (i) {\n" +
-            "            case -1:\n" +
-            "                System.out.print(\"-1\");\n" +
+            "            case 1:\n" +
+            "                System.out.print(\"1\");\n" +
             "                break;\n" +
             "            case 0:\n" +
             "                System.out.print(\"0\");\n" +
             "                break;\n" +
-            "            case 1:\n" +
-            "                System.out.print(\"1\");\n" +
+            "            case -1:\n" +
+            "                System.out.print(\"-1\");\n" +
             "                break;\n" +
             "            default:\n" +
             "                System.out.print(\"Bad Value\");\n" +
@@ -208,15 +207,15 @@ public class SwitchTests extends DecompilerTest {
             "private static class B {\n" +
             "    public void test(final int i) {\n" +
             "        switch (i) {\n" +
+            "            case -3:\n" +
+            "            case -2:\n" +
+            "            case 1:\n" +
+            "                System.out.print(\"1\");\n" +
             "            case 0:\n" +
             "                System.out.print(\"0\");\n" +
             "            case -1:\n" +
             "                System.out.print(\"-1\");\n" +
             "                break;\n" +
-            "            case -3:\n" +
-            "            case -2:\n" +
-            "            case 1:\n" +
-            "                System.out.print(\"1\");\n" +
             "        }\n" +
             "        System.out.print(\"end of fall through\");\n" +
             "        System.out.println(\"after switch\");\n" +

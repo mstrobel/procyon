@@ -93,7 +93,7 @@ public final class Environment {
 
                     variableMatcher.appendReplacement(
                         expanded,
-                        recursive ? expandVariables(variableValue, true) : variableValue
+                        (recursive ? expandVariables(variableValue, true) : variableValue).replace("\\", "\\\\")
                     );
                 }
             }

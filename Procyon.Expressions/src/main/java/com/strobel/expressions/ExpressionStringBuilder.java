@@ -833,6 +833,31 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     }
 
     @Override
+    protected Expression visitTry(final TryExpression node) {
+        out("try");
+        flush();
+        increaseIndent();
+        visit(node.getBody());
+        decreaseIndent();
+        flush();
+
+        for (final CatchBlock catchBlock : node.getHandlers()) {
+            visitCatchBlock(catchBlock);
+        }
+
+        if (node.getFinallyBlock() != null) {
+            out("finally");
+            flush();
+            increaseIndent();
+            visit(node.getFinallyBlock());
+            decreaseIndent();
+            flush();
+        }
+
+        return node;
+    }
+
+    @Override
     protected Expression visitConditional(final ConditionalExpression node) {
         if (node.getType() != PrimitiveTypes.Void) {
             out('(');
@@ -893,7 +918,12 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
             final String variableName = node.getVariable().getName();
             out(variableName != null ? variableName : "");
         }
-        out(") { ... }");
+        out(")");
+        flush();
+        increaseIndent();
+        visit(node.getBody());
+        decreaseIndent();
+        flush();
         return node;
     }
 

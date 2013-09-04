@@ -16,14 +16,7 @@ package com.strobel.expressions;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.delegates.Action1;
 import com.strobel.core.delegates.Func1;
-import com.strobel.reflection.BindingFlags;
-import com.strobel.reflection.ConstructorInfo;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.TargetInvocationException;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.TypeList;
-import com.strobel.reflection.Types;
+import com.strobel.reflection.*;
 import com.strobel.reflection.emit.FieldBuilder;
 import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.reflection.emit.SwitchOptions;
@@ -55,7 +48,7 @@ public final class CompilerTests extends AbstractExpressionTest {
     interface INeedsBridgeMethod<T extends Comparable<String>> {
         T invoke(final T t);
     }
-    
+
     @Test
     public void testStringEquals() throws Exception {
         final ParameterExpression p = parameter(Types.String, "s");
@@ -192,7 +185,7 @@ public final class CompilerTests extends AbstractExpressionTest {
         final ParameterExpression item = variable(Types.String, "item");
 
         final ConstantExpression items = constant(
-            new String[]{"one", "two", "three", "four", "five"}
+            new String[] { "one", "two", "three", "four", "five" }
         );
 
         final LambdaExpression<Runnable> runnable = lambda(
@@ -1065,7 +1058,8 @@ public final class CompilerTests extends AbstractExpressionTest {
             makeNew(
                 constructor,
                 constant(2),
-                constant(3d))
+                constant(3d)
+            )
         );
 
         System.out.println();
@@ -1076,12 +1070,12 @@ public final class CompilerTests extends AbstractExpressionTest {
         System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
 
         final Object result = delegate.call();
-        
+
         System.out.println(result);
 
         assertTrue(result instanceof NeedsTwoCtorArgs);
     }
-    
+
     @Test
     public void testTypeInitializerGeneration() throws Throwable {
         final TypeBuilder<Runnable> typeBuilder = new TypeBuilder<>(
@@ -1094,7 +1088,8 @@ public final class CompilerTests extends AbstractExpressionTest {
         final FieldBuilder staticField = typeBuilder.defineField(
             "Numbers",
             Type.of(int[].class),
-            Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC);
+            Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC
+        );
 
         final MethodBuilder typeInitializer = typeBuilder.defineTypeInitializer();
 
@@ -1108,21 +1103,24 @@ public final class CompilerTests extends AbstractExpressionTest {
                     constant(2),
                     constant(3),
                     constant(4),
-                    constant(5))))
-            .compileToMethod(typeInitializer);
+                    constant(5)
+                )
+            )
+        ).compileToMethod(typeInitializer);
 
         final Type<Runnable> generatedType = typeBuilder.createType();
 
         final MethodHandle getter = MethodHandles.lookup().findStaticGetter(
             generatedType.getErasedClass(),
             "Numbers",
-            int[].class);
+            int[].class
+        );
 
-        final int[] numbers = (int[])getter.invokeExact();
+        final int[] numbers = (int[]) getter.invokeExact();
 
         assertArrayEquals(new int[] { 1, 2, 3, 4, 5 }, numbers);
     }
-    
+
     @Test
     public void testUntypedLambdaCreation() throws Throwable {
         final ParameterExpression p1 = parameter(PrimitiveTypes.Integer);
@@ -1157,7 +1155,144 @@ public final class CompilerTests extends AbstractExpressionTest {
 
         assertTrue(result);
     }
-    
+
+    @Test
+    public void testFinallyWithReturnFromTry1() throws Throwable {
+        final ParameterExpression p1 = parameter(PrimitiveTypes.Integer);
+        final MemberExpression out = field(null, Type.of(System.class).getField("out"));
+        final LabelTarget returnLabel = label(PrimitiveTypes.Integer);
+
+        final LambdaExpression<?> e = lambda(
+            block(
+                tryFinally(
+                    block(
+                        ifThen(
+                            lessThan(p1, constant(0)),
+                            block(
+                                call(out, "println", constant("negative")),
+                                makeReturn(returnLabel, constant(-1))
+                            )
+                        ),
+                        call(out, "println", condition(greaterThan(p1, constant(0)), constant("positive"), constant("zero")))
+                    ),
+                    block(
+                        call(out, "println", constant("finally"))
+                    )
+                ),
+                label(returnLabel, condition(greaterThan(p1, constant(0)), constant(1), constant(0)))
+            ),
+            p1
+        );
+
+        System.out.println(e.getDebugView());
+        queue().clear();
+
+        final Delegate<?> delegate = e.compileDelegate();
+
+        assertEquals(-1, delegate.invokeDynamic(-25));
+        assertEquals(0, delegate.invokeDynamic(0));
+        assertEquals(1, delegate.invokeDynamic(25));
+
+        assertEquals("negative", dequeue());
+        assertEquals("finally", dequeue());
+        assertEquals("zero", dequeue());
+        assertEquals("finally", dequeue());
+        assertEquals("positive", dequeue());
+        assertEquals("finally", dequeue());
+    }
+    @Test
+    public void testFinallyWithReturnFromTry2() throws Throwable {
+        final ParameterExpression p1 = parameter(PrimitiveTypes.Integer);
+        final MemberExpression out = field(null, Type.of(System.class).getField("out"));
+        final LabelTarget returnLabel = label(PrimitiveTypes.Integer);
+
+        final LambdaExpression<?> e = lambda(
+            block(
+                tryFinally(
+                    block(
+                        ifThen(
+                            lessThan(p1, constant(0)),
+                            block(
+                                call(out, "println", constant("negative")),
+                                makeReturn(returnLabel, constant(-1))
+                            )
+                        )
+                    ),
+                    block(
+                        call(out, "println", constant("finally"))
+                    )
+                ),
+                call(out, "println", condition(greaterThan(p1, constant(0)), constant("positive"), constant("zero"))),
+                label(returnLabel, condition(greaterThan(p1, constant(0)), constant(1), constant(0)))
+            ),
+            p1
+        );
+
+        System.out.println(e.getDebugView());
+        queue().clear();
+
+        final Delegate<?> delegate = e.compileDelegate();
+
+        assertEquals(-1, delegate.invokeDynamic(-25));
+        assertEquals(0, delegate.invokeDynamic(0));
+        assertEquals(1, delegate.invokeDynamic(25));
+
+        assertEquals("negative", dequeue());
+        assertEquals("finally", dequeue());
+        assertEquals("finally", dequeue());
+        assertEquals("zero", dequeue());
+        assertEquals("finally", dequeue());
+        assertEquals("positive", dequeue());
+    }
+
+    @Test
+    public void testFinallyWithGotoEscapeFromTry() throws Throwable {
+        final ParameterExpression p1 = parameter(PrimitiveTypes.Integer);
+        final MemberExpression out = field(null, Type.of(System.class).getField("out"));
+        final LabelTarget exitLabel = label();
+
+        final LambdaExpression<?> e = lambda(
+            block(
+                tryFinally(
+                    block(
+                        ifThen(
+                            lessThan(p1, constant(0)),
+                            block(
+                                call(out, "println", constant("negative")),
+                                makeGoto(exitLabel)
+                            )
+                        ),
+                        call(out, "println", condition(greaterThan(p1, constant(0)), constant("positive"), constant("zero")))
+                    ),
+                    block(
+                        call(out, "println", constant("finally"))
+                    )
+                ),
+                label(exitLabel),
+                call(out, "println", constant("return"))
+            ),
+            p1
+        );
+
+        System.out.println(e.getDebugView());
+        queue().clear();
+
+        final Delegate<?> delegate = e.compileDelegate();
+
+        delegate.invokeDynamic(-1);
+        delegate.invokeDynamic(0);
+        delegate.invokeDynamic(1);
+
+        assertEquals("negative", dequeue());
+        assertEquals("return", dequeue());
+        assertEquals("zero", dequeue());
+        assertEquals("finally", dequeue());
+        assertEquals("return", dequeue());
+        assertEquals("positive", dequeue());
+        assertEquals("finally", dequeue());
+        assertEquals("return", dequeue());
+    }
+
     static <T> T invoke(final Callable<T> callback) {
         try {
             return callback.call();
@@ -1175,9 +1310,10 @@ public final class CompilerTests extends AbstractExpressionTest {
 
     static final class NeedsTwoCtorArgs {
         @SuppressWarnings("UnusedParameters")
-        NeedsTwoCtorArgs(final int x, final double y) {}
+        NeedsTwoCtorArgs(final int x, final double y) {
+        }
     }
-    
+
     static void throwAssertionError()
         throws AssertionError {
         throw new AssertionError("Bad shit happened, yo.");
@@ -1194,7 +1330,7 @@ public final class CompilerTests extends AbstractExpressionTest {
     interface ShouldThrowDelegate {
         void maybeThrow(final boolean throwException);
     }
-    
+
     interface IntegerPowerDelegate {
         int transform(final int base, final int power);
     }

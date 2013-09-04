@@ -103,7 +103,8 @@ final class GotoRemoval {
 
         visitedNodes.add(gotoExpression);
 
-        final boolean isRedundant = target == exit(gotoExpression, visitedNodes);
+        final Node exitTo = exit(gotoExpression, visitedNodes);
+        final boolean isRedundant = target == exitTo;
 
         if (isRedundant) {
             final Node parent = parentLookup.get(gotoExpression);
@@ -555,6 +556,14 @@ final class GotoRemoval {
 
             if (nextNode != null && nextNode != Node.NULL) {
                 return enter(nextNode, visitedNodes);
+            }
+
+            if (parent instanceof CaseBlock) {
+                final Node nextCase = nextSibling.get(parent);
+
+                if (nextCase != null && nextCase != Node.NULL) {
+                    return enter(nextCase, visitedNodes);
+                }
             }
 
             return exit(parent, visitedNodes);

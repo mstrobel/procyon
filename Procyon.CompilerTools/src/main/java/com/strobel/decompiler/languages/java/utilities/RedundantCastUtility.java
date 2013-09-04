@@ -715,9 +715,17 @@ public final class RedundantCastUtility {
             }
 
             final TypeReference expectedType = TypeUtilities.getExpectedTypeByParent(_resolver, cast);
+            final boolean isCharConversion = (operandType == BuiltinTypes.Character) ^ (castTo == BuiltinTypes.Character);
 
             if (expectedType != null) {
+                if (isCharConversion && !expectedType.isPrimitive()) {
+                    return;
+                }
+
                 operandType = expectedType;
+            }
+            else if (isCharConversion) {
+                return;
             }
 
             if (operandType == BuiltinTypes.Null && castTo.isPrimitive()) {

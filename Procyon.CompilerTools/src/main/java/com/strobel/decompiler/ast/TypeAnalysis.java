@@ -404,7 +404,14 @@ public final class TypeAnalysis {
             final TypeReference type = variable.getType();
 
             if (type == null || type == BuiltinTypes.Null) {
-                variable.setType(inferTypeForVariable(variable, BuiltinTypes.Object));
+                final TypeReference inferredType = inferTypeForVariable(variable, BuiltinTypes.Object);
+
+                if (inferredType == null || inferredType == BuiltinTypes.Null) {
+                    variable.setType(BuiltinTypes.Object);
+                }
+                else {
+                    variable.setType(inferredType);
+                }
             }
             else if (type.isWildcardType()) {
                 variable.setType(MetadataHelper.getUpperBound(type));
@@ -2839,6 +2846,7 @@ public final class TypeAnalysis {
         }
 
         @Override
+        @SuppressWarnings("StatementWithEmptyBody")
         public Void visitGenericParameter(final GenericParameter t, final Map<TypeReference, TypeReference> map) {
             if (MetadataResolver.areEquivalent(argumentType, t)) {
                 return null;
@@ -2858,7 +2866,7 @@ public final class TypeAnalysis {
                 map.put(t, mappedType);
             }
             else if (MetadataHelper.isSubType(argumentType, existingMapping)) {
-                map.put(t, argumentType);
+//                map.put(t, argumentType);
             }
             else {
                 map.put(t, MetadataHelper.findCommonSuperType(existingMapping, argumentType));

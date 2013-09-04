@@ -22,30 +22,8 @@ import com.strobel.core.KeyedQueue;
 import com.strobel.core.Pair;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
-import com.strobel.reflection.BindingFlags;
-import com.strobel.reflection.ConstructorInfo;
-import com.strobel.reflection.DynamicMethod;
-import com.strobel.reflection.FieldInfo;
-import com.strobel.reflection.MemberInfo;
-import com.strobel.reflection.MemberList;
-import com.strobel.reflection.MemberType;
-import com.strobel.reflection.MethodBase;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.TypeList;
-import com.strobel.reflection.Types;
-import com.strobel.reflection.emit.CodeGenerator;
-import com.strobel.reflection.emit.ConstructorBuilder;
-import com.strobel.reflection.emit.FieldBuilder;
-import com.strobel.reflection.emit.Label;
-import com.strobel.reflection.emit.LocalBuilder;
-import com.strobel.reflection.emit.MethodBuilder;
-import com.strobel.reflection.emit.OpCode;
-import com.strobel.reflection.emit.StringSwitchCallback;
-import com.strobel.reflection.emit.SwitchCallback;
-import com.strobel.reflection.emit.SwitchOptions;
-import com.strobel.reflection.emit.TypeBuilder;
+import com.strobel.reflection.*;
+import com.strobel.reflection.emit.*;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
@@ -60,7 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * @author Mike Strobel
  */
-@SuppressWarnings( { "unchecked", "PackageVisibleField", "UnusedParameters", "UnusedDeclaration", "ConstantConditions" })
+@SuppressWarnings({ "unchecked", "PackageVisibleField", "UnusedParameters", "UnusedDeclaration", "ConstantConditions" })
 final class LambdaCompiler {
     final static AtomicInteger nextId = new AtomicInteger();
     final static Type<Closure> closureType = Type.of(Closure.class);
@@ -80,6 +58,7 @@ final class LambdaCompiler {
     private FieldBuilder       _closureField;
     private CompilerScope      _scope;
     private LabelScopeInfo     _labelBlock = new LabelScopeInfo(null, LabelScopeKind.Lambda);
+    private FinallyInfo        _finallyInfo = new FinallyInfo(null, null);
 
     LambdaCompiler(final AnalyzedTree tree, final LambdaExpression<?> lambda) {
         this.lambda = lambda;
@@ -428,7 +407,7 @@ final class LambdaCompiler {
         private static final int EmitNoExpressionStart = 0x0002;
         private static final int EmitAsDefaultType     = 0x0010;
         private static final int EmitAsVoidType        = 0x0020;
-        private static final int EmitAsTail            = 0x0100;   // at the tail position of a lambda; tail call can be safely emitted
+        private static final int EmitAsTail            = 0x0100; // at the tail position of a lambda; tail call can be safely emitted
         private static final int EmitAsMiddle          = 0x0200; // in the middle of a lambda; tail call can be emitted if it is in a return
         private static final int EmitAsNoTail          = 0x0400; // neither at the tail or in a return; or tail call is not turned on; no tail call is emitted
 
@@ -915,6 +894,20 @@ final class LambdaCompiler {
             return ((BlockExpression) node).getVariables().size() > 0;
         }
         return ((CatchBlock) node).getVariable() != null;
+    }
+
+    private void enterTry(final TryExpression tryExpression) {
+        final Expression finallyBlock = tryExpression.getFinallyBlock();
+
+        if (finallyBlock != null) {
+            _finallyInfo = new FinallyInfo(_finallyInfo, tryExpression);
+        }
+    }
+
+    private void exitTry(final TryExpression tryExpression) {
+        if (tryExpression != null && _finallyInfo.tryExpression == tryExpression) {
+            _finallyInfo = _finallyInfo.parent;
+        }
     }
 
     private void enterScope(final Object node) {
@@ -2049,6 +2042,15 @@ final class LambdaCompiler {
             }
         }
 
+        if (node.getKind() == GotoExpressionKind.Return) {
+            for (FinallyInfo finallyInfo = _finallyInfo;
+                 finallyInfo != null && finallyInfo.tryExpression != null;
+                 finallyInfo = finallyInfo.parent) {
+
+                emitExpression(finallyInfo.tryExpression.getFinallyBlock());
+            }
+        }
+
         labelInfo.emitJump();
 
         emitUnreachable(node, finalFlags);
@@ -3090,7 +3092,8 @@ final class LambdaCompiler {
             if (erasedDefinition != null) {
                 generator.emitConversion(
                     erasedDefinition.getReturnType(),
-                    returnType);
+                    returnType
+                );
             }
         }
     }
@@ -3636,11 +3639,15 @@ final class LambdaCompiler {
 
         generator.beginExceptionBlock();
 
+        enterTry(node);
+
         //
         // Emit the try statement body.
         //
 
         emitExpression(node.getBody());
+
+        exitTry(node);
 
         generator.endTryBlock();
 
@@ -4143,5 +4150,16 @@ final class LabelScopeInfo {
         }
 
         labels.put(target, info);
+    }
+}
+
+@SuppressWarnings("PackageVisibleField")
+final class FinallyInfo {
+    final FinallyInfo parent;
+    final TryExpression tryExpression;
+
+    FinallyInfo(final FinallyInfo parent, final TryExpression tryExpression) {
+        this.parent = parent;
+        this.tryExpression = tryExpression;
     }
 }

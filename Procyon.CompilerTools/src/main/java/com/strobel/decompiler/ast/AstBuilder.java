@@ -91,6 +91,8 @@ public final class AstBuilder {
 
         builder._exceptionHandlers = remapHandlers(body.getExceptionHandlers(), builder._instructions);
 
+        Collections.sort(builder._exceptionHandlers);
+
         builder.pruneExceptionHandlers();
 
         FinallyInlining.run(builder._body, builder._instructions, builder._exceptionHandlers, builder._removed);
@@ -2080,6 +2082,7 @@ public final class AstBuilder {
 
                 if (target.label == null) {
                     target.label = new Label();
+                    target.label.setOffset(target.offset);
                     target.label.setName(target.makeLabelName());
                 }
 
@@ -2725,7 +2728,7 @@ public final class AstBuilder {
                         }
                     }
 
-                    if (variable.getType() == null) {
+                    if (variable.getType() == null || variable.getType() == BuiltinTypes.Null) {
                         variable.setType(BuiltinTypes.Object);
                     }
                 }
@@ -2769,7 +2772,8 @@ public final class AstBuilder {
                 }
 
                 for (final ByteCode b : definitions) {
-                    final TypeReference variableType;
+                    TypeReference variableType;
+
                     final FrameValue stackValue;
 
                     if (b.code == AstCode.Inc) {
@@ -2819,16 +2823,32 @@ public final class AstBuilder {
                         }
                     }
 
-                    if (parameterVariable != null &&
-                        MetadataHelper.isSameType(variableType, parameterVariable.variable.getType())) {
+                    if (variableType == BuiltinTypes.Null) {
+                        variableType = BuiltinTypes.Object;
+                    }
 
-                        if (!parameterVariableAdded) {
-                            newVariables.add(parameterVariable);
-                            parameterVariableAdded = true;
+                    if (parameterVariable != null) {
+                        final boolean useParameter;
+
+                        if (variableType.isPrimitive() || parameterVariable.variable.getType().isPrimitive()) {
+                            useParameter = variableType.getSimpleType() == parameterVariable.variable.getType().getSimpleType();
+                        }
+                        else if (variableType.isArray() || parameterVariable.variable.getType().isArray()) {
+                            useParameter = MetadataHelper.isSameType(variableType, parameterVariable.variable.getType());
+                        }
+                        else {
+                            useParameter = MetadataHelper.isSubType(variableType, parameterVariable.variable.getType());
                         }
 
-                        parameterVariable.definitions.add(b);
-                        continue;
+                        if (useParameter) {
+                            if (!parameterVariableAdded) {
+                                newVariables.add(parameterVariable);
+                                parameterVariableAdded = true;
+                            }
+
+                            parameterVariable.definitions.add(b);
+                            continue;
+                        }
                     }
 
                     final Variable variable = new Variable();

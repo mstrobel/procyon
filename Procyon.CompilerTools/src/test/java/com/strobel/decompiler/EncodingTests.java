@@ -28,6 +28,33 @@ public class EncodingTests extends DecompilerTest {
         }
     }
 
+    private static final class C {
+        String test(final char c) {
+            switch (c) {
+                case '\0':
+                    return "'\\0'";
+                case '\t':
+                    return "'\\t'";
+                case '\b':
+                    return "'\\b'";
+                case '\n':
+                    return "'\\n'";
+                case '\r':
+                    return "'\\r'";
+                case '\f':
+                    return "'\\f'";
+                case '\"':
+                    return "'\\\"'";
+                case '\\':
+                    return "'\\\\'";
+                case '\'':
+                    return "'\\''";
+                default:
+                    return String.format("'\\u%1$04x'", (int) c);
+            }
+        }
+    }
+
     @Test
     public void testUnicodeIdentifierEscaping() {
         verifyOutput(
@@ -76,6 +103,41 @@ public class EncodingTests extends DecompilerTest {
             "        System.out.println(\"Это кодирование тест.\");\n" +
             "    }\n" +
             "}"
+        );
+
+    }
+
+    @Test
+    public void testQuotedEscaping() {
+        verifyOutput(
+            C.class,
+            createSettings(OPTION_ENABLE_UNICODE_OUTPUT | OPTION_FLATTEN_SWITCH_BLOCKS),
+            "private static final class C {\n" +
+            "    String test(final char c) {\n" +
+            "        switch (c) {\n" +
+            "            case '\\0':\n" +
+            "                return \"'\\\\0'\";\n" +
+            "            case '\\t':\n" +
+            "                return \"'\\\\t'\";\n" +
+            "            case '\\b':\n" +
+            "                return \"'\\\\b'\";\n" +
+            "            case '\\n':\n" +
+            "                return \"'\\\\n'\";\n" +
+            "            case '\\r':\n" +
+            "                return \"'\\\\r'\";\n" +
+            "            case '\\f':\n" +
+            "                return \"'\\\\f'\";\n" +
+            "            case '\\\"':\n" +
+            "                return \"'\\\\\\\"'\";\n" +
+            "            case '\\\\':\n" +
+            "                return \"'\\\\\\\\'\";\n" +
+            "            case '\\'':\n" +
+            "                return \"'\\\\''\";\n" +
+            "            default:\n" +
+            "                return String.format(\"'\\\\u%1$04x'\", (int)c);\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
         );
 
     }

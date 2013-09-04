@@ -134,13 +134,25 @@ public final class AstOptimizer {
 
                 modified |= runOptimization(block, new RemoveInnerClassInitSecurityChecksOptimization(context, method));
 
-                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyShortCircuit)) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyShortCircuitAssignments)) {
                     done = true;
                     break;
                 }
 
                 modified |= runOptimization(block, new SimplifyShortCircuitAssignmentsOptimization(context, method));
+
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyShortCircuit)) {
+                    done = true;
+                    break;
+                }
+
                 modified |= runOptimization(block, new SimplifyShortCircuitOptimization(context, method));
+
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.JoinBranchConditions)) {
+                    done = true;
+                    break;
+                }
+
                 modified |= runOptimization(block, new JoinBranchConditionsOptimization(context, method));
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyTernaryOperator)) {
@@ -226,7 +238,7 @@ public final class AstOptimizer {
         }
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
-            new LoopsAndConditions().findLoops(block);
+            new LoopsAndConditions(context).findLoops(block);
         }
 
         if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.FindConditions)) {
@@ -234,7 +246,7 @@ public final class AstOptimizer {
         }
 
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
-            new LoopsAndConditions().findConditions(block);
+            new LoopsAndConditions(context).findConditions(block);
         }
 
         if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.FlattenNestedMovableBlocks)) {

@@ -139,11 +139,11 @@ final class LabelInfo {
             }
             if (j.kind == LabelScopeKind.Finally ||
                 j.kind == LabelScopeKind.Filter) {
-                break;
+//                break;
             }
             if (j.kind == LabelScopeKind.Try ||
                 j.kind == LabelScopeKind.Catch) {
-                _opCode = OpCode.RET;
+//                _opCode = OpCode.RET;
             }
         }
 

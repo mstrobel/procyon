@@ -126,13 +126,13 @@ public class ThirdPartyTests extends DecompilerTest {
             "    }\n" +
             "    public static int i(int n) {\n" +
             "        switch (n) {\n" +
-            "            case 1:\n" +
-            "            case 3: {\n" +
-            "                throw null;\n" +
-            "            }\n" +
             "            case 2: {\n" +
             "                n += 4;\n" +
             "                break;\n" +
+            "            }\n" +
+            "            case 1:\n" +
+            "            case 3: {\n" +
+            "                throw null;\n" +
             "            }\n" +
             "        }\n" +
             "        return -n;\n" +
