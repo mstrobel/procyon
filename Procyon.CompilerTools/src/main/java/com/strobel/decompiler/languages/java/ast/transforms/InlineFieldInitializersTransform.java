@@ -20,6 +20,7 @@ import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.AnyNode;
@@ -86,6 +87,12 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
                 if (parent instanceof ExpressionStatement) {
                     parent.remove();
                 }
+                else if (parent.getRole() == Roles.VARIABLE) {
+                    final Expression left = assignment.getLeft();
+
+                    left.remove();
+                    assignment.replaceWith(left);
+                }
                 else {
                     final Expression left = assignment.getLeft();
 
@@ -93,6 +100,20 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
                     parent.replaceWith(left);
                 }
             }
+        }
+    }
+
+    @Override
+    public Void visitAnonymousObjectCreationExpression(final AnonymousObjectCreationExpression node, final Void data) {
+        final MethodDefinition oldInitializer = _currentInitializerMethod;
+
+        _currentInitializerMethod = null;
+
+        try {
+            return super.visitAnonymousObjectCreationExpression(node, data);
+        }
+        finally {
+            _currentInitializerMethod = oldInitializer;
         }
     }
 
@@ -171,7 +192,7 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
     public Void visitAssignmentExpression(final AssignmentExpression node, final Void data) {
         super.visitAssignmentExpression(node, data);
 
-        if (_currentInitializerMethod == null) {
+        if (_currentInitializerMethod == null || context.getCurrentType() == null) {
             return null;
         }
 
@@ -181,7 +202,9 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
             final Expression target = (Expression) firstOrDefault(match.get("target"));
             final MemberReference reference = target.getUserData(Keys.MEMBER_REFERENCE);
 
-            _initializers.put(reference.getFullName(), node);
+            if (StringUtilities.equals(context.getCurrentType().getInternalName(), reference.getDeclaringType().getInternalName())) {
+                _initializers.put(reference.getFullName(), node);
+            }
         }
 
         return null;
