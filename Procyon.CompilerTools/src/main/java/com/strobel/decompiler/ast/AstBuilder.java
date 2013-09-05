@@ -577,7 +577,7 @@ public final class AstBuilder {
             subroutines,
             new Comparator<SubroutineInfo>() {
                 @Override
-                public int compare(final SubroutineInfo o1, final SubroutineInfo o2) {
+                public int compare(@NotNull final SubroutineInfo o1, @NotNull final SubroutineInfo o2) {
                     if (o1.contents.containsAll(o2.contents)) {
                         return 1;
                     }
@@ -1898,6 +1898,8 @@ public final class AstBuilder {
             }
         }
 
+        final ByteCode[] definitions = new ByteCode[] { new ByteCode() };
+
         for (int i = 0; i < parameters.size(); i++) {
             final ParameterDefinition parameter = parameters.get(i);
             final TypeReference parameterType = parameter.getParameterType();
@@ -1909,21 +1911,21 @@ public final class AstBuilder {
                 case Character:
                 case Short:
                 case Integer:
-                    unknownVariables[slot] = new VariableSlot(FrameValue.INTEGER, EMPTY_DEFINITIONS);
+                    unknownVariables[slot] = new VariableSlot(FrameValue.INTEGER, definitions);
                     break;
                 case Long:
-                    unknownVariables[slot] = new VariableSlot(FrameValue.LONG, EMPTY_DEFINITIONS);
-                    unknownVariables[slot + 1] = new VariableSlot(FrameValue.TOP, EMPTY_DEFINITIONS);
+                    unknownVariables[slot] = new VariableSlot(FrameValue.LONG, definitions);
+                    unknownVariables[slot + 1] = new VariableSlot(FrameValue.TOP, definitions);
                     break;
                 case Float:
-                    unknownVariables[slot] = new VariableSlot(FrameValue.FLOAT, EMPTY_DEFINITIONS);
+                    unknownVariables[slot] = new VariableSlot(FrameValue.FLOAT, definitions);
                     break;
                 case Double:
-                    unknownVariables[slot] = new VariableSlot(FrameValue.DOUBLE, EMPTY_DEFINITIONS);
-                    unknownVariables[slot + 1] = new VariableSlot(FrameValue.TOP, EMPTY_DEFINITIONS);
+                    unknownVariables[slot] = new VariableSlot(FrameValue.DOUBLE, definitions);
+                    unknownVariables[slot + 1] = new VariableSlot(FrameValue.TOP, definitions);
                     break;
                 default:
-                    unknownVariables[slot] = new VariableSlot(FrameValue.makeReference(parameterType), EMPTY_DEFINITIONS);
+                    unknownVariables[slot] = new VariableSlot(FrameValue.makeReference(parameterType), definitions);
                     break;
             }
         }
@@ -2394,7 +2396,7 @@ public final class AstBuilder {
         //
         // Split and convert the normal local variables.
         //
-        convertLocalVariables(body);
+        convertLocalVariables(definitions, body);
 
         //
         // Convert branch targets to labels.
@@ -2552,7 +2554,7 @@ public final class AstBuilder {
     }
 
     @SuppressWarnings("ConstantConditions")
-    private void convertLocalVariables(final List<ByteCode> body) {
+    private void convertLocalVariables(final ByteCode[] parameterDefinitions, final List<ByteCode> body) {
         final MethodDefinition method = _context.getCurrentMethod();
         final List<ParameterDefinition> parameters = method.getParameters();
         final VariableDefinitionCollection variables = _body.getVariables();
@@ -2579,7 +2581,7 @@ public final class AstBuilder {
             if (b.operand instanceof VariableReference && !(b.operand instanceof VariableDefinition)) {
                 final VariableReference reference = (VariableReference) b.operand;
 
-                if (undefinedSlots.add(Pair.create(reference.getSlot(), getStackType(reference)))) {
+                if (undefinedSlots.add(Pair.create(reference.getSlot(), getStackType(reference.getVariableType())))) {
                     varReferences.add(reference);
                 }
             }
@@ -2648,7 +2650,7 @@ public final class AstBuilder {
                 variable.setType(parameter.getParameterType());
                 variable.setOriginalParameter(parameter);
 
-                final VariableInfo variableInfo = new VariableInfo(variable, definitions, references);
+                final VariableInfo variableInfo = new VariableInfo(variable, parameterDefinitions, references);
 
                 newVariables = Collections.singletonList(variableInfo);
             }
@@ -2769,6 +2771,8 @@ public final class AstBuilder {
                         new ArrayList<ByteCode>(),
                         new ArrayList<ByteCode>()
                     );
+
+                    Collections.addAll(parameterVariable.definitions, parameterDefinitions);
                 }
 
                 for (final ByteCode b : definitions) {
@@ -2829,14 +2833,8 @@ public final class AstBuilder {
                         if (variableType.isPrimitive() || parameterVariable.variable.getType().isPrimitive()) {
                             useParameter = variableType.getSimpleType() == parameterVariable.variable.getType().getSimpleType();
                         }
-                        else if (variableType == BuiltinTypes.Null) {
-                            useParameter = true;
-                        }
-                        else if (variableType.isArray() || parameterVariable.variable.getType().isArray()) {
-                            useParameter = MetadataHelper.isSameType(variableType, parameterVariable.variable.getType());
-                        }
                         else {
-                            useParameter = MetadataHelper.isSubType(variableType, parameterVariable.variable.getType());
+                            useParameter = MetadataHelper.isSameType(variableType, parameterVariable.variable.getType());
                         }
 
                         if (useParameter) {
@@ -2955,7 +2953,11 @@ public final class AstBuilder {
                         final ArrayList<ByteCode> mergedDefinitions = new ArrayList<>();
                         final ArrayList<ByteCode> mergedReferences = new ArrayList<>();
 
-                        if (mergeVariables.isEmpty() && parameterVariable != null) {
+                        if (parameterVariable != null &&
+                            (mergeVariables.isEmpty() ||
+                             (!mergeVariables.contains(parameterVariable) &&
+                              ArrayUtilities.contains(refDefinitions, parameterDefinitions[0])))) {
+
                             mergeVariables.add(parameterVariable);
                             parameterVariableAdded = true;
                         }
@@ -2973,6 +2975,7 @@ public final class AstBuilder {
 
                         if (parameterVariable != null && mergeVariables.contains(parameterVariable)) {
                             parameterVariable = mergedVariable;
+                            parameterVariable.variable.setOriginalParameter(parameter);
                             parameterVariableAdded = true;
                         }
 
@@ -3021,10 +3024,10 @@ public final class AstBuilder {
         return result != null ? result : BuiltinTypes.Object;
     }
 
-    private JvmType getStackType(final VariableReference variable) {
-        final JvmType type = variable.getVariableType().getSimpleType();
+    private JvmType getStackType(final TypeReference type) {
+        final JvmType t = type.getSimpleType();
 
-        switch (type) {
+        switch (t) {
             case Boolean:
             case Byte:
             case Character:
@@ -3035,7 +3038,7 @@ public final class AstBuilder {
             case Long:
             case Float:
             case Double:
-                return type;
+                return t;
 
             default:
                 return JvmType.Object;
@@ -3044,8 +3047,8 @@ public final class AstBuilder {
 
     private boolean variablesMatch(final VariableReference v1, final VariableReference v2) {
         if (v1.getSlot() == v2.getSlot()) {
-            final JvmType t1 = getStackType(v1);
-            final JvmType t2 = getStackType(v2);
+            final JvmType t1 = getStackType(v1.getVariableType());
+            final JvmType t2 = getStackType(v2.getVariableType());
 
             return t1 == t2;
         }
