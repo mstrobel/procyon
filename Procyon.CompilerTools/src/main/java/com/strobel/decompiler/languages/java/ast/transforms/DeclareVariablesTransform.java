@@ -214,6 +214,7 @@ public class DeclareVariablesTransform implements IAstTransform {
             final Set<ParameterDefinition> unassignedParameters = new HashSet<>();
             final AstNodeCollection<ParameterDeclaration> parameters = node.getChildrenByRole(Roles.PARAMETER);
             final Map<ParameterDefinition, ParameterDeclaration> declarationMap = new HashMap<>();
+            final Map<String, ParameterDefinition> parametersByName = new HashMap<>();
 
             for (final ParameterDeclaration parameter : parameters) {
                 final ParameterDefinition definition = parameter.getUserData(Keys.PARAMETER_DEFINITION);
@@ -221,10 +222,11 @@ public class DeclareVariablesTransform implements IAstTransform {
                 if (definition != null) {
                     unassignedParameters.add(definition);
                     declarationMap.put(definition, parameter);
+                    parametersByName.put(parameter.getName(), definition);
                 }
             }
 
-            node.acceptVisitor(new ParameterAssignmentVisitor(unassignedParameters), null);
+            node.acceptVisitor(new ParameterAssignmentVisitor(unassignedParameters, parametersByName), null);
 
             for (final ParameterDefinition definition : unassignedParameters) {
                 final ParameterDeclaration declaration = declarationMap.get(definition);
@@ -991,9 +993,12 @@ public class DeclareVariablesTransform implements IAstTransform {
         private final Set<ParameterDefinition> _unassignedParameters;
         private final Map<String, ParameterDefinition> _parametersByName;
 
-        ParameterAssignmentVisitor(final Set<ParameterDefinition> unassignedParameters) {
+        ParameterAssignmentVisitor(
+            final Set<ParameterDefinition> unassignedParameters,
+            final Map<String, ParameterDefinition> parametersByName) {
+
             _unassignedParameters = unassignedParameters;
-            _parametersByName = new HashMap<>();
+            _parametersByName = parametersByName;
 
             for (final ParameterDefinition p : unassignedParameters) {
                 _parametersByName.put(p.getName(), p);
