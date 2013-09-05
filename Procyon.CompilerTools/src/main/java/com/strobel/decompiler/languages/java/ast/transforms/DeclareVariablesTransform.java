@@ -313,12 +313,12 @@ public class DeclareVariablesTransform implements IAstTransform {
                     }
                 }
 
-                for (AstNode child : statement.getChildren()) {
+                for (final AstNode child : statement.getChildren()) {
                     if (child instanceof BlockStatement) {
                         declareVariableInBlock(analysis, (BlockStatement) child, type, variableName, variable, allowPassIntoLoops);
                     }
                     else if (hasNestedBlocks(child)) {
-                        for (AstNode nestedChild : child.getChildren()) {
+                        for (final AstNode nestedChild : child.getChildren()) {
                             if (nestedChild instanceof BlockStatement) {
                                 declareVariableInBlock(
                                     analysis,
