@@ -22,8 +22,6 @@ import com.strobel.decompiler.patterns.Match;
 public class AssertStatement extends Statement {
     public final static TokenRole ASSERT_KEYWORD_ROLE = new TokenRole("assert", TokenRole.FLAG_KEYWORD);
 
-    private String _message;
-
     public final JavaTokenNode getColon() {
         return getChildByRole(Roles.COLON);
     }
@@ -36,13 +34,12 @@ public class AssertStatement extends Statement {
         setChildByRole(Roles.CONDITION, value);
     }
 
-    public final String getMessage() {
-        return _message;
+    public final Expression getMessage() {
+        return getChildByRole(Roles.EXPRESSION);
     }
 
-    public final void setMessage(final String message) {
-        verifyNotFrozen();
-        _message = message;
+    public final void setMessage(final Expression message) {
+        setChildByRole(Roles.EXPRESSION, message);
     }
 
     @Override
@@ -56,7 +53,7 @@ public class AssertStatement extends Statement {
             final AssertStatement otherAssert = (AssertStatement) other;
 
             return getCondition().matches(otherAssert.getCondition(), match) &&
-                   matchString(getMessage(), otherAssert.getMessage());
+                   getMessage().matches(otherAssert.getMessage());
         }
 
         return false;

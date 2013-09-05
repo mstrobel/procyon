@@ -253,7 +253,7 @@ public class LoopTests extends DecompilerTest {
             }
         }
 
-        public void couldBeForLoop3() {
+        public void canBeForLoop3() {
             int i = 0;
 
             while (true) {
@@ -269,7 +269,7 @@ public class LoopTests extends DecompilerTest {
             }
         }
 
-        public void couldBeForLoop4() {
+        public void canBeForLoop4() {
             int i = 0;
             int j = 0;
 
@@ -296,6 +296,7 @@ public class LoopTests extends DecompilerTest {
                 System.out.println(i);
             }
         }
+
         public void canBeForLoop6() {
             for (int i = 0, j = 0; i < 10 && j < 10; i++, j++) {
                 if (i == 2) {
@@ -564,14 +565,14 @@ public class LoopTests extends DecompilerTest {
             "            }\n" +
             "        }\n" +
             "    }\n" +
-            "    public void couldBeForLoop3() {\n" +
+            "    public void canBeForLoop3() {\n" +
             "        for (int i = 0; i < 10; ++i) {\n" +
             "            if (i != 2) {\n" +
             "                System.out.println(i);\n" +
             "            }\n" +
             "        }\n" +
             "    }\n" +
-            "    public void couldBeForLoop4() {\n" +
+            "    public void canBeForLoop4() {\n" +
             "        for (int i = 0, j = 0; i < 10 && j < 10; ++j) {\n" +
             "            if (i != 2) {\n" +
             "                System.out.println(i);\n" +

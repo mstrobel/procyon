@@ -138,7 +138,7 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
 
         final FieldDefinition resolvedField = ((FieldReference) reference).resolve();
 
-        if (!resolvedField.isSynthetic()) {
+        if (resolvedField == null || !resolvedField.isSynthetic()) {
             return;
         }
 
@@ -176,9 +176,8 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
                 message = ((CastExpression) message).getExpression();
             }
 
-            if (message instanceof PrimitiveExpression) {
-                assertStatement.setMessage(String.valueOf(((PrimitiveExpression) message).getValue()));
-            }
+            message.remove();
+            assertStatement.setMessage(message);
         }
 
         ifElse.replaceWith(assertStatement);

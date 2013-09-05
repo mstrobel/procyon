@@ -221,7 +221,8 @@ public final class AstOptimizer {
                 new Inlining(context, method).copyPropagation();
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.MergeDisparateObjectInitializations)) {
-                    return;
+                    done = true;
+                    break;
                 }
 
                 modified |= mergeDisparateObjectInitializations(context, block);
@@ -1140,9 +1141,9 @@ public final class AstOptimizer {
         // | storeelement(o, n, v)     |
         // +---------------------------+
         //   |
-        //   |    +-----------------------+
-        //   +--> | v = loadelement(a, n) |
-        //        +-----------------------+
+        //   |    +-----------------------------------------+
+        //   +--> | v = postincrement(1, loadelement(a, n)) |
+        //        +-----------------------------------------+
         //
 
         if (!(body.get(i) instanceof Expression &&
@@ -1583,6 +1584,20 @@ public final class AstOptimizer {
                     if (currentNode != label) {
                         basicBlockBody.add(currentNode);
                     }
+
+                    if (currentNode instanceof TryCatchBlock) {
+                        //
+                        // If we have a TryCatchBlock with all nested blocks exiting to the same label,
+                        // go ahead and insert an explicit jump to that label.  This prevents us from
+                        // potentially adding a jump to the next node that would never actually be followed
+                        // (possibly throwing a wrench in FindLoopsAndConditions later).
+                        //
+                        final Label exitLabel = checkExit(currentNode);
+
+                        if (exitLabel != null) {
+                            body.add(i + 1, new Expression(AstCode.Goto, exitLabel));
+                        }
+                    }
                 }
                 else {
                     basicBlockBody.add(currentNode);
@@ -1592,6 +1607,50 @@ public final class AstOptimizer {
 
         body.clear();
         body.addAll(basicBlocks);
+    }
+
+    private Label checkExit(final Node node) {
+        if (node == null) {
+            return null;
+        }
+
+        if (node instanceof BasicBlock) {
+            return checkExit(lastOrDefault(((BasicBlock) node).getBody()));
+        }
+
+        if (node instanceof TryCatchBlock) {
+            final TryCatchBlock tryCatch = (TryCatchBlock) node;
+            final Label exitLabel = checkExit(lastOrDefault(tryCatch.getTryBlock().getBody()));
+
+            if (exitLabel == null) {
+                return null;
+            }
+
+            for (final CatchBlock catchBlock : tryCatch.getCatchBlocks()) {
+                if (checkExit(lastOrDefault(catchBlock.getBody())) != exitLabel) {
+                    return null;
+                }
+            }
+
+            final Block finallyBlock = tryCatch.getFinallyBlock();
+
+            if (finallyBlock != null && checkExit(lastOrDefault(finallyBlock.getBody())) != exitLabel) {
+                return null;
+            }
+
+            return exitLabel;
+        }
+
+        if (node instanceof Expression) {
+            final Expression expression = (Expression) node;
+            final AstCode code = expression.getCode();
+
+            if (code == AstCode.Goto) {
+                return (Label) expression.getOperand();
+            }
+        }
+
+        return null;
     }
 
     // </editor-fold>

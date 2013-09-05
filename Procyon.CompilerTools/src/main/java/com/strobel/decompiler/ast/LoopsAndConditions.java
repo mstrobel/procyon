@@ -410,6 +410,8 @@ final class LoopsAndConditions {
 
                         result.add(block);
                         scope.removeAll(loopContents);
+
+                        break;
                     }
                 }
 
@@ -424,18 +426,16 @@ final class LoopsAndConditions {
 
                     loop.setBody(bodyBlock);
 
-                    final Label exitLabel = findLoopExitLabel(loopContents);
+                    final LoopExitInfo exitInfo = findLoopExitInfo(loopContents);
 
-                    if (exitLabel != null) {
-                        //
-                        // See if our only exit comes from an inner switch's default label.  If so, pull it in
-                        // to the loop if there are no other references.
-                        //
+                    if (exitInfo.exitLabel != null) {
+                        final ControlFlowNode postLoopTarget = labelsToNodes.get(exitInfo.exitLabel);
 
-                        final ControlFlowNode postLoopTarget = labelsToNodes.get(exitLabel);
-
-                        if (postLoopTarget != null &&
-                            countJumps(scope, exitLabel, null) == 1) {
+                        if (postLoopTarget.getIncoming().size() == 1) {
+                            //
+                            // See if our only exit comes from an inner switch's default label.  If so, pull it in
+                            // to the loop if there are no other references.
+                            //
 
                             final ControlFlowNode predecessor = firstOrDefault(postLoopTarget.getPredecessors());
 
@@ -444,18 +444,54 @@ final class LoopsAndConditions {
 
                                 if (matchLast(b, AstCode.Switch, switchLabels, condition) &&
                                     !ArrayUtilities.isNullOrEmpty(switchLabels.get()) &&
-                                    exitLabel == switchLabels.get()[0]) {
+                                    exitInfo.exitLabel == switchLabels.get()[0]) {
 
                                     final Set<ControlFlowNode> defaultContents = findDominatedNodes(scope, postLoopTarget);
 
                                     for (final ControlFlowNode n : defaultContents) {
-                                        if (node.dominates(n)) {
+                                        if (scope.contains(n) && node.dominates(n)) {
                                             loopContents.add(n);
                                         }
                                     }
                                 }
                             }
                         }
+
+                        if (!loopContents.contains(postLoopTarget)) {
+                            //
+                            // Pull more nodes into the loop.
+                            //
+                            final Set<ControlFlowNode> postLoopContents = findDominatedNodes(scope, postLoopTarget);
+                            final LinkedHashSet<ControlFlowNode> pullIn = new LinkedHashSet<>(scope);
+
+                            pullIn.removeAll(postLoopContents);
+
+                            for (final ControlFlowNode n : pullIn) {
+                                if (n.getBlockIndex() < postLoopTarget.getBlockIndex() && scope.contains(n) && node.dominates(n)) {
+                                    loopContents.add(n);
+                                }
+                            }
+                        }
+                    }
+                    else if (exitInfo.additionalNodes.size() > 1) {
+                        final Set<ControlFlowNode> auxNodes = new LinkedHashSet<>();
+
+                        //
+                        // Pull more nodes into the loop, but only if we have more than one external jump.
+                        // See ExceptionTestFinally19f for a good example of why we require more than one.
+                        //
+
+                        for (final ControlFlowNode n : exitInfo.additionalNodes) {
+                            if (scope.contains(n) && node.dominates(n)) {
+                                auxNodes.addAll(findDominatedNodes(scope, n));
+                            }
+                        }
+
+                        final List<ControlFlowNode> sortedNodes = toList(auxNodes);
+
+                        Collections.sort(sortedNodes);
+
+                        loopContents.addAll(sortedNodes);
                     }
 
                     bodyBlock.setEntryGoto(new Expression(AstCode.Goto, basicBlock.getBody().get(0)));
@@ -490,8 +526,10 @@ final class LoopsAndConditions {
         return result;
     }
 
-    private Label findLoopExitLabel(final Set<ControlFlowNode> contents) {
-        Label exitLabel = null;
+    private LoopExitInfo findLoopExitInfo(final Set<ControlFlowNode> contents) {
+        final LoopExitInfo exitInfo = new LoopExitInfo();
+
+        boolean noCommonExit = false;
 
         for (final ControlFlowNode node : contents) {
             final BasicBlock basicBlock = (BasicBlock) node.getUserData();
@@ -500,19 +538,33 @@ final class LoopsAndConditions {
                 for (final Label target : e.getBranchTargets()) {
                     final ControlFlowNode targetNode = labelsToNodes.get(target);
 
-                    if (targetNode != null && !contents.contains(targetNode)) {
-                        if (exitLabel == null) {
-                            exitLabel = target;
-                        }
-                        else if (exitLabel != target) {
-                            return null;
-                        }
+                    if (targetNode == null || contents.contains(targetNode)) {
+                        continue;
+                    }
+
+                    if (targetNode.getIncoming().size() == 1) {
+                        exitInfo.additionalNodes.add(targetNode);
+                    }
+                    else if (exitInfo.exitLabel == null) {
+                        exitInfo.exitLabel = target;
+                    }
+                    else if (exitInfo.exitLabel != target) {
+                        noCommonExit = true;
                     }
                 }
             }
         }
 
-        return exitLabel;
+        if (noCommonExit) {
+            exitInfo.exitLabel = null;
+        }
+
+        return exitInfo;
+    }
+
+    private final static class LoopExitInfo {
+        Label exitLabel;
+        final Set<ControlFlowNode> additionalNodes = new LinkedHashSet<>();
     }
 
     private int countJumps(final Set<ControlFlowNode> nodes, final Label target, final Expression ignore) {

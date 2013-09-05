@@ -193,6 +193,11 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             }
 
             if (from.getType() == ControlFlowNodeType.EndNode) {
+                if (previousStatement instanceof TryCatchStatement) {
+                    incoming.add(previousStatement);
+                    continue;
+                }
+
                 if (previousStatement instanceof BlockStatement || hasNestedBlocks(previousStatement)) {
                     for (final ControlFlowEdge e : from.getIncoming()) {
                         if (visited.add(e)) {
