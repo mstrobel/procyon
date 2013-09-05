@@ -911,6 +911,7 @@ final class LoopsAndConditions {
         }
 
         final StrongBox<Label> label = new StrongBox<>();
+        final Set<CaseBlock> movedBlocks = new HashSet<>();
 
         for (int i = 0; i < caseBlocks.size(); i++) {
             final CaseBlock block = caseBlocks.get(i);
@@ -939,12 +940,13 @@ final class LoopsAndConditions {
 
                 final int targetIndex = caseInfo.getSecond();
 
-                if (targetIndex == i + 1) {
+                if (targetIndex == i + 1 || movedBlocks.contains(block)) {
                     continue;
                 }
 
                 caseBlocks.remove(i);
                 caseBlocks.add(targetIndex, block);
+                movedBlocks.add(block);
 
                 if (targetIndex > i) {
                     --i;
