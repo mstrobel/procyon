@@ -79,8 +79,6 @@ public final class ClasspathTypeLoader implements ITypeLoader {
             return false;
         }
 
-//        System.out.println("Loading " + internalName + "...");
-
         final byte[] data;
 
         try {
@@ -93,6 +91,10 @@ public final class ClasspathTypeLoader implements ITypeLoader {
 
         buffer.reset(data.length);
         System.arraycopy(data, 0, buffer.array(), 0, data.length);
+
+        if (LOG.isLoggable(Level.FINE)) {
+            LOG.fine("Type loaded from " + resource.getURL() + ".");
+        }
 
         return true;
     }
