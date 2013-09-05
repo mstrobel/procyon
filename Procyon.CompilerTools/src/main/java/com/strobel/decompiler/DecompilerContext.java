@@ -23,11 +23,13 @@ import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.componentmodel.UserDataStoreBase;
 import com.strobel.core.BooleanBox;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public final class DecompilerContext extends UserDataStoreBase {
     private final List<String> _reservedVariableNames = new Collection<>();
-    private final List<IMemberDefinition> _forcedVisibleMembers = new Collection<>();
+    private final Set<IMemberDefinition> _forcedVisibleMembers = new LinkedHashSet<>();
     private DecompilerSettings _settings = new DecompilerSettings();
     private BooleanBox _isCanceled;
     private TypeDefinition _currentType;
@@ -76,7 +78,7 @@ public final class DecompilerContext extends UserDataStoreBase {
         return _reservedVariableNames;
     }
 
-    public List<IMemberDefinition> getForcedVisibleMembers() {
+    public Set<IMemberDefinition> getForcedVisibleMembers() {
         return _forcedVisibleMembers;
     }
 }

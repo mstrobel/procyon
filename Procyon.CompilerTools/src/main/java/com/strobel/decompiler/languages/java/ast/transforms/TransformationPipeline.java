@@ -51,6 +51,7 @@ public final class TransformationPipeline {
             new FlattenElseIfStatementsTransform(context),
             new FlattenSwitchBlocksTransform(context),
             new InlineFieldInitializersTransform(context),
+            new MarkReferencedSyntheticsTransform(context),
             new RemoveHiddenMembersTransform(context),
             new RemoveRedundantCastsTransform(context), // (again due to inlined synthetic accessors)
             new InsertNecessaryConversionsTransform(context),

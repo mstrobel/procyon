@@ -21,6 +21,7 @@ import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.ParameterDefinition;
+import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.ast.Variable;
@@ -245,7 +246,7 @@ public final class LocalClassHelper {
 
                                     if (parameterIndex == 0 &&
                                         argument instanceof ThisReferenceExpression &&
-                                        context.getCurrentType().isLocalClass()) {
+                                        isLocalOrAnonymous(context.getCurrentType())) {
 
                                         //
                                         // Don't replace outer class references; they will be rewritten later.
@@ -316,6 +317,13 @@ public final class LocalClassHelper {
                 }
             }
         }
+    }
+
+    private static boolean isLocalOrAnonymous(final TypeDefinition type) {
+        if (type == null) {
+            return false;
+        }
+        return type.isLocalClass() || type.isAnonymous();
     }
 
     private static boolean hasSideEffects(final Expression e) {
