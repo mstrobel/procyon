@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java;
 
+import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
@@ -1324,6 +1325,12 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         writeModifiers(node.getModifiers());
 
+        if (definition != null && definition.isSynthetic()) {
+            space(lastWritten != LastWritten.Whitespace);
+            formatter.writeComment(CommentType.MultiLine, " synthetic ");
+            space();
+        }
+
         if (definition == null || !definition.isTypeInitializer()) {
             final AstNodeCollection<TypeParameterDeclaration> typeParameters = node.getTypeParameters();
 
@@ -1439,6 +1446,15 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         startNode(node);
         writeAnnotations(node.getAnnotations(), true);
         writeModifiers(node.getModifiers());
+
+        final FieldDefinition field = node.getUserData(Keys.FIELD_DEFINITION);
+
+        if (field != null && field.isSynthetic()) {
+            space(lastWritten != LastWritten.Whitespace);
+            formatter.writeComment(CommentType.MultiLine, " synthetic ");
+            space();
+        }
+
         node.getReturnType().acceptVisitor(this, ignored);
         space();
         writeCommaSeparatedList(node.getVariables());

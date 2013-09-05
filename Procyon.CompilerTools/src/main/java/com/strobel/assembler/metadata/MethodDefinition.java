@@ -23,6 +23,8 @@ import com.strobel.assembler.ir.attributes.CodeAttribute;
 import com.strobel.assembler.ir.attributes.ExceptionTableEntry;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
+import com.strobel.core.HashUtilities;
+import com.strobel.core.StringUtilities;
 
 import java.util.Collections;
 import java.util.List;
@@ -204,6 +206,30 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
 
     protected final Collection<SourceAttribute> getSourceAttributesInternal() {
         return _sourceAttributes;
+    }
+
+    @Override
+    public int hashCode() {
+        return HashUtilities.hashCode(getFullName());
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (obj instanceof MethodDefinition) {
+            final MethodDefinition other = (MethodDefinition) obj;
+
+            return StringUtilities.equals(getName(), other.getName()) &&
+                   StringUtilities.equals(getErasedSignature(), other.getErasedSignature()) &&
+                   typeNamesMatch(getDeclaringType(), other.getDeclaringType());
+        }
+
+        return false;
+    }
+
+    private boolean typeNamesMatch(final TypeReference t1, final TypeReference t2) {
+        return t1 != null &&
+               t2 != null &&
+               StringUtilities.equals(t1.getFullName(), t2.getFullName());
     }
 
     // <editor-fold defaultstate="collapsed" desc="Method Attributes">

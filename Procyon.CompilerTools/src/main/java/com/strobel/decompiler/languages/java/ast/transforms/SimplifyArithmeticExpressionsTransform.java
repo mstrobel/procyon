@@ -16,13 +16,18 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.CommonTypeReferences;
 import com.strobel.assembler.metadata.JvmType;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.semantics.ResolveResult;
 
 public class SimplifyArithmeticExpressionsTransform extends ContextTrackingVisitor<Void> {
+    private final JavaResolver _resolver;
+
     public SimplifyArithmeticExpressionsTransform(final DecompilerContext context) {
         super(context);
+        _resolver = new JavaResolver(context);
     }
 
     @Override
@@ -73,6 +78,15 @@ public class SimplifyArithmeticExpressionsTransform extends ContextTrackingVisit
         switch (operator) {
             case ADD:
             case SUBTRACT: {
+                final ResolveResult leftResult = _resolver.apply(node.getLeft());
+
+                if (leftResult == null ||
+                    leftResult.getType() == null ||
+                    leftResult.getType().isEquivalentTo(CommonTypeReferences.String)) {
+
+                    return null;
+                }
+
                 if (node.getRight() instanceof PrimitiveExpression) {
                     final PrimitiveExpression right = (PrimitiveExpression) node.getRight();
                     final boolean isNegative;
@@ -122,6 +136,15 @@ public class SimplifyArithmeticExpressionsTransform extends ContextTrackingVisit
         switch (operator) {
             case ADD:
             case SUBTRACT: {
+                final ResolveResult leftResult = _resolver.apply(node.getLeft());
+
+                if (leftResult == null ||
+                    leftResult.getType() == null ||
+                    leftResult.getType().isEquivalentTo(CommonTypeReferences.String)) {
+
+                    return null;
+                }
+
                 if (node.getRight() instanceof PrimitiveExpression) {
                     final PrimitiveExpression right = (PrimitiveExpression) node.getRight();
                     final boolean isNegative;

@@ -154,23 +154,18 @@ public class ThirdPartyTests extends DecompilerTest {
             "        boolean b = array.length > 0;\n" +
             "        boolean b2 = array.length < 2;\n" +
             "        WhileLoops.x = 42;\n" +
-            "        Label_0088: {\n" +
-            "            Label_0073: {\n" +
-            "                while (true) {\n" +
-            "                    ++WhileLoops.x;\n" +
-            "                    if (WhileLoops.x > 127) {\n" +
-            "                        break Label_0073;\n" +
-            "                    }\n" +
-            "                    if (b ^ b2) {\n" +
-            "                        break;\n" +
-            "                    }\n" +
-            "                    b &= true;\n" +
-            "                    b2 |= false;\n" +
-            "                }\n" +
-            "                WhileLoops.x ^= array.length;\n" +
-            "                break Label_0088;\n" +
+            "        while (true) {\n" +
+            "            ++WhileLoops.x;\n" +
+            "            if (WhileLoops.x > 127) {\n" +
+            "                WhileLoops.x = (WhileLoops.x ^ -1 ^ -1) >>> 3;\n" +
+            "                break;\n" +
             "            }\n" +
-            "            WhileLoops.x = (WhileLoops.x ^ -1 ^ -1) >>> 3;\n" +
+            "            if (b ^ b2) {\n" +
+            "                WhileLoops.x ^= array.length;\n" +
+            "                break;\n" +
+            "            }\n" +
+            "            b &= true;\n" +
+            "            b2 |= false;\n" +
             "        }\n" +
             "        System.out.println(WhileLoops.x);\n" +
             "        System.out.println(b);\n" +
@@ -186,29 +181,27 @@ public class ThirdPartyTests extends DecompilerTest {
             "    }\n" +
             "    private static void main(final String s) {\n" +
             "        final int intValue = Integer.valueOf(s);\n" +
-            "        Block_4: {\n" +
-            "            while (true) {\n" +
-            "                if (WhileLoops.i2 < 0) {\n" +
-            "                    if (intValue > 1111 && WhileLoops.i > foo()) {\n" +
-            "                        continue;\n" +
-            "                    }\n" +
+            "        while (true) {\n" +
+            "            if (WhileLoops.i2 < 0) {\n" +
+            "                if (intValue > 1111 && WhileLoops.i > foo()) {\n" +
+            "                    continue;\n" +
+            "                }\n" +
+            "                ++WhileLoops.i;\n" +
+            "                break;\n" +
+            "            }\n" +
+            "            else {\n" +
+            "                WhileLoops.i = intValue;\n" +
+            "                if (++WhileLoops.i == 10) {\n" +
             "                    break;\n" +
             "                }\n" +
-            "                else {\n" +
-            "                    WhileLoops.i = intValue;\n" +
-            "                    if (++WhileLoops.i == 10) {\n" +
-            "                        break Block_4;\n" +
+            "                if (++WhileLoops.i != 20) {\n" +
+            "                    if (++WhileLoops.i == 30) {\n" +
+            "                        break;\n" +
             "                    }\n" +
-            "                    if (++WhileLoops.i != 20) {\n" +
-            "                        if (++WhileLoops.i == 30) {\n" +
-            "                            break Block_4;\n" +
-            "                        }\n" +
-            "                        if (++WhileLoops.i == 50) {}\n" +
-            "                    }\n" +
-            "                    WhileLoops.i2 = WhileLoops.i - WhileLoops.i * WhileLoops.i;\n" +
+            "                    if (++WhileLoops.i == 50) {}\n" +
             "                }\n" +
+            "                WhileLoops.i2 = WhileLoops.i - WhileLoops.i * WhileLoops.i;\n" +
             "            }\n" +
-            "            ++WhileLoops.i;\n" +
             "        }\n" +
             "        System.out.println(WhileLoops.i);\n" +
             "    }\n" +

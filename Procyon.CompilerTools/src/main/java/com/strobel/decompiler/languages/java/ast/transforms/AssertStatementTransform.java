@@ -47,11 +47,14 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
         ASSERT_PATTERN = new IfElseStatement(
             new UnaryOperatorExpression(
                 UnaryOperatorType.NOT,
-                new BinaryOperatorExpression(
-                    new TypeReferenceExpression(new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled"),
-                    BinaryOperatorType.LOGICAL_OR,
-                    new AnyNode("condition").toExpression()
-                )
+                new Choice(
+                    new BinaryOperatorExpression(
+                        new TypeReferenceExpression(new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled"),
+                        BinaryOperatorType.LOGICAL_OR,
+                        new AnyNode("condition").toExpression()
+                    ),
+                    new TypeReferenceExpression(new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled")
+                ).toExpression()
             ),
             new BlockStatement(
                 new ThrowStatement(
@@ -163,11 +166,16 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
             return null;
         }
 
-        final Expression condition = m.<Expression>get("condition").iterator().next();
+        final Expression condition = firstOrDefault(m.<Expression>get("condition"));
         final AssertStatement assertStatement = new AssertStatement();
 
-        condition.remove();
-        assertStatement.setCondition(condition);
+        if (condition != null) {
+            condition.remove();
+            assertStatement.setCondition(condition);
+        }
+        else {
+            assertStatement.setCondition(new PrimitiveExpression(false));
+        }
 
         if (m.has("message")) {
             Expression message = firstOrDefault(m.<Expression>get("message"));

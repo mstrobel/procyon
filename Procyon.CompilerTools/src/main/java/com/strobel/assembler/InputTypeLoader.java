@@ -234,6 +234,10 @@ public class InputTypeLoader implements ITypeLoader {
             registerKnownPath(packageName, file.getParentFile(), pathMatchesName);
 
             _knownFiles.put(actualName, file);
+
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Type loaded from " + file.getAbsolutePath() + ".");
+            }
         }
         else {
             buffer.reset(0);

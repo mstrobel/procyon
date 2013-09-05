@@ -31,10 +31,13 @@ import com.strobel.util.ContractUtils;
 
 import java.util.*;
 
+import static com.strobel.assembler.metadata.Flags.testAny;
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
 public final class TypeAnalysis {
+    private final static int FLAG_BOOLEAN_PROHIBITED = 0x01;
+
     private final List<ExpressionToInfer> _allExpressions = new ArrayList<>();
     private final Set<Variable> _singleStoreVariables = new LinkedHashSet<>();
     private final Set<Variable> _singleLoadVariables = new LinkedHashSet<>();
@@ -491,13 +494,16 @@ public final class TypeAnalysis {
 
                     if (assignedValue.getInferredType() != null) {
                         if (inferredType == null) {
-                            inferredType = assignedValue.getInferredType();
+                            inferredType = adjustType(assignedValue.getInferredType(), e.flags);
                         }
                         else {
                             //
                             // Pick the common base type.
                             //
-                            inferredType = typeWithMoreInformation(inferredType, assignedValue.getInferredType());
+                            inferredType = adjustType(
+                                typeWithMoreInformation(inferredType, assignedValue.getInferredType()),
+                                e.flags
+                            );
                         }
                     }
                 }
@@ -558,7 +564,7 @@ public final class TypeAnalysis {
                         }
 
                         if (invalidate) {
-                            runInference(e.expression);
+                            runInference(e.expression, e.flags);
                         }
                     }
                 }
@@ -627,6 +633,10 @@ public final class TypeAnalysis {
     }
 
     private void runInference(final Expression expression) {
+        runInference(expression, 0);
+    }
+
+    private void runInference(final Expression expression, final int flags) {
         final List<Expression> arguments = expression.getArguments();
 
         Variable changedVariable = null;
@@ -640,7 +650,7 @@ public final class TypeAnalysis {
         }
 
         if (expression.getInferredType() == null || anyArgumentIsMissingExpectedType) {
-            inferTypeForExpression(expression, expression.getExpectedType(), anyArgumentIsMissingExpectedType);
+            inferTypeForExpression(expression, expression.getExpectedType(), anyArgumentIsMissingExpectedType, flags);
         }
         else if (expression.getInferredType() == BuiltinTypes.Integer &&
                  expression.getExpectedType() == BuiltinTypes.Boolean) {
@@ -678,7 +688,7 @@ public final class TypeAnalysis {
 
         for (final Expression argument : arguments) {
             if (!argument.getCode().isStore()) {
-                runInference(argument);
+                runInference(argument, flags);
             }
         }
 
@@ -727,17 +737,34 @@ public final class TypeAnalysis {
 //                        --_numberOfExpressionsAlreadyInferred;
 //                    }
 //                    e.done = false;
-                    runInference(e.expression);
+                    runInference(e.expression, e.flags);
                 }
             }
         }
     }
 
     private TypeReference inferTypeForExpression(final Expression expression, final TypeReference expectedType) {
-        return inferTypeForExpression(expression, expectedType, false);
+        return inferTypeForExpression(expression, expectedType, 0);
     }
 
-    private TypeReference inferTypeForExpression(final Expression expression, final TypeReference expectedType, final boolean forceInferChildren) {
+    private TypeReference inferTypeForExpression(final Expression expression, final TypeReference expectedType, final int flags) {
+        return inferTypeForExpression(expression, expectedType, false, flags);
+    }
+
+    private TypeReference inferTypeForExpression(
+        final Expression expression,
+        final TypeReference expectedType,
+        final boolean forceInferChildren) {
+
+        return inferTypeForExpression(expression, expectedType, forceInferChildren, 0);
+    }
+
+    private TypeReference inferTypeForExpression(
+        final Expression expression,
+        final TypeReference expectedType,
+        final boolean forceInferChildren,
+        final int flags) {
+
         boolean actualForceInferChildren = forceInferChildren;
 
         if (expectedType != null &&
@@ -754,14 +781,19 @@ public final class TypeAnalysis {
         }
 
         if (actualForceInferChildren || expression.getInferredType() == null) {
-            expression.setInferredType(doInferTypeForExpression(expression, expectedType, actualForceInferChildren));
+            expression.setInferredType(doInferTypeForExpression(expression, expectedType, actualForceInferChildren, flags));
         }
 
         return expression.getInferredType();
     }
 
     @SuppressWarnings("ConstantConditions")
-    private TypeReference doInferTypeForExpression(final Expression expression, final TypeReference expectedType, final boolean forceInferChildren) {
+    private TypeReference doInferTypeForExpression(
+        final Expression expression,
+        final TypeReference expectedType,
+        final boolean forceInferChildren,
+        final int flags) {
+
         if (_stack.contains(expression) && !match(expression, AstCode.LdC)) {
             return expectedType;
         }
@@ -817,7 +849,7 @@ public final class TypeAnalysis {
 
                     if (matchBooleanConstant(expression.getArguments().get(0)) != null &&
                         shouldInferVariableType(v) &&
-                        isBoolean(inferTypeForVariable(v, expectedType != null ? expectedType : BuiltinTypes.Boolean, true))) {
+                        isBoolean(inferTypeForVariable(v, expectedType != null ? expectedType : BuiltinTypes.Boolean, true, flags))) {
 
                         return BuiltinTypes.Boolean;
                     }
@@ -828,7 +860,8 @@ public final class TypeAnalysis {
                         //
                         TypeReference inferredType = inferTypeForExpression(
                             expression.getArguments().get(0),
-                            inferTypeForVariable(v, null)
+                            inferTypeForVariable(v, null, flags),
+                            flags
                         );
 
                         if (inferredType != null && inferredType.isWildcardType()) {
@@ -836,16 +869,16 @@ public final class TypeAnalysis {
                         }
 
                         if (inferredType != null) {
-                            return inferredType;
+                            return adjustType(inferredType, flags);
                         }
                     }
 
-                    return lastInferredType != null ? lastInferredType : v.getType();
+                    return adjustType(lastInferredType != null ? lastInferredType : v.getType(), flags);
                 }
 
                 case Load: {
                     final Variable v = (Variable) expression.getOperand();
-                    final TypeReference inferredType = inferTypeForVariable(v, expectedType);
+                    final TypeReference inferredType = inferTypeForVariable(v, expectedType, flags);
                     final TypeDefinition thisType = _context.getCurrentType();
 
                     if (v.isParameter() &&
@@ -930,12 +963,22 @@ public final class TypeAnalysis {
                         }
                     }
 
-                    if (result == null && _assignmentExpressions.get(v).isEmpty()) {
+                    final List<ExpressionToInfer> assignments = _assignmentExpressions.get(v);
+
+                    if (result == null && assignments.isEmpty()) {
                         result = BuiltinTypes.Object;
                     }
 
                     if (result != null && result.isWildcardType()) {
                         result = MetadataHelper.getUpperBound(result);
+                    }
+
+                    result = adjustType(result, flags);
+
+                    if (flags != 0) {
+                        for (int i = 0; i < assignments.size(); i++) {
+                            assignments.get(i).flags |= flags;
+                        }
                     }
 
                     _inferredVariableTypes.put(v, result);
@@ -1021,9 +1064,13 @@ public final class TypeAnalysis {
 
                 case PreIncrement:
                 case PostIncrement: {
-                    final TypeReference inferredType = inferTypeForExpression(arguments.get(0), null);
+                    final TypeReference inferredType = inferTypeForExpression(
+                        arguments.get(0),
+                        null,
+                        flags | FLAG_BOOLEAN_PROHIBITED
+                    );
 
-                    if (inferredType == null) {
+                    if (inferredType == null || inferredType == BuiltinTypes.Boolean) {
                         final Number n = (Number) operand;
 
                         if (n instanceof Long) {
@@ -1054,26 +1101,48 @@ public final class TypeAnalysis {
 
                 case Shl: {
                     if (forceInferChildren) {
-                        inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
+                        inferTypeForExpression(
+                            arguments.get(1),
+                            BuiltinTypes.Integer,
+                            flags | FLAG_BOOLEAN_PROHIBITED
+                        );
                     }
 
                     if (expectedType != null &&
                         (expectedType.getSimpleType() == JvmType.Integer ||
                          expectedType.getSimpleType() == JvmType.Long)) {
 
-                        return numericPromotion(inferTypeForExpression(arguments.get(0), expectedType));
+                        return numericPromotion(
+                            inferTypeForExpression(
+                                arguments.get(0),
+                                expectedType,
+                                flags | FLAG_BOOLEAN_PROHIBITED
+                            )
+                        );
                     }
 
-                    return numericPromotion(inferTypeForExpression(arguments.get(0), null));
+                    return numericPromotion(
+                        inferTypeForExpression(
+                            arguments.get(0),
+                            null,
+                            flags | FLAG_BOOLEAN_PROHIBITED
+                        )
+                    );
                 }
 
                 case Shr:
                 case UShr: {
                     if (forceInferChildren) {
-                        inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
+                        inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer, flags | FLAG_BOOLEAN_PROHIBITED);
                     }
 
-                    final TypeReference type = numericPromotion(inferTypeForExpression(arguments.get(0), null));
+                    final TypeReference type = numericPromotion(
+                        inferTypeForExpression(
+                            arguments.get(0),
+                            null,
+                            flags | FLAG_BOOLEAN_PROHIBITED
+                        )
+                    );
 
                     if (type == null) {
                         return null;
@@ -1118,7 +1187,10 @@ public final class TypeAnalysis {
                 }
 
                 case LdC: {
-                    if (operand instanceof Boolean && matchBooleanConstant(expression) != null) {
+                    if (operand instanceof Boolean &&
+                        matchBooleanConstant(expression) != null &&
+                        !testAny(flags, FLAG_BOOLEAN_PROHIBITED)) {
+
                         return BuiltinTypes.Boolean;
                     }
 
@@ -1134,7 +1206,7 @@ public final class TypeAnalysis {
                                 switch (expectedType.getSimpleType()) {
                                     case Boolean:
                                         if (number.intValue() == 0 || number.intValue() == 1) {
-                                            return BuiltinTypes.Boolean;
+                                            return adjustType(BuiltinTypes.Boolean, flags);
                                         }
                                         return BuiltinTypes.Integer;
 
@@ -1164,7 +1236,7 @@ public final class TypeAnalysis {
                                 }
                             }
                             else if (matchBooleanConstant(expression) != null) {
-                                return BuiltinTypes.Boolean;
+                                return adjustType(BuiltinTypes.Boolean, flags);
                             }
 
                             return BuiltinTypes.Integer;
@@ -1196,7 +1268,7 @@ public final class TypeAnalysis {
                 case __NewArray:
                 case __ANewArray: {
                     if (forceInferChildren) {
-                        inferTypeForExpression(arguments.get(0), BuiltinTypes.Integer);
+                        inferTypeForExpression(arguments.get(0), BuiltinTypes.Integer, flags | FLAG_BOOLEAN_PROHIBITED);
                     }
                     return ((TypeReference) operand).makeArrayType();
                 }
@@ -1204,7 +1276,7 @@ public final class TypeAnalysis {
                 case MultiANewArray: {
                     if (forceInferChildren) {
                         for (int i = 0; i < arguments.size(); i++) {
-                            inferTypeForExpression(arguments.get(i), BuiltinTypes.Integer);
+                            inferTypeForExpression(arguments.get(i), BuiltinTypes.Integer, flags | FLAG_BOOLEAN_PROHIBITED);
                         }
                     }
                     return (TypeReference) operand;
@@ -1291,9 +1363,7 @@ public final class TypeAnalysis {
                 case LoadElement: {
                     final TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
 
-                    if (forceInferChildren) {
-                        inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
-                    }
+                    inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer, flags | FLAG_BOOLEAN_PROHIBITED);
 
                     return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
                 }
@@ -1301,12 +1371,10 @@ public final class TypeAnalysis {
                 case StoreElement: {
                     final TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
 
-                    if (forceInferChildren) {
-                        inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer);
+                    inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer, flags | FLAG_BOOLEAN_PROHIBITED);
 
-                        if (arrayType != null && arrayType.isArray()) {
-                            inferTypeForExpression(arguments.get(2), arrayType.getElementType());
-                        }
+                    if (forceInferChildren && arrayType != null && arrayType.isArray()) {
+                        inferTypeForExpression(arguments.get(2), arrayType.getElementType());
                     }
 
                     return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
@@ -1818,11 +1886,11 @@ public final class TypeAnalysis {
                 case __IInc:
                 case __IIncW:
                 case Inc: {
-                    TypeReference inferredType = inferTypeForVariable((Variable) operand, BuiltinTypes.Integer);
-
-                    if (inferredType == null || inferredType == BuiltinTypes.Boolean) {
-                        inferredType = BuiltinTypes.Integer;
-                    }
+                    final TypeReference inferredType = inferTypeForVariable(
+                        (Variable) operand,
+                        BuiltinTypes.Integer,
+                        flags | FLAG_BOOLEAN_PROHIBITED
+                    );
 
                     if (forceInferChildren) {
                         inferTypeForExpression(arguments.get(0), inferredType, true);
@@ -1916,8 +1984,8 @@ public final class TypeAnalysis {
             left,
             right,
             typeWithMoreInformation(
-                doInferTypeForExpression(left, left.getExpectedType(), true),
-                doInferTypeForExpression(right, right.getExpectedType(), true)
+                doInferTypeForExpression(left, left.getExpectedType(), true, 0),
+                doInferTypeForExpression(right, right.getExpectedType(), true, 0)
             ),
             false,
             null,
@@ -2420,40 +2488,55 @@ public final class TypeAnalysis {
     }
 
     private TypeReference inferTypeForVariable(final Variable v, final TypeReference expectedType) {
-        return inferTypeForVariable(v, expectedType, false);
+        return inferTypeForVariable(v, expectedType, false, 0);
+    }
+
+    private TypeReference inferTypeForVariable(final Variable v, final TypeReference expectedType, final int flags) {
+        return inferTypeForVariable(v, expectedType, false, flags);
     }
 
     private TypeReference inferTypeForVariable(
         final Variable v,
         final TypeReference expectedType,
-        final boolean favorExpectedOverActual) {
+        final boolean favorExpectedOverActual,
+        final int flags) {
 
         final TypeReference lastInferredType = _inferredVariableTypes.get(v);
 
         if (lastInferredType != null) {
-            return lastInferredType;
+            return adjustType(lastInferredType, flags);
         }
 
         if (isSingleStoreBoolean(v)) {
-            return BuiltinTypes.Boolean;
+            return adjustType(BuiltinTypes.Boolean, flags);
         }
 
         if (favorExpectedOverActual && expectedType != null) {
-            return expectedType;
+            return adjustType(expectedType, flags);
         }
 
         final TypeReference variableType = v.getType();
 
         if (variableType != null) {
-            return variableType;
+            return adjustType(variableType, flags);
         }
 
         if (v.isGenerated()) {
-            return expectedType;
+            return adjustType(expectedType, flags);
         }
 
-        return v.isParameter() ? v.getOriginalParameter().getParameterType()
-                               : v.getOriginalVariable().getVariableType();
+        return adjustType(
+            v.isParameter() ? v.getOriginalParameter().getParameterType()
+                            : v.getOriginalVariable().getVariableType(),
+            flags
+        );
+    }
+
+    private static TypeReference adjustType(final TypeReference type, final int flags) {
+        if (testAny(flags, FLAG_BOOLEAN_PROHIBITED) && type == BuiltinTypes.Boolean) {
+            return BuiltinTypes.Integer;
+        }
+        return type;
     }
 
     private TypeReference numericPromotion(final TypeReference type) {
@@ -2483,11 +2566,11 @@ public final class TypeAnalysis {
         TypeReference actualRightPreferred = rightPreferred;
 
         if (actualLeftPreferred == null) {
-            actualLeftPreferred = doInferTypeForExpression(left, expectedType, forceInferChildren);
+            actualLeftPreferred = doInferTypeForExpression(left, expectedType, forceInferChildren, 0);
         }
 
         if (actualRightPreferred == null) {
-            actualRightPreferred = doInferTypeForExpression(right, expectedType, forceInferChildren);
+            actualRightPreferred = doInferTypeForExpression(right, expectedType, forceInferChildren, 0);
         }
 
         if (actualLeftPreferred == BuiltinTypes.Null) {
@@ -2521,7 +2604,7 @@ public final class TypeAnalysis {
             return actualLeftPreferred;
         }
 
-        if (isSameType(actualRightPreferred, doInferTypeForExpression(left, actualRightPreferred, forceInferChildren))) {
+        if (isSameType(actualRightPreferred, doInferTypeForExpression(left, actualRightPreferred, forceInferChildren, 0))) {
             left.setInferredType(actualRightPreferred);
             left.setExpectedType(actualRightPreferred);
             right.setInferredType(actualRightPreferred);
@@ -2530,7 +2613,7 @@ public final class TypeAnalysis {
             return actualRightPreferred;
         }
 
-        if (isSameType(actualLeftPreferred, doInferTypeForExpression(right, actualLeftPreferred, forceInferChildren))) {
+        if (isSameType(actualLeftPreferred, doInferTypeForExpression(right, actualLeftPreferred, forceInferChildren, 0))) {
             left.setInferredType(actualLeftPreferred);
             left.setExpectedType(actualLeftPreferred);
             right.setInferredType(actualLeftPreferred);
@@ -2543,8 +2626,8 @@ public final class TypeAnalysis {
 
         left.setExpectedType(result);
         right.setExpectedType(result);
-        left.setInferredType(doInferTypeForExpression(left, result, forceInferChildren));
-        right.setInferredType(doInferTypeForExpression(right, result, forceInferChildren));
+        left.setInferredType(doInferTypeForExpression(left, result, forceInferChildren, 0));
+        right.setInferredType(doInferTypeForExpression(right, result, forceInferChildren, 0));
 
         return result;
     }
@@ -2807,6 +2890,7 @@ public final class TypeAnalysis {
         Expression expression;
         boolean done;
         Variable dependsOnSingleLoad;
+        int flags;
 
         @Override
         public String toString() {

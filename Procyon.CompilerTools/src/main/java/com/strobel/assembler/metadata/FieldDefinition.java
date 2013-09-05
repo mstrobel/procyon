@@ -19,6 +19,8 @@ package com.strobel.assembler.metadata;
 import com.strobel.assembler.Collection;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
+import com.strobel.core.HashUtilities;
+import com.strobel.core.StringUtilities;
 
 import javax.lang.model.element.Modifier;
 import java.util.Collections;
@@ -60,6 +62,34 @@ public class FieldDefinition extends FieldReference implements IMemberDefinition
 
     protected final Collection<SourceAttribute> getSourceAttributesInternal() {
         return _sourceAttributes;
+    }
+
+    @Override
+    public boolean isEquivalentTo(final MemberReference member) {
+        return super.isEquivalentTo(member);
+    }
+
+    @Override
+    public int hashCode() {
+        return HashUtilities.hashCode(getFullName());
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (obj instanceof FieldDefinition) {
+            final FieldDefinition other = (FieldDefinition) obj;
+
+            return StringUtilities.equals(getName(), other.getName()) &&
+                   typeNamesMatch(getDeclaringType(), other.getDeclaringType());
+        }
+
+        return false;
+    }
+
+    private boolean typeNamesMatch(final TypeReference t1, final TypeReference t2) {
+        return t1 != null &&
+               t2 != null &&
+               StringUtilities.equals(t1.getFullName(), t2.getFullName());
     }
 
     // <editor-fold defaultstate="collapsed" desc="Field Attributes">

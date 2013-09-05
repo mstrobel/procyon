@@ -81,6 +81,10 @@ public class JarTypeLoader implements ITypeLoader {
                 _knownMappings.put(actualName, internalName);
             }
 
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Type loaded from " + _jarFile.getName() + "!" + entry.getName() + ".");
+            }
+
             return true;
         }
         catch (IOException e) {

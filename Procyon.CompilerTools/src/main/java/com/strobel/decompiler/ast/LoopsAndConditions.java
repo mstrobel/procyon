@@ -473,6 +473,37 @@ final class LoopsAndConditions {
                             }
                         }
                     }
+                    else if (exitInfo.additionalNodes.size() == 1) {
+                        final ControlFlowNode postLoopTarget = first(exitInfo.additionalNodes);
+                        final BasicBlock postLoopBlock = (BasicBlock) postLoopTarget.getUserData();
+                        final Node postLoopBlockHead = firstOrDefault(postLoopBlock.getBody());
+
+                        //
+                        // See if our only exit comes from an inner switch's default label.  If so, pull it in
+                        // to the loop if there are no other references.
+                        //
+
+                        final ControlFlowNode predecessor = single(postLoopTarget.getPredecessors());
+
+                        if (postLoopBlockHead instanceof Label &&
+                            loopContents.contains(predecessor)) {
+
+                            final BasicBlock b = (BasicBlock) predecessor.getUserData();
+
+                            if (matchLast(b, AstCode.Switch, switchLabels, condition) &&
+                                !ArrayUtilities.isNullOrEmpty(switchLabels.get()) &&
+                                postLoopBlockHead == switchLabels.get()[0]) {
+
+                                final Set<ControlFlowNode> defaultContents = findDominatedNodes(scope, postLoopTarget);
+
+                                for (final ControlFlowNode n : defaultContents) {
+                                    if (scope.contains(n) && node.dominates(n)) {
+                                        loopContents.add(n);
+                                    }
+                                }
+                            }
+                        }
+                    }
                     else if (exitInfo.additionalNodes.size() > 1) {
                         final Set<ControlFlowNode> auxNodes = new LinkedHashSet<>();
 
@@ -911,6 +942,7 @@ final class LoopsAndConditions {
         }
 
         final StrongBox<Label> label = new StrongBox<>();
+        final Set<CaseBlock> movedBlocks = new HashSet<>();
 
         for (int i = 0; i < caseBlocks.size(); i++) {
             final CaseBlock block = caseBlocks.get(i);
@@ -939,12 +971,13 @@ final class LoopsAndConditions {
 
                 final int targetIndex = caseInfo.getSecond();
 
-                if (targetIndex == i + 1) {
+                if (targetIndex == i + 1 || movedBlocks.contains(block)) {
                     continue;
                 }
 
                 caseBlocks.remove(i);
                 caseBlocks.add(targetIndex, block);
+                movedBlocks.add(block);
 
                 if (targetIndex > i) {
                     --i;
