@@ -2823,15 +2823,14 @@ public final class AstBuilder {
                         }
                     }
 
-                    if (variableType == BuiltinTypes.Null) {
-                        variableType = BuiltinTypes.Object;
-                    }
-
                     if (parameterVariable != null) {
                         final boolean useParameter;
 
                         if (variableType.isPrimitive() || parameterVariable.variable.getType().isPrimitive()) {
                             useParameter = variableType.getSimpleType() == parameterVariable.variable.getType().getSimpleType();
+                        }
+                        else if (variableType == BuiltinTypes.Null) {
+                            useParameter = true;
                         }
                         else if (variableType.isArray() || parameterVariable.variable.getType().isArray()) {
                             useParameter = MetadataHelper.isSameType(variableType, parameterVariable.variable.getType());
@@ -2849,6 +2848,10 @@ public final class AstBuilder {
                             parameterVariable.definitions.add(b);
                             continue;
                         }
+                    }
+
+                    if (variableType == BuiltinTypes.Null) {
+                        variableType = BuiltinTypes.Object;
                     }
 
                     final Variable variable = new Variable();

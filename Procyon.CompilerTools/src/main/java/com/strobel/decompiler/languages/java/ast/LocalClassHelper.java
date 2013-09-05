@@ -189,7 +189,12 @@ public final class LocalClassHelper {
 
                         if (resolvedField != null && resolvedField.isSynthetic()) {
                             final ParameterDefinition parameter = variable.getOriginalParameter();
-                            final int parameterIndex = parameter.getPosition();
+
+                            int parameterIndex = parameter.getPosition();
+
+                            if (parameter.getMethod().getParameters().size() > _originalArguments.size()) {
+                                parameterIndex -= (parameter.getMethod().getParameters().size() - _originalArguments.size());
+                            }
 
                             if (parameterIndex >= 0 && parameterIndex < _originalArguments.size()) {
                                 final Expression argument = _originalArguments.get(parameterIndex);
