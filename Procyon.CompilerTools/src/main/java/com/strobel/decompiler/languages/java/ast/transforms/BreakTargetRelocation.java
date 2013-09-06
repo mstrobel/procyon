@@ -56,6 +56,21 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
     public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
         super.visitMethodDeclaration(node, _);
 
+        runForMethod(node);
+
+        return null;
+    }
+
+    @Override
+    public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
+        super.visitConstructorDeclaration(node, _);
+
+        runForMethod(node);
+
+        return null;
+    }
+
+    private void runForMethod(final AstNode node) {
         final Map<String, LabelInfo> labels = new LinkedHashMap<>();
 
         for (final AstNode n : node.getDescendantsAndSelf()) {
@@ -90,82 +105,6 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
 
         for (final LabelInfo labelInfo : labels.values()) {
             run(labelInfo);
-        }
-
-        for (final LabelInfo labelInfo : labels.values()) {
-            final String labelName = labelInfo.name;
-
-            if (labelInfo.label.getParent() != null) {
-                final Statement next = labelInfo.label.getNextStatement();
-
-                if (next == null) {
-                    continue;
-                }
-
-                if (next instanceof LabelStatement ||
-                    next instanceof LabeledStatement) {
-
-                    //
-                    // We have back-to-back labels; dump the first and redirect its references to the second.
-                    //
-
-                    final String nextLabel = next.getChildByRole(Roles.LABEL).getName();
-
-                    redirectLabels(node, labelName, nextLabel);
-
-                    labelInfo.label.remove();
-                }
-                else {
-                    //
-                    // Replace LabelStatement with LabeledStatement.
-                    //
-
-                    next.remove();
-
-                    labelInfo.label.replaceWith(
-                        new LabeledStatement(
-                            labelName,
-                            AstNode.isLoop(next) ? next : new BlockStatement(next)
-                        )
-                    );
-                }
-            }
-            else if (labelInfo.newLabeledStatement != null &&
-                     labelInfo.newLabeledStatement.getStatement() instanceof BlockStatement) {
-
-                final BlockStatement block = (BlockStatement) labelInfo.newLabeledStatement.getStatement();
-
-                if (block.getStatements().hasSingleElement() &&
-                    block.getStatements().firstOrNullObject() instanceof LabeledStatement) {
-
-                    final LabeledStatement nestedLabeledStatement = (LabeledStatement) block.getStatements().firstOrNullObject();
-                    //
-                    // We have back-to-back labels; dump the first and redirect its references to the second.
-                    //
-
-                    final String nextLabel = nestedLabeledStatement.getChildByRole(Roles.LABEL).getName();
-
-                    redirectLabels(node, labelName, nextLabel);
-
-                    nestedLabeledStatement.remove();
-                    labelInfo.newLabeledStatement.replaceWith(nestedLabeledStatement);
-                    labelInfo.newLabeledStatement = null;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private void redirectLabels(final AstNode node, final String labelName, final String nextLabel) {
-        for (final AstNode n : node.getDescendantsAndSelf()) {
-            if (AstNode.isUnconditionalBranch(n)) {
-                final Identifier label = n.getChildByRole(Roles.IDENTIFIER);
-
-                if (!label.isNull() && StringUtilities.equals(label.getName(), labelName)) {
-                    label.setName(nextLabel);
-                }
-            }
         }
     }
 

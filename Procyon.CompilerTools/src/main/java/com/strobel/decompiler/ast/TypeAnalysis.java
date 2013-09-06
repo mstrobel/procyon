@@ -501,7 +501,10 @@ public final class TypeAnalysis {
                             // Pick the common base type.
                             //
                             inferredType = adjustType(
-                                typeWithMoreInformation(inferredType, assignedValue.getInferredType()),
+                                typeWithMoreInformation(
+                                    inferredType,
+                                    cleanTypeArguments(assignedValue.getInferredType(), inferredType)
+                                ),
                                 e.flags
                             );
                         }
@@ -1283,64 +1286,7 @@ public final class TypeAnalysis {
                 }
 
                 case InitObject: {
-                    final MethodReference instanceCtor = (MethodReference) operand;
-                    final MethodReference resolvedCtor = instanceCtor instanceof IGenericInstance ? instanceCtor.resolve() : instanceCtor;
-                    final MethodReference constructor = resolvedCtor != null ? resolvedCtor : instanceCtor;
-                    final TypeReference type = constructor.getDeclaringType();
-
-                    final TypeReference inferredType;
-
-                    if (expectedType != null && !MetadataHelper.isSameType(expectedType, BuiltinTypes.Object)) {
-                        final TypeReference asSubType = MetadataHelper.asSubType(type, expectedType);
-                        inferredType = asSubType != null ? asSubType : type;
-                    }
-                    else {
-                        inferredType = type;
-                    }
-
-                    final Map<TypeReference, TypeReference> mappings;
-
-                    if (inferredType.isGenericDefinition()) {
-                        mappings = new HashMap<>();
-
-                        for (final GenericParameter gp : inferredType.getGenericParameters()) {
-                            mappings.put(gp, BuiltinTypes.Object);
-                        }
-                    }
-                    else {
-                        mappings = Collections.emptyMap();
-                    }
-
-                    if (forceInferChildren) {
-                        final MethodReference asMember = MetadataHelper.asMemberOf(
-                            constructor,
-                            TypeSubstitutionVisitor.instance().visit(inferredType, mappings)
-                        );
-
-                        final List<ParameterDefinition> parameters = asMember.getParameters();
-
-                        for (int i = 0; i < arguments.size() && i < parameters.size(); i++) {
-                            inferTypeForExpression(
-                                arguments.get(i),
-                                parameters.get(i).getParameterType()
-                            );
-                        }
-
-                        expression.setOperand(asMember);
-                    }
-
-                    if (inferredType != null) {
-                        if (inferredType instanceof IGenericInstance) {
-                            expression.putUserData(
-                                AstKeys.TYPE_ARGUMENTS,
-                                ((IGenericInstance) inferredType).getTypeArguments()
-                            );
-                        }
-
-                        return inferredType;
-                    }
-
-                    return type;
+                    return inferInitObject(expression, expectedType, forceInferChildren, (MethodReference) operand, arguments);
                 }
 
                 case InitArray: {
@@ -1518,7 +1464,7 @@ public final class TypeAnalysis {
                             );
                         }
 
-                        if (inferredType != null && MetadataHelper.isSubType(inferredType, castType)) {
+                        if (inferredType != null && MetadataHelper.isSubType(inferredType, MetadataHelper.eraseRecursive(castType))) {
                             expression.setOperand(inferredType);
                             return inferredType;
                         }
@@ -1622,7 +1568,7 @@ public final class TypeAnalysis {
                                         }
 
                                         if (!mappings.containsKey(gp)) {
-                                            mappings.put(gp, BuiltinTypes.Object);
+                                            mappings.put(gp, MetadataHelper.eraseRecursive(gp));
                                         }
                                     }
 
@@ -1815,7 +1761,7 @@ public final class TypeAnalysis {
                                     }
 
                                     if (!mappings.containsKey(gp)) {
-                                        mappings.put(gp, BuiltinTypes.Object);
+                                        mappings.put(gp, MetadataHelper.eraseRecursive(gp));
                                     }
                                 }
 
@@ -1918,6 +1864,198 @@ public final class TypeAnalysis {
         finally {
             _stack.pop();
         }
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private TypeReference inferInitObject(
+        final Expression expression,
+        final TypeReference expectedType,
+        final boolean forceInferChildren,
+        final MethodReference operand,
+        final List<Expression> arguments) {
+
+        final MethodReference resolvedCtor = operand instanceof IGenericInstance ? operand.resolve() : operand;
+        final MethodReference constructor = resolvedCtor != null ? resolvedCtor : operand;
+        final TypeReference type = constructor.getDeclaringType();
+
+        TypeReference inferredType;
+
+        if (expectedType != null && !MetadataHelper.isSameType(expectedType, BuiltinTypes.Object)) {
+            final TypeReference asSubType = MetadataHelper.asSubType(type, expectedType);
+            inferredType = asSubType != null ? asSubType : type;
+        }
+        else {
+            inferredType = type;
+        }
+
+        final Map<TypeReference, TypeReference> mappings;
+
+        if (inferredType.isGenericDefinition()) {
+            mappings = new HashMap<>();
+
+            for (final GenericParameter gp : inferredType.getGenericParameters()) {
+                mappings.put(gp, MetadataHelper.eraseRecursive(gp));
+            }
+        }
+        else {
+            mappings = Collections.emptyMap();
+        }
+
+        if (forceInferChildren) {
+            final MethodReference asMember = MetadataHelper.asMemberOf(
+                constructor,
+                TypeSubstitutionVisitor.instance().visit(inferredType, mappings)
+            );
+
+            final List<ParameterDefinition> parameters = asMember.getParameters();
+
+            for (int i = 0; i < arguments.size() && i < parameters.size(); i++) {
+                inferTypeForExpression(
+                    arguments.get(i),
+                    parameters.get(i).getParameterType()
+                );
+            }
+
+            expression.setOperand(asMember);
+        }
+
+        if (inferredType == null) {
+            return type;
+        }
+
+        final List<TypeReference> oldTypeArguments = expression.getUserData(AstKeys.TYPE_ARGUMENTS);
+
+        if (inferredType instanceof IGenericInstance) {
+            boolean typeArgumentsChanged = false;
+            List<TypeReference> typeArguments = ((IGenericInstance) inferredType).getTypeArguments();
+
+            for (int i = 0; i < typeArguments.size(); i++) {
+                TypeReference t = typeArguments.get(i);
+
+                while (t.isWildcardType()) {
+                    t = t.hasExtendsBound() ? t.getExtendsBound() : MetadataHelper.getUpperBound(t);
+
+                    if (!typeArgumentsChanged) {
+                        typeArguments = toList(typeArguments);
+                        typeArgumentsChanged = true;
+                    }
+
+                    typeArguments.set(i, t);
+                }
+
+                while (t.isGenericParameter()) {
+                    final GenericParameter inScope = _context.getCurrentMethod().findTypeVariable(t.getName());
+
+                    if (inScope != null && MetadataHelper.isSameType(t, inScope)) {
+                        break;
+                    }
+
+                    if (oldTypeArguments != null &&
+                        oldTypeArguments.size() == typeArguments.size()) {
+
+                        final TypeReference o = oldTypeArguments.get(i);
+
+                        if (!MetadataHelper.isSameType(o, t)) {
+                            t = o;
+
+                            if (!typeArgumentsChanged) {
+                                typeArguments = toList(typeArguments);
+                                typeArgumentsChanged = true;
+                            }
+
+                            typeArguments.set(i, t);
+                            continue;
+                        }
+                    }
+
+                    t = t.hasExtendsBound() ? t.getExtendsBound() : MetadataHelper.getUpperBound(t);
+
+                    if (!typeArgumentsChanged) {
+                        typeArguments = toList(typeArguments);
+                        typeArgumentsChanged = true;
+                    }
+
+                    typeArguments.set(i, t);
+                }
+            }
+
+            expression.putUserData(AstKeys.TYPE_ARGUMENTS, typeArguments);
+
+            if (typeArgumentsChanged) {
+                inferredType = inferredType.makeGenericType(typeArguments);
+            }
+        }
+
+        return inferredType;
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private TypeReference cleanTypeArguments(final TypeReference newType, final TypeReference alternateType) {
+        if (!(alternateType instanceof IGenericInstance)) {
+            return newType;
+        }
+
+        if (!StringUtilities.equals(newType.getInternalName(), alternateType.getInternalName())) {
+            return newType;
+        }
+
+        final List<TypeReference> alternateTypeArguments = ((IGenericInstance) alternateType).getTypeArguments();
+
+        boolean typeArgumentsChanged = false;
+        List<TypeReference> typeArguments;
+
+        if (newType instanceof IGenericInstance) {
+            typeArguments = ((IGenericInstance) newType).getTypeArguments();
+        }
+        else {
+            typeArguments = new ArrayList<>();
+            typeArguments.addAll(newType.getGenericParameters());
+        }
+
+        for (int i = 0; i < typeArguments.size(); i++) {
+            TypeReference t = typeArguments.get(i);
+
+            while (t.isGenericParameter()) {
+                final GenericParameter inScope = _context.getCurrentMethod().findTypeVariable(t.getName());
+
+                if (inScope != null && MetadataHelper.isSameType(t, inScope)) {
+                    break;
+                }
+
+                if (alternateTypeArguments != null &&
+                    alternateTypeArguments.size() == typeArguments.size()) {
+
+                    final TypeReference o = alternateTypeArguments.get(i);
+
+                    if (!MetadataHelper.isSameType(o, t)) {
+                        t = o;
+
+                        if (!typeArgumentsChanged) {
+                            typeArguments = toList(typeArguments);
+                            typeArgumentsChanged = true;
+                        }
+
+                        typeArguments.set(i, t);
+                        continue;
+                    }
+                }
+
+                t = t.hasExtendsBound() ? t.getExtendsBound() : MetadataHelper.getUpperBound(t);
+
+                if (!typeArgumentsChanged) {
+                    typeArguments = toList(typeArguments);
+                    typeArgumentsChanged = true;
+                }
+
+                typeArguments.set(i, t);
+            }
+        }
+
+        if (typeArgumentsChanged) {
+            return newType.makeGenericType(typeArguments);
+        }
+
+        return newType;
     }
 
     private TypeReference inferBinaryExpression(final AstCode code, final List<Expression> arguments) {
@@ -2364,7 +2502,7 @@ public final class TypeAnalysis {
                         }
 
                         if (!mappings.containsKey(gp)) {
-                            mappings.put(gp, BuiltinTypes.Object);
+                            mappings.put(gp, MetadataHelper.eraseRecursive(gp));
                         }
                     }
 
@@ -2380,7 +2518,7 @@ public final class TypeAnalysis {
 
                     for (final GenericParameter gp : boundMethod.getGenericParameters()) {
                         if (!mappings.containsKey(gp)) {
-                            mappings.put(gp, BuiltinTypes.Object);
+                            mappings.put(gp, MetadataHelper.eraseRecursive(gp));
                         }
                     }
 
@@ -2942,18 +3080,38 @@ public final class TypeAnalysis {
 
             mappedType = ensureReferenceType(mappedType);
 
-            if (!(mappedType instanceof RawType) && MetadataHelper.isRawType(mappedType)) {
-                mappedType = MetadataHelper.erase(mappedType);
-            }
-
             if (existingMapping == null) {
+                if (!(mappedType instanceof RawType) && MetadataHelper.isRawType(mappedType)) {
+                    final TypeReference bound = MetadataHelper.getUpperBound(t);
+                    final TypeReference asSuper = MetadataHelper.asSuper(mappedType, bound);
+
+                    if (asSuper != null) {
+                        if (MetadataHelper.isSameType(MetadataHelper.getUpperBound(t), asSuper)) {
+                            return null;
+                        }
+                        mappedType = asSuper;
+                    }
+                    else {
+                        mappedType = MetadataHelper.erase(mappedType);
+                    }
+                }
                 map.put(t, mappedType);
             }
             else if (MetadataHelper.isSubType(argumentType, existingMapping)) {
 //                map.put(t, argumentType);
             }
             else {
-                map.put(t, MetadataHelper.findCommonSuperType(existingMapping, argumentType));
+                TypeReference commonSuperType = MetadataHelper.asSuper(mappedType, existingMapping);
+
+                if (commonSuperType == null) {
+                    commonSuperType = MetadataHelper.asSuper(existingMapping, mappedType);
+                }
+
+                if (commonSuperType == null) {
+                    commonSuperType = MetadataHelper.findCommonSuperType(existingMapping, mappedType);
+                }
+
+                map.put(t, commonSuperType);
             }
 
             return null;

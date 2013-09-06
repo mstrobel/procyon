@@ -75,7 +75,7 @@ public final class MetadataParser {
     private final class StackBasedGenericContext implements IGenericContext {
         @Override
         public GenericParameter findTypeVariable(final String name) {
-            for (int i = 0, n = _genericContexts.size(); i < n; i++) {
+            for (int i = _genericContexts.size() - 1; i >= 0; i--) {
                 final IGenericContext context = _genericContexts.get(i);
                 final GenericParameter typeVariable = context.findTypeVariable(name);
 

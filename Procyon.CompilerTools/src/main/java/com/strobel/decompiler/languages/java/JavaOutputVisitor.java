@@ -1325,9 +1325,12 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         writeModifiers(node.getModifiers());
 
-        if (definition != null && definition.isSynthetic()) {
+        if (definition != null && (definition.isSynthetic() || definition.isBridgeMethod())) {
             space(lastWritten != LastWritten.Whitespace);
-            formatter.writeComment(CommentType.MultiLine, " synthetic ");
+            formatter.writeComment(
+                CommentType.MultiLine,
+                definition.isBridgeMethod() ? " bridge " : " synthetic "
+            );
             space();
         }
 
