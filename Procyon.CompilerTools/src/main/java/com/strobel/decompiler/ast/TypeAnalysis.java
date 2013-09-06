@@ -501,7 +501,10 @@ public final class TypeAnalysis {
                             // Pick the common base type.
                             //
                             inferredType = adjustType(
-                                typeWithMoreInformation(inferredType, assignedValue.getInferredType()),
+                                typeWithMoreInformation(
+                                    inferredType,
+                                    cleanTypeArguments(assignedValue.getInferredType(), inferredType)
+                                ),
                                 e.flags
                             );
                         }
@@ -1984,6 +1987,75 @@ public final class TypeAnalysis {
         }
 
         return inferredType;
+    }
+
+    @SuppressWarnings("ConstantConditions")
+    private TypeReference cleanTypeArguments(final TypeReference newType, final TypeReference alternateType) {
+        if (!(alternateType instanceof IGenericInstance)) {
+            return newType;
+        }
+
+        if (!StringUtilities.equals(newType.getInternalName(), alternateType.getInternalName())) {
+            return newType;
+        }
+
+        final List<TypeReference> alternateTypeArguments = ((IGenericInstance) alternateType).getTypeArguments();
+
+        boolean typeArgumentsChanged = false;
+        List<TypeReference> typeArguments;
+
+        if (newType instanceof IGenericInstance) {
+            typeArguments = ((IGenericInstance) newType).getTypeArguments();
+        }
+        else {
+            typeArguments = new ArrayList<>();
+            typeArguments.addAll(newType.getGenericParameters());
+        }
+
+        for (int i = 0; i < typeArguments.size(); i++) {
+            TypeReference t = typeArguments.get(i);
+
+            while (t.isGenericParameter()) {
+                final GenericParameter inScope = _context.getCurrentMethod().findTypeVariable(t.getName());
+
+                if (inScope != null && MetadataHelper.isSameType(t, inScope)) {
+                    break;
+                }
+
+                if (alternateTypeArguments != null &&
+                    alternateTypeArguments.size() == typeArguments.size()) {
+
+                    final TypeReference o = alternateTypeArguments.get(i);
+
+                    if (!MetadataHelper.isSameType(o, t)) {
+                        t = o;
+
+                        if (!typeArgumentsChanged) {
+                            typeArguments = toList(typeArguments);
+                            typeArgumentsChanged = true;
+                        }
+
+                        typeArguments.set(i, t);
+                        continue;
+                    }
+                }
+
+                t = t.hasExtendsBound() ? t.getExtendsBound() : MetadataHelper.getUpperBound(t);
+
+                if (!typeArgumentsChanged) {
+                    typeArguments = toList(typeArguments);
+                    typeArgumentsChanged = true;
+                }
+
+                typeArguments.set(i, t);
+            }
+        }
+
+        if (typeArgumentsChanged) {
+            return newType.makeGenericType(typeArguments);
+        }
+
+        return newType;
     }
 
     private TypeReference inferBinaryExpression(final AstCode code, final List<Expression> arguments) {
