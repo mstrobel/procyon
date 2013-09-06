@@ -391,15 +391,13 @@ public final class LocalClassHelper {
                 return null;
             }
 
-            if (node.getTarget() instanceof ThisReferenceExpression) {
-                final MemberReference member = node.getUserData(Keys.MEMBER_REFERENCE);
+            final MemberReference member = node.getUserData(Keys.MEMBER_REFERENCE);
 
-                if (member instanceof FieldReference) {
-                    final Expression replacement = _replacements.get(member.getFullName());
+            if (member instanceof FieldReference) {
+                final Expression replacement = _replacements.get(member.getFullName());
 
-                    if (replacement != null) {
-                        node.replaceWith(replacement.clone());
-                    }
+                if (replacement != null) {
+                    node.replaceWith(replacement.clone());
                 }
             }
 

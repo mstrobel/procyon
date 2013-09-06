@@ -37,6 +37,7 @@ public final class TransformationPipeline {
             new RemoveRedundantCastsTransform(context),
             new PatternStatementTransform(context),
             new BreakTargetRelocation(context),
+            new LabelCleanupTransform(context),
             new TryWithResourcesTransform(context),
             new DeclareVariablesTransform(context),
             new StringSwitchRewriterTransform(context),

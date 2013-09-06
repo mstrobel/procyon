@@ -274,17 +274,17 @@ public final class AstOptimizer {
 
         duplicateReturnStatements(method);
 
-        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.GotoRemoval2)) {
-            return;
-        }
-
-        new GotoRemoval().removeGotos(method);
-
         if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.ReduceIfNesting)) {
             return;
         }
 
         reduceIfNesting(method);
+
+        if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.GotoRemoval2)) {
+            return;
+        }
+
+        new GotoRemoval().removeGotos(method);
 
         if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.ReduceComparisonInstructionSet)) {
             return;

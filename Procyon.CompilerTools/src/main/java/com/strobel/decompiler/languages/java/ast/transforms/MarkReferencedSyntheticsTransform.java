@@ -17,6 +17,7 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.FieldReference;
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.IMemberDefinition;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
@@ -54,7 +55,10 @@ public class MarkReferencedSyntheticsTransform extends ContextTrackingVisitor<Vo
                     resolvedMember = ((MethodReference) member).resolve();
                 }
 
-                if (resolvedMember != null && resolvedMember.isSynthetic()) {
+                if (resolvedMember != null &&
+                    resolvedMember.isSynthetic() &&
+                    !Flags.testAny(resolvedMember.getFlags(), Flags.BRIDGE)) {
+
                     context.getForcedVisibleMembers().add(resolvedMember);
                 }
             }

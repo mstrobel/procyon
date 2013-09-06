@@ -31,6 +31,7 @@ import static com.strobel.core.CollectionUtilities.*;
 
 public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisitor<Void> {
     private final List<AstNode> _nodesToRemove;
+    private final Set<String> _outerClassFields;
     private final Set<ParameterReference> _parametersToRemove;
 
     public IntroduceOuterClassReferencesTransform(final DecompilerContext context) {
@@ -38,6 +39,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
 
         _nodesToRemove = new ArrayList<>();
         _parametersToRemove = new HashSet<>();
+        _outerClassFields = new HashSet<>();
     }
 
     @Override
@@ -122,6 +124,10 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
         else {
             field = null;
             resolvedField = null;
+        }
+
+        if (resolvedField != null && !_outerClassFields.contains(resolvedField.getFullName())) {
+            return false;
         }
 
         if (!hasThisOnLeft ||
@@ -312,6 +318,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
 
                             final ParameterDefinition parameter = variable.getOriginalParameter();
 
+                            _outerClassFields.add(resolvedField.getFullName());
                             _parametersToRemove.add(parameter);
 
                             final ConstructorDeclaration constructorDeclaration = (ConstructorDeclaration) firstOrDefault(

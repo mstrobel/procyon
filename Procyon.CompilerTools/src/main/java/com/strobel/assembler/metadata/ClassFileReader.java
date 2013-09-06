@@ -33,8 +33,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
-import static com.strobel.core.CollectionUtilities.last;
-
 /**
  * @author Mike Strobel
  */
@@ -791,7 +789,7 @@ public final class ClassFileReader extends MetadataReader {
             final FieldDefinition fieldDefinition = new FieldDefinition(_resolver);
 
             fieldDefinition.setDeclaringType(_typeDefinition);
-            fieldDefinition.setFlags(field.accessFlags);
+            fieldDefinition.setFlags(Flags.fromStandardFlags(field.accessFlags, Flags.Kind.Field));
             fieldDefinition.setName(field.name);
             fieldDefinition.setFieldType(fieldType);
 
@@ -888,7 +886,7 @@ public final class ClassFileReader extends MetadataReader {
                 final MethodDefinition methodDefinition = new MethodDefinition();
 
                 methodDefinition.setName(method.name);
-                methodDefinition.setFlags(method.accessFlags);
+                methodDefinition.setFlags(Flags.fromStandardFlags(method.accessFlags, Flags.Kind.Method));
                 methodDefinition.setDeclaringType(_typeDefinition);
 
                 if (_typeDefinition.isInterface() && !Flags.testAny(method.accessFlags, Flags.ABSTRACT)) {
