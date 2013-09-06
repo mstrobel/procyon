@@ -1288,7 +1288,7 @@ public final class TypeAnalysis {
                     final MethodReference constructor = resolvedCtor != null ? resolvedCtor : instanceCtor;
                     final TypeReference type = constructor.getDeclaringType();
 
-                    final TypeReference inferredType;
+                    TypeReference inferredType;
 
                     if (expectedType != null && !MetadataHelper.isSameType(expectedType, BuiltinTypes.Object)) {
                         final TypeReference asSubType = MetadataHelper.asSubType(type, expectedType);
@@ -1331,10 +1331,29 @@ public final class TypeAnalysis {
 
                     if (inferredType != null) {
                         if (inferredType instanceof IGenericInstance) {
-                            expression.putUserData(
-                                AstKeys.TYPE_ARGUMENTS,
-                                ((IGenericInstance) inferredType).getTypeArguments()
-                            );
+                            boolean typeArgumentsChanged = false;
+                            List<TypeReference> typeArguments = ((IGenericInstance) inferredType).getTypeArguments();
+
+                            for (int i = 0; i < typeArguments.size(); i++) {
+                                TypeReference t = typeArguments.get(i);
+
+                                while (t.isWildcardType()) {
+                                    t = t.hasExtendsBound() ? t.getExtendsBound() : MetadataHelper.getUpperBound(t);
+
+                                    if (!typeArgumentsChanged) {
+                                        typeArguments = toList(typeArguments);
+                                        typeArgumentsChanged = true;
+                                    }
+
+                                    typeArguments.set(i, t);
+                                }
+                            }
+
+                            expression.putUserData(AstKeys.TYPE_ARGUMENTS, typeArguments);
+
+                            if (typeArgumentsChanged) {
+                                inferredType = inferredType.makeGenericType(typeArguments);
+                            }
                         }
 
                         return inferredType;
