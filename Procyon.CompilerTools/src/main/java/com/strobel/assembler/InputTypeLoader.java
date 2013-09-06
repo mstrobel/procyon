@@ -20,6 +20,7 @@ import com.strobel.assembler.ir.ConstantPool;
 import com.strobel.assembler.metadata.Buffer;
 import com.strobel.assembler.metadata.ClasspathTypeLoader;
 import com.strobel.assembler.metadata.ITypeLoader;
+import com.strobel.core.StringComparison;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.io.PathHelper;
@@ -30,7 +31,6 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -67,6 +67,9 @@ public class InputTypeLoader implements ITypeLoader {
         }
 
         if (PathHelper.isPathRooted(typeNameOrPath)) {
+            if (LOG.isLoggable(Level.FINER)) {
+                LOG.finer("Failed to load type: " + typeNameOrPath + ".");
+            }
             return false;
         }
 
@@ -78,6 +81,9 @@ public class InputTypeLoader implements ITypeLoader {
         }
 
         if (hasExtension) {
+            if (LOG.isLoggable(Level.FINER)) {
+                LOG.finer("Failed to load type: " + typeNameOrPath + ".");
+            }
             return false;
         }
 
@@ -96,6 +102,10 @@ public class InputTypeLoader implements ITypeLoader {
             if (tryLoadTypeFromName(internalName, buffer)) {
                 return true;
             }
+        }
+
+        if (LOG.isLoggable(Level.FINER)) {
+            LOG.finer("Failed to load type: " + typeNameOrPath + ".");
         }
 
         return false;
@@ -168,6 +178,10 @@ public class InputTypeLoader implements ITypeLoader {
     }
 
     private boolean tryLoadFile(final File file, final Buffer buffer) {
+        if (LOG.isLoggable(Level.FINER)) {
+            LOG.finer("Attempting to file: " + file.getAbsolutePath() + "...");
+        }
+
         if (!file.exists() || file.isDirectory()) {
             return false;
         }
@@ -257,9 +271,7 @@ public class InputTypeLoader implements ITypeLoader {
             _packageLocations.put(packageName, directories = new LinkedHashSet<>());
         }
 
-        directories.add(directory);
-
-        if (!recursive) {
+        if (!directories.add(directory) || !recursive) {
             return;
         }
 
@@ -269,49 +281,31 @@ public class InputTypeLoader implements ITypeLoader {
                 new char[] { PathHelper.DirectorySeparator, PathHelper.AlternateDirectorySeparator }
             ).replace('\\', '/');
 
-            final int delimiterIndex = packageName.indexOf('/');
-            final String rootPackage = delimiterIndex < 0 ? packageName : packageName.substring(0, delimiterIndex);
+            int delimiterIndex;
+            String currentPackage = packageName;
+            File currentDirectory = new File(directoryPath);
 
-            if (!StringUtilities.equals(directoryPath, "/") && directoryPath.endsWith(packageName)) {
-                final String pathLeft = StringUtilities.removeRight(directoryPath, packageName);
-                final File rootDirectory = new File(PathHelper.combine(pathLeft, rootPackage));
+            while ((delimiterIndex = currentPackage.lastIndexOf('/')) >= 0 &&
+                   currentDirectory.exists() &&
+                   delimiterIndex < currentPackage.length() - 1) {
 
-                if (rootDirectory.exists()) {
-                    final Stack<File> stack = new Stack<>();
+                final String segmentName = currentPackage.substring(delimiterIndex + 1);
 
-                    stack.add(rootDirectory);
+                if (!StringUtilities.equals(currentDirectory.getName(), segmentName, StringComparison.OrdinalIgnoreCase)) {
+                    break;
+                }
 
-                    while (!stack.isEmpty()) {
-                        final File currentDirectory = stack.pop();
+                currentPackage = currentPackage.substring(0, delimiterIndex);
+                currentDirectory = currentDirectory.getParentFile();
 
-                        final String currentPath = StringUtilities.removeRight(
-                            currentDirectory.getCanonicalPath(),
-                            new char[] { PathHelper.DirectorySeparator, PathHelper.AlternateDirectorySeparator }
-                        ).replace('\\', '/');
+                directories = _packageLocations.get(currentPackage);
 
-                        final String currentPackage = StringUtilities.removeLeft(currentPath, pathLeft);
+                if (directories == null) {
+                    _packageLocations.put(currentPackage, directories = new LinkedHashSet<>());
+                }
 
-                        //noinspection StringEquality
-                        if (currentPackage != currentPath) {
-                            directories = _packageLocations.get(currentPackage);
-
-                            if (directories == null) {
-                                _packageLocations.put(currentPackage, directories = new LinkedHashSet<>());
-                            }
-
-                            directories.add(currentDirectory);
-                        }
-
-                        final File[] files = currentDirectory.listFiles();
-
-                        if (files != null) {
-                            for (final File file : files) {
-                                if (file.isDirectory()) {
-                                    stack.push(file);
-                                }
-                            }
-                        }
-                    }
+                if (!directories.add(currentDirectory)) {
+                    break;
                 }
             }
         }

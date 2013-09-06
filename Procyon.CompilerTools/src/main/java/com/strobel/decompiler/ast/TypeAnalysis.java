@@ -1304,7 +1304,7 @@ public final class TypeAnalysis {
                         mappings = new HashMap<>();
 
                         for (final GenericParameter gp : inferredType.getGenericParameters()) {
-                            mappings.put(gp, BuiltinTypes.Object);
+                            mappings.put(gp, MetadataHelper.eraseRecursive(gp));
                         }
                     }
                     else {
@@ -1622,7 +1622,7 @@ public final class TypeAnalysis {
                                         }
 
                                         if (!mappings.containsKey(gp)) {
-                                            mappings.put(gp, BuiltinTypes.Object);
+                                            mappings.put(gp, MetadataHelper.eraseRecursive(gp));
                                         }
                                     }
 
@@ -1815,7 +1815,7 @@ public final class TypeAnalysis {
                                     }
 
                                     if (!mappings.containsKey(gp)) {
-                                        mappings.put(gp, BuiltinTypes.Object);
+                                        mappings.put(gp, MetadataHelper.eraseRecursive(gp));
                                     }
                                 }
 
@@ -2364,7 +2364,7 @@ public final class TypeAnalysis {
                         }
 
                         if (!mappings.containsKey(gp)) {
-                            mappings.put(gp, BuiltinTypes.Object);
+                            mappings.put(gp, MetadataHelper.eraseRecursive(gp));
                         }
                     }
 
@@ -2380,7 +2380,7 @@ public final class TypeAnalysis {
 
                     for (final GenericParameter gp : boundMethod.getGenericParameters()) {
                         if (!mappings.containsKey(gp)) {
-                            mappings.put(gp, BuiltinTypes.Object);
+                            mappings.put(gp, MetadataHelper.eraseRecursive(gp));
                         }
                     }
 
@@ -2942,18 +2942,38 @@ public final class TypeAnalysis {
 
             mappedType = ensureReferenceType(mappedType);
 
-            if (!(mappedType instanceof RawType) && MetadataHelper.isRawType(mappedType)) {
-                mappedType = MetadataHelper.erase(mappedType);
-            }
-
             if (existingMapping == null) {
+                if (!(mappedType instanceof RawType) && MetadataHelper.isRawType(mappedType)) {
+                    final TypeReference bound = MetadataHelper.getUpperBound(t);
+                    final TypeReference asSuper = MetadataHelper.asSuper(mappedType, bound);
+
+                    if (asSuper != null) {
+                        if (MetadataHelper.isSameType(MetadataHelper.getUpperBound(t), asSuper)) {
+                            return null;
+                        }
+                        mappedType = asSuper;
+                    }
+                    else {
+                        mappedType = MetadataHelper.erase(mappedType);
+                    }
+                }
                 map.put(t, mappedType);
             }
             else if (MetadataHelper.isSubType(argumentType, existingMapping)) {
 //                map.put(t, argumentType);
             }
             else {
-                map.put(t, MetadataHelper.findCommonSuperType(existingMapping, argumentType));
+                TypeReference commonSuperType = MetadataHelper.asSuper(mappedType, existingMapping);
+
+                if (commonSuperType == null) {
+                    commonSuperType = MetadataHelper.asSuper(existingMapping, mappedType);
+                }
+
+                if (commonSuperType == null) {
+                    commonSuperType = MetadataHelper.findCommonSuperType(existingMapping, mappedType);
+                }
+
+                map.put(t, commonSuperType);
             }
 
             return null;

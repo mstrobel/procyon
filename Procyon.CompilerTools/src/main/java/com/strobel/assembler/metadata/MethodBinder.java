@@ -22,6 +22,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.strobel.core.CollectionUtilities.last;
+
 @SuppressWarnings("ConstantConditions")
 public final class MethodBinder {
     public static class BindResult {
@@ -275,10 +277,15 @@ public final class MethodBinder {
         // A method using varargs is always less specific than one not using varargs.
         //
         if (varArgArrayType1 != null && varArgArrayType2 == null) {
-            return 2;
+            if (types.size() != p1.size() || !MetadataHelper.isSameType(last(types), last(p1).getParameterType())) {
+                return 2;
+            }
         }
+
         if (varArgArrayType2 != null && varArgArrayType1 == null) {
-            return 1;
+            if (types.size() != p2.size() || !MetadataHelper.isSameType(last(types), last(p2).getParameterType())) {
+                return 1;
+            }
         }
 
         //
