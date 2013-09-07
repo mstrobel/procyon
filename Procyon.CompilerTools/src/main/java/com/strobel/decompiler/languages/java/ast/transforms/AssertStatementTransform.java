@@ -171,13 +171,18 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
 
         Expression condition = firstOrDefault(m.<Expression>get("condition"));
 
-        if (assertionsDisabledCheck != null && assertionsDisabledCheck.getParent() instanceof BinaryOperatorExpression) {
+        if (assertionsDisabledCheck != null &&
+            assertionsDisabledCheck.getParent() instanceof BinaryOperatorExpression &&
+            assertionsDisabledCheck.getParent().getParent() instanceof BinaryOperatorExpression) {
+
             final BinaryOperatorExpression logicalOr = (BinaryOperatorExpression) assertionsDisabledCheck.getParent();
             final Expression right = logicalOr.getRight();
 
             right.remove();
-            logicalOr.replaceWith(right);
-            condition = right;
+            assertionsDisabledCheck.replaceWith(right);
+            condition.remove();
+            logicalOr.setRight(condition);
+            condition = logicalOr;
         }
 
         final AssertStatement assertStatement = new AssertStatement();
