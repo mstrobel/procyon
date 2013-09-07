@@ -136,6 +136,9 @@ public class InputTypeLoader implements ITypeLoader {
         final File knownFile = _knownFiles.get(internalName);
 
         if (knownFile != null && tryLoadFile(knownFile, buffer)) {
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Type loaded from " + knownFile.getAbsolutePath() + ".");
+            }
             return true;
         }
 
