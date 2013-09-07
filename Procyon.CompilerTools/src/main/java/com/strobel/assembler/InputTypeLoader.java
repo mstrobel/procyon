@@ -179,7 +179,7 @@ public class InputTypeLoader implements ITypeLoader {
 
     private boolean tryLoadFile(final File file, final Buffer buffer) {
         if (LOG.isLoggable(Level.FINER)) {
-            LOG.finer("Attempting to file: " + file.getAbsolutePath() + "...");
+            LOG.finer("Probing for file: " + file.getAbsolutePath() + "...");
         }
 
         if (!file.exists() || file.isDirectory()) {
