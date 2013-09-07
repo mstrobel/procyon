@@ -1099,7 +1099,7 @@ public final class TypeAnalysis {
                 case Xor:
                 case Div:
                 case Rem: {
-                    return inferBinaryExpression(code, arguments);
+                    return inferBinaryExpression(code, arguments, flags);
                 }
 
                 case Shl: {
@@ -1489,7 +1489,7 @@ public final class TypeAnalysis {
                 case CmpGt:
                 case CmpLe: {
                     if (forceInferChildren) {
-                        return inferBinaryExpression(code, arguments);
+                        return inferBinaryExpression(code, arguments, flags);
                     }
 
                     return BuiltinTypes.Boolean;
@@ -1501,7 +1501,7 @@ public final class TypeAnalysis {
                 case __FCmpL:
                 case __LCmp: {
                     if (forceInferChildren) {
-                        return inferBinaryExpression(code, arguments);
+                        return inferBinaryExpression(code, arguments, flags);
                     }
 
                     return BuiltinTypes.Integer;
@@ -2058,7 +2058,7 @@ public final class TypeAnalysis {
         return newType;
     }
 
-    private TypeReference inferBinaryExpression(final AstCode code, final List<Expression> arguments) {
+    private TypeReference inferBinaryExpression(final AstCode code, final List<Expression> arguments, final int flags) {
         final Expression left = arguments.get(0);
         final Expression right = arguments.get(1);
 
@@ -2070,6 +2070,8 @@ public final class TypeAnalysis {
         left.setInferredType(null);
         right.setInferredType(null);
 
+        int operandFlags = 0;
+
         switch (code) {
             case And:
             case Or:
@@ -2080,10 +2082,16 @@ public final class TypeAnalysis {
                     if (right.getExpectedType() == BuiltinTypes.Integer && matchBooleanConstant(right) != null) {
                         right.setExpectedType(BuiltinTypes.Boolean);
                     }
+                    else {
+                        left.setExpectedType(BuiltinTypes.Integer);
+                    }
                 }
                 else if (right.getExpectedType() == BuiltinTypes.Boolean) {
                     if (left.getExpectedType() == BuiltinTypes.Integer && matchBooleanConstant(left) != null) {
                         left.setExpectedType(BuiltinTypes.Boolean);
+                    }
+                    else {
+                        right.setExpectedType(BuiltinTypes.Integer);
                     }
                 }
 
@@ -2091,6 +2099,8 @@ public final class TypeAnalysis {
             }
 
             default: {
+                operandFlags |= FLAG_BOOLEAN_PROHIBITED;;
+
                 if (left.getExpectedType() == BuiltinTypes.Boolean ||
                     left.getExpectedType() == null && matchBooleanConstant(left) != null) {
 
@@ -2122,8 +2132,8 @@ public final class TypeAnalysis {
             left,
             right,
             typeWithMoreInformation(
-                doInferTypeForExpression(left, left.getExpectedType(), true, 0),
-                doInferTypeForExpression(right, right.getExpectedType(), true, 0)
+                doInferTypeForExpression(left, left.getExpectedType(), true, operandFlags),
+                doInferTypeForExpression(right, right.getExpectedType(), true, operandFlags)
             ),
             false,
             null,
@@ -2140,7 +2150,7 @@ public final class TypeAnalysis {
                 return BuiltinTypes.Boolean;
 
             default:
-                return operandType;
+                return adjustType(operandType, flags);
         }
     }
 

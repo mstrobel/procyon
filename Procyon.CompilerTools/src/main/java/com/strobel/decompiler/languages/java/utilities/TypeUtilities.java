@@ -81,7 +81,7 @@ public final class TypeUtilities {
         return Integer.MAX_VALUE;
     }
 
-    private static boolean isBoolean(@NotNull final TypeReference type) {
+    public static boolean isBoolean(@NotNull final TypeReference type) {
         return MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(type).getSimpleType() == JvmType.Boolean;
     }
 
