@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler;
 
+import com.strobel.assembler.InputTypeLoader;
 import com.strobel.assembler.metadata.ClasspathTypeLoader;
 import com.strobel.assembler.metadata.IMetadataResolver;
 import com.strobel.assembler.metadata.ITypeLoader;
@@ -35,7 +36,7 @@ public final class Decompiler {
         VerifyArgument.notNull(internalName, "internalName");
         VerifyArgument.notNull(settings, "settings");
 
-        final ITypeLoader typeLoader = settings.getTypeLoader() != null ? settings.getTypeLoader() : new ClasspathTypeLoader();
+        final ITypeLoader typeLoader = settings.getTypeLoader() != null ? settings.getTypeLoader() : new InputTypeLoader();
         final MetadataSystem metadataSystem = new MetadataSystem(typeLoader);
 
         final TypeReference type;

@@ -834,8 +834,6 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
             bodyStatements.add(statement);
         }
 
-        itemDeclaration.remove();
-
         Statement previous = forEach.getPreviousStatement();
 
         while (previous instanceof LabelStatement) {
