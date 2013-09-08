@@ -56,7 +56,7 @@ public class LoopTests extends DecompilerTest {
 
     private static class E {
         public void test(final List<String> items) {
-            for (int i = 0, n = items.size(); i < n; i++) {
+            for (int n = items.size(), i = 0; i < n; i++) {
                 final String item = items.get(i);
                 System.out.println(item);
             }
@@ -382,7 +382,7 @@ public class LoopTests extends DecompilerTest {
             defaultSettings(),
             "private static class E {\n" +
             "    public void test(final List<String> items) {\n" +
-            "        for (int i = 0, n = items.size(); i < n; ++i) {\n" +
+            "        for (int n = items.size(), i = 0; i < n; ++i) {\n" +
             "            final String item = items.get(i);\n" +
             "            System.out.println(item);\n" +
             "        }\n" +

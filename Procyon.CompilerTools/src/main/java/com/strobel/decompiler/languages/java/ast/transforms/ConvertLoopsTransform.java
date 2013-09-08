@@ -45,8 +45,8 @@ import java.util.*;
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.languages.java.analysis.Correlator.areCorrelated;
 
-public final class PatternStatementTransform extends ContextTrackingVisitor<AstNode> {
-    public PatternStatementTransform(final DecompilerContext context) {
+public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode> {
+    public ConvertLoopsTransform(final DecompilerContext context) {
         super(context);
     }
 
@@ -369,7 +369,6 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                 final IdentifierExpression variable = (IdentifierExpression) assignment.getLeft();
                 final String variableName = variable.getIdentifier();
                 final VariableDeclarationStatement declaration = findVariableDeclaration(forLoop, variableName);
-//                final VariableInitializer oldInitializer = declaration.getVariable(variableName);
                 final Expression initValue = assignment.getRight();
 
                 initValue.remove();
@@ -380,16 +379,6 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                 if (newDeclarationType == null || newDeclarationType.isNull()) {
                     newDeclaration.setType(declaration.getType().clone());
                 }
-
-/*
-                if (oldInitializer != null && !oldInitializer.isNull()) {
-                    oldInitializer.remove();
-
-                    if (declaration.getVariables().isEmpty()) {
-                        declaration.remove();
-                    }
-                }
-*/
             }
         }
 
@@ -439,6 +428,7 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
         final BlockStatement tempOuter = new BlockStatement();
         final BlockStatement temp = new BlockStatement();
         final Statement[] initializers = forLoop.getInitializers().toArray(new Statement[forLoop.getInitializers().size()]);
+        final Set<String> variableNames = new HashSet<>();
 
         Statement firstInlinableInitializer = null;
 
@@ -467,6 +457,10 @@ public final class PatternStatementTransform extends ContextTrackingVisitor<AstN
                 final Variable underlyingVariable = declaration.getUserData(Keys.VARIABLE);
 
                 if (underlyingVariable == null || underlyingVariable.isParameter()) {
+                    return null;
+                }
+
+                if (!variableNames.add(underlyingVariable.getName())) {
                     return null;
                 }
 
