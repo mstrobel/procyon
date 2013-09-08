@@ -529,7 +529,7 @@ public class AstMethodBodyBuilder {
         }
         else {
             tryCatch.setFinallyBlock(null);
-            s.setEmbeddedStatement(transformNode(tryCatch, null));
+            s.setEmbeddedStatement(new BlockStatement(transformNode(tryCatch, null)));
         }
 
         return s;
