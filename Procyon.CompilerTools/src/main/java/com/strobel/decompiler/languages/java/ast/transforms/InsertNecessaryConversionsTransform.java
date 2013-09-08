@@ -331,7 +331,6 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                             }
                         }
                     );
-
                 }
 
                 break;
@@ -391,28 +390,28 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                     TypeUtilities.isBoolean(leftResult.getType()) ^ TypeUtilities.isBoolean(rightResult.getType())) {
 
                     if (TypeUtilities.isBoolean(leftResult.getType()) &&
-                        MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(rightResult.getType()).getSimpleType().isNumeric()) {
+                        TypeUtilities.isArithmetic(rightResult.getType())) {
 
                         final TypeReference comparandType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(rightResult.getType());
 
                         if (TRUE_NODE.matches(left)) {
-                            ((PrimitiveExpression)left).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 1));
+                            ((PrimitiveExpression) left).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 1));
                         }
                         else if (FALSE_NODE.matches(left)) {
-                            ((PrimitiveExpression)left).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 0));
+                            ((PrimitiveExpression) left).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 0));
                         }
                         else {
                             convertBooleanToNumeric(left);
                         }
                     }
-                    else if (MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(leftResult.getType()).getSimpleType().isNumeric()) {
+                    else if (TypeUtilities.isArithmetic(leftResult.getType())) {
                         final TypeReference comparandType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(leftResult.getType());
 
                         if (TRUE_NODE.matches(right)) {
-                            ((PrimitiveExpression)right).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 1));
+                            ((PrimitiveExpression) right).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 1));
                         }
                         else if (FALSE_NODE.matches(right)) {
-                            ((PrimitiveExpression)right).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 0));
+                            ((PrimitiveExpression) right).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 0));
                         }
                         else {
                             convertBooleanToNumeric(right);
@@ -427,20 +426,9 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
 
                         if (result != null &&
                             result.getType() != null &&
-                            !TypeUtilities.isBoolean(result.getType())) {
+                            TypeUtilities.isArithmetic(result.getType())) {
 
-                            node.replaceWith(
-                                new Function<AstNode, AstNode>() {
-                                    @Override
-                                    public AstNode apply(final AstNode input) {
-                                        return new BinaryOperatorExpression(
-                                            node,
-                                            BinaryOperatorType.INEQUALITY,
-                                            new PrimitiveExpression(JavaPrimitiveCast.cast(result.getType().getSimpleType(), 0))
-                                        );
-                                    }
-                                }
-                            );
+                            convertNumericToBoolean(node, result.getType());
                         }
                     }
                 }
@@ -449,6 +437,59 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         }
 
         return null;
+    }
+
+    @Override
+    public Void visitIfElseStatement(final IfElseStatement node, final Void data) {
+        super.visitIfElseStatement(node, data);
+
+        final Expression condition = node.getCondition();
+        final ResolveResult conditionResult = _resolver.apply(condition);
+
+        if (conditionResult != null &&
+            TypeUtilities.isArithmetic(conditionResult.getType())) {
+
+            convertNumericToBoolean(condition, conditionResult.getType());
+        }
+
+        return null;
+    }
+
+    @Override
+    public Void visitConditionalExpression(final ConditionalExpression node, final Void data) {
+        super.visitConditionalExpression(node, data);
+
+        final Expression condition = node.getCondition();
+        final ResolveResult conditionResult = _resolver.apply(condition);
+
+        if (conditionResult != null &&
+            TypeUtilities.isArithmetic(conditionResult.getType())) {
+
+            convertNumericToBoolean(condition, conditionResult.getType());
+        }
+
+        return null;
+    }
+
+    private void convertNumericToBoolean(final Expression node, final TypeReference type) {
+        node.replaceWith(
+            new Function<AstNode, AstNode>() {
+                @Override
+                public AstNode apply(final AstNode input) {
+                    return new BinaryOperatorExpression(
+                        node,
+                        BinaryOperatorType.INEQUALITY,
+                        new PrimitiveExpression(
+                            JavaPrimitiveCast.cast(
+                                MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(type)
+                                              .getSimpleType(),
+                                0
+                            )
+                        )
+                    );
+                }
+            }
+        );
     }
 
     private Expression convertBooleanToNumeric(final Expression operand) {

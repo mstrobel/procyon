@@ -645,7 +645,7 @@ public class AstMethodBodyBuilder {
 
                 if (resolvedField != null &&
                     resolvedField.isFinal() &&
-                    Comparer.equals(fieldOperand.getDeclaringType(), _context.getCurrentType())) {
+                    StringUtilities.equals(resolvedField.getDeclaringType().getInternalName(), _context.getCurrentType().getInternalName())) {
 
                     //
                     // Fields marked 'static final' cannot be initialized using a fully qualified name.
