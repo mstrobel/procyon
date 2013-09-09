@@ -4157,7 +4157,9 @@ public final class AstBuilder {
                 ++instructionCount;
             }
 
-            if (instructionCount == 0) {
+            if (instructionCount == 0 ||
+                instructionCount == 1 && !_removed.contains(last) && last.getOpCode().isUnconditionalBranch()) {
+
                 return;
             }
 
@@ -4433,6 +4435,24 @@ public final class AstBuilder {
                     else if (edge.getSource().getNodeType() == ControlFlowNodeType.FinallyHandler) {
                         successors.add(edge.getSource());
                         exitOnlySuccessors.add(edge.getSource());
+                    }
+                    else if (edge.getSource().getNodeType() == ControlFlowNodeType.EndFinally) {
+                        successors.add(edge.getSource());
+
+                        final HandlerInfo precedingFinally = firstOrDefault(
+                            _handlerMap.values(),
+                            new Predicate<HandlerInfo>() {
+                                @Override
+                                public boolean test(final HandlerInfo o) {
+                                    return o.handlerNode.getEndFinallyNode() == edge.getSource();
+                                }
+                            }
+                        );
+
+                        if (precedingFinally != null) {
+                            successors.add(precedingFinally.handlerNode);
+                            exitOnlySuccessors.remove(precedingFinally.handlerNode);
+                        }
                     }
                 }
             }
