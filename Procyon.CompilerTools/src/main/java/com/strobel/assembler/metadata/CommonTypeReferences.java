@@ -23,6 +23,8 @@ public final class CommonTypeReferences {
     public final static TypeReference String;
     public final static TypeReference Serializable;
 
+    public final static TypeReference Number;
+
     public final static TypeReference Void;
     public final static TypeReference Boolean;
     public final static TypeReference Character;
@@ -34,11 +36,13 @@ public final class CommonTypeReferences {
     public final static TypeReference Double;
 
     static {
-        final MetadataParser parser = new MetadataParser(IMetadataResolver.EMPTY);
+        final MetadataParser parser = new MetadataParser(MetadataSystem.instance());
 
         Object = parser.parseTypeDescriptor("java/lang/Object");
         String = parser.parseTypeDescriptor("java/lang/String");
         Serializable = parser.parseTypeDescriptor("java/lang/Serializable");
+
+        Number = parser.parseTypeDescriptor("java/lang/Number");
 
         Void = parser.parseTypeDescriptor("java/lang/Void");
         Boolean = parser.parseTypeDescriptor("java/lang/Boolean");

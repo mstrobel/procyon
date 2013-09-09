@@ -22,8 +22,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.strobel.core.CollectionUtilities.last;
-
 @SuppressWarnings("ConstantConditions")
 public final class MethodBinder {
     public static class BindResult {
@@ -104,8 +102,8 @@ public final class MethodBinder {
             for (stop = 0; stop < Math.min(parameterCount, types.size()); stop++) {
                 final TypeReference parameterType = parameters.get(stop).getParameterType();
 
-                if (MetadataResolver.areEquivalent(parameterType, types.get(stop), false) ||
-                    MetadataResolver.areEquivalent(parameterType, BuiltinTypes.Object, false)) {
+                if (MetadataHelper.isSameType(parameterType, types.get(stop), false) ||
+                    MetadataHelper.isSameType(parameterType, BuiltinTypes.Object, false)) {
 
                     continue;
                 }
@@ -214,18 +212,56 @@ public final class MethodBinder {
         final Object[] args) {
 
         //
-        // Find the most specific method based on the parameters.
+        // Find the most specific method based on the parameters.  On the first pass, prohibit
+        // auto-(un)boxing and variable arity (see JLS §15.12.2.2).
         //
-        final int result = findMostSpecific(
+        int result = findMostSpecific(
             m1.getParameters(),
             varArgOrder1,
-            varArgArrayType1,
+            null,
             m2.getParameters(),
             varArgOrder2,
-            varArgArrayType2,
+            null,
             types,
-            args
+            args,
+            false
         );
+
+        //
+        // If the first attempt produced an ambiguous result, try again with boxing conversions
+        // allowed (see JLS §15.12.2.3).
+        //
+        if (result == 0) {
+            result = findMostSpecific(
+                m1.getParameters(),
+                varArgOrder1,
+                null,
+                m2.getParameters(),
+                varArgOrder2,
+                null,
+                types,
+                args,
+                true
+            );
+        }
+
+        //
+        // If the second attempt produced an ambiguous result, try again with both boxing
+        // conversions and variable arity allowed (see JLS §15.12.2.4).
+        //
+        if (result == 0) {
+            result = findMostSpecific(
+                m1.getParameters(),
+                varArgOrder1,
+                varArgArrayType1,
+                m2.getParameters(),
+                varArgOrder2,
+                varArgArrayType2,
+                types,
+                args,
+                true
+            );
+        }
 
         //
         // If the match was not ambiguous then return the result.
@@ -272,30 +308,36 @@ public final class MethodBinder {
         final int[] varArgOrder2,
         final TypeReference varArgArrayType2,
         final List<TypeReference> types,
-        final Object[] args) {
+        final Object[] args,
+        final boolean allowAutoBoxing) {
+
         //
         // A method using varargs is always less specific than one not using varargs.
         //
+
         if (varArgArrayType1 != null && varArgArrayType2 == null) {
-            if (types.size() != p1.size() || !MetadataHelper.isSameType(last(types), last(p1).getParameterType())) {
+            if (types.size() != p1.size()) {
                 return 2;
             }
         }
 
         if (varArgArrayType2 != null && varArgArrayType1 == null) {
-            if (types.size() != p2.size() || !MetadataHelper.isSameType(last(types), last(p2).getParameterType())) {
+            if (types.size() != p2.size()) {
                 return 1;
             }
         }
 
         //
-        // Now either p1 and p2 both use params or neither does.
+        // Now either p1 and p2 both use varargs, or neither does.
         //
 
         boolean p1Less = false;
         boolean p2Less = false;
 
-        for (int i = 0, n = types.size(); i < n; i++) {
+        final int max = varArgArrayType1 != null ? types.size()
+                                                 : Math.min(p1.size(), p2.size());
+
+        for (int i = 0; i < max; i++) {
             if (args != null) {
                 continue;
             }
@@ -306,13 +348,13 @@ public final class MethodBinder {
             //
             //  If a vararg array is present, then either
             //      the user re-ordered the parameters, in which case
-            //          the argument to the vararg array is either an array
+            //          the argument to the vararg array is an array
             //              in which case the params is conceptually ignored and so varArgArrayType1 == null
             //          or the argument to the vararg array is a single element
             //              in which case varArgOrder[i] == p1.Length - 1 for that element 
-            //      or the user did not re-order the parameters in which case 
-            //          the varArgOrder array could contain indexes larger than p.Length - 1 (see VSW 577286)
-            //          so any index >= p.Length - 1 is being put in the vararg array 
+            //      or the user did not re-order the parameters in which case
+            //          the varArgOrder array could contain indexes larger than p.Length - 1
+            //          so any index >= p.Length - 1 is being put in the vararg array
             //
 
             if (varArgArrayType1 != null && varArgOrder1[i] >= p1.size() - 1) {
@@ -333,9 +375,9 @@ public final class MethodBinder {
                 continue;
             }
 
-            switch (findMostSpecificType(c1, c2, types.get(i))) {
-                case 0:
-                    return 0;
+            switch (findMostSpecificType(c1, c2, types.get(i), allowAutoBoxing)) {
+//                case 0:
+//                    return 0;
                 case 1:
                     p1Less = true;
                     break;
@@ -345,12 +387,15 @@ public final class MethodBinder {
             }
         }
 
-        // Two way p1Less and p2Less can be equal.  All the arguments are the
-        //  same they both equal false, otherwise there were things that both 
-        //  were the most specific type on....
+        //
+        // There are two ways in which p1Less and p2Less can be equal: all the arguments were the same,
+        // in which case are they both false, or both had cases where they were more specific.
+        //
         if (p1Less == p2Less) {
-            // if we cannot tell which is a better match based on parameter types (p1Less == p2Less),
-            // let's see which one has the most matches without using the params array (the longer one wins). 
+            //
+            // If we cannot tell which is a better match based on parameter types (p1Less == p2Less),
+            // see which one has the most matches without using the varargs array (the longer one wins).
+            //
             if (!p1Less && args != null) {
                 if (p1.size() > p2.size()) {
                     return 1;
@@ -367,29 +412,54 @@ public final class MethodBinder {
         }
     }
 
-    private static int findMostSpecificType(final TypeReference c1, final TypeReference c2, final TypeReference t) {
+    private static int findMostSpecificType(
+        final TypeReference c1,
+        final TypeReference c2,
+        final TypeReference t,
+        final boolean allowAutoBoxing) {
+
         //
         // If the two types are exact move on...
         //
-        if (MetadataResolver.areEquivalent(c1, c2, false)) {
+        if (MetadataHelper.isSameType(c1, c2, false)) {
             return 0;
         }
 
-        if (MetadataResolver.areEquivalent(c1, t, false)) {
+        if (MetadataHelper.isSameType(c1, t, false)) {
             return 1;
         }
 
-        if (MetadataResolver.areEquivalent(c2, t, false)) {
+        if (MetadataHelper.isSameType(c2, t, false)) {
             return 2;
         }
 
-        final boolean c1FromC2 = MetadataHelper.isAssignableFrom(c1, c2);
-        final boolean c2FromC1 = MetadataHelper.isAssignableFrom(c2, c1);
+        final boolean c1FromT = (allowAutoBoxing || c1.isPrimitive() == t.isPrimitive()) &&
+                                MetadataHelper.isAssignableFrom(c1, t);
+
+        final boolean c2FromT = (allowAutoBoxing || c2.isPrimitive() == t.isPrimitive()) &&
+                                MetadataHelper.isAssignableFrom(c2, t);
+
+        if (c1FromT != c2FromT) {
+            return c1FromT ? 1 : 2;
+        }
+
+        final boolean c1FromC2;
+        final boolean c2FromC1;
+
+        if (allowAutoBoxing || c1.isPrimitive() == c2.isPrimitive()) {
+            c1FromC2 = MetadataHelper.isAssignableFrom(c1, c2);
+            c2FromC1 = MetadataHelper.isAssignableFrom(c2, c1);
+        }
+        else {
+            c1FromC2 = false;
+            c2FromC1 = false;
+        }
 
         if (c1FromC2 == c2FromC1) {
             if (!t.isPrimitive() && c1.isPrimitive() != c2.isPrimitive()) {
                 return c1.isPrimitive() ? 2 : 1;
             }
+
             return 0;
         }
 
@@ -405,7 +475,7 @@ public final class MethodBinder {
         }
 
         for (int i = 0, n = p1.size(); i < n; i++) {
-            if (!MetadataResolver.areEquivalent(p1.get(i).getParameterType(), p2.get(i).getParameterType(), false)) {
+            if (!MetadataHelper.isSameType(p1.get(i).getParameterType(), p2.get(i).getParameterType(), false)) {
                 return false;
             }
         }
@@ -420,10 +490,7 @@ public final class MethodBinder {
 
         do {
             depth++;
-
-            final TypeDefinition resolved = currentType.resolve();
-
-            currentType = resolved != null ? resolved.getBaseType() : null;
+            currentType = MetadataHelper.getBaseType(currentType);
         }
         while (currentType != null);
 
@@ -457,6 +524,7 @@ public final class MethodBinder {
         }
 
         @Override
+        @SuppressWarnings("StatementWithEmptyBody")
         public Void visitGenericParameter(final GenericParameter t, final Map<TypeReference, TypeReference> map) {
             if (MetadataResolver.areEquivalent(argumentType, t)) {
                 return null;
@@ -464,11 +532,42 @@ public final class MethodBinder {
 
             final TypeReference existingMapping = map.get(t);
 
+            TypeReference mappedType = argumentType;
+
+            mappedType = ensureReferenceType(mappedType);
+
             if (existingMapping == null) {
-                map.put(t, argumentType);
+                if (!(mappedType instanceof RawType) && MetadataHelper.isRawType(mappedType)) {
+                    final TypeReference bound = MetadataHelper.getUpperBound(t);
+                    final TypeReference asSuper = MetadataHelper.asSuper(mappedType, bound);
+
+                    if (asSuper != null) {
+                        if (MetadataHelper.isSameType(MetadataHelper.getUpperBound(t), asSuper)) {
+                            return null;
+                        }
+                        mappedType = asSuper;
+                    }
+                    else {
+                        mappedType = MetadataHelper.erase(mappedType);
+                    }
+                }
+                map.put(t, mappedType);
+            }
+            else if (MetadataHelper.isSubType(argumentType, existingMapping)) {
+//                map.put(t, argumentType);
             }
             else {
-                map.put(t, MetadataHelper.findCommonSuperType(existingMapping, argumentType));
+                TypeReference commonSuperType = MetadataHelper.asSuper(mappedType, existingMapping);
+
+                if (commonSuperType == null) {
+                    commonSuperType = MetadataHelper.asSuper(existingMapping, mappedType);
+                }
+
+                if (commonSuperType == null) {
+                    commonSuperType = MetadataHelper.findCommonSuperType(existingMapping, mappedType);
+                }
+
+                map.put(t, commonSuperType);
             }
 
             return null;
@@ -486,7 +585,8 @@ public final class MethodBinder {
 
         @Override
         public Void visitParameterizedType(final TypeReference t, final Map<TypeReference, TypeReference> map) {
-            final TypeReference s = MetadataHelper.asSubType(argumentType, t.getUnderlyingType());
+            final TypeReference r = MetadataHelper.asSuper(t.getUnderlyingType(), argumentType);
+            final TypeReference s = MetadataHelper.asSubType(argumentType, r != null ? r : t.getUnderlyingType());
 
             if (s != null && s instanceof IGenericInstance) {
                 final List<TypeReference> tArgs = ((IGenericInstance) t).getTypeArguments();
@@ -526,6 +626,35 @@ public final class MethodBinder {
         @Override
         public Void visitRawType(final RawType t, final Map<TypeReference, TypeReference> map) {
             return null;
+        }
+
+        private static TypeReference ensureReferenceType(final TypeReference mappedType) {
+            if (mappedType == null) {
+                return null;
+            }
+
+            if (mappedType.isPrimitive()) {
+                switch (mappedType.getSimpleType()) {
+                    case Boolean:
+                        return CommonTypeReferences.Boolean;
+                    case Byte:
+                        return CommonTypeReferences.Byte;
+                    case Character:
+                        return CommonTypeReferences.Character;
+                    case Short:
+                        return CommonTypeReferences.Short;
+                    case Integer:
+                        return CommonTypeReferences.Integer;
+                    case Long:
+                        return CommonTypeReferences.Long;
+                    case Float:
+                        return CommonTypeReferences.Float;
+                    case Double:
+                        return CommonTypeReferences.Double;
+                }
+            }
+
+            return mappedType;
         }
     }
 }

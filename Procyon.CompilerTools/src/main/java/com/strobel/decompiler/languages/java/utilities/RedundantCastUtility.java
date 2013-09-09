@@ -489,11 +489,19 @@ public final class RedundantCastUtility {
                     innerType != null &&
                     TypeUtilities.isBinaryOperatorApplicable(op, innerType, otherType, false)) {
 
-                    if (castType.isPrimitive() &&
-                        !otherType.isPrimitive() &&
-                        (op == BinaryOperatorType.EQUALITY || op == BinaryOperatorType.INEQUALITY)) {
+                    if ((op == BinaryOperatorType.EQUALITY || op == BinaryOperatorType.INEQUALITY) &&
+                        castType.isPrimitive()) {
 
-                        if (!innerType.isPrimitive()) {
+                        final boolean needCast;
+
+                        if (otherType.isPrimitive()) {
+                            needCast = !MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(innerType).isPrimitive();
+                        }
+                        else {
+                            needCast = !innerType.isPrimitive();
+                        }
+
+                        if (needCast) {
                             //
                             // Don't change an unboxing (in)equality operator to a reference (in)equality operator.
                             //

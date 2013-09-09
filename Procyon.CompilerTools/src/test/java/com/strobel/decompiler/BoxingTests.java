@@ -99,6 +99,29 @@ public class BoxingTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("RedundantCast")
+    private static class F {
+        Object value() {
+            return null;
+        }
+
+        String test1() {
+            final Object value = this.value();
+            if (value instanceof Character && (char) value == '\u000b') {
+                return "'\\013'";
+            }
+            return null;
+        }
+
+        String test2() {
+            final Character value = (Character) this.value();
+            if (value == '\u000b') {
+                return "'\\013'";
+            }
+            return null;
+        }
+    }
+
     @Test
     public void testImplicitBoxingTranslation() throws Throwable {
         verifyOutput(
@@ -219,6 +242,33 @@ public class BoxingTests extends DecompilerTest {
             "        final Double d = 4.3;\n" +
             "        final Integer i = 3;\n" +
             "        final short s = (short)(b ? i : ((int)Integer.valueOf((int)(double)d)));\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testUnboxedVersusPrimitiveComparison() throws Exception {
+        verifyOutput(
+            F.class,
+            defaultSettings(),
+            "private static class F {\n" +
+            "    Object value() {\n" +
+            "        return null;\n" +
+            "    }\n" +
+            "    String test1() {\n" +
+            "        final Object value = this.value();\n" +
+            "        if (value instanceof Character && (char)value == '\\u000b') {\n" +
+            "            return \"'\\\\013'\";\n" +
+            "        }\n" +
+            "        return null;\n" +
+            "    }\n" +
+            "    String test2() {\n" +
+            "        final Character value = (Character)this.value();\n" +
+            "        if (value == '\\u000b') {\n" +
+            "            return \"'\\\\013'\";\n" +
+            "        }\n" +
+            "        return null;\n" +
             "    }\n" +
             "}\n"
         );
