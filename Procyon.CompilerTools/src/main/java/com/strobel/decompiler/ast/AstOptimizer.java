@@ -134,12 +134,12 @@ public final class AstOptimizer {
 
                 modified |= runOptimization(block, new RemoveInnerClassInitSecurityChecksOptimization(context, method));
 
-                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyShortCircuitAssignments)) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.PreProcessShortCircuitAssignments)) {
                     done = true;
                     break;
                 }
 
-                modified |= runOptimization(block, new SimplifyShortCircuitAssignmentsOptimization(context, method));
+                modified |= runOptimization(block, new PreProcessShortCircuitAssignmentsOptimization(context, method));
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.SimplifyShortCircuit)) {
                     done = true;
@@ -198,6 +198,13 @@ public final class AstOptimizer {
                 }
 
                 modified |= runOptimization(block, new IntroducePostIncrementOptimization(context, method));
+
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineConditionalAssignments)) {
+                    done = true;
+                    break;
+                }
+
+                modified |= runOptimization(block, new InlineConditionalAssignmentsOptimization(context, method));
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.MakeAssignmentExpressions)) {
                     done = true;
@@ -1685,7 +1692,7 @@ public final class AstOptimizer {
                     final Label otherLabel = pass == 0 ? falseLabel.get() : trueLabel.get();
                     final boolean negate = pass == 1;
 
-                    final BasicBlock nextBasicBlock = labelToBasicBlock.get(nextLabel);
+                    final BasicBlock next = labelToBasicBlock.get(nextLabel);
 
                     //
                     // Try to match short circuit operators, e.g.,:
@@ -1693,10 +1700,10 @@ public final class AstOptimizer {
                     // c = a || b
                     // c = a && b
                     //
-                    if (body.contains(nextBasicBlock) &&
-                        nextBasicBlock != head &&
+                    if (body.contains(next) &&
+                        next != head &&
                         labelGlobalRefCount.get(nextLabel).getValue() == 1 &&
-                        matchSingleAndBreak(nextBasicBlock, AstCode.IfTrue, nextTrueLabel, nextCondition, nextFalseLabel) &&
+                        matchSingleAndBreak(next, AstCode.IfTrue, nextTrueLabel, nextCondition, nextFalseLabel) &&
                         (otherLabel == nextFalseLabel.get() || otherLabel == nextTrueLabel.get())) {
 
                         //
@@ -1732,7 +1739,7 @@ public final class AstOptimizer {
                         //
                         // Remove the inlined branch from scope.
                         //
-                        removeOrThrow(body, nextBasicBlock);
+                        removeOrThrow(body, next);
 
                         return true;
                     }
@@ -1745,10 +1752,135 @@ public final class AstOptimizer {
 
     // </editor-fold>
 
-    // <editor-fold defaultstate="collapsed" desc="SimplifyShortCircuitAssignments Step">
+    // <editor-fold defaultstate="collapsed" desc="PreProcessShortCircuitAssignments Step">
 
-    private static final class SimplifyShortCircuitAssignmentsOptimization extends AbstractBasicBlockOptimization {
-        public SimplifyShortCircuitAssignmentsOptimization(final DecompilerContext context, final Block method) {
+    private static final class PreProcessShortCircuitAssignmentsOptimization extends AbstractBasicBlockOptimization {
+        public PreProcessShortCircuitAssignmentsOptimization(final DecompilerContext context, final Block method) {
+            super(context, method);
+        }
+
+        @Override
+        public final boolean run(final List<Node> body, final BasicBlock head, final int position) {
+            assert body.contains(head);
+
+            final StrongBox<Expression> condition = new StrongBox<>();
+            final StrongBox<Label> trueLabel = new StrongBox<>();
+            final StrongBox<Label> falseLabel = new StrongBox<>();
+
+            if (matchLastAndBreak(head, AstCode.IfTrue, trueLabel, condition, falseLabel)) {
+                final StrongBox<Label> nextTrueLabel = new StrongBox<>();
+                final StrongBox<Label> nextFalseLabel = new StrongBox<>();
+
+                final StrongBox<Variable> sourceVariable = new StrongBox<>();
+                final StrongBox<Expression> assignedValue = new StrongBox<>();
+                final StrongBox<Expression> equivalentLoad = new StrongBox<>();
+
+                final StrongBox<Expression> left = new StrongBox<>();
+                final StrongBox<Expression> right = new StrongBox<>();
+
+                boolean modified = false;
+
+                for (int pass = 0; pass < 2; pass++) {
+                    //
+                    // On second pass, swap labels and negate expression of the first branch.
+                    // It is slightly ugly, but much better than copy-pasting the whole block.
+                    //
+
+                    final Label nextLabel = pass == 0 ? trueLabel.get() : falseLabel.get();
+                    final Label otherLabel = pass == 0 ? falseLabel.get() : trueLabel.get();
+
+                    final BasicBlock next = labelToBasicBlock.get(nextLabel);
+                    final BasicBlock other = labelToBasicBlock.get(otherLabel);
+
+                    //
+                    // Try to match short circuit operators, e.g.,:
+                    //
+                    // c = a || b
+                    // c = a && b
+                    //
+                    if (body.contains(next) &&
+                        next != head &&
+                        labelGlobalRefCount.get(nextLabel).getValue() == 1 &&
+                        matchLastAndBreak(next, AstCode.IfTrue, nextTrueLabel, condition, nextFalseLabel) &&
+                        (otherLabel == nextFalseLabel.get() || otherLabel == nextTrueLabel.get())) {
+
+                        final List<Node> nextBody = next.getBody();
+                        final List<Node> otherBody = other.getBody();
+
+                        while (nextBody.size() > 3 &&
+                               matchAssignment(nextBody.get(nextBody.size() - 3), assignedValue, equivalentLoad) &&
+                               matchLoad(assignedValue.value, sourceVariable) &&
+                               matchComparison(condition.value, left, right)) {
+
+                            if (matchLoad(left.value, sourceVariable.value)) {
+                                condition.value.getArguments().set(0, (Expression) nextBody.get(nextBody.size() - 3));
+                                nextBody.remove(nextBody.size() - 3);
+                                modified = true;
+                            }
+                            else if (matchLoad(right.value, sourceVariable.value) && !containsMatch(left.value, equivalentLoad.value)) {
+                                condition.value.getArguments().set(1, (Expression) nextBody.get(nextBody.size() - 3));
+                                nextBody.remove(nextBody.size() - 3);
+                                modified = true;
+                            }
+                            else {
+                                break;
+                            }
+                        }
+
+                        final boolean modifiedNext = modified;
+
+                        modified = false;
+
+                        while (matchAssignmentAndConditionalBreak(other, assignedValue, condition, trueLabel, falseLabel, equivalentLoad) &&
+                               matchLoad(assignedValue.value, sourceVariable) &&
+                               matchComparison(condition.value, left, right)) {
+
+                            if (matchLoad(left.value, sourceVariable.value)) {
+                                condition.value.getArguments().set(0, (Expression) otherBody.get(otherBody.size() - 3));
+                                otherBody.remove(otherBody.size() - 3);
+                                modified = true;
+                            }
+                            else if (matchLoad(right.value, sourceVariable.value) && !containsMatch(left.value, equivalentLoad.value)) {
+                                condition.value.getArguments().set(1, (Expression) otherBody.get(otherBody.size() - 3));
+                                otherBody.remove(otherBody.size() - 3);
+                                modified = true;
+                            }
+                            else {
+                                break;
+                            }
+                        }
+
+                        final boolean modifiedOther = modified;
+
+                        if (modifiedNext || modifiedOther) {
+                            final Inlining inlining = new Inlining(context, method);
+
+                            if (modifiedNext) {
+                                inlining.inlineAllInBasicBlock(next);
+                            }
+
+                            if (modifiedOther) {
+                                inlining.inlineAllInBasicBlock(other);
+                            }
+
+                            return true;
+                        }
+
+                        return false;
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="InlineConditionalAssignments Step">
+
+    private static final class InlineConditionalAssignmentsOptimization extends AbstractBasicBlockOptimization {
+        public InlineConditionalAssignmentsOptimization(final DecompilerContext context, final Block method) {
             super(context, method);
         }
 
