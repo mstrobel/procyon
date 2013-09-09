@@ -158,6 +158,42 @@ public final class PatternMatching {
     }
 
     public static <T> boolean matchSingle(
+        final Block block,
+        final AstCode code,
+        final StrongBox<? super T> operand) {
+
+        final List<Node> body = block.getBody();
+
+        if (body.size() == 1 &&
+            matchGetOperand(body.get(0), code, operand)) {
+
+            return true;
+        }
+
+        operand.set(null);
+        return false;
+    }
+
+    public static <T> boolean matchSingle(
+        final Block block,
+        final AstCode code,
+        final StrongBox<? super T> operand,
+        final StrongBox<Expression> argument) {
+
+        final List<Node> body = block.getBody();
+
+        if (body.size() == 1 &&
+            matchGetArgument(body.get(0), code, operand, argument)) {
+
+            return true;
+        }
+
+        operand.set(null);
+        argument.set(null);
+        return false;
+    }
+
+    public static <T> boolean matchSingle(
         final BasicBlock block,
         final AstCode code,
         final StrongBox<? super T> operand,

@@ -753,12 +753,26 @@ final class GotoRemoval {
 
         for (final Loop loop : method.getSelfAndChildrenRecursive(Loop.class)) {
             final Block body = loop.getBody();
+            final Node lastInLoop = lastOrDefault(body.getBody());
 
-            if (matchLast(body, AstCode.LoopContinue)) {
+            if (lastInLoop == null)
+                continue;
+
+            if (match(lastInLoop, AstCode.LoopContinue)) {
                 final Expression last = (Expression) last(body.getBody());
 
                 if (last.getOperand() == null) {
                     body.getBody().remove(last);
+                }
+            }
+            else if (lastInLoop instanceof Condition) {
+                final Condition condition = (Condition) lastInLoop;
+                final Block falseBlock = condition.getFalseBlock();
+
+                if (matchSingle(falseBlock, AstCode.LoopContinue, target) &&
+                    target.get() == null) {
+
+                    falseBlock.getBody().clear();
                 }
             }
         }
