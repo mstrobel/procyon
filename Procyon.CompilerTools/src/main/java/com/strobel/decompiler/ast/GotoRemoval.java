@@ -24,17 +24,60 @@ import com.strobel.util.ContractUtils;
 
 import java.util.*;
 
+import static com.strobel.assembler.metadata.Flags.testAny;
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
 
 @SuppressWarnings("ConstantConditions")
 final class GotoRemoval {
+    final static int OPTION_MERGE_ADJACENT_LABELS = 0x01;
+    final static int OPTION_REMOVE_REDUNDANT_RETURNS = 0x02;
+
     final Map<Node, Label> labels = new IdentityHashMap<>();
     final Map<Label, Node> labelLookup = new IdentityHashMap<>();
     final Map<Node, Node> parentLookup = new IdentityHashMap<>();
     final Map<Node, Node> nextSibling = new IdentityHashMap<>();
 
+    final int options;
+
+    GotoRemoval() {
+        this(0);
+    }
+
+    GotoRemoval(final int options) {
+        this.options = options;
+    }
+
     public final void removeGotos(final Block method) {
+        traverseGraph(method);
+        removeGotosCore(method);
+    }
+
+    private void removeGotosCore(final Block method) {
+        transformLeaveStatements(method);
+
+        boolean modified;
+
+        do {
+            modified = false;
+
+            for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
+                if (e.getCode() == AstCode.Goto) {
+                    modified |= trySimplifyGoto(e);
+                }
+            }
+        }
+        while (modified);
+
+        removeRedundantCodeCore(method);
+    }
+
+    private void traverseGraph(final Block method) {
+        labels.clear();
+        labelLookup.clear();
+        parentLookup.clear();
+        nextSibling.clear();
+
         parentLookup.put(method, Node.NULL);
 
         for (final Node node : method.getSelfAndChildrenRecursive(Node.class)) {
@@ -62,23 +105,6 @@ final class GotoRemoval {
                 nextSibling.put(previousChild, Node.NULL);
             }
         }
-
-        transformLeaveStatements(method);
-
-        boolean modified;
-
-        do {
-            modified = false;
-
-            for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
-                if (e.getCode() == AstCode.Goto) {
-                    modified |= trySimplifyGoto(e);
-                }
-            }
-        }
-        while (modified);
-
-        removeRedundantCode(method);
     }
 
     private boolean trySimplifyGoto(final Expression gotoExpression) {
@@ -471,15 +497,6 @@ final class GotoRemoval {
                         for (final Node n : body) {
                             if (n instanceof Label) {
                                 if (n == target) {
-/*
-                                    final Node firstChild = firstOrDefault(targetTryBlock.getChildren());
-
-                                    if (firstChild != null) {
-                                        final Node result = enter(firstChild, visitedNodes);
-                                        return result;
-                                    }
-*/
-
                                     return targetTryBlock;
                                 }
                             }
@@ -633,17 +650,26 @@ final class GotoRemoval {
     }
 
     public static void removeRedundantCode(final Block method) {
-        removeRedundantCode(method, false);
+        removeRedundantCode(method, 0);
     }
 
     @SuppressWarnings("ConstantConditions")
-    public static void removeRedundantCode(final Block method, final boolean mergeAdjacentLabels) {
+    public static void removeRedundantCode(final Block method, final int options) {
+        final GotoRemoval gotoRemoval = new GotoRemoval(options);
+
+        gotoRemoval.traverseGraph(method);
+        gotoRemoval.removeRedundantCodeCore(method);
+    }
+
+    private void removeRedundantCodeCore(final Block method) {
         //
         // Remove dead labels and NOPs.
         //
 
         final Set<Label> liveLabels = new LinkedHashSet<>();
         final StrongBox<Label> target = new StrongBox<>();
+
+        final Set<Expression> returns = new LinkedHashSet<>();
 
         @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         final Map<Label, List<Expression>> jumps = new DefaultMap<>(CollectionUtilities.<Expression>listFactory());
@@ -652,6 +678,10 @@ final class GotoRemoval {
 
     outer:
         for (final Expression e : method.getSelfAndChildrenRecursive(Expression.class)) {
+            if (matchEmptyReturn(e)) {
+                returns.add(e);
+            }
+
             if (e.isBranch()) {
                 if (matchGetOperand(e, AstCode.Goto, target)) {
                     if (tryCatchBlocks == null) {
@@ -664,17 +694,6 @@ final class GotoRemoval {
                     for (final TryCatchBlock tryCatchBlock : tryCatchBlocks) {
                         final Block finallyBlock = tryCatchBlock.getFinallyBlock();
 
-/*
-                        if (finallyBlock == null) {
-                            continue;
-                        }
-
-                        final Node firstInBody = firstOrDefault(finallyBlock.getBody());
-
-                        if (firstInBody == target.get()) {
-                            continue outer;
-                        }
-*/
                         if (finallyBlock != null) {
                             final Node firstInBody = firstOrDefault(finallyBlock.getBody());
 
@@ -706,12 +725,15 @@ final class GotoRemoval {
             }
         }
 
+        final boolean mergeAdjacentLabels = testAny(options, OPTION_MERGE_ADJACENT_LABELS);
+
         for (final Block block : method.getSelfAndChildrenRecursive(Block.class)) {
             final List<Node> body = block.getBody();
 
             for (int i = 0; i < body.size(); i++) {
                 final Node n = body.get(i);
 
+                //noinspection SuspiciousMethodCalls
                 if (match(n, AstCode.Nop) ||
                     match(n, AstCode.Leave) ||
                     match(n, AstCode.EndFinally) ||
@@ -832,6 +854,8 @@ final class GotoRemoval {
             ((Expression) lastStatement).getArguments().isEmpty()) {
 
             methodBody.remove(methodBody.size() - 1);
+            //noinspection SuspiciousMethodCalls
+            returns.remove(lastStatement);
         }
 
         //
@@ -844,12 +868,95 @@ final class GotoRemoval {
             final List<Node> blockBody = block.getBody();
 
             for (int i = 0; i < blockBody.size() - 1; i++) {
-                if (blockBody.get(i).isUnconditionalControlFlow() &&
+                final Node node = blockBody.get(i);
+
+                if (node.isUnconditionalControlFlow() &&
                     (match(blockBody.get(i + 1), AstCode.Return) ||
                      match(blockBody.get(i + 1), AstCode.AThrow))) {
 
                     modified = true;
                     blockBody.remove(i-- + 1);
+
+                    //noinspection SuspiciousMethodCalls
+                    returns.remove(blockBody.get(i + 1));
+                }
+            }
+        }
+
+        if (testAny(options, OPTION_REMOVE_REDUNDANT_RETURNS)) {
+            //
+            // Remove redundant empty returns deeper within the tree, e.g.,:
+            //
+            // { try { f(); return; } catch { g(); return; } return; } => { try { f(); } catch { g(); } return; }
+            //
+
+            for (final Expression r : returns) {
+                final Node immediateParent = parentLookup.get(r);
+
+                Node current = r;
+                Node parent = immediateParent;
+
+                boolean firstBlock = true;
+                boolean isRedundant = true;
+
+                while (parent != null && parent != Node.NULL) {
+                    if (parent instanceof BasicBlock || parent instanceof Block) {
+                        final List<Node> body = parent instanceof BasicBlock ? ((BasicBlock) parent).getBody()
+                                                                             : ((Block) parent).getBody();
+
+                        if (firstBlock) {
+                            final Node grandparent = parentLookup.get(parent);
+
+                            if (grandparent instanceof Condition) {
+                                final Condition c = (Condition) grandparent;
+
+                                if (c.getTrueBlock().getBody().size() == 1 &&
+                                    r == last(c.getTrueBlock().getBody()) &&
+                                    (matchNullOrEmpty(c.getFalseBlock()) || matchEmptyReturn(c.getFalseBlock()))) {
+
+                                    //
+                                    // Don't convert `if (condition) { return; }` to `if (condition) {}` for aesthetic reasons.
+                                    //
+
+                                    isRedundant = false;
+                                    break;
+                                }
+                            }
+
+                            firstBlock = false;
+                        }
+
+                        final Node last = last(body);
+
+                        if (last != current) {
+                            if (matchEmptyReturn(last) &&
+                                body.size() > 1 &&
+                                body.get(body.size() - 2) == current) {
+
+                                //
+                                // Given { { { f(); return; } return; } ... }, the outer return is enough to render the
+                                // inner return redundant, so we need not walk any further up the tree.
+                                //
+
+                                break;
+                            }
+
+                            isRedundant = false;
+                            break;
+                        }
+                    }
+
+                    current = parent;
+                    parent = parentLookup.get(current);
+                }
+
+                if (isRedundant) {
+                    if (immediateParent instanceof Block) {
+                        ((Block) immediateParent).getBody().remove(r);
+                    }
+                    else if (immediateParent instanceof BasicBlock) {
+                        ((BasicBlock) immediateParent).getBody().remove(r);
+                    }
                 }
             }
         }
@@ -858,7 +965,7 @@ final class GotoRemoval {
             //
             // More removals might be possible.
             //
-            new GotoRemoval().removeGotos(method);
+            removeGotosCore(method);
         }
     }
 }

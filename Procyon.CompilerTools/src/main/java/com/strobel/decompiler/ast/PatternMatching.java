@@ -25,7 +25,7 @@ import com.strobel.util.ContractUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.strobel.core.CollectionUtilities.*;
+import static com.strobel.core.CollectionUtilities.any;
 
 public final class PatternMatching {
     private PatternMatching() {
@@ -193,6 +193,34 @@ public final class PatternMatching {
         return false;
     }
 
+    public static boolean matchNullOrEmpty(final Block block) {
+        return block == null || block.getBody().size() == 0;
+    }
+
+    public static boolean matchEmptyReturn(final Node node) {
+        Node target = node;
+
+        if (node instanceof Block || node instanceof BasicBlock) {
+            final List<Node> body = node instanceof Block ? ((Block) node).getBody()
+                                                          : ((BasicBlock) node).getBody();
+
+            if (body.size() != 1) {
+                return false;
+            }
+
+            target = body.get(0);
+        }
+
+        if (target instanceof Expression) {
+            final Expression e = (Expression) target;
+
+            return e.getCode() == AstCode.Return &&
+                   e.getArguments().isEmpty();
+        }
+
+        return false;
+    }
+
     public static <T> boolean matchSingle(
         final BasicBlock block,
         final AstCode code,
@@ -304,7 +332,6 @@ public final class PatternMatching {
                 equivalentLoad.set(new Expression(AstCode.GetField, null, e.getArguments().get(0).clone()));
                 return true;
             }
-
         }
 
         assignedValue.set(null);

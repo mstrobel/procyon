@@ -311,7 +311,11 @@ public final class AstOptimizer {
             return;
         }
 
-        GotoRemoval.removeRedundantCode(method, true);
+        GotoRemoval.removeRedundantCode(
+            method,
+            GotoRemoval.OPTION_MERGE_ADJACENT_LABELS |
+            GotoRemoval.OPTION_REMOVE_REDUNDANT_RETURNS
+        );
 
         if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.CleanUpTryBlocks)) {
             return;
@@ -430,16 +434,22 @@ public final class AstOptimizer {
                     }
 
                     if (tryCatch.getFinallyBlock() != null &&
-                        tryCatch.getCatchBlocks().isEmpty() &&
-                        tryCatch.getTryBlock().getBody().size() == 1 &&
-                        tryCatch.getTryBlock().getBody().get(0) instanceof TryCatchBlock) {
+                        tryCatch.getCatchBlocks().isEmpty()) {
 
-                        final TryCatchBlock innerTryCatch = (TryCatchBlock) tryCatch.getTryBlock().getBody().get(0);
+                        if (tryCatch.getTryBlock().getBody().size() == 1 &&
+                            tryCatch.getTryBlock().getBody().get(0) instanceof TryCatchBlock) {
 
-                        if (innerTryCatch.getFinallyBlock() == null) {
-                            tryCatch.setTryBlock(innerTryCatch.getTryBlock());
-                            tryCatch.getCatchBlocks().addAll(innerTryCatch.getCatchBlocks());
+                            final TryCatchBlock innerTryCatch = (TryCatchBlock) tryCatch.getTryBlock().getBody().get(0);
+
+                            if (innerTryCatch.getFinallyBlock() == null) {
+                                tryCatch.setTryBlock(innerTryCatch.getTryBlock());
+                                tryCatch.getCatchBlocks().addAll(innerTryCatch.getCatchBlocks());
+                            }
                         }
+//                        else if (tryCatch.getFinallyBlock().getBody().isEmpty()) {
+//                            body.remove(i);
+//                            body.addAll(i, tryCatch.getTryBlock().getBody());
+//                        }
                     }
                 }
             }
@@ -967,6 +977,8 @@ public final class AstOptimizer {
                 }
             }
         }
+
+        cleanUpTryBlocks(method);
     }
 
     private static boolean isEmptyTryCatch(final TryCatchBlock tryCatch) {
