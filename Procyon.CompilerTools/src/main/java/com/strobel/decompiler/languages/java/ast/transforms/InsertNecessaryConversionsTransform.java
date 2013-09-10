@@ -266,18 +266,7 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                      valueResult.getType().getSimpleType() != JvmType.Boolean &&
                      valueResult.getType().getSimpleType().isNumeric()) {
 
-                replacement = right.replaceWith(
-                    new Function<AstNode, AstNode>() {
-                        @Override
-                        public AstNode apply(final AstNode input) {
-                            return new BinaryOperatorExpression(
-                                right,
-                                BinaryOperatorType.INEQUALITY,
-                                new PrimitiveExpression(JavaPrimitiveCast.cast(valueResult.getType().getSimpleType(), 0))
-                            );
-                        }
-                    }
-                );
+                replacement = convertNumericToBoolean(right, valueResult.getType());
             }
             else {
                 final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
@@ -471,11 +460,11 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         return null;
     }
 
-    private void convertNumericToBoolean(final Expression node, final TypeReference type) {
-        node.replaceWith(
-            new Function<AstNode, AstNode>() {
+    private Expression convertNumericToBoolean(final Expression node, final TypeReference type) {
+        return node.replaceWith(
+            new Function<AstNode, Expression>() {
                 @Override
-                public AstNode apply(final AstNode input) {
+                public Expression apply(final AstNode input) {
                     return new BinaryOperatorExpression(
                         node,
                         BinaryOperatorType.INEQUALITY,

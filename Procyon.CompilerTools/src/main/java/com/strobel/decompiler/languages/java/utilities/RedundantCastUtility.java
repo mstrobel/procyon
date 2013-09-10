@@ -548,6 +548,15 @@ public final class RedundantCastUtility {
             if (targetType == null) {
                 targetType = method.getDeclaringType();
             }
+            else if (!(targetType instanceof RawType) && MetadataHelper.isRawType(targetType)) {
+                targetType = MetadataHelper.eraseRecursive(targetType);
+            }
+            else {
+                final TypeReference asSuper = MetadataHelper.asSuper(method.getDeclaringType(), targetType);
+                final TypeReference asSubType = asSuper != null ? MetadataHelper.asSubType(method.getDeclaringType(), asSuper) : null;
+
+                targetType = asSubType != null ? asSubType : targetType;
+            }
 
             final List<MethodReference> candidates = MetadataHelper.findMethods(
                 targetType,
@@ -655,23 +664,38 @@ public final class RedundantCastUtility {
                     continue;
                 }
 
-                final boolean sameMethod;
-
-                if (method.isGenericMethod()) {
-                    sameMethod = StringUtilities.equals(
-                        method.getSignature(),
-                        result.getMethod().getSignature()
-                    );
-                }
-                else {
-                    sameMethod = StringUtilities.equals(
-                        method.getErasedSignature(),
-                        result.getMethod().getErasedSignature()
-                    );
-                }
+                final boolean sameMethod = StringUtilities.equals(
+                    method.getErasedSignature(),
+                    result.getMethod().getErasedSignature()
+                );
 
                 if (sameMethod) {
-                    addToResults(cast, false);
+                    final ParameterDefinition newParameter = result.getMethod().getParameters().get(i);
+
+                    if (castType.isPrimitive()) {
+                        //
+                        // Make sure we don't lose a necessary primitive conversion (could happen if dropping
+                        // the cast changes a generic parameter type).
+                        //
+
+                        final boolean castNeeded = !MetadataHelper.isSameType(
+                            castType,
+                            MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(newParameter.getParameterType())
+                        );
+
+                        if (castNeeded) {
+                            continue;
+                        }
+                    }
+
+                    //
+                    // Make sure we didn't change the call semantics; the target parameter type should still
+                    // be assignable from the original cast type.
+                    //
+
+                    if (MetadataHelper.isAssignableFrom(newParameter.getParameterType(), castType)) {
+                        addToResults(cast, false);
+                    }
                 }
             }
 
@@ -698,6 +722,7 @@ public final class RedundantCastUtility {
 
             if (parent == null ||
                 cast.getRole() == Roles.ARGUMENT && !(parent instanceof IndexerExpression) ||
+                parent instanceof AssignmentExpression ||
                 parent instanceof ReturnStatement ||
                 parent instanceof CastExpression ||
                 parent instanceof BinaryOperatorExpression) {
