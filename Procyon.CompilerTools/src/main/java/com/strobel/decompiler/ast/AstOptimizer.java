@@ -217,7 +217,7 @@ public final class AstOptimizer {
                     return;
                 }
 
-                runOptimization(method, new InlineLambdasOptimization(context, method));
+                modified |= runOptimization(block, new InlineLambdasOptimization(context, method));
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.InlineVariables2)) {
                     done = true;
