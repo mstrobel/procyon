@@ -81,6 +81,17 @@ public final class TypeUtilities {
         return Integer.MAX_VALUE;
     }
 
+    public static boolean isPrimitive(@Nullable final TypeReference type) {
+        return type != null && type.isPrimitive();
+    }
+
+    public static boolean isPrimitiveOrWrapper(@Nullable final TypeReference type) {
+        if (type == null) {
+            return false;
+        }
+        return MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(type).isPrimitive();
+    }
+
     public static boolean isBoolean(@Nullable final TypeReference type) {
         if (type == null) {
             return false;

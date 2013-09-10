@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Set;
 
 import static com.strobel.core.CollectionUtilities.*;
+import static com.strobel.decompiler.languages.java.utilities.TypeUtilities.*;
 
 public final class RedundantCastUtility {
     @NotNull
@@ -489,26 +490,6 @@ public final class RedundantCastUtility {
                     innerType != null &&
                     TypeUtilities.isBinaryOperatorApplicable(op, innerType, otherType, false)) {
 
-                    if ((op == BinaryOperatorType.EQUALITY || op == BinaryOperatorType.INEQUALITY) &&
-                        castType.isPrimitive()) {
-
-                        final boolean needCast;
-
-                        if (otherType.isPrimitive()) {
-                            needCast = !MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(innerType).isPrimitive();
-                        }
-                        else {
-                            needCast = !innerType.isPrimitive();
-                        }
-
-                        if (needCast) {
-                            //
-                            // Don't change an unboxing (in)equality operator to a reference (in)equality operator.
-                            //
-                            return;
-                        }
-                    }
-
                     addToResults(cast, false);
                 }
             }
@@ -925,8 +906,11 @@ public final class RedundantCastUtility {
                 if (opType instanceof PrimitiveType) {
                     final ConversionType conversionType = MetadataHelper.getNumericConversionType(castType, opType);
 
-                    return conversionType != ConversionType.IDENTITY &&
-                           conversionType != ConversionType.IMPLICIT;
+                    if (conversionType != ConversionType.IDENTITY &&
+                        conversionType != ConversionType.IMPLICIT) {
+
+                        return true;
+                    }
                 }
 
                 final TypeReference unboxedOpType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(opType);
@@ -934,18 +918,21 @@ public final class RedundantCastUtility {
                 if (unboxedOpType.isPrimitive()) {
                     final ConversionType conversionType = MetadataHelper.getNumericConversionType(castType, unboxedOpType);
 
-                    return conversionType != ConversionType.IDENTITY &&
-                           conversionType != ConversionType.IMPLICIT;
+                    if (conversionType != ConversionType.IDENTITY &&
+                        conversionType != ConversionType.IMPLICIT) {
+
+                        return true;
+                    }
                 }
             }
             else if (castType instanceof IGenericInstance) {
-                if (MetadataHelper.isRawType(opType)) {
-                    return !MetadataHelper.isAssignableFrom(castType, opType/*, false*/);
+                if (MetadataHelper.isRawType(opType) && !MetadataHelper.isAssignableFrom(castType, opType/*, false*/)) {
+                    return true;
                 }
             }
             else if (MetadataHelper.isRawType(castType)) {
-                if (opType instanceof IGenericInstance) {
-                    return !MetadataHelper.isAssignableFrom(castType, opType/*, false*/);
+                if (opType instanceof IGenericInstance && !MetadataHelper.isAssignableFrom(castType, opType/*, false*/)) {
+                    return true;
                 }
             }
 
@@ -1006,7 +993,7 @@ public final class RedundantCastUtility {
 
                 if (firstOperand != null &&
                     otherOperand != null &&
-                    wrapperCastChangeSemantics(firstOperand, otherOperand, operand)) {
+                    castChangesComparisonSemantics(firstOperand, otherOperand, operand)) {
 
                     return true;
                 }
@@ -1072,16 +1059,34 @@ public final class RedundantCastUtility {
             return false;
         }
 
-        private boolean wrapperCastChangeSemantics(final Expression operand, final Expression otherOperand, final Expression toCast) {
+        private boolean castChangesComparisonSemantics(
+            final Expression operand,
+            final Expression otherOperand,
+            final Expression toCast) {
+
             final TypeReference operandType = getType(operand);
             final TypeReference otherType = getType(otherOperand);
             final TypeReference castType = getType(toCast);
 
-            final boolean isPrimitiveComparisonWithCast = operandType != null && operandType.isPrimitive() ||
-                                                          otherType != null && otherType.isPrimitive();
+            //
+            // A primitive comparison requires one primitive operand and one primitive or wrapper operand.
+            //
 
-            final boolean isPrimitiveComparisonWithoutCast = castType != null && castType.isPrimitive() ||
-                                                             operandType != null && operandType.isPrimitive();
+            final boolean isPrimitiveComparisonWithCast;
+            final boolean isPrimitiveComparisonWithoutCast;
+
+            if (isPrimitive(otherType)) {
+                isPrimitiveComparisonWithCast = isPrimitiveOrWrapper(operandType);
+                isPrimitiveComparisonWithoutCast = isPrimitiveOrWrapper(castType);
+            }
+            else {
+                //
+                // Even if `otherType` isn't a wrapper, a reference-to-primitive cast has a side
+                // effect and should not be removed.
+                //
+                isPrimitiveComparisonWithCast = isPrimitive(operandType);
+                isPrimitiveComparisonWithoutCast = isPrimitive(castType);
+            }
 
             //
             // Wrapper cast to primitive vs. wrapper comparison
