@@ -467,6 +467,7 @@ public final class TypeAnalysis {
         for (final Variable variable : _allVariables) {
             final List<ExpressionToInfer> expressionsToInfer = _assignmentExpressions.get(variable);
 
+            boolean inferredFromNull = false;
             TypeReference inferredType = null;
 
             if (variable.isLambdaParameter()) {
@@ -495,18 +496,33 @@ public final class TypeAnalysis {
                     if (assignedValue.getInferredType() != null) {
                         if (inferredType == null) {
                             inferredType = adjustType(assignedValue.getInferredType(), e.flags);
+                            inferredFromNull = match(assignedValue, AstCode.AConstNull);
                         }
                         else {
-                            //
-                            // Pick the common base type.
-                            //
-                            inferredType = adjustType(
-                                typeWithMoreInformation(
-                                    inferredType,
-                                    cleanTypeArguments(assignedValue.getInferredType(), inferredType)
-                                ),
-                                e.flags
-                            );
+                            final TypeReference assigned = cleanTypeArguments(assignedValue.getInferredType(), inferredType);
+                            final TypeReference commonSuper = adjustType(typeWithMoreInformation(inferredType, assigned), e.flags);
+
+                            if (inferredFromNull &&
+                                assigned != BuiltinTypes.Null &&
+                                !MetadataHelper.isAssignableFrom(commonSuper, assigned)) {
+
+                                //
+                                // Maybe we had a null assignment that was incorrectly inferred as an
+                                // a type incompatible with another assignment (e.g., assigned to null
+                                // when int[] was expected, and later assigned with byte[]).
+                                //
+
+                                final TypeReference asSubType = MetadataHelper.asSubType(commonSuper, assigned);
+
+                                inferredType = asSubType != null ? asSubType : assigned;
+                                inferredFromNull = false;
+                            }
+                            else {
+                                //
+                                // Pick the common base type.
+                                //
+                                inferredType = commonSuper;
+                            }
                         }
                     }
                 }
@@ -1307,23 +1323,45 @@ public final class TypeAnalysis {
                 }
 
                 case LoadElement: {
-                    final TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
+//                    final TypeReference expectedArrayType = expectedType != null ? expectedType.makeArrayType() : null;
+                    final TypeReference arrayType = inferTypeForExpression(arguments.get(0), /*expectedArrayType*/null);
 
                     inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer, flags | FLAG_BOOLEAN_PROHIBITED);
 
-                    return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
+                    if (arrayType != null && arrayType.isArray()) {
+                        return arrayType.getElementType();
+                    }
+
+//                    if (expectedType != null) {
+//                        return expectedType;
+//                    }
+
+                    return null;
                 }
 
                 case StoreElement: {
-                    final TypeReference arrayType = inferTypeForExpression(arguments.get(0), null);
+//                    final TypeReference expectedArrayType = expectedType != null ? expectedType.makeArrayType() : null;
+                    final TypeReference arrayType = inferTypeForExpression(arguments.get(0), /*expectedArrayType*/null);
 
                     inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer, flags | FLAG_BOOLEAN_PROHIBITED);
 
-                    if (forceInferChildren && arrayType != null && arrayType.isArray()) {
-                        inferTypeForExpression(arguments.get(2), arrayType.getElementType());
+                    final TypeReference expectedElementType;
+
+                    if (arrayType != null && arrayType.isArray()) {
+                        expectedElementType = arrayType.getElementType();
+                    }
+//                    else if (expectedArrayType != null) {
+//                        expectedElementType = expectedArrayType.getElementType();
+//                    }
+                    else {
+                        expectedElementType = null;
                     }
 
-                    return arrayType != null && arrayType.isArray() ? arrayType.getElementType() : arrayType;
+                    if (forceInferChildren) {
+                        inferTypeForExpression(arguments.get(2), expectedElementType);
+                    }
+
+                    return expectedElementType;
                 }
 
                 case __BIPush:
@@ -1509,7 +1547,7 @@ public final class TypeAnalysis {
 
                 case IfTrue: {
                     if (forceInferChildren) {
-                        inferTypeForExpression(arguments.get(0), BuiltinTypes.Boolean);
+                        inferTypeForExpression(arguments.get(0), BuiltinTypes.Boolean, true);
                     }
                     return null;
                 }
@@ -2099,7 +2137,7 @@ public final class TypeAnalysis {
             }
 
             default: {
-                operandFlags |= FLAG_BOOLEAN_PROHIBITED;;
+                operandFlags |= FLAG_BOOLEAN_PROHIBITED;
 
                 if (left.getExpectedType() == BuiltinTypes.Boolean ||
                     left.getExpectedType() == null && matchBooleanConstant(left) != null) {

@@ -83,7 +83,8 @@ public final class Range implements Comparable<Range> {
 
     public final boolean intersects(final Range range) {
         return range != null &&
-               (contains(range._start) || contains(range._end));
+               range._start <= _end &&
+               range._end >= _start;
     }
 
     @Override

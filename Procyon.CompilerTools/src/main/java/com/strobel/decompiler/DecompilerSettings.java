@@ -34,6 +34,7 @@ public class DecompilerSettings {
     private boolean _retainPointlessSwitches;
     private boolean _isUnicodeOutputEnabled;
     private boolean _includeErrorDiagnostics = true;
+    private boolean _mergeVariables = true;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
     private String _outputFileHeaderText;
@@ -168,6 +169,14 @@ public class DecompilerSettings {
 
     public final void setUnicodeOutputEnabled(final boolean unicodeOutputEnabled) {
         _isUnicodeOutputEnabled = unicodeOutputEnabled;
+    }
+
+    public final boolean getMergeVariables() {
+        return _mergeVariables;
+    }
+
+    public final void setMergeVariables(final boolean mergeVariables) {
+        _mergeVariables = mergeVariables;
     }
 
     public static DecompilerSettings javaDefaults() {

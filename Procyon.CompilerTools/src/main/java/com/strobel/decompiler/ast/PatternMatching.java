@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.strobel.core.CollectionUtilities.any;
+import static com.strobel.core.CollectionUtilities.single;
 
 public final class PatternMatching {
     private PatternMatching() {
@@ -879,5 +880,26 @@ public final class PatternMatching {
         return matchGetArgument(e, AstCode.MonitorExit, a) &&
                (matchLoad(a.get(), lockInfo.lock) ||
                 lockInfo.lockCopy != null && matchLoad(a.get(), lockInfo.lockCopy));
+    }
+
+    public static boolean matchVariableMutation(final Node node, final Variable variable) {
+        VerifyArgument.notNull(node, "node");
+        VerifyArgument.notNull(variable, "variable");
+
+        if (node instanceof Expression) {
+            final Expression e = (Expression) node;
+
+            switch (e.getCode()) {
+                case Store:
+                case Inc:
+                    return e.getOperand() == variable;
+
+                case PreIncrement:
+                case PostIncrement:
+                    return matchLoad(single(e.getArguments()), variable);
+            }
+        }
+
+        return false;
     }
 }

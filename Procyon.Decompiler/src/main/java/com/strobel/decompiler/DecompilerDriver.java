@@ -76,6 +76,7 @@ public class DecompilerDriver {
         settings.setIncludeLineNumbersInBytecode(options.getIncludeLineNumbers());
         settings.setRetainPointlessSwitches(options.getRetainPointlessSwitches());
         settings.setUnicodeOutputEnabled(options.isUnicodeOutputEnabled());
+        settings.setMergeVariables(options.getMergeVariables());
         settings.setTypeLoader(new InputTypeLoader());
 
         if (options.isRawBytecode()) {

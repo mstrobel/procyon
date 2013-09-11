@@ -118,6 +118,7 @@ public final class MetadataHelper {
                 if (isAssignableFrom(type2, type1)) {
                     return type2;
                 }
+                return doNumericPromotion(type1, type2);
             }
             return findCommonSuperType(getBoxedTypeOrSelf(type1), type2);
         }

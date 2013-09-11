@@ -428,9 +428,7 @@ final class Inlining {
                 final Variable loadedVariable = (Variable) expression.getOperand();
 
                 for (final Expression potentialStore : expressionBeingMoved.getSelfAndChildrenRecursive(Expression.class)) {
-                    if ((potentialStore.getCode() == AstCode.Store || potentialStore.getCode() == AstCode.Inc) &&
-                        potentialStore.getOperand() == loadedVariable) {
-
+                    if (matchVariableMutation(potentialStore, loadedVariable)) {
                         return false;
                     }
                 }

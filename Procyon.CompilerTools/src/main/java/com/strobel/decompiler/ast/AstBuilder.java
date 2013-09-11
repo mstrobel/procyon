@@ -2542,14 +2542,35 @@ public final class AstBuilder {
     }
 
     private final static class VariableInfo {
+        final int slot;
         final Variable variable;
         final List<ByteCode> definitions;
         final List<ByteCode> references;
 
-        VariableInfo(final Variable variable, final List<ByteCode> definitions, final List<ByteCode> references) {
+        Range lifetime;
+
+        VariableInfo(final int slot, final Variable variable, final List<ByteCode> definitions, final List<ByteCode> references) {
+            this.slot = slot;
             this.variable = variable;
             this.definitions = definitions;
             this.references = references;
+        }
+
+        void recomputeLifetime() {
+            int start = Integer.MAX_VALUE;
+            int end = Integer.MIN_VALUE;
+
+            for (final ByteCode d : definitions) {
+                start = Math.min(d.offset, start);
+                end = Math.max(d.offset, end);
+            }
+
+            for (final ByteCode r : references) {
+                start = Math.min(r.offset, start);
+                end = Math.max(r.offset, end);
+            }
+
+            lifetime = new Range(start, end);
         }
     }
 
@@ -2559,6 +2580,7 @@ public final class AstBuilder {
         final List<ParameterDefinition> parameters = method.getParameters();
         final VariableDefinitionCollection variables = _body.getVariables();
         final ParameterDefinition[] parameterMap = new ParameterDefinition[_body.getMaxLocals()];
+
         final boolean hasThis = _body.hasThis();
 
         if (hasThis) {
@@ -2744,7 +2766,7 @@ public final class AstBuilder {
 
                 variable.setGenerated(false);
 
-                final VariableInfo variableInfo = new VariableInfo(variable, definitions, references);
+                final VariableInfo variableInfo = new VariableInfo(slot, variable, definitions, references);
 
                 newVariables = Collections.singletonList(variableInfo);
             }
@@ -2767,6 +2789,7 @@ public final class AstBuilder {
                     variable.setOriginalVariable(vDef);
 
                     parameterVariable = new VariableInfo(
+                        slot,
                         variable,
                         new ArrayList<ByteCode>(),
                         new ArrayList<ByteCode>()
@@ -2873,6 +2896,7 @@ public final class AstBuilder {
                     variable.setGenerated(false);
 
                     final VariableInfo variableInfo = new VariableInfo(
+                        slot,
                         variable,
                         new ArrayList<ByteCode>(),
                         new ArrayList<ByteCode>()
@@ -2968,6 +2992,7 @@ public final class AstBuilder {
                         }
 
                         final VariableInfo mergedVariable = new VariableInfo(
+                            slot,
                             mergeVariables.get(0).variable,
                             mergedDefinitions,
                             mergedReferences
@@ -2988,6 +3013,57 @@ public final class AstBuilder {
                 }
             }
 
+            if (_context.getSettings().getMergeVariables()) {
+                //
+                // Experiment: attempt to reduce the number of disjoint variables in the absence of debug info by
+                // merging primitive variables with adjacent lifespans and matching types.
+                //
+
+                for (final VariableInfo variable : newVariables) {
+                    variable.recomputeLifetime();
+                }
+
+                Collections.sort(
+                    newVariables,
+                    new Comparator<VariableInfo>() {
+                        @Override
+                        public int compare(@NotNull final VariableInfo o1, @NotNull final VariableInfo o2) {
+                            return o1.lifetime.compareTo(o2.lifetime);
+                        }
+                    }
+                );
+
+            outer:
+                for (int j = 0; j < newVariables.size() - 1; j++) {
+                    final VariableInfo prev = newVariables.get(j);
+
+                    if (!prev.variable.getType().isPrimitive() ||
+                        prev.variable.getOriginalVariable() != null && prev.variable.getOriginalVariable().isFromMetadata()) {
+
+                        continue;
+                    }
+
+                    for (int k = j + 1; k < newVariables.size(); k++) {
+                        final VariableInfo next = newVariables.get(k);
+
+                        if (next.variable.getOriginalVariable().isFromMetadata() ||
+                            !MetadataHelper.isSameType(prev.variable.getType(), next.variable.getType()) ||
+                            mightBeBoolean(prev) != mightBeBoolean(next)) {
+
+                            continue outer;
+                        }
+
+                        prev.definitions.addAll(next.definitions);
+                        prev.references.addAll(next.references);
+
+                        newVariables.remove(k--);
+
+                        prev.lifetime.setStart(Math.min(prev.lifetime.getStart(), next.lifetime.getStart()));
+                        prev.lifetime.setEnd(Math.max(prev.lifetime.getEnd(), next.lifetime.getEnd()));
+                    }
+                }
+            }
+
             //
             // Set bytecode operands.
             //
@@ -3000,6 +3076,79 @@ public final class AstBuilder {
                 }
             }
         }
+    }
+
+    private boolean mightBeBoolean(final VariableInfo info) {
+        //
+        // Perform (limited) analysis to determine if a variable might be a boolean, in which
+        // case we may not merge it with another variable which is suspected to not be a boolean.
+        //
+
+        final TypeReference type = info.variable.getType();
+
+        if (type == BuiltinTypes.Boolean) {
+            return true;
+        }
+
+        if (type != BuiltinTypes.Integer) {
+            return false;
+        }
+
+        for (final ByteCode b : info.definitions) {
+            if (b.code != AstCode.Store || b.stackBefore.length < 1) {
+                return false;
+            }
+
+            final StackSlot value = b.stackBefore[b.stackBefore.length - 1];
+
+            for (final ByteCode d : value.definitions) {
+                switch (d.code) {
+                    case LdC: {
+                        if (!Objects.equals(d.operand, 0) && !Objects.equals(d.operand, 1)) {
+                            return false;
+                        }
+                        break;
+                    }
+
+                    case GetField:
+                    case GetStatic: {
+                        if (((FieldReference) d.operand).getFieldType() != BuiltinTypes.Boolean) {
+                            return false;
+                        }
+                        break;
+                    }
+
+                    case LoadElement: {
+                        if (d.instruction.getOpCode() != OpCode.BALOAD) {
+                            return false;
+                        }
+                        break;
+                    }
+
+                    case InvokeVirtual:
+                    case InvokeSpecial:
+                    case InvokeStatic:
+                    case InvokeInterface: {
+                        if (((MethodReference) d.operand).getReturnType() != BuiltinTypes.Boolean) {
+                            return false;
+                        }
+                        break;
+                    }
+
+                    default: {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        for (final ByteCode r : info.references) {
+            if (r.code == AstCode.Inc) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private TypeReference mergeVariableType(final List<VariableInfo> info) {
