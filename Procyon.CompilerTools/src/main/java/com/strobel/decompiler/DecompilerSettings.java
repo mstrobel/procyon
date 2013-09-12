@@ -34,7 +34,7 @@ public class DecompilerSettings {
     private boolean _retainPointlessSwitches;
     private boolean _isUnicodeOutputEnabled;
     private boolean _includeErrorDiagnostics = true;
-    private boolean _mergeVariables = true;
+    private boolean _mergeVariables;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
     private String _outputFileHeaderText;
