@@ -17,6 +17,7 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.ast.*;
 
 import static com.strobel.decompiler.patterns.Pattern.matchString;
@@ -52,6 +53,15 @@ public class InlineEscapingAssignmentsTransform extends ContextTrackingVisitor<V
         final VariableDeclarationStatement d = (VariableDeclarationStatement) previous;
         final AstNodeCollection<VariableInitializer> variables = d.getVariables();
         final VariableInitializer initializer = variables.firstOrNullObject();
+
+        final Variable variable = initializer.getUserData(Keys.VARIABLE);
+
+        if (variable != null &&
+            variable.getOriginalVariable() != null &&
+            variable.getOriginalVariable().isFromMetadata()) {
+
+            return;
+        }
 
         if (variables.hasSingleElement() &&
             value instanceof IdentifierExpression &&

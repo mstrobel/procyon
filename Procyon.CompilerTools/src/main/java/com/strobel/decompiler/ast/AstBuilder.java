@@ -1241,37 +1241,41 @@ public final class AstBuilder {
                 continue;
             }
 
-            final InstructionBlock tryBlock = handler.getTryBlock();
+//            final InstructionBlock tryBlock = handler.getTryBlock();
+//
+//            for (int j = 0; j < handlers.size(); j++) {
+//                if (i == j) {
+//                    continue;
+//                }
+//
+//                final ExceptionHandler other = handlers.get(j);
+//                final InstructionBlock finallyBlock = other.getHandlerBlock();
+//
+//                if (other.isFinally() &&
+//                    finallyBlock.contains(tryBlock) &&
+//                    finallyBlock.contains(catchBlock)) {
+//
+//                    final Instruction endFinally = finallyBlock.getLastInstruction();
+//
+//                    if (endFinally != null &&
+//                        endFinally.getOpCode().isThrow() &&
+//                        endFinally.getPrevious() != null &&
+//                        endFinally.getPrevious().getOpCode().isLoad() &&
+//                        endFinally.getPrevious().getPrevious() == end &&
+//                        (InstructionHelper.getLoadOrStoreSlot(endFinally.getPrevious()) !=
+//                         InstructionHelper.getLoadOrStoreSlot(end))) {
+//
+//                        end.setOpCode(OpCode.POP);
+//                        end.setOperand(null);
+//                        _removed.add(end);
+//                        break;
+//                    }
+//                }
+//            }
 
-            for (int j = 0; j < handlers.size(); j++) {
-                if (i == j) {
-                    continue;
-                }
-
-                final ExceptionHandler other = handlers.get(j);
-                final InstructionBlock finallyBlock = other.getHandlerBlock();
-
-                if (other.isFinally() &&
-                    finallyBlock.contains(tryBlock) &&
-                    finallyBlock.contains(catchBlock)) {
-
-                    final Instruction endFinally = finallyBlock.getLastInstruction();
-
-                    if (endFinally != null &&
-                        endFinally.getOpCode().isThrow() &&
-                        endFinally.getPrevious() != null &&
-                        endFinally.getPrevious().getOpCode().isLoad() &&
-                        endFinally.getPrevious().getPrevious() == end &&
-                        (InstructionHelper.getLoadOrStoreSlot(endFinally.getPrevious()) !=
-                         InstructionHelper.getLoadOrStoreSlot(end))) {
-
-                        end.setOpCode(OpCode.POP);
-                        end.setOperand(null);
-                        _removed.add(end);
-                        break;
-                    }
-                }
-            }
+            end.setOpCode(OpCode.POP);
+            end.setOperand(null);
+            _removed.add(end);
         }
     }
 

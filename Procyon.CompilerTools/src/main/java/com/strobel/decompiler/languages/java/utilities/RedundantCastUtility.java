@@ -993,7 +993,7 @@ public final class RedundantCastUtility {
 
                 if (firstOperand != null &&
                     otherOperand != null &&
-                    castChangesComparisonSemantics(firstOperand, otherOperand, operand)) {
+                    castChangesComparisonSemantics(firstOperand, otherOperand, operand, expression.getOperator())) {
 
                     return true;
                 }
@@ -1062,30 +1062,40 @@ public final class RedundantCastUtility {
         private boolean castChangesComparisonSemantics(
             final Expression operand,
             final Expression otherOperand,
-            final Expression toCast) {
+            final Expression toCast,
+            final BinaryOperatorType operator) {
 
             final TypeReference operandType = getType(operand);
             final TypeReference otherType = getType(otherOperand);
             final TypeReference castType = getType(toCast);
 
-            //
-            // A primitive comparison requires one primitive operand and one primitive or wrapper operand.
-            //
-
             final boolean isPrimitiveComparisonWithCast;
             final boolean isPrimitiveComparisonWithoutCast;
 
-            if (isPrimitive(otherType)) {
-                isPrimitiveComparisonWithCast = isPrimitiveOrWrapper(operandType);
-                isPrimitiveComparisonWithoutCast = isPrimitiveOrWrapper(castType);
+            if (operator == BinaryOperatorType.EQUALITY || operator == BinaryOperatorType.INEQUALITY) {
+                //
+                // A primitive comparison requires one primitive operand and one primitive or wrapper operand.
+                //
+
+                if (isPrimitive(otherType)) {
+                    isPrimitiveComparisonWithCast = isPrimitiveOrWrapper(operandType);
+                    isPrimitiveComparisonWithoutCast = isPrimitiveOrWrapper(castType);
+                }
+                else {
+                    //
+                    // Even if `otherType` isn't a wrapper, a reference-to-primitive cast has a side
+                    // effect and should not be removed.
+                    //
+                    isPrimitiveComparisonWithCast = isPrimitive(operandType);
+                    isPrimitiveComparisonWithoutCast = isPrimitive(castType);
+                }
             }
             else {
-                //
-                // Even if `otherType` isn't a wrapper, a reference-to-primitive cast has a side
-                // effect and should not be removed.
-                //
-                isPrimitiveComparisonWithCast = isPrimitive(operandType);
-                isPrimitiveComparisonWithoutCast = isPrimitive(castType);
+                isPrimitiveComparisonWithCast = operandType != null && operandType.isPrimitive() ||
+                                                otherType != null && otherType.isPrimitive();
+
+                isPrimitiveComparisonWithoutCast = castType != null && castType.isPrimitive() ||
+                                                   operandType != null && operandType.isPrimitive();
             }
 
             //

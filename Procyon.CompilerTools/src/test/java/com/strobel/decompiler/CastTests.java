@@ -3,6 +3,7 @@ package com.strobel.decompiler;
 import org.junit.Test;
 
 public class CastTests extends DecompilerTest {
+    @SuppressWarnings("RedundantCast")
     private static class A {
         public static void test() {
             final Character c1 = '1';
