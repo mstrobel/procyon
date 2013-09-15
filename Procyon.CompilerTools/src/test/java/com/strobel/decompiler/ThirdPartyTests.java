@@ -283,17 +283,17 @@ public class ThirdPartyTests extends DecompilerTest {
             defaultSettings(),
             "class UnboxToNumber {\n" +
             "    void test(final Object o) {\n" +
-            "        Number number;\n" +
+            "        Number n;\n" +
             "        if (o instanceof Integer) {\n" +
-            "            number = (int)o;\n" +
+            "            n = (int)o;\n" +
             "        }\n" +
             "        else if (o instanceof Double) {\n" +
-            "            number = (double)o;\n" +
+            "            n = (double)o;\n" +
             "        }\n" +
             "        else {\n" +
-            "            number = 0.0f;\n" +
+            "            n = 0.0f;\n" +
             "        }\n" +
-            "        System.out.println(number);\n" +
+            "        System.out.println(n);\n" +
             "    }\n" +
             "}"
         );
