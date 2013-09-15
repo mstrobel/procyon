@@ -825,6 +825,11 @@ public final class AstOptimizer {
                     // Ignore NOP.
                     //
                 }
+                else if (match(node, AstCode.Load)) {
+                    //
+                    // Ignore empty load.
+                    //
+                }
                 else if (matchGetArguments(node, AstCode.Pop, args)) {
                     final StrongBox<Variable> variable = new StrongBox<>();
 
