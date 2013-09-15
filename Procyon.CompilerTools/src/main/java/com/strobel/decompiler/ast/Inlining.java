@@ -363,15 +363,6 @@ final class Inlining {
         final AstCode code = expression.getCode();
         final List<Expression> arguments = expression.getArguments();
 
-        switch (code) {
-            case PreIncrement:
-            case PostIncrement:
-                if (expressionBeingMoved.getCode() != AstCode.Load) {
-                    return Boolean.FALSE;
-                }
-                break;
-        }
-
         for (int i = 0; i < arguments.size(); i++) {
             //
             // Stop when seeing an opcode that does not guarantee that its operands will be evaluated.
@@ -388,6 +379,14 @@ final class Inlining {
             final Expression argument = arguments.get(i);
 
             if (argument.getCode() == AstCode.Load && argument.getOperand() == variable) {
+                switch (code) {
+                    case PreIncrement:
+                    case PostIncrement:
+                        if (expressionBeingMoved.getCode() != AstCode.Load) {
+                            return Boolean.FALSE;
+                        }
+                        break;
+                }
                 parent.set(expression);
                 position.setValue(i);
                 return Boolean.TRUE;
