@@ -25,13 +25,7 @@ import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
-import com.strobel.decompiler.patterns.AnyNode;
-import com.strobel.decompiler.patterns.Choice;
-import com.strobel.decompiler.patterns.Match;
-import com.strobel.decompiler.patterns.NamedNode;
-import com.strobel.decompiler.patterns.OptionalNode;
-import com.strobel.decompiler.patterns.Pattern;
-import com.strobel.decompiler.patterns.TypedNode;
+import com.strobel.decompiler.patterns.*;
 
 import static com.strobel.core.CollectionUtilities.*;
 
@@ -49,7 +43,14 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
                 UnaryOperatorType.NOT,
                 new Choice(
                     new BinaryOperatorExpression(
-                        new TypeReferenceExpression(new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled"),
+                        new LeftmostBinaryOperandNode(
+                            new NamedNode(
+                                "assertionsDisabledCheck",
+                                new TypeReferenceExpression(new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled")
+                            ),
+                            BinaryOperatorType.LOGICAL_OR,
+                            true
+                        ).toExpression(),
                         BinaryOperatorType.LOGICAL_OR,
                         new AnyNode("condition").toExpression()
                     ),
@@ -166,7 +167,24 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
             return null;
         }
 
-        final Expression condition = firstOrDefault(m.<Expression>get("condition"));
+        final Expression assertionsDisabledCheck = firstOrDefault(m.<Expression>get("assertionsDisabledCheck"));
+
+        Expression condition = firstOrDefault(m.<Expression>get("condition"));
+
+        if (assertionsDisabledCheck != null &&
+            assertionsDisabledCheck.getParent() instanceof BinaryOperatorExpression &&
+            assertionsDisabledCheck.getParent().getParent() instanceof BinaryOperatorExpression) {
+
+            final BinaryOperatorExpression logicalOr = (BinaryOperatorExpression) assertionsDisabledCheck.getParent();
+            final Expression right = logicalOr.getRight();
+
+            right.remove();
+            assertionsDisabledCheck.replaceWith(right);
+            condition.remove();
+            logicalOr.setRight(condition);
+            condition = logicalOr;
+        }
+
         final AssertStatement assertStatement = new AssertStatement();
 
         if (condition != null) {

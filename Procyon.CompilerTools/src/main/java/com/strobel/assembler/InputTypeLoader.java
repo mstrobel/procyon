@@ -136,6 +136,9 @@ public class InputTypeLoader implements ITypeLoader {
         final File knownFile = _knownFiles.get(internalName);
 
         if (knownFile != null && tryLoadFile(knownFile, buffer)) {
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Type loaded from " + knownFile.getAbsolutePath() + ".");
+            }
             return true;
         }
 
@@ -179,7 +182,7 @@ public class InputTypeLoader implements ITypeLoader {
 
     private boolean tryLoadFile(final File file, final Buffer buffer) {
         if (LOG.isLoggable(Level.FINER)) {
-            LOG.finer("Attempting to file: " + file.getAbsolutePath() + "...");
+            LOG.finer("Probing for file: " + file.getAbsolutePath() + "...");
         }
 
         if (!file.exists() || file.isDirectory()) {

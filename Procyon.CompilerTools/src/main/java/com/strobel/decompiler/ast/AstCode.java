@@ -16,8 +16,8 @@
 
 package com.strobel.decompiler.ast;
 
-import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.assembler.ir.OpCode;
+import com.strobel.assembler.metadata.MethodBody;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 
@@ -375,6 +375,21 @@ public enum AstCode {
         }
     }
 
+    public final boolean isDup() {
+        switch (this) {
+            case Dup:
+            case DupX1:
+            case DupX2:
+            case Dup2:
+            case Dup2X1:
+            case Dup2X2:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
     public final boolean isComparison() {
         switch (this) {
             case CmpEq:
@@ -428,17 +443,26 @@ public enum AstCode {
 
     public final AstCode reverse() {
         switch (this) {
-            case CmpEq: return CmpNe;
-            case CmpNe: return CmpEq;
-            case CmpLe: return CmpGt;
-            case CmpGt: return CmpLe;
-            case CmpGe: return CmpLt;
-            case CmpLt: return CmpGe;
+            case CmpEq:
+                return CmpNe;
+            case CmpNe:
+                return CmpEq;
+            case CmpLe:
+                return CmpGt;
+            case CmpGt:
+                return CmpLe;
+            case CmpGe:
+                return CmpLt;
+            case CmpLt:
+                return CmpGe;
 
-            case LogicalAnd: return LogicalOr;
-            case LogicalOr: return LogicalAnd;
+            case LogicalAnd:
+                return LogicalOr;
+            case LogicalOr:
+                return LogicalAnd;
 
-            default: return this;
+            default:
+                return this;
         }
     }
 
@@ -539,7 +563,7 @@ public enum AstCode {
             case __BIPush:
             case __SIPush:
                 code.set(LdC);
-                operand.set(((Number)operand.get()).intValue());
+                operand.set(((Number) operand.get()).intValue());
                 return true;
 
             case __LdCW:
@@ -678,7 +702,7 @@ public enum AstCode {
             case __SALoad:
                 code.set(LoadElement);
                 return true;
-            
+
             case __GotoW:
                 code.set(Goto);
                 return true;

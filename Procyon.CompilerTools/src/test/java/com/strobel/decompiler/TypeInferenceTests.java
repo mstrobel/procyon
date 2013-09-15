@@ -233,7 +233,7 @@ public class TypeInferenceTests extends DecompilerTest {
             "                }\n" +
             "                s = args[1];\n" +
             "            }\n" +
-            "            catch (ArrayIndexOutOfBoundsException e) {}\n" +
+            "            catch (ArrayIndexOutOfBoundsException ex) {}\n" +
             "        }\n" +
             "        catch (Throwable t) {\n" +
             "            System.out.println(t instanceof NullPointerException);\n" +

@@ -81,8 +81,30 @@ public final class TypeUtilities {
         return Integer.MAX_VALUE;
     }
 
-    private static boolean isBoolean(@NotNull final TypeReference type) {
+    public static boolean isPrimitive(@Nullable final TypeReference type) {
+        return type != null && type.isPrimitive();
+    }
+
+    public static boolean isPrimitiveOrWrapper(@Nullable final TypeReference type) {
+        if (type == null) {
+            return false;
+        }
+        return MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(type).isPrimitive();
+    }
+
+    public static boolean isBoolean(@Nullable final TypeReference type) {
+        if (type == null) {
+            return false;
+        }
         return MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(type).getSimpleType() == JvmType.Boolean;
+    }
+
+    public static boolean isArithmetic(@Nullable final TypeReference type) {
+        if (type == null) {
+            return false;
+        }
+        final JvmType jvmType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(type).getSimpleType();
+        return jvmType.isNumeric() && jvmType != JvmType.Boolean;
     }
 
     public static boolean isBinaryOperatorApplicable(

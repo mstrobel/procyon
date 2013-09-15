@@ -118,11 +118,12 @@ public final class MetadataHelper {
                 if (isAssignableFrom(type2, type1)) {
                     return type2;
                 }
+                return doNumericPromotion(type1, type2);
             }
-            return BuiltinTypes.Object;
+            return findCommonSuperType(getBoxedTypeOrSelf(type1), type2);
         }
         else if (type2.isPrimitive()) {
-            return BuiltinTypes.Object;
+            return findCommonSuperType(type1, getBoxedTypeOrSelf(type2));
         }
 
         int rank1 = 0;
@@ -426,13 +427,17 @@ public final class MetadataHelper {
         switch (targetJvmType) {
             case Float:
             case Double:
-                if (sourceJvmType.bitWidth() <= targetJvmType.bitWidth()) {
+                if (sourceJvmType.isIntegral() || sourceJvmType.bitWidth() <= targetJvmType.bitWidth()) {
                     return ConversionType.IMPLICIT;
                 }
                 return ConversionType.EXPLICIT;
 
             case Byte:
             case Short:
+                if (sourceJvmType == JvmType.Character) {
+                    return ConversionType.EXPLICIT;
+                }
+                // fall through
             case Integer:
             case Long:
                 if (sourceJvmType.isIntegral() &&
@@ -498,8 +503,8 @@ public final class MetadataHelper {
         VerifyArgument.notNull(source, "source");
         VerifyArgument.notNull(target, "target");
 
-        final boolean tPrimitive = source.isPrimitive();
-        final boolean sPrimitive = target.isPrimitive();
+        final boolean tPrimitive = target.isPrimitive();
+        final boolean sPrimitive = source.isPrimitive();
 
         if (source == BuiltinTypes.Null) {
             return !tPrimitive;
@@ -520,8 +525,8 @@ public final class MetadataHelper {
             }
         }
 
-        return allowUnchecked ? isSubTypeUnchecked(getUnderlyingPrimitiveTypeOrSelf(source), target)
-                              : isSubType(getUnderlyingPrimitiveTypeOrSelf(source), target);
+        return allowUnchecked ? isSubTypeUnchecked(getBoxedTypeOrSelf(source), target)
+                              : isSubType(getBoxedTypeOrSelf(source), target);
     }
 
     private static boolean isSubTypeUnchecked(final TypeReference t, final TypeReference s) {
@@ -594,6 +599,35 @@ public final class MetadataHelper {
             default:
                 return false;
         }
+    }
+
+    public static TypeReference getBoxedTypeOrSelf(final TypeReference type) {
+        VerifyArgument.notNull(type, "type");
+
+        if (type.isPrimitive()) {
+            switch (type.getSimpleType()) {
+                case Boolean:
+                    return CommonTypeReferences.Boolean;
+                case Byte:
+                    return CommonTypeReferences.Byte;
+                case Character:
+                    return CommonTypeReferences.Character;
+                case Short:
+                    return CommonTypeReferences.Short;
+                case Integer:
+                    return CommonTypeReferences.Integer;
+                case Long:
+                    return CommonTypeReferences.Long;
+                case Float:
+                    return CommonTypeReferences.Float;
+                case Double:
+                    return CommonTypeReferences.Double;
+                case Void:
+                    return CommonTypeReferences.Void;
+            }
+        }
+
+        return type;
     }
 
     public static TypeReference getUnderlyingPrimitiveTypeOrSelf(final TypeReference type) {
@@ -767,12 +801,12 @@ public final class MetadataHelper {
 
         final MethodReference asMember;
 
+        TypeReference base = baseType;
+
         if (baseType instanceof RawType) {
             asMember = erase(method);
         }
         else {
-            TypeReference base = baseType;
-
             while (base.isGenericParameter() || base.isWildcardType()) {
                 if (base.hasExtendsBound()) {
                     base = getUpperBound(base);
@@ -782,16 +816,25 @@ public final class MetadataHelper {
                 }
             }
 
-            final Map<TypeReference, TypeReference> map = adapt(method.getDeclaringType(), base);
+            final TypeReference asSuper = asSuper(method.getDeclaringType(), base);
+
+            Map<TypeReference, TypeReference> map;
+
+            try {
+                map = adapt(method.getDeclaringType(), asSuper != null ? asSuper : base);
+            }
+            catch (AdaptFailure ignored) {
+                map = getGenericSubTypeMappings(method.getDeclaringType(), asSuper != null ? asSuper : base);
+            }
 
             asMember = TypeSubstitutionVisitor.instance().visitMethod(method, map);
 
             if (asMember != method && asMember instanceof GenericMethodInstance) {
-                ((GenericMethodInstance) asMember).setDeclaringType(base);
+                ((GenericMethodInstance) asMember).setDeclaringType(asSuper != null ? asSuper : base);
             }
         }
 
-        final MethodReference result = specializeIfNecessary(method, asMember, baseType);
+        final MethodReference result = specializeIfNecessary(method, asMember, base);
 
         return result;
     }

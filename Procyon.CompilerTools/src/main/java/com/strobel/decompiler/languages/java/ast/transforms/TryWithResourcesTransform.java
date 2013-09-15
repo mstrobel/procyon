@@ -31,7 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.strobel.core.CollectionUtilities.*;
-import static com.strobel.decompiler.languages.java.ast.transforms.PatternStatementTransform.*;
+import static com.strobel.decompiler.languages.java.ast.transforms.ConvertLoopsTransform.*;
 
 public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
     private final static INode RESOURCE_INIT_PATTERN;

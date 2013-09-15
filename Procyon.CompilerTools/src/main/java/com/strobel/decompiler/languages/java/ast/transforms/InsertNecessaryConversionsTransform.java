@@ -28,6 +28,7 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.languages.java.utilities.RedundantCastUtility;
 import com.strobel.decompiler.languages.java.utilities.TypeUtilities;
+import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
@@ -35,10 +36,15 @@ import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<Void> {
     private final static ConvertTypeOptions NO_IMPORT_OPTIONS;
+    private final static INode TRUE_NODE;
+    private final static INode FALSE_NODE;
 
     static {
         NO_IMPORT_OPTIONS = new ConvertTypeOptions();
         NO_IMPORT_OPTIONS.setAddImports(false);
+
+        TRUE_NODE = new PrimitiveExpression(true);
+        FALSE_NODE = new PrimitiveExpression(false);
     }
 
     private final JavaResolver _resolver;
@@ -260,18 +266,7 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                      valueResult.getType().getSimpleType() != JvmType.Boolean &&
                      valueResult.getType().getSimpleType().isNumeric()) {
 
-                replacement = right.replaceWith(
-                    new Function<AstNode, AstNode>() {
-                        @Override
-                        public AstNode apply(final AstNode input) {
-                            return new BinaryOperatorExpression(
-                                right,
-                                BinaryOperatorType.INEQUALITY,
-                                new PrimitiveExpression(JavaPrimitiveCast.cast(valueResult.getType().getSimpleType(), 0))
-                            );
-                        }
-                    }
-                );
+                replacement = convertNumericToBoolean(right, valueResult.getType());
             }
             else {
                 final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
@@ -298,6 +293,43 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
     }
 
     @Override
+    public Void visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void data) {
+        super.visitUnaryOperatorExpression(node, data);
+
+        switch (node.getOperator()) {
+            case NOT: {
+                final Expression operand = node.getExpression();
+                final ResolveResult result = _resolver.apply(operand);
+
+                if (result != null &&
+                    result.getType() != null &&
+                    !TypeUtilities.isBoolean(result.getType()) &&
+                    MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(result.getType()).getSimpleType().isNumeric()) {
+
+                    final TypeReference comparandType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(result.getType());
+
+                    operand.replaceWith(
+                        new Function<AstNode, AstNode>() {
+                            @Override
+                            public AstNode apply(final AstNode input) {
+                                return new BinaryOperatorExpression(
+                                    operand,
+                                    BinaryOperatorType.INEQUALITY,
+                                    new PrimitiveExpression(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 0))
+                                );
+                            }
+                        }
+                    );
+                }
+
+                break;
+            }
+        }
+
+        return null;
+    }
+
+    @Override
     public Void visitBinaryOperatorExpression(final BinaryOperatorExpression node, final Void data) {
         super.visitBinaryOperatorExpression(node, data);
 
@@ -320,19 +352,133 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                 final ResolveResult leftResult = _resolver.apply(left);
                 final ResolveResult rightResult = _resolver.apply(right);
 
-                if (leftResult != null && leftResult.getType() == BuiltinTypes.Boolean) {
+                if (leftResult != null && TypeUtilities.isBoolean(leftResult.getType())) {
                     convertBooleanToNumeric(left);
                 }
 
-                if (rightResult != null && rightResult.getType() == BuiltinTypes.Boolean) {
+                if (rightResult != null && TypeUtilities.isBoolean(rightResult.getType())) {
                     convertBooleanToNumeric(right);
                 }
 
                 break;
             }
+
+            case BITWISE_AND:
+            case BITWISE_OR:
+            case EXCLUSIVE_OR:
+                final Expression left = node.getLeft();
+                final Expression right = node.getRight();
+
+                final ResolveResult leftResult = _resolver.apply(left);
+                final ResolveResult rightResult = _resolver.apply(right);
+
+                if (leftResult != null &&
+                    leftResult.getType() != null &&
+                    rightResult != null &&
+                    rightResult.getType() != null &&
+                    TypeUtilities.isBoolean(leftResult.getType()) ^ TypeUtilities.isBoolean(rightResult.getType())) {
+
+                    if (TypeUtilities.isBoolean(leftResult.getType()) &&
+                        TypeUtilities.isArithmetic(rightResult.getType())) {
+
+                        final TypeReference comparandType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(rightResult.getType());
+
+                        if (TRUE_NODE.matches(left)) {
+                            ((PrimitiveExpression) left).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 1));
+                        }
+                        else if (FALSE_NODE.matches(left)) {
+                            ((PrimitiveExpression) left).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 0));
+                        }
+                        else {
+                            convertBooleanToNumeric(left);
+                        }
+                    }
+                    else if (TypeUtilities.isArithmetic(leftResult.getType())) {
+                        final TypeReference comparandType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(leftResult.getType());
+
+                        if (TRUE_NODE.matches(right)) {
+                            ((PrimitiveExpression) right).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 1));
+                        }
+                        else if (FALSE_NODE.matches(right)) {
+                            ((PrimitiveExpression) right).setValue(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 0));
+                        }
+                        else {
+                            convertBooleanToNumeric(right);
+                        }
+                    }
+                }
+                else {
+                    final TypeReference expectedType = TypeUtilities.getExpectedTypeByParent(_resolver, node);
+
+                    if (expectedType != null && TypeUtilities.isBoolean(expectedType)) {
+                        final ResolveResult result = _resolver.apply(node);
+
+                        if (result != null &&
+                            result.getType() != null &&
+                            TypeUtilities.isArithmetic(result.getType())) {
+
+                            convertNumericToBoolean(node, result.getType());
+                        }
+                    }
+                }
+
+                break;
         }
 
         return null;
+    }
+
+    @Override
+    public Void visitIfElseStatement(final IfElseStatement node, final Void data) {
+        super.visitIfElseStatement(node, data);
+
+        final Expression condition = node.getCondition();
+        final ResolveResult conditionResult = _resolver.apply(condition);
+
+        if (conditionResult != null &&
+            TypeUtilities.isArithmetic(conditionResult.getType())) {
+
+            convertNumericToBoolean(condition, conditionResult.getType());
+        }
+
+        return null;
+    }
+
+    @Override
+    public Void visitConditionalExpression(final ConditionalExpression node, final Void data) {
+        super.visitConditionalExpression(node, data);
+
+        final Expression condition = node.getCondition();
+        final ResolveResult conditionResult = _resolver.apply(condition);
+
+        if (conditionResult != null &&
+            TypeUtilities.isArithmetic(conditionResult.getType())) {
+
+            convertNumericToBoolean(condition, conditionResult.getType());
+        }
+
+        return null;
+    }
+
+    private Expression convertNumericToBoolean(final Expression node, final TypeReference type) {
+        return node.replaceWith(
+            new Function<AstNode, Expression>() {
+                @Override
+                public Expression apply(final AstNode input) {
+                    return new BinaryOperatorExpression(
+                        node,
+                        BinaryOperatorType.INEQUALITY,
+                        new PrimitiveExpression(
+                            JavaPrimitiveCast.cast(
+                                MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(type)
+                                              .getSimpleType(),
+                                0
+                            )
+                        )
+                    );
+                }
+            }
+        );
     }
 
     private Expression convertBooleanToNumeric(final Expression operand) {

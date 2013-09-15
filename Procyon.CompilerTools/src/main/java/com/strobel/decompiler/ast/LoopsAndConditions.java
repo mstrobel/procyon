@@ -275,6 +275,33 @@ final class LoopsAndConditions {
                 final ControlFlowNode lastInLoop = lastOrDefault(loopContents);
                 final BasicBlock lastBlock = (BasicBlock) lastInLoop.getUserData();
 
+                //
+                // Check for an infinite loop.
+                //
+
+                if (loopContents.size() == 1 &&
+                    matchSimpleBreak(basicBlock, trueLabel) &&
+                    trueLabel.get() == first(basicBlock.getBody())) {
+
+                    final Loop emptyLoop = new Loop();
+
+                    emptyLoop.setBody(new Block());
+
+                    final BasicBlock block = new BasicBlock();
+                    final List<Node> blockBody = block.getBody();
+
+                    blockBody.add(basicBlock.getBody().get(0));
+                    blockBody.add(emptyLoop);
+
+                    result.add(block);
+                    scope.remove(lastInLoop);
+                    continue;
+                }
+
+                //
+                // Check for a conditional loop.
+                //
+
                 for (int pass = 0; pass < 2; pass++) {
                     final boolean isPostCondition = pass == 1;
 

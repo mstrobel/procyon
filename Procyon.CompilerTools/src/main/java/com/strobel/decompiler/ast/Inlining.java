@@ -379,6 +379,14 @@ final class Inlining {
             final Expression argument = arguments.get(i);
 
             if (argument.getCode() == AstCode.Load && argument.getOperand() == variable) {
+                switch (code) {
+                    case PreIncrement:
+                    case PostIncrement:
+                        if (expressionBeingMoved.getCode() != AstCode.Load) {
+                            return Boolean.FALSE;
+                        }
+                        break;
+                }
                 parent.set(expression);
                 position.setValue(i);
                 return Boolean.TRUE;
@@ -419,9 +427,7 @@ final class Inlining {
                 final Variable loadedVariable = (Variable) expression.getOperand();
 
                 for (final Expression potentialStore : expressionBeingMoved.getSelfAndChildrenRecursive(Expression.class)) {
-                    if ((potentialStore.getCode() == AstCode.Store || potentialStore.getCode() == AstCode.Inc) &&
-                        potentialStore.getOperand() == loadedVariable) {
-
+                    if (matchVariableMutation(potentialStore, loadedVariable)) {
                         return false;
                     }
                 }
