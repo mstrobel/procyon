@@ -801,12 +801,12 @@ public final class MetadataHelper {
 
         final MethodReference asMember;
 
+        TypeReference base = baseType;
+
         if (baseType instanceof RawType) {
             asMember = erase(method);
         }
         else {
-            TypeReference base = baseType;
-
             while (base.isGenericParameter() || base.isWildcardType()) {
                 if (base.hasExtendsBound()) {
                     base = getUpperBound(base);
@@ -816,16 +816,25 @@ public final class MetadataHelper {
                 }
             }
 
-            final Map<TypeReference, TypeReference> map = adapt(method.getDeclaringType(), base);
+            final TypeReference asSuper = asSuper(method.getDeclaringType(), base);
+
+            Map<TypeReference, TypeReference> map;
+
+            try {
+                map = adapt(method.getDeclaringType(), asSuper != null ? asSuper : base);
+            }
+            catch (AdaptFailure ignored) {
+                map = getGenericSubTypeMappings(method.getDeclaringType(), asSuper != null ? asSuper : base);
+            }
 
             asMember = TypeSubstitutionVisitor.instance().visitMethod(method, map);
 
             if (asMember != method && asMember instanceof GenericMethodInstance) {
-                ((GenericMethodInstance) asMember).setDeclaringType(base);
+                ((GenericMethodInstance) asMember).setDeclaringType(asSuper != null ? asSuper : base);
             }
         }
 
-        final MethodReference result = specializeIfNecessary(method, asMember, baseType);
+        final MethodReference result = specializeIfNecessary(method, asMember, base);
 
         return result;
     }

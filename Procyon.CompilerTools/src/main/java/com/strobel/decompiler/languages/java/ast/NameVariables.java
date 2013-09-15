@@ -64,6 +64,8 @@ public class NameVariables {
         builtInTypeNames.put(BuiltinTypes.Double.getInternalName(), "n");
         builtInTypeNames.put("java/lang/Double", "n");
         builtInTypeNames.put(BuiltinTypes.Character.getInternalName(), "c");
+        builtInTypeNames.put("java/lang/Number", "n");
+        builtInTypeNames.put("java/io/Serializable", "s");
         builtInTypeNames.put("java/lang/Character", "c");
         builtInTypeNames.put("java/lang/Object", "o");
         builtInTypeNames.put("java/lang/String", "s");

@@ -2756,7 +2756,7 @@ public final class AstBuilder {
                         }
                     }
 
-                    if (variable.getType() == null || variable.getType() == BuiltinTypes.Null) {
+                    if (variable.getType() == null) {
                         variable.setType(BuiltinTypes.Object);
                     }
                 }
@@ -2873,10 +2873,6 @@ public final class AstBuilder {
                             parameterVariable.definitions.add(b);
                             continue;
                         }
-                    }
-
-                    if (variableType == BuiltinTypes.Null) {
-                        variableType = BuiltinTypes.Object;
                     }
 
                     final Variable variable = new Variable();
@@ -3072,9 +3068,14 @@ public final class AstBuilder {
             // Set bytecode operands.
             //
             for (final VariableInfo newVariable : newVariables) {
+                if (newVariable.variable.getType() == BuiltinTypes.Null) {
+                    newVariable.variable.setType(BuiltinTypes.Null);
+                }
+
                 for (final ByteCode definition : newVariable.definitions) {
                     definition.operand = newVariable.variable;
                 }
+
                 for (final ByteCode reference : newVariable.references) {
                     reference.operand = newVariable.variable;
                 }
