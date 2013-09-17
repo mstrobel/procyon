@@ -19,7 +19,6 @@ package com.strobel.decompiler.languages.java.ast;
 import com.strobel.annotations.NotNull;
 import com.strobel.assembler.metadata.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
-import com.strobel.core.Comparer;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringComparison;
@@ -663,13 +662,35 @@ public class AstMethodBodyBuilder {
             }
 
             case GetField: {
-                final MemberReferenceExpression fieldReference = arg1.member(fieldOperand.getName());
+                final MemberReferenceExpression fieldReference;
+
+                if (arg1 instanceof ThisReferenceExpression &&
+                    MetadataHelper.isSubType(_context.getCurrentType(), fieldOperand.getDeclaringType()) &&
+                    !StringUtilities.equals(fieldOperand.getDeclaringType().getInternalName(), _context.getCurrentType().getInternalName())) {
+
+                    fieldReference = new SuperReferenceExpression().member(fieldOperand.getName());
+                }
+                else {
+                    fieldReference = arg1.member(fieldOperand.getName());
+                }
+
                 fieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
                 return fieldReference;
             }
 
             case PutField: {
-                final MemberReferenceExpression fieldReference = arg1.member(fieldOperand.getName());
+                final MemberReferenceExpression fieldReference;
+
+                if (arg1 instanceof ThisReferenceExpression &&
+                    MetadataHelper.isSubType(_context.getCurrentType(), fieldOperand.getDeclaringType()) &&
+                    !StringUtilities.equals(fieldOperand.getDeclaringType().getInternalName(), _context.getCurrentType().getInternalName())) {
+
+                    fieldReference = new SuperReferenceExpression().member(fieldOperand.getName());
+                }
+                else {
+                    fieldReference = arg1.member(fieldOperand.getName());
+                }
+
                 fieldReference.putUserData(Keys.MEMBER_REFERENCE, fieldOperand);
                 return new AssignmentExpression(fieldReference, arg2);
             }
