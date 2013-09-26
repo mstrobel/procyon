@@ -2304,16 +2304,8 @@ public final class AstOptimizer {
                             trueVariable.value == falseVariable.value &&
                             trueBreak.value == falseBreak.value) {
 
-                            final boolean negateInner = simplifyLogicalNotArgument(trueExpression.value);
-
-                            if (negateInner && !simplifyLogicalNotArgument(falseExpression.value)) {
-                                final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.value);
-                                newFalseExpression.getRanges().addAll(falseExpression.value.getRanges());
-                                falseExpression.set(newFalseExpression);
-                            }
-
                             final List<Expression> arguments = condition.value.getArguments();
-                            final Expression oldCondition = arguments.get(0);
+                            final Expression oldCondition = condition.value.clone();
 
                             condition.value.setCode(AstCode.TernaryOp);
                             arguments.clear();
@@ -2321,8 +2313,8 @@ public final class AstOptimizer {
                             Collections.addAll(
                                 arguments,
                                 simplifyLogicalNot(oldCondition),
-                                simplifyLogicalNot((negateInner ? falseExpression : trueExpression).value),
-                                simplifyLogicalNot((negateInner ? trueExpression : falseExpression).value)
+                                simplifyLogicalNot(trueExpression.value),
+                                simplifyLogicalNot(falseExpression.value)
                             );
 
                             final List<Node> headBody = head.getBody();
@@ -2337,13 +2329,6 @@ public final class AstOptimizer {
                             }
                             else {
                                 ((Expression) headBody.get(headBody.size() - 1)).setOperand(falseFall.value);
-                            }
-
-                            if (negateInner) {
-                                ((Expression) headBody.get(headBody.size() - 2)).getArguments().set(
-                                    0,
-                                    simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.value))
-                                );
                             }
 
                             if (labelGlobalRefCount.get(trueFall.value).getValue() == 1) {
@@ -3495,8 +3480,9 @@ public final class AstOptimizer {
             final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
 
             if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
-                StringUtilities.equals("metafactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) &&
-                callSite.getBootstrapArguments().size() == 3 &&
+                (StringUtilities.equals("metafactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) ||
+                 StringUtilities.equals("altMetafactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase)) &&
+                callSite.getBootstrapArguments().size() >= 3 &&
                 callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
 
                 final MethodHandle targetMethodHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
@@ -4085,6 +4071,8 @@ public final class AstOptimizer {
             return false;
         }
 
+        final List<Expression> arguments = e.getArguments();
+
         switch (e.getCode()) {
             case CmpEq:
             case CmpNe:
@@ -4096,25 +4084,48 @@ public final class AstOptimizer {
                 return true;
 
             case LogicalNot:
-                final Expression a = e.getArguments().get(0);
+                final Expression a = arguments.get(0);
                 e.setCode(a.getCode());
                 e.setOperand(a.getOperand());
-                e.getArguments().clear();
-                e.getArguments().addAll(a.getArguments());
+                arguments.clear();
+                arguments.addAll(a.getArguments());
                 e.getRanges().addAll(a.getRanges());
                 return true;
 
             case LogicalAnd:
             case LogicalOr:
-                final List<Expression> arguments = e.getArguments();
-                simplifyLogicalNotArgument(arguments.get(0));
-                simplifyLogicalNotArgument(arguments.get(1));
+                if (!simplifyLogicalNotArgument(arguments.get(0))) {
+                    negate(arguments.get(0));
+                }
+                if (!simplifyLogicalNotArgument(arguments.get(1))) {
+                    negate(arguments.get(1));
+                }
                 e.setCode(e.getCode().reverse());
                 return true;
 
+            case TernaryOp:
+                simplifyLogicalNotArgument(arguments.get(1));
+                simplifyLogicalNotArgument(arguments.get(2));
+                return true;
+
             default:
+                if (TypeAnalysis.isBoolean(e.getInferredType())) {
+                    return negate(e);
+                }
                 return false;
         }
+    }
+
+    private static boolean negate(final Expression e) {
+        if (TypeAnalysis.isBoolean(e.getInferredType())) {
+            final Expression copy = e.clone();
+            e.setCode(AstCode.LogicalNot);
+            e.setOperand(null);
+            e.getArguments().clear();
+            e.getArguments().add(copy);
+            return true;
+        }
+        return false;
     }
 
     private static boolean canSimplifyLogicalNotArgument(final Expression e) {
@@ -4133,8 +4144,13 @@ public final class AstOptimizer {
             case LogicalAnd:
             case LogicalOr:
                 final List<Expression> arguments = e.getArguments();
-                return canSimplifyLogicalNotArgument(arguments.get(0)) &&
+                return canSimplifyLogicalNotArgument(arguments.get(0)) ||
                        canSimplifyLogicalNotArgument(arguments.get(1));
+
+            case TernaryOp:
+                return TypeAnalysis.isBoolean(e.getInferredType()) &&
+                       canSimplifyLogicalNotArgument(e.getArguments().get(1)) &&
+                       canSimplifyLogicalNotArgument(e.getArguments().get(2));
 
             default:
                 return false;

@@ -708,8 +708,9 @@ public class AstMethodBodyBuilder {
                 final MethodReference bootstrapMethod = callSite.getBootstrapMethod();
 
                 if ("java/lang/invoke/LambdaMetafactory".equals(bootstrapMethod.getDeclaringType().getInternalName()) &&
-                    StringUtilities.equals("metaFactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) &&
-                    callSite.getBootstrapArguments().size() == 3 &&
+                    (StringUtilities.equals("metafactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase) ||
+                     StringUtilities.equals("altMetafactory", bootstrapMethod.getName(), StringComparison.OrdinalIgnoreCase)) &&
+                    callSite.getBootstrapArguments().size() >= 3 &&
                     callSite.getBootstrapArguments().get(1) instanceof MethodHandle) {
 
                     final MethodHandle targetMethodHandle = (MethodHandle) callSite.getBootstrapArguments().get(1);
