@@ -26,13 +26,29 @@ import java.util.List;
  */
 public final class LineNumberTableAttribute extends SourceAttribute {
     private final List<LineNumberTableEntry> _entries;
+    
+    /** records the highest offset number in 'this' line number table */
+    private final int _maxOffset;
 
     public LineNumberTableAttribute(final LineNumberTableEntry[] entries) {
         super(AttributeNames.LineNumberTable, 2 + (VerifyArgument.notNull(entries, "entries").length * 4));
         _entries = ArrayUtilities.asUnmodifiableList(entries.clone());
+        int max = Integer.MIN_VALUE;
+        for ( LineNumberTableEntry entry : entries) {
+            int offset = entry.getOffset();
+            if ( offset > max) { max = offset; }
+        }
+        _maxOffset = max;
     }
 
     public List<LineNumberTableEntry> getEntries() {
         return _entries;
+    }
+    
+    /**
+     * Returns the maximum bytecode offset in 'this' table.
+     */
+    public int getMaxOffset() {
+        return _maxOffset;
     }
 }

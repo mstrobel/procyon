@@ -520,7 +520,7 @@ final class Inlining {
                 // expression that loads 'y'.  If so, see if we can substitute 'x' for 'y' and remove 'y'.
                 //
 
-                final Expression loadThisInstead = new Expression(AstCode.Load, v);
+                final Expression loadThisInstead = new Expression(AstCode.Load, v, current.getOffset());
 
                 if (inlineIfPossible(variable.get(), loadThisInstead, next, aggressive)) {
                     //
@@ -608,7 +608,7 @@ final class Inlining {
 
                         uninlinedArgs[j] = newVariable;
 
-                        body.add(i++, new Expression(AstCode.Store, uninlinedArgs[j]));
+                        body.add(i++, new Expression(AstCode.Store, uninlinedArgs[j], Expression.MYSTERY_OFFSET));
                     }
 
                     //
@@ -623,7 +623,7 @@ final class Inlining {
                             expression.setOperand(copiedExpression.get().getOperand());
 
                             for (final Variable uninlinedArg : uninlinedArgs) {
-                                expression.getArguments().add(new Expression(AstCode.Load, uninlinedArg));
+                                expression.getArguments().add(new Expression(AstCode.Load, uninlinedArg, Expression.MYSTERY_OFFSET));
                             }
                         }
                     }

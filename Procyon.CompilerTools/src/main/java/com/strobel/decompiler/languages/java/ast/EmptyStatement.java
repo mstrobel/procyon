@@ -23,6 +23,10 @@ import com.strobel.decompiler.patterns.Match;
 public final class EmptyStatement extends Statement {
     private TextLocation _location;
 
+    public EmptyStatement() {
+        super( Expression.MYSTERY_OFFSET);
+    }
+    
     public TextLocation getLocation() {
         return _location;
     }

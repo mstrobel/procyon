@@ -31,10 +31,8 @@ public class UnaryOperatorExpression extends Expression {
 
     private UnaryOperatorType _operator;
 
-    public UnaryOperatorExpression() {
-    }
-
     public UnaryOperatorExpression(final UnaryOperatorType operator, final Expression expression) {
+        super( expression.getOffset());
         setOperator(operator);
         setExpression(expression);
     }

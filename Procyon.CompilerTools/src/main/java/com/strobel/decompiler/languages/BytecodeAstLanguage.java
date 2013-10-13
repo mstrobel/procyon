@@ -70,7 +70,7 @@ public class BytecodeAstLanguage extends Language {
     }
 
     @Override
-    public void decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
+    public TypeDecompilationResults decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
         writeTypeHeader(type, output);
 
         output.writeLine(" {");
@@ -101,6 +101,8 @@ public class BytecodeAstLanguage extends Language {
             output.unindent();
             output.writeLine("}");
         }
+        
+        return new TypeDecompilationResults( null /*no line number mapping*/);        
     }
 
     @Override

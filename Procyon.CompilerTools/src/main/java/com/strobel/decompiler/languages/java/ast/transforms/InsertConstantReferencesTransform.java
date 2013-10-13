@@ -191,9 +191,9 @@ public class InsertConstantReferencesTransform extends ContextTrackingVisitor<Vo
                     case "POSITIVE_INFINITY": {
                         node.replaceWith(
                             new BinaryOperatorExpression(
-                                new PrimitiveExpression(jvmType == JvmType.Double ? 1d : 1f),
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? 1d : 1f),
                                 BinaryOperatorType.DIVIDE,
-                                new PrimitiveExpression(jvmType == JvmType.Double ? 0d : 0f)
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? 0d : 0f)
                             )
                         );
                         return;
@@ -202,9 +202,9 @@ public class InsertConstantReferencesTransform extends ContextTrackingVisitor<Vo
                     case "NEGATIVE_INFINITY": {
                         node.replaceWith(
                             new BinaryOperatorExpression(
-                                new PrimitiveExpression(jvmType == JvmType.Double ? -1d : -1f),
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? -1d : -1f),
                                 BinaryOperatorType.DIVIDE,
-                                new PrimitiveExpression(jvmType == JvmType.Double ? 0d : 0f)
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? 0d : 0f)
                             )
                         );
                         return;
@@ -213,9 +213,9 @@ public class InsertConstantReferencesTransform extends ContextTrackingVisitor<Vo
                     case "NaN": {
                         node.replaceWith(
                             new BinaryOperatorExpression(
-                                new PrimitiveExpression(jvmType == JvmType.Double ? 0d : 0f),
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? 0d : 0f),
                                 BinaryOperatorType.DIVIDE,
-                                new PrimitiveExpression(jvmType == JvmType.Double ? 0d : 0f)
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? 0d : 0f)
                             )
                         );
                         return;
@@ -239,8 +239,8 @@ public class InsertConstantReferencesTransform extends ContextTrackingVisitor<Vo
             astType.putUserData(Keys.TYPE_REFERENCE, declaringType);
         }
 
-        final MemberReferenceExpression memberReference = new MemberReferenceExpression(
-            new TypeReferenceExpression(astType),
+        final MemberReferenceExpression memberReference = new MemberReferenceExpression( node.getOffset(),
+            new TypeReferenceExpression(node.getOffset(), astType),
             fieldName
         );
 

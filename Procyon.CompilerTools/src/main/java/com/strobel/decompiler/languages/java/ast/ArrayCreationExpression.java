@@ -33,6 +33,10 @@ public class ArrayCreationExpression extends Expression {
         ArrayInitializerExpression.class,
         ArrayInitializerExpression.NULL
     );
+    
+    public ArrayCreationExpression( int offset) {
+        super( offset);
+    }
 
     public final AstNodeCollection<Expression> getDimensions() {
         return getChildrenByRole(Roles.ARGUMENT);

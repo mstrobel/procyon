@@ -78,7 +78,7 @@ public class PlainTextOutput implements ITextOutput {
                 }
             }
 
-            column += indentToken.length();
+            column += indentToken.length() * _indent;
         }
     }
 
@@ -89,7 +89,7 @@ public class PlainTextOutput implements ITextOutput {
 
     @Override
     public int getColumn() {
-        return _needsIndent ? column + _indent : column;
+        return _needsIndent ? column + (_indent * getIndentToken().length()) : column;
     }
 
     @Override

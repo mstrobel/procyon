@@ -20,14 +20,13 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class IdentifierExpression extends Expression {
-    public IdentifierExpression() {
-    }
-
-    public IdentifierExpression(final String identifier) {
+    public IdentifierExpression( int offset, final String identifier) {
+        super( offset);
         setIdentifier(identifier);
     }
 
-    public IdentifierExpression(final Identifier identifier) {
+    public IdentifierExpression( int offset, final Identifier identifier) {
+        super( offset);
         setIdentifierToken(identifier);
     }
 

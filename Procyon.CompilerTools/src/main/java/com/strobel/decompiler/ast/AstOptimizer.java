@@ -515,7 +515,7 @@ public final class AstOptimizer {
                     matchGetArguments(body.get(body.size() - 1), AstCode.AThrow, a) &&
                     matchLoadAny(a.get(0), exceptionCopies)) {
 
-                    body.set(body.size() - 1, new Expression(AstCode.EndFinally, null));
+                    body.set(body.size() - 1, new Expression(AstCode.EndFinally, null, Expression.MYSTERY_OFFSET));
                 }
             }
         }
@@ -1033,7 +1033,7 @@ public final class AstOptimizer {
 
             n.getArguments().set(
                 0,
-                new Expression(AstCode.PreIncrement, d.get(), n.getArguments().get(0))
+                new Expression(AstCode.PreIncrement, d.get(), n.getArguments().get(0).getOffset(), n.getArguments().get(0))
             );
 
             body.remove(i);
@@ -1097,7 +1097,7 @@ public final class AstOptimizer {
 
             ((Expression) n3).getArguments().set(
                 0,
-                new Expression(AstCode.PreIncrement, amount, ((Expression) n1).getArguments().get(0))
+                new Expression(AstCode.PreIncrement, amount, ((Expression) n1).getArguments().get(0).getOffset(), ((Expression) n1).getArguments().get(0))
             );
 
             body.remove(i);
@@ -1222,6 +1222,7 @@ public final class AstOptimizer {
         final Expression newExpression = new Expression(
             AstCode.PreIncrement,
             amount.get(),
+            e1.getArguments().get(0).getOffset(),
             e1.getArguments().get(0)
         );
 
@@ -1309,29 +1310,29 @@ public final class AstOptimizer {
                     continue;
 */
                 case __IfEq:
-                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    e.getArguments().add(new Expression(AstCode.LdC, 0, e.getOffset()));
                     code = AstCode.CmpEq;
                     break;
 
                 case __IfNe:
-                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    e.getArguments().add(new Expression(AstCode.LdC, 0, e.getOffset()));
                     code = AstCode.CmpNe;
                     break;
 
                 case __IfLt:
-                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    e.getArguments().add(new Expression(AstCode.LdC, 0, e.getOffset()));
                     code = AstCode.CmpLt;
                     break;
                 case __IfGe:
-                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    e.getArguments().add(new Expression(AstCode.LdC, 0, e.getOffset()));
                     code = AstCode.CmpGe;
                     break;
                 case __IfGt:
-                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    e.getArguments().add(new Expression(AstCode.LdC, 0, e.getOffset()));
                     code = AstCode.CmpGt;
                     break;
                 case __IfLe:
-                    e.getArguments().add(new Expression(AstCode.LdC, 0));
+                    e.getArguments().add(new Expression(AstCode.LdC, 0, e.getOffset()));
                     code = AstCode.CmpLe;
                     break;
 
@@ -1361,11 +1362,11 @@ public final class AstOptimizer {
                     break;
 
                 case __IfNull:
-                    e.getArguments().add(new Expression(AstCode.AConstNull, null));
+                    e.getArguments().add(new Expression(AstCode.AConstNull, null, e.getOffset()));
                     code = AstCode.CmpEq;
                     break;
                 case __IfNonNull:
-                    e.getArguments().add(new Expression(AstCode.AConstNull, null));
+                    e.getArguments().add(new Expression(AstCode.AConstNull, null, e.getOffset()));
                     code = AstCode.CmpNe;
                     break;
 
@@ -1373,9 +1374,9 @@ public final class AstOptimizer {
                     continue;
             }
 
-            final Expression newExpression = new Expression(code, null, e.getArguments());
+            final Expression newExpression = new Expression(code, null, e.getOffset(), e.getArguments());
 
-            body.set(i, new Expression(AstCode.IfTrue, e.getOperand(), newExpression));
+            body.set(i, new Expression(AstCode.IfTrue, e.getOperand(), newExpression.getOffset(), newExpression));
             newExpression.getRanges().addAll(e.getRanges());
         }
     }
@@ -1538,7 +1539,7 @@ public final class AstOptimizer {
         basicBlocks.add(basicBlock);
         basicBlockBody.add(entryLabel);
 
-        block.setEntryGoto(new Expression(AstCode.Goto, entryLabel));
+        block.setEntryGoto(new Expression(AstCode.Goto, entryLabel, Expression.MYSTERY_OFFSET));
 
         if (!body.isEmpty()) {
             if (body.get(0) != entryLabel) {
@@ -1567,7 +1568,7 @@ public final class AstOptimizer {
                     // Terminate the last block.
                     //
                     if (!lastNode.isUnconditionalControlFlow()) {
-                        basicBlockBody.add(new Expression(AstCode.Goto, label));
+                        basicBlockBody.add(new Expression(AstCode.Goto, label, Expression.MYSTERY_OFFSET));
                     }
 
                     //
@@ -1595,7 +1596,7 @@ public final class AstOptimizer {
                         final Label exitLabel = checkExit(currentNode);
 
                         if (exitLabel != null) {
-                            body.add(i + 1, new Expression(AstCode.Goto, exitLabel));
+                            body.add(i + 1, new Expression(AstCode.Goto, exitLabel, Expression.MYSTERY_OFFSET));
                         }
                     }
                 }
@@ -1707,14 +1708,14 @@ public final class AstOptimizer {
                         if (otherLabel == nextFalseLabel.get()) {
                             logicExpression = makeLeftAssociativeShortCircuit(
                                 AstCode.LogicalAnd,
-                                negate ? new Expression(AstCode.LogicalNot, null, condition.get()) : condition.get(),
+                                negate ? new Expression(AstCode.LogicalNot, null, condition.get().getOffset(), condition.get()) : condition.get(),
                                 nextCondition.get()
                             );
                         }
                         else {
                             logicExpression = makeLeftAssociativeShortCircuit(
                                 AstCode.LogicalOr,
-                                negate ? condition.get() : new Expression(AstCode.LogicalNot, null, condition.get()),
+                                negate ? condition.get() : new Expression(AstCode.LogicalNot, null, condition.get().getOffset(), condition.get()),
                                 nextCondition.get()
                             );
                         }
@@ -1723,8 +1724,8 @@ public final class AstOptimizer {
 
                         removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
 
-                        headBody.add(new Expression(AstCode.IfTrue, nextTrueLabel.get(), logicExpression));
-                        headBody.add(new Expression(AstCode.Goto, nextFalseLabel.get()));
+                        headBody.add(new Expression(AstCode.IfTrue, nextTrueLabel.get(), logicExpression.getOffset(), logicExpression));
+                        headBody.add(new Expression(AstCode.Goto, nextFalseLabel.get(), logicExpression.getOffset()));
 
                         labelGlobalRefCount.get(trueLabel.get()).decrement();
                         labelGlobalRefCount.get(falseLabel.get()).decrement();
@@ -1939,7 +1940,7 @@ public final class AstOptimizer {
                             newExpression = condition.value;
                         }
                         else {
-                            newExpression = new Expression(AstCode.LogicalNot, null, condition.value);
+                            newExpression = new Expression(AstCode.LogicalNot, null, condition.value.getOffset(), condition.value);
                             newExpression.setInferredType(BuiltinTypes.Boolean);
                         }
                     }
@@ -1959,7 +1960,7 @@ public final class AstOptimizer {
                         else {
                             newExpression = makeLeftAssociativeShortCircuit(
                                 AstCode.LogicalAnd,
-                                new Expression(AstCode.LogicalNot, null, condition.value),
+                                new Expression(AstCode.LogicalNot, null, condition.value.getOffset(), condition.value),
                                 falseExpression.value
                             );
                         }
@@ -1973,7 +1974,7 @@ public final class AstOptimizer {
                         if (rightBooleanValue.value) {
                             newExpression = makeLeftAssociativeShortCircuit(
                                 AstCode.LogicalOr,
-                                new Expression(AstCode.LogicalNot, null, condition.value),
+                                new Expression(AstCode.LogicalNot, null, condition.value.getOffset(), condition.value),
                                 trueExpression.value
                             );
                         }
@@ -2010,6 +2011,7 @@ public final class AstOptimizer {
                             newExpression = new Expression(
                                 AstCode.TernaryOp,
                                 null,
+                                condition.value.getOffset(),
                                 condition.value,
                                 falseExpression.value,
                                 trueExpression.value
@@ -2019,6 +2021,7 @@ public final class AstOptimizer {
                             newExpression = new Expression(
                                 AstCode.TernaryOp,
                                 null,
+                                condition.value.getOffset(),
                                 condition.value,
                                 trueExpression.value,
                                 falseExpression.value
@@ -2029,10 +2032,10 @@ public final class AstOptimizer {
                     final List<Node> headBody = head.getBody();
 
                     removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
-                    headBody.add(new Expression(opCode, trueVariable.value, newExpression));
+                    headBody.add(new Expression(opCode, trueVariable.value, newExpression.getOffset(), newExpression));
 
                     if (isStore) {
-                        headBody.add(new Expression(AstCode.Goto, trueFall.value));
+                        headBody.add(new Expression(AstCode.Goto, trueFall.value, trueFall.value.getOffset()));
                     }
 
                     //
@@ -2076,7 +2079,7 @@ public final class AstOptimizer {
                             final boolean negateInner = simplifyLogicalNotArgument(trueExpression.value);
 
                             if (negateInner && !simplifyLogicalNotArgument(falseExpression.value)) {
-                                final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.value);
+                                final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.value.getOffset(), falseExpression.value);
                                 newFalseExpression.getRanges().addAll(falseExpression.value.getRanges());
                                 falseExpression.set(newFalseExpression);
                             }
@@ -2085,6 +2088,7 @@ public final class AstOptimizer {
                                 newCondition = new Expression(
                                     AstCode.TernaryOp,
                                     null,
+                                    condition.value.getOffset(),
                                     condition.value,
                                     falseExpression.value,
                                     trueExpression.value
@@ -2094,6 +2098,7 @@ public final class AstOptimizer {
                                 newCondition = new Expression(
                                     AstCode.TernaryOp,
                                     null,
+                                    condition.value.getOffset(),
                                     condition.value,
                                     trueExpression.value,
                                     falseExpression.value
@@ -2104,6 +2109,7 @@ public final class AstOptimizer {
                                 newExpression = new Expression(
                                     AstCode.TernaryOp,
                                     null,
+                                    newCondition.getOffset(),
                                     newCondition,
                                     innerFalseExpression.value,
                                     innerTrueExpression.value
@@ -2113,6 +2119,7 @@ public final class AstOptimizer {
                                 newExpression = new Expression(
                                     AstCode.TernaryOp,
                                     null,
+                                    newCondition.getOffset(),
                                     newCondition,
                                     innerTrueExpression.value,
                                     innerFalseExpression.value
@@ -2123,8 +2130,8 @@ public final class AstOptimizer {
 
                             removeTail(headBody, AstCode.IfTrue, AstCode.Goto);
 
-                            headBody.add(new Expression(AstCode.Store, trueVariable.value, newExpression));
-                            headBody.add(new Expression(AstCode.Goto, trueBreak.value));
+                            headBody.add(new Expression(AstCode.Store, trueVariable.value, newExpression.getOffset(), newExpression));
+                            headBody.add(new Expression(AstCode.Goto, trueBreak.value, trueBreak.value.getOffset()));
 
                             //
                             // Remove the old basic blocks.
@@ -2158,7 +2165,7 @@ public final class AstOptimizer {
                             final boolean negateInner = simplifyLogicalNotArgument(trueExpression.value);
 
                             if (negateInner && !simplifyLogicalNotArgument(falseExpression.value)) {
-                                final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.value);
+                                final Expression newFalseExpression = new Expression(AstCode.LogicalNot, null, falseExpression.value.getOffset(), falseExpression.value);
                                 newFalseExpression.getRanges().addAll(falseExpression.value.getRanges());
                                 falseExpression.set(newFalseExpression);
                             }
@@ -2193,7 +2200,7 @@ public final class AstOptimizer {
                             if (negateInner) {
                                 ((Expression) headBody.get(headBody.size() - 2)).getArguments().set(
                                     0,
-                                    simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.value))
+                                    simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.value.getOffset(), condition.value))
                                 );
                             }
 
@@ -2283,7 +2290,7 @@ public final class AstOptimizer {
             condition.getRanges().addAll(ternary.getRanges());
             modified.set(true);
 
-            return invert ? new Expression(AstCode.LogicalNot, null, condition)
+            return invert ? new Expression(AstCode.LogicalNot, null, condition.getOffset(), condition)
                           : condition;
         }
 
@@ -2308,6 +2315,7 @@ public final class AstOptimizer {
                     final Expression newTernary = new Expression(
                         AstCode.TernaryOp,
                         null,
+                        condition.getOffset(),
                         condition,
                         leftValue,
                         rightValue
@@ -2335,7 +2343,7 @@ public final class AstOptimizer {
 
                     condition.getRanges().addAll(head.getRanges());
 
-                    return invert ? new Expression(AstCode.LogicalNot, null, condition)
+                    return invert ? new Expression(AstCode.LogicalNot, null, condition.getOffset(), condition)
                                   : condition;
                 }
             }
@@ -2395,7 +2403,7 @@ public final class AstOptimizer {
                     !arguments.isEmpty() &&
                     matchLoad(arguments.get(0), v.get())) {
 
-                    final Expression initExpression = new Expression(AstCode.InitObject, constructor.get());
+                    final Expression initExpression = new Expression(AstCode.InitObject, constructor.get(), ((Expression) next).getOffset());
 
                     arguments.remove(0);
                     initExpression.getArguments().addAll(arguments);
@@ -2413,14 +2421,14 @@ public final class AstOptimizer {
                 matchGetArgument(arguments.get(0), AstCode.Store, v, newObject) &&
                 matchGetOperand(newObject.get(), AstCode.__New, objectType)) {
 
-                final Expression initExpression = new Expression(AstCode.InitObject, constructor.get());
+                final Expression initExpression = new Expression(AstCode.InitObject, constructor.get(), newObject.get().getOffset());
 
                 arguments.remove(0);
 
                 initExpression.getArguments().addAll(arguments);
                 initExpression.getRanges().addAll(head.getRanges());
 
-                body.set(position, new Expression(AstCode.Store, v.get(), initExpression));
+                body.set(position, new Expression(AstCode.Store, v.get(), initExpression.getOffset(), initExpression));
 
                 return true;
             }
@@ -2505,7 +2513,7 @@ public final class AstOptimizer {
                         final Expression toRewrite = moveInitToNew ? storeNew : e;
 
                         final List<Expression> arguments = e.getArguments();
-                        final Expression initExpression = new Expression(AstCode.InitObject, ctor.get());
+                        final Expression initExpression = new Expression(AstCode.InitObject, ctor.get(), storeNew.getOffset());
 
                         arguments.remove(0);
 
@@ -2582,7 +2590,7 @@ public final class AstOptimizer {
                         !next.getArguments().get(2).containsReferenceTo(v3.get())) {
 
                         while (initializers.size() < arrayPosition.get().intValue()) {
-                            initializers.add(new Expression(AstCode.DefaultValue, elementType.get()));
+                            initializers.add(new Expression(AstCode.DefaultValue, elementType.get(), next.getOffset()));
                         }
 
                         initializers.add(next.getArguments().get(2));
@@ -2603,14 +2611,14 @@ public final class AstOptimizer {
                     //
 
                     while (initializers.size() < actualArrayLength) {
-                        initializers.add(new Expression(AstCode.DefaultValue, elementType.get()));
+                        initializers.add(new Expression(AstCode.DefaultValue, elementType.get(), head.getOffset()));
                     }
                 }
 
                 if (initializers.size() == actualArrayLength) {
                     final TypeReference arrayType = elementType.get().makeArrayType();
 
-                    head.getArguments().set(0, new Expression(AstCode.InitArray, arrayType, initializers));
+                    head.getArguments().set(0, new Expression(AstCode.InitArray, arrayType, head.getOffset(), initializers));
 
                     for (int i = 0; i < instructionsToRemove; i++) {
                         body.remove(position + 1);
@@ -2945,7 +2953,7 @@ public final class AstOptimizer {
 
             e.getArguments().set(
                 0,
-                new Expression(incrementCode, incrementAmount.get(), initializer.get())
+                new Expression(incrementCode, incrementAmount.get(), initializer.get().getOffset(), initializer.get())
             );
 
             body.remove(position + 1);
@@ -3040,7 +3048,7 @@ public final class AstOptimizer {
                 }
             }
 
-            p.getArguments().set(0, new Expression(AstCode.PostIncrement, incrementAmount.get(), initialValue.get()));
+            p.getArguments().set(0, new Expression(AstCode.PostIncrement, incrementAmount.get(), initialValue.get().getOffset(), initialValue.get()));
 
             return p;
         }
@@ -3193,19 +3201,19 @@ public final class AstOptimizer {
                         if (returnArguments.isEmpty()) {
                             body.set(
                                 i,
-                                new Expression(AstCode.Return, null)
+                                new Expression(AstCode.Return, null, Expression.MYSTERY_OFFSET)
                             );
                         }
                         else if (matchGetOperand(returnArguments.get(0), AstCode.Load, localVariable)) {
                             body.set(
                                 i,
-                                new Expression(AstCode.Return, null, new Expression(AstCode.Load, localVariable.get()))
+                                new Expression(AstCode.Return, null, Expression.MYSTERY_OFFSET, new Expression(AstCode.Load, localVariable.get(), Expression.MYSTERY_OFFSET))
                             );
                         }
                         else if (matchGetOperand(returnArguments.get(0), AstCode.LdC, constant)) {
                             body.set(
                                 i,
-                                new Expression(AstCode.Return, null, new Expression(AstCode.LdC, constant.get()))
+                                new Expression(AstCode.Return, null, Expression.MYSTERY_OFFSET, new Expression(AstCode.LdC, constant.get(), Expression.MYSTERY_OFFSET))
                             );
                         }
                     }
@@ -3213,7 +3221,7 @@ public final class AstOptimizer {
                         //
                         // It exits the main method, so it is effectively a return.
                         //
-                        body.set(i, new Expression(AstCode.Return, null));
+                        body.set(i, new Expression(AstCode.Return, null, Expression.MYSTERY_OFFSET));
                     }
                 }
             }
@@ -3268,7 +3276,7 @@ public final class AstOptimizer {
 
                     condition.setTrueBlock(condition.getFalseBlock());
                     condition.setFalseBlock(temp);
-                    condition.setCondition(simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, conditionExpression)));
+                    condition.setCondition(simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, conditionExpression.getOffset(), conditionExpression)));
                 }
             }
         }
@@ -3437,7 +3445,8 @@ public final class AstOptimizer {
                     v.setOriginalParameter(null);
                     v.setGenerated(true);
 
-                    nodes.add(new Expression(AstCode.Store, v, arguments.get(i).clone()));
+                    Expression ithArg = arguments.get(i).clone();
+                    nodes.add(new Expression(AstCode.Store, v, ithArg.getOffset(), ithArg));
 
                     lambdaParameters.remove(0);
                 }
@@ -3598,11 +3607,12 @@ public final class AstOptimizer {
             final Expression logicExpression = new Expression(
                 AstCode.LogicalOr,
                 null,
+                Expression.MYSTERY_OFFSET,
                 negateFirst ? simplifyLogicalNotArgument(branchCondition) ? branchCondition
-                                                                          : new Expression(AstCode.LogicalNot, null, branchCondition)
+                                                                          : new Expression(AstCode.LogicalNot, null, branchCondition.getOffset(), branchCondition)
                             : branchCondition,
                 negateSecond ? simplifyLogicalNotArgument(elseCondition) ? elseCondition
-                                                                         : new Expression(AstCode.LogicalNot, null, elseCondition)
+                                                                         : new Expression(AstCode.LogicalNot, null, elseCondition.getOffset(), elseCondition)
                              : elseCondition
             );
 
@@ -3610,8 +3620,8 @@ public final class AstOptimizer {
 
             removeTail(branchBody, AstCode.IfTrue, AstCode.Goto);
 
-            branchBody.add(new Expression(AstCode.IfTrue, thenLabel, logicExpression));
-            branchBody.add(new Expression(AstCode.Goto, elseElseLabel));
+            branchBody.add(new Expression(AstCode.IfTrue, thenLabel, logicExpression.getOffset(), logicExpression));
+            branchBody.add(new Expression(AstCode.Goto, elseElseLabel, Expression.MYSTERY_OFFSET));
 
             labelGlobalRefCount.get(elseLabel).decrement();
             labelGlobalRefCount.get(elseThenLabel).decrement();
@@ -3827,7 +3837,7 @@ public final class AstOptimizer {
                 current = current.getArguments().get(0);
             }
 
-            final Expression newArgument = new Expression(code, null, left, current.getArguments().get(0));
+            final Expression newArgument = new Expression(code, null, left.getOffset(), left, current.getArguments().get(0));
 
             newArgument.setInferredType(BuiltinTypes.Boolean);
             current.getArguments().set(0, newArgument);
@@ -3835,7 +3845,7 @@ public final class AstOptimizer {
             return right;
         }
         else {
-            final Expression newExpression = new Expression(code, null, left, right);
+            final Expression newExpression = new Expression(code, null, left.getOffset(), left, right);
             newExpression.setInferredType(BuiltinTypes.Boolean);
             return newExpression;
         }

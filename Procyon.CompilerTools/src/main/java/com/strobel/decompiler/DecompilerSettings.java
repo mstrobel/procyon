@@ -38,6 +38,7 @@ public class DecompilerSettings {
     private Language _language;
     private String _outputFileHeaderText;
     private String _outputDirectory;
+    private boolean _showDebugLineNumbers;
 
     public DecompilerSettings() {
     }
@@ -168,6 +169,14 @@ public class DecompilerSettings {
 
     public final void setUnicodeOutputEnabled(final boolean unicodeOutputEnabled) {
         _isUnicodeOutputEnabled = unicodeOutputEnabled;
+    }
+
+    public void setShowDebugLineNumbers(boolean showDebugLineNumbers) {
+        _showDebugLineNumbers = showDebugLineNumbers;
+    }
+    
+    public boolean getShowDebugLineNumbers() {
+        return _showDebugLineNumbers;
     }
 
     public static DecompilerSettings javaDefaults() {

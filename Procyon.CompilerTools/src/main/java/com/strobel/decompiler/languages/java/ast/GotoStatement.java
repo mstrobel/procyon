@@ -23,10 +23,8 @@ import com.strobel.decompiler.patterns.Match;
 public class GotoStatement extends Statement {
     public final static TokenRole GOTO_KEYWORD_ROLE = new TokenRole("goto", TokenRole.FLAG_KEYWORD);
 
-    public GotoStatement() {
-    }
-
-    public GotoStatement(final String label) {
+    public GotoStatement( final int offset, final String label) {
+        super( offset);
         setLabel(label);
     }
 

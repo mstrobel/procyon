@@ -20,30 +20,29 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class AnonymousObjectCreationExpression extends ObjectCreationExpression {
-    public AnonymousObjectCreationExpression(final TypeDeclaration typeDeclaration) {
-        setTypeDeclaration(typeDeclaration);
-    }
 
-    public AnonymousObjectCreationExpression(final TypeDeclaration typeDeclaration, final AstType type) {
-        super(type);
+    public AnonymousObjectCreationExpression( int offset, final TypeDeclaration typeDeclaration, final AstType type) {
+        super( offset, type);
         setTypeDeclaration(typeDeclaration);
     }
 
     public AnonymousObjectCreationExpression(
+        int offset,
         final TypeDeclaration typeDeclaration,
         final AstType type,
         final Expression... arguments) {
 
-        super(type, arguments);
+        super( offset, type, arguments);
         setTypeDeclaration(typeDeclaration);
     }
 
     public AnonymousObjectCreationExpression(
+        final int offset,
         final TypeDeclaration typeDeclaration,
         final AstType type,
         final Iterable<Expression> arguments) {
 
-        super(type, arguments);
+        super( offset, type, arguments);
         setTypeDeclaration(typeDeclaration);
     }
 

@@ -24,19 +24,13 @@ public class MethodGroupExpression extends Expression {
     public final static Role<Expression> CLOSURE_ARGUMENT_RULE = new Role<>("ClosureArgument", Expression.class, Expression.NULL);
     public final static TokenRole DOUBLE_COLON_ROLE = new TokenRole("::", TokenRole.FLAG_OPERATOR);
 
-    public MethodGroupExpression() {
-    }
-
-    public MethodGroupExpression(final Expression target, final String methodName) {
+    public MethodGroupExpression( int offset, final Expression target, final String methodName) {
+        super( offset);
         setTarget(target);
         setMethodName(methodName);
     }
 
-    public MethodGroupExpression(final AstType declaringType, final String methodName) {
-        setTarget(new TypeReferenceExpression(declaringType));
-        setMethodName(methodName);
-    }
-
+    
     public final AstNodeCollection<Expression> getClosureArguments() {
         return getChildrenByRole(CLOSURE_ARGUMENT_RULE);
     }

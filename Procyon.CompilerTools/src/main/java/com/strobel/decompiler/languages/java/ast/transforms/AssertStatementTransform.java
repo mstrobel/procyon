@@ -44,21 +44,22 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
     private final static AssignmentExpression ASSERTIONS_DISABLED_PATTERN;
 
     static {
-        ASSERT_PATTERN = new IfElseStatement(
+        ASSERT_PATTERN = new IfElseStatement(Expression.MYSTERY_OFFSET,
             new UnaryOperatorExpression(
                 UnaryOperatorType.NOT,
                 new Choice(
                     new BinaryOperatorExpression(
-                        new TypeReferenceExpression(new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled"),
+                        new TypeReferenceExpression(Expression.MYSTERY_OFFSET, new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled"),
                         BinaryOperatorType.LOGICAL_OR,
                         new AnyNode("condition").toExpression()
                     ),
-                    new TypeReferenceExpression(new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled")
+                    new TypeReferenceExpression(Expression.MYSTERY_OFFSET, new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled")
                 ).toExpression()
             ),
             new BlockStatement(
                 new ThrowStatement(
                     new ObjectCreationExpression(
+                        Expression.MYSTERY_OFFSET,
                         new SimpleType("AssertionError"),
                         new OptionalNode(new AnyNode("message")).toExpression()
                     )
@@ -70,15 +71,18 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
             new NamedNode(
                 "$assertionsDisabled",
                 new Choice(
-                    new IdentifierExpression("$assertionsDisabled"),
+                    new IdentifierExpression( Expression.MYSTERY_OFFSET, "$assertionsDisabled"),
                     new TypedNode(TypeReferenceExpression.class).toExpression().member("$assertionsDisabled")
                 )
             ).toExpression(),
             new UnaryOperatorExpression(
                 UnaryOperatorType.NOT,
                 new InvocationExpression(
+                    Expression.MYSTERY_OFFSET,
                     new MemberReferenceExpression(
-                        new NamedNode("type", new ClassOfExpression(new SimpleType(Pattern.ANY_STRING))).toExpression(),
+                        Expression.MYSTERY_OFFSET,
+                        new NamedNode("type", new ClassOfExpression( Expression.MYSTERY_OFFSET,
+                                new SimpleType(Pattern.ANY_STRING))).toExpression(),
                         "desiredAssertionStatus"
                     )
                 )
@@ -167,14 +171,15 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
         }
 
         final Expression condition = firstOrDefault(m.<Expression>get("condition"));
-        final AssertStatement assertStatement = new AssertStatement();
+        final AssertStatement assertStatement = new AssertStatement(
+                condition == null ? ifElse.getOffset() : condition.getOffset());
 
         if (condition != null) {
             condition.remove();
             assertStatement.setCondition(condition);
         }
         else {
-            assertStatement.setCondition(new PrimitiveExpression(false));
+            assertStatement.setCondition(new PrimitiveExpression(Expression.MYSTERY_OFFSET,false));
         }
 
         if (m.has("message")) {

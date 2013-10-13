@@ -56,13 +56,15 @@ public class StringSwitchRewriterTransform extends ContextTrackingVisitor<Void> 
         TABLE_SWITCH_INPUT = new VariableDeclarationStatement(
             intType,
             Pattern.ANY_STRING,
-            new PrimitiveExpression(-1)
+            new PrimitiveExpression( Expression.MYSTERY_OFFSET, -1)
         );
 
         HASH_CODE_PATTERN = new NamedNode(
             "hashCodeCall",
             new InvocationExpression(
+                Expression.MYSTERY_OFFSET,
                 new MemberReferenceExpression(
+                    Expression.MYSTERY_OFFSET,
                     new AnyNode("target").toExpression(),
                     "hashCode"
                 )
@@ -71,47 +73,51 @@ public class StringSwitchRewriterTransform extends ContextTrackingVisitor<Void> 
 
         final BlockStatement caseBody = new BlockStatement();
 
-        final IfElseStatement test = new IfElseStatement(
+        final IfElseStatement test = new IfElseStatement(Expression.MYSTERY_OFFSET,
             new InvocationExpression(
+                Expression.MYSTERY_OFFSET,
                 new MemberReferenceExpression(
-                    new NamedNode("input", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    Expression.MYSTERY_OFFSET,
+                    new NamedNode("input", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                     "equals"
                 ),
-                new NamedNode("stringValue", new PrimitiveExpression(Pattern.ANY_STRING)).toExpression()
+                new NamedNode("stringValue", new PrimitiveExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression()
             ),
             new BlockStatement(
                 new ExpressionStatement(
                     new AssignmentExpression(
-                        new NamedNode("tableSwitchInput", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
-                        new NamedNode("tableSwitchCaseValue", new PrimitiveExpression(PrimitiveExpression.ANY_VALUE)).toExpression()
+                        new NamedNode("tableSwitchInput", new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
+                        new NamedNode("tableSwitchCaseValue", new PrimitiveExpression(Expression.MYSTERY_OFFSET, PrimitiveExpression.ANY_VALUE)).toExpression()
                     )
                 ),
-                new OptionalNode(new BreakStatement()).toStatement()
+                new OptionalNode(new BreakStatement(Expression.MYSTERY_OFFSET)).toStatement()
             )
         );
 
-        final IfElseStatement additionalTest = new IfElseStatement(
+        final IfElseStatement additionalTest = new IfElseStatement(Expression.MYSTERY_OFFSET,
             new InvocationExpression(
+                Expression.MYSTERY_OFFSET,
                 new MemberReferenceExpression(
+                    Expression.MYSTERY_OFFSET,
                     new IdentifierExpressionBackReference("input").toExpression(),
                     "equals"
                 ),
-                new NamedNode("stringValue", new PrimitiveExpression(Pattern.ANY_STRING)).toExpression()
+                new NamedNode("stringValue", new PrimitiveExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression()
             ),
             new BlockStatement(
                 new ExpressionStatement(
                     new AssignmentExpression(
                         new IdentifierExpressionBackReference("tableSwitchInput").toExpression(),
-                        new NamedNode("tableSwitchCaseValue", new PrimitiveExpression(PrimitiveExpression.ANY_VALUE)).toExpression()
+                        new NamedNode("tableSwitchCaseValue", new PrimitiveExpression( Expression.MYSTERY_OFFSET, PrimitiveExpression.ANY_VALUE)).toExpression()
                     )
                 ),
-                new OptionalNode(new BreakStatement()).toStatement()
+                new OptionalNode(new BreakStatement(Expression.MYSTERY_OFFSET)).toStatement()
             )
         );
 
         caseBody.add(test);
         caseBody.add(new Repeat(additionalTest).toStatement());
-        caseBody.add(new BreakStatement());
+        caseBody.add(new BreakStatement(Expression.MYSTERY_OFFSET));
 
         CASE_BODY_PATTERN = caseBody;
     }
@@ -281,7 +287,7 @@ public class StringSwitchRewriterTransform extends ContextTrackingVisitor<Void> 
                 CaseLabel insertionPoint = c;
 
                 for (int i = 1; i < stringValues.size(); i++) {
-                    final CaseLabel newLabel = new CaseLabel(new PrimitiveExpression(stringValues.get(i)));
+                    final CaseLabel newLabel = new CaseLabel(new PrimitiveExpression( Expression.MYSTERY_OFFSET, stringValues.get(i)));
                     s.getCaseLabels().insertAfter(insertionPoint, newLabel);
                     insertionPoint = newLabel;
                 }

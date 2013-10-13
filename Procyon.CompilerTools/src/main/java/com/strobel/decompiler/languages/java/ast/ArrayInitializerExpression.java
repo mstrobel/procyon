@@ -23,9 +23,12 @@ import java.util.Collections;
 
 public class ArrayInitializerExpression extends Expression {
     public ArrayInitializerExpression() {
+        super( Expression.MYSTERY_OFFSET); // Don't care about this expression's line #
     }
 
     public ArrayInitializerExpression(final Iterable<Expression> elements) {
+        super( Expression.MYSTERY_OFFSET); // Don't care about this expression's line #, just care
+                                           // about the line #s of individual Expressions in it.
         if (elements != null) {
             final AstNodeCollection<Expression> elementsCollection = getElements();
 
@@ -36,6 +39,8 @@ public class ArrayInitializerExpression extends Expression {
     }
 
     public ArrayInitializerExpression(final Expression... elements) {
+        super( Expression.MYSTERY_OFFSET); // Don't care about this expression's line #, just care
+                                           // about the line #s of individual Expressions in it.
         if (elements != null) {
             Collections.addAll(getElements(), elements);
         }

@@ -22,10 +22,8 @@ import com.strobel.decompiler.patterns.Match;
 public final class ClassOfExpression extends Expression {
     public final static TokenRole ClassKeywordRole = new TokenRole("class", TokenRole.FLAG_KEYWORD);
 
-    public ClassOfExpression() {
-    }
-
-    public ClassOfExpression(final AstType type) {
+    public ClassOfExpression( int offset, final AstType type) {
+        super( offset);
         addChild(type, Roles.TYPE);
     }
 

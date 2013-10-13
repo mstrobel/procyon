@@ -127,22 +127,22 @@ public abstract class AstType extends AstNode {
     }
 
     public InvocationExpression invoke(final String methodName, final Expression... arguments) {
-        return new TypeReferenceExpression(this).invoke(methodName, arguments);
+        return new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this).invoke(methodName, arguments);
     }
 
     public InvocationExpression invoke(final String methodName, final Iterable<Expression> arguments) {
-        return new TypeReferenceExpression(this).invoke(methodName, arguments);
+        return new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this).invoke(methodName, arguments);
     }
 
     public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Expression... arguments) {
-        return new TypeReferenceExpression(this).invoke(methodName, typeArguments, arguments);
+        return new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this).invoke(methodName, typeArguments, arguments);
     }
 
     public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Iterable<Expression> arguments) {
-        return new TypeReferenceExpression(this).invoke(methodName, typeArguments, arguments);
+        return new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this).invoke(methodName, typeArguments, arguments);
     }
 
     public MemberReferenceExpression member(final String memberName) {
-        return new TypeReferenceExpression(this).member(memberName);
+        return new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this).member(memberName);
     }
 }

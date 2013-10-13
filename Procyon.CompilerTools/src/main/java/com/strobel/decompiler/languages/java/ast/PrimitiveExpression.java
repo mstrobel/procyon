@@ -34,19 +34,22 @@ public class PrimitiveExpression extends Expression {
     private String _literalValue;
     private Object _value;
 
-    public PrimitiveExpression(final Object value) {
+    public PrimitiveExpression( final int offset, final Object value) {
+        super( offset);
         _value = value;
         _startLocation = TextLocation.EMPTY;
         _literalValue = StringUtilities.EMPTY;
     }
 
-    public PrimitiveExpression(final Object value, final String literalValue) {
+    public PrimitiveExpression( final int offset, final Object value, final String literalValue) {
+        super( offset);
         _value = value;
         _startLocation = TextLocation.EMPTY;
         _literalValue = literalValue != null ? literalValue : StringUtilities.EMPTY;
     }
 
-    public PrimitiveExpression(final Object value, final TextLocation startLocation, final String literalValue) {
+    public PrimitiveExpression( final int offset, final Object value, final TextLocation startLocation, final String literalValue) {
+        super( offset);
         _value = value;
         _startLocation = startLocation;
         _literalValue = literalValue != null ? literalValue : StringUtilities.EMPTY;

@@ -24,6 +24,10 @@ public class LambdaExpression extends Expression {
     public final static TokenRole ARROW_ROLE = new TokenRole ("->", TokenRole.FLAG_OPERATOR);
     public final static Role<AstNode> BODY_ROLE = new Role<>("Body", AstNode.class, AstNode.NULL);
 
+    public LambdaExpression( final int offset) {
+        super( offset);
+    }
+    
     public final AstNodeCollection<ParameterDeclaration> getParameters() {
         return getChildrenByRole(Roles.PARAMETER);
     }

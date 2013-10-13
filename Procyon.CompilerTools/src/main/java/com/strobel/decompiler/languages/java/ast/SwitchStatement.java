@@ -24,10 +24,8 @@ public class SwitchStatement extends Statement {
     public final static TokenRole SWITCH_KEYWORD_ROLE = new TokenRole("switch", TokenRole.FLAG_KEYWORD);
     public final static Role<SwitchSection> SWITCH_SECTION_ROLE = new Role<>("SwitchSection", SwitchSection.class);
 
-    public SwitchStatement() {
-    }
-
     public SwitchStatement(final Expression testExpression) {
+        super( testExpression.getOffset());
         setExpression(testExpression);
     }
 

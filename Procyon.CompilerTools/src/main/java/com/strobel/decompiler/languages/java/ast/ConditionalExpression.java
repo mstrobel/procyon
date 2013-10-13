@@ -27,10 +27,8 @@ public class ConditionalExpression extends Expression {
     public final static TokenRole COLON_ROLE = new TokenRole(":", TokenRole.FLAG_OPERATOR);
     public final static Role<Expression> FALSE_ROLE = new Role<>("False", Expression.class, Expression.NULL);
 
-    public ConditionalExpression() {
-    }
-
     public ConditionalExpression(final Expression condition, final Expression trueExpression, final Expression falseExpression) {
+        super( condition.getOffset());
         addChild(condition, CONDITION_ROLE);
         addChild(trueExpression, TRUE_ROLE);
         addChild(falseExpression, FALSE_ROLE);

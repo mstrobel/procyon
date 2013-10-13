@@ -27,11 +27,12 @@ public final class SuperReferenceExpression extends Expression {
     private TextLocation _startLocation;
     private TextLocation _endLocation;
 
-    public SuperReferenceExpression() {
-        this(TextLocation.EMPTY);
+    public SuperReferenceExpression(final int offset) {
+        this( offset, TextLocation.EMPTY);
     }
 
-    public SuperReferenceExpression(final TextLocation startLocation) {
+    public SuperReferenceExpression(final int offset, final TextLocation startLocation) {
+        super( offset);
         _startLocation = VerifyArgument.notNull(startLocation, "startLocation");
         _endLocation = new TextLocation(startLocation.line(), startLocation.column() + SUPER_TEXT.length());
     }

@@ -38,8 +38,9 @@ public abstract class Language {
         writeCommentLine(output, packageName);
     }
 
-    public void decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
+    public TypeDecompilationResults decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
         writeCommentLine(output, typeToString(type, true));
+        return new TypeDecompilationResults( null);
     }
 
     public void decompileMethod(final MethodDefinition method, final ITextOutput output, final DecompilationOptions options) {

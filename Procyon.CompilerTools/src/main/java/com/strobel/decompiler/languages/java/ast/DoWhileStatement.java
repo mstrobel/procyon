@@ -23,6 +23,10 @@ public class DoWhileStatement extends Statement {
     public final static TokenRole DO_KEYWORD_ROLE = new TokenRole("do", TokenRole.FLAG_KEYWORD);
     public final static TokenRole WHILE_KEYWORD_ROLE = new TokenRole("while", TokenRole.FLAG_KEYWORD);
 
+    public DoWhileStatement( int offset) {
+        super( offset);
+    }
+    
     public final Statement getEmbeddedStatement() {
         return getChildByRole(Roles.EMBEDDED_STATEMENT);
     }

@@ -59,7 +59,8 @@ public class DeclareVariablesTransform implements IAstTransform {
             if (replacedAssignment == null) {
                 final BlockStatement block = (BlockStatement) v.getInsertionPoint().getParent();
                 final AnalysisResult analysisResult = analyze(v, block);
-                final VariableDeclarationStatement declaration = new VariableDeclarationStatement(v.getType().clone(), v.getName());
+                final VariableDeclarationStatement declaration =
+                        new VariableDeclarationStatement(v.getType().clone(), v.getName(), Expression.MYSTERY_OFFSET);
 
                 if (variable != null) {
                     declaration.getVariables().firstOrNullObject().putUserData(Keys.VARIABLE, variable);

@@ -64,15 +64,15 @@ public class AstMethodBodyBuilder {
         LAMBDA_BODY_PATTERN = new Choice(
             new BlockStatement(
                 new ExpressionStatement(new AnyNode("body").toExpression()),
-                new OptionalNode(new ReturnStatement()).toStatement()
+                new OptionalNode(new ReturnStatement(Expression.MYSTERY_OFFSET)).toStatement()
             ),
             new BlockStatement(
-                new ReturnStatement(new AnyNode("body").toExpression())
+                new ReturnStatement(Expression.MYSTERY_OFFSET, new AnyNode("body").toExpression())
             ),
             new AnyNode("body").toBlockStatement()
         );
 
-        EMPTY_LAMBDA_BODY_PATTERN = new BlockStatement(new ReturnStatement());
+        EMPTY_LAMBDA_BODY_PATTERN = new BlockStatement(new ReturnStatement(Expression.MYSTERY_OFFSET));
     }
 
     public static BlockStatement createMethodBody(
@@ -177,8 +177,9 @@ public class AstMethodBodyBuilder {
             block.add(
                 new ThrowStatement(
                     new ObjectCreationExpression(
+                           Expression.MYSTERY_OFFSET,
                         astBuilder.convertType(parser.parseTypeDescriptor("java/lang/IllegalStateException")),
-                        new PrimitiveExpression("An error occurred while decompiling this method.")
+                        new PrimitiveExpression( Expression.MYSTERY_OFFSET, "An error occurred while decompiling this method.")
                     )
                 )
             );
@@ -313,7 +314,7 @@ public class AstMethodBodyBuilder {
             }
 
             final AstType type = _astBuilder.convertType(variableType);
-            final VariableDeclarationStatement declaration = new VariableDeclarationStatement(type, v.getName());
+            final VariableDeclarationStatement declaration = new VariableDeclarationStatement(type, v.getName(), Expression.MYSTERY_OFFSET);
 
             declaration.putUserData(Keys.VARIABLE, v);
             statements.insertBefore(insertionPoint, declaration);
@@ -348,7 +349,7 @@ public class AstMethodBodyBuilder {
 
     private Statement transformNode(final Node node, final Node next) {
         if (node instanceof Label) {
-            return new LabelStatement(((Label) node).getName());
+            return new LabelStatement(Expression.MYSTERY_OFFSET,((Label) node).getName());
         }
 
         if (node instanceof Block) {
@@ -406,20 +407,20 @@ public class AstMethodBodyBuilder {
 
             if (loopCondition != null) {
                 if (loop.getLoopType() == LoopType.PostCondition) {
-                    final DoWhileStatement doWhileStatement = new DoWhileStatement();
+                    final DoWhileStatement doWhileStatement = new DoWhileStatement(loopCondition.getOffset());
                     doWhileStatement.setCondition((Expression) transformExpression(loopCondition, false));
                     loopStatement = doWhileStatement;
                 }
                 else {
-                    final WhileStatement whileStatement = new WhileStatement();
+                    final WhileStatement whileStatement = new WhileStatement(loopCondition.getOffset());
                     whileStatement.setCondition((Expression) transformExpression(loopCondition, false));
                     loopStatement = whileStatement;
                 }
             }
             else {
-                final WhileStatement whileStatement = new WhileStatement();
+                final WhileStatement whileStatement = new WhileStatement(Expression.MYSTERY_OFFSET);
                 loopStatement = whileStatement;
-                whileStatement.setCondition(new PrimitiveExpression(true));
+                whileStatement.setCondition(new PrimitiveExpression(Expression.MYSTERY_OFFSET, true));
             }
 
             loopStatement.setChildByRole(Roles.EMBEDDED_STATEMENT, transformBlock(loop.getBody()));
@@ -435,6 +436,7 @@ public class AstMethodBodyBuilder {
             final boolean hasFalseBlock = falseBlock.getEntryGoto() != null || !falseBlock.getBody().isEmpty();
 
             return new IfElseStatement(
+                testCondition.getOffset(),
                 (Expression) transformExpression(testCondition, false),
                 transformBlock(trueBlock),
                 hasFalseBlock ? transformBlock(falseBlock) : null
@@ -488,7 +490,7 @@ public class AstMethodBodyBuilder {
             final Block finallyBlock = tryCatchNode.getFinallyBlock();
             final List<CatchBlock> catchBlocks = tryCatchNode.getCatchBlocks();
 
-            final TryCatchStatement tryCatch = new TryCatchStatement();
+            final TryCatchStatement tryCatch = new TryCatchStatement( Expression.MYSTERY_OFFSET);
 
             tryCatch.setTryBlock(transformBlock(tryCatchNode.getTryBlock()));
 
@@ -520,7 +522,7 @@ public class AstMethodBodyBuilder {
     }
 
     private SynchronizedStatement transformSynchronized(final com.strobel.decompiler.ast.Expression expression, final TryCatchBlock tryCatch) {
-        final SynchronizedStatement s = new SynchronizedStatement();
+        final SynchronizedStatement s = new SynchronizedStatement( expression.getOffset());
 
         s.setExpression((Expression) transformExpression(expression.getArguments().get(0), false));
 
@@ -562,22 +564,22 @@ public class AstMethodBodyBuilder {
                 return null;
 
             case AConstNull:
-                return new NullReferenceExpression();
+                return new NullReferenceExpression( byteCode.getOffset());
 
             case LdC: {
                 if (operand instanceof TypeReference) {
                     operandType.getChildrenByRole(Roles.TYPE_ARGUMENT).clear();
-                    return new ClassOfExpression(operandType);
+                    return new ClassOfExpression( byteCode.getOffset(), operandType);
                 }
 
                 final TypeReference type = byteCode.getInferredType() != null ? byteCode.getInferredType()
                                                                               : byteCode.getExpectedType();
 
                 if (type != null) {
-                    return new PrimitiveExpression(JavaPrimitiveCast.cast(type.getSimpleType(), operand));
+                    return new PrimitiveExpression( byteCode.getOffset(), JavaPrimitiveCast.cast(type.getSimpleType(), operand));
                 }
 
-                return new PrimitiveExpression(operand);
+                return new PrimitiveExpression( byteCode.getOffset(), operand);
             }
 
             case Pop:
@@ -625,7 +627,7 @@ public class AstMethodBodyBuilder {
                 return new CastExpression(_astBuilder.convertType(BuiltinTypes.Short), arg1);
 
             case Goto:
-                return new GotoStatement(((Label) operand).getName());
+                return new GotoStatement(byteCode.getOffset(), ((Label) operand).getName());
 
             case GetStatic: {
                 final ConvertTypeOptions options = new ConvertTypeOptions();
@@ -651,7 +653,7 @@ public class AstMethodBodyBuilder {
                     // Fields marked 'static final' cannot be initialized using a fully qualified name.
                     //
 
-                    fieldReference = new IdentifierExpression(fieldOperand.getName());
+                    fieldReference = new IdentifierExpression( byteCode.getOffset(), fieldOperand.getName());
                 }
                 else {
                     fieldReference = _astBuilder.convertType(fieldOperand.getDeclaringType(), options)
@@ -713,9 +715,9 @@ public class AstMethodBodyBuilder {
                             break;
                     }
 
-                    final MethodGroupExpression methodGroup = new MethodGroupExpression(
+                    final MethodGroupExpression methodGroup = new MethodGroupExpression( byteCode.getOffset(), 
                         hasInstanceArgument ? arg1
-                                            : new TypeReferenceExpression(_astBuilder.convertType(declaringType)),
+                                            : new TypeReferenceExpression( byteCode.getOffset(), _astBuilder.convertType(declaringType)),
                         methodName
                     );
 
@@ -738,7 +740,7 @@ public class AstMethodBodyBuilder {
 
             case Bind: {
                 final Lambda lambda = (Lambda) byteCode.getOperand();
-                final LambdaExpression lambdaExpression = new LambdaExpression();
+                final LambdaExpression lambdaExpression = new LambdaExpression(byteCode.getOffset());
                 final AstNodeCollection<ParameterDeclaration> declarations = lambdaExpression.getParameters();
 
                 for (final Variable v : lambda.getParameters()) {
@@ -800,14 +802,15 @@ public class AstMethodBodyBuilder {
                 return new CastExpression(operandType, arg1);
 
             case InstanceOf:
-                return new InstanceOfExpression(arg1, operandType);
+                return new InstanceOfExpression( byteCode.getOffset(), arg1, operandType);
 
             case MonitorEnter:
             case MonitorExit:
                 break;
 
             case MultiANewArray: {
-                final ArrayCreationExpression arrayCreation = new ArrayCreationExpression();
+                final ArrayCreationExpression arrayCreation =
+                        new ArrayCreationExpression( byteCode.getOffset());
 
                 int rank = 0;
                 AstType elementType = operandType;
@@ -839,11 +842,12 @@ public class AstMethodBodyBuilder {
                     _localVariablesToDefine.add(variableOperand);
                 }
                 if (variableOperand.isParameter() && variableOperand.getOriginalParameter().getPosition() < 0) {
-                    final ThisReferenceExpression self = new ThisReferenceExpression();
+                    final ThisReferenceExpression self = new ThisReferenceExpression( byteCode.getOffset());
                     self.putUserData(Keys.TYPE_REFERENCE, _context.getCurrentType());
                     return self;
                 }
-                final IdentifierExpression name = new IdentifierExpression(variableOperand.getName());
+                final IdentifierExpression name = new IdentifierExpression( byteCode.getOffset(),
+                        variableOperand.getName());
                 name.putUserData(Keys.VARIABLE, variableOperand);
                 return name;
             }
@@ -852,17 +856,18 @@ public class AstMethodBodyBuilder {
                 if (!variableOperand.isParameter()) {
                     _localVariablesToDefine.add(variableOperand);
                 }
-                final IdentifierExpression name = new IdentifierExpression(variableOperand.getName());
+                final IdentifierExpression name = new IdentifierExpression( byteCode.getOffset(),
+                        variableOperand.getName());
                 name.putUserData(Keys.VARIABLE, variableOperand);
                 return new AssignmentExpression(name, arg1);
             }
 
             case LoadElement: {
-                return new IndexerExpression(arg1, arg2);
+                return new IndexerExpression( byteCode.getOffset(), arg1, arg2);
             }
             case StoreElement: {
                 return new AssignmentExpression(
-                    new IndexerExpression(arg1, arg2),
+                    new IndexerExpression( byteCode.getOffset(), arg1, arg2),
                     arg3
                 );
             }
@@ -899,7 +904,8 @@ public class AstMethodBodyBuilder {
                     _localVariablesToDefine.add(variableOperand);
                 }
 
-                final IdentifierExpression name = new IdentifierExpression(variableOperand.getName());
+                final IdentifierExpression name = new IdentifierExpression( byteCode.getOffset(),
+                        variableOperand.getName());
 
                 name.getIdentifierToken().putUserData(Keys.VARIABLE, variableOperand);
                 name.putUserData(Keys.VARIABLE, variableOperand);
@@ -931,10 +937,11 @@ public class AstMethodBodyBuilder {
                 return new BinaryOperatorExpression(arg1, BinaryOperatorType.LESS_THAN_OR_EQUAL, arg2);
 
             case Return:
-                return new ReturnStatement(arg1);
+                return new ReturnStatement(byteCode.getOffset(), arg1);
 
             case NewArray: {
-                final ArrayCreationExpression arrayCreation = new ArrayCreationExpression();
+                final ArrayCreationExpression arrayCreation =
+                        new ArrayCreationExpression( byteCode.getOffset());
 
                 TypeReference elementType = operandType.getUserData(Keys.TYPE_REFERENCE);
 
@@ -961,7 +968,8 @@ public class AstMethodBodyBuilder {
                 return transformCall(false, byteCode, arguments);
 
             case InitArray: {
-                final ArrayCreationExpression arrayCreation = new ArrayCreationExpression();
+                final ArrayCreationExpression arrayCreation =
+                        new ArrayCreationExpression( byteCode.getOffset());
 
                 TypeReference elementType = operandType.getUserData(Keys.TYPE_REFERENCE);
 
@@ -983,10 +991,10 @@ public class AstMethodBodyBuilder {
                 return new ConditionalExpression(arg1, arg2, arg3);
 
             case LoopOrSwitchBreak:
-                return label != null ? new GotoStatement(label.getName()) : new BreakStatement();
+                return label != null ? new GotoStatement(byteCode.getOffset(), label.getName()) : new BreakStatement(byteCode.getOffset());
 
             case LoopContinue:
-                return label != null ? new ContinueStatement(label.getName()) : new ContinueStatement();
+                return label != null ? new ContinueStatement(byteCode.getOffset(), label.getName()) : new ContinueStatement( byteCode.getOffset());
 
             case CompoundAssignment:
                 throw ContractUtils.unreachable();
@@ -1067,13 +1075,13 @@ public class AstMethodBodyBuilder {
                 options.setIncludeTypeArguments(false);
                 options.setIncludeTypeParameterDefinitions(false);
                 options.setAllowWildcards(false);
-                target = new TypeReferenceExpression(_astBuilder.convertType(declaringType, options));
+                target = new TypeReferenceExpression( byteCode.getOffset(), _astBuilder.convertType(declaringType, options));
             }
         }
 
         if (target instanceof ThisReferenceExpression) {
             if (!isVirtual && !declaringType.isEquivalentTo(_method.getDeclaringType())) {
-                target = new SuperReferenceExpression();
+                target = new SuperReferenceExpression( byteCode.getOffset());
                 target.putUserData(Keys.TYPE_REFERENCE, declaringType);
             }
         }
@@ -1111,18 +1119,19 @@ public class AstMethodBodyBuilder {
 
                 if (resolvedType.isAnonymous()) {
                     creation = new AnonymousObjectCreationExpression(
+                        byteCode.getOffset(),
                         _astBuilder.createType(resolvedType).clone(),
                         declaredType
                     );
                 }
                 else {
-                    creation = new ObjectCreationExpression(declaredType);
+                    creation = new ObjectCreationExpression( byteCode.getOffset(), declaredType);
                 }
             }
             else {
                 final ConvertTypeOptions options = new ConvertTypeOptions();
                 options.setIncludeTypeParameterDefinitions(false);
-                creation = new ObjectCreationExpression(_astBuilder.convertType(declaringType, options));
+                creation = new ObjectCreationExpression( byteCode.getOffset(), _astBuilder.convertType(declaringType, options));
             }
 
             creation.getArguments().addAll(adjustArgumentsForMethodCall(methodReference, arguments));
@@ -1135,6 +1144,7 @@ public class AstMethodBodyBuilder {
 
         if (methodReference.isConstructor()) {
             invocation = new InvocationExpression(
+                byteCode.getOffset(),
                 target,
                 adjustArgumentsForMethodCall(methodReference, arguments)
             );
@@ -1307,9 +1317,10 @@ public class AstMethodBodyBuilder {
 
     private static Expression inlineAssembly(final com.strobel.decompiler.ast.Expression byteCode, final List<Expression> arguments) {
         if (byteCode.getOperand() != null) {
-            arguments.add(0, new IdentifierExpression(formatByteCodeOperand(byteCode.getOperand())));
+            arguments.add(0, new IdentifierExpression( byteCode.getOffset(),
+                    formatByteCodeOperand(byteCode.getOperand())));
         }
-        return new IdentifierExpression(byteCode.getCode().getName()).invoke(arguments);
+        return new IdentifierExpression( byteCode.getOffset(), byteCode.getCode().getName()).invoke(arguments);
     }
 
     private static String formatByteCodeOperand(final Object operand) {

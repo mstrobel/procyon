@@ -20,14 +20,17 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class LabeledStatement extends Statement {
-    public LabeledStatement() {
+    public LabeledStatement(final int offset) {
+        super(offset);
     }
 
-    public LabeledStatement(final String name) {
+    public LabeledStatement(final int offset, final String name) {
+        super(offset);
         setLabel(name);
     }
 
     public LabeledStatement(final String name, final Statement statement) {
+        this( statement.getOffset());
         setLabel(name);
         setStatement(statement);
     }

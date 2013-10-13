@@ -267,7 +267,7 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                             return new BinaryOperatorExpression(
                                 right,
                                 BinaryOperatorType.INEQUALITY,
-                                new PrimitiveExpression(JavaPrimitiveCast.cast(valueResult.getType().getSimpleType(), 0))
+                                new PrimitiveExpression(Expression.MYSTERY_OFFSET, JavaPrimitiveCast.cast(valueResult.getType().getSimpleType(), 0))
                             );
                         }
                     }
@@ -360,8 +360,8 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                 public AstNode apply(final AstNode input) {
                     return new ConditionalExpression(
                         (Expression) input,
-                        new PrimitiveExpression(invert ? 0 : 1),
-                        new PrimitiveExpression(invert ? 1 : 0)
+                        new PrimitiveExpression(Expression.MYSTERY_OFFSET, invert ? 0 : 1),
+                        new PrimitiveExpression(Expression.MYSTERY_OFFSET, invert ? 1 : 0)
                     );
                 }
             }

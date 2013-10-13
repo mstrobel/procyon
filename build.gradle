@@ -3,6 +3,7 @@ import org.gradle.api.artifacts.maven.MavenDeployment
 apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'idea'
+apply plugin: 'eclipse'
 
 subname = ''
 archivesBaseName = 'procyon'
@@ -11,6 +12,7 @@ allprojects {
     apply plugin: 'java'
     apply plugin: 'idea'
     apply plugin: 'maven'
+    apply plugin: 'eclipse'
 
     version "0.5.20"
 
@@ -67,11 +69,11 @@ subprojects {
                 }
 
                 snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
-                    authentication(userName: sonatypeUsername, password: sonatypePassword)
+                    authentication(userName: "guest", password: "guest")
                 }
 
                 repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2") {
-                    authentication(userName: sonatypeUsername, password: sonatypePassword)
+                    authentication(userName: "guest", password: "guest")
                 }
 
                 pom {

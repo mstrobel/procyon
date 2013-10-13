@@ -43,4 +43,11 @@ public interface IOutputFormatter {
     void newLine();
 
     void writeComment(CommentType commentType, String content);
+    
+    /**
+     * instructs 'this' formatter to forget what it used to know about the sequence of line
+     * number offsets in the source code
+     */
+    public void resetLineNumberOffsets( OffsetToLineNumberConverter offset2LineNumber);
+    
 }

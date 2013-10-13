@@ -47,10 +47,8 @@ public class BinaryOperatorExpression extends Expression {
 
     private BinaryOperatorType _operator;
 
-    public BinaryOperatorExpression() {
-    }
-
     public BinaryOperatorExpression(final Expression left, final BinaryOperatorType operator, final Expression right) {
+        super( left.getOffset());
         setLeft(left);
         setOperator(operator);
         setRight(right);

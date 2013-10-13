@@ -61,9 +61,15 @@ public class CommandLineOptions {
     @Parameter(names = { "-jar", "--jar-file" }, description = "Decompile all classes in the specified jar file (enables -n, disables -s).")
     private String _jarFile;
 
-    @Parameter(names = { "-ln" }, description = "Include line numbers (raw bytecode mode only).")
+    @Parameter(names = { "-ln", "--with-line-numbers" }, description = "Include line numbers (Java or raw bytecode modes only).")
     private boolean _includeLineNumbers;
 
+    @Parameter(names = { "-sl", "--stretch-lines" }, description = "Stretch lines to match original line numbers (Java mode only) [EXPERIMENTAL].")
+    private boolean _stretchLines;
+    
+    @Parameter(names = { "-dl", "--debug-line-numbers" }, description = "For debugging, show line numbers as inline comments (Java mode only).  Implies -ln.")
+    private boolean _showDebugLineNumbers;    
+    
     @Parameter(names = { "-ps", "--retain-pointless-switches" }, description = "Do not lift the contents of switches having only a default label.")
     private boolean _retainPointlessSwitches;
 
@@ -180,6 +186,14 @@ public class CommandLineOptions {
         return _includeLineNumbers;
     }
 
+    public final boolean getStretchLines() {
+        return _stretchLines;
+    }
+    
+    public final boolean getShowDebugLineNumbers() {
+        return _showDebugLineNumbers;
+    }
+    
     public final void setIncludeLineNumbers(final boolean includeLineNumbers) {
         _includeLineNumbers = includeLineNumbers;
     }

@@ -21,10 +21,8 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class TypeReferenceExpression extends Expression {
-    public TypeReferenceExpression() {
-    }
-
-    public TypeReferenceExpression(final AstType type) {
+    public TypeReferenceExpression( int offset, final AstType type) {
+        super( offset);
         addChild(VerifyArgument.notNull(type, "type"), Roles.TYPE);
     }
 

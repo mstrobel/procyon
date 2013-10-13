@@ -30,6 +30,7 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.ast.TypeAnalysis;
+import com.strobel.decompiler.languages.LineNumberPosition;
 import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 import com.strobel.decompiler.languages.java.ast.transforms.IAstTransform;
 import com.strobel.decompiler.languages.java.ast.transforms.TransformationPipeline;
@@ -525,7 +526,7 @@ public final class AstBuilder {
         );
 
         if (field.hasConstantValue()) {
-            initializer.setInitializer(new PrimitiveExpression(field.getConstantValue()));
+            initializer.setInitializer(new PrimitiveExpression( Expression.MYSTERY_OFFSET, field.getConstantValue()));
             initializer.putUserData(Keys.FIELD_DEFINITION, field);
             initializer.putUserData(Keys.MEMBER_REFERENCE, field);
         }
@@ -674,60 +675,62 @@ public final class AstBuilder {
     public static Expression makePrimitive(final long val, final TypeReference type) {
         if (TypeAnalysis.isBoolean(type)) {
             if (val == 0L) {
-                return new PrimitiveExpression(Boolean.FALSE);
+                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, Boolean.FALSE);
             }
-            return new PrimitiveExpression(Boolean.TRUE);
+            return new PrimitiveExpression( Expression.MYSTERY_OFFSET, Boolean.TRUE);
         }
 
         if (type != null) {
-            return new PrimitiveExpression(JavaPrimitiveCast.cast(type.getSimpleType(), val));
+            return new PrimitiveExpression( Expression.MYSTERY_OFFSET, JavaPrimitiveCast.cast(type.getSimpleType(), val));
         }
 
-        return new PrimitiveExpression(JavaPrimitiveCast.cast(JvmType.Integer, val));
+        return new PrimitiveExpression( Expression.MYSTERY_OFFSET, JavaPrimitiveCast.cast(JvmType.Integer, val));
     }
 
     public static Expression makeDefaultValue(final TypeReference type) {
         if (type == null) {
-            return new NullReferenceExpression();
+            return new NullReferenceExpression( Expression.MYSTERY_OFFSET);
         }
 
         switch (type.getSimpleType()) {
             case Boolean:
-                return new PrimitiveExpression(Boolean.FALSE);
+                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, Boolean.FALSE);
 
             case Byte:
-                return new PrimitiveExpression((byte) 0);
+                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, (byte) 0);
 
             case Character:
-                return new PrimitiveExpression('\0');
+                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, '\0');
 
             case Short:
-                return new PrimitiveExpression((short) 0);
+                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, (short) 0);
 
             case Integer:
-                return new PrimitiveExpression(0);
+                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, 0);
 
             case Long:
-                return new PrimitiveExpression(0L);
+                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, 0L);
 
             case Float:
-                return new PrimitiveExpression(0f);
+                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, 0f);
 
             case Double:
-                return new PrimitiveExpression(0d);
+                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, 0d);
 
             default:
-                return new NullReferenceExpression();
+                return new NullReferenceExpression( Expression.MYSTERY_OFFSET);
         }
     }
 
-    public void generateCode(final ITextOutput output) {
+    public List<LineNumberPosition> generateCode(final ITextOutput output) {
         if (!_haveTransformationsRun) {
             runTransformations();
         }
 
         _compileUnit.acceptVisitor(new InsertParenthesesVisitor(), null);
-        _compileUnit.acceptVisitor(new JavaOutputVisitor(output, _context.getSettings()), null);
+        JavaOutputVisitor visitor = new JavaOutputVisitor(output, _context.getSettings());
+        _compileUnit.acceptVisitor(visitor, null);
+        return visitor.getLineNumberPositions();
     }
 
     public static boolean isMemberHidden(final IMemberDefinition member, final DecompilerContext context) {
@@ -786,7 +789,7 @@ public final class AstBuilder {
                 arguments.add(value);
             }
             else {
-                arguments.add(new AssignmentExpression(new IdentifierExpression(member), value));
+                arguments.add(new AssignmentExpression( new IdentifierExpression( value.getOffset(), member), value));
             }
         }
 
@@ -797,12 +800,12 @@ public final class AstBuilder {
         switch (element.getElementType()) {
             case Constant: {
                 final ConstantAnnotationElement constant = (ConstantAnnotationElement) element;
-                return new PrimitiveExpression(constant.getConstantValue());
+                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, constant.getConstantValue());
             }
 
             case Enum: {
                 final EnumAnnotationElement enumElement = (EnumAnnotationElement) element;
-                return new TypeReferenceExpression(convertType(enumElement.getEnumType())).member(enumElement.getEnumConstantName());
+                return new TypeReferenceExpression( Expression.MYSTERY_OFFSET, convertType(enumElement.getEnumType())).member(enumElement.getEnumConstantName());
             }
 
             case Array: {
@@ -818,7 +821,8 @@ public final class AstBuilder {
             }
 
             case Class: {
-                return new ClassOfExpression(convertType(((ClassAnnotationElement) element).getClassType()));
+                return new ClassOfExpression( Expression.MYSTERY_OFFSET,
+                        convertType(((ClassAnnotationElement) element).getClassType()));
             }
 
             case Annotation: {

@@ -172,13 +172,14 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
                     "target",
                     new Choice(
                         new MemberReferenceExpression(
+                            Expression.MYSTERY_OFFSET,
                             new Choice(
                                 new TypedNode(AstType.class),
                                 new TypedNode(ThisReferenceExpression.class)
                             ).toExpression(),
                             Pattern.ANY_STRING
                         ),
-                        new IdentifierExpression(Pattern.ANY_STRING)
+                        new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)
                     ).toExpression(),
                     FieldReference.class
                 ).toExpression(),

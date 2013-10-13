@@ -1,4 +1,6 @@
+#----------------------------------------------------------------------------------------------------
 syntax: glob
+
 Procyon.CompilerTools/build/
 Procyon.Core/build/
 Procyon.Decompiler/build/
@@ -10,3 +12,12 @@ out/
 *.iml
 build/
 cache.txt
+*.class
+
+#----------------------------------------------------------------------------------------------------
+syntax: regexp
+^\.classpath
+^\.project
+.*/\.classpath$
+.*/\.project$
+/org\.eclipse\.jdt\.core\.prefs

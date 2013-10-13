@@ -22,6 +22,10 @@ import com.strobel.decompiler.patterns.Match;
 public class Annotation extends Expression {
     private boolean _hasArgumentList;
 
+    public Annotation() {
+        super( Expression.MYSTERY_OFFSET); // Probably unimportant to show a line # for this.
+    }
+    
     public final AstType getType() {
         return getChildByRole(Roles.TYPE);
     }

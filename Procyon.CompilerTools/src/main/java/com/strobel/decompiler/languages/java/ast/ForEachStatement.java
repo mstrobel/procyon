@@ -26,6 +26,10 @@ public class ForEachStatement extends Statement {
     public final static TokenRole FOR_KEYWORD_ROLE = ForStatement.FOR_KEYWORD_ROLE;
     public final static TokenRole COLON_ROLE = new TokenRole(":", TokenRole.FLAG_OPERATOR);
 
+    public ForEachStatement( int offset) {
+        super( offset);
+    }
+    
     public final JavaTokenNode getForToken() {
         return getChildByRole(FOR_KEYWORD_ROLE);
     }

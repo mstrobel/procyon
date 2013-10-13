@@ -23,6 +23,7 @@ final class CommentStatement extends Statement {
     private final String _comment;
 
     CommentStatement(final String comment) {
+        super( Expression.MYSTERY_OFFSET);
         _comment = comment;
     }
 

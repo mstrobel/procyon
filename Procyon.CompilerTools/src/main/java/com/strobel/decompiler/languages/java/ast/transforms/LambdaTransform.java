@@ -134,7 +134,7 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
             null
         );
 
-        final LambdaExpression lambda = new LambdaExpression();
+        final LambdaExpression lambda = new LambdaExpression(a.getOffset());
         final DynamicCallSite callSite = methodGroup.getUserData(Keys.DYNAMIC_CALL_SITE);
 
         TypeReference lambdaType = methodGroup.getUserData(Keys.TYPE_REFERENCE);

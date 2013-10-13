@@ -28,7 +28,28 @@ public abstract class Expression extends AstNode {
 
     public final static Expression NULL = new NullExpression();
 
+    /** a constant to indicate that no bytecode offset is known for an expression */
+    public static final int MYSTERY_OFFSET = com.strobel.decompiler.ast.Expression.MYSTERY_OFFSET;
+    
+    /** the offset of 'this' Expression, as computed for its bytecode by the Java compiler */
+    private int _offset;
+
+    protected Expression( int offset) {
+        _offset = offset;
+    }
+    
+    /**
+     * Returns the bytecode offset for 'this' expression, as computed by the Java compiler.
+     */
+    public int getOffset() {
+        return _offset;
+    }
+    
     private static final class NullExpression extends Expression {
+        public NullExpression() {
+            super( Expression.MYSTERY_OFFSET);
+        }
+        
         @Override
         public final boolean isNull() {
             return true;
@@ -67,6 +88,7 @@ public abstract class Expression extends AstNode {
         final Pattern child;
 
         PatternPlaceholder(final Pattern child) {
+            super( Expression.MYSTERY_OFFSET);
             this.child = child;
         }
 
@@ -96,11 +118,11 @@ public abstract class Expression extends AstNode {
     // <editor-fold defaultstate="collapsed" desc="Fluent Interface">
 
     public InvocationExpression invoke(final Expression... arguments) {
-        return new InvocationExpression(this, arguments);
+        return new InvocationExpression( this.getOffset(), this, arguments);
     }
 
     public InvocationExpression invoke(final Iterable<Expression> arguments) {
-        return new InvocationExpression(this, arguments);
+        return new InvocationExpression( this.getOffset(), this, arguments);
     }
 
     public InvocationExpression invoke(final String methodName, final Expression... arguments) {
@@ -112,17 +134,17 @@ public abstract class Expression extends AstNode {
     }
 
     public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Expression... arguments) {
-        final MemberReferenceExpression mre = new MemberReferenceExpression(this, methodName, typeArguments);
-        return new InvocationExpression(mre, arguments);
+        final MemberReferenceExpression mre = new MemberReferenceExpression( this.getOffset(), this, methodName, typeArguments);
+        return new InvocationExpression( this.getOffset(), mre, arguments);
     }
 
     public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Iterable<Expression> arguments) {
-        final MemberReferenceExpression mre = new MemberReferenceExpression(this, methodName, typeArguments);
-        return new InvocationExpression(mre, arguments);
+        final MemberReferenceExpression mre = new MemberReferenceExpression( this.getOffset(), this, methodName, typeArguments);
+        return new InvocationExpression( this.getOffset(), mre, arguments);
     }
 
     public MemberReferenceExpression member(final String memberName) {
-        return new MemberReferenceExpression(this, memberName);
+        return new MemberReferenceExpression( this.getOffset(), this, memberName);
     }
 
     // </editor-fold>

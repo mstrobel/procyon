@@ -20,10 +20,8 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class LabelStatement extends Statement {
-    public LabelStatement() {
-    }
-
-    public LabelStatement(final String name) {
+    public LabelStatement(final int offset, final String name) {
+        super(offset);
         setLabel(name);
     }
 
