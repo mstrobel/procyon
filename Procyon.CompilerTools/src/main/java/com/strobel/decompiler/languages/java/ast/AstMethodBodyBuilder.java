@@ -531,7 +531,7 @@ public class AstMethodBodyBuilder {
         }
         else {
             tryCatch.setFinallyBlock(null);
-            s.setEmbeddedStatement(transformNode(tryCatch, null));
+            s.setEmbeddedStatement(new BlockStatement(transformNode(tryCatch, null)));
         }
 
         return s;
@@ -647,7 +647,7 @@ public class AstMethodBodyBuilder {
 
                 if (resolvedField != null &&
                     resolvedField.isFinal() &&
-                    Comparer.equals(fieldOperand.getDeclaringType(), _context.getCurrentType())) {
+                    StringUtilities.equals(resolvedField.getDeclaringType().getInternalName(), _context.getCurrentType().getInternalName())) {
 
                     //
                     // Fields marked 'static final' cannot be initialized using a fully qualified name.

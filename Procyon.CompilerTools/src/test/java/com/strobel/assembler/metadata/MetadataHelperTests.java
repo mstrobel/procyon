@@ -66,7 +66,7 @@ public class MetadataHelperTests {
             for (int j = 0; j < n; j++) {
                 assertEquals(
                     format(
-                        "%s (assignable from) %s",
+                        "%s (assignable from) %s = %s",
                         primitiveTypes[i],
                         primitiveTypes[j],
                         IS_ASSIGNABLE_BIT_SET[j][i]
@@ -76,6 +76,21 @@ public class MetadataHelperTests {
                         primitiveTypes[j]
                     ),
                     IS_ASSIGNABLE_BIT_SET[j][i]
+                );
+                assertEquals(
+                    format(
+                        "%s (conversion from) %s = %s",
+                        primitiveTypes[i],
+                        primitiveTypes[j],
+                        IS_ASSIGNABLE_BIT_SET[j][i] ? (i == j ? ConversionType.IDENTITY : ConversionType.IMPLICIT)
+                                                    : ConversionType.EXPLICIT
+                    ),
+                    MetadataHelper.getConversionType(
+                        primitiveTypes[i],
+                        primitiveTypes[j]
+                    ),
+                    IS_ASSIGNABLE_BIT_SET[j][i] ? (i == j ? ConversionType.IDENTITY : ConversionType.IMPLICIT)
+                                                : ConversionType.EXPLICIT
                 );
             }
         }

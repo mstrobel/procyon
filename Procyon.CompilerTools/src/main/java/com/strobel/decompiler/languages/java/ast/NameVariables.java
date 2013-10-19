@@ -40,7 +40,7 @@ import static com.strobel.core.CollectionUtilities.getOrDefault;
 
 public class NameVariables {
     private final static char MAX_LOOP_VARIABLE_NAME = 'm';
-    private final static String[] METHOD_PREFIXES = { "get", "is", "are", "to", "as", "create", "make", "new" };
+    private final static String[] METHOD_PREFIXES = { "get", "is", "are", "to", "as", "create", "make", "new", "read", "parse", "extract", "find" };
     private final static String[] METHOD_SUFFIXES = { "At", "For", "From", "Of" };
     private final static Map<String, String> BUILT_IN_TYPE_NAMES;
     private final static Map<String, String> METHOD_NAME_MAPPINGS;
@@ -64,6 +64,8 @@ public class NameVariables {
         builtInTypeNames.put(BuiltinTypes.Double.getInternalName(), "n");
         builtInTypeNames.put("java/lang/Double", "n");
         builtInTypeNames.put(BuiltinTypes.Character.getInternalName(), "c");
+        builtInTypeNames.put("java/lang/Number", "n");
+        builtInTypeNames.put("java/io/Serializable", "s");
         builtInTypeNames.put("java/lang/Character", "c");
         builtInTypeNames.put("java/lang/Object", "o");
         builtInTypeNames.put("java/lang/String", "s");

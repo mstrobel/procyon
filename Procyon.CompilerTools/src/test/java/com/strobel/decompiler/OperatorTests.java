@@ -20,7 +20,7 @@ import java.util.Date;
 public class OperatorTests extends DecompilerTest {
     private static class A {
         public String test(final String s, final char c, final byte b, final float n, final Date date) {
-            return b + ":" + c + ":" + s + ":" + n + ":" + date;
+            return b + ":" + (int)c+ ":" + c + ":" + s + ":" + n + ":" + date;
         }
     }
 
@@ -121,7 +121,7 @@ public class OperatorTests extends DecompilerTest {
             defaultSettings(),
             "private static class A {\n" +
             "    public String test(final String s, final char c, final byte b, final float n, final Date date) {\n" +
-            "        return (int)b + \":\" + c + \":\" + s + \":\" + n + \":\" + date;\n" +
+            "        return b + \":\" + (int)c + \":\" + c + \":\" + s + \":\" + n + \":\" + date;\n" +
             "    }\n" +
             "}\n"
         );

@@ -25,7 +25,8 @@ import com.strobel.util.ContractUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.strobel.core.CollectionUtilities.*;
+import static com.strobel.core.CollectionUtilities.any;
+import static com.strobel.core.CollectionUtilities.single;
 
 public final class PatternMatching {
     private PatternMatching() {
@@ -158,6 +159,70 @@ public final class PatternMatching {
     }
 
     public static <T> boolean matchSingle(
+        final Block block,
+        final AstCode code,
+        final StrongBox<? super T> operand) {
+
+        final List<Node> body = block.getBody();
+
+        if (body.size() == 1 &&
+            matchGetOperand(body.get(0), code, operand)) {
+
+            return true;
+        }
+
+        operand.set(null);
+        return false;
+    }
+
+    public static <T> boolean matchSingle(
+        final Block block,
+        final AstCode code,
+        final StrongBox<? super T> operand,
+        final StrongBox<Expression> argument) {
+
+        final List<Node> body = block.getBody();
+
+        if (body.size() == 1 &&
+            matchGetArgument(body.get(0), code, operand, argument)) {
+
+            return true;
+        }
+
+        operand.set(null);
+        argument.set(null);
+        return false;
+    }
+
+    public static boolean matchNullOrEmpty(final Block block) {
+        return block == null || block.getBody().size() == 0;
+    }
+
+    public static boolean matchEmptyReturn(final Node node) {
+        Node target = node;
+
+        if (node instanceof Block || node instanceof BasicBlock) {
+            final List<Node> body = node instanceof Block ? ((Block) node).getBody()
+                                                          : ((BasicBlock) node).getBody();
+
+            if (body.size() != 1) {
+                return false;
+            }
+
+            target = body.get(0);
+        }
+
+        if (target instanceof Expression) {
+            final Expression e = (Expression) target;
+
+            return e.getCode() == AstCode.Return &&
+                   e.getArguments().isEmpty();
+        }
+
+        return false;
+    }
+
+    public static <T> boolean matchSingle(
         final BasicBlock block,
         final AstCode code,
         final StrongBox<? super T> operand,
@@ -271,7 +336,6 @@ public final class PatternMatching {
                 equivalentLoad.set(new Expression(AstCode.GetField, null, arg0.getOffset(), arg0));
                 return true;
             }
-
         }
 
         assignedValue.set(null);
@@ -822,5 +886,26 @@ public final class PatternMatching {
         return matchGetArgument(e, AstCode.MonitorExit, a) &&
                (matchLoad(a.get(), lockInfo.lock) ||
                 lockInfo.lockCopy != null && matchLoad(a.get(), lockInfo.lockCopy));
+    }
+
+    public static boolean matchVariableMutation(final Node node, final Variable variable) {
+        VerifyArgument.notNull(node, "node");
+        VerifyArgument.notNull(variable, "variable");
+
+        if (node instanceof Expression) {
+            final Expression e = (Expression) node;
+
+            switch (e.getCode()) {
+                case Store:
+                case Inc:
+                    return e.getOperand() == variable;
+
+                case PreIncrement:
+                case PostIncrement:
+                    return matchLoad(single(e.getArguments()), variable);
+            }
+        }
+
+        return false;
     }
 }

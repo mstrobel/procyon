@@ -25,61 +25,108 @@ public class CommandLineOptions {
     @Parameter(description = "<class files or names>")
     private final List<String> _classNames = new ArrayList<>();
 
-    @Parameter(names = { "-?", "--help" }, help = true, description = "Display this usage information and exit.")
+    @Parameter(
+        names = { "-?", "--help" },
+        help = true,
+        description = "Display this usage information and exit.")
     private boolean _printUsage;
 
-    @Parameter(names = { "-ei", "--explicit-imports" }, description = "Force explicit type imports (never import '*').")
+    @Parameter(
+        names = { "-mv", "--merge-variables" },
+        description = "Attempt to merge as many variables as possible.  This may lead to fewer declarations, " +
+                      "but at the expense of inlining and useful naming.  This feature is experimental and " +
+                      "may be removed or become the standard behavior in future releases.")
+    private boolean _mergeVariables;
+
+    @Parameter(
+        names = { "-ei", "--explicit-imports" },
+        description = "Force explicit type imports (i.e., never import '*').")
     private boolean _forceExplicitImports;
 
-    @Parameter(names = { "-eta", "--explicit-type-arguments" }, description = "Always print type arguments to generic methods.")
+    @Parameter(
+        names = { "-eta", "--explicit-type-arguments" },
+        description = "Always print type arguments to generic methods.")
     private boolean _forceExplicitTypeArguments;
 
-    @Parameter(names = { "-ec", "--retain-explicit-casts" }, description = "Do not remove redundant explicit casts.")
+    @Parameter(
+        names = { "-ec", "--retain-explicit-casts" },
+        description = "Do not remove redundant explicit casts.")
     private boolean _retainRedundantCasts;
 
-    @Parameter(names = { "-fsb", "--flatten-switch-blocks" }, description = "Remove block statements around switch sections when possible.")
+    @Parameter(
+        names = { "-fsb", "--flatten-switch-blocks" },
+        description = "Drop the braces statements around switch sections when possible.")
     private boolean _flattenSwitchBlocks;
 
-    @Parameter(names = { "-s", "--show-synthetic" }, description = "Show synthetic (compiler-generated) members.")
+    @Parameter(
+        names = { "-s", "--show-synthetic" },
+        description = "Show synthetic (compiler-generated) members.")
     private boolean _showSyntheticMembers;
 
-    @Parameter(names = { "-b", "--bytecode-ast" }, description = "Output Bytecode AST instead of Java.")
+    @Parameter(
+        names = { "-b", "--bytecode-ast" },
+        description = "Output Bytecode AST instead of Java.")
     private boolean _bytecodeAst;
 
-    @Parameter(names = { "-r", "--raw-bytecode" }, description = "Output Raw Bytecode instead of Java.")
+    @Parameter(
+        names = { "-r", "--raw-bytecode" },
+        description = "Output Raw Bytecode instead of Java.")
     private boolean _rawBytecode;
 
-    @Parameter(names = { "-u", "--unoptimized" }, description = "Show unoptimized code (only in combination with -b).")
+    @Parameter(
+        names = { "-u", "--unoptimized" },
+        description = "Show unoptimized code (only in combination with -b).")
     private boolean _unoptimized;
 
-    @Parameter(names = { "-ent", "--exclude-nested" }, description = "Exclude nested types when decompiling their enclosing types.")
+    @Parameter(
+        names = { "-ent", "--exclude-nested" },
+        description = "Exclude nested types when decompiling their enclosing types.")
     private boolean _excludeNestedTypes;
 
-    @Parameter(names = { "-o", "--output-directory" }, description = "Write decompiled results to specified directory instead of stdout.")
+    @Parameter(
+        names = { "-o", "--output-directory" },
+        description = "Write decompiled results to specified directory instead of the console.")
     private String _outputDirectory;
 
-    @Parameter(names = { "-jar", "--jar-file" }, description = "Decompile all classes in the specified jar file (enables -n, disables -s).")
+    @Parameter(
+        names = { "-jar", "--jar-file" },
+        description = "Decompile all classes in the specified jar file (disables -ent and -s).")
     private String _jarFile;
 
-    @Parameter(names = { "-ln", "--with-line-numbers" }, description = "Include line numbers (Java or raw bytecode modes only).")
+    @Parameter(
+	       names = { "-ln", "--with-line-numbers" },
+        description = "Include line numbers (Java or raw bytecode modes).")
     private boolean _includeLineNumbers;
 
-    @Parameter(names = { "-sl", "--stretch-lines" }, description = "Stretch lines to match original line numbers (Java mode only) [EXPERIMENTAL].")
+    @Parameter(
+        names = { "-sl", "--stretch-lines" },
+        description = "Stretch lines to match original line numbers (Java mode only) [EXPERIMENTAL].")
     private boolean _stretchLines;
     
-    @Parameter(names = { "-dl", "--debug-line-numbers" }, description = "For debugging, show line numbers as inline comments (Java mode only).  Implies -ln.")
+    @Parameter(
+        names = { "-dl", "--debug-line-numbers" },
+        description = "For debugging, show line numbers as inline comments (Java mode only).  Implies -ln.")
     private boolean _showDebugLineNumbers;    
-    
-    @Parameter(names = { "-ps", "--retain-pointless-switches" }, description = "Do not lift the contents of switches having only a default label.")
+
+    @Parameter(
+        names = { "-ps", "--retain-pointless-switches" },
+        description = "Do not lift the contents of switches having only a default label.")
     private boolean _retainPointlessSwitches;
 
-    @Parameter(names = { "-v", "--verbose" }, description = "Set the level of log verbosity (0-3).", arity = 1)
+    @Parameter(
+        names = { "-v", "--verbose" },
+        description = "Set the level of log verbosity (0-3).  Level 0 disables logging.",
+        arity = 1)
     private int _verboseLevel;
 
-    @Parameter(names = { "-lc", "--light" }, description = "Use a color scheme designed for light-background consoles (dark-on-light).")
+    @Parameter(
+        names = { "-lc", "--light" },
+        description = "Use a color scheme designed for consoles with light background colors.")
     private boolean _useLightColorScheme;
 
-    @Parameter(names = { "--unicode" }, description = "Enable Unicode output (no printable characters are escaped).")
+    @Parameter(
+        names = { "--unicode" },
+        description = "Enable Unicode output (printable non-ASCII characters will not be escaped).")
     private boolean _isUnicodeOutputEnabled;
 
     public final List<String> getClassNames() {
@@ -228,5 +275,13 @@ public class CommandLineOptions {
 
     public final void setUnicodeOutputEnabled(final boolean unicodeOutputEnabled) {
         _isUnicodeOutputEnabled = unicodeOutputEnabled;
+    }
+
+    public final boolean getMergeVariables() {
+        return _mergeVariables;
+    }
+
+    public final void setMergeVariables(final boolean mergeVariables) {
+        _mergeVariables = mergeVariables;
     }
 }

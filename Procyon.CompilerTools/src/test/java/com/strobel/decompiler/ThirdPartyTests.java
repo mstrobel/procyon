@@ -59,7 +59,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "            if (o instanceof Long) {\n" +
             "                final long longValue = (long)o;\n" +
             "                if (longValue <= n2) {\n" +
-            "                    System.out.println((float)(-longValue) % -n);\n" +
+            "                    System.out.println(-longValue % -n);\n" +
             "                }\n" +
             "            }\n" +
             "        }\n" +
@@ -205,7 +205,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "        }\n" +
             "        System.out.println(WhileLoops.i);\n" +
             "    }\n" +
-            "}\n"
+            "}"
         );
     }
 
@@ -275,5 +275,27 @@ public class ThirdPartyTests extends DecompilerTest {
             "}"
         );
     }
-}
 
+    @Test
+    public void testUnboxToNumber() throws Throwable {
+        verifyOutput(
+            Class.forName("UnboxToNumber"),
+            defaultSettings(),
+            "class UnboxToNumber {\n" +
+            "    void test(final Object o) {\n" +
+            "        Number n;\n" +
+            "        if (o instanceof Integer) {\n" +
+            "            n = (int)o;\n" +
+            "        }\n" +
+            "        else if (o instanceof Double) {\n" +
+            "            n = (double)o;\n" +
+            "        }\n" +
+            "        else {\n" +
+            "            n = 0.0f;\n" +
+            "        }\n" +
+            "        System.out.println(n);\n" +
+            "    }\n" +
+            "}"
+        );
+    }
+}

@@ -35,7 +35,7 @@ public final class TransformationPipeline {
             new AssertStatementTransform(context),
             new RemoveImplicitBoxingTransform(context),
             new RemoveRedundantCastsTransform(context),
-            new PatternStatementTransform(context),
+            new ConvertLoopsTransform(context),
             new BreakTargetRelocation(context),
             new LabelCleanupTransform(context),
             new TryWithResourcesTransform(context),
@@ -58,6 +58,7 @@ public final class TransformationPipeline {
             new InsertNecessaryConversionsTransform(context),
             new IntroduceStringConcatenationTransform(context),
             new SimplifyAssignmentsTransform(context), // (again due to inlined synthetic accessors, string concatenation)
+            new InlineEscapingAssignmentsTransform(context),
             new VarArgsTransform(context),
             new InsertConstantReferencesTransform(context),
             new SimplifyArithmeticExpressionsTransform(context),

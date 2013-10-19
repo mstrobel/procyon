@@ -617,7 +617,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
     }
 
-    public final AstNode replaceWith(final Function<? super AstNode, ? extends AstNode> replaceFunction) {
+    public final <T extends AstNode> T replaceWith(final Function<? super AstNode, ? extends T> replaceFunction) {
         VerifyArgument.notNull(replaceFunction, "replaceFunction");
 
         if (_parent == null) {
@@ -633,14 +633,14 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
         remove();
 
-        final AstNode replacement = replaceFunction.apply(this);
+        final T replacement = replaceFunction.apply(this);
 
         if (oldSuccessor != null && oldSuccessor._parent != oldParent) {
             throw new IllegalStateException("Replace function changed next sibling of node being replaced.");
         }
 
         if (replacement != null && !replacement.isNull()) {
-            if (replacement._parent != null) {
+            if (replacement.getParent() != null) {
                 throw new IllegalStateException("replace function must return the root of a tree");
             }
 

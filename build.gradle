@@ -14,7 +14,7 @@ allprojects {
     apply plugin: 'maven'
     apply plugin: 'eclipse'
 
-    version "0.5.20"
+    version "0.5.21"
 
     group 'org.bitbucket.mstrobel'
     sourceCompatibility = 1.7    // JDK version

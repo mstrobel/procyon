@@ -449,16 +449,13 @@ public class HandlerTests extends DecompilerTest {
             "            }\n" +
             "            catch (RuntimeException e) {\n" +
             "                rethrow(e);\n" +
-            "                return;\n" +
             "            }\n" +
             "        }\n" +
             "        catch (UnsupportedOperationException e2) {\n" +
             "            System.out.println(\"unchecked\");\n" +
-            "            return;\n" +
             "        }\n" +
             "        catch (Throwable e3) {\n" +
             "            System.out.println(\"checked\");\n" +
-            "            return;\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
