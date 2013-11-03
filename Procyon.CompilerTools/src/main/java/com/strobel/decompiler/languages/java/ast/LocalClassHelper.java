@@ -19,6 +19,7 @@ package com.strobel.decompiler.languages.java.ast;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MemberReference;
+import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
@@ -35,6 +36,13 @@ import java.util.Map;
 import static com.strobel.core.CollectionUtilities.getOrDefault;
 
 public final class LocalClassHelper {
+    private static final ConvertTypeOptions OUTER_TYPE_CONVERT_OPTIONS;
+
+    static {
+        OUTER_TYPE_CONVERT_OPTIONS = new ConvertTypeOptions(false, false);
+        OUTER_TYPE_CONVERT_OPTIONS.setIncludeTypeArguments(false);
+    }
+
     public static void replaceClosureMembers(final DecompilerContext context, final AnonymousObjectCreationExpression node) {
         replaceClosureMembers(context, node.getTypeDeclaration(), Collections.singletonList(node));
     }
@@ -61,6 +69,9 @@ public final class LocalClassHelper {
         }
 
         new PhaseOneVisitor(context, originalArguments, replacements, initializers, parametersToRemove, nodesToRemove).run(root);
+
+        rewriteThisReferences(context, declaration, initializers);
+
         new PhaseTwoVisitor(context, replacements, initializers).run(root);
 
         for (final ObjectCreationExpression instantiation : instantiations) {
@@ -89,6 +100,22 @@ public final class LocalClassHelper {
             }
 
             n.remove();
+        }
+    }
+
+    private static void rewriteThisReferences(
+        final DecompilerContext context,
+        final TypeDeclaration declaration,
+        final Map<String, Expression> initializers) {
+
+        final TypeDefinition innerClass = declaration.getUserData(Keys.TYPE_DEFINITION);
+
+        if (innerClass != null) {
+            final ContextTrackingVisitor<Void> thisRewriter = new ThisReferenceReplacingVisitor(context, innerClass);
+
+            for (final Expression e : initializers.values()) {
+                thisRewriter.run(e);
+            }
         }
     }
 
@@ -398,6 +425,53 @@ public final class LocalClassHelper {
 
                 if (replacement != null) {
                     node.replaceWith(replacement.clone());
+                }
+            }
+
+            return null;
+        }
+    }
+
+    private static class ThisReferenceReplacingVisitor extends ContextTrackingVisitor<Void> {
+        private final TypeDefinition _innerClass;
+
+        public ThisReferenceReplacingVisitor(final DecompilerContext context, final TypeDefinition innerClass) {
+            super(context);
+            _innerClass = innerClass;
+        }
+
+        @Override
+        public Void visitMemberReferenceExpression(final MemberReferenceExpression node, final Void data) {
+            super.visitMemberReferenceExpression(node, data);
+
+            if (node.getTarget() instanceof ThisReferenceExpression) {
+                final ThisReferenceExpression thisReference = (ThisReferenceExpression) node.getTarget();
+                final Expression target = thisReference.getTarget();
+
+                if (target == null || target.isNull()) {
+                    MemberReference member = node.getUserData(Keys.MEMBER_REFERENCE);
+
+                    if (member == null && node.getParent() instanceof InvocationExpression) {
+                        member = node.getParent().getUserData(Keys.MEMBER_REFERENCE);
+                    }
+
+                    if (member != null &&
+                        MetadataHelper.isEnclosedBy(_innerClass, member.getDeclaringType())) {
+
+                        final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+                        if (astBuilder != null) {
+                            thisReference.setTarget(
+                                new TypeReferenceExpression(
+                                    thisReference.getOffset(),
+                                    astBuilder.convertType(
+                                        member.getDeclaringType(),
+                                        OUTER_TYPE_CONVERT_OPTIONS
+                                    )
+                                )
+                            );
+                        }
+                    }
                 }
             }
 

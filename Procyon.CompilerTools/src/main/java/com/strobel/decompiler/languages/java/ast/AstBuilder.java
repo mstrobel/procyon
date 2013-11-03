@@ -325,7 +325,7 @@ public final class AstBuilder {
 
                     importedType.putUserData(Keys.TYPE_REFERENCE, typeToImport);
 
-                    if (!StringUtilities.startsWith(typeToImport.getFullName(), "java.lang.")) {
+                    if (!StringUtilities.equals(typeToImport.getPackageName(), "java.lang")) {
                         if (packageDeclaration != null) {
                             _compileUnit.insertChildAfter(
                                 packageDeclaration,
