@@ -20,10 +20,9 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class MemberReferenceExpression extends Expression {
-    public MemberReferenceExpression() {
-    }
 
-    public MemberReferenceExpression(final Expression target, final String memberName, final Iterable<AstType> typeArguments) {
+    public MemberReferenceExpression( int offset, final Expression target, final String memberName, final Iterable<AstType> typeArguments) {
+        super( offset);
         addChild(target, Roles.TARGET_EXPRESSION);
 
         setMemberName(memberName);
@@ -35,7 +34,8 @@ public class MemberReferenceExpression extends Expression {
         }
     }
 
-    public MemberReferenceExpression(final Expression target, final String memberName, final AstType... typeArguments) {
+    public MemberReferenceExpression( int offset, final Expression target, final String memberName, final AstType... typeArguments) {
+        super( offset);
         addChild(target, Roles.TARGET_EXPRESSION);
 
         setMemberName(memberName);

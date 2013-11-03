@@ -20,10 +20,8 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class ExpressionStatement extends Statement {
-    public ExpressionStatement() {
-    }
-
     public ExpressionStatement(final Expression expression) {
+        super( expression.getOffset());
         setExpression(expression);
     }
 

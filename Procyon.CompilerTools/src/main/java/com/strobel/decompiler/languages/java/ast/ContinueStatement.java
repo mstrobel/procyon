@@ -23,10 +23,12 @@ import com.strobel.decompiler.patterns.Match;
 public class ContinueStatement extends Statement {
     public final static TokenRole CONTINUE_KEYWORD_ROLE = new TokenRole("continue", TokenRole.FLAG_KEYWORD);
 
-    public ContinueStatement() {
+    public ContinueStatement( int offset) {
+        super( offset);
     }
 
-    public ContinueStatement(final String label) {
+    public ContinueStatement( int offset, final String label) {
+        super( offset);
         setLabel(label);
     }
 

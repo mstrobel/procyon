@@ -28,6 +28,10 @@ public class TryCatchStatement extends Statement {
     public static final Role<BlockStatement> FINALLY_BLOCK_ROLE = new Role<>("FinallyBlock", BlockStatement.class, BlockStatement.NULL);
     public static final Role<VariableDeclarationStatement> TRY_RESOURCE_ROLE = new Role<>("TryResource", VariableDeclarationStatement.class);
 
+    public TryCatchStatement( int offset) {
+        super( offset);
+    }
+    
     public final JavaTokenNode getTryToken() {
         return getChildByRole(TRY_KEYWORD_ROLE);
     }

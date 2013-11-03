@@ -285,7 +285,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         // variables in our loop condition and iterator statements.
         //
 
-        final ForStatement forLoop = new ForStatement();
+        final ForStatement forLoop = new ForStatement(node.getOffset());
         final Stack<Statement> initializers = new Stack<>();
 
         for (Statement s = node.getPreviousStatement(); s instanceof ExpressionStatement; s = s.getPreviousStatement()) {
@@ -512,12 +512,12 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
     static {
         ARRAY_INIT_PATTERN = new ExpressionStatement(
             new AssignmentExpression(
-                new NamedNode("array", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                new NamedNode("array", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                 new AnyNode("initializer").toExpression()
             )
         );
 
-        final ForStatement forArrayPattern1 = new ForStatement();
+        final ForStatement forArrayPattern1 = new ForStatement( Expression.MYSTERY_OFFSET);
         final VariableDeclarationStatement declaration1 = new VariableDeclarationStatement();
         final SimpleType variableType1 = new SimpleType("int");
 
@@ -528,14 +528,14 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         declaration1.getVariables().add(
             new VariableInitializer(
                 Pattern.ANY_STRING,
-                new NamedNode("array", new IdentifierExpression(Pattern.ANY_STRING)).toExpression().member("length")
+                new NamedNode("array", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression().member("length")
             )
         );
 
         declaration1.getVariables().add(
             new VariableInitializer(
                 Pattern.ANY_STRING,
-                new PrimitiveExpression(0)
+                new PrimitiveExpression( Expression.MYSTERY_OFFSET, 0)
             )
         );
 
@@ -545,9 +545,9 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
         forArrayPattern1.setCondition(
             new BinaryOperatorExpression(
-                new NamedNode("index", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                new NamedNode("index", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                 BinaryOperatorType.LESS_THAN,
-                new NamedNode("length", new IdentifierExpression(Pattern.ANY_STRING)).toExpression()
+                new NamedNode("length", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression()
             )
         );
 
@@ -565,9 +565,10 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         embeddedStatement1.add(
             new ExpressionStatement(
                 new AssignmentExpression(
-                    new NamedNode("item", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    new NamedNode("item", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                     AssignmentOperatorType.ASSIGN,
                     new IndexerExpression(
+                        Expression.MYSTERY_OFFSET,
                         new BackReference("array").toExpression(),
                         new BackReference("index").toExpression()
                     )
@@ -585,7 +586,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
         FOR_ARRAY_PATTERN_1 = forArrayPattern1;
 
-        final ForStatement forArrayPattern2 = new ForStatement();
+        final ForStatement forArrayPattern2 = new ForStatement( Expression.MYSTERY_OFFSET);
         final VariableDeclarationStatement declaration2 = new VariableDeclarationStatement();
         final SimpleType variableType2 = new SimpleType("int");
 
@@ -596,7 +597,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         declaration2.getVariables().add(
             new VariableInitializer(
                 Pattern.ANY_STRING,
-                new PrimitiveExpression(0)
+                new PrimitiveExpression( Expression.MYSTERY_OFFSET, 0)
             )
         );
 
@@ -606,9 +607,9 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
         forArrayPattern2.setCondition(
             new BinaryOperatorExpression(
-                new NamedNode("index", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                new NamedNode("index", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                 BinaryOperatorType.LESS_THAN,
-                new NamedNode("length", new IdentifierExpression(Pattern.ANY_STRING)).toExpression()
+                new NamedNode("length", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression()
             )
         );
 
@@ -626,10 +627,11 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         embeddedStatement2.add(
             new ExpressionStatement(
                 new AssignmentExpression(
-                    new NamedNode("item", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    new NamedNode("item", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                     AssignmentOperatorType.ASSIGN,
                     new IndexerExpression(
-                        new NamedNode("array", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                        Expression.MYSTERY_OFFSET,
+                        new NamedNode("array", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                         new BackReference("index").toExpression()
                     )
                 )
@@ -646,14 +648,14 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
         FOR_ARRAY_PATTERN_2 = forArrayPattern2;
 
-        final ForStatement altForArrayPattern = new ForStatement();
+        final ForStatement altForArrayPattern = new ForStatement( Expression.MYSTERY_OFFSET);
 
         altForArrayPattern.getInitializers().add(
             new ExpressionStatement(
                 new AssignmentExpression(
-                    new NamedNode("length", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    new NamedNode("length", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                     AssignmentOperatorType.ASSIGN,
-                    new NamedNode("array", new IdentifierExpression(Pattern.ANY_STRING)).toExpression().member("length")
+                    new NamedNode("array", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression().member("length")
                 )
             )
         );
@@ -661,9 +663,9 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         altForArrayPattern.getInitializers().add(
             new ExpressionStatement(
                 new AssignmentExpression(
-                    new NamedNode("index", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    new NamedNode("index", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                     AssignmentOperatorType.ASSIGN,
-                    new PrimitiveExpression(0)
+                    new PrimitiveExpression( Expression.MYSTERY_OFFSET, 0)
                 )
             )
         );
@@ -690,9 +692,10 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         altEmbeddedStatement.add(
             new ExpressionStatement(
                 new AssignmentExpression(
-                    new NamedNode("item", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    new NamedNode("item", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                     AssignmentOperatorType.ASSIGN,
                     new IndexerExpression(
+                        Expression.MYSTERY_OFFSET,
                         new BackReference("array").toExpression(),
                         new BackReference("index").toExpression()
                     )
@@ -790,7 +793,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             }
         }
 
-        final ForEachStatement forEach = new ForEachStatement();
+        final ForEachStatement forEach = new ForEachStatement( loop.getOffset());
 
         forEach.setVariableType(itemDeclaration.getType().clone());
         forEach.setVariableName(item.getIdentifier());
@@ -911,12 +914,14 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             )
         );
 
-        final WhileStatement forEachPattern = new WhileStatement();
+        final WhileStatement forEachPattern = new WhileStatement(Expression.MYSTERY_OFFSET);
 
         forEachPattern.setCondition(
             new InvocationExpression(
+                Expression.MYSTERY_OFFSET,
                 new MemberReferenceExpression(
-                    new NamedNode("iterator", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                    Expression.MYSTERY_OFFSET,
+                    new NamedNode("iterator", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                     "hasNext"
                 )
             )
@@ -929,11 +934,13 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
                 "next",
                 new ExpressionStatement(
                     new AssignmentExpression(
-                        new NamedNode("item", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                        new NamedNode("item", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                         AssignmentOperatorType.ASSIGN,
                         new Choice(
                             new InvocationExpression(
+                                Expression.MYSTERY_OFFSET,
                                 new MemberReferenceExpression(
+                                    Expression.MYSTERY_OFFSET,
                                     new BackReference("iterator").toExpression(),
                                     "next"
                                 )
@@ -941,7 +948,9 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
                             new CastExpression(
                                 new AnyNode("castType").toType(),
                                 new InvocationExpression(
+                                    Expression.MYSTERY_OFFSET,
                                     new MemberReferenceExpression(
+                                        Expression.MYSTERY_OFFSET,
                                         new BackReference("iterator").toExpression(),
                                         "next"
                                     )
@@ -1045,7 +1054,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             }
         }
 
-        final ForEachStatement forEach = new ForEachStatement();
+        final ForEachStatement forEach = new ForEachStatement( node.getOffset());
 
         forEach.setVariableType(itemDeclaration.getType().clone());
         forEach.setVariableName(item.getIdentifier());
@@ -1091,7 +1100,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         collection.remove();
 
         if (collection instanceof SuperReferenceExpression) {
-            final ThisReferenceExpression self = new ThisReferenceExpression();
+            final ThisReferenceExpression self = new ThisReferenceExpression( collection.getOffset());
             self.putUserData(Keys.TYPE_REFERENCE, collection.getUserData(Keys.TYPE_REFERENCE));
             self.putUserData(Keys.VARIABLE, collection.getUserData(Keys.VARIABLE));
             forEach.setInExpression(self);
@@ -1132,26 +1141,26 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
     private final static WhileStatement DO_WHILE_PATTERN;
 
     static {
-        final WhileStatement doWhile = new WhileStatement();
+        final WhileStatement doWhile = new WhileStatement(Expression.MYSTERY_OFFSET);
 
-        doWhile.setCondition(new PrimitiveExpression(true));
+        doWhile.setCondition(new PrimitiveExpression( Expression.MYSTERY_OFFSET, true));
 
         doWhile.setEmbeddedStatement(
             new Choice(
                 new BlockStatement(
                     new Repeat(new AnyNode("statement")).toStatement(),
-                    new IfElseStatement(
+                    new IfElseStatement(Expression.MYSTERY_OFFSET,
                         new AnyNode("breakCondition").toExpression(),
-                        new BlockStatement(new BreakStatement())
+                        new BlockStatement(new BreakStatement(Expression.MYSTERY_OFFSET))
                     )
                 ),
                 new BlockStatement(
                     new Repeat(new AnyNode("statement")).toStatement(),
-                    new IfElseStatement(
+                    new IfElseStatement(Expression.MYSTERY_OFFSET,
                         new AnyNode("continueCondition").toExpression(),
-                        new BlockStatement(new NamedNode("continueStatement", new ContinueStatement()).toStatement())
+                        new BlockStatement(new NamedNode("continueStatement", new ContinueStatement(Expression.MYSTERY_OFFSET)).toStatement())
                     ),
-                    new NamedNode("breakStatement", new BreakStatement()).toStatement()
+                    new NamedNode("breakStatement", new BreakStatement(Expression.MYSTERY_OFFSET)).toStatement()
                 )
             ).toBlockStatement()
         );
@@ -1166,7 +1175,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             return null;
         }
 
-        final DoWhileStatement doWhile = new DoWhileStatement();
+        final DoWhileStatement doWhile = new DoWhileStatement(loop.getOffset());
 
         Expression condition = firstOrDefault(m.<Expression>get("continueCondition"));
 
@@ -1221,7 +1230,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
                         initializer.remove();
 
                         final AssignmentExpression assignment = new AssignmentExpression(
-                            new IdentifierExpression(v.getName()),
+                            new IdentifierExpression( statement.getOffset(), v.getName()),
                             initializer
                         );
 
@@ -1295,13 +1304,13 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
     private final static WhileStatement CONTINUE_OUTER_PATTERN;
 
     static {
-        final WhileStatement continueOuter = new WhileStatement();
+        final WhileStatement continueOuter = new WhileStatement(Expression.MYSTERY_OFFSET);
 
         continueOuter.setCondition(new AnyNode().toExpression());
 
         continueOuter.setEmbeddedStatement(
             new BlockStatement(
-                new NamedNode("label", new LabelStatement(Pattern.ANY_STRING)).toStatement(),
+                new NamedNode("label", new LabelStatement(Expression.MYSTERY_OFFSET,Pattern.ANY_STRING)).toStatement(),
                 new Repeat(new AnyNode("statement")).toStatement()
             )
         );

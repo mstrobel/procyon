@@ -22,6 +22,10 @@ import com.strobel.decompiler.patterns.Match;
 public class SynchronizedStatement extends Statement {
     public final static TokenRole SYNCHRONIZED_KEYWORD_ROLE = new TokenRole("synchronized", TokenRole.FLAG_KEYWORD);
 
+    public SynchronizedStatement( int offset) {
+        super( offset);
+    }
+    
     public final Statement getEmbeddedStatement() {
         return getChildByRole(Roles.EMBEDDED_STATEMENT);
     }

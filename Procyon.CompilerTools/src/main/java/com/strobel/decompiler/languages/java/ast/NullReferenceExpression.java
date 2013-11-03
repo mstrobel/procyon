@@ -27,11 +27,12 @@ public final class NullReferenceExpression extends Expression {
     private TextLocation _startLocation;
     private TextLocation _endLocation;
 
-    public NullReferenceExpression() {
-        this(TextLocation.EMPTY);
+    public NullReferenceExpression( final int offset) {
+        this( offset, TextLocation.EMPTY);
     }
 
-    public NullReferenceExpression(final TextLocation startLocation) {
+    public NullReferenceExpression( final int offset, final TextLocation startLocation) {
+        super( offset);
         _startLocation = VerifyArgument.notNull(startLocation, "startLocation");
         _endLocation = new TextLocation(startLocation.line(), startLocation.column() + NULL_TEXT.length());
     }

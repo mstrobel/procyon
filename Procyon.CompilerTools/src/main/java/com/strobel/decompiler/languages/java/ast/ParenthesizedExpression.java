@@ -20,10 +20,9 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class ParenthesizedExpression extends Expression {
-    public ParenthesizedExpression() {
-    }
 
     public ParenthesizedExpression(final Expression expression) {
+        super( expression.getOffset());
         setExpression(expression);
     }
 

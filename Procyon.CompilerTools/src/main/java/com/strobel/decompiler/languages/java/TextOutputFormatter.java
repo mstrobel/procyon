@@ -24,9 +24,12 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.ast.Variable;
+import com.strobel.decompiler.languages.LineNumberPosition;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.ast.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Stack;
 
 public class TextOutputFormatter implements IOutputFormatter {
@@ -36,12 +39,31 @@ public class TextOutputFormatter implements IOutputFormatter {
     private boolean inDocumentationComment = false;
     private boolean firstUsingDeclaration;
     private boolean lastUsingDeclaration;
+    private LineNumberMode lineNumberMode;
+    
+    /**
+     * whether or not to emit debug line number comments into the source code
+     */
+    public enum LineNumberMode {
+        WITH_DEBUG_LINE_NUMBERS,
+        WITHOUT_DEBUG_LINE_NUMBERS,
+    }
+    
+    /** when writing out line numbers, keeps track of the most recently used one to avoid redundancy */
+    private int lastObservedLineNumber = OffsetToLineNumberConverter.UNKNOWN_LINE_NUMBER;
+    
+    /** converts from bytecode offset to line number */
+    private OffsetToLineNumberConverter offset2LineNumber = OffsetToLineNumberConverter.NOOP_CONVERTER;
+    
+    /** maps original line numbers to decompiler-emitted line numbers and columns */
+    private final List<LineNumberPosition> lineNumberPositions = new ArrayList<LineNumberPosition>(); 
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final Stack<TextLocation> startLocations = new Stack<>();
 
-    public TextOutputFormatter(final ITextOutput output) {
+    public TextOutputFormatter(final ITextOutput output, LineNumberMode lineNumberMode) {
         this.output = VerifyArgument.notNull(output, "output");
+        this.lineNumberMode = lineNumberMode;
     }
 
     @Override
@@ -58,6 +80,35 @@ public class TextOutputFormatter implements IOutputFormatter {
         }
 
         nodeStack.push(node);
+        
+        // Build a data structure of Java line numbers.
+        int offset = Expression.MYSTERY_OFFSET;
+        String prefix = null;
+        if ( node instanceof Expression) {
+            offset = ((Expression) node).getOffset();
+            prefix = "/*EL:";
+        } else if ( node instanceof Statement) {
+            offset = ((Statement) node).getOffset();
+            prefix = "/*SL:";
+        }
+        if ( offset != Expression.MYSTERY_OFFSET) {
+            // Convert to a line number.
+            int lineNumber = offset2LineNumber.getLineForOffset( offset);
+            if ( lineNumber > lastObservedLineNumber) {
+                // Record a data structure mapping original to actual line numbers.
+                int lineOfComment = output.getRow();
+                int columnOfComment = output.getColumn();
+                LineNumberPosition pos = new LineNumberPosition( lineNumber, lineOfComment, columnOfComment);
+                lineNumberPositions.add( pos);                
+                lastObservedLineNumber = lineNumber;
+                if ( lineNumberMode == LineNumberMode.WITH_DEBUG_LINE_NUMBERS) {
+                    // Emit a comment showing the original line number.
+                    String commentStr = prefix + lineNumber + "*/";
+                    output.writeComment( commentStr);
+                }
+            }
+        }
+        
         startLocations.push(new TextLocation(output.getRow(), output.getColumn()));
 
         if (node instanceof EntityDeclaration &&
@@ -507,6 +558,21 @@ public class TextOutputFormatter implements IOutputFormatter {
 
     private boolean isImportDeclaration(final AstNode node) {
         return node instanceof ImportDeclaration;
+    }
+
+    @Override
+    public void resetLineNumberOffsets( OffsetToLineNumberConverter offset2LineNumber) {
+        // Forget what we used to know about the stream of line number offsets and start from
+        // scratch.  Also capture the new converter.,
+        lastObservedLineNumber = OffsetToLineNumberConverter.UNKNOWN_LINE_NUMBER;
+        this.offset2LineNumber = offset2LineNumber;
+    }
+    
+    /**
+     * Returns the mapping from original to decompiler-emitted line numbers.
+     */
+    public List<LineNumberPosition> getLineNumberPositions() {
+        return lineNumberPositions;
     }
 }
 

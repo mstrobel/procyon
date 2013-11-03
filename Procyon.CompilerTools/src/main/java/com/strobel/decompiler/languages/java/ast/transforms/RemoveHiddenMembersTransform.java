@@ -85,7 +85,8 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
         DEFAULT_CONSTRUCTOR_BODY = new BlockStatement(
             new ExpressionStatement(
                 new InvocationExpression(
-                    new SuperReferenceExpression()
+                    Expression.MYSTERY_OFFSET,
+                    new SuperReferenceExpression( Expression.MYSTERY_OFFSET)
                 )
             )
         );

@@ -6,8 +6,11 @@ import com.strobel.assembler.InputTypeLoader;
 import com.strobel.assembler.metadata.*;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.StringUtilities;
+import com.strobel.decompiler.LineNumberFormatter.LineNumberOption;
 import com.strobel.decompiler.languages.BytecodeLanguage;
 import com.strobel.decompiler.languages.Languages;
+import com.strobel.decompiler.languages.LineNumberPosition;
+import com.strobel.decompiler.languages.TypeDecompilationResults;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 import com.strobel.io.PathHelper;
 
@@ -21,6 +24,7 @@ import java.nio.charset.Charset;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
@@ -77,6 +81,7 @@ public class DecompilerDriver {
         settings.setRetainPointlessSwitches(options.getRetainPointlessSwitches());
         settings.setUnicodeOutputEnabled(options.isUnicodeOutputEnabled());
         settings.setMergeVariables(options.getMergeVariables());
+        settings.setShowDebugLineNumbers(options.getShowDebugLineNumbers());
         settings.setTypeLoader(new InputTypeLoader());
 
         if (options.isRawBytecode()) {
@@ -268,9 +273,29 @@ public class DecompilerDriver {
             System.out.printf("Decompiling %s...\n", typeName);
         }
 
-        settings.getLanguage().decompileType(resolvedType, output, options);
+        TypeDecompilationResults decompResults = settings.getLanguage().decompileType(resolvedType, output, options);
 
         writer.flush();
+        writer.close();
+        
+        // If we're writing to a file and we were asked to include line numbers in any way,
+        // then reformat the file to include that line number information.
+        List<LineNumberPosition> lineNumberPositions = decompResults.getLineNumberPositions();
+        if ( lineNumberPositions != null
+                && (commandLineOptions.getIncludeLineNumbers()
+                        || commandLineOptions.getStretchLines())
+                && (writer instanceof FileOutputWriter)) {
+            EnumSet<LineNumberOption> lineNumberOptions = EnumSet.noneOf( LineNumberOption.class);
+            if ( commandLineOptions.getIncludeLineNumbers()) {
+                lineNumberOptions.add( LineNumberOption.LEADING_COMMENTS);
+            }
+            if ( commandLineOptions.getStretchLines()) {
+                lineNumberOptions.add( LineNumberOption.STRETCHED);
+            }
+            LineNumberFormatter lineFormatter = new LineNumberFormatter(
+                        ((FileOutputWriter) writer).getFile(), lineNumberPositions, lineNumberOptions);
+            lineFormatter.reformatFile();
+        }        
     }
 
     private static Writer createWriter(final TypeDefinition type, final DecompilerSettings settings) throws IOException {
@@ -326,13 +351,25 @@ public class DecompilerDriver {
 }
 
 final class FileOutputWriter extends OutputStreamWriter {
+    private final File file;
+
     FileOutputWriter(final File file, final DecompilerSettings settings) throws IOException {
         super(
             new FileOutputStream(file),
             settings.isUnicodeOutputEnabled() ? Charset.forName("UTF-8")
                                               : Charset.defaultCharset()
         );
+        this.file = file;
     }
+    
+    /**
+     * Returns the file to which 'this' is writing.
+     * 
+     * @return the file to which 'this' is writing
+     */
+    public File getFile() {
+        return this.file;
+    }    
 }
 
 final class BriefLogFormatter extends Formatter {

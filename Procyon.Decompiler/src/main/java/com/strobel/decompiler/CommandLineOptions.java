@@ -94,9 +94,19 @@ public class CommandLineOptions {
     private String _jarFile;
 
     @Parameter(
-        names = { "-ln" },
-        description = "Include instruction line numbers (only in combination with -r).")
+	       names = { "-ln", "--with-line-numbers" },
+        description = "Include line numbers (Java or raw bytecode modes).")
     private boolean _includeLineNumbers;
+
+    @Parameter(
+        names = { "-sl", "--stretch-lines" },
+        description = "Stretch lines to match original line numbers (Java mode only) [EXPERIMENTAL].")
+    private boolean _stretchLines;
+    
+    @Parameter(
+        names = { "-dl", "--debug-line-numbers" },
+        description = "For debugging, show line numbers as inline comments (Java mode only).  Implies -ln.")
+    private boolean _showDebugLineNumbers;    
 
     @Parameter(
         names = { "-ps", "--retain-pointless-switches" },
@@ -223,6 +233,14 @@ public class CommandLineOptions {
         return _includeLineNumbers;
     }
 
+    public final boolean getStretchLines() {
+        return _stretchLines;
+    }
+    
+    public final boolean getShowDebugLineNumbers() {
+        return _showDebugLineNumbers;
+    }
+    
     public final void setIncludeLineNumbers(final boolean includeLineNumbers) {
         _includeLineNumbers = includeLineNumbers;
     }

@@ -23,10 +23,12 @@ import com.strobel.decompiler.patterns.Match;
 public class BreakStatement extends Statement {
     public final static TokenRole BREAK_KEYWORD_ROLE = new TokenRole("break", TokenRole.FLAG_KEYWORD);
 
-    public BreakStatement() {
+    public BreakStatement( int offset) {
+        super( offset);
     }
 
-    public BreakStatement(final String label) {
+    public BreakStatement( int offset, final String label) {
+        super( offset);
         setLabel(label);
     }
 

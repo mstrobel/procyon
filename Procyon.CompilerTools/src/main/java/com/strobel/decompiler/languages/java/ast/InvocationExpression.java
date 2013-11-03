@@ -20,10 +20,9 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class InvocationExpression extends Expression {
-    public InvocationExpression() {
-    }
 
-    public InvocationExpression(final Expression target, final Iterable<Expression> arguments) {
+    public InvocationExpression( int offset, final Expression target, final Iterable<Expression> arguments) {
+        super( offset);
         addChild(target, Roles.TARGET_EXPRESSION);
 
         if (arguments != null) {
@@ -33,7 +32,8 @@ public class InvocationExpression extends Expression {
         }
     }
 
-    public InvocationExpression(final Expression target, final Expression... arguments) {
+    public InvocationExpression( int offset, final Expression target, final Expression... arguments) {
+        super( offset);
         addChild(target, Roles.TARGET_EXPRESSION);
 
         if (arguments != null) {

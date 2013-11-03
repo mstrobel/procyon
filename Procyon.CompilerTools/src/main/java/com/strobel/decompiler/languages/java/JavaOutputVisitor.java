@@ -16,6 +16,9 @@
 
 package com.strobel.decompiler.languages.java;
 
+import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
+import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.MethodDefinition;
@@ -28,7 +31,9 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
+import com.strobel.decompiler.languages.LineNumberPosition;
 import com.strobel.decompiler.languages.TextLocation;
+import com.strobel.decompiler.languages.java.TextOutputFormatter.LineNumberMode;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.languages.java.utilities.TypeUtilities;
 import com.strobel.decompiler.patterns.*;
@@ -36,6 +41,7 @@ import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Stack;
 
 import static com.strobel.core.CollectionUtilities.*;
@@ -43,7 +49,7 @@ import static java.lang.String.format;
 
 @SuppressWarnings("ConstantConditions")
 public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
-    final IOutputFormatter formatter;
+    final TextOutputFormatter formatter;
     final DecompilerSettings settings;
     final JavaFormattingOptions policy;
     final Stack<AstNode> containerStack = new Stack<>();
@@ -54,11 +60,16 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     public JavaOutputVisitor(final ITextOutput output, final DecompilerSettings settings) {
         this.output = output;
-        this.formatter = new TextOutputFormatter(output);
         this.settings = VerifyArgument.notNull(settings, "settings");
+        this.formatter = new TextOutputFormatter(output, settings.getShowDebugLineNumbers() ?
+                LineNumberMode.WITH_DEBUG_LINE_NUMBERS : LineNumberMode.WITHOUT_DEBUG_LINE_NUMBERS);
         this.policy = settings.getFormattingOptions();
     }
 
+    public List<LineNumberPosition> getLineNumberPositions() {
+        return this.formatter.getLineNumberPositions();
+    }
+    
     // <editor-fold defaultstate="collapsed" desc="Start/End Node">
 
     void startNode(final AstNode node) {
@@ -1315,6 +1326,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitMethodDeclaration(final MethodDeclaration node, final Void ignored) {
         startNode(node);
+        formatter.resetLineNumberOffsets( OffsetToLineNumberConverter.NOOP_CONVERTER);                
         writeAnnotations(node.getAnnotations(), true);
 
         final MethodDefinition definition = node.getUserData(Keys.METHOD_DEFINITION);
@@ -1335,6 +1347,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         if (definition == null || !definition.isTypeInitializer()) {
+            LineNumberTableAttribute lineNumberTable = SourceAttribute.find(
+                AttributeNames.LineNumberTable,
+                definition.getSourceAttributes());
+            if ( lineNumberTable != null) {
+                formatter.resetLineNumberOffsets( new LineNumberTableConverter( lineNumberTable));
+            }
+
             final AstNodeCollection<TypeParameterDeclaration> typeParameters = node.getTypeParameters();
 
             if (any(typeParameters)) {

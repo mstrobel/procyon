@@ -463,6 +463,7 @@ public final class LocalClassHelper {
                         if (astBuilder != null) {
                             thisReference.setTarget(
                                 new TypeReferenceExpression(
+                                    thisReference.getOffset(),
                                     astBuilder.convertType(
                                         member.getDeclaringType(),
                                         OUTER_TYPE_CONVERT_OPTIONS

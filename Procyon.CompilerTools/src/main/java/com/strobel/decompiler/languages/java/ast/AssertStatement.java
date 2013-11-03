@@ -22,6 +22,10 @@ import com.strobel.decompiler.patterns.Match;
 public class AssertStatement extends Statement {
     public final static TokenRole ASSERT_KEYWORD_ROLE = new TokenRole("assert", TokenRole.FLAG_KEYWORD);
 
+    public AssertStatement( int offset) {
+        super( offset);
+    }
+    
     public final JavaTokenNode getColon() {
         return getChildByRole(Roles.COLON);
     }

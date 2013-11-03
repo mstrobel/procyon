@@ -22,10 +22,12 @@ import com.strobel.decompiler.patterns.Match;
 public class WhileStatement extends Statement {
     public final static TokenRole WHILE_KEYWORD_ROLE = new TokenRole("while", TokenRole.FLAG_KEYWORD);
 
-    public WhileStatement() {
+    public WhileStatement(final int offset) {
+        super(offset);
     }
 
     public WhileStatement(final Expression condition) {
+        super(condition.getOffset());
         setCondition(condition);
     }
 

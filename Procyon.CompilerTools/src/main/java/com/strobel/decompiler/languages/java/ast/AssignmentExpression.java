@@ -40,16 +40,15 @@ public class AssignmentExpression extends Expression {
 
     private AssignmentOperatorType _operator;
 
-    public AssignmentExpression() {
-    }
-
     public AssignmentExpression(final Expression left, final Expression right) {
+        super( left.getOffset());
         setLeft(left);
         setOperator(AssignmentOperatorType.ASSIGN);
         setRight(right);
     }
 
     public AssignmentExpression(final Expression left, final AssignmentOperatorType operator, final Expression right) {
+        super( left.getOffset());
         setLeft(left);
         setOperator(operator);
         setRight(right);

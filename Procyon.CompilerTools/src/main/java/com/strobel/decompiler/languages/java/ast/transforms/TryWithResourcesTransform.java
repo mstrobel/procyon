@@ -40,12 +40,12 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
     static {
         final Expression resource = new NamedNode(
             "resource",
-            new IdentifierExpression(Pattern.ANY_STRING)
+            new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)
         ).toExpression();
 
         final Expression savedException = new NamedNode(
             "savedException",
-            new IdentifierExpression(Pattern.ANY_STRING)
+            new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)
         ).toExpression();
 
         RESOURCE_INIT_PATTERN = new ExpressionStatement(
@@ -60,7 +60,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
             new AssignmentExpression(
                 savedException,
                 AssignmentOperatorType.ASSIGN,
-                new NullReferenceExpression()
+                new NullReferenceExpression(Expression.MYSTERY_OFFSET)
             )
         );
     }
@@ -83,7 +83,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
         _resolver = new JavaResolver(context);
 
-        final TryCatchStatement tryPattern = new TryCatchStatement();
+        final TryCatchStatement tryPattern = new TryCatchStatement(Expression.MYSTERY_OFFSET);
 
         tryPattern.setTryBlock(new AnyNode("tryContent").toBlockStatement());
 
@@ -92,7 +92,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                 new ExpressionStatement(
                     new AssignmentExpression(
                         new IdentifierExpressionBackReference("savedException").toExpression(),
-                        new NamedNode("caughtException", new IdentifierExpression(Pattern.ANY_STRING)).toExpression()
+                        new NamedNode("caughtException", new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression()
                     )
                 ),
                 new ThrowStatement(new IdentifierExpressionBackReference("caughtException").toExpression())
@@ -104,7 +104,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
         tryPattern.getCatchClauses().add(catchClause);
 
-        final TryCatchStatement disposeTry = new TryCatchStatement();
+        final TryCatchStatement disposeTry = new TryCatchStatement(Expression.MYSTERY_OFFSET);
 
         disposeTry.setTryBlock(
             new BlockStatement(
@@ -119,7 +119,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                 new ExpressionStatement(
                     new IdentifierExpressionBackReference("savedException").toExpression().invoke(
                         "addSuppressed",
-                        new NamedNode("caughtOnClose", new IdentifierExpression(Pattern.ANY_STRING)).toExpression()
+                        new NamedNode("caughtOnClose", new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression()
                     )
                 )
             )
@@ -132,18 +132,18 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
         tryPattern.setFinallyBlock(
             new BlockStatement(
-                new IfElseStatement(
+                new IfElseStatement( Expression.MYSTERY_OFFSET,
                     new BinaryOperatorExpression(
                         new IdentifierExpressionBackReference("resource").toExpression(),
                         BinaryOperatorType.INEQUALITY,
-                        new NullReferenceExpression()
+                        new NullReferenceExpression(Expression.MYSTERY_OFFSET)
                     ),
                     new BlockStatement(
-                        new IfElseStatement(
+                        new IfElseStatement( Expression.MYSTERY_OFFSET,
                             new BinaryOperatorExpression(
                                 new IdentifierExpressionBackReference("savedException").toExpression(),
                                 BinaryOperatorType.INEQUALITY,
-                                new NullReferenceExpression()
+                                new NullReferenceExpression(Expression.MYSTERY_OFFSET)
                             ),
                             new BlockStatement(
                                 disposeTry

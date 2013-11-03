@@ -31,17 +31,23 @@ public class VariableDeclarationStatement extends Statement {
     private boolean _anyModifiers;
 
     public VariableDeclarationStatement() {
+        super(Expression.MYSTERY_OFFSET);
     }
 
-    public VariableDeclarationStatement(final AstType type, final String name) {
-        this(type, name, null);
+    public VariableDeclarationStatement(final AstType type, final String name, int offset) {
+        this(type, name, offset, null);
     }
 
     public VariableDeclarationStatement(final AstType type, final String name, final Expression initializer) {
+        this( type, name, Expression.MYSTERY_OFFSET, initializer);
+    }
+
+    public VariableDeclarationStatement(final AstType type, final String name, int offset, final Expression initializer) {
+        super(initializer == null ? offset : initializer.getOffset());
         setType(type);
         getVariables().add(new VariableInitializer(name, initializer));
     }
-
+    
     /**
      * Gets the "any" modifiers flag used during pattern matching.
      */

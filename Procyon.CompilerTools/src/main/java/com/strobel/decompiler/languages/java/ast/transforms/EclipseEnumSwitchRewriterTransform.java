@@ -168,7 +168,7 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
 
                     for (int i = 0; i < enumValues.size(); i++) {
                         final MemberReferenceExpression memberReference = enumValues.get(i);
-                        final IdentifierExpression identifier = new IdentifierExpression(memberReference.getMemberName());
+                        final IdentifierExpression identifier = new IdentifierExpression( Expression.MYSTERY_OFFSET, memberReference.getMemberName());
 
                         identifier.putUserData(Keys.MEMBER_REFERENCE, memberReference.getUserData(Keys.MEMBER_REFERENCE));
                         info.mappings.put((Integer) tableValues.get(i).getValue(), identifier);
@@ -324,12 +324,14 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
 
             final VariableDeclarationStatement v1 = new VariableDeclarationStatement(
                 intArrayType,
-                Pattern.ANY_STRING
+                Pattern.ANY_STRING,
+                Expression.MYSTERY_OFFSET
             );
 
             final VariableDeclarationStatement v2 = new VariableDeclarationStatement(
                 intArrayType.clone(),
-                Pattern.ANY_STRING
+                Pattern.ANY_STRING,
+                Expression.MYSTERY_OFFSET
             );
 
             body.add(new NamedNode("v1", v1).toStatement());
@@ -349,23 +351,26 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
             );
 
             body.add(
-                new IfElseStatement(
+                new IfElseStatement(Expression.MYSTERY_OFFSET,
                     new BinaryOperatorExpression(
                         new DeclaredVariableBackReference("v1").toExpression(),
                         BinaryOperatorType.INEQUALITY,
-                        new NullReferenceExpression()
+                        new NullReferenceExpression( Expression.MYSTERY_OFFSET)
                     ),
                     new BlockStatement(
-                        new ReturnStatement(new DeclaredVariableBackReference("v1").toExpression())
+                        new ReturnStatement(Expression.MYSTERY_OFFSET, new DeclaredVariableBackReference("v1").toExpression())
                     )
                 )
             );
 
-            final ArrayCreationExpression arrayCreation = new ArrayCreationExpression();
+            final ArrayCreationExpression arrayCreation = new ArrayCreationExpression( Expression.MYSTERY_OFFSET);
 
             final Expression dimension = new MemberReferenceExpression(
+                Expression.MYSTERY_OFFSET,
                 new InvocationExpression(
+                    Expression.MYSTERY_OFFSET,
                     new MemberReferenceExpression(
+                        Expression.MYSTERY_OFFSET,
                         new Choice(
                             new TypedNode("enumType", TypeReferenceExpression.class),
                             Expression.NULL
@@ -389,12 +394,16 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
             final ExpressionStatement assignment = new ExpressionStatement(
                 new AssignmentExpression(
                     new IndexerExpression(
+                        Expression.MYSTERY_OFFSET,
                         new DeclaredVariableBackReference("v2").toExpression(),
                         new InvocationExpression(
+                            Expression.MYSTERY_OFFSET,
                             new MemberReferenceExpression(
+                                Expression.MYSTERY_OFFSET,
                                 new NamedNode(
                                     "enumValue",
                                     new MemberReferenceExpression(
+                                        Expression.MYSTERY_OFFSET,
                                         new TypedNode(TypeReferenceExpression.class).toExpression(),
                                         Pattern.ANY_STRING
                                     )
@@ -407,7 +416,7 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
                 )
             );
 
-            final TryCatchStatement tryCatch = new TryCatchStatement();
+            final TryCatchStatement tryCatch = new TryCatchStatement( Expression.MYSTERY_OFFSET);
             final CatchClause catchClause = new CatchClause(new BlockStatement());
 
             catchClause.setVariableName(Pattern.ANY_STRING);
@@ -427,14 +436,15 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
                 )
             );
 
-            body.add(new ReturnStatement(new DeclaredVariableBackReference("v2").toExpression()));
+            body.add(new ReturnStatement(Expression.MYSTERY_OFFSET, new DeclaredVariableBackReference("v2").toExpression()));
 
             SWITCH_TABLE_METHOD_BODY = body;
 
-            SWITCH_INPUT = new IndexerExpression(
+            SWITCH_INPUT = new IndexerExpression( Expression.MYSTERY_OFFSET,
                 new NamedNode(
                     "switchMapMethodCall",
                     new InvocationExpression(
+                        Expression.MYSTERY_OFFSET,
                         new MemberReferenceExpressionRegexNode(
                             Expression.NULL,
                             "\\$SWITCH_TABLE\\$.*"
@@ -444,7 +454,9 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
                 new NamedNode(
                     "ordinalCall",
                     new InvocationExpression(
+                        Expression.MYSTERY_OFFSET,
                         new MemberReferenceExpression(
+                            Expression.MYSTERY_OFFSET,
                             new AnyNode("target").toExpression(),
                             "ordinal"
                         )

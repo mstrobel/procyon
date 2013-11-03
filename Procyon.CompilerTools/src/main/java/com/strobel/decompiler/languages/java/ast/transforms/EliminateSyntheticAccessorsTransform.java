@@ -215,9 +215,11 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         getAccessor.setBody(
             new BlockStatement(
                 new ReturnStatement(
+                    Expression.MYSTERY_OFFSET,
                     new SubtreeMatch(
                         new MemberReferenceTypeNode(
                             new MemberReferenceExpression(
+                                Expression.MYSTERY_OFFSET,
                                 new ParameterReferenceNode(0).toExpression(),
                                 Pattern.ANY_STRING
                             ),
@@ -237,6 +239,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                         new AssignmentExpression(
                             new MemberReferenceTypeNode(
                                 new MemberReferenceExpression(
+                                    Expression.MYSTERY_OFFSET,
                                     new ParameterReferenceNode(0).toExpression(),
                                     Pattern.ANY_STRING
                                 ),
@@ -246,13 +249,15 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                             new ParameterReferenceNode(1, "value").toExpression()
                         )
                     ),
-                    new ReturnStatement(new BackReference("value").toExpression())
+                    new ReturnStatement(Expression.MYSTERY_OFFSET, new BackReference("value").toExpression())
                 ),
                 new BlockStatement(
                     new ReturnStatement(
+                        Expression.MYSTERY_OFFSET,
                         new AssignmentExpression(
                             new MemberReferenceTypeNode(
                                 new MemberReferenceExpression(
+                                    Expression.MYSTERY_OFFSET,
                                     new ParameterReferenceNode(0).toExpression(),
                                     Pattern.ANY_STRING
                                 ),
@@ -281,6 +286,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                     new AssignmentExpression(
                         new MemberReferenceTypeNode(
                             new MemberReferenceExpression(
+                                Expression.MYSTERY_OFFSET,
                                 new ParameterReferenceNode(0).toExpression(),
                                 Pattern.ANY_STRING
                             ),
@@ -290,7 +296,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                         new SubtreeMatch(new DeclaredVariableBackReference("tempVariable")).toExpression()
                     )
                 ),
-                new ReturnStatement(new DeclaredVariableBackReference("tempVariable").toExpression())
+                new ReturnStatement(Expression.MYSTERY_OFFSET, new DeclaredVariableBackReference("tempVariable").toExpression())
             )
         );
 
@@ -306,10 +312,11 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
 
         staticGetAccessor.setBody(
             new BlockStatement(
-                new ReturnStatement(
+                new ReturnStatement(Expression.MYSTERY_OFFSET,
                     new SubtreeMatch(
                         new MemberReferenceTypeNode(
                             new MemberReferenceExpression(
+                                Expression.MYSTERY_OFFSET,
                                 new TypedNode(TypeReferenceExpression.class).toExpression(),
                                 Pattern.ANY_STRING
                             ),
@@ -329,6 +336,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                         new AssignmentExpression(
                             new MemberReferenceTypeNode(
                                 new MemberReferenceExpression(
+                                    Expression.MYSTERY_OFFSET,
                                     new TypedNode(TypeReferenceExpression.class).toExpression(),
                                     Pattern.ANY_STRING
                                 ),
@@ -338,13 +346,14 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                             new NamedNode("value", new SubtreeMatch(new ParameterReferenceNode(0))).toExpression()
                         )
                     ),
-                    new ReturnStatement(new BackReference("value").toExpression())
+                    new ReturnStatement(Expression.MYSTERY_OFFSET, new BackReference("value").toExpression())
                 ),
                 new BlockStatement(
-                    new ReturnStatement(
+                    new ReturnStatement(Expression.MYSTERY_OFFSET,
                         new AssignmentExpression(
                             new MemberReferenceTypeNode(
                                 new MemberReferenceExpression(
+                                    Expression.MYSTERY_OFFSET,
                                     new TypedNode(TypeReferenceExpression.class).toExpression(),
                                     Pattern.ANY_STRING
                                 ),
@@ -367,6 +376,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                     new AssignmentExpression(
                         new MemberReferenceTypeNode(
                             new MemberReferenceExpression(
+                                Expression.MYSTERY_OFFSET,
                                 new TypedNode(TypeReferenceExpression.class).toExpression(),
                                 Pattern.ANY_STRING
                             ),
@@ -376,7 +386,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                         new SubtreeMatch(new DeclaredVariableBackReference("tempVariable")).toExpression()
                     )
                 ),
-                new ReturnStatement(new DeclaredVariableBackReference("tempVariable").toExpression())
+                new ReturnStatement(Expression.MYSTERY_OFFSET, new DeclaredVariableBackReference("tempVariable").toExpression())
             )
         );
 
@@ -485,7 +495,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                 final MemberReferenceExpression m = (MemberReferenceExpression) invocation.getTarget();
                 final Expression target = m.getTarget();
 
-                if (!target.matches(new IdentifierExpression(parameterList.get(0).getName()))) {
+                if (!target.matches(new IdentifierExpression( Expression.MYSTERY_OFFSET, parameterList.get(0).getName()))) {
                     return false;
                 }
             }
@@ -497,7 +507,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                  i++, j++)
 
             {
-                if (!argumentList.get(j).matches(new IdentifierExpression(parameterList.get(i).getName()))) {
+                if (!argumentList.get(j).matches(new IdentifierExpression( Expression.MYSTERY_OFFSET, parameterList.get(i).getName()))) {
                     return false;
                 }
             }

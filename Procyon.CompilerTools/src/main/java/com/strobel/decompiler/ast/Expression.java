@@ -42,6 +42,9 @@ import static com.strobel.decompiler.DecompilerHelpers.writeType;
 
 public final class Expression extends Node implements Cloneable, UserDataStore {
     public static final Object ANY_OPERAND = new Object();
+    
+    /** a constant to indicate that no bytecode offset is known for an expression */
+    public static final int MYSTERY_OFFSET = -34;
 
     private final Collection<Expression> _arguments = new Collection<>();
 
@@ -57,23 +60,29 @@ public final class Expression extends Node implements Cloneable, UserDataStore {
 
     private AstCode _code;
     private Object _operand;
+    
+    /** the offset of 'this' Expression, as computed for its bytecode by the Java compiler */
+    private int _offset;
+
     private TypeReference _expectedType;
     private TypeReference _inferredType;
     private UserDataStoreBase _userData;
 
-    public Expression(final AstCode code, final Object operand, final List<Expression> arguments) {
+    public Expression(final AstCode code, final Object operand, int offset, final List<Expression> arguments) {
         _code = VerifyArgument.notNull(code, "code");
         _operand = VerifyArgument.verifyNotInstanceOf(Expression.class, operand, "operand");
-
+        _offset = offset;
+        
         if (arguments != null) {
             _arguments.addAll(arguments);
         }
     }
 
-    public Expression(final AstCode code, final Object operand, final Expression... arguments) {
+    public Expression(final AstCode code, final Object operand, int offset, final Expression... arguments) {
         _code = VerifyArgument.notNull(code, "code");
         _operand = VerifyArgument.verifyNotInstanceOf(Expression.class, operand, "operand");
-
+        _offset = offset;
+        
         if (arguments != null) {
             Collections.addAll(_arguments, arguments);
         }
@@ -99,6 +108,13 @@ public final class Expression extends Node implements Cloneable, UserDataStore {
         _operand = operand;
     }
 
+    /**
+     * Returns the bytecode offset for 'this' expression, as computed by the Java compiler.
+     */
+    public final int getOffset() {
+        return _offset;
+    }
+    
     public final TypeReference getExpectedType() {
         return _expectedType;
     }
@@ -276,13 +292,14 @@ public final class Expression extends Node implements Cloneable, UserDataStore {
 
     @SuppressWarnings("CloneDoesntCallSuperClone")
     public final Expression clone() {
-        final Expression clone = new Expression(_code, _operand);
+        final Expression clone = new Expression(_code, _operand, _offset);
 
         clone._code = _code;
         clone._expectedType = _expectedType;
         clone._inferredType = _inferredType;
         clone._operand = _operand;
         clone._userData = _userData != null ? _userData.clone() : null;
+        clone._offset = _offset;
 
         for (final Expression argument : _arguments) {
             clone._arguments.add(argument.clone());

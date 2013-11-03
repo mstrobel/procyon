@@ -48,8 +48,8 @@ public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode
         _resolver = new JavaResolver(context);
     }
 
-    private final static PrimitiveExpression TRUE_CONSTANT = new PrimitiveExpression(true);
-    private final static PrimitiveExpression FALSE_CONSTANT = new PrimitiveExpression(false);
+    private final static PrimitiveExpression TRUE_CONSTANT = new PrimitiveExpression(Expression.MYSTERY_OFFSET, true);
+    private final static PrimitiveExpression FALSE_CONSTANT = new PrimitiveExpression(Expression.MYSTERY_OFFSET, false);
 
     @Override
     public AstNode visitConditionalExpression(final ConditionalExpression node, final Void data) {
@@ -97,7 +97,7 @@ public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode
 
             if (TRUE_CONSTANT.matches(left) || FALSE_CONSTANT.matches(left)) {
                 if (TRUE_CONSTANT.matches(right) || FALSE_CONSTANT.matches(right)) {
-                    return new PrimitiveExpression(
+                    return new PrimitiveExpression( node.getOffset(),
                         (TRUE_CONSTANT.matches(left) == TRUE_CONSTANT.matches(right)) ^
                         operator == BinaryOperatorType.INEQUALITY
                     );

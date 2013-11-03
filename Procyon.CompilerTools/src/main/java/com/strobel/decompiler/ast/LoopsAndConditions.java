@@ -338,7 +338,7 @@ final class LoopsAndConditions {
 
                         trueLabel.set(falseLabel.get());
                         falseLabel.set(temp);
-                        condition.set(AstOptimizer.simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.get())));
+                        condition.set(AstOptimizer.simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.get().getOffset(), condition.get())));
                     }
 
                     final boolean canWriteConditionalLoop;
@@ -395,7 +395,7 @@ final class LoopsAndConditions {
                             removeTail(lastBlock.getBody(), AstCode.IfTrue, AstCode.Goto);
 
                             if (lastBlock.getBody().size() > 1) {
-                                lastBlock.getBody().add(new Expression(AstCode.Goto, trueLabel.get()));
+                                lastBlock.getBody().add(new Expression(AstCode.Goto, trueLabel.get(), Expression.MYSTERY_OFFSET));
                                 loopLabel = new Label("Loop_" + _nextLabelIndex++);
                             }
                             else {
@@ -423,16 +423,16 @@ final class LoopsAndConditions {
                             bodyBlock.getBody().add(basicBlock);
                         }
 
-                        bodyBlock.setEntryGoto(new Expression(AstCode.Goto, trueLabel.get()));
+                        bodyBlock.setEntryGoto(new Expression(AstCode.Goto, trueLabel.get(), Expression.MYSTERY_OFFSET));
                         bodyBlock.getBody().addAll(findLoops(loopContents, node, isPostCondition));
 
                         basicBlockBody.add(loop);
 
                         if (isPostCondition) {
-                            basicBlockBody.add(new Expression(AstCode.Goto, falseLabel.get()));
+                            basicBlockBody.add(new Expression(AstCode.Goto, falseLabel.get(), Expression.MYSTERY_OFFSET));
                         }
                         else {
-                            basicBlockBody.add(new Expression(AstCode.Goto, falseLabel.get()));
+                            basicBlockBody.add(new Expression(AstCode.Goto, falseLabel.get(), Expression.MYSTERY_OFFSET));
                         }
 
                         result.add(block);
@@ -552,7 +552,7 @@ final class LoopsAndConditions {
                         loopContents.addAll(sortedNodes);
                     }
 
-                    bodyBlock.setEntryGoto(new Expression(AstCode.Goto, basicBlock.getBody().get(0)));
+                    bodyBlock.setEntryGoto(new Expression(AstCode.Goto, basicBlock.getBody().get(0), Expression.MYSTERY_OFFSET));
                     bodyBlock.getBody().addAll(findLoops(loopContents, node, true));
 
                     blockBody.add(new Label("Loop_" + _nextLabelIndex++));
@@ -774,7 +774,7 @@ final class LoopsAndConditions {
                         if (caseBlock == null) {
                             caseBlock = new CaseBlock();
 
-                            caseBlock.setEntryGoto(new Expression(AstCode.Goto, caseLabel));
+                            caseBlock.setEntryGoto(new Expression(AstCode.Goto, caseLabel, Expression.MYSTERY_OFFSET));
 
                             final ControlFlowNode caseTarget = labelsToNodes.get(caseLabel);
                             final List<Node> caseBody = caseBlock.getBody();
@@ -795,7 +795,7 @@ final class LoopsAndConditions {
                                 final BasicBlock explicitGoto = new BasicBlock();
 
                                 explicitGoto.getBody().add(new Label("SwitchGoto_" + _nextLabelIndex++));
-                                explicitGoto.getBody().add(new Expression(AstCode.Goto, caseLabel));
+                                explicitGoto.getBody().add(new Expression(AstCode.Goto, caseLabel, Expression.MYSTERY_OFFSET));
 
                                 caseBody.add(explicitGoto);
                             }
@@ -812,7 +812,7 @@ final class LoopsAndConditions {
                                 final BasicBlock explicitBreak = new BasicBlock();
 
                                 explicitBreak.getBody().add(new Label("SwitchBreak_" + _nextLabelIndex++));
-                                explicitBreak.getBody().add(new Expression(AstCode.LoopOrSwitchBreak, null));
+                                explicitBreak.getBody().add(new Expression(AstCode.LoopOrSwitchBreak, null, Expression.MYSTERY_OFFSET));
 
                                 caseBody.add(explicitBreak);
                             }
@@ -829,7 +829,7 @@ final class LoopsAndConditions {
                     if (!defaultFollowsSwitch) {
                         final CaseBlock defaultBlock = new CaseBlock();
 
-                        defaultBlock.setEntryGoto(new Expression(AstCode.Goto, defaultLabel));
+                        defaultBlock.setEntryGoto(new Expression(AstCode.Goto, defaultLabel, Expression.MYSTERY_OFFSET));
 
                         switchNode.getCaseBlocks().add(defaultBlock);
 
@@ -846,7 +846,7 @@ final class LoopsAndConditions {
                         final BasicBlock explicitBreak = new BasicBlock();
 
                         explicitBreak.getBody().add(new Label("SwitchBreak_" + _nextLabelIndex++));
-                        explicitBreak.getBody().add(new Expression(AstCode.LoopOrSwitchBreak, null));
+                        explicitBreak.getBody().add(new Expression(AstCode.LoopOrSwitchBreak, null, Expression.MYSTERY_OFFSET));
 
                         defaultBlock.getBody().add(explicitBreak);
                     }
@@ -870,7 +870,7 @@ final class LoopsAndConditions {
 
                     trueLabel.set(falseLabel.get());
                     falseLabel.set(temp);
-                    condition.set(AstOptimizer.simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.get())));
+                    condition.set(AstOptimizer.simplifyLogicalNot(new Expression(AstCode.LogicalNot, null, condition.get().getOffset(), condition.get())));
 
                     //
                     // Convert IfTrue expression to Condition.
@@ -880,8 +880,8 @@ final class LoopsAndConditions {
                     final Block trueBlock = new Block();
                     final Block falseBlock = new Block();
 
-                    trueBlock.setEntryGoto(new Expression(AstCode.Goto, trueLabel.get()));
-                    falseBlock.setEntryGoto(new Expression(AstCode.Goto, falseLabel.get()));
+                    trueBlock.setEntryGoto(new Expression(AstCode.Goto, trueLabel.get(), Expression.MYSTERY_OFFSET));
+                    falseBlock.setEntryGoto(new Expression(AstCode.Goto, falseLabel.get(), Expression.MYSTERY_OFFSET));
 
                     conditionNode.setCondition(condition.get());
                     conditionNode.setTrueBlock(trueBlock);

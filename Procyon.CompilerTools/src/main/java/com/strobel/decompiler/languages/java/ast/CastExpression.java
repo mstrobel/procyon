@@ -20,10 +20,8 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class CastExpression extends Expression {
-    public CastExpression() {
-    }
-
     public CastExpression(final AstType castToType, final Expression expression) {
+        super( expression.getOffset());
         setType(castToType);
         setExpression(expression);
     }

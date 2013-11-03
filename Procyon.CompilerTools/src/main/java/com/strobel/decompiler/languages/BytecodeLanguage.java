@@ -48,7 +48,7 @@ public class BytecodeLanguage extends Language {
     }
 
     @Override
-    public void decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
+    public TypeDecompilationResults decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(output, "output");
         VerifyArgument.notNull(options, "options");
@@ -106,6 +106,8 @@ public class BytecodeLanguage extends Language {
                 decompileType(innerType, output, options);
             }
         }
+        
+        return new TypeDecompilationResults( null /*no line number mapping*/);
     }
 
     private void writeTypeAttribute(final ITextOutput output, final TypeDefinition type, final SourceAttribute attribute) {

@@ -16,6 +16,8 @@
 
 package com.strobel.decompiler.languages.java;
 
+import java.util.List;
+
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.core.Predicate;
 import com.strobel.decompiler.DecompilationOptions;
@@ -23,6 +25,8 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.languages.Language;
+import com.strobel.decompiler.languages.LineNumberPosition;
+import com.strobel.decompiler.languages.TypeDecompilationResults;
 import com.strobel.decompiler.languages.java.ast.AstBuilder;
 import com.strobel.decompiler.languages.java.ast.transforms.IAstTransform;
 
@@ -50,10 +54,10 @@ public class JavaLanguage extends Language {
     }
 
     @Override
-    public void decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
+    public TypeDecompilationResults decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
         final AstBuilder builder = createAstBuilder(options, type, false);
         builder.addType(type);
-        runTransformsAndGenerateCode(builder, output, options, null);
+        return runTransformsAndGenerateCode(builder, output, options, null);
     }
 
     @SuppressWarnings("UnusedParameters")
@@ -72,7 +76,7 @@ public class JavaLanguage extends Language {
     }
 
     @SuppressWarnings("UnusedParameters")
-    private void runTransformsAndGenerateCode(
+    private TypeDecompilationResults runTransformsAndGenerateCode(
         final AstBuilder astBuilder,
         final ITextOutput output,
         final DecompilationOptions options,
@@ -84,6 +88,7 @@ public class JavaLanguage extends Language {
             additionalTransform.run(astBuilder.getCompilationUnit());
         }
 
-        astBuilder.generateCode(output);
+        List<LineNumberPosition> lineNumberPositions = astBuilder.generateCode(output);
+        return new TypeDecompilationResults( lineNumberPositions);
     }
 }

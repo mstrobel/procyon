@@ -47,7 +47,9 @@ public class EclipseStringSwitchRewriterTransform extends ContextTrackingVisitor
         HASH_CODE_PATTERN = new NamedNode(
             "hashCodeCall",
             new InvocationExpression(
+                Expression.MYSTERY_OFFSET,
                 new MemberReferenceExpression(
+                    Expression.MYSTERY_OFFSET,
                     new AnyNode("target").toExpression(),
                     "hashCode"
                 )
@@ -56,24 +58,26 @@ public class EclipseStringSwitchRewriterTransform extends ContextTrackingVisitor
 
         final BlockStatement caseBody = new BlockStatement();
 
-        final IfElseStatement test = new IfElseStatement(
+        final IfElseStatement test = new IfElseStatement( Expression.MYSTERY_OFFSET,
             new UnaryOperatorExpression(
                 UnaryOperatorType.NOT,
                 new SingleOrBinaryAggregateNode(
                     BinaryOperatorType.LOGICAL_OR,
                     new InvocationExpression(
+                        Expression.MYSTERY_OFFSET,
                         new MemberReferenceExpression(
-                            new NamedNode("input", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                            Expression.MYSTERY_OFFSET,
+                            new NamedNode("input", new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression(),
                             "equals"
                         ),
-                        new NamedNode("stringValue", new PrimitiveExpression(Pattern.ANY_STRING)).toExpression()
+                        new NamedNode("stringValue", new PrimitiveExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression()
                     )
                 ).toExpression()
             ),
             new BlockStatement(
                 new Choice(
-                    new NamedNode("defaultBreak", new BreakStatement(Pattern.ANY_STRING)),
-                    new ReturnStatement()
+                    new NamedNode("defaultBreak", new BreakStatement(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)),
+                    new ReturnStatement(Expression.MYSTERY_OFFSET)
                 ).toStatement()
             )
         );

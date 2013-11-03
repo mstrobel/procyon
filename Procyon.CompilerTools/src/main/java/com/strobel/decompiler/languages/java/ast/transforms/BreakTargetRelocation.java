@@ -258,12 +258,12 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
         final Statement insertedStatement;
 
         if (rewriteAsLoop) {
-            final WhileStatement loop = new WhileStatement(new PrimitiveExpression(true));
+            final WhileStatement loop = new WhileStatement(new PrimitiveExpression( Expression.MYSTERY_OFFSET, true));
 
             loop.setEmbeddedStatement(newBlock);
 
             if (!AstNode.isUnconditionalBranch(lastOrDefault(newBlock.getStatements()))) {
-                newBlock.getStatements().add(new BreakStatement());
+                newBlock.getStatements().add(new BreakStatement(Expression.MYSTERY_OFFSET));
             }
 
             if (loopData.needsLabel) {
@@ -317,7 +317,7 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
 
         for (final GotoStatement gotoStatement : labelInfo.gotoStatements) {
             if (loopData.continueStatements.contains(gotoStatement)) {
-                final ContinueStatement continueStatement = new ContinueStatement();
+                final ContinueStatement continueStatement = new ContinueStatement(Expression.MYSTERY_OFFSET);
 
                 if (loopData.needsLabel) {
                     continueStatement.setLabel(gotoStatement.getLabel());
@@ -326,7 +326,7 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
                 gotoStatement.replaceWith(continueStatement);
             }
             else {
-                final BreakStatement breakStatement = new BreakStatement();
+                final BreakStatement breakStatement = new BreakStatement(Expression.MYSTERY_OFFSET);
 
                 breakStatement.setLabel(gotoStatement.getLabel());
 
@@ -419,12 +419,12 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
                         break;
                     }
                 }
-
+                int offset = ((GotoStatement) start).getOffset();
                 if (continueNeedsLabel) {
-                    start.replaceWith(new ContinueStatement(labelInfo.name));
+                    start.replaceWith(new ContinueStatement(offset, labelInfo.name));
                 }
                 else {
-                    start.replaceWith(new ContinueStatement());
+                    start.replaceWith(new ContinueStatement(offset));
                 }
             }
         }

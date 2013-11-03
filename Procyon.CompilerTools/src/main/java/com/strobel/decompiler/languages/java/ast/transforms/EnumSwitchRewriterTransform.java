@@ -253,7 +253,7 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
                         info.mappings.put(mapName, mapping = new LinkedHashMap<>());
                     }
 
-                    final IdentifierExpression enumValue = new IdentifierExpression(outerMemberReference.getMemberName());
+                    final IdentifierExpression enumValue = new IdentifierExpression( Expression.MYSTERY_OFFSET, outerMemberReference.getMemberName());
 
                     enumValue.putUserData(Keys.MEMBER_REFERENCE, outerMemberReference.getUserData(Keys.MEMBER_REFERENCE));
 

@@ -3382,7 +3382,7 @@ public final class AstBuilder {
                 final Node lastInTry = lastOrDefault(tryAst, NOT_A_LABEL_OR_NOP);
 
                 if (lastInTry == null || !lastInTry.isUnconditionalControlFlow()) {
-                    tryAst.add(new Expression(AstCode.Leave, null));
+                    tryAst.add(new Expression(AstCode.Leave, null, Expression.MYSTERY_OFFSET));
                 }
 
                 tryBlock.getBody().addAll(tryAst);
@@ -3515,7 +3515,7 @@ public final class AstBuilder {
                 }
 
                 if (lastInHandler == null || !lastInHandler.isUnconditionalControlFlow()) {
-                    handlerAst.add(new Expression(eh.isCatch() ? AstCode.Leave : AstCode.EndFinally, null));
+                    handlerAst.add(new Expression(eh.isCatch() ? AstCode.Leave : AstCode.EndFinally, null, Expression.MYSTERY_OFFSET));
                 }
 
                 if (eh.isCatch()) {
@@ -3547,7 +3547,7 @@ public final class AstBuilder {
                         if (match(finallyStart, AstCode.Store)) {
                             finallyStart.getArguments().set(
                                 0,
-                                new Expression(AstCode.Load, exceptionTemp)
+                                new Expression(AstCode.Load, exceptionTemp, Expression.MYSTERY_OFFSET)
                             );
                         }
                     }
@@ -3555,7 +3555,7 @@ public final class AstBuilder {
                         for (final Variable storeTo : loadException.storeTo) {
                             finallyBlock.getBody().add(
                                 0,
-                                new Expression(AstCode.Store, storeTo, new Expression(AstCode.Load, exceptionTemp))
+                                new Expression(AstCode.Store, storeTo, Expression.MYSTERY_OFFSET, new Expression(AstCode.Load, exceptionTemp, Expression.MYSTERY_OFFSET))
                             );
                         }
                     }
@@ -3565,9 +3565,11 @@ public final class AstBuilder {
                         new Expression(
                             AstCode.Store,
                             exceptionTemp,
+                            Expression.MYSTERY_OFFSET,
                             new Expression(
                                 AstCode.LoadException,
-                                _factory.makeNamedType("java.lang.Throwable")
+                                _factory.makeNamedType("java.lang.Throwable"),
+                                Expression.MYSTERY_OFFSET
                             )
                         )
                     );
@@ -3682,7 +3684,7 @@ public final class AstBuilder {
                 for (final Variable storeTo : loadException.storeTo) {
                     catchBlock.getBody().add(
                         0,
-                        new Expression(AstCode.Store, storeTo, new Expression(AstCode.Load, exceptionTemp))
+                        new Expression(AstCode.Store, storeTo, Expression.MYSTERY_OFFSET, new Expression(AstCode.Load, exceptionTemp, Expression.MYSTERY_OFFSET))
                     );
                 }
             }
@@ -3728,18 +3730,18 @@ public final class AstBuilder {
             final Expression expression;
 
             if (_removed.contains(byteCode.instruction)) {
-                expression = new Expression(AstCode.Nop, null);
+                expression = new Expression(AstCode.Nop, null, Expression.MYSTERY_OFFSET);
                 ast.add(expression);
                 continue;
             }
 
-            expression = new Expression(byteCode.code, byteCode.operand);
+            expression = new Expression(byteCode.code, byteCode.operand, byteCode.offset);
 
             if (byteCode.code == AstCode.Inc) {
                 assert byteCode.secondOperand instanceof Integer;
 
                 expression.setCode(AstCode.Inc);
-                expression.getArguments().add(new Expression(AstCode.LdC, byteCode.secondOperand));
+                expression.getArguments().add(new Expression(AstCode.LdC, byteCode.secondOperand, byteCode.offset));
             }
             else if (byteCode.code == AstCode.Switch) {
                 expression.putUserData(AstKeys.SWITCH_INFO, byteCode.instruction.<SwitchInfo>getOperand(0));
@@ -3761,7 +3763,7 @@ public final class AstBuilder {
                     i++;
                 }
 
-                expression.getArguments().add(new Expression(AstCode.Load, slot.loadFrom));
+                expression.getArguments().add(new Expression(AstCode.Load, slot.loadFrom, byteCode.offset));
             }
 
             //
@@ -3771,7 +3773,7 @@ public final class AstBuilder {
                 ast.add(expression);
             }
             else if (byteCode.storeTo.size() == 1) {
-                ast.add(new Expression(AstCode.Store, byteCode.storeTo.get(0), expression));
+                ast.add(new Expression(AstCode.Store, byteCode.storeTo.get(0), expression.getOffset(), expression));
             }
             else {
                 final Variable tempVariable = new Variable();
@@ -3779,14 +3781,15 @@ public final class AstBuilder {
                 tempVariable.setName(format("expr_%1$02X", byteCode.offset));
                 tempVariable.setGenerated(true);
 
-                ast.add(new Expression(AstCode.Store, tempVariable, expression));
+                ast.add(new Expression(AstCode.Store, tempVariable, expression.getOffset(), expression));
 
                 for (int i = byteCode.storeTo.size() - 1; i >= 0; i--) {
                     ast.add(
                         new Expression(
                             AstCode.Store,
                             byteCode.storeTo.get(i),
-                            new Expression(AstCode.Load, tempVariable)
+                            Expression.MYSTERY_OFFSET,
+                            new Expression(AstCode.Load, tempVariable, byteCode.offset)
                         )
                     );
                 }

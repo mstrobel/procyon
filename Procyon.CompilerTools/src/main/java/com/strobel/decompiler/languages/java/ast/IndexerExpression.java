@@ -20,10 +20,8 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 
 public class IndexerExpression extends Expression {
-    public IndexerExpression() {
-    }
-
-    public IndexerExpression(final Expression target, final Expression argument) {
+    public IndexerExpression( final int offset, final Expression target, final Expression argument) {
+        super( offset);
         setTarget(target);
         setArgument(argument);
     }

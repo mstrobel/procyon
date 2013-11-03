@@ -43,8 +43,8 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         NO_IMPORT_OPTIONS = new ConvertTypeOptions();
         NO_IMPORT_OPTIONS.setAddImports(false);
 
-        TRUE_NODE = new PrimitiveExpression(true);
-        FALSE_NODE = new PrimitiveExpression(false);
+        TRUE_NODE = new PrimitiveExpression(Expression.MYSTERY_OFFSET, true);
+        FALSE_NODE = new PrimitiveExpression(Expression.MYSTERY_OFFSET, false);
     }
 
     private final JavaResolver _resolver;
@@ -315,7 +315,7 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                                 return new BinaryOperatorExpression(
                                     operand,
                                     BinaryOperatorType.INEQUALITY,
-                                    new PrimitiveExpression(JavaPrimitiveCast.cast(comparandType.getSimpleType(), 0))
+                                    new PrimitiveExpression(Expression.MYSTERY_OFFSET, JavaPrimitiveCast.cast(comparandType.getSimpleType(), 0))
                                 );
                             }
                         }
@@ -469,6 +469,7 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                         node,
                         BinaryOperatorType.INEQUALITY,
                         new PrimitiveExpression(
+                        	Expression.MYSTERY_OFFSET,
                             JavaPrimitiveCast.cast(
                                 MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(type)
                                               .getSimpleType(),
@@ -506,8 +507,8 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                 public AstNode apply(final AstNode input) {
                     return new ConditionalExpression(
                         (Expression) input,
-                        new PrimitiveExpression(invert ? 0 : 1),
-                        new PrimitiveExpression(invert ? 1 : 0)
+                        new PrimitiveExpression(Expression.MYSTERY_OFFSET, invert ? 0 : 1),
+                        new PrimitiveExpression(Expression.MYSTERY_OFFSET, invert ? 1 : 0)
                     );
                 }
             }

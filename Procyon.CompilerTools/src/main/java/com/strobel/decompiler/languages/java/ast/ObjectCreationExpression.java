@@ -22,14 +22,13 @@ import com.strobel.decompiler.patterns.Match;
 public class ObjectCreationExpression extends Expression {
     public final static TokenRole NEW_KEYWORD_ROLE = new TokenRole("new", TokenRole.FLAG_KEYWORD);
 
-    public ObjectCreationExpression() {
-    }
-
-    public ObjectCreationExpression(final AstType type) {
+    public ObjectCreationExpression( int offset, final AstType type) {
+        super( offset);
         setType(type);
     }
 
-    public ObjectCreationExpression(final AstType type, final Iterable<Expression> arguments) {
+    public ObjectCreationExpression( int offset, final AstType type, final Iterable<Expression> arguments) {
+        super( offset);
         setType(type);
 
         if (arguments != null) {
@@ -39,7 +38,8 @@ public class ObjectCreationExpression extends Expression {
         }
     }
 
-    public ObjectCreationExpression(final AstType type, final Expression... arguments) {
+    public ObjectCreationExpression( int offset, final AstType type, final Expression... arguments) {
+        super( offset);
         setType(type);
 
         if (arguments != null) {

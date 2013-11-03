@@ -169,9 +169,9 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
 
         outerType.putUserData(Keys.TYPE_REFERENCE, outerTypeReference);
 
-        final ThisReferenceExpression replacement = new ThisReferenceExpression();
+        final ThisReferenceExpression replacement = new ThisReferenceExpression( node.getOffset());
 
-        replacement.setTarget(new TypeReferenceExpression(outerType));
+        replacement.setTarget(new TypeReferenceExpression( node.getOffset(), outerType));
         replacement.putUserData(Keys.TYPE_REFERENCE, outerTypeReference);
 
         node.replaceWith(replacement);
@@ -211,9 +211,9 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
 
                 outerType.putUserData(Keys.TYPE_REFERENCE, declaredType);
 
-                final ThisReferenceExpression thisReference = new ThisReferenceExpression();
+                final ThisReferenceExpression thisReference = new ThisReferenceExpression( node.getOffset());
 
-                thisReference.setTarget(new TypeReferenceExpression(outerType));
+                thisReference.setTarget(new TypeReferenceExpression(node.getOffset(), outerType));
                 node.replaceWith(thisReference);
 
                 return null;
@@ -266,7 +266,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
 
         if (node.getTarget() instanceof ThisReferenceExpression) {
             thisReference = (ThisReferenceExpression) node.getTarget();
-            thisReference.setTarget(new TypeReferenceExpression(outerType));
+            thisReference.setTarget(new TypeReferenceExpression(node.getOffset(), outerType));
         }
 
         return true;
@@ -342,12 +342,12 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
                             }
                             else {
                                 final TypeReference fieldType = resolvedField.getFieldType();
-                                final ThisReferenceExpression replacement = new ThisReferenceExpression();
+                                final ThisReferenceExpression replacement = new ThisReferenceExpression( left.getOffset());
                                 final SimpleType type = new SimpleType(fieldType.getSimpleName());
 
                                 type.putUserData(Keys.TYPE_REFERENCE, fieldType);
                                 replacement.putUserData(Keys.TYPE_REFERENCE, fieldType);
-                                replacement.setTarget(new TypeReferenceExpression(type));
+                                replacement.setTarget(new TypeReferenceExpression(left.getOffset(), type));
                                 right.replaceWith(replacement);
                             }
                         }

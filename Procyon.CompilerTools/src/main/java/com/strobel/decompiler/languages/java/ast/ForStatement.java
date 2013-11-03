@@ -25,6 +25,10 @@ public class ForStatement extends Statement {
     public final static Role<Statement> INITIALIZER_ROLE = new Role<>("Initializer", Statement.class, Statement.NULL);
     public final static Role<Statement> ITERATOR_ROLE = new Role<>("Iterator", Statement.class, Statement.NULL);
 
+    public ForStatement( int offset) {
+        super( offset);
+    }
+    
     public final JavaTokenNode getForToken() {
         return getChildByRole(FOR_KEYWORD_ROLE);
     }

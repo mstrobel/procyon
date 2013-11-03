@@ -27,14 +27,12 @@ public class IfElseStatement extends Statement {
     public final static Role<Statement> TRUE_ROLE = new Role<>("True", Statement.class, Statement.NULL);
     public final static Role<Statement> FALSE_ROLE = new Role<>("False", Statement.class, Statement.NULL);
 
-    public IfElseStatement() {
+    public IfElseStatement(final int offset, final Expression condition, final Statement trueStatement) {
+        this(offset, condition, trueStatement, null);
     }
 
-    public IfElseStatement(final Expression condition, final Statement trueStatement) {
-        this(condition, trueStatement, null);
-    }
-
-    public IfElseStatement(final Expression condition, final Statement trueStatement, final Statement falseStatement) {
+    public IfElseStatement(final int offset, final Expression condition, final Statement trueStatement, final Statement falseStatement) {
+        super( offset);
         setCondition(condition);
         setTrueStatement(trueStatement);
         setFalseStatement(falseStatement);
