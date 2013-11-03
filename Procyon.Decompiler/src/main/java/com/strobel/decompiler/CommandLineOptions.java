@@ -95,18 +95,18 @@ public class CommandLineOptions {
 
     @Parameter(
 	       names = { "-ln", "--with-line-numbers" },
-        description = "Include line numbers (Java or raw bytecode modes).")
+        description = "Include line numbers in raw bytecode mode; supports Java mode with -o only.")
     private boolean _includeLineNumbers;
 
     @Parameter(
         names = { "-sl", "--stretch-lines" },
-        description = "Stretch lines to match original line numbers (Java mode only) [EXPERIMENTAL].")
+        description = "Stretch Java lines to match original line numbers (only in combination with -o) [EXPERIMENTAL].")
     private boolean _stretchLines;
     
     @Parameter(
         names = { "-dl", "--debug-line-numbers" },
-        description = "For debugging, show line numbers as inline comments (Java mode only).  Implies -ln.")
-    private boolean _showDebugLineNumbers;    
+        description = "For debugging, show Java line numbers as inline comments (implies -ln; requires -o).")
+    private boolean _showDebugLineNumbers;
 
     @Parameter(
         names = { "-ps", "--retain-pointless-switches" },
@@ -233,16 +233,24 @@ public class CommandLineOptions {
         return _includeLineNumbers;
     }
 
+    public final void setIncludeLineNumbers(final boolean includeLineNumbers) {
+        _includeLineNumbers = includeLineNumbers;
+    }
+
     public final boolean getStretchLines() {
         return _stretchLines;
     }
-    
+
+    public final void setStretchLines(final boolean stretchLines) {
+        _stretchLines = stretchLines;
+    }
+
     public final boolean getShowDebugLineNumbers() {
         return _showDebugLineNumbers;
     }
-    
-    public final void setIncludeLineNumbers(final boolean includeLineNumbers) {
-        _includeLineNumbers = includeLineNumbers;
+
+    public final void setShowDebugLineNumbers(final boolean showDebugLineNumbers) {
+        _showDebugLineNumbers = showDebugLineNumbers;
     }
 
     public final boolean getRetainPointlessSwitches() {
