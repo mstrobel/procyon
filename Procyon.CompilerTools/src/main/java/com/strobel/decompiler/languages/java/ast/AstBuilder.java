@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.assembler.ir.attributes.AnnotationDefaultAttribute;
 import com.strobel.assembler.ir.attributes.AttributeNames;
+import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
 import com.strobel.assembler.metadata.annotations.*;
@@ -37,12 +38,7 @@ import com.strobel.decompiler.languages.java.ast.transforms.TransformationPipeli
 import com.strobel.util.ContractUtils;
 
 import javax.lang.model.element.Modifier;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public final class AstBuilder {
     private final DecompilerContext _context;
@@ -495,6 +491,8 @@ public final class AstBuilder {
             }
         }
 
+        final List<TypeDefinition> nestedTypes = new ArrayList<>();
+
         for (final TypeDefinition nestedType : type.getDeclaredTypes()) {
             final TypeReference declaringType = nestedType.getDeclaringType();
 
@@ -505,10 +503,52 @@ public final class AstBuilder {
                     _typeDeclarations.put(type.getInternalName(), astType);
                 }
                 else {
-                    astType.addChild(createTypeNoCache(nestedType), Roles.TYPE_MEMBER);
+                    nestedTypes.add(nestedType);
                 }
             }
         }
+
+        sortNestedTypes(nestedTypes);
+
+        for (final TypeDefinition nestedType : nestedTypes) {
+            astType.addChild(createTypeNoCache(nestedType), Roles.TYPE_MEMBER);
+        }
+    }
+
+    private static void sortNestedTypes(final List<TypeDefinition> types) {
+        final IdentityHashMap<TypeDefinition, Integer> minOffsets = new IdentityHashMap<>();
+
+        for (final TypeDefinition type : types) {
+            minOffsets.put(type, findFirstLineNumber(type));
+        }
+
+        Collections.sort(
+            types,
+            new Comparator<TypeDefinition>() {
+                @Override
+                public int compare(final TypeDefinition o1, final TypeDefinition o2) {
+                    return Integer.compare(minOffsets.get(o1), minOffsets.get(o2));
+                }
+            }
+        );
+    }
+
+    private static Integer findFirstLineNumber(final TypeDefinition type) {
+        int minLineNumber = Integer.MAX_VALUE;
+
+        for (final MethodDefinition method : type.getDeclaredMethods()) {
+            final LineNumberTableAttribute attribute = SourceAttribute.find(AttributeNames.LineNumberTable, method.getSourceAttributes());
+
+            if (attribute != null && !attribute.getEntries().isEmpty()) {
+                final int firstLineNumber = attribute.getEntries().get(0).getLineNumber();
+
+                if (firstLineNumber < minLineNumber) {
+                    minLineNumber = firstLineNumber;
+                }
+            }
+        }
+
+        return minLineNumber;
     }
 
     private FieldDeclaration createField(final FieldDefinition field) {
@@ -526,7 +566,7 @@ public final class AstBuilder {
         );
 
         if (field.hasConstantValue()) {
-            initializer.setInitializer(new PrimitiveExpression( Expression.MYSTERY_OFFSET, field.getConstantValue()));
+            initializer.setInitializer(new PrimitiveExpression(Expression.MYSTERY_OFFSET, field.getConstantValue()));
             initializer.putUserData(Keys.FIELD_DEFINITION, field);
             initializer.putUserData(Keys.MEMBER_REFERENCE, field);
         }
@@ -675,50 +715,50 @@ public final class AstBuilder {
     public static Expression makePrimitive(final long val, final TypeReference type) {
         if (TypeAnalysis.isBoolean(type)) {
             if (val == 0L) {
-                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, Boolean.FALSE);
+                return new PrimitiveExpression(Expression.MYSTERY_OFFSET, Boolean.FALSE);
             }
-            return new PrimitiveExpression( Expression.MYSTERY_OFFSET, Boolean.TRUE);
+            return new PrimitiveExpression(Expression.MYSTERY_OFFSET, Boolean.TRUE);
         }
 
         if (type != null) {
-            return new PrimitiveExpression( Expression.MYSTERY_OFFSET, JavaPrimitiveCast.cast(type.getSimpleType(), val));
+            return new PrimitiveExpression(Expression.MYSTERY_OFFSET, JavaPrimitiveCast.cast(type.getSimpleType(), val));
         }
 
-        return new PrimitiveExpression( Expression.MYSTERY_OFFSET, JavaPrimitiveCast.cast(JvmType.Integer, val));
+        return new PrimitiveExpression(Expression.MYSTERY_OFFSET, JavaPrimitiveCast.cast(JvmType.Integer, val));
     }
 
     public static Expression makeDefaultValue(final TypeReference type) {
         if (type == null) {
-            return new NullReferenceExpression( Expression.MYSTERY_OFFSET);
+            return new NullReferenceExpression(Expression.MYSTERY_OFFSET);
         }
 
         switch (type.getSimpleType()) {
             case Boolean:
-                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, Boolean.FALSE);
+                return new PrimitiveExpression(Expression.MYSTERY_OFFSET, Boolean.FALSE);
 
             case Byte:
-                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, (byte) 0);
+                return new PrimitiveExpression(Expression.MYSTERY_OFFSET, (byte) 0);
 
             case Character:
-                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, '\0');
+                return new PrimitiveExpression(Expression.MYSTERY_OFFSET, '\0');
 
             case Short:
-                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, (short) 0);
+                return new PrimitiveExpression(Expression.MYSTERY_OFFSET, (short) 0);
 
             case Integer:
-                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, 0);
+                return new PrimitiveExpression(Expression.MYSTERY_OFFSET, 0);
 
             case Long:
-                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, 0L);
+                return new PrimitiveExpression(Expression.MYSTERY_OFFSET, 0L);
 
             case Float:
-                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, 0f);
+                return new PrimitiveExpression(Expression.MYSTERY_OFFSET, 0f);
 
             case Double:
-                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, 0d);
+                return new PrimitiveExpression(Expression.MYSTERY_OFFSET, 0d);
 
             default:
-                return new NullReferenceExpression( Expression.MYSTERY_OFFSET);
+                return new NullReferenceExpression(Expression.MYSTERY_OFFSET);
         }
     }
 
@@ -789,7 +829,7 @@ public final class AstBuilder {
                 arguments.add(value);
             }
             else {
-                arguments.add(new AssignmentExpression( new IdentifierExpression( value.getOffset(), member), value));
+                arguments.add(new AssignmentExpression(new IdentifierExpression(value.getOffset(), member), value));
             }
         }
 
@@ -800,12 +840,12 @@ public final class AstBuilder {
         switch (element.getElementType()) {
             case Constant: {
                 final ConstantAnnotationElement constant = (ConstantAnnotationElement) element;
-                return new PrimitiveExpression( Expression.MYSTERY_OFFSET, constant.getConstantValue());
+                return new PrimitiveExpression(Expression.MYSTERY_OFFSET, constant.getConstantValue());
             }
 
             case Enum: {
                 final EnumAnnotationElement enumElement = (EnumAnnotationElement) element;
-                return new TypeReferenceExpression( Expression.MYSTERY_OFFSET, convertType(enumElement.getEnumType())).member(enumElement.getEnumConstantName());
+                return new TypeReferenceExpression(Expression.MYSTERY_OFFSET, convertType(enumElement.getEnumType())).member(enumElement.getEnumConstantName());
             }
 
             case Array: {
@@ -821,8 +861,10 @@ public final class AstBuilder {
             }
 
             case Class: {
-                return new ClassOfExpression( Expression.MYSTERY_OFFSET,
-                        convertType(((ClassAnnotationElement) element).getClassType()));
+                return new ClassOfExpression(
+                    Expression.MYSTERY_OFFSET,
+                    convertType(((ClassAnnotationElement) element).getClassType())
+                );
             }
 
             case Annotation: {

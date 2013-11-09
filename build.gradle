@@ -3,7 +3,6 @@ import org.gradle.api.artifacts.maven.MavenDeployment
 apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'idea'
-apply plugin: 'eclipse'
 
 subname = ''
 archivesBaseName = 'procyon'
@@ -12,9 +11,8 @@ allprojects {
     apply plugin: 'java'
     apply plugin: 'idea'
     apply plugin: 'maven'
-    apply plugin: 'eclipse'
 
-    version "1.0-SNAPSHOT"
+    version "0.5.22"
 
     group 'org.bitbucket.mstrobel'
     sourceCompatibility = 1.7    // JDK version
@@ -69,11 +67,11 @@ subprojects {
                 }
 
                 snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
-                    authentication(userName: "guest", password: "guest")
+                    authentication(userName: sonatypeUsername, password: sonatypePassword)
                 }
 
                 repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2") {
-                    authentication(userName: "guest", password: "guest")
+                    authentication(userName: sonatypeUsername, password: sonatypePassword)
                 }
 
                 pom {
