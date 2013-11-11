@@ -14,6 +14,7 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.core.ReadOnlyList;
+import com.strobel.reflection.BindingFlags;
 import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.TypeList;
@@ -59,7 +60,7 @@ public final class TypeBuilderTests {
 
         final AnnotationBuilder<TestAnnotation> annotation = AnnotationBuilder.create(
             annotationType,
-            annotationType.getMethods(),
+            annotationType.getMethods(BindingFlags.AllDeclared),
             new ReadOnlyList<Object>(42)
         );
 

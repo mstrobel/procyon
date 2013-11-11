@@ -27,6 +27,13 @@ public final class Environment {
 
     private static final Logger logger = Logger.getLogger(Environment.class.getName());
 
+    private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\$([a-zA-Z0-9_]+)", Pattern.COMMENTS);
+
+    private static final String OS_NAME = System.getProperty("os.name");
+    private static final String OS_NAME_LOWER = OS_NAME.toLowerCase();
+    private static final String OS_ARCH = System.getProperty("os.arch");
+    private static final String ARCH_DATA_MODEL = System.getProperty("sun.arch.data.model");
+
     /**
      * Make sure nobody can instantiate the class
      */
@@ -34,7 +41,47 @@ public final class Environment {
         throw ContractUtils.unreachable();
     }
 
-    private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\$([a-zA-Z0-9_]+)", Pattern.COMMENTS);
+    public static boolean isWindows() {
+        return OS_NAME_LOWER.startsWith("windows");
+    }
+
+    public static boolean isOS2() {
+        return OS_NAME_LOWER.startsWith("os/2") ||
+               OS_NAME_LOWER.startsWith("os2");
+    }
+
+    public static boolean isMac() {
+        return OS_NAME_LOWER.startsWith("mac");
+    }
+
+    public static boolean isLinux() {
+        return OS_NAME_LOWER.startsWith("linux");
+    }
+
+    public static boolean isUnix() {
+        return !isWindows() && !isOS2();
+    }
+
+    public static boolean isFileSystemCaseSensitive() {
+        return isUnix() && !isMac();
+    }
+
+    public static boolean is32Bit() {
+        return ARCH_DATA_MODEL == null ||
+               ARCH_DATA_MODEL.equals("32");
+    }
+
+    public static boolean is64Bit() {
+        return !is32Bit();
+    }
+
+    public static boolean isAmd64() {
+        return "amd64".equals(OS_ARCH);
+    }
+
+    public static boolean isMacX64() {
+        return isMac() && "x86_64".equals(OS_ARCH);
+    }
 
     /**
      * Get any variable by name if defined on the system
