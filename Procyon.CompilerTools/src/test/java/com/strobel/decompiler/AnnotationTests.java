@@ -19,6 +19,7 @@ public class AnnotationTests extends DecompilerTest {
         int integer() default 0;
         double real() default 0.0;
         A nested() default @A("forty-two");
+        Class<?> type() default void.class;
     }
 
     private @interface C {
@@ -63,6 +64,7 @@ public class AnnotationTests extends DecompilerTest {
             "    int integer() default 0;\n" +
             "    double real() default 0.0;\n" +
             "    A nested() default @A({ \"forty-two\" });\n" +
+            "    Class<?> type() default void.class;\n" +
             "}\n"
         );
     }

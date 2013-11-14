@@ -194,7 +194,7 @@ public final class Reifier implements TypeTreeVisitor<TypeReference> {
         resultType = getFactory().makeDouble();
     }
 
-    public void visitVoidDescriptor(final VoidDescriptor v) {
+    public void visitVoidSignature(final VoidSignature v) {
         resultType = getFactory().makeVoid();
     }
 }

@@ -47,5 +47,5 @@ public interface TypeTreeVisitor<T> {
     void visitFloatSignature(FloatSignature f);
     void visitDoubleSignature(DoubleSignature d);
 
-    void visitVoidDescriptor(VoidDescriptor v);
+    void visitVoidSignature(VoidSignature v);
 }

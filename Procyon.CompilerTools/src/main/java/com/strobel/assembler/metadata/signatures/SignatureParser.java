@@ -318,6 +318,7 @@ public final class SignatureParser {
             case 'J':
             case 'S':
             case 'Z':
+            case 'V':
                 return parseBaseType();
             default:
                 return parseFieldTypeSignature();
@@ -350,6 +351,9 @@ public final class SignatureParser {
             case 'Z':
                 advance();
                 return BooleanSignature.make();
+            case 'V':
+                advance();
+                return VoidSignature.make();
             default: {
                 throw error("expected primitive type");
             }
@@ -455,7 +459,7 @@ public final class SignatureParser {
     private ReturnType parseReturnType() {
         if (current() == 'V') {
             advance();
-            return VoidDescriptor.make();
+            return VoidSignature.make();
         }
         else {
             return parseTypeSignature();
