@@ -628,8 +628,7 @@ public final class StringUtilities {
 
                 switch (ch) {
                     case '\0':
-                        sb.append('\\');
-                        sb.append('0');
+                        sb.append("\\u0000");
                         continue;
                     case '\t':
                         sb.append('\\');

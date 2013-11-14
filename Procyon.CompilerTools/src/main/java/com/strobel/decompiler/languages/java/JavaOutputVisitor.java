@@ -2503,7 +2503,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             case '\\':
                 return "\\\\";
             case '\0':
-                return "\\0";
+                return "\u0000";
             case '\b':
                 return "\\b";
             case '\f':

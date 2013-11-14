@@ -68,7 +68,7 @@ public class EncodingTests extends DecompilerTest {
             "    }\n" +
             "    static void test() {\n" +
             "        System.out.println(__\\u0130\\u00dfI(null));\n" +
-            "        System.out.println(\"\\\"\\0\\u000fu\\\\\\\"\\ff'\\rr'\\nn \\u0123\\u1234O\\uffffF\");\n" +
+            "        System.out.println(\"\\\"\\u0000\\u000fu\\\\\\\"\\ff'\\rr'\\nn \\u0123\\u1234O\\uffffF\");\n" +
             "    }\n" +
             "    static {\n" +
             "        A.\\ufe4f\\u2167 = \"\\ufeff\\ud800\\ud8d8\\udffd\";\n" +
