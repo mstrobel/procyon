@@ -30,6 +30,7 @@ import static com.strobel.decompiler.ast.PatternMatching.*;
 import static java.lang.String.format;
 
 final class Inlining {
+    @SuppressWarnings({ "FieldCanBeLocal", "UnusedDeclaration" })
     private final DecompilerContext _context;
     private final Block _method;
     private final boolean _aggressive;
@@ -729,10 +730,6 @@ final class Inlining {
             case InvokeInterface:
             case InvokeDynamic:
             case __New:
-            case NewArray:
-            case __NewArray:
-            case __ANewArray:
-            case MultiANewArray:
             case Store:
             case StoreElement:
             case Inc:
