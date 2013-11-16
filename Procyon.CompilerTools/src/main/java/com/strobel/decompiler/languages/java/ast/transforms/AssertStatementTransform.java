@@ -26,6 +26,7 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
+import com.strobel.functions.Function;
 
 import static com.strobel.core.CollectionUtilities.*;
 
@@ -38,25 +39,43 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
     private final static AssignmentExpression ASSERTIONS_DISABLED_PATTERN;
 
     static {
-        ASSERT_PATTERN = new IfElseStatement(Expression.MYSTERY_OFFSET,
-            new UnaryOperatorExpression(
-                UnaryOperatorType.NOT,
-                new Choice(
-                    new BinaryOperatorExpression(
-                        new LeftmostBinaryOperandNode(
+        ASSERT_PATTERN = new IfElseStatement(
+            Expression.MYSTERY_OFFSET,
+            new Choice(
+                new UnaryOperatorExpression(
+                    UnaryOperatorType.NOT,
+                    new Choice(
+                        new BinaryOperatorExpression(
+                            new LeftmostBinaryOperandNode(
+                                new NamedNode(
+                                    "assertionsDisabledCheck",
+                                    new TypeReferenceExpression(Expression.MYSTERY_OFFSET, new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled")
+                                ),
+                                BinaryOperatorType.LOGICAL_OR,
+                                true
+                            ).toExpression(),
+                            BinaryOperatorType.LOGICAL_OR,
+                            new AnyNode("condition").toExpression()
+                        ),
+                        new TypeReferenceExpression(Expression.MYSTERY_OFFSET, new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled")
+                    ).toExpression()
+                ),
+                new BinaryOperatorExpression(
+                    new LeftmostBinaryOperandNode(
+                        new UnaryOperatorExpression(
+                            UnaryOperatorType.NOT,
                             new NamedNode(
                                 "assertionsDisabledCheck",
                                 new TypeReferenceExpression(Expression.MYSTERY_OFFSET, new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled")
-                            ),
-                            BinaryOperatorType.LOGICAL_OR,
-                            true
-                        ).toExpression(),
-                        BinaryOperatorType.LOGICAL_OR,
-                        new AnyNode("condition").toExpression()
-                    ),
-                    new TypeReferenceExpression(Expression.MYSTERY_OFFSET, new SimpleType(Pattern.ANY_STRING)).member("$assertionsDisabled")
-                ).toExpression()
-            ),
+                            ).toExpression()
+                        ),
+                        BinaryOperatorType.LOGICAL_AND,
+                        true
+                    ).toExpression(),
+                    BinaryOperatorType.LOGICAL_AND,
+                    new AnyNode("invertedCondition").toExpression()
+                )
+            ).toExpression(),
             new BlockStatement(
                 new ThrowStatement(
                     new ObjectCreationExpression(
@@ -72,7 +91,7 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
             new NamedNode(
                 "$assertionsDisabled",
                 new Choice(
-                    new IdentifierExpression( Expression.MYSTERY_OFFSET, "$assertionsDisabled"),
+                    new IdentifierExpression(Expression.MYSTERY_OFFSET, "$assertionsDisabled"),
                     new TypedNode(TypeReferenceExpression.class).toExpression().member("$assertionsDisabled")
                 )
             ).toExpression(),
@@ -82,8 +101,13 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
                     Expression.MYSTERY_OFFSET,
                     new MemberReferenceExpression(
                         Expression.MYSTERY_OFFSET,
-                        new NamedNode("type", new ClassOfExpression( Expression.MYSTERY_OFFSET,
-                                new SimpleType(Pattern.ANY_STRING))).toExpression(),
+                        new NamedNode(
+                            "type",
+                            new ClassOfExpression(
+                                Expression.MYSTERY_OFFSET,
+                                new SimpleType(Pattern.ANY_STRING)
+                            )
+                        ).toExpression(),
                         "desiredAssertionStatus"
                     )
                 )
@@ -175,7 +199,23 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
 
         Expression condition = firstOrDefault(m.<Expression>get("condition"));
 
-        if (assertionsDisabledCheck != null &&
+        if (condition == null) {
+            condition = firstOrDefault(m.<Expression>get("invertedCondition"));
+
+            if (condition != null) {
+                condition = condition.replaceWith(
+                    new Function<AstNode, Expression>() {
+                        @Override
+                        public Expression apply(final AstNode input) {
+                            return new UnaryOperatorExpression(UnaryOperatorType.NOT, (Expression) input);
+                        }
+                    }
+                );
+            }
+        }
+
+        if (condition != null &&
+            assertionsDisabledCheck != null &&
             assertionsDisabledCheck.getParent() instanceof BinaryOperatorExpression &&
             assertionsDisabledCheck.getParent().getParent() instanceof BinaryOperatorExpression) {
 
@@ -190,14 +230,15 @@ public class AssertStatementTransform extends ContextTrackingVisitor<Void> {
         }
 
         final AssertStatement assertStatement = new AssertStatement(
-            condition == null ? ifElse.getOffset() : condition.getOffset());
+            condition == null ? ifElse.getOffset() : condition.getOffset()
+        );
 
         if (condition != null) {
             condition.remove();
             assertStatement.setCondition(condition);
         }
         else {
-            assertStatement.setCondition(new PrimitiveExpression(Expression.MYSTERY_OFFSET,false));
+            assertStatement.setCondition(new PrimitiveExpression(Expression.MYSTERY_OFFSET, false));
         }
 
         if (m.has("message")) {
