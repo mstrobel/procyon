@@ -7,6 +7,9 @@ apply plugin: 'idea'
 subname = ''
 archivesBaseName = 'procyon'
 
+mavenUser = properties.get("sonatypeUsername")
+mavenPassword = properties.get("sonatypePassword")
+
 allprojects {
     apply plugin: 'java'
     apply plugin: 'idea'
@@ -65,13 +68,12 @@ subprojects {
                 beforeDeployment { MavenDeployment deployment ->
                     signing.signPom(deployment)
                 }
-
                 snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
-                    authentication(userName: sonatypeUsername, password: sonatypePassword)
+                    authentication(userName: mavenUser, password: mavenPassword)
                 }
 
                 repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2") {
-                    authentication(userName: sonatypeUsername, password: sonatypePassword)
+                    authentication(userName: mavenUser, password: mavenPassword)
                 }
 
                 pom {
