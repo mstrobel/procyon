@@ -1056,6 +1056,15 @@ public final class MetadataHelper {
         final Predicate<? super MethodReference> filter,
         final boolean includeBridgeMethods) {
 
+        return findMethods(type, filter, includeBridgeMethods, false);
+    }
+
+    public static List<MethodReference> findMethods(
+        final TypeReference type,
+        final Predicate<? super MethodReference> filter,
+        final boolean includeBridgeMethods,
+        final boolean includeOverriddenMethods) {
+
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(filter, "filter");
 
@@ -1092,7 +1101,7 @@ public final class MetadataHelper {
                 }
 
                 if (filter.test(method)) {
-                    final String key = method.getName() + ":" + method.getErasedSignature();
+                    final String key = (includeOverriddenMethods ? method.getFullName() : method.getName()) + ":" + method.getErasedSignature();
 
                     if (descriptors.add(key)) {
                         if (results == null) {
@@ -1606,6 +1615,75 @@ public final class MetadataHelper {
         // TODO: Implement class bound computation.
         //
         return t;
+    }
+
+    public static boolean isOverride(final MethodDefinition method, final MethodReference ancestorMethod) {
+        final MethodDefinition resolvedAncestor = ancestorMethod.resolve();
+
+        if (resolvedAncestor == null || resolvedAncestor.isFinal() || resolvedAncestor.isPrivate() || resolvedAncestor.isStatic()) {
+            return false;
+        }
+
+        final int modifiers = method.getModifiers() & Flags.AccessFlags;
+        final int ancestorModifiers = resolvedAncestor.getModifiers() & Flags.AccessFlags;
+
+        if (modifiers != ancestorModifiers) {
+            return false;
+        }
+
+        if (!StringUtilities.equals(method.getName(), ancestorMethod.getName())) {
+            return false;
+        }
+
+        if (method.getDeclaringType().isInterface()) {
+            return false;
+        }
+
+        final MethodDefinition resolved = method.resolve();
+
+        final TypeReference declaringType = erase(
+            resolved != null ? resolved.getDeclaringType()
+                             : method.getDeclaringType()
+        );
+
+        final TypeReference ancestorDeclaringType = erase(resolvedAncestor.getDeclaringType());
+
+        if (isSameType(declaringType, ancestorDeclaringType)) {
+            return false;
+        }
+
+        if (StringUtilities.equals(method.getErasedSignature(), ancestorMethod.getErasedSignature())) {
+            return true;
+        }
+
+        if (!isSubType(declaringType, ancestorDeclaringType)) {
+            return false;
+        }
+
+        final List<ParameterDefinition> parameters = method.getParameters();
+        final List<ParameterDefinition> ancestorParameters = ancestorMethod.getParameters();
+
+        if (parameters.size() != ancestorParameters.size()) {
+            return false;
+        }
+
+        final TypeReference ancestorReturnType = erase(ancestorMethod.getReturnType());
+        final TypeReference baseReturnType = erase(method.getReturnType());
+
+        if (!isAssignableFrom(ancestorReturnType, baseReturnType)) {
+            return false;
+        }
+
+        for (int i = 0, n = ancestorParameters.size(); i < n; i++) {
+            final TypeReference parameterType = erase(parameters.get(i).getParameterType());
+            final TypeReference ancestorParameterType = erase(ancestorParameters.get(i).getParameterType());
+
+            if (!isSameType(parameterType, ancestorParameterType, false)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // <editor-fold defaultstate="collapsed" desc="Visitors">

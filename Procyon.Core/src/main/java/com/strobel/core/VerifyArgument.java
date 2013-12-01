@@ -408,7 +408,7 @@ public final class VerifyArgument {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @SuppressWarnings("unchecked")
-    public static <T> T verifyInstanceOf(final Class<T> type, final Object value, final String parameterName) {
+    public static <T> T instanceOf(final Class<T> type, final Object value, final String parameterName) {
         final Class<?> actualType = getBoxedType(VerifyArgument.notNull(type, "type"));
 
         if (actualType.isInstance(value)) {
@@ -424,7 +424,7 @@ public final class VerifyArgument {
         );
     }
     @SuppressWarnings("unchecked")
-    public static <T> T verifyNotInstanceOf(final Class<T> type, final Object value, final String parameterName) {
+    public static <T> T notInstanceOf(final Class<T> type, final Object value, final String parameterName) {
         final Class<?> actualType = getBoxedType(VerifyArgument.notNull(type, "type"));
 
         if (!actualType.isInstance(value)) {

@@ -27,6 +27,7 @@ public class CallTests extends DecompilerTest {
             "    void f() {\n" +
             "    }\n" +
             "    static class B extends A {\n" +
+            "        @Override\n" +
             "        void f() {\n" +
             "        }\n" +
             "        void g() {\n" +

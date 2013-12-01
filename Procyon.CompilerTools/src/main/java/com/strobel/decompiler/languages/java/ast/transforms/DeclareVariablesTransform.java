@@ -59,8 +59,7 @@ public class DeclareVariablesTransform implements IAstTransform {
             if (replacedAssignment == null) {
                 final BlockStatement block = (BlockStatement) v.getInsertionPoint().getParent();
                 final AnalysisResult analysisResult = analyze(v, block);
-                final VariableDeclarationStatement declaration =
-                        new VariableDeclarationStatement(v.getType().clone(), v.getName(), Expression.MYSTERY_OFFSET);
+                final VariableDeclarationStatement declaration = new VariableDeclarationStatement(v.getType().clone(), v.getName(), Expression.MYSTERY_OFFSET);
 
                 if (variable != null) {
                     declaration.getVariables().firstOrNullObject().putUserData(Keys.VARIABLE, variable);
@@ -583,6 +582,24 @@ public class DeclareVariablesTransform implements IAstTransform {
                     return true;
                 }
             }
+            return false;
+        }
+
+        if (node instanceof TypeDeclaration) {
+            final TypeDeclaration type = (TypeDeclaration) node;
+
+            for (final FieldDeclaration field : ofType(type.getMembers(), FieldDeclaration.class)) {
+                if (!field.getVariables().isEmpty() && usesVariable(first(field.getVariables()), variableName)) {
+                    return true;
+                }
+            }
+
+            for (final MethodDeclaration method : ofType(type.getMembers(), MethodDeclaration.class)) {
+                if (usesVariable(method.getBody(), variableName)) {
+                    return true;
+                }
+            }
+
             return false;
         }
 

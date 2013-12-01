@@ -2,6 +2,8 @@
   <settings default="">
     <module2copyright>
       <element module="Procyon.CompilerTools" copyright="Assembler" />
+      <element module="com.strobel.expressions" copyright="DLR" />
+      <element module="com.strobel" copyright="Non-DLR" />
     </module2copyright>
   </settings>
 </component>

@@ -62,6 +62,8 @@ public final class TransformationPipeline {
             new VarArgsTransform(context),
             new InsertConstantReferencesTransform(context),
             new SimplifyArithmeticExpressionsTransform(context),
+            new DeclareLocalClassesTransform(context),
+            new InsertOverrideAnnotationsTransform(context),
             new CollapseImportsTransform(context)
         };
     }

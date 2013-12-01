@@ -59,7 +59,7 @@ public class CommandLineOptions {
     private boolean _flattenSwitchBlocks;
 
     @Parameter(
-        names = { "-s", "--show-synthetic" },
+        names = { "-ss", "--show-synthetic" },
         description = "Show synthetic (compiler-generated) members.")
     private boolean _showSyntheticMembers;
 
