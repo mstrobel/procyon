@@ -304,7 +304,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
                 boolean processChildren = true;
 
-                if (statement instanceof ForStatement && statement == declarationPoint.get()) {
+                if (statement instanceof ForStatement &&statement == declarationPoint.get()) {
                     final ForStatement forStatement = (ForStatement) statement;
                     final AstNodeCollection<Statement> initializers = forStatement.getInitializers();
 
@@ -483,7 +483,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
                             final Variable variable = identifier.getUserData(Keys.VARIABLE);
 
-                            if (variable == null) {
+                            if (variable == null || variable.isParameter()) {
                                 return false;
                             }
 

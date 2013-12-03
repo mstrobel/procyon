@@ -445,17 +445,20 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
                 final VariableDeclarationStatement declaration = findVariableDeclaration(forLoop, variableName);
 
                 if (declaration == null) {
-                    return null;
+                    firstInlinableInitializer = null;
+                    continue;
                 }
 
                 final Variable underlyingVariable = declaration.getUserData(Keys.VARIABLE);
 
                 if (underlyingVariable == null || underlyingVariable.isParameter()) {
-                    return null;
+                    firstInlinableInitializer = null;
+                    continue;
                 }
 
                 if (!variableNames.add(underlyingVariable.getName())) {
-                    return null;
+                    firstInlinableInitializer = null;
+                    continue;
                 }
 
                 if (variableType == null) {
@@ -467,7 +470,8 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
                 }
 
                 if (!(declaration.getParent() instanceof BlockStatement)) {
-                    return null;
+                    firstInlinableInitializer = null;
+                    continue;
                 }
 
                 final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(context, declaration, forLoop);
