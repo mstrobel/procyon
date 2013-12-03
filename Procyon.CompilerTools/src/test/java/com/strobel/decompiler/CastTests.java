@@ -4,7 +4,7 @@ import org.junit.Test;
 
 public class CastTests extends DecompilerTest {
     @SuppressWarnings("RedundantCast")
-    private static class A {
+    private static final class A {
         public static void test() {
             final Character c1 = '1';
             final Character c2 = '2';
@@ -40,12 +40,20 @@ public class CastTests extends DecompilerTest {
         }
     }
 
+    private static final class B {
+        public static short test(final short a, final short b) {
+            final short c = (short) (a + b);
+            System.out.println(c);
+            return c;
+        }
+    }
+
     @Test
     public void testPrimitiveComparisonCastAnalysis() {
         verifyOutput(
             A.class,
             defaultSettings(),
-            "private static class A {\n" +
+            "private static final class A {\n" +
             "    public static void test() {\n" +
             "        final Character c1 = '1';\n" +
             "        final Character c2 = '2';\n" +
@@ -64,6 +72,21 @@ public class CastTests extends DecompilerTest {
             "        System.out.println(c1 == (char)o);\n" +
             "        System.out.println(o == Character.valueOf(c1));\n" +
             "        System.out.println(Character.valueOf(c1) == o);\n" +
+            "    }\n" +
+            "}"
+        );
+    }
+
+    @Test
+    public void testShortIntegerAdditionRetainsCast() {
+        verifyOutput(
+            B.class,
+            defaultSettings(),
+            "private static final class B {\n" +
+            "    public static short test(final short a, final short b) {\n" +
+            "        final short c = (short)(a + b);\n" +
+            "        System.out.println(c);\n" +
+            "        return c;\n" +
             "    }\n" +
             "}"
         );
