@@ -296,7 +296,6 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         if (canMoveVariableIntoSubBlocks) {
-        blockIterator:
             for (final Statement statement : block.getStatements()) {
                 if (!usesVariable(statement, variableName)) {
                     continue;
@@ -304,7 +303,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
                 boolean processChildren = true;
 
-                if (statement instanceof ForStatement &&statement == declarationPoint.get()) {
+                if (statement instanceof ForStatement && statement == declarationPoint.get()) {
                     final ForStatement forStatement = (ForStatement) statement;
                     final AstNodeCollection<Statement> initializers = forStatement.getInitializers();
 
@@ -741,11 +740,8 @@ public class DeclareVariablesTransform implements IAstTransform {
     }
 
     private static boolean hasNestedBlocks(final AstNode node) {
-        if (node.getChildByRole(Roles.EMBEDDED_STATEMENT) instanceof BlockStatement) {
-            return true;
-        }
-
-        return node instanceof TryCatchStatement ||
+        return node.getChildByRole(Roles.EMBEDDED_STATEMENT) instanceof BlockStatement ||
+               node instanceof TryCatchStatement ||
                node instanceof CatchClause ||
                node instanceof SwitchSection;
     }
