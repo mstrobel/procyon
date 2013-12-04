@@ -194,12 +194,16 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     void openBrace(final BraceStyle style) {
         writeSpecialsUpToRole(Roles.LEFT_BRACE);
+
         space(
             (style == BraceStyle.EndOfLine || style == BraceStyle.BannerStyle) &&
             lastWritten != LastWritten.Whitespace && lastWritten != LastWritten.LeftParenthesis
         );
+
         formatter.openBrace(style);
-        lastWritten = LastWritten.Other;
+
+        lastWritten = style == BraceStyle.BannerStyle ? LastWritten.Other
+                                                      : LastWritten.Whitespace;
     }
 
     void closeBrace(final BraceStyle style) {
@@ -488,6 +492,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             style = policy.MethodBraceStyle;
             braceEnforcement = BraceEnforcement.AddBraces;
         }
+//        else if (parent instanceof InstanceInitializer) {
+//            style = policy.InitializerBlockBraceStyle;
+//            braceEnforcement = BraceEnforcement.AddBraces;
+//        }
         else {
             style = policy.StatementBraceStyle;
 
@@ -1401,6 +1409,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    public Void visitInitializerBlock(final InstanceInitializer node, final Void ignored) {
+        startNode(node);
+        writeMethodBody(node.getDeclaredTypes(), node.getBody());
+        endNode(node);
+        return null;
+    }
+
+    @Override
     public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void ignored) {
         startNode(node);
         writeAnnotations(node.getAnnotations(), true);
@@ -2211,8 +2227,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         final AstNodeCollection<EntityDeclaration> members = node.getMembers();
+        final TypeDefinition enumType = node.getUserData(Keys.TYPE_DEFINITION);
 
-        if (!members.isEmpty()) {
+        if (enumType != null && enumType.isAnonymous() || !members.isEmpty()) {
             final BraceStyle braceStyle = policy.AnonymousClassBraceStyle;
 
             openBrace(braceStyle);

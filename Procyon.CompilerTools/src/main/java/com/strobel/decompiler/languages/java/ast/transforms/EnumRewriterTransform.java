@@ -150,7 +150,8 @@ public class EnumRewriterTransform implements IAstTransform {
                     pDeclarations.firstOrNullObject().remove();
                 }
 
-                final Statement firstStatement = node.getBody().getStatements().firstOrNullObject();
+                final AstNodeCollection<Statement> statements = node.getBody().getStatements();
+                final Statement firstStatement = statements.firstOrNullObject();
 
                 if (firstStatement instanceof ExpressionStatement) {
                     final Expression e = ((ExpressionStatement) firstStatement).getExpression();
@@ -160,8 +161,20 @@ public class EnumRewriterTransform implements IAstTransform {
                     }
                 }
 
-                if (node.getBody().getStatements().isEmpty()) {
+                if (statements.isEmpty()) {
                     node.remove();
+                }
+                else if (currentType.isAnonymous()) {
+                    final InstanceInitializer initializer = new InstanceInitializer();
+                    final BlockStatement initializerBody = new BlockStatement();
+
+                    for (final Statement statement : statements) {
+                        statement.remove();
+                        initializerBody.add(statement);
+                    }
+
+                    initializer.setBody(initializerBody);
+                    node.replaceWith(initializer);
                 }
             }
 
@@ -240,12 +253,17 @@ public class EnumRewriterTransform implements IAstTransform {
                 enumDeclaration.putUserData(Keys.FIELD_DEFINITION, field.getUserData(Keys.FIELD_DEFINITION));
                 enumDeclaration.putUserData(Keys.MEMBER_REFERENCE, field.getUserData(Keys.MEMBER_REFERENCE));
 
+                if (resolvedConstructor != null) {
+                    enumDeclaration.putUserData(Keys.TYPE_DEFINITION, resolvedConstructor.getDeclaringType());
+                }
+
                 int i = 0;
 
                 final AstNodeCollection<Expression> arguments = initializer.getArguments();
+                final boolean trimArguments = arguments.size() == constructor.getParameters().size();
 
                 for (final Expression argument : arguments) {
-                    if (resolvedConstructor != null && resolvedConstructor.isSynthetic() && i++ < 2) {
+                    if (trimArguments && resolvedConstructor != null && resolvedConstructor.isSynthetic() && i++ < 2) {
                         continue;
                     }
 

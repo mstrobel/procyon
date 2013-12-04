@@ -98,6 +98,16 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
 
         if (method != null) {
             if (AstBuilder.isMemberHidden(method, context)) {
+                if (method.getDeclaringType().isEnum() &&
+                    method.getDeclaringType().isAnonymous() &&
+                    !node.getBody().getStatements().isEmpty()) {
+
+                    //
+                    // Keep initializer blocks in anonymous enum value bodies.
+                    //
+                    return super.visitConstructorDeclaration(node, _);
+                }
+
                 node.remove();
                 return null;
             }

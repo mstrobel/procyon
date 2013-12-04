@@ -48,7 +48,7 @@ public class DecompilerDriver {
             jCommander = new JCommander(options);
             jCommander.setAllowAbbreviatedOptions(true);
             jCommander.parse(args);
-            typeNames = options.getClassNames();
+            typeNames = options.getInputs();
         }
         catch (Throwable t) {
             System.err.println(ExceptionUtilities.getMessage(t));
@@ -117,7 +117,12 @@ public class DecompilerDriver {
 
             for (final String typeName : typeNames) {
                 try {
-                    decompileType(metadataSystem, typeName, options, decompilationOptions, true);
+                    if (typeName.endsWith(".jar")) {
+                        decompileJar(typeName, options, decompilationOptions);
+                    }
+                    else {
+                        decompileType(metadataSystem, typeName, options, decompilationOptions, true);
+                    }
                 }
                 catch (Throwable t) {
                     t.printStackTrace();
@@ -183,6 +188,9 @@ public class DecompilerDriver {
         final JarFile jar = new JarFile(jarFile);
         final Enumeration<JarEntry> entries = jar.entries();
 
+        final boolean oldShowSyntheticMembers = settings.getShowSyntheticMembers();
+        final ITypeLoader oldTypeLoader = settings.getTypeLoader();
+
         settings.setShowSyntheticMembers(false);
 
         settings.setTypeLoader(
@@ -192,24 +200,30 @@ public class DecompilerDriver {
             )
         );
 
-        final MetadataSystem metadataSystem = new NoRetryMetadataSystem(settings.getTypeLoader());
+        try {
+            final MetadataSystem metadataSystem = new NoRetryMetadataSystem(settings.getTypeLoader());
 
-        while (entries.hasMoreElements()) {
-            final JarEntry entry = entries.nextElement();
-            final String name = entry.getName();
+            while (entries.hasMoreElements()) {
+                final JarEntry entry = entries.nextElement();
+                final String name = entry.getName();
 
-            if (!name.endsWith(".class")) {
-                continue;
+                if (!name.endsWith(".class")) {
+                    continue;
+                }
+
+                final String internalName = StringUtilities.removeRight(name, ".class");
+
+                try {
+                    decompileType(metadataSystem, internalName, commandLineOptions, decompilationOptions, false);
+                }
+                catch (Throwable t) {
+                    t.printStackTrace();
+                }
             }
-
-            final String internalName = StringUtilities.removeRight(name, ".class");
-
-            try {
-                decompileType(metadataSystem, internalName, commandLineOptions, decompilationOptions, false);
-            }
-            catch (Throwable t) {
-                t.printStackTrace();
-            }
+        }
+        finally {
+            settings.setShowSyntheticMembers(oldShowSyntheticMembers);
+            settings.setTypeLoader(oldTypeLoader);
         }
     }
 

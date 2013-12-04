@@ -79,6 +79,20 @@ public class EnumTests extends DecompilerTest {
         };
     }
 
+    private enum E {
+        VALUE(1) {
+            {
+                System.out.println(this + ": " + this.code);
+            }
+        };
+
+        public final int code;
+
+        private E(final int code) {
+            this.code = code;
+        }
+    }
+
     @Test
     public void testSimpleEnum() {
         verifyOutput(
@@ -171,6 +185,25 @@ public class EnumTests extends DecompilerTest {
             "            return s1.compareToIgnoreCase(s2);\n" +
             "        }\n" +
             "    };\n" +
+            "}"
+        );
+    }
+
+    @Test
+    public void testEnumValueWithInitializerBlock() {
+        verifyOutput(
+            E.class,
+            defaultSettings(),
+            "private enum E {\n" +
+            "    VALUE(1) {\n" +
+            "        {\n" +
+            "            System.out.println(this + \": \" + this.code);\n" +
+            "        }\n" +
+            "    };\n" +
+            "    public final int code;\n" +
+            "    private E(final int code) {\n" +
+            "        this.code = code;\n" +
+            "    }\n" +
             "}"
         );
     }

@@ -53,6 +53,7 @@ public interface IAstVisitor<T, R> {
     R visitImportDeclaration(ImportDeclaration importDeclaration, T data);
     R visitSimpleType(SimpleType simpleType, T data);
     R visitMethodDeclaration(MethodDeclaration methodDeclaration, T data);
+    R visitInitializerBlock(InstanceInitializer instanceInitializer, T data);
     R visitConstructorDeclaration(ConstructorDeclaration constructorDeclaration, T data);
     R visitTypeParameterDeclaration(TypeParameterDeclaration typeParameterDeclaration, T data);
     R visitParameterDeclaration(ParameterDeclaration parameterDeclaration, T data);

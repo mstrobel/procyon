@@ -30,11 +30,11 @@ public class BlockStatement extends Statement implements Iterable<Statement> {
     public final static Role<Statement> STATEMENT_ROLE = new Role<>("Statement", Statement.class, Statement.NULL);
 
     public BlockStatement() {
-        super( Expression.MYSTERY_OFFSET);
+        super(Expression.MYSTERY_OFFSET);
     }
 
     public BlockStatement(final Iterable<Statement> statements) {
-        super( Expression.MYSTERY_OFFSET);
+        super(Expression.MYSTERY_OFFSET);
         if (statements != null) {
             for (final Statement statement : statements) {
                 getStatements().add(statement);
@@ -43,7 +43,7 @@ public class BlockStatement extends Statement implements Iterable<Statement> {
     }
 
     public BlockStatement(final Statement... statements) {
-        super( Expression.MYSTERY_OFFSET);
+        super(Expression.MYSTERY_OFFSET);
         Collections.addAll(getStatements(), statements);
     }
 
