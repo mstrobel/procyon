@@ -311,6 +311,16 @@ public class LoopTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("ParameterCanBeLocal")
+    private final static class L {
+        public void f(int size) {
+            size = 10;
+            for (int i = 0; i < size; ++i) {
+                System.out.println(i);
+            }
+        }
+    }
+
     @Test
     public void testEnhancedForInIterable() {
         verifyOutput(
@@ -599,6 +609,22 @@ public class LoopTests extends DecompilerTest {
             "        }\n" +
             "    }\n" +
             "}\n"
+        );
+    }
+
+    @Test
+    public void testParameterAssignmentNotMovedIntoForLoopInitializer() {
+        verifyOutput(
+            L.class,
+            defaultSettings(),
+            "private static final class L {\n" +
+            "    public void f(int size) {\n" +
+            "        size = 10;\n" +
+            "        for (int i = 0; i < size; ++i) {\n" +
+            "            System.out.println(i);\n" +
+            "        }\n" +
+            "    }\n" +
+            "}"
         );
     }
 }

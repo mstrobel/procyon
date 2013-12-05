@@ -26,6 +26,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -617,6 +618,7 @@ final class RuntimeTypeCache<T> {
             return list;
         }
 
+        @SuppressWarnings("ConstantConditions")
         private ArrayList<RuntimeMethodInfo> populateMethods(final Filter filter) {
             final HashMap<String, ArrayList<RuntimeMethodInfo>> nameLookup = new HashMap<>();
             final ArrayList<RuntimeMethodInfo> list = new ArrayList<>();
@@ -624,54 +626,19 @@ final class RuntimeTypeCache<T> {
 
             Type<?> declaringType = reflectedType;
 
-            final boolean isInterface = declaringType.isInterface();
-
-            if (isInterface) {
-                for (final MethodInfo method : declaringType.getDeclaredMethods()) {
-                    final String name = method.getName();
-                    final int methodModifiers = method.getModifiers();
-
-                    if ((methodModifiers & Flags.ACC_BRIDGE) == Flags.ACC_BRIDGE || !filter.match(name)) {
-                        continue;
-                    }
-
-                    assert (method.getReturnType() != Type.NullType);
-
-                    //
-                    // JDK8 Breaking Change: default methods not marked ABSTRACT
-                    //
-
-                    //assert Flags.testAny(methodModifiers, Flags.ABSTRACT);
-                    assert !Modifier.isFinal(methodModifiers);
-
-                    final boolean isPublic = Modifier.isPublic(methodModifiers);
-                    final boolean isStatic = Modifier.isStatic(methodModifiers);
-                    final boolean isInherited = false;
-                    final Set<BindingFlags> bindingFlags = Type.filterPreCalculate(isPublic, isInherited, isStatic);
-
-                    final RuntimeMethodInfo runtimeMethod = new RuntimeMethodInfo(
-                        method.getRawMethod(),
-                        declaringType,
-                        _typeCache,
-                        methodModifiers,
-                        bindingFlags,
-                        method.getParameters(),
-                        method.getReturnType(),
-                        method.getThrownTypes(),
-                        method.getTypeBindings()
-                    );
-
-                    list.add(runtimeMethod);
-                }
-
-                return list;
-            }
-
             while (declaringType.isGenericParameter()) {
                 declaringType = declaringType.getExtendsBound();
             }
 
-            while (declaringType != null && declaringType != Type.NullType) {
+            final HashSet<String> included = new HashSet<>();
+            final ArrayDeque<Type<?>> stack = new ArrayDeque<>();
+
+            stack.add(declaringType);
+
+            while (!stack.isEmpty()) {
+                declaringType = stack.removeFirst();
+
+                final boolean isInterface = declaringType.isInterface();
 
                 for (final MethodInfo method : declaringType.getDeclaredMethods()) {
                     final String name = method.getName();
@@ -683,6 +650,10 @@ final class RuntimeTypeCache<T> {
                     assert method.getReturnType() != Type.NullType;
 
                     final int methodModifiers = method.getModifiers();
+
+                    if (isInterface) {
+                        assert !Modifier.isFinal(methodModifiers);
+                    }
 
                     final boolean isVirtual = !Modifier.isFinal(methodModifiers);
                     final boolean isPrivate = Modifier.isPrivate(methodModifiers);
@@ -728,7 +699,22 @@ final class RuntimeTypeCache<T> {
                     list.add(runtimeMethod);
                 }
 
-                declaringType = declaringType.getBaseType();
+                if (!isInterface) {
+                    final Type<?> baseType = declaringType.getBaseType();
+
+                    if (baseType != null &&
+                        baseType != Type.NullType &&
+                        included.add(baseType.getInternalName())) {
+
+                        stack.addLast(baseType);
+                    }
+                }
+
+                for (final Type<?> interfaceType : declaringType.getInterfaces()) {
+                    if (included.add(interfaceType.getInternalName())) {
+                        stack.addLast(interfaceType);
+                    }
+                }
             }
 
             return list;

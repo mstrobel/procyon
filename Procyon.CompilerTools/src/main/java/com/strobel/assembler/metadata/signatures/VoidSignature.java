@@ -25,17 +25,17 @@
 
 package com.strobel.assembler.metadata.signatures;
 
-public final class VoidDescriptor implements ReturnType {
-    private static final VoidDescriptor _singleton = new VoidDescriptor();
+public final class VoidSignature implements BaseType {
+    private static final VoidSignature _singleton = new VoidSignature();
 
-    private VoidDescriptor() {
+    private VoidSignature() {
     }
 
-    public static VoidDescriptor make() {
+    public static VoidSignature make() {
         return _singleton;
     }
 
     public void accept(final TypeTreeVisitor<?> v) {
-        v.visitVoidDescriptor(this);
+        v.visitVoidSignature(this);
     }
 }

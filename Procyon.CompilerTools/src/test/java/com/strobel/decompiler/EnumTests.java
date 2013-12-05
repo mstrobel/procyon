@@ -3,6 +3,7 @@ package com.strobel.decompiler;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Map;
 
 @SuppressWarnings({ "UnnecessarySemicolon", "UnusedDeclaration" })
@@ -51,6 +52,47 @@ public class EnumTests extends DecompilerTest {
         public abstract void f();
     }
 
+    private enum D implements Comparator<String> {
+        ORDINAL {
+            @Override
+            public int compare(final String s1, final String s2) {
+                if (s1 == null) {
+                    return s2 == null ? 0 : -1;
+                }
+                if (s2 == null) {
+                    return 1;
+                }
+                return s1.compareTo(s2);
+            }
+        },
+        ORDINAL_IGNORE_CASE {
+            @Override
+            public int compare(final String s1, final String s2) {
+                if (s1 == null) {
+                    return s2 == null ? 0 : -1;
+                }
+                if (s2 == null) {
+                    return 1;
+                }
+                return s1.compareToIgnoreCase(s2);
+            }
+        };
+    }
+
+    private enum E {
+        VALUE(1) {
+            {
+                System.out.println(this + ": " + this.code);
+            }
+        };
+
+        public final int code;
+
+        private E(final int code) {
+            this.code = code;
+        }
+    }
+
     @Test
     public void testSimpleEnum() {
         verifyOutput(
@@ -97,17 +139,72 @@ public class EnumTests extends DecompilerTest {
             defaultSettings(),
             "private enum C {\n" +
             "    X {\n" +
+            "        @Override\n" +
             "        public void f() {\n" +
             "            System.out.println(this.name().toLowerCase());\n" +
             "        }\n" +
             "    },\n" +
             "    Y {\n" +
+            "        @Override\n" +
             "        public void f() {\n" +
             "            System.out.println(\"y\");\n" +
             "        }\n" +
             "    };\n" +
             "    public abstract void f();\n" +
             "}\n"
+        );
+    }
+
+    @Test
+    public void testEnumImplementingInterface() {
+        verifyOutput(
+            D.class,
+            defaultSettings(),
+            "private enum D implements Comparator<String> {\n" +
+            "    ORDINAL {\n" +
+            "        @Override\n" +
+            "        public int compare(final String s1, final String s2) {\n" +
+            "            if (s1 == null) {\n" +
+            "                return (s2 == null) ? 0 : -1;\n" +
+            "            }\n" +
+            "            if (s2 == null) {\n" +
+            "                return 1;\n" +
+            "            }\n" +
+            "            return s1.compareTo(s2);\n" +
+            "        }\n" +
+            "    }, \n" +
+            "    ORDINAL_IGNORE_CASE {\n" +
+            "        @Override\n" +
+            "        public int compare(final String s1, final String s2) {\n" +
+            "            if (s1 == null) {\n" +
+            "                return (s2 == null) ? 0 : -1;\n" +
+            "            }\n" +
+            "            if (s2 == null) {\n" +
+            "                return 1;\n" +
+            "            }\n" +
+            "            return s1.compareToIgnoreCase(s2);\n" +
+            "        }\n" +
+            "    };\n" +
+            "}"
+        );
+    }
+
+    @Test
+    public void testEnumValueWithInitializerBlock() {
+        verifyOutput(
+            E.class,
+            defaultSettings(),
+            "private enum E {\n" +
+            "    VALUE(1) {\n" +
+            "        {\n" +
+            "            System.out.println(this + \": \" + this.code);\n" +
+            "        }\n" +
+            "    };\n" +
+            "    public final int code;\n" +
+            "    private E(final int code) {\n" +
+            "        this.code = code;\n" +
+            "    }\n" +
+            "}"
         );
     }
 }

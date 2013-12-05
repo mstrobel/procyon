@@ -238,7 +238,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "        return n <= 42;\n" +
             "    }\n" +
             "    public static char main(final char c) {\n" +
-            "        return c ^ '*';\n" +
+            "        return (char)(c ^ '*');\n" +
             "    }\n" +
             "    public static String main(final Object o) {\n" +
             "        if (o instanceof boolean[]) {\n" +

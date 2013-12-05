@@ -14,6 +14,7 @@
 package com.strobel.decompiler;
 
 import com.strobel.annotations.NotNull;
+import com.strobel.core.Predicate;
 import com.strobel.functions.Function;
 import org.junit.Test;
 
@@ -249,6 +250,64 @@ public class InnerClassTests extends DecompilerTest {
         }
     }
 
+    private static class L {
+        int y;
+
+        public Predicate<Double> foo(final int i) {
+            if (i < 3) {
+                class P implements Predicate<Double> {
+                    @Override
+                    public boolean test(final Double in) {
+                        return in < y;
+                    }
+                }
+                return new P();
+            }
+            else if (i > 5) {
+                final int j = i + 3;
+                class P implements Predicate<Double> {
+                    @Override
+                    public boolean test(final Double in) {
+                        return in == j;
+                    }
+                }
+                return new P();
+            }
+            final int j = i + 30;
+            class P implements Predicate<Double> {
+                @Override
+                public boolean test(final Double in) {
+                    return in + j > y;
+                }
+            }
+            return new P();
+        }
+    }
+
+    private static class M {
+        public Object test() {
+            return new Object() {
+                {
+                    System.out.println("This is an initializer block.");
+                }
+            };
+        }
+    }
+
+    private static class N {
+        public Object test() {
+            return new Object() {
+                {
+                    System.out.println("This is an initializer block.");
+                }
+                int x = 5;
+                {
+                    System.out.println(x);
+                }
+            };
+        }
+    }
+
     @Test
     public void testComplexInnerClassRelations() {
         //
@@ -337,14 +396,18 @@ public class InnerClassTests extends DecompilerTest {
             "        return new Iterable<String>() {\n" +
             "            private final boolean y = b;\n" +
             "            @NotNull\n" +
+            "            @Override\n" +
             "            public Iterator<String> iterator() {\n" +
             "                return new Iterator<String>() {\n" +
+            "                    @Override\n" +
             "                    public boolean hasNext() {\n" +
             "                        return A.this.x && Iterable.this.y;\n" +
             "                    }\n" +
+            "                    @Override\n" +
             "                    public String next() {\n" +
             "                        return null;\n" +
             "                    }\n" +
+            "                    @Override\n" +
             "                    public void remove() {\n" +
             "                    }\n" +
             "                };\n" +
@@ -366,14 +429,18 @@ public class InnerClassTests extends DecompilerTest {
             "        final class MethodScopedIterable implements Iterable<String> {\n" +
             "            private final boolean y = b;\n" +
             "            @NotNull\n" +
+            "            @Override\n" +
             "            public Iterator<String> iterator() {\n" +
             "                return new Iterator<String>() {\n" +
+            "                    @Override\n" +
             "                    public boolean hasNext() {\n" +
             "                        return B.this.x && MethodScopedIterable.this.y;\n" +
             "                    }\n" +
+            "                    @Override\n" +
             "                    public String next() {\n" +
             "                        return null;\n" +
             "                    }\n" +
+            "                    @Override\n" +
             "                    public void remove() {\n" +
             "                    }\n" +
             "                };\n" +
@@ -492,6 +559,7 @@ public class InnerClassTests extends DecompilerTest {
             "    static {\n" +
             "        runnable = new Runnable() {\n" +
             "            private final Integer mCount = new Integer(2);\n" +
+            "            @Override\n" +
             "            public void run() {\n" +
             "                System.out.println(\"Runnable: mCount = \" + this.mCount);\n" +
             "            }\n" +
@@ -511,6 +579,7 @@ public class InnerClassTests extends DecompilerTest {
             "        return h.apply(x);\n" +
             "    }\n" +
             "    private static final class F implements Function<Integer, Integer> {\n" +
+            "        @Override\n" +
             "        public Integer apply(final Integer x) {\n" +
             "            return x * 3;\n" +
             "        }\n" +
@@ -536,6 +605,85 @@ public class InnerClassTests extends DecompilerTest {
             "            void j() {\n" +
             "                f(16);\n" +
             "                K.this.g(8);\n" +
+            "            }\n" +
+            "        };\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testLocalClassesWithNameCollisions() {
+        verifyOutput(
+            L.class,
+            defaultSettings(),
+            "private static class L {\n" +
+            "    int y;\n" +
+            "    public Predicate<Double> foo(final int i) {\n" +
+            "        if (i < 3) {\n" +
+            "            class P implements Predicate<Double>\n" +
+            "            {\n" +
+            "                @Override\n" +
+            "                public boolean test(final Double in) {\n" +
+            "                    return in < L.this.y;\n" +
+            "                }\n" +
+            "            }\n" +
+            "            return new P();\n" +
+            "        }\n" +
+            "        if (i > 5) {\n" +
+            "            final int j = i + 3;\n" +
+            "            class P implements Predicate<Double>\n" +
+            "            {\n" +
+            "                @Override\n" +
+            "                public boolean test(final Double in) {\n" +
+            "                    return in == j;\n" +
+            "                }\n" +
+            "            }\n" +
+            "            return new P();\n" +
+            "        }\n" +
+            "        final int j = i + 30;\n" +
+            "        class P implements Predicate<Double>\n" +
+            "        {\n" +
+            "            @Override\n" +
+            "            public boolean test(final Double in) {\n" +
+            "                return in + j > L.this.y;\n" +
+            "            }\n" +
+            "        }\n" +
+            "        return new P();\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testAnonymousClassWithInitializerBlock() {
+        verifyOutput(
+            M.class,
+            defaultSettings(),
+            "private static class M {\n" +
+            "    public Object test() {\n" +
+            "        return new Object() {\n" +
+            "            {\n" +
+            "                System.out.println(\"This is an initializer block.\");\n" +
+            "            }\n" +
+            "        };\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+    @Test
+    public void testAnonymousClassWithSplitInitializerBlock() {
+        verifyOutput(
+            N.class,
+            defaultSettings(),
+            "private static class N {\n" +
+            "    public Object test() {\n" +
+            "        return new Object() {\n" +
+            "            int x;\n" +
+            "            {\n" +
+            "                System.out.println(\"This is an initializer block.\");\n" +
+            "                this.x = 5;\n" +
+            "                System.out.println(this.x);\n" +
             "            }\n" +
             "        };\n" +
             "    }\n" +

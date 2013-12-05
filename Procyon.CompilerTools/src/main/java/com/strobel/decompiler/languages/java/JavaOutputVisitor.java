@@ -61,15 +61,17 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     public JavaOutputVisitor(final ITextOutput output, final DecompilerSettings settings) {
         this.output = output;
         this.settings = VerifyArgument.notNull(settings, "settings");
-        this.formatter = new TextOutputFormatter(output, settings.getShowDebugLineNumbers() ?
-                LineNumberMode.WITH_DEBUG_LINE_NUMBERS : LineNumberMode.WITHOUT_DEBUG_LINE_NUMBERS);
+        this.formatter = new TextOutputFormatter(
+            output, settings.getShowDebugLineNumbers() ?
+                    LineNumberMode.WITH_DEBUG_LINE_NUMBERS : LineNumberMode.WITHOUT_DEBUG_LINE_NUMBERS
+        );
         this.policy = settings.getFormattingOptions();
     }
 
     public List<LineNumberPosition> getLineNumberPositions() {
         return this.formatter.getLineNumberPositions();
     }
-    
+
     // <editor-fold defaultstate="collapsed" desc="Start/End Node">
 
     void startNode(final AstNode node) {
@@ -192,12 +194,16 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
     void openBrace(final BraceStyle style) {
         writeSpecialsUpToRole(Roles.LEFT_BRACE);
+
         space(
             (style == BraceStyle.EndOfLine || style == BraceStyle.BannerStyle) &&
             lastWritten != LastWritten.Whitespace && lastWritten != LastWritten.LeftParenthesis
         );
+
         formatter.openBrace(style);
-        lastWritten = LastWritten.Other;
+
+        lastWritten = style == BraceStyle.BannerStyle ? LastWritten.Other
+                                                      : LastWritten.Whitespace;
     }
 
     void closeBrace(final BraceStyle style) {
@@ -486,6 +492,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             style = policy.MethodBraceStyle;
             braceEnforcement = BraceEnforcement.AddBraces;
         }
+//        else if (parent instanceof InstanceInitializer) {
+//            style = policy.InitializerBlockBraceStyle;
+//            braceEnforcement = BraceEnforcement.AddBraces;
+//        }
         else {
             style = policy.StatementBraceStyle;
 
@@ -501,7 +511,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         final boolean addBraces;
-        final AstNodeCollection<Statement> statements = body.getStatements();
+        final Iterable<AstNode> statements = body.getChildren();
 
         switch (braceEnforcement) {
             case RemoveBraces:
@@ -876,7 +886,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         final BraceStyle style;
         final BraceEnforcement braceEnforcement;
         final AstNode parent = node.getParent();
-        final AstNodeCollection<Statement> statements = node.getStatements();
+        final Iterable<AstNode> children = node.getChildren();
 
         if (parent instanceof ConstructorDeclaration) {
             style = policy.ConstructorBraceStyle;
@@ -887,7 +897,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             braceEnforcement = BraceEnforcement.AddBraces;
         }
         else {
-            if (policy.StatementBraceStyle == BraceStyle.EndOfLine && statements.isEmpty()) {
+            if (policy.StatementBraceStyle == BraceStyle.EndOfLine && !any(children)) {
                 style = BraceStyle.BannerStyle;
                 braceEnforcement = BraceEnforcement.AddBraces;
             }
@@ -921,8 +931,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             openBrace(style);
         }
 
-        for (final AstNode statement : statements) {
-            statement.acceptVisitor(this, null);
+        for (final AstNode child : children) {
+            if (child instanceof Statement || child instanceof TypeDeclaration) {
+                child.acceptVisitor(this, null);
+            }
         }
 
         if (addBraces) {
@@ -1326,7 +1338,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     @Override
     public Void visitMethodDeclaration(final MethodDeclaration node, final Void ignored) {
         startNode(node);
-        formatter.resetLineNumberOffsets( OffsetToLineNumberConverter.NOOP_CONVERTER);                
+        formatter.resetLineNumberOffsets(OffsetToLineNumberConverter.NOOP_CONVERTER);
         writeAnnotations(node.getAnnotations(), true);
 
         final MethodDefinition definition = node.getUserData(Keys.METHOD_DEFINITION);
@@ -1347,11 +1359,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         if (definition == null || !definition.isTypeInitializer()) {
-            LineNumberTableAttribute lineNumberTable = SourceAttribute.find(
+            final LineNumberTableAttribute lineNumberTable = SourceAttribute.find(
                 AttributeNames.LineNumberTable,
-                definition.getSourceAttributes());
-            if ( lineNumberTable != null) {
-                formatter.resetLineNumberOffsets( new LineNumberTableConverter( lineNumberTable));
+                definition.getSourceAttributes()
+            );
+
+            if (lineNumberTable != null) {
+                formatter.resetLineNumberOffsets(new LineNumberTableConverter(lineNumberTable));
             }
 
             final AstNodeCollection<TypeParameterDeclaration> typeParameters = node.getTypeParameters();
@@ -1390,6 +1404,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         final AstNodeCollection<TypeDeclaration> declaredTypes = node.getDeclaredTypes();
 
         writeMethodBody(declaredTypes, node.getBody());
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitInitializerBlock(final InstanceInitializer node, final Void ignored) {
+        startNode(node);
+        writeMethodBody(node.getDeclaredTypes(), node.getBody());
         endNode(node);
         return null;
     }
@@ -2205,8 +2227,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         final AstNodeCollection<EntityDeclaration> members = node.getMembers();
+        final TypeDefinition enumType = node.getUserData(Keys.TYPE_DEFINITION);
 
-        if (!members.isEmpty()) {
+        if (enumType != null && enumType.isAnonymous() || !members.isEmpty()) {
             final BraceStyle braceStyle = policy.AnonymousClassBraceStyle;
 
             openBrace(braceStyle);
@@ -2503,7 +2526,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             case '\\':
                 return "\\\\";
             case '\0':
-                return "\\0";
+                return "\u0000";
             case '\b':
                 return "\\b";
             case '\f':

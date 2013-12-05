@@ -13,10 +13,10 @@
 
 package com.strobel.util;
 
+import com.strobel.collections.Cache;
 import com.strobel.core.VerifyArgument;
 
 import java.lang.reflect.Array;
-import java.util.HashMap;
 
 /**
  * @author Mike Strobel
@@ -34,31 +34,59 @@ public final class EmptyArrayCache {
     public static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
     public static final Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
 
-    private EmptyArrayCache() {}
+    private final static Cache<Class<?>, Object> GLOBAL_CACHE = Cache.createTopLevelCache();
+    private final static Cache<Class<?>, Object> THREAD_LOCAL_CACHE = Cache.createThreadLocalCache(GLOBAL_CACHE);
 
-    private final static HashMap<Class<?>, Object[]> _cache = new HashMap<>();
+    static {
+        //
+        // Values stored in thread-local cache automatically propagate up to global cache.
+        //
+        THREAD_LOCAL_CACHE.cache(boolean.class, EMPTY_BOOLEAN_ARRAY);
+        THREAD_LOCAL_CACHE.cache(char.class, EMPTY_CHAR_ARRAY);
+        THREAD_LOCAL_CACHE.cache(byte.class, EMPTY_BYTE_ARRAY);
+        THREAD_LOCAL_CACHE.cache(short.class, EMPTY_SHORT_ARRAY);
+        THREAD_LOCAL_CACHE.cache(int.class, EMPTY_INT_ARRAY);
+        THREAD_LOCAL_CACHE.cache(long.class, EMPTY_LONG_ARRAY);
+        THREAD_LOCAL_CACHE.cache(float.class, EMPTY_FLOAT_ARRAY);
+        THREAD_LOCAL_CACHE.cache(double.class, EMPTY_DOUBLE_ARRAY);
+        THREAD_LOCAL_CACHE.cache(String.class, EMPTY_STRING_ARRAY);
+        THREAD_LOCAL_CACHE.cache(Object.class, EMPTY_OBJECT_ARRAY);
+        THREAD_LOCAL_CACHE.cache(Class.class, EMPTY_CLASS_ARRAY);
+    }
+
+    private EmptyArrayCache() {
+        throw ContractUtils.unreachable();
+    }
 
     @SuppressWarnings("unchecked")
-    public synchronized static <T> T[] fromElementType(final Class<T> elementType) {
+    public static <T> T[] fromElementType(final Class<T> elementType) {
         VerifyArgument.notNull(elementType, "elementType");
 
-        final T[] cachedArray = (T[]) _cache.get(elementType);
+        final T[] cachedArray = (T[])THREAD_LOCAL_CACHE.get(elementType);
 
         if (cachedArray != null) {
             return cachedArray;
         }
 
-        final T[] newArray = (T[])Array.newInstance(elementType, 0);
+        return (T[])THREAD_LOCAL_CACHE.cache(elementType, Array.newInstance(elementType, 0));
+    }
 
-        _cache.put(elementType, newArray);
+    public static Object fromElementOrPrimitiveType(final Class<?> elementType) {
+        VerifyArgument.notNull(elementType, "elementType");
 
-        return newArray;
+        final Object cachedArray = THREAD_LOCAL_CACHE.get(elementType);
+
+        if (cachedArray != null) {
+            return cachedArray;
+        }
+
+        return THREAD_LOCAL_CACHE.cache(elementType, Array.newInstance(elementType, 0));
     }
 
     @SuppressWarnings("unchecked")
     public static <T> T fromArrayType(final Class<? extends Object[]> arrayType) {
-        VerifyArgument.notNull(arrayType, "arrayType");
-
-        return (T)fromElementType(arrayType.getComponentType());
+        return (T)fromElementType(
+            VerifyArgument.notNull(arrayType, "arrayType").getComponentType()
+        );
     }
 }

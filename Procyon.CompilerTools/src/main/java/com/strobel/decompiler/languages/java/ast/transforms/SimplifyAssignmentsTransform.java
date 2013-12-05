@@ -21,6 +21,7 @@ import com.strobel.assembler.metadata.MetadataResolver;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.languages.java.utilities.RedundantCastUtility;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
@@ -310,11 +311,22 @@ public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode
     private boolean tryRewriteBinaryAsUnary(final AssignmentExpression node, final Expression left, final Expression right) {
         final AssignmentOperatorType op = node.getOperator();
 
-        if (right instanceof PrimitiveExpression &&
-            (op == AssignmentOperatorType.ADD ||
-             op == AssignmentOperatorType.SUBTRACT)) {
+        if (op == AssignmentOperatorType.ADD ||
+            op == AssignmentOperatorType.SUBTRACT) {
 
-            final Object value = ((PrimitiveExpression) right).getValue();
+            Expression innerRight = right;
+
+            while (innerRight instanceof CastExpression &&
+                   RedundantCastUtility.isCastRedundant(_resolver, (CastExpression) innerRight)) {
+
+                innerRight = ((CastExpression) innerRight).getExpression();
+            }
+
+            if (!(innerRight instanceof PrimitiveExpression)) {
+                return false;
+            }
+
+            final Object value = ((PrimitiveExpression) innerRight).getValue();
 
             long delta = 0L;
 

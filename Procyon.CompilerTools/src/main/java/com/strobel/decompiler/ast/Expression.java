@@ -18,11 +18,11 @@ package com.strobel.decompiler.ast;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.annotations.Nullable;
-import com.strobel.assembler.Collection;
 import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.collections.SmartList;
 import com.strobel.componentmodel.Key;
 import com.strobel.componentmodel.UserDataStore;
 import com.strobel.componentmodel.UserDataStoreBase;
@@ -46,9 +46,14 @@ public final class Expression extends Node implements Cloneable, UserDataStore {
     /** a constant to indicate that no bytecode offset is known for an expression */
     public static final int MYSTERY_OFFSET = -34;
 
-    private final Collection<Expression> _arguments = new Collection<>();
+    private final SmartList<Expression> _arguments = new SmartList<>();
 
-    private final Collection<Range> _ranges = new Collection<Range>() {
+    private final SmartList<Range> _ranges = new SmartList<Range>() {
+        @Override
+        public boolean add(final Range range) {
+            return !contains(range) && super.add(range);
+        }
+
         @Override
         public void add(final int index, final Range element) {
             if (contains(element)) {
@@ -68,9 +73,9 @@ public final class Expression extends Node implements Cloneable, UserDataStore {
     private TypeReference _inferredType;
     private UserDataStoreBase _userData;
 
-    public Expression(final AstCode code, final Object operand, int offset, final List<Expression> arguments) {
+    public Expression(final AstCode code, final Object operand, final int offset, final List<Expression> arguments) {
         _code = VerifyArgument.notNull(code, "code");
-        _operand = VerifyArgument.verifyNotInstanceOf(Expression.class, operand, "operand");
+        _operand = VerifyArgument.notInstanceOf(Expression.class, operand, "operand");
         _offset = offset;
         
         if (arguments != null) {
@@ -78,9 +83,9 @@ public final class Expression extends Node implements Cloneable, UserDataStore {
         }
     }
 
-    public Expression(final AstCode code, final Object operand, int offset, final Expression... arguments) {
+    public Expression(final AstCode code, final Object operand, final int offset, final Expression... arguments) {
         _code = VerifyArgument.notNull(code, "code");
-        _operand = VerifyArgument.verifyNotInstanceOf(Expression.class, operand, "operand");
+        _operand = VerifyArgument.notInstanceOf(Expression.class, operand, "operand");
         _offset = offset;
         
         if (arguments != null) {
@@ -148,7 +153,7 @@ public final class Expression extends Node implements Cloneable, UserDataStore {
         return Collections.emptyList();
     }
 
-    public final Collection<Range> getRanges() {
+    public final List<Range> getRanges() {
         return _ranges;
     }
 

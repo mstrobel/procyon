@@ -22,8 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CommandLineOptions {
-    @Parameter(description = "<class files or names>")
-    private final List<String> _classNames = new ArrayList<>();
+    @Parameter(description = "<type names or class/jar files>")
+    private final List<String> _inputs = new ArrayList<>();
 
     @Parameter(
         names = { "-?", "--help" },
@@ -59,7 +59,7 @@ public class CommandLineOptions {
     private boolean _flattenSwitchBlocks;
 
     @Parameter(
-        names = { "-s", "--show-synthetic" },
+        names = { "-ss", "--show-synthetic" },
         description = "Show synthetic (compiler-generated) members.")
     private boolean _showSyntheticMembers;
 
@@ -90,7 +90,7 @@ public class CommandLineOptions {
 
     @Parameter(
         names = { "-jar", "--jar-file" },
-        description = "Decompile all classes in the specified jar file (disables -ent and -s).")
+        description = "Decompile all classes in the specified jar file (disables -ent and -s) [DEPRECATED].")
     private String _jarFile;
 
     @Parameter(
@@ -129,8 +129,8 @@ public class CommandLineOptions {
         description = "Enable Unicode output (printable non-ASCII characters will not be escaped).")
     private boolean _isUnicodeOutputEnabled;
 
-    public final List<String> getClassNames() {
-        return _classNames;
+    public final List<String> getInputs() {
+        return _inputs;
     }
 
     public final boolean isBytecodeAst() {

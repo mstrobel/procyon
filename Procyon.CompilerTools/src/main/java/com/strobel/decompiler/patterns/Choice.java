@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.patterns;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.VerifyArgument;
 
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ public final class Choice extends Pattern implements Iterable<INode> {
         _alternatives.add(new NamedNode(name, VerifyArgument.notNull(alternative, "alternative")));
     }
 
+    @NotNull
     @Override
     public final Iterator<INode> iterator() {
         return _alternatives.iterator();

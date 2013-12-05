@@ -301,7 +301,7 @@ public final class VerifyArgument {
             return value;
         }
 
-        throw new IllegalArgumentException(format("Argument '%s' must be non-zero.", parameterName));
+        throw new IllegalArgumentException(format("Argument '%s' must be non-zero, but value was: %d.", parameterName, value));
     }
 
     public static int isPositive(final int value, final String parameterName) {
@@ -309,7 +309,7 @@ public final class VerifyArgument {
             return value;
         }
 
-        throw new IllegalArgumentException(format("Argument '%s' must be positive.", parameterName));
+        throw new IllegalArgumentException(format("Argument '%s' must be positive, but value was: %d.", parameterName, value));
     }
 
     public static int isNonNegative(final int value, final String parameterName) {
@@ -317,7 +317,7 @@ public final class VerifyArgument {
             return value;
         }
 
-        throw new IllegalArgumentException(format("Argument '%s' must be non-negative.", parameterName));
+        throw new IllegalArgumentException(format("Argument '%s' must be non-negative, but value was: %d.", parameterName, value));
     }
 
     public static int isNegative(final int value, final String parameterName) {
@@ -325,12 +325,18 @@ public final class VerifyArgument {
             return value;
         }
 
-        throw new IllegalArgumentException(format("Argument '%s' must be negative.", parameterName));
+        throw new IllegalArgumentException(format("Argument '%s' must be negative, but value was: %d.", parameterName, value));
     }
 
     public static int inRange(final int minInclusive, final int maxInclusive, final int value, final String parameterName) {
         if (maxInclusive < minInclusive) {
-            throw new IllegalArgumentException("The specified maximum value is less than the specified minimum value.");
+            throw new IllegalArgumentException(
+                format(
+                    "The specified maximum value (%d) is less than the specified minimum value (%d).",
+                    maxInclusive,
+                    minInclusive
+                )
+            );
         }
 
         if (value >= minInclusive && value <= maxInclusive) {
@@ -339,10 +345,11 @@ public final class VerifyArgument {
 
         throw new IllegalArgumentException(
             format(
-                "Argument '%s' must be in the range [%s, %s].",
+                "Argument '%s' must be in the range [%s, %s], but value was: %d.",
                 parameterName,
                 minInclusive,
-                maxInclusive
+                maxInclusive,
+                value
             )
         );
     }
@@ -352,7 +359,7 @@ public final class VerifyArgument {
             return value;
         }
 
-        throw new IllegalArgumentException(format("Argument '%s' must be non-zero.", parameterName));
+        throw new IllegalArgumentException(format("Argument '%s' must be non-zero, but value was: %s.", parameterName, value));
     }
 
     public static double isPositive(final double value, final String parameterName) {
@@ -360,7 +367,7 @@ public final class VerifyArgument {
             return value;
         }
 
-        throw new IllegalArgumentException(format("Argument '%s' must be positive.", parameterName));
+        throw new IllegalArgumentException(format("Argument '%s' must be positive, but value was: %s.", parameterName, value));
     }
 
     public static double isNonNegative(final double value, final String parameterName) {
@@ -368,7 +375,7 @@ public final class VerifyArgument {
             return value;
         }
 
-        throw new IllegalArgumentException(format("Argument '%s' must be non-negative.", parameterName));
+        throw new IllegalArgumentException(format("Argument '%s' must be non-negative, but value was: %s.", parameterName, value));
     }
 
     public static double isNegative(final double value, final String parameterName) {
@@ -376,7 +383,7 @@ public final class VerifyArgument {
             return value;
         }
 
-        throw new IllegalArgumentException(format("Argument '%s' must be negative.", parameterName));
+        throw new IllegalArgumentException(format("Argument '%s' must be negative, but value was: %s.", parameterName, value));
     }
 
     public static double inRange(
@@ -385,8 +392,22 @@ public final class VerifyArgument {
         final double value,
         final String parameterName) {
 
+        if (Double.isNaN(minInclusive)) {
+            throw new IllegalArgumentException("The minimum value cannot be NaN.");
+        }
+
+        if (Double.isNaN(maxInclusive)) {
+            throw new IllegalArgumentException("The maximum value cannot be NaN.");
+        }
+
         if (maxInclusive < minInclusive) {
-            throw new IllegalArgumentException("The specified maximum value is less than the specified minimum value.");
+            throw new IllegalArgumentException(
+                format(
+                    "The specified maximum value (%s) is less than the specified minimum value (%s).",
+                    maxInclusive,
+                    minInclusive
+                )
+            );
         }
 
         if (value >= minInclusive && value <= maxInclusive) {
@@ -395,10 +416,11 @@ public final class VerifyArgument {
 
         throw new IllegalArgumentException(
             format(
-                "Argument '%s' must be in the range [%s, %s].",
+                "Argument '%s' must be in the range [%s, %s], but value was: %s.",
                 parameterName,
                 minInclusive,
-                maxInclusive
+                maxInclusive,
+                value
             )
         );
     }
@@ -408,7 +430,7 @@ public final class VerifyArgument {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @SuppressWarnings("unchecked")
-    public static <T> T verifyInstanceOf(final Class<T> type, final Object value, final String parameterName) {
+    public static <T> T instanceOf(final Class<T> type, final Object value, final String parameterName) {
         final Class<?> actualType = getBoxedType(VerifyArgument.notNull(type, "type"));
 
         if (actualType.isInstance(value)) {
@@ -424,7 +446,7 @@ public final class VerifyArgument {
         );
     }
     @SuppressWarnings("unchecked")
-    public static <T> T verifyNotInstanceOf(final Class<T> type, final Object value, final String parameterName) {
+    public static <T> T notInstanceOf(final Class<T> type, final Object value, final String parameterName) {
         final Class<?> actualType = getBoxedType(VerifyArgument.notNull(type, "type"));
 
         if (!actualType.isInstance(value)) {

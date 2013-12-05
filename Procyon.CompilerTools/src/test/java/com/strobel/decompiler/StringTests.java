@@ -16,7 +16,7 @@ public class StringTests extends DecompilerTest {
             defaultSettings(),
             "private static class A {\n" +
             "    public String test() {\n" +
-            "        return \"\\0\\b\\f\\t\\r\\n\\\"\";\n" +
+            "        return \"\\u0000\\b\\f\\t\\r\\n\\\"\";\n" +
             "    }\n" +
             "}\n"
         );

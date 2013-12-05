@@ -1152,7 +1152,7 @@ public final class AstOptimizer {
         // +-------------------------------+
         //   |
         //   |    +--------------------------------------------+
-        //   +--> | v = postincrement(1, getfield(_, load(n))) |
+        //   +--> | v = postincrement(1, getfield(f, load(n))) |
         //        +--------------------------------------------+
         //
         //   == OR ==
@@ -1166,7 +1166,7 @@ public final class AstOptimizer {
         // +---------------------------+
         //   |
         //   |    +-----------------------------------------+
-        //   +--> | v = postincrement(1, loadelement(a, n)) |
+        //   +--> | v = postincrement(1, loadelement(o, n)) |
         //        +-----------------------------------------+
         //
 
@@ -1325,14 +1325,6 @@ public final class AstOptimizer {
                     break;
                 }
 
-/*
-                case __IfEq:
-                    code = AstCode.LogicalNot;
-                    break;
-                case __IfNe:
-                    e.setCode(AstCode.IfTrue);
-                    continue;
-*/
                 case __IfEq:
                     e.getArguments().add(new Expression(AstCode.LdC, 0, e.getOffset()));
                     code = AstCode.CmpEq;
@@ -3580,8 +3572,9 @@ public final class AstOptimizer {
                     v.setOriginalParameter(null);
                     v.setGenerated(true);
 
-                    Expression ithArg = arguments.get(i).clone();
-                    nodes.add(new Expression(AstCode.Store, v, ithArg.getOffset(), ithArg));
+                    final Expression argument = arguments.get(i).clone();
+
+                    nodes.add(new Expression(AstCode.Store, v, argument.getOffset(), argument));
 
                     lambdaParameters.remove(0);
                 }
@@ -3651,7 +3644,7 @@ public final class AstOptimizer {
                 site.setCode(AstCode.Bind);
                 site.setOperand(lambda);
 
-                final com.strobel.assembler.Collection<Range> ranges = site.getRanges();
+                final List<Range> ranges = site.getRanges();
 
                 for (final Expression e : lambda.getSelfAndChildrenRecursive(Expression.class)) {
                     ranges.addAll(e.getRanges());
@@ -4119,10 +4112,8 @@ public final class AstOptimizer {
                 return true;
 
             default:
-                if (TypeAnalysis.isBoolean(e.getInferredType())) {
-                    return negate(e);
-                }
-                return false;
+                return TypeAnalysis.isBoolean(e.getInferredType()) &&
+                       negate(e);
         }
     }
 

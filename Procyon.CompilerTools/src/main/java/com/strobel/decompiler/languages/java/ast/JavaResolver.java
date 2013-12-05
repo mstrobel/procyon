@@ -472,13 +472,23 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                 case EQUALITY:
                 case INEQUALITY:
                 case LESS_THAN:
-                case LESS_THAN_OR_EQUAL:
+                case LESS_THAN_OR_EQUAL: {
                     resultType = BuiltinTypes.Boolean;
                     break;
+                }
 
-                default:
-                    resultType = operandType;
-                    break;
+                default: {
+                    switch (operandType.getSimpleType()) {
+                        case Byte:
+                        case Character:
+                        case Short:
+                            resultType = BuiltinTypes.Integer;
+                            break;
+                        default:
+                            resultType = operandType;
+                            break;
+                    }
+                }
             }
 
             if (leftResult.isCompileTimeConstant() && rightResult.isCompileTimeConstant()) {

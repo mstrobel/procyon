@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.core.Environment;
 import com.strobel.decompiler.languages.TextLocation;
 
 public abstract class NewLineNode extends AstNode {
@@ -51,5 +52,15 @@ public abstract class NewLineNode extends AstNode {
     @Override
     public NodeType getNodeType() {
         return NodeType.WHITESPACE;
+    }
+
+    public static NewLineNode create() {
+        if (Environment.isWindows() || Environment.isOS2()) {
+            return new WindowsNewLine();
+        }
+        if (Environment.isMac()) {
+            return new MacNewLine();
+        }
+        return new UnixNewLine();
     }
 }

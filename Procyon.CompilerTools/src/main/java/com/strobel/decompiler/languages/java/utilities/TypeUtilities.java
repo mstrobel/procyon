@@ -168,7 +168,7 @@ public final class TypeUtilities {
             case LESS_THAN:
             case LESS_THAN_OR_EQUAL: {
                 if (lUnboxed.isPrimitive() && rUnboxed.isPrimitive()) {
-                    isApplicable = lRank <= LONG_RANK && rRank <= LONG_RANK;
+                    isApplicable = lRank <= MAX_NUMERIC_RANK && rRank <= MAX_NUMERIC_RANK;
                     resultRank = INT_RANK;
                 }
                 break;
