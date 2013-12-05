@@ -86,6 +86,16 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
         final AstNodeCollection<ParameterDeclaration> parameters = declaration.getParameters();
         final Map<String, IdentifierExpression> renamedVariables = new HashMap<>();
         final AstNodeCollection<Expression> closureArguments = methodGroup.getClosureArguments();
+        final Statement firstStatement = body.getStatements().firstOrNullObject();
+
+        final int offset;
+
+        if (firstStatement != null && !firstStatement.isNull()) {
+            offset = firstStatement.getOffset();
+        }
+        else {
+            offset = Expression.MYSTERY_OFFSET;
+        }
 
         Expression a = closureArguments.firstOrNullObject();
 
@@ -134,7 +144,7 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
             null
         );
 
-        final LambdaExpression lambda = new LambdaExpression(a.getOffset());
+        final LambdaExpression lambda = new LambdaExpression(offset);
         final DynamicCallSite callSite = methodGroup.getUserData(Keys.DYNAMIC_CALL_SITE);
 
         TypeReference lambdaType = methodGroup.getUserData(Keys.TYPE_REFERENCE);
@@ -154,8 +164,6 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
         }
 
         body.remove();
-
-        final Statement firstStatement = body.getStatements().firstOrNullObject();
 
         if (body.getStatements().size() == 1 &&
             (firstStatement instanceof ExpressionStatement || firstStatement instanceof ReturnStatement)) {
