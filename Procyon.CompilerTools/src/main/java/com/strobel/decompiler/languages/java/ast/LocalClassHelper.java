@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.strobel.core.CollectionUtilities.firstOrDefault;
 import static com.strobel.core.CollectionUtilities.getOrDefault;
 
 public final class LocalClassHelper {
@@ -42,7 +43,7 @@ public final class LocalClassHelper {
         OUTER_TYPE_CONVERT_OPTIONS = new ConvertTypeOptions(false, false);
         OUTER_TYPE_CONVERT_OPTIONS.setIncludeTypeArguments(false);
     }
-
+    
     public static void replaceClosureMembers(final DecompilerContext context, final AnonymousObjectCreationExpression node) {
         replaceClosureMembers(context, node.getTypeDeclaration(), Collections.singletonList(node));
     }
@@ -53,8 +54,9 @@ public final class LocalClassHelper {
         final List<? extends ObjectCreationExpression> instantiations) {
 
         VerifyArgument.notNull(context, "context");
+        VerifyArgument.notNull(declaration, "declaration");
+        VerifyArgument.notNull(instantiations, "instantiations");
 
-        final TypeDeclaration root = VerifyArgument.notNull(declaration, "declaration");
         final Map<String, Expression> initializers = new HashMap<>();
         final Map<String, Expression> replacements = new HashMap<>();
         final List<AstNode> nodesToRemove = new ArrayList<>();
@@ -68,11 +70,11 @@ public final class LocalClassHelper {
             originalArguments = new ArrayList<>(instantiations.get(0).getArguments());
         }
 
-        new PhaseOneVisitor(context, originalArguments, replacements, initializers, parametersToRemove, nodesToRemove).run(root);
+        new ClosureRewriterPhaseOneVisitor(context, originalArguments, replacements, initializers, parametersToRemove, nodesToRemove).run(declaration);
 
         rewriteThisReferences(context, declaration, initializers);
 
-        new PhaseTwoVisitor(context, replacements, initializers).run(root);
+        new ClosureRewriterPhaseTwoVisitor(context, replacements, initializers).run(declaration);
 
         for (final ObjectCreationExpression instantiation : instantiations) {
             for (final ParameterDefinition p : parametersToRemove) {
@@ -103,6 +105,13 @@ public final class LocalClassHelper {
         }
     }
 
+    public static void introduceInitializerBlocks(final DecompilerContext context, final AstNode node) {
+        VerifyArgument.notNull(context, "context");
+        VerifyArgument.notNull(node, "node");
+
+        new IntroduceInitializersVisitor(context).run(node);
+    }
+
     private static void rewriteThisReferences(
         final DecompilerContext context,
         final TypeDeclaration declaration,
@@ -119,7 +128,7 @@ public final class LocalClassHelper {
         }
     }
 
-    private final static class PhaseOneVisitor extends ContextTrackingVisitor<Void> {
+    private final static class ClosureRewriterPhaseOneVisitor extends ContextTrackingVisitor<Void> {
         private final Map<String, Expression> _replacements;
         private final List<Expression> _originalArguments;
         private final List<ParameterDefinition> _parametersToRemove;
@@ -128,7 +137,7 @@ public final class LocalClassHelper {
 
         private boolean _baseConstructorCalled;
 
-        public PhaseOneVisitor(
+        public ClosureRewriterPhaseOneVisitor(
             final DecompilerContext context,
             final List<Expression> originalArguments,
             final Map<String, Expression> replacements,
@@ -352,31 +361,23 @@ public final class LocalClassHelper {
     }
 
     private static boolean isLocalOrAnonymous(final TypeDefinition type) {
-        if (type == null) {
-            return false;
-        }
-        return type.isLocalClass() || type.isAnonymous();
+        return type != null && (type.isLocalClass() || type.isAnonymous());
     }
 
     private static boolean hasSideEffects(final Expression e) {
-        if (e instanceof IdentifierExpression ||
-            e instanceof PrimitiveExpression ||
-            e instanceof ThisReferenceExpression ||
-            e instanceof SuperReferenceExpression ||
-            e instanceof NullReferenceExpression ||
-            e instanceof ClassOfExpression) {
-
-            return false;
-        }
-
-        return true;
+        return !(e instanceof IdentifierExpression ||
+                 e instanceof PrimitiveExpression ||
+                 e instanceof ThisReferenceExpression ||
+                 e instanceof SuperReferenceExpression ||
+                 e instanceof NullReferenceExpression ||
+                 e instanceof ClassOfExpression);
     }
 
-    private final static class PhaseTwoVisitor extends ContextTrackingVisitor<Void> {
+    private final static class ClosureRewriterPhaseTwoVisitor extends ContextTrackingVisitor<Void> {
         private final Map<String, Expression> _replacements;
         private final Map<String, Expression> _initializers;
 
-        protected PhaseTwoVisitor(
+        protected ClosureRewriterPhaseTwoVisitor(
             final DecompilerContext context,
             final Map<String, Expression> replacements,
             final Map<String, Expression> initializers) {
@@ -473,6 +474,56 @@ public final class LocalClassHelper {
                         }
                     }
                 }
+            }
+
+            return null;
+        }
+    }
+
+    private final static class IntroduceInitializersVisitor extends ContextTrackingVisitor<Void> {
+        public IntroduceInitializersVisitor(final DecompilerContext context) {
+            super(context);
+        }
+
+        @Override
+        public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void _) {
+            super.visitSuperReferenceExpression(node, _);
+
+            if (context.getCurrentMethod() != null &&
+                context.getCurrentMethod().isConstructor() &&
+                context.getCurrentMethod().getDeclaringType().isAnonymous() &&
+                node.getParent() instanceof InvocationExpression &&
+                node.getRole() == Roles.TARGET_EXPRESSION) {
+
+                //
+                // For anonymous classes, take all statements after the base constructor call and move them
+                // into an instance initializer block.
+                //
+
+                final Statement parentStatement = firstOrDefault(node.getAncestors(Statement.class));
+                final ConstructorDeclaration constructor = firstOrDefault(node.getAncestors(ConstructorDeclaration.class));
+
+                if (parentStatement == null ||
+                    constructor == null ||
+                    constructor.getParent() == null ||
+                    parentStatement.getNextStatement() == null) {
+
+                    return null;
+                }
+
+                final InstanceInitializer initializer = new InstanceInitializer();
+                final BlockStatement initializerBody = new BlockStatement();
+
+                for (Statement current = parentStatement.getNextStatement(); current != null;) {
+                    final Statement next = current.getNextStatement();
+
+                    current.remove();
+                    initializerBody.addChild(current, current.getRole());
+                    current = next;
+                }
+
+                initializer.setBody(initializerBody);
+                constructor.getParent().insertChildAfter(constructor, initializer, Roles.TYPE_MEMBER);
             }
 
             return null;

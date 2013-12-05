@@ -108,7 +108,9 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
     }
 
     private boolean tryIntroduceOuterClassReference(final MemberReferenceExpression node, final boolean hasThisOnLeft) {
-        if (!context.getCurrentType().isInnerClass()) {
+        final TypeDefinition currentType = context.getCurrentType();
+
+        if (!currentType.isInnerClass()) {
             return false;
         }
 
@@ -131,7 +133,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
         }
 
         if (!hasThisOnLeft ||
-            context.getCurrentType().isStatic() ||
+            currentType.isStatic() ||
             node.getParent() instanceof AssignmentExpression && node.getRole() == AssignmentExpression.LEFT_ROLE ||
             resolvedField == null ||
             !resolvedField.isSynthetic()) {
@@ -169,9 +171,9 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
 
         outerType.putUserData(Keys.TYPE_REFERENCE, outerTypeReference);
 
-        final ThisReferenceExpression replacement = new ThisReferenceExpression( node.getOffset());
+        final ThisReferenceExpression replacement = new ThisReferenceExpression(node.getOffset());
 
-        replacement.setTarget(new TypeReferenceExpression( node.getOffset(), outerType));
+        replacement.setTarget(new TypeReferenceExpression(node.getOffset(), outerType));
         replacement.putUserData(Keys.TYPE_REFERENCE, outerTypeReference);
 
         node.replaceWith(replacement);
@@ -211,7 +213,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
 
                 outerType.putUserData(Keys.TYPE_REFERENCE, declaredType);
 
-                final ThisReferenceExpression thisReference = new ThisReferenceExpression( node.getOffset());
+                final ThisReferenceExpression thisReference = new ThisReferenceExpression(node.getOffset());
 
                 thisReference.setTarget(new TypeReferenceExpression(node.getOffset(), outerType));
                 node.replaceWith(thisReference);
@@ -342,7 +344,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
                             }
                             else {
                                 final TypeReference fieldType = resolvedField.getFieldType();
-                                final ThisReferenceExpression replacement = new ThisReferenceExpression( left.getOffset());
+                                final ThisReferenceExpression replacement = new ThisReferenceExpression(left.getOffset());
                                 final SimpleType type = new SimpleType(fieldType.getSimpleName());
 
                                 type.putUserData(Keys.TYPE_REFERENCE, fieldType);

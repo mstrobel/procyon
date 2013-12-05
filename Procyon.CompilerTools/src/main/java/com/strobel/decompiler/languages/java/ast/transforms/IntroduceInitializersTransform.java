@@ -1,5 +1,5 @@
 /*
- * InlineFieldInitializersTransform.java
+ * IntroduceInitializersTransform.java
  *
  * Copyright (c) 2013 Mike Strobel
  *
@@ -36,13 +36,13 @@ import java.util.Map;
 
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
-public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Void> {
+public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void> {
     private final Map<String, FieldDeclaration> _fieldDeclarations;
     private final Map<String, AssignmentExpression> _initializers;
 
     private MethodDefinition _currentInitializerMethod;
 
-    public InlineFieldInitializersTransform(final DecompilerContext context) {
+    public IntroduceInitializersTransform(final DecompilerContext context) {
         super(context);
 
         _fieldDeclarations = new HashMap<>();
@@ -67,6 +67,8 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
         super.run(compilationUnit);
 
         inlineInitializers();
+
+        LocalClassHelper.introduceInitializerBlocks(context, compilationUnit);
     }
 
     private void inlineInitializers() {
@@ -118,29 +120,6 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
     }
 
     @Override
-    public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
-        final MethodDefinition oldInitializer = _currentInitializerMethod;
-        final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
-
-        if (method != null &&
-            method.isConstructor() &&
-            method.isSynthetic()) {
-
-            _currentInitializerMethod = method;
-        }
-        else {
-            _currentInitializerMethod = null;
-        }
-
-        try {
-            return super.visitConstructorDeclaration(node, _);
-        }
-        finally {
-            _currentInitializerMethod = oldInitializer;
-        }
-    }
-
-    @Override
     public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
         final MethodDefinition oldInitializer = _currentInitializerMethod;
         final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
@@ -166,26 +145,24 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
     private final static INode FIELD_ASSIGNMENT;
 
     static {
-        FIELD_ASSIGNMENT = new Choice(
-            new AssignmentExpression(
-                new MemberReferenceTypeNode(
-                    "target",
-                    new Choice(
-                        new MemberReferenceExpression(
-                            Expression.MYSTERY_OFFSET,
-                            new Choice(
-                                new TypedNode(AstType.class),
-                                new TypedNode(ThisReferenceExpression.class)
-                            ).toExpression(),
-                            Pattern.ANY_STRING
-                        ),
-                        new IdentifierExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)
-                    ).toExpression(),
-                    FieldReference.class
+        FIELD_ASSIGNMENT = new AssignmentExpression(
+            new MemberReferenceTypeNode(
+                "target",
+                new Choice(
+                    new MemberReferenceExpression(
+                        Expression.MYSTERY_OFFSET,
+                        new Choice(
+                            new TypedNode(AstType.class),
+                            new TypedNode(ThisReferenceExpression.class)
+                        ).toExpression(),
+                        Pattern.ANY_STRING
+                    ),
+                    new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)
                 ).toExpression(),
-                AssignmentOperatorType.ASSIGN,
-                new AnyNode("value").toExpression()
-            )
+                FieldReference.class
+            ).toExpression(),
+            AssignmentOperatorType.ASSIGN,
+            new AnyNode("value").toExpression()
         );
     }
 
@@ -205,6 +182,63 @@ public class InlineFieldInitializersTransform extends ContextTrackingVisitor<Voi
 
             if (StringUtilities.equals(context.getCurrentType().getInternalName(), reference.getDeclaringType().getInternalName())) {
                 _initializers.put(reference.getFullName(), node);
+            }
+        }
+
+        return null;
+    }
+
+    @Override
+    public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void _) {
+        super.visitSuperReferenceExpression(node, _);
+
+        final MethodDefinition method = context.getCurrentMethod();
+
+        if (method != null &&
+            method.isConstructor() &&
+            (method.isSynthetic() || method.getDeclaringType().isAnonymous()) &&
+            node.getParent() instanceof InvocationExpression &&
+            node.getRole() == Roles.TARGET_EXPRESSION) {
+
+            //
+            // For anonymous classes, take all statements after the base constructor call and move them
+            // into an instance initializer block.
+            //
+
+            final Statement parentStatement = firstOrDefault(node.getAncestors(Statement.class));
+            final ConstructorDeclaration constructor = firstOrDefault(node.getAncestors(ConstructorDeclaration.class));
+
+            if (parentStatement == null ||
+                constructor == null ||
+                constructor.getParent() == null ||
+                parentStatement.getNextStatement() == null) {
+
+                return null;
+            }
+
+            for (Statement current = parentStatement.getNextStatement();
+                 current instanceof ExpressionStatement; ) {
+
+                final Statement next = current.getNextStatement();
+                final Expression expression = ((ExpressionStatement) current).getExpression();
+                final Match match = FIELD_ASSIGNMENT.match(expression);
+
+                if (match.success()) {
+                    final Expression target = (Expression) firstOrDefault(match.get("target"));
+                    final MemberReference reference = target.getUserData(Keys.MEMBER_REFERENCE);
+
+                    if (StringUtilities.equals(context.getCurrentType().getInternalName(), reference.getDeclaringType().getInternalName())) {
+                        _initializers.put(
+                            reference.getFullName(),
+                            (AssignmentExpression) expression
+                        );
+                    }
+                }
+                else {
+                    break;
+                }
+
+                current = next;
             }
         }
 

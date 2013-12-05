@@ -284,6 +284,30 @@ public class InnerClassTests extends DecompilerTest {
         }
     }
 
+    private static class M {
+        public Object test() {
+            return new Object() {
+                {
+                    System.out.println("This is an initializer block.");
+                }
+            };
+        }
+    }
+
+    private static class N {
+        public Object test() {
+            return new Object() {
+                {
+                    System.out.println("This is an initializer block.");
+                }
+                int x = 5;
+                {
+                    System.out.println(x);
+                }
+            };
+        }
+    }
+
     @Test
     public void testComplexInnerClassRelations() {
         //
@@ -626,6 +650,42 @@ public class InnerClassTests extends DecompilerTest {
             "            }\n" +
             "        }\n" +
             "        return new P();\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testAnonymousClassWithInitializerBlock() {
+        verifyOutput(
+            M.class,
+            defaultSettings(),
+            "private static class M {\n" +
+            "    public Object test() {\n" +
+            "        return new Object() {\n" +
+            "            {\n" +
+            "                System.out.println(\"This is an initializer block.\");\n" +
+            "            }\n" +
+            "        };\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+    @Test
+    public void testAnonymousClassWithSplitInitializerBlock() {
+        verifyOutput(
+            N.class,
+            defaultSettings(),
+            "private static class N {\n" +
+            "    public Object test() {\n" +
+            "        return new Object() {\n" +
+            "            int x;\n" +
+            "            {\n" +
+            "                System.out.println(\"This is an initializer block.\");\n" +
+            "                this.x = 5;\n" +
+            "                System.out.println(this.x);\n" +
+            "            }\n" +
+            "        };\n" +
             "    }\n" +
             "}\n"
         );
