@@ -124,6 +124,12 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
 
         @Override
         public ResolveResult visitIdentifierExpression(final IdentifierExpression node, final Void data) {
+            ResolveResult result = resolveTypeFromMember(node.getUserData(Keys.MEMBER_REFERENCE));
+
+            if (result != null) {
+                return result;
+            }
+
             final Variable variable = node.getUserData(Keys.VARIABLE);
 
             if (variable == null) {
@@ -152,7 +158,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
             }
 */
 
-            final ResolveResult result = resolveTypeFromVariable(variable);
+            result = resolveTypeFromVariable(variable);
 
             if (result != null) {
                 return result;
@@ -555,15 +561,29 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                 return null;
             }
 
+            final TypeReference resultType;
+
+            switch (childResult.getType().getSimpleType()) {
+                case Byte:
+                case Character:
+                case Short:
+                case Integer:
+                    resultType = BuiltinTypes.Integer;
+                    break;
+
+                default:
+                    resultType = childResult.getType();
+            }
+
             if (childResult.isCompileTimeConstant()) {
                 final Object resultValue = UnaryOperations.doUnary(node.getOperator(), childResult.getConstantValue());
 
                 if (resultValue != null) {
-                    return new PrimitiveResolveResult(childResult.getType(), resultValue);
+                    return new PrimitiveResolveResult(resultType, resultValue);
                 }
             }
 
-            return new ResolveResult(childResult.getType());
+            return new ResolveResult(resultType);
         }
 
         @Override

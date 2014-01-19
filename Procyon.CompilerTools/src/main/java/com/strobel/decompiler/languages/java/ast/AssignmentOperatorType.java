@@ -29,5 +29,16 @@ public enum AssignmentOperatorType {
     BITWISE_AND,
     BITWISE_OR,
     EXCLUSIVE_OR,
-    ANY
+    ANY;
+
+    public final boolean isCompoundAssignment() {
+        switch (this) {
+            case ASSIGN:
+            case ANY:
+                return false;
+
+            default:
+                return true;
+        }
+    }
 }

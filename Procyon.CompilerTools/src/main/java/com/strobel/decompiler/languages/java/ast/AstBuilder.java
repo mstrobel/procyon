@@ -38,15 +38,17 @@ import com.strobel.decompiler.languages.java.ast.transforms.TransformationPipeli
 import com.strobel.util.ContractUtils;
 
 import javax.lang.model.element.Modifier;
+import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
 import java.util.*;
 
 public final class AstBuilder {
     private final DecompilerContext _context;
     private final CompilationUnit _compileUnit = new CompilationUnit();
-    private final Map<String, TypeDeclaration> _typeDeclarations = new LinkedHashMap<>();
+    private final Map<String, Reference<TypeDeclaration>> _typeDeclarations = new LinkedHashMap<>();
     private final Map<String, String> _unqualifiedTypeNames = new LinkedHashMap<>();
+    private final TextNode _packagePlaceholder;
 
-    private TextNode _packagePlaceholder;
     private boolean _decompileMethodBodies = true;
     private boolean _haveTransformationsRun;
 
@@ -117,10 +119,11 @@ public final class AstBuilder {
     public final TypeDeclaration createType(final TypeDefinition type) {
         VerifyArgument.notNull(type, "type");
 
-        final TypeDeclaration existingDeclaration = _typeDeclarations.get(type.getInternalName());
+        final Reference<TypeDeclaration> existingDeclaration = _typeDeclarations.get(type.getInternalName());
+        final TypeDeclaration d;
 
-        if (existingDeclaration != null) {
-            return existingDeclaration;
+        if (existingDeclaration != null && (d = existingDeclaration.get()) != null) {
+            return d;
         }
 
         return createTypeNoCache(type);
@@ -398,7 +401,7 @@ public final class AstBuilder {
             _packagePlaceholder.remove();
         }
 
-        _typeDeclarations.put(type.getInternalName(), astType);
+        _typeDeclarations.put(type.getInternalName(), new SoftReference<>(astType));
 
         long flags = type.getFlags();
 
@@ -500,7 +503,7 @@ public final class AstBuilder {
                 type.isEquivalentTo(declaringType)) {
 
                 if (nestedType.isAnonymous()) {
-                    _typeDeclarations.put(type.getInternalName(), astType);
+                    _typeDeclarations.put(type.getInternalName(), new SoftReference<>(astType));
                 }
                 else {
                     nestedTypes.add(nestedType);
@@ -768,7 +771,7 @@ public final class AstBuilder {
         }
 
         _compileUnit.acceptVisitor(new InsertParenthesesVisitor(), null);
-        JavaOutputVisitor visitor = new JavaOutputVisitor(output, _context.getSettings());
+        final JavaOutputVisitor visitor = new JavaOutputVisitor(output, _context.getSettings());
         _compileUnit.acceptVisitor(visitor, null);
         return visitor.getLineNumberPositions();
     }

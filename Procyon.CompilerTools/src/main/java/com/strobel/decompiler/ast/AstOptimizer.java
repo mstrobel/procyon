@@ -4158,7 +4158,7 @@ public final class AstOptimizer {
         }
     }
 
-    private static boolean references(final Node node, final Variable v) {
+    static boolean references(final Node node, final Variable v) {
         for (final Expression e : node.getSelfAndChildrenRecursive(Expression.class)) {
             if (matchLoad(e, v)) {
                 return true;

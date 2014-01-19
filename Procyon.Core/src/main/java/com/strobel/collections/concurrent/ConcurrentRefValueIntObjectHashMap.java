@@ -84,7 +84,7 @@ abstract class ConcurrentRefValueIntObjectHashMap<V> implements ConcurrentIntObj
             final boolean replaced = _map.replace(key, oldReference, newReference);
 
             if (replaced) {
-                return oldValue;
+                return null;
             }
         }
     }

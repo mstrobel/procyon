@@ -50,7 +50,7 @@ public class DecompilerDriver {
             jCommander.parse(args);
             typeNames = options.getInputs();
         }
-        catch (Throwable t) {
+        catch (final Throwable t) {
             System.err.println(ExceptionUtilities.getMessage(t));
             System.exit(-1);
             return;
@@ -107,13 +107,15 @@ public class DecompilerDriver {
             try {
                 decompileJar(jarFile, options, decompilationOptions);
             }
-            catch (Throwable t) {
+            catch (final Throwable t) {
                 System.err.println(ExceptionUtilities.getMessage(t));
                 System.exit(-1);
             }
         }
         else {
             final MetadataSystem metadataSystem = new NoRetryMetadataSystem(settings.getTypeLoader());
+
+            metadataSystem.setEagerMethodLoadingEnabled(options.isEagerMethodLoadingEnabled());
 
             for (final String typeName : typeNames) {
                 try {
@@ -124,7 +126,7 @@ public class DecompilerDriver {
                         decompileType(metadataSystem, typeName, options, decompilationOptions, true);
                     }
                 }
-                catch (Throwable t) {
+                catch (final Throwable t) {
                     t.printStackTrace();
                 }
             }
@@ -175,7 +177,7 @@ public class DecompilerDriver {
 
     private static void decompileJar(
         final String jarFilePath,
-        final CommandLineOptions commandLineOptions,
+        final CommandLineOptions options,
         final DecompilationOptions decompilationOptions) throws IOException {
 
         final File jarFile = new File(jarFilePath);
@@ -201,7 +203,11 @@ public class DecompilerDriver {
         );
 
         try {
-            final MetadataSystem metadataSystem = new NoRetryMetadataSystem(settings.getTypeLoader());
+            MetadataSystem metadataSystem = new NoRetryMetadataSystem(settings.getTypeLoader());
+
+            metadataSystem.setEagerMethodLoadingEnabled(options.isEagerMethodLoadingEnabled());
+
+            int classesDecompiled = 0;
 
             while (entries.hasMoreElements()) {
                 final JarEntry entry = entries.nextElement();
@@ -214,9 +220,13 @@ public class DecompilerDriver {
                 final String internalName = StringUtilities.removeRight(name, ".class");
 
                 try {
-                    decompileType(metadataSystem, internalName, commandLineOptions, decompilationOptions, false);
+                    decompileType(metadataSystem, internalName, options, decompilationOptions, false);
+
+                    if (++classesDecompiled % 100 == 0) {
+                        metadataSystem = new NoRetryMetadataSystem(settings.getTypeLoader());
+                    }
                 }
-                catch (Throwable t) {
+                catch (final Throwable t) {
                     t.printStackTrace();
                 }
             }
@@ -287,29 +297,34 @@ public class DecompilerDriver {
             System.out.printf("Decompiling %s...\n", typeName);
         }
 
-        TypeDecompilationResults decompResults = settings.getLanguage().decompileType(resolvedType, output, options);
+        final TypeDecompilationResults results = settings.getLanguage().decompileType(resolvedType, output, options);
 
         writer.flush();
         writer.close();
-        
+
         // If we're writing to a file and we were asked to include line numbers in any way,
         // then reformat the file to include that line number information.
-        List<LineNumberPosition> lineNumberPositions = decompResults.getLineNumberPositions();
-        if ( lineNumberPositions != null
-                && (commandLineOptions.getIncludeLineNumbers()
-                        || commandLineOptions.getStretchLines())
-                && (writer instanceof FileOutputWriter)) {
-            EnumSet<LineNumberOption> lineNumberOptions = EnumSet.noneOf( LineNumberOption.class);
-            if ( commandLineOptions.getIncludeLineNumbers()) {
-                lineNumberOptions.add( LineNumberOption.LEADING_COMMENTS);
+        final List<LineNumberPosition> lineNumberPositions = results.getLineNumberPositions();
+
+        if ((commandLineOptions.getIncludeLineNumbers() || commandLineOptions.getStretchLines()) && (writer instanceof FileOutputWriter)) {
+            final EnumSet<LineNumberOption> lineNumberOptions = EnumSet.noneOf(LineNumberOption.class);
+
+            if (commandLineOptions.getIncludeLineNumbers()) {
+                lineNumberOptions.add(LineNumberOption.LEADING_COMMENTS);
             }
-            if ( commandLineOptions.getStretchLines()) {
-                lineNumberOptions.add( LineNumberOption.STRETCHED);
+
+            if (commandLineOptions.getStretchLines()) {
+                lineNumberOptions.add(LineNumberOption.STRETCHED);
             }
-            LineNumberFormatter lineFormatter = new LineNumberFormatter(
-                        ((FileOutputWriter) writer).getFile(), lineNumberPositions, lineNumberOptions);
+
+            final LineNumberFormatter lineFormatter = new LineNumberFormatter(
+                ((FileOutputWriter) writer).getFile(),
+                lineNumberPositions,
+                lineNumberOptions
+            );
+
             lineFormatter.reformatFile();
-        }        
+        }
     }
 
     private static Writer createWriter(final TypeDefinition type, final DecompilerSettings settings) throws IOException {
@@ -339,7 +354,6 @@ public class DecompilerDriver {
         }
 
         final File outputFile = new File(outputPath);
-
         final File parentFile = outputFile.getParentFile();
 
         if (parentFile != null && !parentFile.exists() && !parentFile.mkdirs()) {
@@ -375,15 +389,15 @@ final class FileOutputWriter extends OutputStreamWriter {
         );
         this.file = file;
     }
-    
+
     /**
      * Returns the file to which 'this' is writing.
-     * 
+     *
      * @return the file to which 'this' is writing
      */
     public File getFile() {
         return this.file;
-    }    
+    }
 }
 
 final class BriefLogFormatter extends Formatter {
@@ -395,18 +409,14 @@ final class BriefLogFormatter extends Formatter {
      */
     public String format(@NotNull final LogRecord record) {
         String loggerName = record.getLoggerName();
+
         if (loggerName == null) {
             loggerName = "root";
         }
-        return new StringBuilder()
-            .append(format.format(new Date(record.getMillis())))
-            .append(" [")
-            .append(record.getLevel())
-            .append("] ")
-            .append(loggerName)
-            .append(": ")
-            .append(record.getMessage()).append(' ')
-            .append(lineSep).toString();
+
+        return format.format(new Date(record.getMillis())) +
+               " [" + record.getLevel() + "] " +
+               loggerName + ": " + record.getMessage() + ' ' + lineSep;
     }
 }
 

@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.CommonTypeReferences;
 import com.strobel.assembler.metadata.JvmType;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.semantics.ResolveResult;
@@ -145,8 +146,35 @@ public class SimplifyArithmeticExpressionsTransform extends ContextTrackingVisit
                     return null;
                 }
 
-                if (node.getRight() instanceof PrimitiveExpression) {
-                    final PrimitiveExpression right = (PrimitiveExpression) node.getRight();
+                Expression rValue = node.getRight();
+                boolean dropCast = false;
+
+                if (rValue instanceof CastExpression) {
+                    final CastExpression cast = (CastExpression) rValue;
+                    final AstType castType = cast.getType();
+
+                    if (castType != null && !castType.isNull()) {
+                        final TypeReference typeReference = castType.getUserData(Keys.TYPE_REFERENCE);
+
+                        if (typeReference != null) {
+                            final JvmType jvmType = typeReference.getSimpleType();
+
+                            switch (jvmType) {
+                                case Byte:
+                                case Short:
+                                case Character:
+                                    if (cast.getExpression() instanceof PrimitiveExpression) {
+                                        rValue = cast.getExpression();
+                                        dropCast = true;
+                                    }
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                if (rValue instanceof PrimitiveExpression) {
+                    final PrimitiveExpression right = (PrimitiveExpression) rValue;
                     final boolean isNegative;
 
                     if (right.getValue() instanceof Number) {
@@ -176,6 +204,11 @@ public class SimplifyArithmeticExpressionsTransform extends ContextTrackingVisit
                                 operator == AssignmentOperatorType.ADD ? AssignmentOperatorType.SUBTRACT
                                                                        : AssignmentOperatorType.ADD
                             );
+                        }
+
+                        if (dropCast) {
+                            rValue.remove();
+                            node.setRight(rValue);
                         }
                     }
                 }
