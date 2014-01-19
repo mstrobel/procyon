@@ -568,17 +568,30 @@ public class AstMethodBodyBuilder {
             case LdC: {
                 if (operand instanceof TypeReference) {
                     operandType.getChildrenByRole(Roles.TYPE_ARGUMENT).clear();
-                    return new ClassOfExpression( byteCode.getOffset(), operandType);
+                    return new ClassOfExpression(byteCode.getOffset(), operandType);
                 }
 
                 final TypeReference type = byteCode.getInferredType() != null ? byteCode.getInferredType()
                                                                               : byteCode.getExpectedType();
 
                 if (type != null) {
-                    return new PrimitiveExpression( byteCode.getOffset(), JavaPrimitiveCast.cast(type.getSimpleType(), operand));
+                    switch (type.getSimpleType()) {
+                        case Byte:
+                        case Short:
+                            return new PrimitiveExpression(
+                                byteCode.getOffset(),
+                                JavaPrimitiveCast.cast(JvmType.Integer, operand)
+                            );
+
+                        default:
+                            return new PrimitiveExpression(
+                                byteCode.getOffset(),
+                                JavaPrimitiveCast.cast(type.getSimpleType(), operand)
+                            );
+                    }
                 }
 
-                return new PrimitiveExpression( byteCode.getOffset(), operand);
+                return new PrimitiveExpression(byteCode.getOffset(), operand);
             }
 
             case Pop:

@@ -1173,13 +1173,16 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
         final Statement firstStatement = firstOrDefault(body.getStatements());
         final Statement lastStatement = lastOrDefault(body.getStatements());
-        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, body);
 
-        analysis.setAnalyzedRange(firstStatement, lastStatement);
-        analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+        if (firstStatement != null && lastStatement != null) {
+            final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, body);
 
-        if (!analysis.isPotentiallyAssigned()) {
-            forEach.addVariableModifier(Modifier.FINAL);
+            analysis.setAnalyzedRange(firstStatement, lastStatement);
+            analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+
+            if (!analysis.isPotentiallyAssigned()) {
+                forEach.addVariableModifier(Modifier.FINAL);
+            }
         }
 
         return forEach;

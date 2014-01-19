@@ -16,14 +16,20 @@
 
 package com.strobel.decompiler.ast;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.core.CollectionUtilities;
 import com.strobel.core.MutableInteger;
+import com.strobel.core.Predicate;
 import com.strobel.core.StrongBox;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.util.ContractUtils;
 
+import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.ast.PatternMatching.*;
@@ -299,6 +305,51 @@ final class Inlining {
             }
 
             final List<Expression> parentArguments = parent.get().getArguments();
+            final Map<Expression, Expression> parentLookup = new IdentityHashMap<>();
+
+            for (final Expression node : next.getSelfAndChildrenRecursive(Expression.class)) {
+                for (final Expression child : node.getArguments()) {
+                    parentLookup.put(child, node);
+                }
+            }
+
+            final List<Expression> nestedAssignments = inlinedExpression.getSelfAndChildrenRecursive(
+                Expression.class,
+                new Predicate<Expression>() {
+                    @Override
+                    public boolean test(final Expression node) {
+                        return node.getCode() == AstCode.Store;
+                    }
+                }
+            );
+
+            //
+            // Make sure we do not inline an initialization expression into the left-hand side of an assignment
+            // whose value references the initialized variable.  For example, do not allow inlining in this case:
+            //
+            //     v = (x = y); v.f = x.f - 1 => (x = y).f = x.f - 1
+            //
+            for (final Expression assignment : nestedAssignments) {
+                Expression lastParent = parentArguments.get(position.getValue());
+
+                for (final Expression e : getParents((Expression) n, parentLookup, parentArguments.get(position.getValue()))) {
+                    if (e.getCode().isWriteOperation()) {
+                        boolean lastParentFound = false;
+
+                        for (final Expression a : e.getArguments()) {
+                            if (lastParentFound) {
+                                if (AstOptimizer.references(a, (Variable) assignment.getOperand())) {
+                                    return false;
+                                }
+                            }
+                            else if (a == lastParent) {
+                                lastParentFound = true;
+                            }
+                        }
+                    }
+                    lastParent = e;
+                }
+            }
 
             //
             // Assign the ranges of the Load instruction.
@@ -756,6 +807,55 @@ final class Inlining {
         else {
             count.increment();
         }
+    }
+
+    private static Iterable<Expression> getParents(final Expression scope, final Map<Expression, Expression> parentLookup, final Expression node) {
+        return new Iterable<Expression>() {
+            @NotNull
+            @Override
+            public final Iterator<Expression> iterator() {
+                return new Iterator<Expression>() {
+                    Expression current = updateCurrent(node);
+
+                    @SuppressWarnings("unchecked")
+                    private Expression updateCurrent(Expression node) {
+                        while (node != null && node != Node.NULL) {
+                            if (node == scope) {
+                                return null;
+                            }
+
+                            node = parentLookup.get(node);
+
+                            return node;
+                        }
+
+                        return null;
+                    }
+
+                    @Override
+                    public final boolean hasNext() {
+                        return current != null;
+                    }
+
+                    @Override
+                    public final Expression next() {
+                        final Expression next = current;
+
+                        if (next == null) {
+                            throw new NoSuchElementException();
+                        }
+
+                        current = updateCurrent(next);
+                        return next;
+                    }
+
+                    @Override
+                    public final void remove() {
+                        throw ContractUtils.unsupported();
+                    }
+                };
+            }
+        };
     }
 
     // </editor-fold>

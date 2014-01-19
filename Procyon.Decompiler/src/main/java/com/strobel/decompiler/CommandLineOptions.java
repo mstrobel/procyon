@@ -129,6 +129,11 @@ public class CommandLineOptions {
         description = "Enable Unicode output (printable non-ASCII characters will not be escaped).")
     private boolean _isUnicodeOutputEnabled;
 
+    @Parameter(
+        names = { "-eml", "--eager-method-loading" },
+        description = "Enable eager loading of method bodies (may speed up decompilation of larger archives).")
+    private boolean _isEagerMethodLoadingEnabled;
+
     public final List<String> getInputs() {
         return _inputs;
     }
@@ -291,5 +296,13 @@ public class CommandLineOptions {
 
     public final void setMergeVariables(final boolean mergeVariables) {
         _mergeVariables = mergeVariables;
+    }
+
+    public final boolean isEagerMethodLoadingEnabled() {
+        return _isEagerMethodLoadingEnabled;
+    }
+
+    public final void setEagerMethodLoadingEnabled(final boolean isEagerMethodLoadingEnabled) {
+        _isEagerMethodLoadingEnabled = isEagerMethodLoadingEnabled;
     }
 }

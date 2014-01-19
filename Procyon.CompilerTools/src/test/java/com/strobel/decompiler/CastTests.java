@@ -48,6 +48,21 @@ public class CastTests extends DecompilerTest {
         }
     }
 
+    private static class C {
+        public short test(final short x) {
+            return (short) -x;
+        }
+    }
+
+    private static class D {
+        public short test(final boolean b) {
+            for (short n = (short) (b ? -1 : 0); b; ++n) {
+                System.out.println(n);
+            }
+            return 1;
+        }
+    }
+
     @Test
     public void testPrimitiveComparisonCastAnalysis() {
         verifyOutput(
@@ -87,6 +102,37 @@ public class CastTests extends DecompilerTest {
             "        final short c = (short)(a + b);\n" +
             "        System.out.println(c);\n" +
             "        return c;\n" +
+            "    }\n" +
+            "}"
+        );
+    }
+
+    @Test
+    public void testShortNegationRetainsCast() {
+        verifyOutput(
+            C.class,
+            defaultSettings(),
+            "private static class C {\n" +
+            "    public short test(final short x) {\n" +
+            "        return (short)(-x);\n" +
+            "    }\n" +
+            "}"
+        );
+    }
+
+    @Test
+    public void testLiteralTernaryAsShortRetainsCast() {
+        verifyOutput(
+            D.class,
+            defaultSettings(),
+            "private static class D {\n" +
+            "    public short test(final boolean b) {\n" +
+            "        short n = (short)(b ? -1 : 0);\n" +
+            "        while (b) {\n" +
+            "            System.out.println(n);\n" +
+            "            ++n;\n" +
+            "        }\n" +
+            "        return 1;\n" +
             "    }\n" +
             "}"
         );

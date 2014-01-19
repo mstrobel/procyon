@@ -510,6 +510,10 @@ public final class MetadataHelper {
             return !tPrimitive;
         }
 
+        if (target.isWildcardType() && target.isUnbounded()) {
+            return !sPrimitive;
+        }
+
         if (tPrimitive == sPrimitive) {
             return allowUnchecked ? isSubTypeUnchecked(source, target)
                                   : isSubType(source, target);

@@ -777,8 +777,9 @@ final class GotoRemoval {
             final Block body = loop.getBody();
             final Node lastInLoop = lastOrDefault(body.getBody());
 
-            if (lastInLoop == null)
+            if (lastInLoop == null) {
                 continue;
+            }
 
             if (match(lastInLoop, AstCode.LoopContinue)) {
                 final Expression last = (Expression) last(body.getBody());

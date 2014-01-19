@@ -794,7 +794,7 @@ public class BytecodeLanguage extends Language {
             final InstructionCollection instructions = body.getInstructions();
 
             if (!instructions.isEmpty()) {
-                final int[] lineNumbers;
+                int[] lineNumbers;
 
                 if (options.getSettings().getIncludeLineNumbersInBytecode()) {
                     final LineNumberTableAttribute lineNumbersAttribute = SourceAttribute.find(
@@ -808,6 +808,13 @@ public class BytecodeLanguage extends Language {
                         Arrays.fill(lineNumbers, -1);
 
                         for (final LineNumberTableEntry entry : lineNumbersAttribute.getEntries()) {
+                            if (entry.getOffset() >= lineNumbers.length) {
+                                //
+                                // Fix for ArrayIndexOutOfBoundsException when decompiling dex2jar output with bad
+                                // line number mappings.
+                                //
+                                lineNumbers = Arrays.copyOf(lineNumbers, entry.getOffset() + 1);
+                            }
                             lineNumbers[entry.getOffset()] = entry.getLineNumber();
                         }
                     }

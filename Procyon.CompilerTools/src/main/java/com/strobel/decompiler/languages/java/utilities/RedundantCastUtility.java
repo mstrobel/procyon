@@ -460,10 +460,22 @@ public final class RedundantCastUtility {
                 if (castOperand != null && !castOperand.isNull()) {
                     final TypeReference operandType = getType(castOperand);
 
-                    if (operandType != null &&
-                        MetadataHelper.isAssignableFrom(leftType, operandType, false)) {
+                    if (operandType != null) {
+                        if (MetadataHelper.isAssignableFrom(leftType, operandType, false)) {
+                            addToResults((CastExpression) r, false);
+                        }
+                        else {
+                            final TypeReference unboxedLeftType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(leftType);
+                            final TypeReference unboxedOperandType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(operandType);
 
-                        addToResults((CastExpression) r, false);
+                            if (castOperand instanceof PrimitiveExpression &&
+                                unboxedLeftType.getSimpleType().isIntegral() &&
+                                unboxedLeftType.getSimpleType().isSubWordOrInt32() &&
+                                MetadataHelper.isAssignableFrom(BuiltinTypes.Integer, unboxedOperandType, false)) {
+
+                                addToResults((CastExpression) r, true);
+                            }
+                        }
                     }
                 }
             }

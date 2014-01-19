@@ -26,6 +26,7 @@ import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.HashUtilities;
 import com.strobel.core.StringUtilities;
 
+import java.lang.ref.SoftReference;
 import java.util.Collections;
 import java.util.List;
 
@@ -43,7 +44,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     private final List<CustomAnnotation> _customAnnotationsView;
     private final List<SourceAttribute> _sourceAttributesView;
 
-    private MethodBody _body;
+    private SoftReference<MethodBody> _body;
     private String _name;
     private String _fullName;
     private String _erasedSignature;
@@ -68,19 +69,25 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     }
 
     public final boolean hasBody() {
-        return _body != null;
+        final SoftReference<MethodBody> bodyCache = _body;
+        return bodyCache != null && bodyCache.get() != null;
     }
 
     public final MethodBody getBody() {
-        if (_body == null) {
+        MethodBody body = null;
+
+        final SoftReference<MethodBody> cachedBody = _body;
+
+        if (cachedBody == null || (body = _body.get()) == null) {
             try {
-                tryLoadBody();
+                return tryLoadBody();
             }
             catch (Throwable t) {
                 setFlags(getFlags() | Flags.LOAD_BODY_FAILED);
             }
         }
-        return _body;
+
+        return body;
     }
 
     public final boolean hasThis() {
@@ -88,7 +95,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     }
 
     protected final void setBody(final MethodBody body) {
-        _body = body;
+        _body = new SoftReference<>(body);
     }
 
     @Override
@@ -645,16 +652,18 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
 
     // <editor-fold defaultstate="collapsed" desc="Deferred Method Body Loading">
 
-    private boolean tryLoadBody() {
+    private MethodBody tryLoadBody() {
         if (Flags.testAny(_flags, Flags.LOAD_BODY_FAILED)) {
-            return false;
+            return null;
         }
 
         final CodeAttribute codeAttribute = SourceAttribute.find(AttributeNames.Code, _sourceAttributes);
 
         if (codeAttribute == null) {
-            return false;
+            return null;
         }
+
+        final int codeAttributeIndex = _sourceAttributes.indexOf(codeAttribute);
 
         Buffer code = codeAttribute.getCode();
         ConstantPool constantPool = _declaringType.getConstantPool();
@@ -664,14 +673,14 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
 
             if (typeLoader == null) {
                 _flags |= Flags.LOAD_BODY_FAILED;
-                return true;
+                return null;
             }
 
             code = new Buffer();
 
             if (!typeLoader.tryLoadType(_declaringType.getInternalName(), code)) {
                 _flags |= Flags.LOAD_BODY_FAILED;
-                return true;
+                return null;
             }
 
             final List<ExceptionTableEntry> exceptionTableEntries = codeAttribute.getExceptionTableEntries();
@@ -688,7 +697,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
                 codeAttributes.toArray(new SourceAttribute[codeAttributes.size()])
             );
 
-            _sourceAttributes.set(_sourceAttributes.indexOf(codeAttribute), newCode);
+            _sourceAttributes.set(codeAttributeIndex, newCode);
 
             if (constantPool == null) {
                 final long magic = code.readInt() & 0xFFFFFFFFL;
@@ -698,7 +707,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
                 //noinspection ConstantConditions
                 if (magic != ClassFileReader.MAGIC) {
                     _flags |= Flags.LOAD_BODY_FAILED;
-                    return true;
+                    return null;
                 }
 
                 code.readUnsignedShort(); // minor version
@@ -711,10 +720,14 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
         final MetadataParser parser = new MetadataParser(_declaringType);
         final IMetadataScope scope = new ClassFileReader.Scope(parser, _declaringType, constantPool);
 
-        _body = new MethodReader(this, scope).readBody();
-        _body.freeze();
+        final MethodBody body = new MethodReader(this, scope).readBody();
 
-        return true;
+        _body = new SoftReference<>(body);
+        _sourceAttributes.set(codeAttributeIndex, codeAttribute);
+
+        body.tryFreeze();
+
+        return body;
     }
 
     // </editor-fold>

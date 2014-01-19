@@ -205,10 +205,10 @@ public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode
 
     @Override
     public AstNode visitAssignmentExpression(final AssignmentExpression node, final Void data) {
-        if (node.getOperator() == AssignmentOperatorType.ASSIGN) {
-            final Expression left = node.getLeft();
-            final Expression right = node.getRight();
+        final Expression left = node.getLeft();
+        final Expression right = node.getRight();
 
+        if (node.getOperator() == AssignmentOperatorType.ASSIGN) {
             if (right instanceof CastExpression) {
                 //
                 // T t; t = (T)(t + n) => t += n
@@ -232,14 +232,18 @@ public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode
 
                         newValue.remove();
                         right.replaceWith(newValue);
+
                         return newValue.acceptVisitor(this, data);
                     }
                 }
             }
 
             if (tryRewriteBinaryAsAssignment(node, left, right)) {
-                return node.acceptVisitor(this, data);
+                return left.getParent().acceptVisitor(this, data);
             }
+        }
+        else if (tryRewriteBinaryAsUnary(node, left, right)) {
+            return left.getParent().acceptVisitor(this, data);
         }
 
         return super.visitAssignmentExpression(node, data);

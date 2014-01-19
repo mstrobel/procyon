@@ -31,6 +31,8 @@ public class MetadataSystem extends MetadataResolver {
     private final ConcurrentHashMap<String, TypeDefinition> _types;
     private final ITypeLoader _typeLoader;
 
+    private boolean _isEagerMethodLoadingEnabled;
+
     public static MetadataSystem instance() {
         if (_instance == null) {
             synchronized (MetadataSystem.class) {
@@ -53,6 +55,14 @@ public class MetadataSystem extends MetadataResolver {
     public MetadataSystem(final ITypeLoader typeLoader) {
         _typeLoader = VerifyArgument.notNull(typeLoader, "typeLoader");
         _types = new ConcurrentHashMap<>();
+    }
+
+    public final boolean isEagerMethodLoadingEnabled() {
+        return _isEagerMethodLoadingEnabled;
+    }
+
+    public final void setEagerMethodLoadingEnabled(final boolean value) {
+        _isEagerMethodLoadingEnabled = value;
     }
 
     public void addTypeDefinition(final TypeDefinition type) {
@@ -111,7 +121,12 @@ public class MetadataSystem extends MetadataResolver {
             return null;
         }
 
-        final TypeDefinition typeDefinition = ClassFileReader.readClass(this, buffer);
+        final TypeDefinition typeDefinition = ClassFileReader.readClass(
+            _isEagerMethodLoadingEnabled ? ClassFileReader.OPTIONS_DEFAULT | ClassFileReader.OPTION_PROCESS_CODE
+                                         : ClassFileReader.OPTIONS_DEFAULT,
+            this,
+            buffer
+        );
 
         cachedDefinition = _types.putIfAbsent(descriptor, typeDefinition);
         typeDefinition.setTypeLoader(_typeLoader);
