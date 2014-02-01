@@ -45,22 +45,35 @@ public class SimplifyArithmeticExpressionsTransform extends ContextTrackingVisit
                 if (node.getExpression() instanceof PrimitiveExpression) {
                     final PrimitiveExpression operand = (PrimitiveExpression) node.getExpression();
                     final boolean isNegative;
+                    final Number negatedValue;
 
                     if (operand.getValue() instanceof Number) {
                         if (operand.getValue() instanceof Float || operand.getValue() instanceof Double) {
-                            final double doubleValue = (double) JavaPrimitiveCast.cast(JvmType.Double, operand.getValue());
+                            final double value = (double) JavaPrimitiveCast.cast(JvmType.Double, operand.getValue());
 
-                            isNegative = doubleValue < 0d;
+                            //
+                            // We need to consider -0.0, which would not be detected using `isNegative = value < 0.0`.
+                            // Check the raw sign bit instead.
+                            //
+                            isNegative = !Double.isNaN(value) &&
+                                         (Double.doubleToRawLongBits(value) & (1L << 63)) != 0;
+
+                            negatedValue = (Number) JavaPrimitiveCast.cast(JvmType.forValue(operand.getValue(), true), -value);
                         }
                         else {
-                            final long longValue = (long) JavaPrimitiveCast.cast(JvmType.Long, operand.getValue());
+                            final long value = (long) JavaPrimitiveCast.cast(JvmType.Long, operand.getValue());
 
-                            isNegative = longValue < 0L;
+                            isNegative = value < 0L;
+                            negatedValue = (Number) JavaPrimitiveCast.cast(JvmType.forValue(operand.getValue(), true), -value);
                         }
 
                         if (minus == isNegative) {
                             operand.remove();
                             node.replaceWith(operand);
+
+                            if (isNegative) {
+                                operand.setValue(negatedValue);
+                            }
                         }
                     }
                 }
@@ -98,18 +111,20 @@ public class SimplifyArithmeticExpressionsTransform extends ContextTrackingVisit
                         if (right.getValue() instanceof Float || right.getValue() instanceof Double) {
                             final double value = (double) JavaPrimitiveCast.cast(JvmType.Double, right.getValue());
 
-                            isNegative = value < 0d;
+                            //
+                            // We need to consider -0.0, which would not be detected using `isNegative = value < 0.0`.
+                            // Check the raw sign bit instead.
+                            //
+                            isNegative = !Double.isNaN(value) &&
+                                         (Double.doubleToRawLongBits(value) & (1L << 63)) != 0;
 
-                            negatedValue = isNegative ? (Number) JavaPrimitiveCast.cast(JvmType.forValue(right.getValue(), true), -value)
-                                                      : null;
+                            negatedValue = (Number) JavaPrimitiveCast.cast(JvmType.forValue(right.getValue(), true), -value);
                         }
                         else {
                             final long value = (long) JavaPrimitiveCast.cast(JvmType.Long, right.getValue());
 
                             isNegative = value < 0L;
-
-                            negatedValue = isNegative ? (Number) JavaPrimitiveCast.cast(JvmType.forValue(right.getValue(), true), -value)
-                                                      : null;
+                            negatedValue = (Number) JavaPrimitiveCast.cast(JvmType.forValue(right.getValue(), true), -value);
                         }
 
                         if (isNegative) {
@@ -183,18 +198,20 @@ public class SimplifyArithmeticExpressionsTransform extends ContextTrackingVisit
                         if (right.getValue() instanceof Float || right.getValue() instanceof Double) {
                             final double value = (double) JavaPrimitiveCast.cast(JvmType.Double, right.getValue());
 
-                            isNegative = value < 0d;
+                            //
+                            // We need to consider -0.0, which would not be detected using `isNegative = value < 0.0`.
+                            // Check the raw sign bit instead.
+                            //
+                            isNegative = !Double.isNaN(value) &&
+                                         (Double.doubleToRawLongBits(value) & (1L << 63)) != 0;
 
-                            negatedValue = isNegative ? (Number) JavaPrimitiveCast.cast(JvmType.forValue(right.getValue(), true), -value)
-                                                      : null;
+                            negatedValue = (Number) JavaPrimitiveCast.cast(JvmType.forValue(right.getValue(), true), -value);
                         }
                         else {
                             final long value = (long) JavaPrimitiveCast.cast(JvmType.Long, right.getValue());
 
                             isNegative = value < 0L;
-
-                            negatedValue = isNegative ? (Number) JavaPrimitiveCast.cast(JvmType.forValue(right.getValue(), true), -value)
-                                                      : null;
+                            negatedValue = (Number) JavaPrimitiveCast.cast(JvmType.forValue(right.getValue(), true), -value);
                         }
 
                         if (isNegative) {
