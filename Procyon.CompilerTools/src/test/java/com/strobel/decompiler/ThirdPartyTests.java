@@ -157,7 +157,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "        while (true) {\n" +
             "            ++WhileLoops.x;\n" +
             "            if (WhileLoops.x > 127) {\n" +
-            "                WhileLoops.x = (WhileLoops.x ^ -1 ^ -1) >>> 3;\n" +
+            "                WhileLoops.x = ~(~WhileLoops.x) >>> 3;\n" +
             "                break;\n" +
             "            }\n" +
             "            if (b ^ b2) {\n" +

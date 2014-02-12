@@ -114,6 +114,49 @@ public class OperatorTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("PointlessBitwiseExpression")
+    private static class I {
+        public byte test(final byte x) {
+            return (byte) ~(~x);
+        }
+
+        public char test(final char x) {
+            return (char) ~(~x);
+        }
+
+        public short test(final short x) {
+            return (short) ~(~x);
+        }
+
+        public int test(final int x) {
+            return ~(~x);
+        }
+
+        public long test(final long x) {
+            return ~(~x);
+        }
+
+        public byte altTest(final byte x) {
+            return (byte)(x ^ -1);
+        }
+
+        public char altTest(final char x) {
+            return (char)(x ^ -1);
+        }
+
+        public short altTest(final short x) {
+            return (short)(x ^ -1);
+        }
+
+        public int altTest(final int x) {
+            return x ^ -1;
+        }
+
+        public long altTest(final long x) {
+            return x ^ -1;
+        }
+    }
+
     @Test
     public void testStringConcatenation() {
         verifyOutput(
@@ -255,6 +298,46 @@ public class OperatorTests extends DecompilerTest {
             "    public Object test4(Object o) {\n" +
             "        o = \"forbid compound assignment\" + o;\n" +
             "        return o;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testExclusiveOrToBitwiseNotSimplification() {
+        verifyOutput(
+            I.class,
+            defaultSettings(),
+            "private static class I {\n" +
+            "    public byte test(final byte x) {\n" +
+            "        return (byte)~(~x);\n" +
+            "    }\n" +
+            "    public char test(final char x) {\n" +
+            "        return (char)~(~x);\n" +
+            "    }\n" +
+            "    public short test(final short x) {\n" +
+            "        return (short)~(~x);\n" +
+            "    }\n" +
+            "    public int test(final int x) {\n" +
+            "        return ~(~x);\n" +
+            "    }\n" +
+            "    public long test(final long x) {\n" +
+            "        return ~(~x);\n" +
+            "    }\n" +
+            "    public byte altTest(final byte x) {\n" +
+            "        return (byte)~x;\n" +
+            "    }\n" +
+            "    public char altTest(final char x) {\n" +
+            "        return (char)~x;\n" +
+            "    }\n" +
+            "    public short altTest(final short x) {\n" +
+            "        return (short)~x;\n" +
+            "    }\n" +
+            "    public int altTest(final int x) {\n" +
+            "        return ~x;\n" +
+            "    }\n" +
+            "    public long altTest(final long x) {\n" +
+            "        return ~x;\n" +
             "    }\n" +
             "}\n"
         );
