@@ -142,6 +142,11 @@ public final class RedundantCastUtility {
         }
 
         @Override
+        public Void visitLocalTypeDeclarationStatement(final LocalTypeDeclarationStatement node, final Void data) {
+            return null;
+        }
+
+        @Override
         public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
             return null;
         }

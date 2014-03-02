@@ -210,7 +210,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     }
 
     public boolean isNested() {
-        return getDeclaringType() != null;
+        return getDeclaringType() != null && !isGenericParameter();
     }
 
     public boolean isArray() {

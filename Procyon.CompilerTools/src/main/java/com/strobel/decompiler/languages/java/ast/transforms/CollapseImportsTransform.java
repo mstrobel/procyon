@@ -21,12 +21,7 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.DecompilerSettings;
-import com.strobel.decompiler.languages.java.ast.AstNode;
-import com.strobel.decompiler.languages.java.ast.AstNodeCollection;
-import com.strobel.decompiler.languages.java.ast.CompilationUnit;
-import com.strobel.decompiler.languages.java.ast.Identifier;
-import com.strobel.decompiler.languages.java.ast.ImportDeclaration;
-import com.strobel.decompiler.languages.java.ast.Keys;
+import com.strobel.decompiler.languages.java.ast.*;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -48,6 +43,8 @@ public class CollapseImportsTransform implements IAstTransform {
 
         final CompilationUnit compilationUnit = (CompilationUnit) root;
         final AstNodeCollection<ImportDeclaration> imports = compilationUnit.getImports();
+        final PackageDeclaration packageDeclaration = compilationUnit.getChildByRole(Roles.PACKAGE);
+        final String filePackage = packageDeclaration.isNull() ? null : packageDeclaration.getName();
 
         if (imports.isEmpty())
             return;
@@ -64,7 +61,10 @@ public class CollapseImportsTransform implements IAstTransform {
                 if (type != null) {
                     final String packageName = type.getPackageName();
 
-                    if (!StringUtilities.isNullOrEmpty(packageName)) {
+                    if (!StringUtilities.isNullOrEmpty(packageName) &&
+                        !StringUtilities.equals(packageName, "java.lang") &&
+                        !StringUtilities.equals(packageName, filePackage)) {
+
                         newImports.add(packageName);
                     }
 

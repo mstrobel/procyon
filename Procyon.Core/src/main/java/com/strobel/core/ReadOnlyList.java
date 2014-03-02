@@ -45,7 +45,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     }
 
     @SuppressWarnings("unchecked")
-    public ReadOnlyList(final Class<? extends T> elementType, final List<? extends T> elements) {
+    public ReadOnlyList(final Class<? extends T> elementType, final Collection<? extends T> elements) {
         VerifyArgument.notNull(elementType, "elementType");
         VerifyArgument.notNull(elements, "elements");
 

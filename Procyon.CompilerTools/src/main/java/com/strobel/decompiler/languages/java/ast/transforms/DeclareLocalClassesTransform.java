@@ -70,8 +70,8 @@ public class DeclareLocalClassesTransform implements IAstTransform {
 
             block.insertChildBefore(
                 insertionPoint,
-                v.getDeclaration(),
-                Roles.LOCAL_TYPE_DECLARATION
+                new LocalTypeDeclarationStatement(Expression.MYSTERY_OFFSET, v.getDeclaration()),
+                BlockStatement.STATEMENT_ROLE
             );
         }
 

@@ -2263,6 +2263,22 @@ public final class MetadataHelper {
                 return true;
             }
 
+            if (!(t instanceof RawType) && isRawType(t)) {
+                final TypeDefinition tResolved = t.resolve();
+
+                if (tResolved != null) {
+                    return visitClassType(tResolved, s);
+                }
+            }
+
+            if (!(s instanceof RawType) && isRawType(s)) {
+                final TypeDefinition sResolved = s.resolve();
+
+                if (sResolved != null) {
+                    return visitClassType(t, sResolved);
+                }
+            }
+
             if (t.isGenericDefinition()) {
                 if (s.isGenericDefinition()) {
                     return StringUtilities.equals(t.getInternalName(), s.getInternalName()) &&
