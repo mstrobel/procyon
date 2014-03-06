@@ -238,6 +238,7 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
                     }
                 }
             }
+            return _rawType;
         }
         return this;
     }
