@@ -3299,14 +3299,39 @@ public abstract class Expression {
     }
 
     static MethodInfo getInvokeMethod(final Expression expression) {
-        final Type interfaceType = expression.getType();
+        return getInvokeMethod(expression.getType(), true);
+    }
+
+    static MethodInfo getInvokeMethod(final Type interfaceType, final boolean throwOnError) {
+        if (!interfaceType.isInterface()) {
+            if (throwOnError) {
+                throw Error.expressionTypeNotInvokable(interfaceType);
+            }
+            return null;
+        }
+
         final MethodList methods = interfaceType.getMethods();
 
-        if (!interfaceType.isInterface() || methods.size() != 1) {
+        MethodInfo invokeMethod = null;
+
+        for (final MethodInfo method : methods) {
+            if (method.isDefault()) {
+                continue;
+            }
+
+            if (invokeMethod != null) {
+                invokeMethod = null;
+                break;
+            }
+
+            invokeMethod = method;
+        }
+
+        if (invokeMethod == null && throwOnError) {
             throw Error.expressionTypeNotInvokable(interfaceType);
         }
 
-        return methods.get(0);
+        return invokeMethod;
     }
 
     private static BinaryExpression getEqualityComparisonOperator(
@@ -3854,14 +3879,13 @@ public abstract class Expression {
         VerifyArgument.notNull(interfaceType, "interfaceType");
         verifyCanRead(body, "body");
 
-        final MethodList methods = interfaceType.getMethods(BindingFlags.PublicInstance);
+        final MethodInfo invokeMethod = getInvokeMethod(interfaceType, false);
 
-        if (!interfaceType.isInterface() || methods.size() != 1) {
+        if (invokeMethod == null) {
             throw Error.lambdaTypeMustBeSingleMethodInterface();
         }
 
-        final MethodInfo method = methods.get(0);
-        final ParameterList methodParameters = method.getParameters();
+        final ParameterList methodParameters = invokeMethod.getParameters();
 
         if (methodParameters.size() > 0) {
             if (parameters.size() != methodParameters.size()) {
@@ -3895,7 +3919,7 @@ public abstract class Expression {
             throw Error.incorrectNumberOfLambdaDeclarationParameters();
         }
 
-        final Type returnType = method.getReturnType();
+        final Type returnType = invokeMethod.getReturnType();
 
         if (returnType != PrimitiveTypes.Void &&
             !TypeUtils.areEquivalent(returnType, body.getType())) {
