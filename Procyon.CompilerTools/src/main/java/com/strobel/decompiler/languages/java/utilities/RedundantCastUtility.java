@@ -696,19 +696,6 @@ public final class RedundantCastUtility {
                     }
                 }
             }
-
-            for (final Expression arg : arguments) {
-                if (arg instanceof CastExpression) {
-                    final Expression castOperand = ((CastExpression) arg).getExpression();
-
-                    if (castOperand != null) {
-                        castOperand.acceptVisitor(this, null);
-                    }
-                }
-                else {
-                    arg.acceptVisitor(this, null);
-                }
-            }
         }
 
         protected void processAlreadyHasTypeCast(final CastExpression cast) {
