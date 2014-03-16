@@ -613,6 +613,10 @@ public final class AstBuilder {
             initializer.putUserData(Keys.MEMBER_REFERENCE, field);
         }
 
+        for (final CustomAnnotation annotation : field.getAnnotations()) {
+            astField.getAnnotations().add(createAnnotation(annotation));
+        }
+
         return astField;
     }
 
