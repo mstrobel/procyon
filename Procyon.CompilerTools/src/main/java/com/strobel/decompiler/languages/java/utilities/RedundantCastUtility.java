@@ -142,6 +142,11 @@ public final class RedundantCastUtility {
         }
 
         @Override
+        public Void visitLocalTypeDeclarationStatement(final LocalTypeDeclarationStatement node, final Void data) {
+            return null;
+        }
+
+        @Override
         public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
             return null;
         }
@@ -689,19 +694,6 @@ public final class RedundantCastUtility {
                     if (MetadataHelper.isAssignableFrom(newParameter.getParameterType(), castType)) {
                         addToResults(cast, false);
                     }
-                }
-            }
-
-            for (final Expression arg : arguments) {
-                if (arg instanceof CastExpression) {
-                    final Expression castOperand = ((CastExpression) arg).getExpression();
-
-                    if (castOperand != null) {
-                        castOperand.acceptVisitor(this, null);
-                    }
-                }
-                else {
-                    arg.acceptVisitor(this, null);
                 }
             }
         }

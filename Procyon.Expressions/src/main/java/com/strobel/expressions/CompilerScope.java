@@ -199,7 +199,7 @@ final class CompilerScope {
             case DOUBLE:
                 return Types.DoubleBox;
             default:
-                return Types.StrongBox.makeGenericType(type);
+                return Types.StrongBox.makeGenericType(Types.Object);
         }
     }
 
@@ -512,6 +512,7 @@ final class CompilerScope {
         @Override
         void emitLoad() {
             compiler.generator.emitLoad(_local);
+            compiler.generator.emitConversion(_local.getLocalType(), variable.getType());
         }
     }
 
@@ -576,6 +577,7 @@ final class CompilerScope {
         void emitLoad() {
             emitLoadBox();
             compiler.generator.getField(_boxValueField);
+            compiler.generator.emitConversion(_boxValueField.getFieldType(), variable.getType());
         }
     }
 
@@ -616,6 +618,7 @@ final class CompilerScope {
         void emitLoad() {
             compiler.generator.emitLoad(_boxLocal);
             compiler.generator.getField(_boxValueField);
+            compiler.generator.emitConversion(_boxValueField.getFieldType(), variable.getType());
         }
     }
 }

@@ -266,7 +266,8 @@ public final class AstBuilder {
             return baseType;
         }
 
-        final String name;
+        String name = null;
+
         final PackageDeclaration packageDeclaration = _compileUnit.getPackage();
 
         final TypeDefinition resolvedType = type.resolve();
@@ -277,38 +278,52 @@ public final class AstBuilder {
             name = StringUtilities.isNullOrEmpty(packageName) ? nameSource.getSimpleName()
                                                               : packageName + "." + nameSource.getSimpleName();
         }
-        else if (packageDeclaration != null &&
-                 StringUtilities.equals(packageDeclaration.getName(), nameSource.getPackageName())) {
-
-            String unqualifiedName = nameSource.getSimpleName();
-            TypeReference current = nameSource;
-
-            while (current.isNested()) {
-                current = current.getDeclaringType();
-
-                if (isContextWithinType(current)) {
-                    break;
-                }
-
-                unqualifiedName = current.getSimpleName() + "." + unqualifiedName;
-            }
-
-            name = unqualifiedName;
-        }
+//        else if (packageDeclaration != null &&
+//                 StringUtilities.equals(packageDeclaration.getName(), nameSource.getPackageName())) {
+//
+//            String unqualifiedName = nameSource.getSimpleName();
+//            TypeReference current = nameSource;
+//
+//            while (current.isNested()) {
+//                current = current.getDeclaringType();
+//
+//                if (isContextWithinType(current)) {
+//                    break;
+//                }
+//
+//                unqualifiedName = current.getSimpleName() + "." + unqualifiedName;
+//            }
+//
+//            name = unqualifiedName;
+//        }
         else {
             final TypeReference typeToImport;
 
             String unqualifiedName;
 
+            if (packageDeclaration != null &&
+                StringUtilities.equals(packageDeclaration.getName(), nameSource.getPackageName())) {
+
+                unqualifiedName = nameSource.getSimpleName();
+                name = unqualifiedName;
+            }
+
             if (nameSource.isNested()) {
                 unqualifiedName = nameSource.getSimpleName();
+
                 TypeReference current = nameSource;
 
                 while (current.isNested()) {
                     current = current.getDeclaringType();
+
+                    if (isContextWithinType(current)) {
+                        break;
+                    }
+
                     unqualifiedName = current.getSimpleName() + "." + unqualifiedName;
                 }
 
+                name = unqualifiedName;
                 typeToImport = current;
             }
             else {
@@ -324,33 +339,33 @@ public final class AstBuilder {
 
                     importedType.putUserData(Keys.TYPE_REFERENCE, typeToImport);
 
-                    if (!StringUtilities.equals(typeToImport.getPackageName(), "java.lang")) {
-                        if (packageDeclaration != null) {
-                            _compileUnit.insertChildAfter(
-                                packageDeclaration,
-                                new ImportDeclaration(importedType),
-                                CompilationUnit.IMPORT_ROLE
-                            );
-                        }
-                        else {
-                            _compileUnit.getImports().add(new ImportDeclaration(importedType));
-                        }
+                    if (packageDeclaration != null) {
+                        _compileUnit.insertChildAfter(
+                            packageDeclaration,
+                            new ImportDeclaration(importedType),
+                            CompilationUnit.IMPORT_ROLE
+                        );
+                    }
+                    else {
+                        _compileUnit.getImports().add(new ImportDeclaration(importedType));
                     }
 
                     _unqualifiedTypeNames.put(typeToImport.getSimpleName(), typeToImport.getFullName());
                     importedName = typeToImport.getFullName();
                 }
 
-                if (importedName.equals(typeToImport.getFullName())) {
-                    name = unqualifiedName;
-                }
-                else {
-                    final String packageName = nameSource.getPackageName();
-                    name = StringUtilities.isNullOrEmpty(packageName) ? nameSource.getSimpleName()
-                                                                      : packageName + "." + nameSource.getSimpleName();
+                if (name == null) {
+                    if (importedName.equals(typeToImport.getFullName())) {
+                        name = unqualifiedName;
+                    }
+                    else {
+                        final String packageName = nameSource.getPackageName();
+                        name = StringUtilities.isNullOrEmpty(packageName) ? nameSource.getSimpleName()
+                                                                          : packageName + "." + nameSource.getSimpleName();
+                    }
                 }
             }
-            else {
+            else if (name != null) {
                 name = nameSource.getSimpleName();
             }
         }
@@ -377,6 +392,29 @@ public final class AstBuilder {
 
             if (MetadataResolver.areEquivalent(current, type)) {
                 return true;
+            }
+
+            final TypeDefinition resolved = current.resolve();
+
+            if (resolved != null) {
+                TypeReference baseType = resolved.getBaseType();
+
+                while (baseType != null) {
+                    if (MetadataResolver.areEquivalent(baseType, type)) {
+                        return true;
+                    }
+
+                    final TypeDefinition resolvedBaseType = baseType.resolve();
+
+                    baseType = resolvedBaseType != null ? resolvedBaseType.getBaseType()
+                                                        : null;
+                }
+
+                for (final TypeReference ifType : MetadataHelper.getInterfaces(current)) {
+                    if (MetadataResolver.areEquivalent(ifType, type)) {
+                        return true;
+                    }
+                }
             }
         }
 
@@ -558,6 +596,7 @@ public final class AstBuilder {
         final FieldDeclaration astField = new FieldDeclaration();
         final VariableInitializer initializer = new VariableInitializer(field.getName());
 
+        astField.setName(field.getName());
         astField.addChild(initializer, Roles.VARIABLE);
         astField.setReturnType(convertType(field.getFieldType()));
         astField.putUserData(Keys.FIELD_DEFINITION, field);
@@ -572,6 +611,10 @@ public final class AstBuilder {
             initializer.setInitializer(new PrimitiveExpression(Expression.MYSTERY_OFFSET, field.getConstantValue()));
             initializer.putUserData(Keys.FIELD_DEFINITION, field);
             initializer.putUserData(Keys.MEMBER_REFERENCE, field);
+        }
+
+        for (final CustomAnnotation annotation : field.getAnnotations()) {
+            astField.getAnnotations().add(createAnnotation(annotation));
         }
 
         return astField;
@@ -673,6 +716,7 @@ public final class AstBuilder {
             }
 
             typeParameter.putUserData(Keys.TYPE_REFERENCE, genericParameter);
+            typeParameter.putUserData(Keys.TYPE_DEFINITION, genericParameter);
             typeParameters[i] = typeParameter;
         }
 

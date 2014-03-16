@@ -1508,6 +1508,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    public Void visitLocalTypeDeclarationStatement(final LocalTypeDeclarationStatement node, final Void data) {
+        startNode(node);
+        node.getTypeDeclaration().acceptVisitor(this, data);
+        endNode(node);
+        return data;
+    }
+
+    @Override
     public Void visitTypeDeclaration(final TypeDeclaration node, final Void ignored) {
         startNode(node);
 

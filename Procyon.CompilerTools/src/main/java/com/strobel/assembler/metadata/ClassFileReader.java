@@ -23,6 +23,7 @@ import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Comparer;
+import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.EmptyArrayCache;
@@ -422,8 +423,8 @@ public final class ClassFileReader extends MetadataReader {
                         declaringMethod = null;
                     }
                 }
-                catch (Exception e) {
-                    throw new UndeclaredThrowableException(e);
+                catch (final Throwable t) {
+                    throw ExceptionUtilities.asRuntimeException(t);
                 }
 
                 if (declaringMethod != null) {
@@ -779,12 +780,10 @@ public final class ClassFileReader extends MetadataReader {
             final TypeReference fieldType;
             final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, field.attributes);
 
-            if (signature != null) {
-                fieldType = _parser.parseTypeSignature(signature.getSignature());
-            }
-            else {
-                fieldType = _parser.parseTypeSignature(field.descriptor);
-            }
+            fieldType = tryParseTypeSignature(
+                signature != null ? signature.getSignature() : null,
+                field.descriptor
+            );
 
             final FieldDefinition fieldDefinition = new FieldDefinition(_resolver);
 
@@ -814,7 +813,7 @@ public final class ClassFileReader extends MetadataReader {
                             fieldDefinition.setConstantValue(number.byteValue());
                             break;
                         case Character:
-                            fieldDefinition.setConstantValue((char)number.longValue());
+                            fieldDefinition.setConstantValue((char) number.longValue());
                             break;
                         case Short:
                             fieldDefinition.setConstantValue(number.shortValue());
@@ -877,6 +876,18 @@ public final class ClassFileReader extends MetadataReader {
         }
     }
 
+    private TypeReference tryParseTypeSignature(final String signature, final String fallback) {
+        try {
+            if (signature != null) {
+                return _parser.parseTypeSignature(signature);
+            }
+        }
+        catch (final Throwable ignored) {
+        }
+
+        return _parser.parseTypeSignature(fallback);
+    }
+
     @SuppressWarnings("ConstantConditions")
     private void defineMethods() {
         try (final AutoCloseable ignored = _parser.suppressTypeResolution()) {
@@ -899,8 +910,10 @@ public final class ClassFileReader extends MetadataReader {
                 try {
                     final SignatureAttribute signature = SourceAttribute.find(AttributeNames.Signature, method.attributes);
 
-                    methodSignature = signature != null ? _parser.parseMethodSignature(signature.getSignature())
-                                                        : methodDescriptor;
+                    methodSignature = tryParseMethodSignature(
+                        signature != null ? signature.getSignature() : null,
+                        methodDescriptor
+                    );
 
                     final List<ParameterDefinition> signatureParameters = methodSignature.getParameters();
                     final List<ParameterDefinition> descriptorParameters = methodDescriptor.getParameters();
@@ -1060,9 +1073,21 @@ public final class ClassFileReader extends MetadataReader {
                 }
             }
         }
-        catch (Exception e) {
-            throw new UndeclaredThrowableException(e);
+        catch (final Throwable t) {
+            throw ExceptionUtilities.asRuntimeException(t);
         }
+    }
+
+    private IMethodSignature tryParseMethodSignature(final String signature, final IMethodSignature fallback) {
+        try {
+            if (signature != null) {
+                return _parser.parseMethodSignature(signature);
+            }
+        }
+        catch (final Throwable ignored) {
+        }
+
+        return fallback;
     }
 
     private void readMethodBody(final MethodInfo methodInfo, final MethodDefinition methodDefinition) {
@@ -1298,8 +1323,9 @@ public final class ClassFileReader extends MetadataReader {
         public Object lookup(final int token) {
             final ConstantPool.Entry entry = _constantPool.get(token);
 
-            if (entry == null)
+            if (entry == null) {
                 return null;
+            }
 
             switch (entry.getTag()) {
                 case Utf8StringConstant:

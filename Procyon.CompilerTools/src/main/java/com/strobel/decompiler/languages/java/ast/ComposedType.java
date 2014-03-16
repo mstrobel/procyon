@@ -51,7 +51,7 @@ public class ComposedType extends AstType {
 
         for (ArraySpecifier specifier = getArraySpecifiers().firstOrNullObject();
              specifier != null;
-             specifier = (ArraySpecifier) specifier.getNextSibling(ARRAY_SPECIFIER_ROLE)) {
+             specifier = specifier.getNextSibling(ARRAY_SPECIFIER_ROLE)) {
 
             typeReference = typeReference.makeArrayType();
         }

@@ -40,8 +40,6 @@ public class JavaFormattingOptions {
     public BraceStyle EventBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle EventAddBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle EventRemoveBraceStyle = BraceStyle.DoNotChange;
-    public boolean AllowEventAddBlockInline;
-    public boolean AllowEventRemoveBlockInline;
     public BraceStyle StatementBraceStyle = BraceStyle.DoNotChange;
     public boolean AllowIfBlockInline;
     public BraceEnforcement IfElseBraceEnforcement = BraceEnforcement.DoNotChange;
@@ -163,8 +161,6 @@ public class JavaFormattingOptions {
         options.EventBraceStyle = BraceStyle.EndOfLine;
         options.EventAddBraceStyle = BraceStyle.EndOfLine;
         options.EventRemoveBraceStyle = BraceStyle.EndOfLine;
-        options.AllowEventAddBlockInline = true;
-        options.AllowEventRemoveBlockInline = true;
         options.StatementBraceStyle = BraceStyle.EndOfLine;
 
         options.PlaceElseOnNewLine = false;

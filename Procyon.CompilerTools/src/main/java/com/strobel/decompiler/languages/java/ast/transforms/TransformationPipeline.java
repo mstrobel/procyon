@@ -53,7 +53,6 @@ public final class TransformationPipeline {
             new FlattenSwitchBlocksTransform(context),
             new IntroduceInitializersTransform(context),
             new MarkReferencedSyntheticsTransform(context),
-            new RemoveHiddenMembersTransform(context),
             new RemoveRedundantCastsTransform(context), // (again due to inlined synthetic accessors)
             new InsertNecessaryConversionsTransform(context),
             new IntroduceStringConcatenationTransform(context),
@@ -64,6 +63,8 @@ public final class TransformationPipeline {
             new SimplifyArithmeticExpressionsTransform(context),
             new DeclareLocalClassesTransform(context),
             new InsertOverrideAnnotationsTransform(context),
+            new AddReferenceQualifiersTransform(context),
+            new RemoveHiddenMembersTransform(context),
             new CollapseImportsTransform(context)
         };
     }

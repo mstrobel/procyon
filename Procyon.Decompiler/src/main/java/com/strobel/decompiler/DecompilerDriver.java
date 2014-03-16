@@ -82,6 +82,7 @@ public class DecompilerDriver {
         settings.setUnicodeOutputEnabled(options.isUnicodeOutputEnabled());
         settings.setMergeVariables(options.getMergeVariables());
         settings.setShowDebugLineNumbers(options.getShowDebugLineNumbers());
+        settings.setSimplifyMemberReferences(options.getSimplifyMemberReferences());
         settings.setTypeLoader(new InputTypeLoader());
 
         if (options.isRawBytecode()) {

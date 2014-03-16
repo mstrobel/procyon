@@ -40,7 +40,7 @@ public final class TreeTraversal {
                     boolean returnedCurrent;
                     T next;
 
-                    {
+                    /* new() */ {
                         stack.push(input.iterator());
                     }
 
@@ -110,7 +110,7 @@ public final class TreeTraversal {
                     boolean returnedCurrent;
                     T next;
 
-                    {
+                    /* new() */ {
                         stack.push(Pair.create(input.iterator(), (T) null));
                     }
 
@@ -170,40 +170,6 @@ public final class TreeTraversal {
             }
         };
     }
-
-    // <editor-fold defaultstate="collapsed" desc="SingletonIterator Class">
-
-    private final static class SingletonIterator<E> implements Iterator<E> {
-        private E next;
-
-        SingletonIterator(final E next) {
-            this.next = next;
-        }
-
-        @Override
-        public final boolean hasNext() {
-            return next != null;
-        }
-
-        @Override
-        public final E next() {
-            final E next = this.next;
-
-            if (next == null) {
-                throw new NoSuchElementException();
-            }
-
-            this.next = null;
-            return next;
-        }
-
-        @Override
-        public final void remove() {
-            throw ContractUtils.unsupported();
-        }
-    }
-
-    // </editor-fold>
 
 /*
     public static void main(String[] args) {

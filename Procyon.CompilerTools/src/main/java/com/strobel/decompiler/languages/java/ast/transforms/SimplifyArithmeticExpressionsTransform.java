@@ -137,6 +137,32 @@ public class SimplifyArithmeticExpressionsTransform extends ContextTrackingVisit
                         }
                     }
                 }
+
+                break;
+            }
+
+            case EXCLUSIVE_OR: {
+                if (node.getRight() instanceof PrimitiveExpression) {
+                    final Expression left = node.getLeft();
+                    final PrimitiveExpression right = (PrimitiveExpression) node.getRight();
+
+                    if (right.getValue() instanceof Number) {
+                        final long value = (long) JavaPrimitiveCast.cast(JvmType.Long, right.getValue());
+
+                        if (value == -1L) {
+                            left.remove();
+
+                            final UnaryOperatorExpression replacement = new UnaryOperatorExpression(
+                                UnaryOperatorType.BITWISE_NOT,
+                                left
+                            );
+
+                            node.replaceWith(replacement);
+                        }
+                    }
+                }
+
+                break;
             }
         }
 

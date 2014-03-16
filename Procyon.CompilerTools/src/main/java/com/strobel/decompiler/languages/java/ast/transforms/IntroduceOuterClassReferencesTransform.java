@@ -155,9 +155,11 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
         if (resolvedOuterType != null && resolvedOuterType.isAnonymous()) {
             if (resolvedOuterType.getExplicitInterfaces().isEmpty()) {
                 outerType = new SimpleType(resolvedOuterType.getBaseType().getSimpleName());
+                outerType.putUserData(Keys.ANONYMOUS_BASE_TYPE_REFERENCE, resolvedOuterType.getBaseType());
             }
             else {
                 outerType = new SimpleType(resolvedOuterType.getExplicitInterfaces().get(0).getSimpleName());
+                outerType.putUserData(Keys.ANONYMOUS_BASE_TYPE_REFERENCE, resolvedOuterType.getExplicitInterfaces().get(0));
             }
         }
         else {

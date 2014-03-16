@@ -40,6 +40,7 @@ public class DecompilerSettings {
     private String _outputFileHeaderText;
     private String _outputDirectory;
     private boolean _showDebugLineNumbers;
+    private boolean _simplifyMemberReferences;
 
     public DecompilerSettings() {
     }
@@ -180,12 +181,20 @@ public class DecompilerSettings {
         _mergeVariables = mergeVariables;
     }
 
-    public void setShowDebugLineNumbers(boolean showDebugLineNumbers) {
+    public final void setShowDebugLineNumbers(boolean showDebugLineNumbers) {
         _showDebugLineNumbers = showDebugLineNumbers;
     }
     
-    public boolean getShowDebugLineNumbers() {
+    public final boolean getShowDebugLineNumbers() {
         return _showDebugLineNumbers;
+    }
+
+    public final boolean getSimplifyMemberReferences() {
+        return _simplifyMemberReferences;
+    }
+
+    public final void setSimplifyMemberReferences(final boolean simplifyMemberReferences) {
+        _simplifyMemberReferences = simplifyMemberReferences;
     }
 
     public static DecompilerSettings javaDefaults() {

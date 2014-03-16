@@ -134,6 +134,11 @@ public class CommandLineOptions {
         description = "Enable eager loading of method bodies (may speed up decompilation of larger archives).")
     private boolean _isEagerMethodLoadingEnabled;
 
+    @Parameter(
+        names = { "-sm", "--simplify-member-references" },
+        description = "Simplify type-qualified member references in Java output [EXPERIMENTAL].")
+    private boolean _simplifyMemberReferences;
+
     public final List<String> getInputs() {
         return _inputs;
     }
@@ -304,5 +309,13 @@ public class CommandLineOptions {
 
     public final void setEagerMethodLoadingEnabled(final boolean isEagerMethodLoadingEnabled) {
         _isEagerMethodLoadingEnabled = isEagerMethodLoadingEnabled;
+    }
+
+    public final boolean getSimplifyMemberReferences() {
+        return _simplifyMemberReferences;
+    }
+
+    public final void setSimplifyMemberReferences(final boolean simplifyMemberReferences) {
+        _simplifyMemberReferences = simplifyMemberReferences;
     }
 }

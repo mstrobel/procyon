@@ -130,7 +130,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         return _arrayType;
     }
 
-    public TypeReference makeGenericType(final List<TypeReference> typeArguments) {
+    public TypeReference makeGenericType(final List<? extends TypeReference> typeArguments) {
         VerifyArgument.notNull(typeArguments, "typeArguments");
 
         return makeGenericType(
@@ -210,7 +210,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     }
 
     public boolean isNested() {
-        return getDeclaringType() != null;
+        return getDeclaringType() != null && !isGenericParameter();
     }
 
     public boolean isArray() {
@@ -255,7 +255,13 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     public TypeReference getRawType() {
         if (isGenericType()) {
-            throw ContractUtils.unreachable();
+            final TypeReference underlyingType = getUnderlyingType();
+
+            if (underlyingType != this) {
+                return underlyingType.getRawType();
+            }
+
+            return new RawType(this);
         }
         throw ContractUtils.unsupported();
     }

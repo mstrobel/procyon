@@ -593,14 +593,10 @@ public class CoreMetadataFactory implements MetadataFactory {
         }
 
         @Override
-        public TypeReference makeGenericType(final List<TypeReference> typeArguments) {
-            VerifyArgument.notEmpty(typeArguments, "typeArguments");
-            VerifyArgument.noNullElements(typeArguments, "typeArguments");
-
-//            final TypeDefinition resolved = this.resolve();
+        public TypeReference makeGenericType(final List<? extends TypeReference> typeArguments) {
+            VerifyArgument.noNullElementsAndNotEmpty(typeArguments, "typeArguments");
 
             return new UnresolvedGenericType(
-//                resolved != null ? resolved : this,
                 this,
                 ArrayUtilities.asUnmodifiableList(typeArguments.toArray(new TypeReference[typeArguments.size()]))
             );
@@ -610,10 +606,7 @@ public class CoreMetadataFactory implements MetadataFactory {
         public TypeReference makeGenericType(final TypeReference... typeArguments) {
             VerifyArgument.noNullElementsAndNotEmpty(typeArguments, "typeArguments");
 
-//            final TypeDefinition resolved = this.resolve();
-
             return new UnresolvedGenericType(
-//                resolved != null ? resolved : this,
                 this,
                 ArrayUtilities.asUnmodifiableList(typeArguments.clone())
             );
