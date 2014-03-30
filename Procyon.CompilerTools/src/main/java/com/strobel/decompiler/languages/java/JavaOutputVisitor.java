@@ -41,6 +41,7 @@ import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Stack;
 
@@ -1361,7 +1362,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         if (definition == null || !definition.isTypeInitializer()) {
             final LineNumberTableAttribute lineNumberTable = SourceAttribute.find(
                 AttributeNames.LineNumberTable,
-                definition.getSourceAttributes()
+                definition != null ? definition.getSourceAttributes()
+                                   : Collections.<SourceAttribute>emptyList()
             );
 
             if (lineNumberTable != null) {
