@@ -35,6 +35,7 @@ public class DecompilerSettings {
     private boolean _isUnicodeOutputEnabled;
     private boolean _includeErrorDiagnostics = true;
     private boolean _mergeVariables;
+    private boolean _disableForEachTransforms;
     private JavaFormattingOptions _formattingOptions;
     private Language _language;
     private String _outputFileHeaderText;
@@ -195,6 +196,14 @@ public class DecompilerSettings {
 
     public final void setSimplifyMemberReferences(final boolean simplifyMemberReferences) {
         _simplifyMemberReferences = simplifyMemberReferences;
+    }
+
+    public final boolean getDisableForEachTransforms() {
+        return _disableForEachTransforms;
+    }
+
+    public final void setDisableForEachTransforms(final boolean disableForEachTransforms) {
+        _disableForEachTransforms = disableForEachTransforms;
     }
 
     public static DecompilerSettings javaDefaults() {

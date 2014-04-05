@@ -139,6 +139,11 @@ public class CommandLineOptions {
         description = "Simplify type-qualified member references in Java output [EXPERIMENTAL].")
     private boolean _simplifyMemberReferences;
 
+    @Parameter(
+        names = { "--disable-foreach" },
+        description = "Disable 'for each' loop transforms.")
+    private boolean _disableForEachTransforms;
+
     public final List<String> getInputs() {
         return _inputs;
     }
@@ -317,5 +322,13 @@ public class CommandLineOptions {
 
     public final void setSimplifyMemberReferences(final boolean simplifyMemberReferences) {
         _simplifyMemberReferences = simplifyMemberReferences;
+    }
+
+    public final boolean getDisableForEachTransforms() {
+        return _disableForEachTransforms;
+    }
+
+    public final void setDisableForEachTransforms(final boolean disableForEachTransforms) {
+        _disableForEachTransforms = disableForEachTransforms;
     }
 }
