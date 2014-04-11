@@ -1119,6 +1119,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     private ErasedType<T> _erasedType;
 
     public final Type<?> getErasedType() {
+        if (isArray()) {
+            return getElementType().getErasedType().makeArrayType();
+        }
+
         if (isGenericParameter()) {
             return getExtendsBound().getErasedType();
         }
