@@ -324,7 +324,7 @@ public final class TypeBuilderTests {
     @Test
     public void testTypeBuilderArrayTypes() throws Throwable {
         final TypeBuilder<?> type = new TypeBuilder<>(
-            TypeBuilderTests.class.getPackage().getName() + ".TestArrayTypeFromGenericParameterBuilder",
+            TypeBuilderTests.class.getPackage().getName() + ".TestTypeBuilderArrayTypes",
             Modifier.PUBLIC | Modifier.FINAL
         );
 
