@@ -1358,7 +1358,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         final Type baseType = getBaseType();
-        final TypeList interfaces = getInterfaces();
+        final TypeList interfaces = getExplicitInterfaces();
 
         if (baseType == null) {
             if (interfaces.isEmpty()) {
