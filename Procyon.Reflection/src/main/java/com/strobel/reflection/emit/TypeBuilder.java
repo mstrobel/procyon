@@ -27,14 +27,12 @@ import com.strobel.reflection.*;
 import com.strobel.util.TypeUtils;
 import sun.misc.Unsafe;
 
-import javax.lang.model.type.TypeKind;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
@@ -374,7 +372,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    protected TypeList getExplicitInterfaces() {
+    public TypeList getExplicitInterfaces() {
         return _interfaces;
     }
 

@@ -184,7 +184,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return _interfaces;
     }
 
-    protected TypeList getExplicitInterfaces() {
+    public TypeList getExplicitInterfaces() {
         return TypeList.empty();
     }
 

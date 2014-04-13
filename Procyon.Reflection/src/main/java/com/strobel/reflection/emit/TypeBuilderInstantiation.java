@@ -13,7 +13,6 @@
 
 package com.strobel.reflection.emit;
 
-import com.strobel.core.CollectionUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.*;
 
@@ -105,7 +104,7 @@ final class TypeBuilderInstantiation extends Type {
     }
 
     @Override
-    protected TypeList getExplicitInterfaces() {
+    public TypeList getExplicitInterfaces() {
         final TypeList definitionInterfaces = _definition.getExplicitInterfaces();
         final ArrayList<Type<?>> interfaces = new ArrayList<>();
 
