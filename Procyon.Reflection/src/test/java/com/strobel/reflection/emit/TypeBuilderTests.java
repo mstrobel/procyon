@@ -275,7 +275,7 @@ public final class TypeBuilderTests {
         g.emitReturn(PrimitiveTypes.Integer);
 
         assertFalse(TypeBuilder.isBridgeMethodNeeded(boundCompare, compareBuilder));
-        assertEquals(0, ((Comparator)builder.createType().newInstance()).compare(null, null));
+        assertEquals(0, ((Comparator) builder.createType().newInstance()).compare(null, null));
     }
 
     @Test
@@ -319,5 +319,95 @@ public final class TypeBuilderTests {
 
         assertTrue(TypeBuilder.isBridgeMethodNeeded(boundCompare, compareBuilder));
         assertEquals(0, ((Comparator) builder.createType().newInstance()).compare(null, null));
+    }
+
+    @Test
+    public void testTypeBuilderArrayTypes() throws Throwable {
+        final TypeBuilder<?> type = new TypeBuilder<>(
+            TypeBuilderTests.class.getPackage().getName() + ".TestArrayTypeFromGenericParameterBuilder",
+            Modifier.PUBLIC | Modifier.FINAL
+        );
+
+        final GenericParameterBuilder<?>[] typeVariables = type.defineGenericParameters("T");
+        final GenericParameterBuilder<?> typeVariable = typeVariables[0];
+
+        final Type<?> arrayType = type.makeArrayType();
+        final Type<?> typeVariableArray = typeVariable.makeArrayType();
+
+        typeVariable.setBaseTypeConstraint(Types.String);
+
+        final MethodBuilder method = type.defineMethod(
+            "makeArray()",
+            Modifier.PUBLIC | Modifier.FINAL,
+            typeVariableArray
+        );
+
+        final CodeGenerator g = method.getCodeGenerator();
+
+        g.emitInteger(0);
+        g.emitNewArray(typeVariableArray);
+        g.emitReturn(typeVariableArray);
+
+        assertTrue(arrayType.isArray());
+        assertEquals(type, arrayType.getElementType());
+
+        assertTrue(typeVariableArray.isArray());
+        assertEquals(typeVariable, typeVariableArray.getElementType());
+        assertTrue(typeVariableArray.isAssignableFrom(Types.String.makeArrayType()));
+
+        final Type<?> createdType = type.createType();
+        final Type<?> createdArrayType = createdType.makeArrayType();
+        final Type<?> createdTypeVariable = createdType.getGenericTypeParameters().get(0);
+        final Type<?> createdTypeVariableArray = createdTypeVariable.makeArrayType();
+
+        assertTrue(type.isEquivalentTo(createdType));
+        assertTrue(createdType.isEquivalentTo(type));
+        assertTrue(arrayType.isEquivalentTo(createdArrayType));
+        assertTrue(createdArrayType.isEquivalentTo(arrayType));
+        assertTrue(typeVariable.isEquivalentTo(createdTypeVariable));
+        assertTrue(createdTypeVariable.isEquivalentTo(typeVariable));
+        assertTrue(typeVariableArray.isEquivalentTo(createdTypeVariableArray));
+        assertTrue(createdTypeVariableArray.isEquivalentTo(typeVariableArray));
+    }
+
+    @Test
+    public void testMethodBuilderArrayTypes() throws Throwable {
+        final TypeBuilder<?> type = new TypeBuilder<>(
+            TypeBuilderTests.class.getPackage().getName() + ".TestMethodBuilderArrayTypes",
+            Modifier.PUBLIC | Modifier.FINAL
+        );
+
+        final MethodBuilder method = type.defineMethod(
+            "makeArray",
+            Modifier.PUBLIC | Modifier.FINAL
+        );
+
+        final GenericParameterBuilder<?>[] typeVariables = method.defineGenericParameters("T");
+        final GenericParameterBuilder<?> typeVariable = typeVariables[0];
+        final Type<?> typeVariableArray = typeVariable.makeArrayType();
+
+        method.setReturnType(typeVariableArray);
+
+        final CodeGenerator g = method.getCodeGenerator();
+
+        g.emitInteger(0);
+        g.emitNewArray(typeVariableArray);
+        g.emitReturn(typeVariableArray);
+
+        assertTrue(typeVariableArray.isArray());
+        assertEquals(typeVariable, typeVariableArray.getElementType());
+        assertTrue(typeVariableArray.isAssignableFrom(Types.String.makeArrayType()));
+
+        final Type<?> createdType = type.createType();
+        final MethodInfo createdMethod = createdType.getMethod("makeArray");
+
+        final Type<?> createdTypeVariable = createdMethod.getGenericMethodParameters().get(0);
+        final Type<?> createdTypeVariableArray = createdTypeVariable.makeArrayType();
+
+        assertTrue(typeVariable.isEquivalentTo(createdTypeVariable));
+        assertTrue(createdTypeVariable.isEquivalentTo(typeVariable));
+
+        assertTrue(typeVariableArray.isEquivalentTo(createdTypeVariableArray));
+        assertTrue(createdTypeVariableArray.isEquivalentTo(typeVariableArray));
     }
 }

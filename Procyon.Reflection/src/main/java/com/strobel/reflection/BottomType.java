@@ -43,7 +43,7 @@ final class BottomType extends Type {
     }
 
     @Override
-    public final Type makeArrayType() {
+    protected final Type createArrayType() {
         throw ContractUtils.unsupported();
     }
 

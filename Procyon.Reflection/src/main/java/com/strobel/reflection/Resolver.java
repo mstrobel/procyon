@@ -361,7 +361,7 @@ final class Resolver {
 
                 final Type fromCache = Type.CACHE.find(
                     Type.CACHE.key(
-                        rawType.getErasedClass(),
+                        rawType,
                         Type.list(resolvedTypeArguments)
                     )
                 );

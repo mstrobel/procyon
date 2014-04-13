@@ -30,7 +30,6 @@ final class PrimitiveType<T> extends Type<T> {
     private final String _signature;
     private final String _description;
     private final TypeKind _kind;
-    private final ArrayType<T[]> _arrayType;
 
     PrimitiveType(final Class<T> clazz, final char signature, final String description, final TypeKind kind) {
         _class = VerifyArgument.notNull(clazz, "clazz");
@@ -42,7 +41,6 @@ final class PrimitiveType<T> extends Type<T> {
         _kind = VerifyArgument.notNull(kind, "kind");
         _signature = String.valueOf(signature);
         _description = VerifyArgument.notNull(description, "description");
-        _arrayType = kind == TypeKind.VOID ? null : new ArrayType<T[]>(this);
     }
 
     @Override
@@ -115,11 +113,11 @@ final class PrimitiveType<T> extends Type<T> {
     }
 
     @Override
-    public final Type<T[]> makeArrayType() {
+    protected Type<T[]> createArrayType() {
         if (getKind() == TypeKind.VOID) {
             throw ContractUtils.unsupported();
         }
-        return _arrayType;
+        return new ArrayType<>(this);
     }
 
     @Override

@@ -352,25 +352,7 @@ public class TypeBinder extends TypeMapper<TypeBindings> {
         final TypeBindings newTypeBindings = visitTypeBindings(oldTypeBindings, bindings);
 
         if (oldTypeBindings != newTypeBindings) {
-            final Type<?> cachedType = Type.CACHE.find(
-                Type.CACHE.key(
-                    type.getErasedClass(),
-                    newTypeBindings.getBoundTypes()
-                )
-            );
-
-            if (cachedType != null) {
-                return cachedType;
-            }
-
-            final GenericType genericType = new GenericType(
-                type.getGenericTypeDefinition(),
-                newTypeBindings
-            );
-
-            Type.CACHE.add(genericType);
-
-            return genericType;
+            return type.getGenericTypeDefinition().makeGenericType(newTypeBindings.getBoundTypes());
         }
 
         return type;

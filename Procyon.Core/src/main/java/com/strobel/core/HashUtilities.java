@@ -76,7 +76,7 @@ public final class HashUtilities {
         return o.hashCode();
     }
 
-    public static int hashItems(final List<?> items) {
+    public static int hashItems(final Iterable<?> items) {
         int hash = 0;
 
         for (final Object o : items) {

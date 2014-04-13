@@ -145,4 +145,28 @@ public class ReflectionTests {
         assertSame(gr, egm.getDeclaringType());
         assertSame(gr, ego.getDeclaringType());
     }
+
+    @Test
+    public void testGetUnderlyingType() throws Throwable {
+        final Type<?> gd = Types.HashMap;
+        final Type<?> ge = Types.HashMap.getErasedType();
+        final Type<?> gi = Types.HashMap.makeGenericType(Types.String, Types.Date);
+        final Type<?> gda = gd.makeArrayType();
+        final Type<?> gea = ge.makeArrayType();
+        final Type<?> gia = gi.makeArrayType();
+
+        final Type<?> ud = gd.getUnderlyingType();
+        final Type<?> ue = ge.getUnderlyingType();
+        final Type<?> ui = gi.getUnderlyingType();
+        final Type<?> uda = gda.getUnderlyingType();
+        final Type<?> uea = gea.getUnderlyingType();
+        final Type<?> uia = gia.getUnderlyingType();
+
+        assertSame(gd, ud);
+        assertSame(gd, ue);
+        assertSame(gd, ui);
+        assertSame(gd, uda);
+        assertSame(gd, uea);
+        assertSame(gd, uia);
+    }
 }

@@ -14,6 +14,7 @@
 package com.strobel.reflection;
 
 import com.strobel.annotations.NotNull;
+import com.strobel.core.Fences;
 import com.strobel.core.VerifyArgument;
 
 import javax.lang.model.type.TypeKind;
@@ -25,14 +26,14 @@ import java.lang.reflect.Array;
  */
 final class ArrayType<T> extends Type<T> {
     private final Type<?> _elementType;
-    private final Class<T> _erasedClass;
     private final FieldList _fields = FieldList.empty();
     private final MethodList _methods = MethodList.empty();
+
+    private Class<T> _erasedClass;
 
     @SuppressWarnings("unchecked")
     ArrayType(final Type<?> elementType) {
         _elementType = VerifyArgument.notNull(elementType, "elementType");
-        _erasedClass = (Class<T>) Array.newInstance(elementType.getErasedClass(), 0).getClass();
     }
 
     @Override
@@ -41,7 +42,27 @@ final class ArrayType<T> extends Type<T> {
     }
 
     @Override
+    protected String getClassFullName() {
+        return _elementType.getClassFullName() + "[]";
+    }
+
+    @Override
+    protected String getClassSimpleName() {
+        return _elementType.getClassSimpleName() + "[]";
+    }
+
+    @Override
+    public String getInternalName() {
+        return "[" + _elementType.getErasedSignature();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
     public Class<T> getErasedClass() {
+        if (_erasedClass == null && Fences.orderReads(this)._erasedClass == null) {
+            _erasedClass = Fences.orderWrites((Class<T>) Array.newInstance(_elementType.getErasedClass(), 0).getClass());
+            Fences.orderAccesses(this);
+        }
         return _erasedClass;
     }
 
@@ -59,7 +80,12 @@ final class ArrayType<T> extends Type<T> {
     public boolean isGenericType() {
         return _elementType.isGenericType();
     }
-    
+
+    @Override
+    public boolean hasElementType() {
+        return true;
+    }
+
     @Override
     public Type getGenericTypeDefinition() {
         if (_elementType.isGenericTypeDefinition()) {
@@ -126,13 +152,11 @@ final class ArrayType<T> extends Type<T> {
         return _elementType.appendErasedSignature(sb.append('['));
     }
 
-    public StringBuilder appendBriefDescription(final StringBuilder sb)
-    {
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
         return _elementType.appendBriefDescription(sb).append("[]");
     }
 
-    public StringBuilder appendSimpleDescription(final StringBuilder sb)
-    {
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         return _elementType.appendSimpleDescription(sb).append("[]");
     }
 
@@ -145,4 +169,3 @@ final class ArrayType<T> extends Type<T> {
         return visitor.visitArrayType(this, parameter);
     }
 }
-

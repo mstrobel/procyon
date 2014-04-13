@@ -38,13 +38,13 @@ public final class MethodBuilder extends MethodInfo {
     private TypeList _thrownTypes;
 
     private boolean _isFinished;
-    private GenericParameterBuilder<?>[] _genericParameterBuilders;
     private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
     private byte[] _body;
     private int _numberOfExceptions;
     private __ExceptionInstance[] _exceptions;
     private Object _defaultValue;
 
+    GenericParameterBuilder<?>[] genericParameterBuilders;
     ParameterBuilder[] parameterBuilders;
     CodeGenerator generator;
     MethodInfo generatedMethod;
@@ -282,7 +282,7 @@ public final class MethodBuilder extends MethodInfo {
 
     @Override
     public boolean isGenericMethod() {
-        return !ArrayUtilities.isNullOrEmpty(_genericParameterBuilders);
+        return !ArrayUtilities.isNullOrEmpty(genericParameterBuilders);
     }
 
     @Override
@@ -308,7 +308,7 @@ public final class MethodBuilder extends MethodInfo {
         }
 
         if (isGenericMethodDefinition()) {
-            final GenericParameterBuilder<?>[] genericParameters = _genericParameterBuilders;
+            final GenericParameterBuilder<?>[] genericParameters = genericParameterBuilders;
 
             s.append('<');
             for (int i = 0, n = genericParameters.length; i < n; i++) {
@@ -389,7 +389,7 @@ public final class MethodBuilder extends MethodInfo {
         }
 
         if (isGenericMethodDefinition()) {
-            final GenericParameterBuilder<?>[] genericParameters = _genericParameterBuilders;
+            final GenericParameterBuilder<?>[] genericParameters = genericParameterBuilders;
 
             s.append('<');
             for (int i = 0, n = genericParameters.length; i < n; i++) {
@@ -458,7 +458,7 @@ public final class MethodBuilder extends MethodInfo {
         StringBuilder s = sb;
 
         if (isGenericMethod()) {
-            final GenericParameterBuilder<?>[] genericParameters = _genericParameterBuilders;
+            final GenericParameterBuilder<?>[] genericParameters = genericParameterBuilders;
             final int count = genericParameters.length;
 
             if (count > 0) {
@@ -489,7 +489,7 @@ public final class MethodBuilder extends MethodInfo {
     public GenericParameterBuilder<?>[] defineGenericParameters(final String... names) {
         VerifyArgument.notEmpty(names, "names");
 
-        if (_genericParameterBuilders != null) {
+        if (genericParameterBuilders != null) {
             throw Error.genericParametersAlreadySet();
         }
 
@@ -503,9 +503,9 @@ public final class MethodBuilder extends MethodInfo {
             parameters[i] = new GenericParameterBuilder<>(new TypeBuilder(name, i, this));
         }
 
-        _genericParameterBuilders = parameters;
+        genericParameterBuilders = parameters;
 
-        return _genericParameterBuilders;
+        return genericParameterBuilders;
     }
 
     public ParameterBuilder defineParameter(final int position, final String name) {

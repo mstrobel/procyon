@@ -307,6 +307,10 @@ final class Helper {
             return true;
         }
 
+        if (TypeUtils.areEquivalent(t, p)) {
+            return true;
+        }
+
         if (p.isCompoundType()) {
             final Type baseType = p.getBaseType();
 
@@ -913,6 +917,10 @@ final class Helper {
                 else if (p instanceof ErasedType<?> && t.getErasedType() == p) {
                     return t;
                 }
+            }
+
+            if (TypeUtils.areEquivalent(t, p)) {
+                return t;
             }
 
             final Type superType = superType(t);

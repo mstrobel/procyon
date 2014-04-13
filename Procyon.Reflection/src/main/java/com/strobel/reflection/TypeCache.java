@@ -13,6 +13,10 @@
 
 package com.strobel.reflection;
 
+import com.strobel.core.Comparer;
+import com.strobel.core.HashUtilities;
+import com.strobel.util.TypeUtils;
+
 import java.util.LinkedHashMap;
 
 /**
@@ -20,17 +24,16 @@ import java.util.LinkedHashMap;
  */
 @SuppressWarnings("unchecked")
 final class TypeCache {
-
-    private final LinkedHashMap<Key, Type> _map = new LinkedHashMap<>();
-    private final LinkedHashMap<Class<?>, Type<?>> _erasedMap = new LinkedHashMap<>();
+    private final LinkedHashMap<Key, Type<?>> _map = new LinkedHashMap<>();
+    private final LinkedHashMap<String, Type<?>> _definitionMap = new LinkedHashMap<>();
     private final LinkedHashMap<Type<?>, Type<?>> _arrayMap = new LinkedHashMap<>();
 
-    public Key key(final Class<?> simpleType) {
-        return new Key(simpleType);
+    public Key key(final Type<?> type) {
+        return key(type, TypeList.empty());
     }
 
-    public Key key(final Class<?> simpleType, final TypeList typeArguments) {
-        return new Key(simpleType, typeArguments);
+    public Key key(final Type<?> type, final TypeList typeArguments) {
+        return new Key(type.isGenericType() ? type.getGenericTypeDefinition() : type, typeArguments);
     }
 
     public Type find(final Key key) {
@@ -38,21 +41,21 @@ final class TypeCache {
     }
 
     public <T> Type<T[]> getArrayType(final Type<T> elementType) {
-        Type<T[]> arrayType = (Type<T[]>)_arrayMap.get(elementType);
+        Type<T[]> arrayType = (Type<T[]>) _arrayMap.get(elementType);
 
         if (arrayType != null) {
             return arrayType;
         }
 
-        arrayType = new ArrayType<>(elementType);
+        arrayType = elementType.createArrayType();
         add(arrayType);
 
         return arrayType;
     }
 
-    public <T> Type<T> getGenericType(final Type<T> typeDefinition, final TypeList typeArguments) {
+    public <T> Type<T> getGenericType(final Type<T> type, final TypeList typeArguments) {
         final Key key = key(
-            typeDefinition.getErasedClass(),
+            type.isGenericType() ? type.getGenericTypeDefinition() : type,
             typeArguments
         );
 
@@ -60,7 +63,7 @@ final class TypeCache {
 
         if (genericType == null) {
             genericType = new GenericType(
-                typeDefinition.getGenericTypeDefinition(),
+                type.getGenericTypeDefinition(),
                 typeArguments
             );
 
@@ -75,7 +78,7 @@ final class TypeCache {
     }
 
     public <T> Type<T> find(final Class<T> clazz) {
-        return (Type<T>)_erasedMap.get(clazz);
+        return (Type<T>) _definitionMap.get(TypeUtils.getInternalName(clazz));
     }
 
     public int size() {
@@ -83,14 +86,14 @@ final class TypeCache {
     }
 
     public void put(final Key key, final Type type) {
-        final Class<?> erasedType = key._erasedType;
+        final String descriptor = key.descriptor;
 
-        if (!_erasedMap.containsKey(erasedType)) {
+        if (!_definitionMap.containsKey(descriptor)) {
             if (type.isGenericType() && !type.isGenericTypeDefinition()) {
-                _erasedMap.put(erasedType, type.getGenericTypeDefinition());
+                _definitionMap.put(descriptor, type.getGenericTypeDefinition());
             }
             else {
-                _erasedMap.put(erasedType, type);
+                _definitionMap.put(descriptor, type);
             }
         }
 
@@ -114,38 +117,40 @@ final class TypeCache {
             typeArguments = TypeList.empty();
         }
 
-        put(key(type.getErasedClass(), typeArguments), type);
+        put(key(type, typeArguments), type);
     }
 
-    static class Key {
-        private final Class<?> _erasedType;
-        private final TypeList _typeParameters;
-        private final int _hashCode;
+    final static class Key {
+        private final String descriptor;
+        private final TypeList typeArguments;
+        private final int hashCode;
 
-        public Key(final Class<?> simpleType) {
+        public Key(final Type<?> simpleType) {
             this(simpleType, null);
         }
 
-        public Key(final Class<?> erasedType, final TypeList typeArguments) {
-            _erasedType = erasedType;
-            _typeParameters = typeArguments;
+        public Key(final Type<?> type, final TypeList typeArguments) {
+            this.descriptor = type.getInternalName();
+            this.typeArguments = typeArguments;
 
-            int h = erasedType.getName().hashCode();
+            int h = this.descriptor.hashCode();
 
             if (typeArguments != null && !typeArguments.isEmpty()) {
-                h = h * 31 + typeArguments.size();
+                for (final Type<?> argument : typeArguments) {
+                    h = HashUtilities.combineHashCodes(h, argument.hashCode());
+                }
             }
 
-            _hashCode = h;
+            this.hashCode = h;
         }
 
         @Override
-        public int hashCode() {
-            return _hashCode;
+        public final int hashCode() {
+            return this.hashCode;
         }
 
         @Override
-        public boolean equals(final Object o) {
+        public final boolean equals(final Object o) {
             if (o == this) {
                 return true;
             }
@@ -154,31 +159,28 @@ final class TypeCache {
                 return false;
             }
 
-            final Key other = (Key)o;
+            final Key other = (Key) o;
 
-            if (other._erasedType != _erasedType) {
+            if (!this.descriptor.equals(other.descriptor)) {
                 return false;
             }
 
-            final TypeList otherArguments = other._typeParameters;
+            final TypeList typeArguments = this.typeArguments;
+            final TypeList otherArguments = other.typeArguments;
 
-            if (_typeParameters == null || _typeParameters.isEmpty()) {
+            if (typeArguments == null || typeArguments.isEmpty()) {
                 return otherArguments == null || otherArguments.isEmpty();
             }
 
-            if (otherArguments == null || otherArguments.size() != _typeParameters.size()) {
+            if (otherArguments == null || otherArguments.size() != typeArguments.size()) {
                 return false;
             }
 
-            for (int i = 0, n = _typeParameters.size(); i < n; ++i) {
-                final Type parameter = _typeParameters.get(i);
-                final Type otherParameter = otherArguments.get(i);
-                if (parameter == null) {
-                    if (otherParameter != null) {
-                        return false;
-                    }
-                }
-                else if (!parameter.equals(otherParameter)) {
+            for (int i = 0, n = typeArguments.size(); i < n; ++i) {
+                final Type argument = typeArguments.get(i);
+                final Type otherArgument = otherArguments.get(i);
+
+                if (!Comparer.equals(argument, otherArgument)) {
                     return false;
                 }
             }
@@ -187,11 +189,11 @@ final class TypeCache {
         }
 
         @Override
-        public String toString() {
+        public final String toString() {
             return "Key{" +
-                   "_erasedType=" + _erasedType +
-                   ", _typeParameters=" + _typeParameters +
-                   ", _hashCode=" + _hashCode +
+                   "descriptor=" + descriptor +
+                   ", typeArguments=" + typeArguments +
+                   ", hashCode=" + hashCode +
                    '}';
         }
     }

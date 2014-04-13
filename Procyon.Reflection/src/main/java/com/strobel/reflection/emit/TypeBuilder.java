@@ -18,14 +18,12 @@ import com.strobel.compilerservices.CallerResolver;
 import com.strobel.compilerservices.RuntimeHelpers;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ExceptionUtilities;
-import com.strobel.core.Fences;
 import com.strobel.core.Pair;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.io.PathHelper;
 import com.strobel.reflection.*;
-import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 import sun.misc.Unsafe;
 
@@ -42,6 +40,7 @@ import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -76,7 +75,6 @@ public final class TypeBuilder<T> extends Type<T> {
     private Class<T> _generatedClass;
     private Type<T> _generatedType;
     private Type<?> _extendsBound;
-    private ArrayTypeBuilder<T> _arrayType;
 
     private int _genericParameterPosition;
     private boolean _isGenericParameter;
@@ -320,8 +318,18 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
+    protected String getClassSimpleName() {
+        return _name;
+    }
+
+    @Override
     protected String getClassFullName() {
         return _fullName;
+    }
+
+    @Override
+    public String getShortName() {
+        return _name;
     }
 
     @Override
@@ -361,11 +369,6 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    protected String getClassSimpleName() {
-        return _name;
-    }
-
-    @Override
     public Type<? super T> getBaseType() {
         return _baseType;
     }
@@ -393,6 +396,10 @@ public final class TypeBuilder<T> extends Type<T> {
 
         if (other == null) {
             return false;
+        }
+
+        if (other instanceof GenericParameterBuilder<?>) {
+            return ((GenericParameterBuilder) other).typeBuilder == this;
         }
 
         final Type<?> runtimeType = other instanceof TypeBuilder<?>
@@ -594,15 +601,6 @@ public final class TypeBuilder<T> extends Type<T> {
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="Type Manipulation">
-
-    @Override
-    public Type<T[]> makeArrayType() {
-        if (_arrayType == null) {
-            _arrayType = Fences.orderWrites(new ArrayTypeBuilder<>(this));
-        }
-
-        return _arrayType;
-    }
 
     @Override
     protected Type<?> makeGenericTypeCore(final TypeList typeArguments) {
@@ -937,6 +935,8 @@ public final class TypeBuilder<T> extends Type<T> {
                 new TypeBuilder(names[i], i, this)
             );
         }
+
+        Collections.addAll(genericParameterBuilders, genericParameters);
 
         _typeBindings = TypeBindings.createUnbound(Type.list(genericParameters));
 
@@ -1289,13 +1289,18 @@ public final class TypeBuilder<T> extends Type<T> {
         final FieldList generatedFields = _generatedType.getFields(BindingFlags.AllDeclared);
         final MethodList generatedMethods = _generatedType.getMethods(BindingFlags.AllDeclared);
         final ConstructorList generatedConstructors = _generatedType.getConstructors(BindingFlags.AllDeclared);
+        final TypeList generatedTypeParameters = _isGenericTypeDefinition ? _generatedType.getGenericTypeParameters() : TypeList.empty();
+
+        for (int i = 0, n = genericParameterBuilders.size(); i < n; i++) {
+            genericParameterBuilders.get(i).typeBuilder._generatedType = generatedTypeParameters.get(i);
+        }
 
         for (int i = 0, n = fieldBuilders.size(); i < n; i++) {
             fieldBuilders.get(i).generatedField = generatedFields.get(i);
         }
 
         final HashMap<TypeList, ConstructorInfo> constructorLookup = new HashMap<>();
-        final HashMap<Pair<String, TypeList>, MethodInfo> methodLookup = new HashMap<>();
+        final HashMap<Pair<String, String>, MethodInfo> methodLookup = new HashMap<>();
 
         for (final ConstructorInfo constructor : generatedConstructors) {
             constructorLookup.put(
@@ -1311,7 +1316,7 @@ public final class TypeBuilder<T> extends Type<T> {
                 methodLookup.put(
                     Pair.create(
                         method.getName(),
-                        method.getParameters().getParameterTypes()
+                        method.getErasedSignature()
                     ),
                     method
                 );
@@ -1325,12 +1330,26 @@ public final class TypeBuilder<T> extends Type<T> {
         }
 
         for (final MethodBuilder methodBuilder : methodBuilders) {
-            methodBuilder.generatedMethod = methodLookup.get(
+            if ((methodBuilder.getModifiers() & Flags.ACC_BRIDGE) != 0) {
+                continue;
+            }
+
+            final MethodInfo generatedMethod = methodLookup.get(
                 Pair.create(
                     methodBuilder.getName(),
-                    methodBuilder.getParameterTypes()
+                    methodBuilder.getErasedSignature()
                 )
             );
+
+            if (generatedMethod != null && methodBuilder.isGenericMethodDefinition()) {
+                final TypeList generatedMethodTypeParameters = generatedMethod.getGenericMethodParameters();
+
+                for (int i = 0, n = methodBuilder.genericParameterBuilders.length; i < n; i++) {
+                    methodBuilder.genericParameterBuilders[i].typeBuilder._generatedType = generatedMethodTypeParameters.get(i);
+                }
+            }
+
+            methodBuilder.generatedMethod = generatedMethod;
         }
     }
 
@@ -1379,131 +1398,4 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     // </editor-fold>
-}
-
-final class ArrayTypeBuilder<T> extends Type<T[]> {
-    private final TypeBuilder<T> _elementType;
-    private final FieldList _fields = FieldList.empty();
-    private final MethodList _methods = MethodList.empty();
-
-    private Class<T[]> _erasedClass;
-
-    ArrayTypeBuilder(final TypeBuilder<T> elementType) {
-        _elementType = VerifyArgument.notNull(elementType, "elementType");
-    }
-
-    @Override
-    public TypeKind getKind() {
-        return TypeKind.ARRAY;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public Class<T[]> getErasedClass() {
-        _elementType.verifyCreated();
-
-        if (_erasedClass == null) {
-            _erasedClass = (Class<T[]>) Array.newInstance(_elementType.getErasedClass(), 0).getClass();
-        }
-
-        return _erasedClass;
-    }
-
-    @Override
-    public Type getElementType() {
-        return _elementType;
-    }
-
-    @Override
-    public boolean isArray() {
-        return true;
-    }
-
-    @Override
-    public boolean isGenericType() {
-        return _elementType.isGenericType();
-    }
-
-    @Override
-    public Type getGenericTypeDefinition() {
-        if (_elementType.isGenericTypeDefinition()) {
-            return this;
-        }
-        return _elementType.getGenericTypeDefinition().makeArrayType();
-    }
-
-    @Override
-    public TypeBindings getTypeBindings() {
-        return _elementType.getTypeBindings();
-    }
-
-    @Override
-    public Type getDeclaringType() {
-        return null;
-    }
-
-    @Override
-    public int getModifiers() {
-        return 0;
-    }
-
-    @Override
-    protected MethodList getDeclaredMethods() {
-        return _methods;
-    }
-
-    @Override
-    public FieldList getDeclaredFields() {
-        return _fields;
-    }
-
-    @Override
-    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
-        return false;
-    }
-
-    @Override
-    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
-        return null;
-    }
-
-    @NotNull
-    @Override
-    public Annotation[] getAnnotations() {
-        return new Annotation[0];
-    }
-
-    @NotNull
-    @Override
-    public Annotation[] getDeclaredAnnotations() {
-        return new Annotation[0];
-    }
-
-    @Override
-    public StringBuilder appendSignature(final StringBuilder sb) {
-        sb.append('[');
-        return _elementType.appendSignature(sb);
-    }
-
-    @Override
-    public StringBuilder appendErasedSignature(final StringBuilder sb) {
-        return _elementType.appendErasedSignature(sb.append('['));
-    }
-
-    public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        return _elementType.appendBriefDescription(sb).append("[]");
-    }
-
-    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        return _elementType.appendSimpleDescription(sb).append("[]");
-    }
-
-    public StringBuilder appendDescription(final StringBuilder sb) {
-        return appendBriefDescription(sb);
-    }
-
-    @Override
-    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
-        return visitor.visitArrayType(this, parameter);
-    }
 }

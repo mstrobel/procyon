@@ -26,8 +26,14 @@ import com.strobel.util.TypeUtils;
 
 import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.*;
-import java.util.*;
+import java.lang.reflect.Array;
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * @author Mike Strobel
@@ -205,14 +211,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 }
 
                 final ConstructorInfo constructor = getConstructor(argumentTypes);
-                
+
                 if (constructor != null) {
                     return (T) constructor.invoke(arguments);
                 }
-                
+
                 throw Error.couldNotResolveMatchingConstructor();
             }
-            catch (Throwable t) {
+            catch (final Throwable t) {
                 throw Error.typeInstantiationFailed(this, t);
             }
         }
@@ -221,6 +227,37 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     public MethodBase getDeclaringMethod() {
         return null;
+    }
+
+    @NotNull
+    public final Type<?> getUnderlyingType() {
+        Type<?> t = this;
+        Type<?> u = t.getUnderlyingTypeCore();
+
+        //noinspection StatementWithEmptyBody
+        while (u != t) {
+            t = u;
+            u = t.getUnderlyingTypeCore();
+        }
+
+        return u;
+    }
+
+    @NotNull
+    protected Type getUnderlyingTypeCore() {
+        if (hasElementType()) {
+            return getElementType();
+        }
+
+        if (isGenericType()) {
+            return getGenericTypeDefinition();
+        }
+
+        if (hasExtendsBound()) {
+            return getExtendsBound();
+        }
+
+        return this;
     }
 
     public Type getElementType() {
@@ -324,11 +361,11 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public boolean isUnbounded() {
         return isWildcardType() &&
                getSuperBound() == Bottom &&
-               getExtendsBound() == Types.Object;
+               Types.Object.equals(getExtendsBound());
     }
 
     public boolean hasExtendsBound() {
-        return isGenericParameter() ||
+        return isGenericParameter()/* && !Types.Object.equals(getExtendsBound())*/ ||
                isWildcardType() && getSuperBound() == Bottom;
     }
 
@@ -409,18 +446,21 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         if (isGenericParameter) {
-            if (!this.getExtendsBound().isEquivalentTo(other.getExtendsBound()))
-                return false;
-            
-            final Type declaringType = this.getDeclaringType();
-            final Type otherDeclaringType = other.getDeclaringType();
-            
-            if (declaringType != null) {
-                if (!declaringType.isEquivalentTo(otherDeclaringType))
+            if (!this.getExtendsBound().isEquivalentTo(other.getExtendsBound())) {
                 return false;
             }
-            else if (otherDeclaringType != null)
+
+            final Type declaringType = this.getDeclaringType();
+            final Type otherDeclaringType = other.getDeclaringType();
+
+            if (declaringType != null) {
+                if (!declaringType.isEquivalentTo(otherDeclaringType)) {
+                    return false;
+                }
+            }
+            else if (otherDeclaringType != null) {
                 return false;
+            }
 
             final MethodInfo declaringMethod = (MethodInfo) this.getDeclaringMethod();
             final MethodInfo otherDeclaringMethod = (MethodInfo) other.getDeclaringMethod();
@@ -431,14 +471,12 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                    (declaringMethod == null || declaringMethod.getDeclaringType()
                                                               .isEquivalentTo(otherDeclaringMethod.getDeclaringType()) &&
                                                declaringMethod.getRawMethod() == otherDeclaringMethod.getRawMethod());
-
         }
 
-        
         if (Comparer.equals(getErasedClass(), other.getErasedClass())) {
             if (isGenericType()) {
                 return other.isGenericType() &&
-                       Comparer.equals(getTypeArguments(), other.getTypeArguments());
+                       other.getTypeArguments().isEquivalentTo(getTypeArguments());
             }
             else {
                 return !other.isGenericType();
@@ -727,11 +765,11 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 }
 
                 // All the methods have the exact same name and sig so return the most derived one.
-                return (MethodInfo)Binder.findMostDerivedNewSlotMethod(candidates, candidates.length);
+                return (MethodInfo) Binder.findMostDerivedNewSlotMethod(candidates, candidates.length);
             }
         }
 
-        return (MethodInfo)DefaultBinder.selectMethod(bindingFlags, candidates, parameterTypes);
+        return (MethodInfo) DefaultBinder.selectMethod(bindingFlags, candidates, parameterTypes);
     }
 
     public final ConstructorInfo getConstructor(final Type... parameterTypes) {
@@ -774,11 +812,11 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 }
 
                 // All the methods have the exact same name and sig so return the most derived one.
-                return (ConstructorInfo)Binder.findMostDerivedNewSlotMethod(candidates, candidates.length);
+                return (ConstructorInfo) Binder.findMostDerivedNewSlotMethod(candidates, candidates.length);
             }
         }
 
-        return (ConstructorInfo)DefaultBinder.selectMethod(bindingFlags, candidates, parameterTypes);
+        return (ConstructorInfo) DefaultBinder.selectMethod(bindingFlags, candidates, parameterTypes);
     }
 
     public final MemberList getMembers() {
@@ -889,8 +927,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final Set<MemberType> memberTypes,
         final Set<BindingFlags> bindingAttr,
         final MemberFilter filter,
-        final Object filterCriteria)
-    {
+        final Object filterCriteria) {
         final MethodList m;
         final ConstructorList c;
         final FieldList f;
@@ -901,9 +938,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         // Check the methods
         if ((MemberType.mask(memberTypes) & MemberType.Method.mask) != 0) {
             m = getMethods(bindingAttr);
-            for (int i=0,n=m.size();i<n;i++) {
+            for (int i = 0, n = m.size(); i < n; i++) {
                 final MethodInfo method = m.get(i);
-                if (filter == null || filter.apply(method,filterCriteria)) {
+                if (filter == null || filter.apply(method, filterCriteria)) {
                     matches.add(method);
                 }
             }
@@ -912,9 +949,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         // Check the constructors
         if ((MemberType.mask(memberTypes) & MemberType.Constructor.mask) != 0) {
             c = getConstructors(bindingAttr);
-            for (int i=0,n=c.size();i<n;i++) {
+            for (int i = 0, n = c.size(); i < n; i++) {
                 final ConstructorInfo constructor = c.get(i);
-                if (filter == null || filter.apply(constructor,filterCriteria)) {
+                if (filter == null || filter.apply(constructor, filterCriteria)) {
                     matches.add(constructor);
                 }
             }
@@ -923,9 +960,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         // Check the fields
         if ((MemberType.mask(memberTypes) & MemberType.Field.mask) != 0) {
             f = getFields(bindingAttr);
-            for (int i=0,n=f.size();i<n;i++) {
+            for (int i = 0, n = f.size(); i < n; i++) {
                 final FieldInfo field = f.get(i);
-                if (filter == null || filter.apply(field,filterCriteria)) {
+                if (filter == null || filter.apply(field, filterCriteria)) {
                     matches.add(field);
                 }
             }
@@ -934,9 +971,9 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         // Check the Types
         if ((MemberType.mask(memberTypes) & MemberType.NestedType.mask) != 0) {
             t = getNestedTypes(bindingAttr);
-            for (int i=0,n=t.size();i<n;i++) {
+            for (int i = 0, n = t.size(); i < n; i++) {
                 final Type<?> type = t.get(i);
-                if (filter == null || filter.apply(type,filterCriteria)) {
+                if (filter == null || filter.apply(type, filterCriteria)) {
                     matches.add(type);
                 }
             }
@@ -1092,10 +1129,14 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     // TRANSFORMATION METHODS                                                                                             //
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    public Type<T[]> makeArrayType() {
+    public final Type<T[]> makeArrayType() {
         synchronized (CACHE_LOCK) {
             return CACHE.getArrayType(this);
         }
+    }
+
+    protected Type<T[]> createArrayType() {
+        return new ArrayType<>(this);
     }
 
     public final <U extends T> Type<U> makeGenericType(final TypeList typeArguments) {
@@ -1121,7 +1162,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         if (isGenericParameter()) {
             return getExtendsBound().getErasedType();
         }
-        
+
         if (!isGenericType()) {
             return this;
         }
@@ -1148,6 +1189,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     protected static Type<?> substitute(final Type<?> type, final TypeBindings typeBindings) {
         return Helper.substitute(type, typeBindings);
+    }
+
+    public Type<?> asSuperTypeOf(@NotNull final Type<?> type) {
+        return Helper.asSuper(VerifyArgument.notNull(type, "type"), this);
     }
 
     // </editor-fold>
@@ -1505,7 +1550,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             PRIMITIVE_TYPES[TypeKind.LONG.ordinal()] = PrimitiveTypes.Long;
             PRIMITIVE_TYPES[TypeKind.FLOAT.ordinal()] = PrimitiveTypes.Float;
             PRIMITIVE_TYPES[TypeKind.DOUBLE.ordinal()] = PrimitiveTypes.Double;
-            
+
             Types.ensureRegistered();
 
             TYPE_BINDER = new TypeBinder();
@@ -1541,7 +1586,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
                 --arrayDepth;
             }
 
-            return (Type<T>)resolvedType;
+            return (Type<T>) resolvedType;
         }
     }
 
@@ -1553,7 +1598,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         try {
             return TypeParser.parse(name);
         }
-        catch (Throwable t) {
+        catch (final Throwable t) {
             if (throwOnError) {
                 throw t;
             }
@@ -1596,7 +1641,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             return Type.NullType;
         }
 
-        return (Type<T>)Type.of(object.getClass());
+        return (Type<T>) Type.of(object.getClass());
     }
 
 /*
@@ -1643,40 +1688,40 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     }
 */
 
-/*
-    static <T> Type<T> of(final com.sun.tools.javac.code.Type type) {
-        if (type instanceof com.sun.tools.javac.code.Type.ArrayType) {
-            return (Type<T>)of(((com.sun.tools.javac.code.Type.ArrayType)type).getComponentType()).makeArrayType();
-        }
-
-        final TypeKind typeKind = type.getKind();
-
-        if (typeKind == TypeKind.VOID || typeKind.isPrimitive()) {
-            return (Type<T>)PRIMITIVE_TYPES[typeKind.ordinal()];
-        }
-
-        synchronized (CACHE_LOCK) {
-            Type<T> resultType = (Type<T>)tryFind(type);
-
-            if (resultType != null) {
-                return resultType;
+    /*
+        static <T> Type<T> of(final com.sun.tools.javac.code.Type type) {
+            if (type instanceof com.sun.tools.javac.code.Type.ArrayType) {
+                return (Type<T>)of(((com.sun.tools.javac.code.Type.ArrayType)type).getComponentType()).makeArrayType();
             }
 
-            loadAncestors((Symbol.ClassSymbol)type.asElement());
+            final TypeKind typeKind = type.getKind();
 
-            resultType = (Type<T>)RESOLVER.visit(type.asElement(), null);
-
-            if (resultType != null) {
-                return resultType;
+            if (typeKind == TypeKind.VOID || typeKind.isPrimitive()) {
+                return (Type<T>)PRIMITIVE_TYPES[typeKind.ordinal()];
             }
 
-            throw Error.couldNotResolveType(type);
+            synchronized (CACHE_LOCK) {
+                Type<T> resultType = (Type<T>)tryFind(type);
+
+                if (resultType != null) {
+                    return resultType;
+                }
+
+                loadAncestors((Symbol.ClassSymbol)type.asElement());
+
+                resultType = (Type<T>)RESOLVER.visit(type.asElement(), null);
+
+                if (resultType != null) {
+                    return resultType;
+                }
+
+                throw Error.couldNotResolveType(type);
+            }
         }
-    }
-*/
+    */
     static <T> Type<T> of(final java.lang.reflect.Type type) {
         if (type instanceof GenericArrayType) {
-            return (Type<T>)of(((GenericArrayType)type).getGenericComponentType()).makeArrayType();
+            return (Type<T>) of(((GenericArrayType) type).getGenericComponentType()).makeArrayType();
         }
 
         if (type instanceof Class<?>) {
@@ -1684,7 +1729,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         synchronized (CACHE_LOCK) {
-            Type<T> resultType = (Type<T>)tryFind(type);
+            Type<T> resultType = (Type<T>) tryFind(type);
 
             if (resultType != null) {
                 return resultType;
@@ -1692,7 +1737,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
 //            loadAncestors(type);
 
-            resultType = (Type<T>)RESOLVER.resolve(type);
+            resultType = (Type<T>) RESOLVER.resolve(type);
 
             if (resultType != null) {
                 return resultType;
@@ -1704,7 +1749,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
     static Type<?> tryFind(final java.lang.reflect.Type type) {
         if (type instanceof Class<?>) {
-            final Class<?> classType = (Class<?>)type;
+            final Class<?> classType = (Class<?>) type;
 
             if (classType.isPrimitive() || classType == Void.class) {
                 return of(classType);
@@ -1867,10 +1912,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         final ArrayList<T> source;
 
         if (type == MemberType.Constructor) {
-            source = (ArrayList<T>)getCache().getConstructorList(filterOptions.listOptions, name);
+            source = (ArrayList<T>) getCache().getConstructorList(filterOptions.listOptions, name);
         }
         else {
-            source = (ArrayList<T>)getCache().getMethodList(filterOptions.listOptions, name);
+            source = (ArrayList<T>) getCache().getMethodList(filterOptions.listOptions, name);
         }
 
         final Set<BindingFlags> flags = EnumSet.copyOf(bindingFlags);
@@ -1887,10 +1932,10 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
             final Set<BindingFlags> methodFlags;
 
             if (type == MemberType.Constructor) {
-                methodFlags = ((RuntimeConstructorInfo)method).getBindingFlags();
+                methodFlags = ((RuntimeConstructorInfo) method).getBindingFlags();
             }
             else {
-                methodFlags = ((RuntimeMethodInfo)method).getBindingFlags();
+                methodFlags = ((RuntimeMethodInfo) method).getBindingFlags();
             }
 
             final boolean passesFilter = filterMethodBase(
@@ -1926,17 +1971,17 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
 
         if (candidates == null) {
             if (type == MemberType.Constructor) {
-                return (T[])EmptyConstructors;
+                return (T[]) EmptyConstructors;
             }
-            return (T[])EmptyMethods;
+            return (T[]) EmptyMethods;
         }
 
-        final T[] results = (T[])Array.newInstance(
+        final T[] results = (T[]) Array.newInstance(
             type == MemberType.Constructor ? ConstructorInfo.class : MethodInfo.class,
             candidates.size()
         );
 
-        candidates.toArray((Object[])results);
+        candidates.toArray((Object[]) results);
 
         return results;
     }
@@ -2308,7 +2353,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
     };
 
-    public final static MemberFilter FilterRawMember      = new MemberFilter() {
+    public final static MemberFilter FilterRawMember = new MemberFilter() {
         @Override
         public boolean apply(final MemberInfo m, final Object filterCriteria) {
             if (m instanceof Type<?>) {
@@ -2327,12 +2372,13 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
     public final static MemberFilter FilterMethodOverride = new MemberFilter() {
         @Override
         public boolean apply(final MemberInfo m, final Object filterCriteria) {
-            if (!(m instanceof MethodInfo && filterCriteria instanceof MethodInfo))
+            if (!(m instanceof MethodInfo && filterCriteria instanceof MethodInfo)) {
                 return false;
-            
+            }
+
             final MethodInfo base = (MethodInfo) filterCriteria;
             final MethodInfo candidate = (MethodInfo) m;
-            
+
             return Helper.overrides(candidate, base);
         }
     };

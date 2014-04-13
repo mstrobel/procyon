@@ -13,16 +13,11 @@
 
 package com.strobel.reflection.emit;
 
-import com.strobel.annotations.NotNull;
-import com.strobel.core.Fences;
-import com.strobel.core.HashUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.*;
 import com.strobel.util.ContractUtils;
 
 import javax.lang.model.type.TypeKind;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Array;
 import java.util.Set;
 
 /**
@@ -33,19 +28,8 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     @SuppressWarnings("PackageVisibleField")
     final TypeBuilder typeBuilder;
 
-    private ArrayGenericParameterBuilder<T> _arrayType;
-
     GenericParameterBuilder(final TypeBuilder typeBuilder) {
         this.typeBuilder = VerifyArgument.notNull(typeBuilder, "type");
-    }
-
-    @Override
-    public Type<T[]> makeArrayType() {
-        if (_arrayType == null) {
-            _arrayType = Fences.orderWrites(new ArrayGenericParameterBuilder<>(this));
-        }
-
-        return _arrayType;
     }
 
     @Override
@@ -66,6 +50,21 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     @Override
     public String getName() {
         return typeBuilder.getName();
+    }
+
+    @Override
+    protected String getClassFullName() {
+        return typeBuilder.getClassFullName();
+    }
+
+    @Override
+    protected String getClassSimpleName() {
+        return typeBuilder.getClassSimpleName();
+    }
+
+    @Override
+    public String getShortName() {
+        return typeBuilder.getShortName();
     }
 
     @Override
@@ -101,6 +100,11 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     @Override
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         return typeBuilder.appendSimpleDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendGenericSignature(final StringBuilder sb) {
+        return typeBuilder.appendGenericSignature(sb);
     }
 
     @Override
@@ -255,20 +259,7 @@ public final class GenericParameterBuilder<T> extends Type<T> {
 
     @Override
     public int hashCode() {
-        return HashUtilities.combineHashCodes(
-            typeBuilder,
-            typeBuilder.genericParameterBuilders.indexOf(this)
-        );
-    }
-
-    @Override
-    public boolean hasElementType() {
-        return false;
-    }
-
-    @Override
-    public boolean isArray() {
-        return false;
+        return typeBuilder.hashCode();
     }
 
     @Override
@@ -288,7 +279,9 @@ public final class GenericParameterBuilder<T> extends Type<T> {
 
     @Override
     public boolean isEquivalentTo(final Type<?> other) {
-        return typeBuilder.isEquivalentTo(other);
+        return other == this ||
+               other == typeBuilder ||
+               typeBuilder.isEquivalentTo(other);
     }
 
     @Override
@@ -332,132 +325,5 @@ public final class GenericParameterBuilder<T> extends Type<T> {
 
     public void setInterfaceConstraints(final TypeList interfaceConstraints) {
         typeBuilder.setInterfaces(interfaceConstraints);
-    }
-}
-
-final class ArrayGenericParameterBuilder<T> extends Type<T[]> {
-    private final GenericParameterBuilder<T> _elementType;
-    private final FieldList _fields = FieldList.empty();
-    private final MethodList _methods = MethodList.empty();
-
-    private Class<T[]> _erasedClass;
-
-    ArrayGenericParameterBuilder(final GenericParameterBuilder<T> elementType) {
-        _elementType = VerifyArgument.notNull(elementType, "elementType");
-    }
-
-    @Override
-    public TypeKind getKind() {
-        return TypeKind.ARRAY;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public Class<T[]> getErasedClass() {
-        _elementType.typeBuilder.verifyCreated();
-
-        if (_erasedClass == null) {
-            _erasedClass = (Class<T[]>) Array.newInstance(_elementType.typeBuilder.getErasedClass(), 0).getClass();
-        }
-
-        return _erasedClass;
-    }
-
-    @Override
-    public Type getElementType() {
-        return _elementType;
-    }
-
-    @Override
-    public boolean isArray() {
-        return true;
-    }
-
-    @Override
-    public boolean isGenericType() {
-        return _elementType.isGenericType();
-    }
-
-    @Override
-    public Type getGenericTypeDefinition() {
-        if (_elementType.isGenericTypeDefinition()) {
-            return this;
-        }
-        return _elementType.getGenericTypeDefinition().makeArrayType();
-    }
-
-    @Override
-    public TypeBindings getTypeBindings() {
-        return _elementType.getTypeBindings();
-    }
-
-    @Override
-    public Type getDeclaringType() {
-        return null;
-    }
-
-    @Override
-    public int getModifiers() {
-        return 0;
-    }
-
-    @Override
-    protected MethodList getDeclaredMethods() {
-        return _methods;
-    }
-
-    @Override
-    public FieldList getDeclaredFields() {
-        return _fields;
-    }
-
-    @Override
-    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
-        return false;
-    }
-
-    @Override
-    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
-        return null;
-    }
-
-    @NotNull
-    @Override
-    public Annotation[] getAnnotations() {
-        return new Annotation[0];
-    }
-
-    @NotNull
-    @Override
-    public Annotation[] getDeclaredAnnotations() {
-        return new Annotation[0];
-    }
-
-    @Override
-    public StringBuilder appendSignature(final StringBuilder sb) {
-        sb.append('[');
-        return _elementType.appendSignature(sb);
-    }
-
-    @Override
-    public StringBuilder appendErasedSignature(final StringBuilder sb) {
-        return _elementType.appendErasedSignature(sb.append('['));
-    }
-
-    public StringBuilder appendBriefDescription(final StringBuilder sb) {
-        return _elementType.appendBriefDescription(sb).append("[]");
-    }
-
-    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        return _elementType.appendSimpleDescription(sb).append("[]");
-    }
-
-    public StringBuilder appendDescription(final StringBuilder sb) {
-        return appendBriefDescription(sb);
-    }
-
-    @Override
-    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
-        return visitor.visitArrayType(this, parameter);
     }
 }
