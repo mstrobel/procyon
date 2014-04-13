@@ -14,6 +14,7 @@
 package com.strobel.core;
 
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * @author strobelm
@@ -74,7 +75,18 @@ public final class HashUtilities {
 
         return o.hashCode();
     }
-    
+
+    public static int hashItems(final List<?> items) {
+        int hash = 0;
+
+        for (final Object o : items) {
+            hash <<= CombinedHashOffset;
+            hash ^= hashCode(o);
+        }
+
+        return hash;
+    }
+
     public static int combineHashCodes(final int... hashes) {
         int hash = 0;
 

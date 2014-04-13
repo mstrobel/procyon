@@ -16,6 +16,7 @@ package com.strobel.reflection;
 import com.strobel.annotations.NotNull;
 import com.strobel.collections.ImmutableList;
 import com.strobel.core.Comparer;
+import com.strobel.core.Fences;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
@@ -60,9 +61,9 @@ final class RuntimeTypeCache<T> {
 
     private WhatsCached _whatsCached;
     private Class<T> _erasedClass;
-    private Type<T> _runtimeType;
+    private final Type<T> _runtimeType;
     private Type<?> _enclosingType;
-    private TypeKind _typeKind;
+    private final TypeKind _typeKind;
     private String _name;
     private String _fullName;
     private String _internalName;
@@ -87,9 +88,9 @@ final class RuntimeTypeCache<T> {
             final String fullName = getFullName();
 
             try {
-                _erasedClass = (Class<T>)Class.forName(fullName);
+                _erasedClass = (Class<T>) Class.forName(fullName);
             }
-            catch (ClassNotFoundException e) {
+            catch (final ClassNotFoundException e) {
                 throw Error.couldNotResolveType(fullName);
             }
         }
@@ -334,7 +335,7 @@ final class RuntimeTypeCache<T> {
         private boolean _cacheComplete;
 
         // This is the strong reference back to the cache
-        private RuntimeTypeCache<?> _typeCache;
+        private final RuntimeTypeCache<?> _typeCache;
 
         private MemberInfoCache(final RuntimeTypeCache<?> typeCache) {
             _typeCache = VerifyArgument.notNull(typeCache, "typeCache");
@@ -482,10 +483,11 @@ final class RuntimeTypeCache<T> {
             switch (cacheType) {
                 case Method:
                     final ArrayList<MethodInfo> methodList = new ArrayList<>(1);
-                    final MethodInfo sourceMethod = (MethodInfo)method;
+                    final MethodInfo sourceMethod = (MethodInfo) method;
 
                     methodList.add(
                         new RuntimeMethodInfo(
+                            sourceMethod,
                             sourceMethod.getRawMethod(),
                             declaringType,
                             _typeCache,
@@ -498,28 +500,28 @@ final class RuntimeTypeCache<T> {
                         )
                     );
 
-                    list = (ArrayList<T>)methodList;
+                    list = (ArrayList<T>) methodList;
                     break;
 
                 case Constructor:
                     final ArrayList<RuntimeConstructorInfo> constructorList = new ArrayList<>(1);
                     constructorList.add(
                         new RuntimeConstructorInfo(
-                            ((ConstructorInfo)method).getRawConstructor(),
+                            ((ConstructorInfo) method).getRawConstructor(),
                             _typeCache,
                             modifiers,
                             bindingFlags,
                             method.getParameters()
                         )
                     );
-                    list = (ArrayList<T>)constructorList;
+                    list = (ArrayList<T>) constructorList;
                     break;
 
                 default:
                     throw ContractUtils.unreachable();
             }
 
-            return (MethodBase)insert(list, null, MemberListType.HandleToInfo).get(0);
+            return (MethodBase) insert(list, null, MemberListType.HandleToInfo).get(0);
         }
 
         final FieldInfo addField(final FieldInfo field) {
@@ -532,7 +534,7 @@ final class RuntimeTypeCache<T> {
             final Set<BindingFlags> bindingFlags = Type.filterPreCalculate(isPublic, isInherited, isStatic);
 
             list.add(
-                (T)new RuntimeFieldInfo(
+                (T) new RuntimeFieldInfo(
                     field.getRawField(),
                     declaringType,
                     _typeCache,
@@ -542,7 +544,7 @@ final class RuntimeTypeCache<T> {
                 )
             );
 
-            return (FieldInfo)insert(list, null, MemberListType.HandleToInfo).get(0);
+            return (FieldInfo) insert(list, null, MemberListType.HandleToInfo).get(0);
         }
 
         private void populateRuntimeFields(
@@ -679,6 +681,7 @@ final class RuntimeTypeCache<T> {
                     final Set<BindingFlags> bindingFlags = Type.filterPreCalculate(isPublic, isInherited, isStatic);
 
                     final RuntimeMethodInfo runtimeMethod = new RuntimeMethodInfo(
+                        method,
                         method.getRawMethod(),
                         declaringType,
                         _typeCache,
@@ -838,19 +841,19 @@ final class RuntimeTypeCache<T> {
 
             switch (cacheType) {
                 case Method:
-                    list = (ArrayList<T>)populateMethods(filter);
+                    list = (ArrayList<T>) populateMethods(filter);
                     break;
                 case Field:
-                    list = (ArrayList<T>)populateFields(filter);
+                    list = (ArrayList<T>) populateFields(filter);
                     break;
                 case Constructor:
-                    list = (ArrayList<T>)populateConstructors(filter);
+                    list = (ArrayList<T>) populateConstructors(filter);
                     break;
                 case NestedType:
-                    list = (ArrayList<T>)populateNestedClasses(filter);
+                    list = (ArrayList<T>) populateNestedClasses(filter);
                     break;
                 case Interface:
-                    list = (ArrayList<T>)populateInterfaces(filter);
+                    list = (ArrayList<T>) populateInterfaces(filter);
                     break;
                 default:
                     throw ContractUtils.unreachable();
@@ -927,18 +930,25 @@ final class RuntimeConstructorInfo extends ConstructorInfo {
     }
 
     @Override
-    public boolean equals(final Object obj) {
-        if (!(obj instanceof RuntimeConstructorInfo))
-            return false;
+    public boolean isEquivalentTo(final MemberInfo m) {
+        if (m == this) {
+            return true;
+        }
+        if ((m instanceof RuntimeConstructorInfo)) {
+            final RuntimeConstructorInfo other = (RuntimeConstructorInfo) m;
 
-        final RuntimeConstructorInfo other = (RuntimeConstructorInfo) obj;
+            if (other._reflectedTypeCache == _reflectedTypeCache &&
+                other._rawConstructor == _rawConstructor) {
 
-        return other._reflectedTypeCache == _reflectedTypeCache &&
-               other._rawConstructor == _rawConstructor;
+                return true;
+            }
+        }
+        return super.isEquivalentTo(m);
     }
 }
 
 final class RuntimeMethodInfo extends MethodInfo {
+    private final MethodInfo _baseMethod;
     private final Method _rawMethod;
     private final Type<?> _declaringType;
     private final RuntimeTypeCache<?> _reflectedTypeCache;
@@ -950,6 +960,7 @@ final class RuntimeMethodInfo extends MethodInfo {
     private final TypeBindings _typeBindings;
 
     RuntimeMethodInfo(
+        final MethodInfo baseMethod,
         final Method rawMethod,
         final Type<?> declaringType,
         final RuntimeTypeCache<?> reflectedTypeCache,
@@ -960,6 +971,7 @@ final class RuntimeMethodInfo extends MethodInfo {
         final TypeList thrownTypes,
         final TypeBindings typeBindings) {
 
+        _baseMethod = baseMethod;
         _rawMethod = VerifyArgument.notNull(rawMethod, "rawMethod");
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _reflectedTypeCache = VerifyArgument.notNull(reflectedTypeCache, "reflectedTypeCache");
@@ -969,7 +981,7 @@ final class RuntimeMethodInfo extends MethodInfo {
 
         final Type<?> actualReturnType;
 
-        if (TypeBinder.GET_CLASS_METHOD.equals(rawMethod)) {
+        if (TypeBinder.GET_CLASS_METHOD.equals(rawMethod) && !(declaringType instanceof ErasedType<?>)) {
             actualReturnType = Types.Class.makeGenericType(
                 Type.makeExtendsWildcard(reflectedTypeCache.getRuntimeType()/*.getErasedType()*/)
             );
@@ -1060,14 +1072,178 @@ final class RuntimeMethodInfo extends MethodInfo {
     }
 
     @Override
-    public boolean equals(final Object obj) {
-        if (!(obj instanceof RuntimeMethodInfo))
-            return false;
-        
-        final RuntimeMethodInfo other = (RuntimeMethodInfo) obj;
-        
-        return other._declaringType == _declaringType &&
-               other._rawMethod == _rawMethod;
+    public boolean isEquivalentTo(final MemberInfo m) {
+        if (m == this) {
+            return true;
+        }
+        if (m instanceof RuntimeMethodInfo) {
+            final RuntimeMethodInfo other = (RuntimeMethodInfo) m;
+
+            if (other._declaringType == _declaringType &&
+                other._rawMethod == _rawMethod) {
+
+                return true;
+            }
+        }
+        return super.isEquivalentTo(m);
+    }
+
+    @Override
+    public MethodInfo getErasedMethodDefinition() {
+        if (_erasedMethodDefinition != null) {
+            return _erasedMethodDefinition;
+        }
+
+        if (_baseMethod != null) {
+            _erasedMethodDefinition = Fences.orderWrites(
+                reflectedOn(
+                    _baseMethod.getErasedMethodDefinition(),
+                    getReflectedType()
+                )
+            );
+        }
+
+        return super.getErasedMethodDefinition();
+    }
+
+    @Override
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        if (_baseMethod != null) {
+            return _baseMethod.appendErasedDescription(sb);
+        }
+        return super.appendErasedDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        if (_baseMethod != null) {
+            return _baseMethod.appendErasedSignature(sb);
+        }
+        return super.appendErasedSignature(sb);
+    }
+}
+
+final class ErasedMethod extends MethodInfo {
+    private final MethodInfo _baseMethod;
+    private final Type<?> _declaringType;
+    private final ParameterList _parameters;
+    private final SignatureType _signatureType;
+    private final TypeList _thrownTypes;
+    private final TypeBindings _typeBindings;
+
+    ErasedMethod(
+        final MethodInfo baseMethod,
+        final Type<?> declaringType,
+        final ParameterList parameters,
+        final Type<?> returnType,
+        final TypeList thrownTypes,
+        final TypeBindings typeBindings) {
+
+        _baseMethod = VerifyArgument.notNull(baseMethod, "baseMethod");
+        _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+        _parameters = VerifyArgument.notNull(parameters, "parameters");
+        _signatureType = new SignatureType(VerifyArgument.notNull(returnType, "returnType"), _parameters.getParameterTypes());
+        _thrownTypes = VerifyArgument.notNull(thrownTypes, "thrownTypes");
+        _typeBindings = VerifyArgument.notNull(typeBindings, "typeBindings");
+    }
+
+    @Override
+    public ParameterList getParameters() {
+        return _parameters;
+    }
+
+    @Override
+    public Type<?> getReturnType() {
+        return _signatureType.getReturnType();
+    }
+
+    @Override
+    public SignatureType getSignatureType() {
+        return _signatureType;
+    }
+
+    @Override
+    public Method getRawMethod() {
+        return _baseMethod.getRawMethod();
+    }
+
+    @Override
+    public String getName() {
+        return _baseMethod.getName();
+    }
+
+    @Override
+    public Type getDeclaringType() {
+        return _declaringType;
+    }
+
+    @Override
+    public Type getReflectedType() {
+        return _baseMethod.getReflectedType();
+    }
+
+    @Override
+    public TypeList getThrownTypes() {
+        return _thrownTypes;
+    }
+
+    @Override
+    protected TypeBindings getTypeBindings() {
+        return _typeBindings;
+    }
+
+    @Override
+    public int getModifiers() {
+        return _baseMethod.getModifiers();
+    }
+
+    @Override
+    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
+        return _baseMethod.isAnnotationPresent(annotationClass);
+    }
+
+    @NotNull
+    @Override
+    public Annotation[] getDeclaredAnnotations() {
+        return _baseMethod.getDeclaredAnnotations();
+    }
+
+    @NotNull
+    @Override
+    public Annotation[] getAnnotations() {
+        return _baseMethod.getAnnotations();
+    }
+
+    @Override
+    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+        return _baseMethod.getAnnotation(annotationClass);
+    }
+
+    @Override
+    public boolean isEquivalentTo(final MemberInfo m) {
+        if (m == this) {
+            return true;
+        }
+        if ((m instanceof ErasedMethod)) {
+            final ErasedMethod other = (ErasedMethod) m;
+
+            if (other._declaringType == _declaringType &&
+                other._baseMethod == _baseMethod) {
+
+                return true;
+            }
+        }
+        return super.isEquivalentTo(m);
+    }
+
+    @Override
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        return _baseMethod.appendErasedDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        return _baseMethod.appendErasedSignature(sb);
     }
 }
 
@@ -1157,14 +1333,104 @@ final class RuntimeFieldInfo extends FieldInfo {
     }
 
     @Override
-    public boolean equals(final Object obj) {
-        if (!(obj instanceof RuntimeFieldInfo))
-            return false;
+    public boolean isEquivalentTo(final MemberInfo m) {
+        if (m == this) {
+            return true;
+        }
 
-        final RuntimeFieldInfo other = (RuntimeFieldInfo) obj;
+        if (m instanceof RuntimeFieldInfo) {
+            final RuntimeFieldInfo other = (RuntimeFieldInfo) m;
 
-        return other._declaringType == _declaringType &&
-               other._rawField == _rawField;
+            if (other._declaringType == _declaringType &&
+                other._rawField == _rawField) {
+
+                return true;
+            }
+        }
+        return super.isEquivalentTo(m);
+    }
+}
+
+final class ErasedField extends FieldInfo {
+    private final FieldInfo _baseField;
+    private final Type<?> _declaringType;
+    private final Type<?> _fieldType;
+
+    ErasedField(
+        final FieldInfo baseField,
+        final Type<?> declaringType,
+        final Type<?> fieldType) {
+
+        _baseField = VerifyArgument.notNull(baseField, "baseField");
+        _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+        _fieldType = VerifyArgument.notNull(fieldType, "fieldType");
+    }
+
+    @Override
+    public Type getFieldType() {
+        return _fieldType;
+    }
+
+    @Override
+    public boolean isEnumConstant() {
+        return false;
+    }
+
+    @Override
+    public Field getRawField() {
+        return _baseField.getRawField();
+    }
+
+    @Override
+    public String getName() {
+        return _baseField.getName();
+    }
+
+    @Override
+    public Type getDeclaringType() {
+        return _declaringType;
+    }
+
+    @Override
+    public Type getReflectedType() {
+        return _baseField.getReflectedType();
+    }
+
+    @Override
+    public int getModifiers() {
+        return _baseField.getModifiers();
+    }
+
+    @Override
+    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+        return _baseField.getAnnotation(annotationClass);
+    }
+
+    @NotNull
+    @Override
+    public Annotation[] getAnnotations() {
+        return _baseField.getAnnotations();
+    }
+
+    @NotNull
+    @Override
+    public Annotation[] getDeclaredAnnotations() {
+        return _baseField.getDeclaredAnnotations();
+    }
+
+    @Override
+    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
+        return _baseField.isAnnotationPresent(annotationClass);
+    }
+
+    @Override
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        return _baseField.appendErasedDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        return _baseField.appendErasedSignature(sb);
     }
 }
 
@@ -1296,16 +1562,6 @@ final class RuntimeType<T> extends Type<T> {
         return _basedOn;
     }
 
-    @Override
-    public boolean equals(final Object obj) {
-        if (obj == this) {
-            return true;
-        }
-        if (obj instanceof RuntimeType<?>) {
-            return equals(((RuntimeType<?>)obj)._basedOn);
-        }
-        return _basedOn.equals(obj);
-    }
 
     @Override
     public MemberType getMemberType() {
@@ -1389,7 +1645,7 @@ final class RuntimeType<T> extends Type<T> {
             return true;
         }
         if (other instanceof RuntimeType<?>) {
-            return isEquivalentTo(((RuntimeType<?>)other)._basedOn);
+            return isEquivalentTo(((RuntimeType<?>) other)._basedOn);
         }
         return _basedOn.isEquivalentTo(other);
     }

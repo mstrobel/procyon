@@ -16,6 +16,7 @@ package com.strobel.reflection;
 import com.strobel.collections.ImmutableList;
 import com.strobel.collections.ListBuffer;
 import com.strobel.core.Comparer;
+import com.strobel.core.HashUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.emit.TypeBuilder;
@@ -1537,6 +1538,10 @@ final class Helper {
     }
 
     private static final UnaryTypeVisitor<Integer> HashCodeVisitor = new UnaryTypeVisitor<Integer>() {
+        @Override
+        public Integer visitPrimitiveType(final Type<?> type, final Void parameter) {
+            return HashUtilities.hashCode(type.getKind());
+        }
 
         public Integer visitType(final Type t, final Void ignored) {
             return t.getKind().hashCode();
@@ -1552,12 +1557,10 @@ final class Helper {
                 result = visit(declaringType);
             }
 
-            result *= 127;
-            result += t.getFullName().hashCode();
+            result = HashUtilities.combineHashCodes(result, HashUtilities.hashCode(t.getInternalName()));
 
             for (final Type s : t.getTypeArguments()) {
-                result *= 127;
-                result += visit(s);
+                result = HashUtilities.combineHashCodes(result, (int) visit(s));
             }
 
             return result;
@@ -1566,7 +1569,11 @@ final class Helper {
         @Override
         public Integer visitWildcardType(final Type t, final Void ignored) {
             int result = t.getKind().hashCode();
-            if (t.getExtendsBound() != null) {
+            if (t.getSuperBound() != Type.Bottom) {
+                result *= 127;
+                result += visit(t.getSuperBound());
+            }
+            else if (t.getExtendsBound() != Types.Object) {
                 result *= 127;
                 result += visit(t.getExtendsBound());
             }
@@ -1580,7 +1587,13 @@ final class Helper {
 
         @Override
         public Integer visitTypeParameter(final Type t, final Void ignored) {
-            return System.identityHashCode(t);
+            if (t instanceof GenericParameter<?>) {
+                return HashUtilities.combineHashCodes(
+                    HashUtilities.hashCode(((GenericParameter) t).getRawTypeVariable()),
+                    t.getGenericParameterPosition()
+                );
+            }
+            return t.getGenericParameterPosition();
         }
     };
 

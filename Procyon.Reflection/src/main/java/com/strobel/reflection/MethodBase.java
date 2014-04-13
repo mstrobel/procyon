@@ -30,4 +30,11 @@ public abstract class MethodBase extends MemberInfo {
     public CallingConvention getCallingConvention() {
         return CallingConvention.fromMethodModifiers(getModifiers());
     }
+
+    @Override
+    public boolean isEquivalentTo(final MemberInfo m) {
+        return m instanceof MethodBase &&
+               super.isEquivalentTo(m) &&
+               ((MethodBase) m).getParameters().getParameterTypes().isEquivalentTo(getParameters().getParameterTypes());
+    }
 }

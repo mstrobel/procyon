@@ -154,19 +154,19 @@ final class WildcardType<T> extends Type<T> {
     }
 
     @Override
-    public boolean equals(final Object o) {
-        if (this == o) {
+    public boolean isEquivalentTo(final Type<?> other) {
+        if (other == this) {
             return true;
         }
 
-        if (o == null || getClass() != o.getClass()) {
-            return false;
+        if (other instanceof WildcardType<?>) {
+            final WildcardType that = (WildcardType)other;
+
+            return _extendsBound.isEquivalentTo(that._extendsBound) &&
+                   _superBound.isEquivalentTo(that._superBound);
         }
 
-        final WildcardType that = (WildcardType)o;
-
-        return _extendsBound.equals(that._extendsBound) &&
-               _superBound.equals(that._superBound);
+        return false;
     }
 
     @Override

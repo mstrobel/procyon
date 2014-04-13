@@ -18,6 +18,7 @@ import com.strobel.compilerservices.CallerResolver;
 import com.strobel.compilerservices.RuntimeHelpers;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ExceptionUtilities;
+import com.strobel.core.Fences;
 import com.strobel.core.Pair;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
@@ -28,12 +29,14 @@ import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 import sun.misc.Unsafe;
 
+import javax.lang.model.type.TypeKind;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
@@ -47,42 +50,46 @@ import java.util.Set;
  */
 @SuppressWarnings({ "unchecked", "PackageVisibleField" })
 public final class TypeBuilder<T> extends Type<T> {
-    private final static String DumpGeneratedClassesProperty     = "com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses";
+    private final static String DumpGeneratedClassesProperty = "com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses";
     private final static String GeneratedClassOutputPathProperty = "com.strobel.reflection.emit.TypeBuilder.GeneratedClassOutputPath";
 
-    final ConstantPool                          constantPool;
-    final ArrayList<ConstructorBuilder>         constructorBuilders;
-    final ArrayList<MethodBuilder>              methodBuilders;
-    final ArrayList<FieldBuilder>               fieldBuilders;
+    final ConstantPool constantPool;
+    final ArrayList<ConstructorBuilder> constructorBuilders;
+    final ArrayList<MethodBuilder> methodBuilders;
+    final ArrayList<FieldBuilder> fieldBuilders;
     final ArrayList<GenericParameterBuilder<?>> genericParameterBuilders;
-    final ArrayList<MethodOverride>             methodOverrides;
+    final ArrayList<MethodOverride> methodOverrides;
 
-    private String          _name;
-    private String          _fullName;
-    private String          _internalName;
-    private Package         _package;
+    private String _name;
+    private String _fullName;
+    private String _internalName;
+    private Package _package;
     private Type<? super T> _baseType;
     private ConstructorList _constructors;
-    private MethodList      _methods;
-    private FieldList       _fields;
-    private TypeList        _interfaces;
-    private TypeBuilder     _declaringType;
-    private MethodBuilder   _declaringMethod;
-    private int             _modifiers;
-    private boolean         _hasBeenCreated;
-    private Class<T>        _generatedClass;
-    private Type<T>         _generatedType;
-    private Type<?>         _extendsBound;
+    private MethodList _methods;
+    private FieldList _fields;
+    private TypeList _interfaces;
+    private TypeBuilder _declaringType;
+    private MethodBuilder _declaringMethod;
+    private int _modifiers;
+    private boolean _hasBeenCreated;
+    private Class<T> _generatedClass;
+    private Type<T> _generatedType;
+    private Type<?> _extendsBound;
+    private ArrayTypeBuilder<T> _arrayType;
 
-    private       int                                                   _genericParameterPosition;
-    private       boolean                                               _isGenericParameter;
-    private       boolean                                               _isGenericTypeDefinition;
-    private       TypeBindings                                          _typeBindings;
-    private       ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
-    private final ProtectionDomain                                      _protectionDomain;
-
+    private int _genericParameterPosition;
+    private boolean _isGenericParameter;
+    private boolean _isGenericTypeDefinition;
+    private TypeBindings _typeBindings;
+    private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
+    private final ProtectionDomain _protectionDomain;
 
     // <editor-fold defaultstate="collapsed" desc="Constructors and Initializers">
+
+    public TypeBuilder(final String name, final int modifiers) {
+        this(name, modifiers, Types.Object, TypeList.empty());
+    }
 
     public TypeBuilder(
         final String name,
@@ -222,13 +229,13 @@ public final class TypeBuilder<T> extends Type<T> {
         setInterfaces(interfaces);
     }
 
-    final void setInterfaces(final TypeList interfaces) {
+    public final void setInterfaces(final TypeList interfaces) {
         verifyNotCreated();
         _interfaces = interfaces != null ? interfaces : TypeList.empty();
         updateExtendsBound();
     }
 
-    final void setBaseType(final Type baseType) {
+    public final void setBaseType(final Type baseType) {
         verifyNotGeneric();
         verifyNotCreated();
 
@@ -346,6 +353,11 @@ public final class TypeBuilder<T> extends Type<T> {
             return getExtendsBound().appendErasedSignature(sb);
         }
         return super.appendErasedSignature(sb);
+    }
+
+    @Override
+    public StringBuilder appendSignature(final StringBuilder sb) {
+        return super.appendSignature(sb);
     }
 
     @Override
@@ -584,6 +596,15 @@ public final class TypeBuilder<T> extends Type<T> {
     // <editor-fold defaultstate="collapsed" desc="Type Manipulation">
 
     @Override
+    public Type<T[]> makeArrayType() {
+        if (_arrayType == null) {
+            _arrayType = Fences.orderWrites(new ArrayTypeBuilder<>(this));
+        }
+
+        return _arrayType;
+    }
+
+    @Override
     protected Type<?> makeGenericTypeCore(final TypeList typeArguments) {
         if (!isGenericTypeDefinition()) {
             throw Error.notGenericTypeDefinition(this);
@@ -599,7 +620,7 @@ public final class TypeBuilder<T> extends Type<T> {
         try {
             return createTypeNoLock(null);
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             throw ExceptionUtilities.asRuntimeException(e);
         }
     }
@@ -608,7 +629,7 @@ public final class TypeBuilder<T> extends Type<T> {
         try (final FileOutputStream outputStream = new FileOutputStream(outputFile)) {
             return createTypeNoLock(outputStream);
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             throw ExceptionUtilities.asRuntimeException(e);
         }
     }
@@ -617,7 +638,7 @@ public final class TypeBuilder<T> extends Type<T> {
         try {
             return createTypeNoLock(outputStream);
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             throw ExceptionUtilities.asRuntimeException(e);
         }
     }
@@ -766,6 +787,13 @@ public final class TypeBuilder<T> extends Type<T> {
             return ((MethodInfo) m).getRawMethod() == filterCriteria;
         }
     };
+
+    public MethodBuilder defineMethod(
+        final String name,
+        final int modifiers) {
+
+        return defineMethod(name, modifiers, PrimitiveTypes.Void, TypeList.empty(), TypeList.empty());
+    }
 
     public MethodBuilder defineMethod(
         final String name,
@@ -927,14 +955,14 @@ public final class TypeBuilder<T> extends Type<T> {
     short getMethodToken(final MethodBase method) {
         VerifyArgument.notNull(method, "method");
         if (method.getDeclaringType().isInterface()) {
-            return (short) (constantPool.getInterfaceMethodReference((MethodInfo) erase(method)).index & 0xFFFF);
+            return (short) (constantPool.getInterfaceMethodReference((MethodInfo) method).index & 0xFFFF);
         }
-        return (short) (constantPool.getMethodReference(erase(method)).index & 0xFFFF);
+        return (short) (constantPool.getMethodReference(method).index & 0xFFFF);
     }
 
     short getFieldToken(final FieldInfo field) {
         VerifyArgument.notNull(field, "field");
-        return (short) (constantPool.getFieldReference(erase(field)).index & 0xFFFF);
+        return (short) (constantPool.getFieldReference(field).index & 0xFFFF);
     }
 
     short getConstantToken(final int value) {
@@ -966,6 +994,7 @@ public final class TypeBuilder<T> extends Type<T> {
         return def.getErasedType();
     }
 
+/*
     private static MethodBase erase(final MethodBase m) {
         if (m instanceof MethodInfo) {
             return ((MethodInfo) m).getErasedMethodDefinition();
@@ -992,7 +1021,9 @@ public final class TypeBuilder<T> extends Type<T> {
 
         throw ContractUtils.unreachable();
     }
+*/
 
+/*
     private static FieldInfo erase(final FieldInfo f) {
         if (!f.getDeclaringType().isGenericType()) {
             return f;
@@ -1015,6 +1046,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
         throw ContractUtils.unreachable();
     }
+*/
 
     // </editor-fold>
 
@@ -1110,7 +1142,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
             _generatedType = Type.of(_generatedClass);
         }
-        catch (Throwable t) {
+        catch (final Throwable t) {
             throw Error.classGenerationFailed(this, t);
         }
         finally {
@@ -1178,11 +1210,15 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     private boolean isBridgeMethodNeeded(final MethodOverride methodOverride) {
-        final MethodInfo baseMethod = methodOverride.baseMethod;
-        final MethodBuilder override = methodOverride.override;
+        return isBridgeMethodNeeded(methodOverride.baseMethod, methodOverride.override);
+    }
 
-        final Type<?> baseReturnType = baseMethod.getReturnType().getErasedType();
-        final Type<?> overrideReturnType = override.getReturnType().getErasedType();
+    static boolean isBridgeMethodNeeded(final MethodInfo baseMethod, final MethodInfo override) {
+        final MethodInfo erasedBase = baseMethod.getErasedMethodDefinition();
+        final MethodInfo erasedOverride = override.getErasedMethodDefinition();
+
+        final Type<?> baseReturnType = erasedBase.getReturnType().getErasedType();
+        final Type<?> overrideReturnType = erasedOverride.getReturnType().getErasedType();
 
         if ((baseReturnType == PrimitiveTypes.Void) !=
             (overrideReturnType == PrimitiveTypes.Void)) {
@@ -1194,21 +1230,23 @@ public final class TypeBuilder<T> extends Type<T> {
             return true;
         }
 
-        final ParameterBuilder[] parameterBuilders = override.parameterBuilders;
+        final TypeList parameterTypes = (erasedOverride instanceof MethodBuilder)
+                                        ? ((MethodBuilder) erasedOverride).getParameterTypes().getErasedTypes()
+                                        : erasedOverride.getParameters().getParameterTypes().getErasedTypes();
 
-        final TypeList baseParameters = (baseMethod instanceof MethodBuilder)
-                                        ? ((MethodBuilder) baseMethod).getParameterTypes().getErasedTypes()
-                                        : baseMethod.getParameters().getParameterTypes().getErasedTypes();
+        final TypeList baseParameters = (erasedBase instanceof MethodBuilder)
+                                        ? ((MethodBuilder) erasedBase).getParameterTypes().getErasedTypes()
+                                        : erasedBase.getParameters().getParameterTypes().getErasedTypes();
 
-        if (baseParameters.size() != parameterBuilders.length) {
+        if (baseParameters.size() != parameterTypes.size()) {
             throw Error.parameterCountMismatch();
         }
 
-        for (int i = 0, n = parameterBuilders.length; i < n; i++) {
-            final Class<?> c1 = parameterBuilders[i].getParameterType().getErasedClass();
-            final Class<?> c2 = baseParameters.get(i).getErasedClass();
+        for (int i = 0, n = parameterTypes.size(); i < n; i++) {
+            final Type<?> t1 = parameterTypes.get(i);
+            final Type<?> t2 = baseParameters.get(i);
 
-            if (c1 != c2) {
+            if (!t1.isEquivalentTo(t2)) {
                 return true;
             }
         }
@@ -1242,7 +1280,7 @@ public final class TypeBuilder<T> extends Type<T> {
         try {
             return new FileOutputStream(temp);
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             return null;
         }
     }
@@ -1311,7 +1349,7 @@ public final class TypeBuilder<T> extends Type<T> {
         try {
             _unsafe = Unsafe.getUnsafe();
         }
-        catch (Throwable ignored) {
+        catch (final Throwable ignored) {
         }
 
         try {
@@ -1319,7 +1357,7 @@ public final class TypeBuilder<T> extends Type<T> {
             instanceField.setAccessible(true);
             _unsafe = (Unsafe) instanceField.get(Unsafe.class);
         }
-        catch (Throwable t) {
+        catch (final Throwable t) {
             throw Error.couldNotLoadUnsafeClassInstance();
         }
 
@@ -1341,4 +1379,131 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     // </editor-fold>
+}
+
+final class ArrayTypeBuilder<T> extends Type<T[]> {
+    private final TypeBuilder<T> _elementType;
+    private final FieldList _fields = FieldList.empty();
+    private final MethodList _methods = MethodList.empty();
+
+    private Class<T[]> _erasedClass;
+
+    ArrayTypeBuilder(final TypeBuilder<T> elementType) {
+        _elementType = VerifyArgument.notNull(elementType, "elementType");
+    }
+
+    @Override
+    public TypeKind getKind() {
+        return TypeKind.ARRAY;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Class<T[]> getErasedClass() {
+        _elementType.verifyCreated();
+
+        if (_erasedClass == null) {
+            _erasedClass = (Class<T[]>) Array.newInstance(_elementType.getErasedClass(), 0).getClass();
+        }
+
+        return _erasedClass;
+    }
+
+    @Override
+    public Type getElementType() {
+        return _elementType;
+    }
+
+    @Override
+    public boolean isArray() {
+        return true;
+    }
+
+    @Override
+    public boolean isGenericType() {
+        return _elementType.isGenericType();
+    }
+
+    @Override
+    public Type getGenericTypeDefinition() {
+        if (_elementType.isGenericTypeDefinition()) {
+            return this;
+        }
+        return _elementType.getGenericTypeDefinition().makeArrayType();
+    }
+
+    @Override
+    public TypeBindings getTypeBindings() {
+        return _elementType.getTypeBindings();
+    }
+
+    @Override
+    public Type getDeclaringType() {
+        return null;
+    }
+
+    @Override
+    public int getModifiers() {
+        return 0;
+    }
+
+    @Override
+    protected MethodList getDeclaredMethods() {
+        return _methods;
+    }
+
+    @Override
+    public FieldList getDeclaredFields() {
+        return _fields;
+    }
+
+    @Override
+    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
+        return false;
+    }
+
+    @Override
+    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+        return null;
+    }
+
+    @NotNull
+    @Override
+    public Annotation[] getAnnotations() {
+        return new Annotation[0];
+    }
+
+    @NotNull
+    @Override
+    public Annotation[] getDeclaredAnnotations() {
+        return new Annotation[0];
+    }
+
+    @Override
+    public StringBuilder appendSignature(final StringBuilder sb) {
+        sb.append('[');
+        return _elementType.appendSignature(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        return _elementType.appendErasedSignature(sb.append('['));
+    }
+
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
+        return _elementType.appendBriefDescription(sb).append("[]");
+    }
+
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        return _elementType.appendSimpleDescription(sb).append("[]");
+    }
+
+    public StringBuilder appendDescription(final StringBuilder sb) {
+        return appendBriefDescription(sb);
+    }
+
+    @Override
+    public <P, R> R accept(final TypeVisitor<P, R> visitor, final P parameter) {
+        return visitor.visitArrayType(this, parameter);
+    }
 }

@@ -14,6 +14,7 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.annotations.NotNull;
+import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.*;
@@ -22,6 +23,7 @@ import com.strobel.util.EmptyArrayCache;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * @author Mike Strobel
@@ -36,7 +38,7 @@ public final class MethodBuilder extends MethodInfo {
     private TypeList _thrownTypes;
 
     private boolean _isFinished;
-    private GenericParameterBuilderList _genericParameterBuilders;
+    private GenericParameterBuilder<?>[] _genericParameterBuilders;
     private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
     private byte[] _body;
     private int _numberOfExceptions;
@@ -147,8 +149,19 @@ public final class MethodBuilder extends MethodInfo {
 
     @Override
     public ParameterList getParameters() {
-        _declaringType.verifyCreated();
-        return generatedMethod.getParameters();
+        return _declaringType.isCreated() ? generatedMethod.getParameters() : createParameters();
+    }
+
+    final ParameterList createParameters() {
+        final List<ParameterBuilder> pb = this.getDefinedParameters();
+        final ParameterInfo[] p = new ParameterInfo[pb.size()];
+
+        for (int i = 0; i < p.length; i++) {
+            final ParameterBuilder b = pb.get(i);
+            p[i] = new ParameterInfo(b.getName(), b.getPosition(), b.getParameterType());
+        }
+
+        return new ParameterList(p);
     }
 
     @Override
@@ -158,6 +171,10 @@ public final class MethodBuilder extends MethodInfo {
 
     public TypeList getParameterTypes() {
         return _signatureType.getParameterTypes();
+    }
+
+    public List<ParameterBuilder> getDefinedParameters() {
+        return ArrayUtilities.asUnmodifiableList(parameterBuilders);
     }
 
     public boolean isTypeCreated() {
@@ -265,12 +282,20 @@ public final class MethodBuilder extends MethodInfo {
 
     @Override
     public boolean isGenericMethod() {
-        return _genericParameterBuilders != null && !_genericParameterBuilders.isEmpty();
+        return !ArrayUtilities.isNullOrEmpty(_genericParameterBuilders);
     }
 
     @Override
     public boolean isGenericMethodDefinition() {
-        return _genericParameterBuilders != null && !_genericParameterBuilders.isEmpty();
+        return isGenericMethod();
+    }
+
+    @Override
+    public MethodInfo getErasedMethodDefinition() {
+        if (_declaringType.isCreated()) {
+            return generatedMethod.getErasedMethodDefinition();
+        }
+        return super.getErasedMethodDefinition();
     }
 
     @Override
@@ -283,14 +308,14 @@ public final class MethodBuilder extends MethodInfo {
         }
 
         if (isGenericMethodDefinition()) {
-            final GenericParameterBuilderList genericParameters = _genericParameterBuilders;
+            final GenericParameterBuilder<?>[] genericParameters = _genericParameterBuilders;
 
             s.append('<');
-            for (int i = 0, n = genericParameters.size(); i < n; i++) {
+            for (int i = 0, n = genericParameters.length; i < n; i++) {
                 if (i != 0) {
                     s.append(", ");
                 }
-                s = genericParameters.get(i).appendSimpleDescription(s);
+                s = genericParameters[i].appendSimpleDescription(s);
             }
             s.append('>');
             s.append(' ');
@@ -364,14 +389,14 @@ public final class MethodBuilder extends MethodInfo {
         }
 
         if (isGenericMethodDefinition()) {
-            final GenericParameterBuilderList genericParameters = _genericParameterBuilders;
+            final GenericParameterBuilder<?>[] genericParameters = _genericParameterBuilders;
 
             s.append('<');
-            for (int i = 0, n = genericParameters.size(); i < n; i++) {
+            for (int i = 0, n = genericParameters.length; i < n; i++) {
                 if (i != 0) {
                     s.append(", ");
                 }
-                s = genericParameters.get(i).appendSimpleDescription(s);
+                s = genericParameters[i].appendSimpleDescription(s);
             }
             s.append('>');
             s.append(' ');
@@ -433,14 +458,14 @@ public final class MethodBuilder extends MethodInfo {
         StringBuilder s = sb;
 
         if (isGenericMethod()) {
-            final GenericParameterBuilderList genericParameters = _genericParameterBuilders;
-            final int count = genericParameters.size();
+            final GenericParameterBuilder<?>[] genericParameters = _genericParameterBuilders;
+            final int count = genericParameters.length;
 
             if (count > 0) {
                 s.append('<');
                 //noinspection ForLoopReplaceableByForEach
                 for (int i = 0; i < count; ++i) {
-                    final Type type = genericParameters.get(i);
+                    final Type type = genericParameters[i];
                     s = type.appendGenericSignature(s);
                 }
                 s.append('>');
@@ -461,7 +486,7 @@ public final class MethodBuilder extends MethodInfo {
         return s;
     }
 
-    public GenericParameterBuilderList defineGenericParameters(final String... names) {
+    public GenericParameterBuilder<?>[] defineGenericParameters(final String... names) {
         VerifyArgument.notEmpty(names, "names");
 
         if (_genericParameterBuilders != null) {
@@ -478,7 +503,7 @@ public final class MethodBuilder extends MethodInfo {
             parameters[i] = new GenericParameterBuilder<>(new TypeBuilder(name, i, this));
         }
 
-        _genericParameterBuilders = new GenericParameterBuilderList(parameters);
+        _genericParameterBuilders = parameters;
 
         return _genericParameterBuilders;
     }

@@ -15,6 +15,7 @@ package com.strobel.reflection;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.core.Comparer;
+import com.strobel.core.HashUtilities;
 import com.strobel.core.VerifyArgument;
 
 import javax.lang.model.type.TypeKind;
@@ -34,7 +35,7 @@ class GenericParameter<T> extends Type<T> {
     private Class<T> _erasedClass;
     private TypeVariable<?> _typeVariable;
 
-    GenericParameter(final String name, TypeVariable<?> typeVariable, final int position) {
+    GenericParameter(final String name, final TypeVariable<?> typeVariable, final int position) {
         _typeVariable = typeVariable;
         _name = VerifyArgument.notNull(name, "name");
         _declaringType = null;
@@ -277,24 +278,24 @@ class GenericParameter<T> extends Type<T> {
 
     @Override
     public int hashCode() {
-        return getGenericParameterPosition();
+        return HashUtilities.hashCode(_typeVariable);
     }
 
     @Override
-    public boolean equals(final Object obj) {
-        if (obj == this) {
+    public boolean isEquivalentTo(final Type<?> member) {
+        if (member == this) {
             return true;
         }
-        
-        if (obj == null) {
+
+        if (member == null) {
             return false;
         }
-        
-        if (obj instanceof GenericParameter<?>) {
-            if (obj instanceof CapturedType<?>) {
+
+        if (member instanceof GenericParameter<?>) {
+            if (member instanceof CapturedType<?>) {
                 return false;
             }
-            final GenericParameter<?> other = (GenericParameter<?>)obj;
+            final GenericParameter<?> other = (GenericParameter<?>)member;
             return other._position == _position &&
                    Comparer.equals(other.getRawTypeVariable(), _typeVariable);
         }

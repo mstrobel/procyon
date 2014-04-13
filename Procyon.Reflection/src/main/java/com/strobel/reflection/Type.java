@@ -344,6 +344,12 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         throw Error.notWildcard(this);
     }
 
+    @Override
+    public final boolean isEquivalentTo(final MemberInfo m) {
+        return m instanceof Type<?> &&
+               isEquivalentTo((Type<?>) m);
+    }
+
     public boolean isEquivalentTo(final Type<?> other) {
         if (other == this) {
             return true;
@@ -440,17 +446,6 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         return false;
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-        final Type<?> other;
-
-        return obj instanceof Type<?> &&
-               (other = (Type<?>)obj).isGenericParameter() == this.isGenericParameter() &&
-               other.isWildcardType() == this.isWildcardType() &&
-               other.isCompoundType() == this.isCompoundType() &&
-               isEquivalentTo(other);
     }
 
     public boolean isSubTypeOf(final Type type) {

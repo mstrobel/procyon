@@ -105,11 +105,6 @@ final class CompoundType<T> extends Type<T> {
     }
 
     @Override
-    public Type<?> getSuperBound() {
-        return super.getSuperBound();
-    }
-
-    @Override
     public StringBuilder appendBriefDescription(final StringBuilder sb) {
         final Type<T> baseType = _baseType;
         final TypeList interfaces = _interfaces;
