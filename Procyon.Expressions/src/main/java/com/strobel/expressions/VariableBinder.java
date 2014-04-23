@@ -20,8 +20,8 @@ import com.strobel.core.MutableInteger;
 import com.strobel.reflection.emit.CodeGenerator;
 import com.strobel.util.ContractUtils;
 
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Stack;
 
 /**
@@ -202,7 +202,7 @@ final class VariableBinder extends ExpressionVisitor {
 
     private void incrementReferenceCount(final ParameterExpression node, final CompilerScope scope) {
         if (scope.referenceCount == null) {
-            scope.referenceCount = new HashMap<>();
+            scope.referenceCount = new LinkedHashMap<>();
         }
 
         final MutableInteger refCount = scope.referenceCount.get(node);
@@ -255,7 +255,7 @@ final class VariableBinder extends ExpressionVisitor {
 
                 // Otherwise, merge it .
                 if (currentScope.mergedScopes == null) {
-                    currentScope.mergedScopes = new HashSet<>();
+                    currentScope.mergedScopes = new LinkedHashSet<>();
                 }
 
                 currentScope.mergedScopes.add(block);

@@ -16,15 +16,7 @@ package com.strobel.reflection.emit;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.Flags;
-import com.strobel.reflection.MemberInfo;
-import com.strobel.reflection.MethodBase;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.MethodList;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.TypeList;
-import com.strobel.reflection.Types;
+import com.strobel.reflection.*;
 import com.strobel.util.TypeUtils;
 
 import java.io.IOException;
@@ -366,21 +358,7 @@ final class ClassWriter {
 
         _dataBuffer.putShort(generator.getMaxStackSize());
 
-        int maxLocals = generator.localCount;
-        if (!method.isStatic()) {
-            maxLocals += 1;
-        }
-
-        final ParameterBuilder[] parameters = method.parameterBuilders;
-
-        maxLocals += parameters.length;
-
-        for (final ParameterBuilder parameter : parameters) {
-            final Type<?> parameterType = parameter.getParameterType();
-            if (parameterType == PrimitiveTypes.Double || parameterType == PrimitiveTypes.Long) {
-                ++maxLocals;
-            }
-        }
+        final int maxLocals = generator.translateLocal(generator.localCount);
 
         _dataBuffer.putShort(maxLocals);
         _dataBuffer.putInt(generator.offset());
@@ -486,7 +464,6 @@ final class ClassWriter {
                 _dataBuffer.putShort(local.end - local.start);
 
                 final Type<?> localType = local.type;
-                final Type<?> erasedType = erase(localType);
 
                 _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(local.name));
 
@@ -494,7 +471,7 @@ final class ClassWriter {
                     genericParameterCount++;
                 }
 
-                _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(erasedType.getSignature()));
+                _dataBuffer.putShort(_typeBuilder.getUtf8StringToken(localType.getErasedSignature()));
                 _dataBuffer.putShort(local.position);
             }
 
@@ -534,20 +511,13 @@ final class ClassWriter {
         endAttributes(attributeCountIndex, attributeCount);
     }
 
-    private static Type<?> erase(final Type<?> t) {
-        final Type<?> def = t.isGenericType() ? t.getGenericTypeDefinition() : t;
-        return def.getErasedType();
-    }
-
     private boolean needsLocalVariableTableEntry(final Type<?> localType) {
-        return !localType.isEquivalentTo(erase(localType)) &&
+        return !localType.isEquivalentTo(localType.getErasedType()) &&
                !localType.isCompoundType();
     }
 
     private List<LocalInfo> getLocalInfo(final MethodBuilder builder) {
         final boolean hasThis = !builder.isStatic();
-
-        int position = 0;
 
         final List<LocalInfo> localInfo = new ArrayList<>();
 
@@ -555,7 +525,7 @@ final class ClassWriter {
             final LocalInfo thisInfo = new LocalInfo(
                 "this",
                 builder.getDeclaringType(),
-                position++,
+                0,
                 0,
                 builder.generator.offset()
             );
@@ -567,7 +537,7 @@ final class ClassWriter {
             final LocalInfo pInfo = new LocalInfo(
                 p.getName(),
                 p.getParameterType(),
-                position++,
+                builder.generator.translateParameter(p.getPosition()),
                 0,
                 builder.generator.offset()
             );
@@ -588,7 +558,7 @@ final class ClassWriter {
                 final LocalInfo lInfo = new LocalInfo(
                     l.getName(),
                     l.getLocalType(),
-                    position++,
+                    builder.generator.translateLocal(l.getLocalIndex()),
                     l.startOffset < 0 ? 0 : l.startOffset,
                     l.endOffset < 0 ? builder.generator.offset() : l.endOffset
                 );

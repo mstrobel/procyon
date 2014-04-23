@@ -313,14 +313,9 @@ public class CodeGenerator {
             throw Error.methodIsFinished();
         }
 
-        // add the localType to local signature
-//        _localSignature.AddArgument(localType, pinned);
-
         localBuilder = new LocalBuilder(localCount, name, localType, methodBuilder);
 
-        final int size = localType == PrimitiveTypes.Long || localType == PrimitiveTypes.Double ? 2 : 1;
-
-        localCount += size;
+        localCount++;
 
         if (locals == null) {
             locals = new LocalBuilder[DefaultLabelArraySize];
@@ -329,7 +324,7 @@ public class CodeGenerator {
             locals = enlargeArray(locals);
         }
 
-        locals[localCount - size] = localBuilder;
+        locals[localCount - 1] = localBuilder;
 
         return localBuilder;
     }
@@ -1189,13 +1184,15 @@ public class CodeGenerator {
     }
     
     final int translateLocal(final int localIndex) {
-        int index = localIndex;
+        int index = 0;
 
         if (methodBuilder != null) {
-            if (!methodBuilder.isStatic()) {
-                ++index;
-            }
-            index += methodBuilder.getParameterTypes().size();
+            index += translateParameter(methodBuilder.parameterBuilders.length);
+        }
+
+        for (int i = 0; i < localIndex; i++) {
+            final TypeKind kind = locals[i].getLocalType().getKind();
+            index += kind == TypeKind.LONG || kind == TypeKind.DOUBLE ? 2 : 1;
         }
 
         return index;

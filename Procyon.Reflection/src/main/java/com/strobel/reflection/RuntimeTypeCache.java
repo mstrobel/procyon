@@ -1094,6 +1094,10 @@ final class RuntimeMethodInfo extends MethodInfo {
             return _erasedMethodDefinition;
         }
 
+        if (Fences.orderReads(this)._erasedMethodDefinition != null) {
+            return _erasedMethodDefinition;
+        }
+
         if (_baseMethod != null) {
             _erasedMethodDefinition = Fences.orderWrites(
                 reflectedOn(
@@ -1101,6 +1105,8 @@ final class RuntimeMethodInfo extends MethodInfo {
                     getReflectedType()
                 )
             );
+
+            Fences.orderAccesses(this);
         }
 
         return super.getErasedMethodDefinition();
