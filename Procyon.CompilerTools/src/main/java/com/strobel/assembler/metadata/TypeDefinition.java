@@ -269,7 +269,7 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
     @Override
     protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
         if (fullName && dottedName && isNested() && !isAnonymous() && _simpleName != null) {
-            return getDeclaringType().appendName(sb, fullName, dottedName).append('.').append(_simpleName);
+            return getDeclaringType().appendName(sb, true, true).append('.').append(_simpleName);
         }
 
         return super.appendName(sb, fullName, dottedName);

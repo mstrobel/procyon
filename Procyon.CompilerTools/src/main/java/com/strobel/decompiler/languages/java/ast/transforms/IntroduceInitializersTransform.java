@@ -152,7 +152,7 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
                     new MemberReferenceExpression(
                         Expression.MYSTERY_OFFSET,
                         new Choice(
-                            new TypedNode(AstType.class),
+                            new TypedNode(TypeReferenceExpression.class),
                             new TypedNode(ThisReferenceExpression.class)
                         ).toExpression(),
                         Pattern.ANY_STRING

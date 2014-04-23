@@ -196,77 +196,44 @@ public class CoreMetadataFactory implements MetadataFactory {
     public TypeReference makeNamedType(final String name) {
         final int length = name.length();
 
-        int dollarIndex = name.indexOf('$');
+        final InnerClassEntry entry = findInnerClassEntry(name);
 
-        while (dollarIndex >= 0 &&
-               dollarIndex < length - 1 &&
-               name.charAt(dollarIndex + 1) == '$') {
+        if (entry != null) {
+            final String innerClassName = entry.getInnerClassName();
+            final int packageEnd = innerClassName.lastIndexOf('/');
+            final String shortName = StringUtilities.isNullOrEmpty(entry.getShortName()) ? null : entry.getShortName();
+            final TypeReference declaringType;
 
-            dollarIndex = name.indexOf(dollarIndex, dollarIndex + 2);
-        }
+            if (!StringUtilities.isNullOrEmpty(entry.getOuterClassName())) {
+                declaringType = makeNamedType(entry.getOuterClassName().replace('/', '.'));
+            }
+            else {
+                int lastDollarIndex = name.lastIndexOf('$');
 
-        if (dollarIndex == length - 1) {
-            dollarIndex = -1;
-        }
+                while (lastDollarIndex >= 1 &&
+                       lastDollarIndex < length &&
+                       name.charAt(lastDollarIndex - 1) == '$') {
 
-        if (dollarIndex >= 0) {
-            final InnerClassEntry entry = findInnerClassEntry(name);
-
-            if (entry != null) {
-                final String innerClassName = entry.getInnerClassName();
-                final int packageEnd = innerClassName.lastIndexOf('/');
-                final String shortName = StringUtilities.isNullOrEmpty(entry.getShortName()) ? null : entry.getShortName();
-                final String qualifiedName = packageEnd < 0 ? innerClassName : innerClassName.substring(packageEnd + 1).replace('/', '.');
-
-                final TypeReference declaringType;
-
-                if (!StringUtilities.isNullOrEmpty(entry.getOuterClassName())) {
-                    declaringType = makeNamedType(entry.getOuterClassName().replace('/', '.'));
-                }
-                else {
-                    int lastDollarIndex = name.lastIndexOf('$');
-
-                    while (lastDollarIndex >= 1 &&
-                           lastDollarIndex < length &&
-                           name.charAt(lastDollarIndex - 1) == '$') {
-
-                        if (lastDollarIndex > 1) {
-                            lastDollarIndex = name.lastIndexOf(lastDollarIndex, lastDollarIndex - 2);
-                        }
-                        else {
-                            lastDollarIndex = -1;
-                        }
+                    if (lastDollarIndex > 1) {
+                        lastDollarIndex = name.lastIndexOf(lastDollarIndex, lastDollarIndex - 2);
                     }
-
-                    if (lastDollarIndex == length - 1) {
+                    else {
                         lastDollarIndex = -1;
                     }
-
-                    declaringType = makeNamedType(name.substring(0, lastDollarIndex).replace('/', '.'));
                 }
 
-                return new UnresolvedType(declaringType, qualifiedName, shortName);
+                if (lastDollarIndex == length - 1) {
+                    lastDollarIndex = -1;
+                }
+
+                declaringType = makeNamedType(name.substring(0, lastDollarIndex).replace('/', '.'));
             }
-/*
-            else {
-                final int packageEnd = name.lastIndexOf('.');
-                final TypeReference declaringType = makeNamedType(name.substring(0, dollarIndex).replace('/', '.'));
 
-                final String qualifiedName;
-                final String shortName;
-
-                qualifiedName = name.substring(packageEnd + 1);
-
-                if (Character.isDigit(name.charAt(dollarIndex + 1))) {
-                    shortName = null;
-                }
-                else {
-                    shortName = name.substring(dollarIndex + 1);
-                }
-
-                return new UnresolvedType(declaringType, qualifiedName, shortName);
-            }
-*/
+            return new UnresolvedType(
+                declaringType,
+                packageEnd < 0 ? innerClassName : innerClassName.substring(packageEnd + 1),
+                shortName
+            );
         }
 
         final int packageEnd = name.lastIndexOf('.');
@@ -473,7 +440,6 @@ public class CoreMetadataFactory implements MetadataFactory {
         private final String _name;
         private final String _shortName;
         private final String _packageName;
-        private final TypeReference _declaringType;
         private final GenericParameterCollection _genericParameters;
 
         private String _fullName;
@@ -484,7 +450,7 @@ public class CoreMetadataFactory implements MetadataFactory {
         UnresolvedType(final TypeReference declaringType, final String name, final String shortName) {
             _name = VerifyArgument.notNull(name, "name");
             _shortName = shortName;
-            _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+            setDeclaringType(VerifyArgument.notNull(declaringType, "declaringType"));
             _packageName = declaringType.getPackageName();
             _genericParameters = new GenericParameterCollection(this);
             _genericParameters.freeze();
@@ -494,7 +460,6 @@ public class CoreMetadataFactory implements MetadataFactory {
             _packageName = VerifyArgument.notNull(packageName, "packageName");
             _name = VerifyArgument.notNull(name, "name");
             _shortName = shortName;
-            _declaringType = null;
             _genericParameters = new GenericParameterCollection(this);
             _genericParameters.freeze();
         }
@@ -502,7 +467,7 @@ public class CoreMetadataFactory implements MetadataFactory {
         UnresolvedType(final TypeReference declaringType, final String name, final String shortName, final List<GenericParameter> genericParameters) {
             _name = VerifyArgument.notNull(name, "name");
             _shortName = shortName;
-            _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+            setDeclaringType(VerifyArgument.notNull(declaringType, "declaringType"));
             _packageName = declaringType.getPackageName();
 
             _genericParameters = new GenericParameterCollection(this);
@@ -518,7 +483,6 @@ public class CoreMetadataFactory implements MetadataFactory {
             _packageName = VerifyArgument.notNull(packageName, "packageName");
             _name = VerifyArgument.notNull(name, "name");
             _shortName = shortName;
-            _declaringType = null;
 
             _genericParameters = new GenericParameterCollection(this);
 
@@ -570,11 +534,6 @@ public class CoreMetadataFactory implements MetadataFactory {
         @Override
         public <R, P> R accept(final TypeMetadataVisitor<P, R> visitor, final P parameter) {
             return visitor.visitClassType(this, parameter);
-        }
-
-        @Override
-        public TypeReference getDeclaringType() {
-            return _declaringType;
         }
 
         @Override

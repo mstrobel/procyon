@@ -16,6 +16,8 @@
 
 package com.strobel.assembler.ir.attributes;
 
+import com.strobel.assembler.metadata.Flags;
+
 /**
  * @author Mike Strobel
  */
@@ -46,5 +48,15 @@ public final class InnerClassEntry {
 
     public int getAccessFlags() {
         return _accessFlags;
+    }
+
+    @Override
+    public String toString() {
+        return "InnerClassEntry{" +
+               "InnerClassName='" + _innerClassName + '\'' +
+               ", OuterClassName='" + _outerClassName + '\'' +
+               ", ShortName='" + _shortName + '\'' +
+               ", AccessFlags=[" + Flags.toString(_accessFlags) +
+               "]}";
     }
 }
