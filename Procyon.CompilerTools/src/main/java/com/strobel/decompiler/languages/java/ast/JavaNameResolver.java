@@ -251,7 +251,8 @@ public final class JavaNameResolver {
 
                     if (baseTypeResults != null && !baseTypeResults.isEmpty()) {
                         if (results == null) {
-                            results = baseTypeResults;
+                            results = baseTypeResults instanceof LinkedHashSet<?> ? baseTypeResults
+                                                                                  : new LinkedHashSet<>(baseTypeResults);
                         }
                         else {
                             results.addAll(baseTypeResults);
@@ -268,7 +269,8 @@ public final class JavaNameResolver {
 
                     if (ifTypeResults != null && !ifTypeResults.isEmpty()) {
                         if (results == null) {
-                            results = ifTypeResults;
+                            results = ifTypeResults instanceof LinkedHashSet<?> ? ifTypeResults
+                                                                                : new LinkedHashSet<>(ifTypeResults);
                         }
                         else {
                             results.addAll(ifTypeResults);
@@ -290,7 +292,8 @@ public final class JavaNameResolver {
 
                         if (declaringTypeResults != null && !declaringTypeResults.isEmpty()) {
                             if (results == null) {
-                                results = declaringTypeResults;
+                                results = declaringTypeResults instanceof LinkedHashSet<?> ? declaringTypeResults
+                                                                                           : new LinkedHashSet<>(declaringTypeResults);
                             }
                             else {
                                 results.addAll(declaringTypeResults);
@@ -316,7 +319,8 @@ public final class JavaNameResolver {
 
                     if (declaringTypeResults != null && !declaringTypeResults.isEmpty()) {
                         if (results == null) {
-                            results = declaringTypeResults;
+                            results = declaringTypeResults instanceof LinkedHashSet<?> ? declaringTypeResults
+                                                                                       : new LinkedHashSet<>(declaringTypeResults);
                         }
                         else {
                             results.addAll(declaringTypeResults);
