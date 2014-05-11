@@ -1208,7 +1208,7 @@ public final class MetadataHelper {
         }
 
         if (baseType instanceof CompoundTypeReference) {
-            final CompoundTypeReference c = (CompoundTypeReference) type;
+            final CompoundTypeReference c = (CompoundTypeReference) baseType;
 
             if (!isSubType(type, getSuperType(c), capture)) {
                 return false;
