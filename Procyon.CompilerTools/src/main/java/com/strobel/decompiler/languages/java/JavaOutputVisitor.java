@@ -66,7 +66,11 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             output, settings.getShowDebugLineNumbers() ?
                     LineNumberMode.WITH_DEBUG_LINE_NUMBERS : LineNumberMode.WITHOUT_DEBUG_LINE_NUMBERS
         );
-        this.policy = settings.getFormattingOptions();
+
+        final JavaFormattingOptions formattingOptions = settings.getFormattingOptions();
+
+        this.policy = formattingOptions != null ? formattingOptions
+                                                : JavaFormattingOptions.createDefault();
     }
 
     public List<LineNumberPosition> getLineNumberPositions() {
