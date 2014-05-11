@@ -134,13 +134,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             if (current.getRole() == role) {
                 writeSpecials(positionStack.pop(), current);
                 //
-                // Push the next sibling because the node itself instanceof not a special,
+                // Push the next sibling because the node itself is not a special,
                 // and should be considered to be already handled.
                 //
                 positionStack.push(current.getNextSibling());
 
                 //
-                // This instanceof necessary for optionalComma() to work correctly.
+                // This is necessary for optionalComma() to work correctly.
                 //
                 break;
             }
@@ -156,13 +156,13 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             if (current == node) {
                 writeSpecials(positionStack.pop(), current);
                 //
-                // Push the next sibling because the node itself instanceof not a special,
+                // Push the next sibling because the node itself is not a special,
                 // and should be considered to be already handled.
                 //
                 positionStack.push(current.getNextSibling());
 
                 //
-                // This instanceof necessary for optionalComma() to work correctly.
+                // This is necessary for optionalComma() to work correctly.
                 //
                 break;
             }
@@ -228,12 +228,12 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             if (lastWritten == LastWritten.KeywordOrIdentifier) {
                 space();
             }
-            // this space instanceof not strictly required, so we call space()
+            // this space is not strictly required, so we call space()
 //            formatter.writeToken("$");
         }
         else if (lastWritten == LastWritten.KeywordOrIdentifier) {
             formatter.space();
-            // this space instanceof strictly required, so we directly call the formatter
+            // this space is strictly required, so we directly call the formatter
         }
 
         if (identifierRole == Roles.LABEL) {
@@ -2468,11 +2468,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
                 if (resource != firstResource) {
                     semicolon();
-                    space();
-                    space();
-                    space();
-                    space();
-                    space();
+                    // indent additional resources with 5 spaces, i.e., the length of `try (`.
+                    space(); space(); space(); space(); space();
                 }
 
                 writeVariableDeclaration(resource, false);
