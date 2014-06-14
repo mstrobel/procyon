@@ -93,6 +93,7 @@ public final class AstBuilder {
 
         Collections.sort(builder._exceptionHandlers);
 
+        builder.removeGetClassCallsForInvokeDynamic();
         builder.pruneExceptionHandlers();
 
         FinallyInlining.run(builder._body, builder._instructions, builder._exceptionHandlers, builder._removed);
@@ -128,6 +129,48 @@ public final class AstBuilder {
         }
 
         return ast;
+    }
+
+    private static boolean isGetClassInvocation(final Instruction p) {
+        return p != null &&
+               p.getOpCode() == OpCode.INVOKEVIRTUAL &&
+               p.<MethodReference>getOperand(0).getParameters().isEmpty() &&
+               StringUtilities.equals(p.<MethodReference>getOperand(0).getName(), "getClass");
+    }
+
+    private void removeGetClassCallsForInvokeDynamic() {
+        for (final Instruction i : _instructions) {
+            if (i.getOpCode() != OpCode.INVOKEDYNAMIC) {
+                continue;
+            }
+
+            final Instruction p1 = i.getPrevious();
+
+            if (p1 == null || p1.getOpCode() != OpCode.POP) {
+                continue;
+            }
+
+            final Instruction p2 = p1.getPrevious();
+
+            if (p2 == null || !isGetClassInvocation(p2)) {
+                continue;
+            }
+
+            final Instruction p3 = p2.getPrevious();
+
+            if (p3 == null || p3.getOpCode() != OpCode.DUP) {
+                continue;
+            }
+
+            p1.setOpCode(OpCode.NOP);
+            p1.setOperand(null);
+
+            p2.setOpCode(OpCode.NOP);
+            p2.setOperand(null);
+
+            p3.setOpCode(OpCode.NOP);
+            p3.setOperand(null);
+        }
     }
 
     @SuppressWarnings("ConstantConditions")
