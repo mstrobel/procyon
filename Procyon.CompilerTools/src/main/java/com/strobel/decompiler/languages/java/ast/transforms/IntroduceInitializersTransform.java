@@ -41,6 +41,7 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
     private final Map<String, AssignmentExpression> _initializers;
 
     private MethodDefinition _currentInitializerMethod;
+    private MethodDefinition _currentConstructor;
 
     public IntroduceInitializersTransform(final DecompilerContext context) {
         super(context);
@@ -108,29 +109,36 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
     @Override
     public Void visitAnonymousObjectCreationExpression(final AnonymousObjectCreationExpression node, final Void data) {
         final MethodDefinition oldInitializer = _currentInitializerMethod;
+        final MethodDefinition oldConstructor = _currentConstructor;
 
         _currentInitializerMethod = null;
+        _currentConstructor = null;
 
         try {
             return super.visitAnonymousObjectCreationExpression(node, data);
         }
         finally {
             _currentInitializerMethod = oldInitializer;
+            _currentConstructor = oldConstructor;
         }
     }
 
     @Override
     public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
         final MethodDefinition oldInitializer = _currentInitializerMethod;
+        final MethodDefinition oldConstructor = _currentConstructor;
+
         final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
         if (method != null &&
             method.isTypeInitializer() &&
             method.getDeclaringType().isInterface()) {
 
+            _currentConstructor = null;
             _currentInitializerMethod = method;
         }
         else {
+            _currentConstructor = method != null && method.isConstructor() ? method : null;
             _currentInitializerMethod = null;
         }
 
@@ -138,6 +146,7 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
             return super.visitMethodDeclaration(node, _);
         }
         finally {
+            _currentConstructor = oldConstructor;
             _currentInitializerMethod = oldInitializer;
         }
     }
@@ -170,7 +179,7 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
     public Void visitAssignmentExpression(final AssignmentExpression node, final Void data) {
         super.visitAssignmentExpression(node, data);
 
-        if (_currentInitializerMethod == null || context.getCurrentType() == null) {
+        if (_currentInitializerMethod == null && _currentConstructor == null || context.getCurrentType() == null) {
             return null;
         }
 
@@ -178,9 +187,21 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
 
         if (match.success()) {
             final Expression target = (Expression) firstOrDefault(match.get("target"));
-            final MemberReference reference = target.getUserData(Keys.MEMBER_REFERENCE);
+            final FieldReference reference = (FieldReference) target.getUserData(Keys.MEMBER_REFERENCE);
+            final FieldDefinition definition = reference.resolve();
 
-            if (StringUtilities.equals(context.getCurrentType().getInternalName(), reference.getDeclaringType().getInternalName())) {
+            //
+            // Final fields with constant values area already initialized inline, so any additional assignments
+            // are illegal; remove them.
+            //
+            if (definition != null && definition.isFinal() && definition.getConstantValue() != null) {
+                node.remove();
+                return null;
+            }
+
+            if (_currentInitializerMethod != null &&
+                StringUtilities.equals(context.getCurrentType().getInternalName(), reference.getDeclaringType().getInternalName())) {
+
                 _initializers.put(reference.getFullName(), node);
             }
         }
