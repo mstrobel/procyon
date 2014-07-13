@@ -516,7 +516,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         final boolean addBraces;
-        final Iterable<AstNode> statements = body.getChildren();
+        final AstNodeCollection<Statement> statements = body.getStatements();
 
         switch (braceEnforcement) {
             case RemoveBraces:

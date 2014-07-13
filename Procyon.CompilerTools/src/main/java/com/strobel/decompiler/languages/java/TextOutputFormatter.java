@@ -349,22 +349,37 @@ public class TextOutputFormatter implements IOutputFormatter {
             }
 
             case Documentation: {
+                final boolean isFirstLine = !(nodeStack.peek().getPreviousSibling() instanceof Comment);
                 final boolean isLastLine = !(nodeStack.peek().getNextSibling() instanceof Comment);
 
-                if (!inDocumentationComment && !isLastLine) {
+                if (!inDocumentationComment && isFirstLine) {
                     inDocumentationComment = true;
-                    output.markFoldStart("///" + content, true);
+
+                    String foldedContent = content.replace("\r|\n", " ").trim();
+
+                    if (foldedContent.length() > 80) {
+                        foldedContent = foldedContent.substring(0, 80) + " (...)";
+                    }
+                    else if (!isLastLine) {
+                        foldedContent = foldedContent + " (...)";
+                    }
+
+                    output.markFoldStart("/** " + foldedContent + " */", true);
+                    output.writeComment("/**");
+                    output.writeLine();
                 }
 
-                output.writeComment("///");
+                output.writeComment(" * ");
                 output.writeComment(content);
+                output.writeLine();
 
                 if (inDocumentationComment && isLastLine) {
                     inDocumentationComment = false;
+                    output.writeComment(" */");
                     output.markFoldEnd();
+                    output.writeLine();
                 }
 
-                output.writeLine();
                 break;
             }
 
