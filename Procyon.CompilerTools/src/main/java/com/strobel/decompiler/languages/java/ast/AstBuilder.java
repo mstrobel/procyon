@@ -97,6 +97,7 @@ public final class AstBuilder {
 
     public final void runTransformations(final Predicate<IAstTransform> transformAbortCondition) {
         TransformationPipeline.runTransformationsUntil(_compileUnit, transformAbortCondition, _context);
+        _compileUnit.acceptVisitor(new InsertParenthesesVisitor(), null);
         _haveTransformationsRun = true;
     }
 
@@ -814,7 +815,6 @@ public final class AstBuilder {
             runTransformations();
         }
 
-        _compileUnit.acceptVisitor(new InsertParenthesesVisitor(), null);
         final JavaOutputVisitor visitor = new JavaOutputVisitor(output, _context.getSettings());
         _compileUnit.acceptVisitor(visitor, null);
         return visitor.getLineNumberPositions();
@@ -922,4 +922,3 @@ public final class AstBuilder {
         throw ContractUtils.unreachable();
     }
 }
-

@@ -65,15 +65,17 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
 
     @Override
     public AstNode visitExpressionStatement(final ExpressionStatement node, final Void data) {
-        super.visitExpressionStatement(node, data);
+        final AstNode n = super.visitExpressionStatement(node, data);
 
-        final AstNode result = transformForEach(node);
+        if (!context.getSettings().getDisableForEachTransforms() && n instanceof ExpressionStatement) {
+            final AstNode result = transformForEach((ExpressionStatement) n);
 
-        if (result != null) {
-            return result.acceptVisitor(this, data);
+            if (result != null) {
+                return result.acceptVisitor(this, data);
+            }
         }
 
-        return node;
+        return n;
     }
 
     @Override
@@ -83,12 +85,13 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
         final ForStatement forLoop = transformFor(node);
 
         if (forLoop != null) {
-            final AstNode forEachInArray = transformForEachInArray(forLoop);
+            if (!context.getSettings().getDisableForEachTransforms()) {
+                final AstNode forEachInArray = transformForEachInArray(forLoop);
 
-            if (forEachInArray != null) {
-                return forEachInArray.acceptVisitor(this, data);
+                if (forEachInArray != null) {
+                    return forEachInArray.acceptVisitor(this, data);
+                }
             }
-
             return forLoop.acceptVisitor(this, data);
         }
 

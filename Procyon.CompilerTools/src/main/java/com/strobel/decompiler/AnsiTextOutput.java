@@ -323,24 +323,47 @@ public class AnsiTextOutput extends PlainTextOutput {
             typeName = text;
         }
 
-        final String[] typeParts = typeName.split("\\$|\\.");
-        final boolean dollar = typeName.indexOf('$') >= 0;
-
         typeColor = resolvedType != null && resolvedType.isAnnotation() ? _attribute : typeColor;
 
-        for (int i = 0; i < typeParts.length; i++) {
-            if (i != 0) {
-                sb.append(colorize(dollar ? Delimiters.DOLLAR : Delimiters.DOT, _delimiter));
-            }
-
-            sb.append(colorize(typeParts[i], typeColor));
-        }
+        colorizeDelimitedName(sb, typeName, typeColor);
 
         if (isSignature) {
             sb.append(colorize(Delimiters.SEMICOLON, _delimiter));
         }
 
         return sb.toString();
+    }
+
+    private StringBuilder colorizeDelimitedName(final StringBuilder sb, final String typeName, final Ansi typeColor) {
+        final int end = typeName.length();
+
+        if (end == 0) {
+            return sb;
+        }
+
+        int start = 0;
+        int i = start;
+
+        while (i < end) {
+            final char ch = typeName.charAt(i);
+
+            switch (ch) {
+                case '.':
+                case '$':
+                    sb.append(colorize(typeName.substring(start, i), typeColor));
+                    sb.append(colorize(ch == '.' ? Delimiters.DOT : Delimiters.DOLLAR, _delimiter));
+                    start = i + 1;
+                    break;
+            }
+
+            ++i;
+        }
+
+        if (start < end) {
+            sb.append(colorize(typeName.substring(start, end), typeColor));
+        }
+
+        return sb;
     }
 
     private String colorizePackage(final String text) {

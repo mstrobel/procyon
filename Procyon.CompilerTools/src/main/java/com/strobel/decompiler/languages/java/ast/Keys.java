@@ -16,19 +16,14 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
-import com.strobel.assembler.metadata.DynamicCallSite;
-import com.strobel.assembler.metadata.FieldDefinition;
-import com.strobel.assembler.metadata.MemberReference;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.PackageReference;
-import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
-import com.strobel.assembler.metadata.VariableDefinition;
+import com.strobel.assembler.metadata.*;
 import com.strobel.componentmodel.Key;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.ExceptionUtilities;
 import com.strobel.decompiler.ast.Variable;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class Keys {
@@ -46,16 +41,22 @@ public final class Keys {
     public final static Key<AstBuilder> AST_BUILDER = Key.create("AstBuilder");
     public final static Key<Object> CONSTANT_VALUE = Key.create("ConstantValue");
 
-    public final static List<Key<?>> ALL_KEYS = ArrayUtilities.asUnmodifiableList(
-        VARIABLE,
-        VARIABLE_DEFINITION,
-        PARAMETER_DEFINITION,
-        MEMBER_REFERENCE,
-        PACKAGE_REFERENCE,
-        FIELD_DEFINITION,
-        METHOD_DEFINITION,
-        TYPE_DEFINITION,
-        TYPE_REFERENCE,
-        DYNAMIC_CALL_SITE
-    );
+    public final static List<Key<?>> ALL_KEYS;
+
+    static {
+        final ArrayList<Key<?>> keys = new ArrayList<>();
+
+        try {
+            for (final Field field : Keys.class.getDeclaredFields()) {
+                if (field.getType() == Key.class) {
+                    keys.add((Key<?>) field.get(null));
+                }
+            }
+
+            ALL_KEYS = ArrayUtilities.<Key<?>>asUnmodifiableList(keys.toArray(new Key[keys.size()]));
+        }
+        catch (final Throwable t) {
+            throw ExceptionUtilities.asRuntimeException(t);
+        }
+    }
 }

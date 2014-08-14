@@ -81,6 +81,24 @@ public abstract class MethodReference extends MemberReference implements IMethod
     }
 
     @Override
+    public boolean isEquivalentTo(final MemberReference member) {
+        if (super.isEquivalentTo(member)) {
+            return true;
+        }
+
+        if (member instanceof MethodReference) {
+            final MethodReference method = (MethodReference) member;
+
+            return StringUtilities.equals(method.getName(), this.getName()) &&
+                   StringUtilities.equals(method.getErasedSignature(), this.getErasedSignature()) &&
+                   MetadataResolver.areEquivalent(method.getDeclaringType(), this.getDeclaringType());
+        }
+
+        return false;
+
+    }
+
+    @Override
     protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
         if (fullName) {
             final TypeReference declaringType = getDeclaringType();

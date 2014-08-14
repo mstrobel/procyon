@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.core.StringUtilities;
 import com.strobel.util.ContractUtils;
 
 /**
@@ -32,6 +33,22 @@ public abstract class FieldReference extends MemberReference {
 
         return fieldType != null && fieldType.containsGenericParameters() ||
                super.containsGenericParameters();
+    }
+
+    @Override
+    public boolean isEquivalentTo(final MemberReference member) {
+        if (super.isEquivalentTo(member)) {
+            return true;
+        }
+
+        if (member instanceof FieldReference) {
+            final FieldReference field = (FieldReference) member;
+
+            return StringUtilities.equals(field.getName(), this.getName()) &&
+                   MetadataResolver.areEquivalent(field.getDeclaringType(), this.getDeclaringType());
+        }
+
+        return false;
     }
 
     public FieldDefinition resolve() {

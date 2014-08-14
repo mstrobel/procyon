@@ -561,6 +561,8 @@ public class NameVariables {
                 return name;
             }
 
+            nameSource = MetadataHelper.getDeclaredType(nameSource);
+
             if (!nameSource.isDefinition()) {
                 final TypeDefinition resolvedType = nameSource.resolve();
 
@@ -575,7 +577,7 @@ public class NameVariables {
             // Remove leading 'I' for interfaces.
             //
             if (name.length() > 2 &&
-                name.charAt(0) == 'I' &&
+                (name.charAt(0) == 'I' || name.charAt(0) == 'J') &&
                 Character.isUpperCase(name.charAt(1)) &&
                 Character.isLowerCase(name.charAt(2))) {
 

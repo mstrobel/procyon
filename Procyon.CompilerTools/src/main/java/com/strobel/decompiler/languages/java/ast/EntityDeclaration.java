@@ -29,7 +29,7 @@ import java.util.Collections;
 import java.util.List;
 
 public abstract class EntityDeclaration extends AstNode {
-    public final static Role<Annotation> ANNOTATION_ROLE = new Role<>("Annotation", Annotation.class);
+    public final static Role<Annotation> ANNOTATION_ROLE = Roles.ANNOTATION;
     public final static Role<Annotation> UNATTACHED_ANNOTATION_ROLE = new Role<>("UnattachedAnnotation", Annotation.class);
     public final static Role<JavaModifierToken> MODIFIER_ROLE = new Role<>("Modifier", JavaModifierToken.class);
     public final static Role<AstType> PRIVATE_IMPLEMENTATION_TYPE_ROLE = new Role<>("PrivateImplementationType", AstType.class, AstType.NULL);

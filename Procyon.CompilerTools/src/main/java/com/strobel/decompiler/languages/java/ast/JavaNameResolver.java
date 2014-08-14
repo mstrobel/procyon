@@ -251,7 +251,8 @@ public final class JavaNameResolver {
 
                     if (baseTypeResults != null && !baseTypeResults.isEmpty()) {
                         if (results == null) {
-                            results = baseTypeResults;
+                            results = baseTypeResults instanceof LinkedHashSet<?> ? baseTypeResults
+                                                                                  : new LinkedHashSet<>(baseTypeResults);
                         }
                         else {
                             results.addAll(baseTypeResults);
@@ -268,7 +269,8 @@ public final class JavaNameResolver {
 
                     if (ifTypeResults != null && !ifTypeResults.isEmpty()) {
                         if (results == null) {
-                            results = ifTypeResults;
+                            results = ifTypeResults instanceof LinkedHashSet<?> ? ifTypeResults
+                                                                                : new LinkedHashSet<>(ifTypeResults);
                         }
                         else {
                             results.addAll(ifTypeResults);
@@ -290,7 +292,8 @@ public final class JavaNameResolver {
 
                         if (declaringTypeResults != null && !declaringTypeResults.isEmpty()) {
                             if (results == null) {
-                                results = declaringTypeResults;
+                                results = declaringTypeResults instanceof LinkedHashSet<?> ? declaringTypeResults
+                                                                                           : new LinkedHashSet<>(declaringTypeResults);
                             }
                             else {
                                 results.addAll(declaringTypeResults);
@@ -316,7 +319,8 @@ public final class JavaNameResolver {
 
                     if (declaringTypeResults != null && !declaringTypeResults.isEmpty()) {
                         if (results == null) {
-                            results = declaringTypeResults;
+                            results = declaringTypeResults instanceof LinkedHashSet<?> ? declaringTypeResults
+                                                                                       : new LinkedHashSet<>(declaringTypeResults);
                         }
                         else {
                             results.addAll(declaringTypeResults);
@@ -656,17 +660,6 @@ public final class JavaNameResolver {
                 }
             }
 
-            for (final TypeParameterDeclaration tp : node.getTypeParameters()) {
-                final TypeDefinition gp = tp.getUserData(Keys.TYPE_DEFINITION);
-
-                if (gp != null && StringUtilities.equals(gp.getName(), name)) {
-                    if (results == null) {
-                        results = new LinkedHashSet<>();
-                    }
-                    results.add(gp);
-                }
-            }
-
             for (final EntityDeclaration member : node.getMembers()) {
                 if (member instanceof TypeDeclaration) {
                     final TypeDeclaration td = (TypeDeclaration) member;
@@ -684,6 +677,21 @@ public final class JavaNameResolver {
 
                         results.add(t);
                     }
+                }
+            }
+
+            if (_mode == NameResolveMode.TYPE && results != null && !results.isEmpty()) {
+                return results;
+            }
+
+            for (final TypeParameterDeclaration tp : node.getTypeParameters()) {
+                final TypeDefinition gp = tp.getUserData(Keys.TYPE_DEFINITION);
+
+                if (gp != null && StringUtilities.equals(gp.getName(), name)) {
+                    if (results == null) {
+                        results = new LinkedHashSet<>();
+                    }
+                    results.add(gp);
                 }
             }
 

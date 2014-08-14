@@ -65,11 +65,6 @@ public class FieldDefinition extends FieldReference implements IMemberDefinition
     }
 
     @Override
-    public boolean isEquivalentTo(final MemberReference member) {
-        return super.isEquivalentTo(member);
-    }
-
-    @Override
     public int hashCode() {
         return HashUtilities.hashCode(getFullName());
     }

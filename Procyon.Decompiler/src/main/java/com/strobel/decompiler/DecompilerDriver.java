@@ -83,6 +83,7 @@ public class DecompilerDriver {
         settings.setMergeVariables(options.getMergeVariables());
         settings.setShowDebugLineNumbers(options.getShowDebugLineNumbers());
         settings.setSimplifyMemberReferences(options.getSimplifyMemberReferences());
+        settings.setDisableForEachTransforms(options.getDisableForEachTransforms());
         settings.setTypeLoader(new InputTypeLoader());
 
         if (options.isRawBytecode()) {
@@ -268,6 +269,8 @@ public class DecompilerDriver {
             System.err.printf("!!! ERROR: Failed to load class %s.\n", typeName);
             return;
         }
+
+        DeobfuscationUtilities.processType(resolvedType);
 
         if (!includeNested && (resolvedType.isNested() || resolvedType.isAnonymous() || resolvedType.isSynthetic())) {
             return;

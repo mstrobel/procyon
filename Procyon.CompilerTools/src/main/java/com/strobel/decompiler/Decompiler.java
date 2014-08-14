@@ -17,13 +17,7 @@
 package com.strobel.decompiler;
 
 import com.strobel.assembler.InputTypeLoader;
-import com.strobel.assembler.metadata.ClasspathTypeLoader;
-import com.strobel.assembler.metadata.IMetadataResolver;
-import com.strobel.assembler.metadata.ITypeLoader;
-import com.strobel.assembler.metadata.MetadataParser;
-import com.strobel.assembler.metadata.MetadataSystem;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
 
@@ -61,6 +55,8 @@ public final class Decompiler {
             output.writeLine("!!! ERROR: Failed to load class %s.", internalName);
             return;
         }
+
+        DeobfuscationUtilities.processType(resolvedType);
 
         final DecompilationOptions options = new DecompilationOptions();
 

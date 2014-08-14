@@ -24,7 +24,7 @@ import java.util.List;
 public final class Languages {
     private final static List<Language> ALL_LANGUAGES;
     private final static List<Language> DEBUG_LANGUAGES;
-    private final static Language JAVA;
+    private final static JavaLanguage JAVA;
     private final static Language BYTECODE_AST_UNOPTIMIZED;
     private final static Language BYTECODE_AST;
     private final static Language BYTECODE;
@@ -55,7 +55,7 @@ public final class Languages {
         return DEBUG_LANGUAGES;
     }
 
-    public static Language java() {
+    public static JavaLanguage java() {
         return JAVA;
     }
 

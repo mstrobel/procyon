@@ -484,6 +484,11 @@ public class Flags {
     public static final long LOAD_BODY_FAILED = 1L << 46;
 
     /**
+     * Indicates a class has been run through the deobfuscating preprocessor.
+     */
+    public static final long DEOBFUSCATED = 1L << 47;
+
+    /**
      * Modifier masks.
      */
     public static final int

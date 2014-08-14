@@ -661,6 +661,35 @@ public final class MetadataHelper {
         }
     }
 
+    public static TypeReference getDeclaredType(final TypeReference type) {
+        if (type == null) {
+            return null;
+        }
+
+        final TypeDefinition resolvedType = type.resolve();
+
+        if (resolvedType == null) {
+            return type;
+        }
+
+        if (resolvedType.isAnonymous()) {
+            final List<TypeReference> interfaces = resolvedType.getExplicitInterfaces();
+            final TypeReference baseType = interfaces.isEmpty() ? resolvedType.getBaseType() : interfaces.get(0);
+
+            if (baseType != null) {
+                final TypeReference asSuperType = asSuper(baseType, type);
+
+                if (asSuperType != null) {
+                    return asSuperType;
+                }
+
+                return baseType.isGenericType() ? new RawType(baseType) : baseType;
+            }
+        }
+
+        return type;
+    }
+
     public static TypeReference getBaseType(final TypeReference type) {
         if (type == null) {
             return null;
@@ -1208,7 +1237,7 @@ public final class MetadataHelper {
         }
 
         if (baseType instanceof CompoundTypeReference) {
-            final CompoundTypeReference c = (CompoundTypeReference) type;
+            final CompoundTypeReference c = (CompoundTypeReference) baseType;
 
             if (!isSubType(type, getSuperType(c), capture)) {
                 return false;

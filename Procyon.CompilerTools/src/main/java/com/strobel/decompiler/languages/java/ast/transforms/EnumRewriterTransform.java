@@ -21,12 +21,17 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.patterns.Choice;
+import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.NamedNode;
+import com.strobel.decompiler.patterns.Pattern;
 
+import javax.lang.model.element.Modifier;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.strobel.core.CollectionUtilities.first;
+import static com.strobel.core.CollectionUtilities.*;
 
 public class EnumRewriterTransform implements IAstTransform {
     private final DecompilerContext _context;
@@ -43,6 +48,7 @@ public class EnumRewriterTransform implements IAstTransform {
     private final static class Visitor extends ContextTrackingVisitor<Void> {
         private Map<String, FieldDeclaration> _valueFields = new LinkedHashMap<>();
         private Map<String, ObjectCreationExpression> _valueInitializers = new LinkedHashMap<>();
+        private MemberReference _valuesField;
 
         protected Visitor(final DecompilerContext context) {
             super(context);
@@ -50,12 +56,14 @@ public class EnumRewriterTransform implements IAstTransform {
 
         @Override
         public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void _) {
+            final MemberReference oldValuesField = _valuesField;
             final Map<String, FieldDeclaration> oldValueFields = _valueFields;
             final Map<String, ObjectCreationExpression> oldValueInitializers = _valueInitializers;
 
             final LinkedHashMap<String, FieldDeclaration> valueFields = new LinkedHashMap<>();
             final LinkedHashMap<String, ObjectCreationExpression> valueInitializers = new LinkedHashMap<>();
 
+            _valuesField = findValuesField(typeDeclaration);
             _valueFields = valueFields;
             _valueInitializers = valueInitializers;
 
@@ -63,11 +71,80 @@ public class EnumRewriterTransform implements IAstTransform {
                 super.visitTypeDeclaration(typeDeclaration, _);
             }
             finally {
+                _valuesField = oldValuesField;
                 _valueFields = oldValueFields;
                 _valueInitializers = oldValueInitializers;
             }
 
             rewrite(valueFields, valueInitializers);
+
+            return null;
+        }
+
+        private MemberReference findValuesField(final TypeDeclaration declaration) {
+            final TypeDefinition definition = declaration.getUserData(Keys.TYPE_DEFINITION);
+
+            if (definition == null || !definition.isEnum()) {
+                return null;
+            }
+
+            final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+
+            if (astBuilder == null) {
+                return null;
+            }
+
+            final MethodDeclaration pattern = new MethodDeclaration();
+
+            pattern.setName("values");
+            pattern.setReturnType(astBuilder.convertType(definition.makeArrayType()));
+            pattern.getModifiers().add(new JavaModifierToken(Modifier.PUBLIC));
+            pattern.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
+            pattern.setBody(
+                new BlockStatement(
+                    new ReturnStatement(
+                        Expression.MYSTERY_OFFSET,
+                        new Choice(
+                            new MemberReferenceExpression(
+                                Expression.MYSTERY_OFFSET,
+                                new NamedNode(
+                                    "valuesField",
+                                    new TypeReferenceExpression(
+                                        Expression.MYSTERY_OFFSET,
+                                        astBuilder.convertType(definition)
+                                    ).member(Pattern.ANY_STRING)
+                                ).toExpression(),
+                                "clone"
+                            ).invoke(),
+                            new CastExpression(
+                                astBuilder.convertType(definition.makeArrayType()),
+                                new MemberReferenceExpression(
+                                    Expression.MYSTERY_OFFSET,
+                                    new NamedNode(
+                                        "valuesField",
+                                        new TypeReferenceExpression(
+                                            Expression.MYSTERY_OFFSET,
+                                            astBuilder.convertType(definition)
+                                        ).member(Pattern.ANY_STRING)
+                                    ).toExpression(),
+                                    "clone"
+                                ).invoke()
+                            )
+                        ).toExpression()
+                    )
+                )
+            );
+
+            for (final EntityDeclaration d : declaration.getMembers()) {
+                if (d instanceof MethodDeclaration) {
+                    final Match match = pattern.match(d);
+
+                    if (match.success()) {
+                        final MemberReferenceExpression reference = firstOrDefault(match.<MemberReferenceExpression>get("valuesField"));
+                        return reference.getUserData(Keys.MEMBER_REFERENCE);
+                    }
+                }
+            }
 
             return null;
         }
@@ -121,7 +198,7 @@ public class EnumRewriterTransform implements IAstTransform {
                         }
                         else if (resolvedField.isSynthetic() &&
                                  !context.getSettings().getShowSyntheticMembers() &&
-                                 matchesValuesField(fieldName) &&
+                                 matchesValuesField(resolvedField) &&
                                  MetadataResolver.areEquivalent(currentType.makeArrayType(), resolvedField.getFieldType())) {
 
                             final Statement parentStatement = findStatement(node);
@@ -274,7 +351,7 @@ public class EnumRewriterTransform implements IAstTransform {
                 if (initializer instanceof AnonymousObjectCreationExpression) {
                     final AnonymousObjectCreationExpression creation = (AnonymousObjectCreationExpression) initializer;
 
-                    for (final EntityDeclaration member: creation.getTypeDeclaration().getMembers()){
+                    for (final EntityDeclaration member : creation.getTypeDeclaration().getMembers()) {
                         member.remove();
                         enumDeclaration.getMembers().add(member);
                     }
@@ -305,10 +382,20 @@ public class EnumRewriterTransform implements IAstTransform {
             }
             return null;
         }
-    }
 
-    private static boolean matchesValuesField(final String fieldName) {
-        return StringUtilities.equals(fieldName, "$VALUES") ||
-               StringUtilities.equals(fieldName, "ENUM$VALUES");
+        private boolean matchesValuesField(final FieldDefinition field) {
+            if (field == null) {
+                return false;
+            }
+
+            if (field.isEquivalentTo(_valuesField)) {
+                return true;
+            }
+
+            final String fieldName = field.getName();
+
+            return StringUtilities.equals(fieldName, "$VALUES") ||
+                   StringUtilities.equals(fieldName, "ENUM$VALUES");
+        }
     }
 }

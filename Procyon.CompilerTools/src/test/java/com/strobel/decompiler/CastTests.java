@@ -3,8 +3,9 @@ package com.strobel.decompiler;
 import org.junit.Test;
 
 public class CastTests extends DecompilerTest {
-    @SuppressWarnings("RedundantCast")
+    @SuppressWarnings({ "RedundantCast", "BoxingBoxedValue" })
     private static final class A {
+        @SuppressWarnings("BoxingBoxedValue")
         public static void test() {
             final Character c1 = '1';
             final Character c2 = '2';
@@ -35,8 +36,11 @@ public class CastTests extends DecompilerTest {
             System.out.println((char) c1 == (char) o);
 
             // Although a reference comparison, the cast on the wrapper has a side effect; not redundant.
-            System.out.println(o == (char) c1);
-            System.out.println((char) c1 == o);
+//            System.out.println(o == (char) c1);
+//            System.out.println((char) c1 == o);
+            // Original version no longer compiles with Java 8; rewritten as follows (bytecode is equivalent):
+            System.out.println(o == Character.valueOf(c1));
+            System.out.println(Character.valueOf(c1) == o);
         }
     }
 

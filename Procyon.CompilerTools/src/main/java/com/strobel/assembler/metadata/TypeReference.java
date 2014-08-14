@@ -78,7 +78,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         _name = name;
     }
 
-    protected void setDeclaringType(final TypeReference declaringType) {
+    protected final void setDeclaringType(final TypeReference declaringType) {
         _declaringType = declaringType;
     }
 
@@ -318,8 +318,15 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     @Override
     protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
-        final String name = fullName ? getName() : getSimpleName();
-        final String packageName = getPackageName();
+        final String simpleName = getSimpleName();
+        final TypeReference declaringType = getDeclaringType();
+
+        if (dottedName && simpleName != null && declaringType != null) {
+            return declaringType.appendName(sb, fullName, true).append('.').append(simpleName);
+        }
+
+        final String name = fullName ? getName() : simpleName;
+        final String packageName = fullName ? getPackageName() : null;
 
         if (StringUtilities.isNullOrEmpty(packageName)) {
             return sb.append(name);
@@ -346,20 +353,29 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     protected StringBuilder appendBriefDescription(final StringBuilder sb) {
         StringBuilder s = appendName(sb, true, true);
 
-        if (this instanceof IGenericInstance) {
-            final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
-            final int count = typeArguments.size();
+        final List<? extends TypeReference> typeArguments;
 
-            if (count > 0) {
-                s.append('<');
-                for (int i = 0; i < count; ++i) {
-                    if (i != 0) {
-                        s.append(", ");
-                    }
-                    s = typeArguments.get(i).appendBriefDescription(s);
+        if (this instanceof IGenericInstance) {
+            typeArguments = ((IGenericInstance) this).getTypeArguments();
+        }
+        else if (this.isGenericDefinition()) {
+            typeArguments = getGenericParameters();
+        }
+        else {
+            typeArguments = Collections.emptyList();
+        }
+
+        final int count = typeArguments.size();
+
+        if (count > 0) {
+            s.append('<');
+            for (int i = 0; i < count; ++i) {
+                if (i != 0) {
+                    s.append(", ");
                 }
-                s.append('>');
+                s = typeArguments.get(i).appendBriefDescription(s);
             }
+            s.append('>');
         }
 
         return s;
@@ -408,7 +424,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     }
 
     protected StringBuilder appendDescription(final StringBuilder sb) {
-        StringBuilder s = appendName(sb, false, false);
+        StringBuilder s = appendName(sb, false, true);
 
         if (this instanceof IGenericInstance) {
             final List<TypeReference> typeArguments = ((IGenericInstance) this).getTypeArguments();
@@ -449,7 +465,7 @@ public abstract class TypeReference extends MemberReference implements IGenericP
 
     @Override
     public String toString() {
-        return getSignature();
+        return getBriefDescription();
     }
 
     protected StringBuilder appendGenericSignature(final StringBuilder sb) {
