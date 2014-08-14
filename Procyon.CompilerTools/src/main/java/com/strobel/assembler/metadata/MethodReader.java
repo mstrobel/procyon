@@ -260,13 +260,15 @@ public class MethodReader {
                 }
 
                 case Constant: {
-                    instruction = new Instruction(op, _scope.lookupConstant(b.readUnsignedByte()));
+                    //noinspection RedundantTypeArguments
+                    instruction = new Instruction(op, _scope.<Object>lookupConstant(b.readUnsignedByte()));
                     break;
                 }
 
                 case WideConstant: {
                     final int constantToken = b.readUnsignedShort();
-                    instruction = new Instruction(op, _scope.lookupConstant(constantToken));
+                    //noinspection RedundantTypeArguments
+                    instruction = new Instruction(op, _scope.<Object>lookupConstant(constantToken));
                     break;
                 }
 

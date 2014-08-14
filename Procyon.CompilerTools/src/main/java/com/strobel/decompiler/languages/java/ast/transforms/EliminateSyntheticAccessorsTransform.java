@@ -312,7 +312,8 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
 
         staticGetAccessor.setBody(
             new BlockStatement(
-                new ReturnStatement(Expression.MYSTERY_OFFSET,
+                new ReturnStatement(
+                    Expression.MYSTERY_OFFSET,
                     new SubtreeMatch(
                         new MemberReferenceTypeNode(
                             new MemberReferenceExpression(
@@ -349,7 +350,8 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                     new ReturnStatement(Expression.MYSTERY_OFFSET, new BackReference("value").toExpression())
                 ),
                 new BlockStatement(
-                    new ReturnStatement(Expression.MYSTERY_OFFSET,
+                    new ReturnStatement(
+                        Expression.MYSTERY_OFFSET,
                         new AssignmentExpression(
                             new MemberReferenceTypeNode(
                                 new MemberReferenceExpression(
@@ -495,7 +497,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                 final MemberReferenceExpression m = (MemberReferenceExpression) invocation.getTarget();
                 final Expression target = m.getTarget();
 
-                if (!target.matches(new IdentifierExpression( Expression.MYSTERY_OFFSET, parameterList.get(0).getName()))) {
+                if (!target.matches(new IdentifierExpression(Expression.MYSTERY_OFFSET, parameterList.get(0).getName()))) {
                     return false;
                 }
             }
@@ -507,7 +509,15 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                  i++, j++)
 
             {
-                if (!argumentList.get(j).matches(new IdentifierExpression( Expression.MYSTERY_OFFSET, parameterList.get(i).getName()))) {
+                final Expression pattern = new Choice(
+                    new CastExpression(
+                        new AnyNode().toType(),
+                        new IdentifierExpression(Expression.MYSTERY_OFFSET, parameterList.get(i).getName())
+                    ),
+                    new IdentifierExpression(Expression.MYSTERY_OFFSET, parameterList.get(i).getName())
+                ).toExpression();
+
+                if (!pattern.matches(argumentList.get(j))) {
                     return false;
                 }
             }

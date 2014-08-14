@@ -270,6 +270,8 @@ public class DecompilerDriver {
             return;
         }
 
+        DeobfuscationUtilities.processType(resolvedType);
+
         if (!includeNested && (resolvedType.isNested() || resolvedType.isAnonymous() || resolvedType.isSynthetic())) {
             return;
         }

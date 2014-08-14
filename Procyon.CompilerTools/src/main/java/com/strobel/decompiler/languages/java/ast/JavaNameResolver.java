@@ -660,17 +660,6 @@ public final class JavaNameResolver {
                 }
             }
 
-            for (final TypeParameterDeclaration tp : node.getTypeParameters()) {
-                final TypeDefinition gp = tp.getUserData(Keys.TYPE_DEFINITION);
-
-                if (gp != null && StringUtilities.equals(gp.getName(), name)) {
-                    if (results == null) {
-                        results = new LinkedHashSet<>();
-                    }
-                    results.add(gp);
-                }
-            }
-
             for (final EntityDeclaration member : node.getMembers()) {
                 if (member instanceof TypeDeclaration) {
                     final TypeDeclaration td = (TypeDeclaration) member;
@@ -688,6 +677,21 @@ public final class JavaNameResolver {
 
                         results.add(t);
                     }
+                }
+            }
+
+            if (_mode == NameResolveMode.TYPE && results != null && !results.isEmpty()) {
+                return results;
+            }
+
+            for (final TypeParameterDeclaration tp : node.getTypeParameters()) {
+                final TypeDefinition gp = tp.getUserData(Keys.TYPE_DEFINITION);
+
+                if (gp != null && StringUtilities.equals(gp.getName(), name)) {
+                    if (results == null) {
+                        results = new LinkedHashSet<>();
+                    }
+                    results.add(gp);
                 }
             }
 

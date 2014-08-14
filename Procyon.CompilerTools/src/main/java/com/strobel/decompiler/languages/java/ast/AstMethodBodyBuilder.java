@@ -750,7 +750,8 @@ public class AstMethodBodyBuilder {
                             break;
                     }
 
-                    final MethodGroupExpression methodGroup = new MethodGroupExpression( byteCode.getOffset(), 
+                    final MethodGroupExpression methodGroup = new MethodGroupExpression(
+                        byteCode.getOffset(),
                         hasInstanceArgument ? arg1
                                             : new TypeReferenceExpression( byteCode.getOffset(), _astBuilder.convertType(declaringType)),
                         methodName
@@ -813,6 +814,12 @@ public class AstMethodBodyBuilder {
                 }
 
                 lambdaExpression.putUserData(Keys.TYPE_REFERENCE, byteCode.getInferredType());
+
+                final DynamicCallSite callSite = lambda.getCallSite();
+
+                if (callSite != null) {
+                    lambdaExpression.putUserData(Keys.DYNAMIC_CALL_SITE, callSite);
+                }
 
                 return lambdaExpression;
             }

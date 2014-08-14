@@ -16,8 +16,6 @@
 
 package com.strobel.decompiler.languages.java;
 
-import java.util.List;
-
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.core.Predicate;
 import com.strobel.decompiler.DecompilationOptions;
@@ -28,7 +26,10 @@ import com.strobel.decompiler.languages.Language;
 import com.strobel.decompiler.languages.LineNumberPosition;
 import com.strobel.decompiler.languages.TypeDecompilationResults;
 import com.strobel.decompiler.languages.java.ast.AstBuilder;
+import com.strobel.decompiler.languages.java.ast.CompilationUnit;
 import com.strobel.decompiler.languages.java.ast.transforms.IAstTransform;
+
+import java.util.List;
 
 public class JavaLanguage extends Language {
     private final String _name;
@@ -55,9 +56,21 @@ public class JavaLanguage extends Language {
 
     @Override
     public TypeDecompilationResults decompileType(final TypeDefinition type, final ITextOutput output, final DecompilationOptions options) {
+        final AstBuilder astBuilder = buildAst(type, options);
+        final List<LineNumberPosition> lineNumberPositions = astBuilder.generateCode(output);
+
+        return new TypeDecompilationResults(lineNumberPositions);
+    }
+
+    public CompilationUnit decompileTypeToAst(final TypeDefinition type, final DecompilationOptions options) {
+        return buildAst(type, options).getCompilationUnit();
+    }
+
+    private AstBuilder buildAst(final TypeDefinition type, final DecompilationOptions options) {
         final AstBuilder builder = createAstBuilder(options, type, false);
         builder.addType(type);
-        return runTransformsAndGenerateCode(builder, output, options, null);
+        runTransforms(builder, options, null);
+        return builder;
     }
 
     @SuppressWarnings("UnusedParameters")
@@ -76,9 +89,8 @@ public class JavaLanguage extends Language {
     }
 
     @SuppressWarnings("UnusedParameters")
-    private TypeDecompilationResults runTransformsAndGenerateCode(
+    private void runTransforms(
         final AstBuilder astBuilder,
-        final ITextOutput output,
         final DecompilationOptions options,
         final IAstTransform additionalTransform) {
 
@@ -87,8 +99,5 @@ public class JavaLanguage extends Language {
         if (additionalTransform != null) {
             additionalTransform.run(astBuilder.getCompilationUnit());
         }
-
-        List<LineNumberPosition> lineNumberPositions = astBuilder.generateCode(output);
-        return new TypeDecompilationResults( lineNumberPositions);
     }
 }
