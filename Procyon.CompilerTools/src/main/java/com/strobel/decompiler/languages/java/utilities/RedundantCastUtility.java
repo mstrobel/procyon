@@ -460,9 +460,11 @@ public final class RedundantCastUtility {
             final Expression r = removeParentheses(rightExpression);
 
             if (r instanceof CastExpression) {
+                final AstType castAstType = ((CastExpression) r).getType();
+                final TypeReference castType = castAstType != null ? castAstType.toTypeReference() : null;
                 final Expression castOperand = ((CastExpression) r).getExpression();
 
-                if (castOperand != null && !castOperand.isNull()) {
+                if (castOperand != null && !castOperand.isNull() && castType != null) {
                     final TypeReference operandType = getType(castOperand);
 
                     if (operandType != null) {
@@ -470,13 +472,12 @@ public final class RedundantCastUtility {
                             addToResults((CastExpression) r, false);
                         }
                         else {
+                            final TypeReference unboxedCastType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(castType);
                             final TypeReference unboxedLeftType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(leftType);
-                            final TypeReference unboxedOperandType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(operandType);
 
                             if (castOperand instanceof PrimitiveExpression &&
-                                unboxedLeftType.getSimpleType().isIntegral() &&
-                                unboxedLeftType.getSimpleType().isSubWordOrInt32() &&
-                                MetadataHelper.isAssignableFrom(BuiltinTypes.Integer, unboxedOperandType, false)) {
+                                TypeUtilities.isValidPrimitiveLiteralAssignment(unboxedCastType, ((PrimitiveExpression) castOperand).getValue()) &&
+                                TypeUtilities.isValidPrimitiveLiteralAssignment(unboxedLeftType, ((PrimitiveExpression) castOperand).getValue())) {
 
                                 addToResults((CastExpression) r, true);
                             }
@@ -908,6 +909,17 @@ public final class RedundantCastUtility {
 
             if (castType instanceof PrimitiveType) {
                 if (opType instanceof PrimitiveType) {
+                    if (operand instanceof PrimitiveExpression) {
+                        final TypeReference unboxedCastType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(castType);
+                        final TypeReference unboxedOpType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(opType);
+
+                        if (TypeUtilities.isValidPrimitiveLiteralAssignment(unboxedCastType, ((PrimitiveExpression) operand).getValue()) &&
+                            TypeUtilities.isValidPrimitiveLiteralAssignment(unboxedOpType, ((PrimitiveExpression) operand).getValue())) {
+
+                            return false;
+                        }
+                    }
+
                     final ConversionType conversionType = MetadataHelper.getNumericConversionType(castType, opType);
 
                     if (conversionType != ConversionType.IDENTITY &&

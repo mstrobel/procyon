@@ -298,4 +298,191 @@ public class ThirdPartyTests extends DecompilerTest {
             "}"
         );
     }
+
+    @Test
+    public void testLiteralAssignments() throws Throwable {
+        verifyOutput(
+            "LiteralAssignments",
+            defaultSettings(),
+            "class LiteralAssignments {\n" +
+            "    static byte b;\n" +
+            "    static char c;\n" +
+            "    static short s;\n" +
+            "    static int i;\n" +
+            "    static long l;\n" +
+            "    static float f;\n" +
+            "    static double d;\n" +
+            "    public static void testByteAssignments() {\n" +
+            "        LiteralAssignments.b = -128;\n" +
+            "        LiteralAssignments.b = 127;\n" +
+            "        LiteralAssignments.b = (byte)(char)(-129);\n" +
+            "        LiteralAssignments.b = (byte)(char)(-128);\n" +
+            "        LiteralAssignments.b = 127;\n" +
+            "        LiteralAssignments.b = (byte)(char)128;\n" +
+            "        LiteralAssignments.b = (byte)(-129);\n" +
+            "        LiteralAssignments.b = -128;\n" +
+            "        LiteralAssignments.b = 127;\n" +
+            "        LiteralAssignments.b = (byte)128;\n" +
+            "        LiteralAssignments.b = (byte)(-129);\n" +
+            "        LiteralAssignments.b = -128;\n" +
+            "        LiteralAssignments.b = 127;\n" +
+            "        LiteralAssignments.b = (byte)128;\n" +
+            "        LiteralAssignments.b = (byte)(-129L);\n" +
+            "        LiteralAssignments.b = (byte)(-128L);\n" +
+            "        LiteralAssignments.b = (byte)127L;\n" +
+            "        LiteralAssignments.b = (byte)128L;\n" +
+            "        LiteralAssignments.b = (byte)(-129.0f);\n" +
+            "        LiteralAssignments.b = (byte)(-128.0f);\n" +
+            "        LiteralAssignments.b = (byte)127.0f;\n" +
+            "        LiteralAssignments.b = (byte)128.0f;\n" +
+            "        LiteralAssignments.b = (byte)(-129.0);\n" +
+            "        LiteralAssignments.b = (byte)(-128.0);\n" +
+            "        LiteralAssignments.b = (byte)127.0;\n" +
+            "        LiteralAssignments.b = (byte)128.0;\n" +
+            "    }\n" +
+            "    public static void testCharAssignments() {\n" +
+            "        LiteralAssignments.c = (char)(-128);\n" +
+            "        LiteralAssignments.c = '\\u007f';\n" +
+            "        LiteralAssignments.c = (char)(-1);\n" +
+            "        LiteralAssignments.c = 0;\n" +
+            "        LiteralAssignments.c = 32767;\n" +
+            "        LiteralAssignments.c = (char)(-32768);\n" +
+            "        LiteralAssignments.c = '\\u7fff';\n" +
+            "        LiteralAssignments.c = (char)(-1);\n" +
+            "        LiteralAssignments.c = '\\0';\n" +
+            "        LiteralAssignments.c = '\\u7fff';\n" +
+            "        LiteralAssignments.c = '\\u8000';\n" +
+            "        LiteralAssignments.c = (char)(-1L);\n" +
+            "        LiteralAssignments.c = (char)0L;\n" +
+            "        LiteralAssignments.c = (char)32767L;\n" +
+            "        LiteralAssignments.c = (char)32768L;\n" +
+            "        LiteralAssignments.c = (char)(-1.0f);\n" +
+            "        LiteralAssignments.c = (char)0.0f;\n" +
+            "        LiteralAssignments.c = (char)32767.0f;\n" +
+            "        LiteralAssignments.c = (char)32768.0f;\n" +
+            "        LiteralAssignments.c = (char)(-1.0);\n" +
+            "        LiteralAssignments.c = (char)0.0;\n" +
+            "        LiteralAssignments.c = (char)32767.0;\n" +
+            "        LiteralAssignments.c = (char)32768.0;\n" +
+            "    }\n" +
+            "    public static void testShortAssignments() {\n" +
+            "        LiteralAssignments.s = -128;\n" +
+            "        LiteralAssignments.s = 127;\n" +
+            "        LiteralAssignments.s = (short)(char)(-1);\n" +
+            "        LiteralAssignments.s = 0;\n" +
+            "        LiteralAssignments.s = 32767;\n" +
+            "        LiteralAssignments.s = -32768;\n" +
+            "        LiteralAssignments.s = 32767;\n" +
+            "        LiteralAssignments.s = (short)(-32769);\n" +
+            "        LiteralAssignments.s = -32768;\n" +
+            "        LiteralAssignments.s = 32767;\n" +
+            "        LiteralAssignments.s = (short)32768;\n" +
+            "        LiteralAssignments.s = (short)(-32769L);\n" +
+            "        LiteralAssignments.s = (short)0L;\n" +
+            "        LiteralAssignments.s = (short)32767L;\n" +
+            "        LiteralAssignments.s = (short)32768L;\n" +
+            "        LiteralAssignments.s = (short)(-32769.0f);\n" +
+            "        LiteralAssignments.s = (short)(-32768.0f);\n" +
+            "        LiteralAssignments.s = (short)32767.0f;\n" +
+            "        LiteralAssignments.s = (short)32768.0f;\n" +
+            "        LiteralAssignments.s = (short)(-32769.0);\n" +
+            "        LiteralAssignments.s = (short)(-32768.0);\n" +
+            "        LiteralAssignments.s = (short)32767.0;\n" +
+            "        LiteralAssignments.s = (short)32768.0;\n" +
+            "    }\n" +
+            "    public static void testIntAssignments() {\n" +
+            "        LiteralAssignments.i = -128;\n" +
+            "        LiteralAssignments.i = 127;\n" +
+            "        LiteralAssignments.i = (char)(-1);\n" +
+            "        LiteralAssignments.i = 0;\n" +
+            "        LiteralAssignments.i = 32767;\n" +
+            "        LiteralAssignments.i = -32768;\n" +
+            "        LiteralAssignments.i = 32767;\n" +
+            "        LiteralAssignments.i = Integer.MIN_VALUE;\n" +
+            "        LiteralAssignments.i = Integer.MAX_VALUE;\n" +
+            "        LiteralAssignments.i = (int)(-2147483649L);\n" +
+            "        LiteralAssignments.i = (int)0L;\n" +
+            "        LiteralAssignments.i = (int)2147483647L;\n" +
+            "        LiteralAssignments.i = (int)2147483648L;\n" +
+            "        LiteralAssignments.i = (int)(-2.14748365E9f);\n" +
+            "        LiteralAssignments.i = (int)(-2.14748365E9f);\n" +
+            "        LiteralAssignments.i = (int)2.14748365E9f;\n" +
+            "        LiteralAssignments.i = (int)2.14748365E9f;\n" +
+            "        LiteralAssignments.i = (int)(-2.147483649E9);\n" +
+            "        LiteralAssignments.i = (int)(-2.147483648E9);\n" +
+            "        LiteralAssignments.i = (int)2.147483647E9;\n" +
+            "        LiteralAssignments.i = (int)2.147483648E9;\n" +
+            "    }\n" +
+            "    public static void testFloatAssignments() {\n" +
+            "        LiteralAssignments.f = -128;\n" +
+            "        LiteralAssignments.f = 127;\n" +
+            "        LiteralAssignments.f = (char)(-1);\n" +
+            "        LiteralAssignments.f = 0;\n" +
+            "        LiteralAssignments.f = 32767;\n" +
+            "        LiteralAssignments.f = -32768;\n" +
+            "        LiteralAssignments.f = 32767;\n" +
+            "        LiteralAssignments.f = Integer.MIN_VALUE;\n" +
+            "        LiteralAssignments.f = Integer.MAX_VALUE;\n" +
+            "        LiteralAssignments.f = (int)(-2147483649L);\n" +
+            "        LiteralAssignments.f = (int)0L;\n" +
+            "        LiteralAssignments.f = (int)2147483647L;\n" +
+            "        LiteralAssignments.f = (int)2147483648L;\n" +
+            "        LiteralAssignments.f = (int)(-2.14748365E9f);\n" +
+            "        LiteralAssignments.f = (int)(-2.14748365E9f);\n" +
+            "        LiteralAssignments.f = (int)2.14748365E9f;\n" +
+            "        LiteralAssignments.f = (int)2.14748365E9f;\n" +
+            "        LiteralAssignments.f = (int)(-2.147483649E9);\n" +
+            "        LiteralAssignments.f = (int)(-2.147483648E9);\n" +
+            "        LiteralAssignments.f = (int)2.147483647E9;\n" +
+            "        LiteralAssignments.f = (int)2.147483648E9;\n" +
+            "    }\n" +
+            "    public static void testLongAssignments() {\n" +
+            "        LiteralAssignments.l = -128;\n" +
+            "        LiteralAssignments.l = 127;\n" +
+            "        LiteralAssignments.l = (char)(-1);\n" +
+            "        LiteralAssignments.l = 0;\n" +
+            "        LiteralAssignments.l = 32767;\n" +
+            "        LiteralAssignments.l = -32768;\n" +
+            "        LiteralAssignments.l = 32767;\n" +
+            "        LiteralAssignments.l = Integer.MIN_VALUE;\n" +
+            "        LiteralAssignments.l = Integer.MAX_VALUE;\n" +
+            "        LiteralAssignments.l = -2147483649L;\n" +
+            "        LiteralAssignments.l = 0L;\n" +
+            "        LiteralAssignments.l = 2147483647L;\n" +
+            "        LiteralAssignments.l = 2147483648L;\n" +
+            "        LiteralAssignments.l = (long)(-2.14748365E9f);\n" +
+            "        LiteralAssignments.l = (long)(-2.14748365E9f);\n" +
+            "        LiteralAssignments.l = (long)2.14748365E9f;\n" +
+            "        LiteralAssignments.l = (long)2.14748365E9f;\n" +
+            "        LiteralAssignments.l = (long)(-2.147483649E9);\n" +
+            "        LiteralAssignments.l = (long)(-2.147483648E9);\n" +
+            "        LiteralAssignments.l = (long)2.147483647E9;\n" +
+            "        LiteralAssignments.l = (long)2.147483648E9;\n" +
+            "    }\n" +
+            "    public static void testDoubleAssignments() {\n" +
+            "        LiteralAssignments.d = -128;\n" +
+            "        LiteralAssignments.d = 127;\n" +
+            "        LiteralAssignments.d = (char)(-1);\n" +
+            "        LiteralAssignments.d = 0;\n" +
+            "        LiteralAssignments.d = 32767;\n" +
+            "        LiteralAssignments.d = -32768;\n" +
+            "        LiteralAssignments.d = 32767;\n" +
+            "        LiteralAssignments.d = Integer.MIN_VALUE;\n" +
+            "        LiteralAssignments.d = Integer.MAX_VALUE;\n" +
+            "        LiteralAssignments.d = -2147483649L;\n" +
+            "        LiteralAssignments.d = 0L;\n" +
+            "        LiteralAssignments.d = 2147483647L;\n" +
+            "        LiteralAssignments.d = 2147483648L;\n" +
+            "        LiteralAssignments.d = -2.14748365E9f;\n" +
+            "        LiteralAssignments.d = -2.14748365E9f;\n" +
+            "        LiteralAssignments.d = 2.14748365E9f;\n" +
+            "        LiteralAssignments.d = 2.14748365E9f;\n" +
+            "        LiteralAssignments.d = -2.147483649E9;\n" +
+            "        LiteralAssignments.d = -2.147483648E9;\n" +
+            "        LiteralAssignments.d = 2.147483647E9;\n" +
+            "        LiteralAssignments.d = 2.147483648E9;\n" +
+            "    }\n" +
+            "}"
+        );
+    }
 }

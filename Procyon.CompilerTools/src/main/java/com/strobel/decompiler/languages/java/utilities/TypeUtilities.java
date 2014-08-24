@@ -356,6 +356,61 @@ public final class TypeUtilities {
         return getLambdaSignatureCore(node);
     }
 
+    public static boolean isValidPrimitiveLiteralAssignment(final TypeReference targetType, final Object value) {
+        VerifyArgument.notNull(targetType, "targetType");
+
+        if (targetType.getSimpleType() == JvmType.Boolean) {
+            return value instanceof Boolean;
+        }
+
+        if (!(targetType.isPrimitive() && (value instanceof Number || value instanceof Character))) {
+            return false;
+        }
+
+        final Number n = value instanceof Character ? (int) (char) value : (Number) value;
+
+        if (n instanceof Float || n instanceof Double) {
+            if (targetType.getSimpleType() == JvmType.Float) {
+                return n.doubleValue() >= Float.MIN_VALUE && n.doubleValue() <= Float.MAX_VALUE;
+            }
+            return targetType.getSimpleType() == JvmType.Double;
+        }
+
+        if (n instanceof Long) {
+            switch (targetType.getSimpleType()) {
+                case Long:
+                case Float:
+                case Double:
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+
+        switch (targetType.getSimpleType()) {
+            case Byte:
+                return n.intValue() >= Byte.MIN_VALUE && n.intValue() <= Byte.MAX_VALUE;
+
+            case Character:
+                return n.intValue() >= Character.MIN_VALUE && n.intValue() <= Character.MAX_VALUE;
+
+            case Short:
+                return n.intValue() >= Short.MIN_VALUE && n.intValue() <= Short.MAX_VALUE;
+
+            case Integer:
+                return n.longValue() >= Integer.MIN_VALUE && n.longValue() <= Integer.MAX_VALUE;
+
+            case Long:
+            case Float:
+            case Double:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
     private static IMethodSignature getLambdaSignatureCore(final Expression node) {
         VerifyArgument.notNull(node, "node");
 

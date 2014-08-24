@@ -32,6 +32,9 @@ public final class JavaPrimitiveCast {
                     }
                     return ((Number) input).longValue() != 0L;
                 }
+                if (input instanceof Character) {
+                    return input != '\0';
+                }
                 if (input instanceof String) {
                     return StringUtilities.isTrue((String) input);
                 }
@@ -40,6 +43,9 @@ public final class JavaPrimitiveCast {
             case Byte:
                 if (input instanceof Number) {
                     return ((Number) input).byteValue();
+                }
+                if (input instanceof Character) {
+                    return (byte)(char)input;
                 }
                 if (input instanceof String) {
                     return Byte.parseByte((String) input);
@@ -63,6 +69,9 @@ public final class JavaPrimitiveCast {
                 if (input instanceof Number) {
                     return ((Number) input).shortValue();
                 }
+                if (input instanceof Character) {
+                    return (short)(char)input;
+                }
                 if (input instanceof String) {
                     return Short.parseShort((String) input);
                 }
@@ -79,13 +88,16 @@ public final class JavaPrimitiveCast {
                     return Integer.parseInt((String) input);
                 }
                 if (input instanceof Character) {
-                    return (int)((Character) input).charValue();
+                    return (int)(char)input;
                 }
                 break;
 
             case Long:
                 if (input instanceof Number) {
                     return ((Number) input).longValue();
+                }
+                if (input instanceof Character) {
+                    return (long)(char)input;
                 }
                 if (input instanceof String) {
                     return Long.parseLong((String) input);
@@ -96,6 +108,9 @@ public final class JavaPrimitiveCast {
                 if (input instanceof Number) {
                     return ((Number) input).floatValue();
                 }
+                if (input instanceof Character) {
+                    return (float)(char)input;
+                }
                 if (input instanceof String) {
                     return Float.parseFloat((String) input);
                 }
@@ -104,6 +119,9 @@ public final class JavaPrimitiveCast {
             case Double:
                 if (input instanceof Number) {
                     return ((Number) input).doubleValue();
+                }
+                if (input instanceof Character) {
+                    return (double)(char)input;
                 }
                 if (input instanceof String) {
                     return Double.parseDouble((String) input);
