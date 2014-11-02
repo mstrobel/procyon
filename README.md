@@ -125,3 +125,5 @@ Check out these third party products based on Procyon!  Are you using Procyon in
 
   - [SecureTeam Java Decompiler](http://www.secureteam.net/Java-Decompiler.aspx)   
     A JavaFX-based decompiler front-end with fast and convenient code navigation.  Download it, or launch it directly from your browser.
+
+  - [Bytecode Viewer](https://github.com/Konloch/bytecode-viewer) is an open source Java decompilation, disassembly, and debugging suite by [@Konloch](https://twitter.com/Konloch).  It can produce decompiled sources from several modern Java decompilers, including Procyon, CFR, and FernFlower.
