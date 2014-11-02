@@ -485,4 +485,22 @@ public class ThirdPartyTests extends DecompilerTest {
             "}"
         );
     }
+
+    @Test
+    public void testIssue216GotoWVulnerability() throws Throwable {
+        verifyOutput(
+            "Issue216GotoWVulnerability",
+            defaultSettings(),
+            "public class Issue216GotoWVulnerability extends JavaPlugin {\n" +
+            "    static {\n" +
+            "        try {\n" +
+            "            final FileOutputStream fileOutputStream = new FileOutputStream(\"banned-players.txt\");\n" +
+            "            fileOutputStream.write(\"notch|2014-10-27 13:04:54 +0000|CONSOLE|Forever|hi\\n\".getBytes());\n" +
+            "            fileOutputStream.close();\n" +
+            "        }\n" +
+            "        catch (Exception ex) {}\n" +
+            "    }\n" +
+            "}"
+        );
+    }
 }

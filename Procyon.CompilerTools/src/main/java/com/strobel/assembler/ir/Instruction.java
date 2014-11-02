@@ -209,11 +209,8 @@ public final class Instruction implements Comparable<Instruction> {
                 break;
 
             case FieldReference:
-                return opCodeSize + operandType.getBaseSize();
-
             case BranchTarget:
-                return opCodeSize + (_opCode.isWide() ? 4 : 2);
-
+            case BranchTargetWide:
             case I1:
             case I2:
             case I8:
@@ -264,7 +261,9 @@ public final class Instruction implements Comparable<Instruction> {
         VerifyArgument.notNull(opCode, "opCode");
         VerifyArgument.notNull(target, "target");
 
-        if (opCode.getOperandType() != OperandType.BranchTarget) {
+        if (opCode.getOperandType() != OperandType.BranchTarget &&
+            opCode.getOperandType() != OperandType.BranchTargetWide) {
+
             throw new IllegalArgumentException(String.format("Invalid operand for OpCode %s.", opCode));
         }
 

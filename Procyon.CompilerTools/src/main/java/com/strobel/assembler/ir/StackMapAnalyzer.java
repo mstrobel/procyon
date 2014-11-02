@@ -142,7 +142,9 @@ public final class StackMapAnalyzer {
                 }
             }
 
-            if (operandType == OperandType.BranchTarget) {
+            if (operandType == OperandType.BranchTarget ||
+                operandType == OperandType.BranchTargetWide) {
+
                 final Instruction branchTarget = instruction.getOperand(0);
 
                 assert branchTarget != null;

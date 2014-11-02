@@ -287,7 +287,9 @@ public final class ExceptionHandlerMapper {
         for (final Instruction instruction : _instructions) {
             final OpCode opCode = instruction.getOpCode();
 
-            if (opCode.getOperandType() == OperandType.BranchTarget) {
+            if (opCode.getOperandType() == OperandType.BranchTarget ||
+                opCode.getOperandType() == OperandType.BranchTargetWide) {
+
                 _hasIncomingJumps[getInstructionIndex(instruction.<Instruction>getOperand(0))] = true;
             }
             else if (opCode.getOperandType() == OperandType.Switch) {
@@ -397,7 +399,9 @@ public final class ExceptionHandlerMapper {
 
                 final OpCode opCode = instruction.getOpCode();
 
-                if (opCode.getOperandType() == OperandType.BranchTarget) {
+                if (opCode.getOperandType() == OperandType.BranchTarget ||
+                    opCode.getOperandType() == OperandType.BranchTargetWide) {
+
                     createEdge(node, instruction.<Instruction>getOperand(0), JumpType.Normal);
                 }
                 else if (opCode.getOperandType() == OperandType.Switch) {
