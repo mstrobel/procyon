@@ -76,7 +76,7 @@ public class RewriteNewArrayLambdas extends ContextTrackingVisitor<Void> {
 
                     if (signature.getReturnType().getElementType().isEquivalentTo(type.toTypeReference())) {
                         final MethodGroupExpression replacement = new MethodGroupExpression(
-                            Expression.MYSTERY_OFFSET,
+                            node.getOffset(),
                             new TypeReferenceExpression(Expression.MYSTERY_OFFSET, type.clone().makeArrayType()),
                             "new"
                         );

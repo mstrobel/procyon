@@ -21,6 +21,7 @@ import com.strobel.assembler.ir.Instruction;
 import com.strobel.assembler.ir.InstructionCollection;
 import com.strobel.assembler.ir.OpCode;
 import com.strobel.assembler.ir.OpCodeHelpers;
+import com.strobel.assembler.ir.OperandType;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.CodeAttribute;
 import com.strobel.assembler.ir.attributes.ExceptionTableEntry;
@@ -197,13 +198,17 @@ public class MethodReader {
                     break;
                 }
 
-                case BranchTarget: {
+                case BranchTarget:
+                case BranchTargetWide: {
                     final int targetOffset;
 
                     instruction = new Instruction(op);
 
                     if (op.isWide()) {
                         targetOffset = offset + _scope.<Integer>lookupConstant(b.readUnsignedShort());
+                    }
+                    else if (op.getOperandType() == OperandType.BranchTargetWide) {
+                        targetOffset = offset + b.readInt();
                     }
                     else {
                         targetOffset = offset + (int) b.readShort();

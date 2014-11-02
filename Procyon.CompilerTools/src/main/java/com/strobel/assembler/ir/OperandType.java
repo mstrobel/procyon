@@ -50,6 +50,10 @@ public enum OperandType {
      */
     BranchTarget(2),
     /**
+     * Opcode is followed by a 4-byte branch offset.
+     */
+    BranchTargetWide(4),
+    /**
      * Opcode is followed by a signed byte.
      */
     I1(1),

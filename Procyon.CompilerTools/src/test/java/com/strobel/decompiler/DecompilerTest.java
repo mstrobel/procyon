@@ -90,44 +90,51 @@ public abstract class DecompilerTest {
     }
 
     protected void verifyOutput(final Class<?> type, final DecompilerSettings settings, final String expectedOutput) {
+        final String packageRoot = VerifyArgument.notNull(type, "type").getProtectionDomain().getCodeSource().getLocation().getFile();
+        final String path = PathHelper.combine(packageRoot, type.getName().replace('.', '/') + ".class");
+
         try {
-            final PlainTextOutput writer = new PlainTextOutput();
-            final String packageRoot = VerifyArgument.notNull(type, "type").getProtectionDomain().getCodeSource().getLocation().getFile();
-            final String path = PathHelper.combine(packageRoot, type.getName().replace('.', '/') + ".class");
-
-            writer.setUnicodeOutputEnabled(settings.isUnicodeOutputEnabled());
-
-            Decompiler.decompile(
+            verifyOutput(
                 new File(path).getCanonicalPath(),
-                writer,
-                settings
+                settings,
+                expectedOutput
             );
-
-            final String actualOutput = writer.toString();
-            final List<String> lines = StringUtilities.split(actualOutput, true, '\n');
-
-            int firstCodeLine;
-
-            for (firstCodeLine = 0; firstCodeLine < lines.size(); firstCodeLine++) {
-                if (!lines.get(firstCodeLine).startsWith("import ") &&
-                    !lines.get(firstCodeLine).startsWith("package ")) {
-
-                    break;
-                }
-            }
-
-            assertTrue(firstCodeLine >= 0 && firstCodeLine < lines.size());
-
-            final String outputWithoutImports = StringUtilities.join(" ", lines.subList(firstCodeLine, lines.size()));
-
-            assertEquals(
-                WHITESPACE.matcher(expectedOutput.trim()).replaceAll(" "),
-                WHITESPACE.matcher(outputWithoutImports).replaceAll(" ")
-            );
-
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             throw ExceptionUtilities.asRuntimeException(e);
         }
+    }
+    protected void verifyOutput(final String internalName, final DecompilerSettings settings, final String expectedOutput) {
+        final PlainTextOutput writer = new PlainTextOutput();
+
+        writer.setUnicodeOutputEnabled(settings.isUnicodeOutputEnabled());
+
+        Decompiler.decompile(
+            internalName,
+            writer,
+            settings
+        );
+
+        final String actualOutput = writer.toString();
+        final List<String> lines = StringUtilities.split(actualOutput, true, '\n');
+
+        int firstCodeLine;
+
+        for (firstCodeLine = 0; firstCodeLine < lines.size(); firstCodeLine++) {
+            if (!lines.get(firstCodeLine).startsWith("import ") &&
+                !lines.get(firstCodeLine).startsWith("package ")) {
+
+                break;
+            }
+        }
+
+        assertTrue(firstCodeLine >= 0 && firstCodeLine < lines.size());
+
+        final String outputWithoutImports = StringUtilities.join(" ", lines.subList(firstCodeLine, lines.size()));
+
+        assertEquals(
+            WHITESPACE.matcher(expectedOutput.trim()).replaceAll(" "),
+            WHITESPACE.matcher(outputWithoutImports).replaceAll(" ")
+        );
     }
 }

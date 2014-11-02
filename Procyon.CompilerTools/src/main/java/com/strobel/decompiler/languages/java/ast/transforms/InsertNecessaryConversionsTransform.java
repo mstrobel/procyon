@@ -215,12 +215,9 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         }
 
         final TypeReference unboxedTargetType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(targetResult.getType());
-        final TypeReference unboxedValueType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(valueResult.getType());
 
         if (right instanceof PrimitiveExpression &&
-            unboxedTargetType.getSimpleType().isIntegral() &&
-            unboxedTargetType.getSimpleType().isSubWordOrInt32() &&
-            MetadataHelper.isAssignableFrom(BuiltinTypes.Integer, unboxedValueType, false)) {
+            TypeUtilities.isValidPrimitiveLiteralAssignment(unboxedTargetType, ((PrimitiveExpression) right).getValue())) {
 
             return false;
         }

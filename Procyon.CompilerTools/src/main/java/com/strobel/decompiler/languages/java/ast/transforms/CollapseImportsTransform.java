@@ -37,17 +37,24 @@ public class CollapseImportsTransform implements IAstTransform {
 
     @Override
     public void run(final AstNode root) {
-        if (!(root instanceof CompilationUnit) || _settings.getForceExplicitImports()) {
+        if (!(root instanceof CompilationUnit)) {
             return;
         }
 
         final CompilationUnit compilationUnit = (CompilationUnit) root;
+
+        if (_settings.getForceExplicitImports()) {
+            removeRedundantImports(compilationUnit);
+            return;
+        }
+
         final AstNodeCollection<ImportDeclaration> imports = compilationUnit.getImports();
         final PackageDeclaration packageDeclaration = compilationUnit.getChildByRole(Roles.PACKAGE);
         final String filePackage = packageDeclaration.isNull() ? null : packageDeclaration.getName();
 
-        if (imports.isEmpty())
+        if (imports.isEmpty()) {
             return;
+        }
 
         final Set<String> newImports = new LinkedHashSet<>();
         final List<ImportDeclaration> removedImports = new ArrayList<>();
@@ -89,6 +96,16 @@ public class CollapseImportsTransform implements IAstTransform {
 
         for (final ImportDeclaration removedImport : removedImports) {
             removedImport.remove();
+        }
+    }
+
+    private void removeRedundantImports(final CompilationUnit compilationUnit) {
+        final AstNodeCollection<ImportDeclaration> imports = compilationUnit.getImports();
+
+        for (final ImportDeclaration node : imports) {
+            if (StringUtilities.startsWith(node.getImport(), "java.lang.")) {
+                node.remove();
+            }
         }
     }
 }

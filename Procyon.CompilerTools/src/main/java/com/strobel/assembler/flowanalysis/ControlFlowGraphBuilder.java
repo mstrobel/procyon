@@ -116,7 +116,9 @@ public final class ControlFlowGraphBuilder {
         for (final Instruction instruction : _instructions) {
             final OpCode opCode = instruction.getOpCode();
 
-            if (opCode.getOperandType() == OperandType.BranchTarget) {
+            if (opCode.getOperandType() == OperandType.BranchTarget ||
+                opCode.getOperandType() == OperandType.BranchTargetWide) {
+
                 _hasIncomingJumps[getInstructionIndex(instruction.<Instruction>getOperand(0))] = true;
             }
             else if (opCode.getOperandType() == OperandType.Switch) {
@@ -247,7 +249,9 @@ public final class ControlFlowGraphBuilder {
 
                 final OpCode opCode = instruction.getOpCode();
 
-                if (opCode.getOperandType() == OperandType.BranchTarget) {
+                if (opCode.getOperandType() == OperandType.BranchTarget ||
+                    opCode.getOperandType() == OperandType.BranchTargetWide) {
+
                     createBranchControlFlow(node, instruction, instruction.<Instruction>getOperand(0));
                 }
                 else if (opCode.getOperandType() == OperandType.Switch) {
