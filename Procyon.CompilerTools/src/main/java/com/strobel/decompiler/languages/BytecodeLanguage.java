@@ -20,6 +20,7 @@ import com.strobel.annotations.NotNull;
 import com.strobel.assembler.ir.*;
 import com.strobel.assembler.ir.attributes.*;
 import com.strobel.assembler.metadata.*;
+import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilationOptions;
@@ -93,7 +94,13 @@ public class BytecodeLanguage extends Language {
 
             for (final MethodDefinition method : type.getDeclaredMethods()) {
                 output.writeLine();
-                decompileMethod(method, output, options);
+
+                try {
+                    decompileMethod(method, output, options);
+                }
+                catch (final MethodBodyParseException e) {
+                    writeMethodBodyParseError(output, e);
+                }
             }
         }
         finally {
@@ -108,6 +115,22 @@ public class BytecodeLanguage extends Language {
         }
         
         return new TypeDecompilationResults( null /*no line number mapping*/);
+    }
+
+    private void writeMethodBodyParseError(final ITextOutput output, final Throwable error) {
+        output.indent();
+
+        try {
+            output.writeError("Method could not be disassembled because an error occurred.");
+            output.writeLine();
+            for (final String line : StringUtilities.split(ExceptionUtilities.getStackTraceString(error), true, '\r', '\n')) {
+                output.writeError(line);
+                output.writeLine();
+            }
+        }
+        finally {
+            output.unindent();
+        }
     }
 
     private void writeTypeAttribute(final ITextOutput output, final TypeDefinition type, final SourceAttribute attribute) {
@@ -236,14 +259,14 @@ public class BytecodeLanguage extends Language {
             output.writeReference(text, type);
             return true;
         }
-        catch (Throwable ignored) {
+        catch (final Throwable ignored) {
         }
 
         try {
             output.writeReference(text, new DummyTypeReference(descriptor));
             return true;
         }
-        catch (Throwable ignored) {
+        catch (final Throwable ignored) {
         }
 
         output.writeError(text);
@@ -1047,7 +1070,7 @@ public class BytecodeLanguage extends Language {
                 _output.write(": ");
                 instruction.accept(this);
             }
-            catch (Throwable t) {
+            catch (final Throwable t) {
                 printOpCode(instruction.getOpCode());
 
                 boolean foundError = false;

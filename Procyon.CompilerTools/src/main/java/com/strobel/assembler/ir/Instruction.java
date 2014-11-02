@@ -509,6 +509,7 @@ public final class Instruction implements Comparable<Instruction> {
                 break;
 
             case BranchTarget:
+            case BranchTargetWide:
                 visitor.visitBranch(_opCode, (Instruction) _operand);
                 break;
 

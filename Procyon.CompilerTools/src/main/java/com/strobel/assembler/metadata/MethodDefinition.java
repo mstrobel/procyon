@@ -30,6 +30,8 @@ import java.lang.ref.SoftReference;
 import java.util.Collections;
 import java.util.List;
 
+import static java.lang.String.format;
+
 public class MethodDefinition extends MethodReference implements IMemberDefinition {
     private final GenericParameterCollection _genericParameters;
     private final ParameterDefinitionCollection _parameters;
@@ -74,17 +76,11 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
     }
 
     public final MethodBody getBody() {
-        MethodBody body = null;
-
+        final MethodBody body;
         final SoftReference<MethodBody> cachedBody = _body;
 
         if (cachedBody == null || (body = _body.get()) == null) {
-            try {
-                return tryLoadBody();
-            }
-            catch (Throwable t) {
-                setFlags(getFlags() | Flags.LOAD_BODY_FAILED);
-            }
+            return tryLoadBody();
         }
 
         return body;
@@ -697,17 +693,18 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
                 codeAttributes.toArray(new SourceAttribute[codeAttributes.size()])
             );
 
-            _sourceAttributes.set(codeAttributeIndex, newCode);
-
             if (constantPool == null) {
                 final long magic = code.readInt() & 0xFFFFFFFFL;
 
-                assert magic == ClassFileReader.MAGIC;
-
-                //noinspection ConstantConditions
                 if (magic != ClassFileReader.MAGIC) {
-                    _flags |= Flags.LOAD_BODY_FAILED;
-                    return null;
+                    throw new IllegalStateException(
+                        format(
+                            "Could not load method body for '%s:%s'; wrong magic number in class header: 0x%8X.",
+                            getFullName(),
+                            getSignature(),
+                            magic
+                        )
+                    );
                 }
 
                 code.readUnsignedShort(); // minor version
@@ -715,6 +712,8 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
 
                 constantPool = ConstantPool.read(code);
             }
+
+            _sourceAttributes.set(codeAttributeIndex, newCode);
         }
 
         final MetadataParser parser = new MetadataParser(_declaringType);
