@@ -308,6 +308,35 @@ public class InnerClassTests extends DecompilerTest {
         }
     }
 
+    private static class O {
+        public void test() {
+            class Base {
+                {
+                    System.out.println("This one via @q3hardcore");
+                }
+            }
+
+            class Test extends Base {
+                {
+                }
+            }
+
+            new Test();
+        }
+    }
+
+    private static class P {
+        public void test() {
+            class X {}
+            class Base {
+            }
+            class Y extends X {}
+            class Test extends Base {
+            }
+            new Test();
+        }
+    }
+
     @Test
     public void testComplexInnerClassRelations() {
         //
@@ -671,6 +700,7 @@ public class InnerClassTests extends DecompilerTest {
             "}\n"
         );
     }
+
     @Test
     public void testAnonymousClassWithSplitInitializerBlock() {
         verifyOutput(
@@ -686,6 +716,45 @@ public class InnerClassTests extends DecompilerTest {
             "                System.out.println(this.x);\n" +
             "            }\n" +
             "        };\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testLocalClassReferencedOnlyBySiblingLocalClass() {
+        verifyOutput(
+            O.class,
+            defaultSettings(),
+            "private static class O {\n" +
+            "    public void test() {\n" +
+            "        class Base\n" +
+            "        {\n" +
+            "            Base() {\n" +
+            "                super();\n" +
+            "                System.out.println(\"This one via @q3hardcore\");\n" +
+            "            }\n" +
+            "        }\n" +
+            "        class Test extends Base\n" +
+            "        {\n" +
+            "        }\n" +
+            "        new Test();\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+    @Test
+    public void testUnusedLocalClassesWithInterdependencies() {
+        verifyOutput(
+            P.class,
+            defaultSettings(),
+            "private static class P {\n" +
+            "    public void test() {\n" +
+            "        class X { }\n" +
+            "        class Y extends X { }\n" +
+            "        class Base { }\n" +
+            "        class Test extends Base { }\n" +
+            "        new Test();\n" +
             "    }\n" +
             "}\n"
         );
