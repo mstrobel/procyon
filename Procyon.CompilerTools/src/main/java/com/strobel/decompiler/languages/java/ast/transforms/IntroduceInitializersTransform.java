@@ -130,10 +130,7 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
 
         final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
-        if (method != null &&
-            method.isTypeInitializer() &&
-            method.getDeclaringType().isInterface()) {
-
+        if (method != null && method.isTypeInitializer()) {
             _currentConstructor = null;
             _currentInitializerMethod = method;
         }
@@ -179,6 +176,13 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
     public Void visitAssignmentExpression(final AssignmentExpression node, final Void data) {
         super.visitAssignmentExpression(node, data);
 
+        if (!(node.getParent() instanceof Statement)) {
+            //
+            // We only care about top-level assignment statements.
+            //
+            return null;
+        }
+
         if (_currentInitializerMethod == null && _currentConstructor == null || context.getCurrentType() == null) {
             return null;
         }
@@ -195,11 +199,16 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
             // are illegal; remove them.
             //
             if (definition != null && definition.isFinal() && definition.getConstantValue() != null) {
-                node.remove();
+                node.getParent().remove();
                 return null;
             }
 
+            //
+            // Interfaces may not contain static initializer blocks, so if we're in such a block, try to
+            // transform the assignments into field initializers.
+            //
             if (_currentInitializerMethod != null &&
+                _currentInitializerMethod.getDeclaringType().isInterface() &&
                 StringUtilities.equals(context.getCurrentType().getInternalName(), reference.getDeclaringType().getInternalName())) {
 
                 _initializers.put(reference.getFullName(), node);
