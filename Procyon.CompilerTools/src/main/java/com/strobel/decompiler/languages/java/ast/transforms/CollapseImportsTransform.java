@@ -101,10 +101,25 @@ public class CollapseImportsTransform implements IAstTransform {
 
     private void removeRedundantImports(final CompilationUnit compilationUnit) {
         final AstNodeCollection<ImportDeclaration> imports = compilationUnit.getImports();
+        final PackageDeclaration packageDeclaration = compilationUnit.getChildByRole(Roles.PACKAGE);
+        final String filePackage = packageDeclaration.isNull() ? null : packageDeclaration.getName();
 
-        for (final ImportDeclaration node : imports) {
-            if (StringUtilities.startsWith(node.getImport(), "java.lang.")) {
-                node.remove();
+        for (final ImportDeclaration oldImport : imports) {
+            final Identifier importedType = oldImport.getImportIdentifier();
+
+            if (importedType != null && !importedType.isNull()) {
+                final TypeReference type = oldImport.getUserData(Keys.TYPE_REFERENCE);
+
+                if (type != null) {
+                    final String packageName = type.getPackageName();
+
+                    if (StringUtilities.isNullOrEmpty(packageName) ||
+                        StringUtilities.equals(packageName, "java.lang") ||
+                        StringUtilities.equals(packageName, filePackage)) {
+
+                        oldImport.remove();
+                    }
+                }
             }
         }
     }
