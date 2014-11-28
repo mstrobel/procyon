@@ -258,7 +258,6 @@ public class OperatorTests extends DecompilerTest {
             "    private int[] a;\n" +
             "    private static int[] b;\n" +
             "    private G() {\n" +
-            "        super();\n" +
             "        this.a = new int[] { 0 };\n" +
             "    }\n" +
             "    public int f() {\n" +

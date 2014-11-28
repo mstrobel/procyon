@@ -495,7 +495,6 @@ public class InnerClassTests extends DecompilerTest {
             "    class A {\n" +
             "        int j;\n" +
             "        A(final int j) {\n" +
-            "            super();\n" +
             "            this.j = j;\n" +
             "        }\n" +
             "    }\n" +
@@ -511,7 +510,6 @@ public class InnerClassTests extends DecompilerTest {
             "private static class D {\n" +
             "    final int k;\n" +
             "    D(final int k) {\n" +
-            "        super();\n" +
             "        this.k = k;\n" +
             "    }\n" +
             "    public static void test() {\n" +
@@ -565,7 +563,6 @@ public class InnerClassTests extends DecompilerTest {
             "    public class A {\n" +
             "        private int z;\n" +
             "        public A(final int z) {\n" +
-            "            super();\n" +
             "            G.x += this.z * G.this.y;\n" +
             "            this.z = z + 1 + G.this.y;\n" +
             "            G.this.y += this.z * G.x;\n" +
@@ -731,7 +728,6 @@ public class InnerClassTests extends DecompilerTest {
             "        class Base\n" +
             "        {\n" +
             "            Base() {\n" +
-            "                super();\n" +
             "                System.out.println(\"This one via @q3hardcore\");\n" +
             "            }\n" +
             "        }\n" +
@@ -759,4 +755,12 @@ public class InnerClassTests extends DecompilerTest {
             "}\n"
         );
     }
+}
+
+class lolwut {
+    public static final lolwut$omg omg = new lolwut$omg();
+}
+
+class lolwut$omg {
+
 }

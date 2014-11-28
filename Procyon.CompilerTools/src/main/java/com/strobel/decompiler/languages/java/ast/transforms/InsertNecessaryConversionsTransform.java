@@ -342,6 +342,8 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         super.visitBinaryOperatorExpression(node, data);
 
         switch (node.getOperator()) {
+            case EQUALITY:
+            case INEQUALITY:
             case GREATER_THAN:
             case GREATER_THAN_OR_EQUAL:
             case LESS_THAN:
@@ -360,12 +362,16 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                 final ResolveResult leftResult = _resolver.apply(left);
                 final ResolveResult rightResult = _resolver.apply(right);
 
-                if (leftResult != null && TypeUtilities.isBoolean(leftResult.getType())) {
-                    convertBooleanToNumeric(left);
-                }
+                if (leftResult != null &&
+                    rightResult != null &&
+                    TypeUtilities.isBoolean(leftResult.getType()) ^ TypeUtilities.isBoolean(rightResult.getType())) {
 
-                if (rightResult != null && TypeUtilities.isBoolean(rightResult.getType())) {
-                    convertBooleanToNumeric(right);
+                    if (TypeUtilities.isArithmetic(rightResult.getType())) {
+                        convertBooleanToNumeric(left);
+                    }
+                    else if (TypeUtilities.isArithmetic(leftResult.getType())) {
+                        convertBooleanToNumeric(right);
+                    }
                 }
 
                 break;
@@ -477,7 +483,7 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
                         node,
                         BinaryOperatorType.INEQUALITY,
                         new PrimitiveExpression(
-                        	Expression.MYSTERY_OFFSET,
+                            Expression.MYSTERY_OFFSET,
                             JavaPrimitiveCast.cast(
                                 MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(type)
                                               .getSimpleType(),

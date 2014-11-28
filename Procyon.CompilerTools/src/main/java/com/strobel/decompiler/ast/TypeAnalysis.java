@@ -64,12 +64,12 @@ public final class TypeAnalysis {
 
     private final Map<Variable, Set<TypeReference>> _previouslyInferred = new DefaultMap<>(CollectionUtilities.<TypeReference>setFactory());
     private final IdentityHashMap<Variable, TypeReference> _inferredVariableTypes = new IdentityHashMap<>();
+    private final Stack<Expression> _stack = new Stack<>();
 
     private DecompilerContext _context;
     private CoreMetadataFactory _factory;
     private boolean _preserveMetadataTypes;
     private boolean _preserveMetadataGenericTypes;
-    private Stack<Expression> _stack = new Stack<>();
     private boolean _doneInitializing;
 
     public static void run(final DecompilerContext context, final Block method) {
@@ -854,7 +854,8 @@ public final class TypeAnalysis {
                         expectedType,
                         forceInferChildren,
                         null,
-                        null
+                        null,
+                        0
                     );
                 }
 
@@ -2117,19 +2118,33 @@ public final class TypeAnalysis {
             case CmpEq:
             case CmpNe: {
                 if (left.getExpectedType() == BuiltinTypes.Boolean) {
-                    if (right.getExpectedType() == BuiltinTypes.Integer && matchBooleanConstant(right) != null) {
-                        right.setExpectedType(BuiltinTypes.Boolean);
+                    if (right.getExpectedType() == BuiltinTypes.Integer) {
+                        if (matchBooleanConstant(right) != null) {
+                            right.setExpectedType(BuiltinTypes.Boolean);
+                        }
+                        else {
+                            left.setExpectedType(BuiltinTypes.Integer);
+                            operandFlags |= FLAG_BOOLEAN_PROHIBITED;
+                        }
                     }
-                    else {
+                    else if (right.getExpectedType() != BuiltinTypes.Boolean) {
                         left.setExpectedType(BuiltinTypes.Integer);
+                        operandFlags |= FLAG_BOOLEAN_PROHIBITED;
                     }
                 }
                 else if (right.getExpectedType() == BuiltinTypes.Boolean) {
-                    if (left.getExpectedType() == BuiltinTypes.Integer && matchBooleanConstant(left) != null) {
-                        left.setExpectedType(BuiltinTypes.Boolean);
+                    if (left.getExpectedType() == BuiltinTypes.Integer) {
+                        if (matchBooleanConstant(left) != null) {
+                            left.setExpectedType(BuiltinTypes.Boolean);
+                        }
+                        else {
+                            right.setExpectedType(BuiltinTypes.Integer);
+                            operandFlags |= FLAG_BOOLEAN_PROHIBITED;
+                        }
                     }
-                    else {
+                    else if (left.getExpectedType() != BuiltinTypes.Boolean) {
                         right.setExpectedType(BuiltinTypes.Integer);
+                        operandFlags |= FLAG_BOOLEAN_PROHIBITED;
                     }
                 }
 
@@ -2175,7 +2190,8 @@ public final class TypeAnalysis {
             ),
             false,
             null,
-            null
+            null,
+            operandFlags
         );
 
         switch (code) {
@@ -2656,10 +2672,13 @@ public final class TypeAnalysis {
             for (int i = 0; i < parameters.size(); i++) {
                 final TypeReference pType = p.get(i).getParameterType();
 
+                final Expression argument = arguments.get(hasThis ? i + 1 : i);
+
                 inferTypeForExpression(
-                    arguments.get(hasThis ? i + 1 : i),
+                    argument,
                     pType,
-                    forceInferChildren
+                    forceInferChildren,
+                    match(argument, AstCode.Load) && pType != BuiltinTypes.Boolean ? FLAG_BOOLEAN_PROHIBITED : 0
                 );
             }
         }
@@ -2746,17 +2765,18 @@ public final class TypeAnalysis {
         final TypeReference expectedType,
         final boolean forceInferChildren,
         final TypeReference leftPreferred,
-        final TypeReference rightPreferred) {
+        final TypeReference rightPreferred,
+        final int operandFlags) {
 
         TypeReference actualLeftPreferred = leftPreferred;
         TypeReference actualRightPreferred = rightPreferred;
 
         if (actualLeftPreferred == null) {
-            actualLeftPreferred = doInferTypeForExpression(left, expectedType, forceInferChildren, 0);
+            actualLeftPreferred = doInferTypeForExpression(left, expectedType, forceInferChildren, operandFlags);
         }
 
         if (actualRightPreferred == null) {
-            actualRightPreferred = doInferTypeForExpression(right, expectedType, forceInferChildren, 0);
+            actualRightPreferred = doInferTypeForExpression(right, expectedType, forceInferChildren, operandFlags);
         }
 
         if (actualLeftPreferred == BuiltinTypes.Null) {
@@ -2790,7 +2810,7 @@ public final class TypeAnalysis {
             return actualLeftPreferred;
         }
 
-        if (isSameType(actualRightPreferred, doInferTypeForExpression(left, actualRightPreferred, forceInferChildren, 0))) {
+        if (isSameType(actualRightPreferred, doInferTypeForExpression(left, actualRightPreferred, forceInferChildren, operandFlags))) {
             left.setInferredType(actualRightPreferred);
             left.setExpectedType(actualRightPreferred);
             right.setInferredType(actualRightPreferred);
@@ -2799,7 +2819,7 @@ public final class TypeAnalysis {
             return actualRightPreferred;
         }
 
-        if (isSameType(actualLeftPreferred, doInferTypeForExpression(right, actualLeftPreferred, forceInferChildren, 0))) {
+        if (isSameType(actualLeftPreferred, doInferTypeForExpression(right, actualLeftPreferred, forceInferChildren, operandFlags))) {
             left.setInferredType(actualLeftPreferred);
             left.setExpectedType(actualLeftPreferred);
             right.setInferredType(actualLeftPreferred);
@@ -2812,8 +2832,8 @@ public final class TypeAnalysis {
 
         left.setExpectedType(result);
         right.setExpectedType(result);
-        left.setInferredType(doInferTypeForExpression(left, result, forceInferChildren, 0));
-        right.setInferredType(doInferTypeForExpression(right, result, forceInferChildren, 0));
+        left.setInferredType(doInferTypeForExpression(left, result, forceInferChildren, operandFlags));
+        right.setInferredType(doInferTypeForExpression(right, result, forceInferChildren, operandFlags));
 
         return result;
     }
