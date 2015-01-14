@@ -4,18 +4,14 @@ apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'idea'
 
-subname = ''
 archivesBaseName = 'procyon'
-
-mavenUser = properties.get("sonatypeUsername")
-mavenPassword = properties.get("sonatypePassword")
 
 allprojects {
     apply plugin: 'java'
     apply plugin: 'idea'
     apply plugin: 'maven'
 
-    version "0.5.27"
+    version "0.5.28"
 
     group 'org.bitbucket.mstrobel'
     sourceCompatibility = 1.7    // JDK version
@@ -53,6 +49,10 @@ subprojects {
     }
 
     if (project.name != "Procyon.Decompiler") {
+        javadoc {
+            options.encoding = 'UTF-8'
+        }
+
         artifacts {
             archives jar
             archives javadocJar
@@ -69,11 +69,11 @@ subprojects {
                     signing.signPom(deployment)
                 }
                 snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
-                    authentication(userName: mavenUser, password: mavenPassword)
+                    authentication(userName: project.properties.get("sonatypeUsername"), password: project.properties.get("sonatypePassword"))
                 }
 
                 repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2") {
-                    authentication(userName: mavenUser, password: mavenPassword)
+                    authentication(userName: project.properties.get("sonatypeUsername"), password: project.properties.get("sonatypePassword"))
                 }
 
                 pom {

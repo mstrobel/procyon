@@ -17,15 +17,20 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.FieldDefinition;
+import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
+import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.INode;
+import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.NamedNode;
 
 import static com.strobel.core.CollectionUtilities.any;
+import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
     public RemoveHiddenMembersTransform(final DecompilerContext context) {
@@ -80,15 +85,23 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
     }
 
     private final static INode DEFAULT_CONSTRUCTOR_BODY;
+    private final static AstNode EMPTY_SUPER;
 
     static {
         DEFAULT_CONSTRUCTOR_BODY = new BlockStatement(
             new ExpressionStatement(
                 new InvocationExpression(
                     Expression.MYSTERY_OFFSET,
-                    new SuperReferenceExpression( Expression.MYSTERY_OFFSET)
+                    new SuperReferenceExpression(Expression.MYSTERY_OFFSET)
                 )
             )
+        );
+
+        EMPTY_SUPER = new ExpressionStatement(
+            new NamedNode(
+                "target",
+                new SuperReferenceExpression(Expression.MYSTERY_OFFSET).invoke()
+            ).toExpression()
         );
     }
 
@@ -144,5 +157,30 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
         }
 
         return super.visitConstructorDeclaration(node, _);
+    }
+
+    @Override
+    public Void visitExpressionStatement(final ExpressionStatement node, final Void data) {
+        super.visitExpressionStatement(node, data);
+
+        //
+        // Remove `super()`-style invocations within constructors, but only if they actually
+        // bind to a constructor.  Keep calls to potentially obfuscated methods named 'super'.
+        //
+
+        if (inConstructor() && !context.getSettings().getShowSyntheticMembers()) {
+            final Match match = EMPTY_SUPER.match(node);
+
+            if (match.success()) {
+                final AstNode target = firstOrDefault(match.<AstNode>get("target"));
+                final MemberReference member = target.getUserData(Keys.MEMBER_REFERENCE);
+
+                if (member instanceof MethodReference && ((MethodReference) member).isConstructor()) {
+                    node.remove();
+                }
+            }
+        }
+
+        return null;
     }
 }

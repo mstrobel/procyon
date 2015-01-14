@@ -34,6 +34,8 @@ import com.strobel.core.VerifyArgument;
 import java.lang.reflect.Modifier;
 import java.util.List;
 
+import static java.lang.String.format;
+
 public class MethodReader {
     private final MethodDefinition _methodDefinition;
     private final CodeAttribute _code;
@@ -56,6 +58,21 @@ public class MethodReader {
 
     @SuppressWarnings("ConstantConditions")
     public MethodBody readBody() {
+        try {
+            return readBodyCore();
+        }
+        catch (final Throwable t) {
+            throw new MethodBodyParseException(
+                format(
+                    "An error occurred while parsing the bytecode of method '%s:%s'.",
+                    _methodDefinition.getFullName(),
+                    _methodDefinition.getSignature()
+                ),
+                t);
+        }
+    }
+
+    private MethodBody readBodyCore() {
         final Buffer b = _code.getCode();
 
         b.position(0);

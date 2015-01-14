@@ -152,8 +152,8 @@ public class AstMethodBodyBuilder {
 
             block.addChild(new Comment(" ", CommentType.SingleLine), Roles.COMMENT);
         }
-        catch (Throwable ignored) {
-            block.addChild(new Comment(" Could not show original bytecode.", CommentType.SingleLine), Roles.COMMENT);
+        catch (final Throwable ignored) {
+            block.addChild(new Comment(" Could not show original bytecode, likely due to the same error.", CommentType.SingleLine), Roles.COMMENT);
             block.addChild(new Comment(" ", CommentType.SingleLine), Roles.COMMENT);
         }
 

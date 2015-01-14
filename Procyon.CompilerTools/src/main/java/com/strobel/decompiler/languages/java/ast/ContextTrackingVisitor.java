@@ -33,6 +33,15 @@ public abstract class ContextTrackingVisitor<TResult> extends DepthFirstAstVisit
         this.context = VerifyArgument.notNull(context, "context");
     }
 
+    protected final boolean inConstructor() {
+        final MethodDefinition currentMethod = context.getCurrentMethod();
+        return currentMethod != null && currentMethod.isConstructor();
+    }
+
+    protected final boolean inMethod() {
+        return context.getCurrentMethod() != null;
+    }
+
     public TResult visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void _) {
         final TypeDefinition oldType = context.getCurrentType();
         final MethodDefinition oldMethod = context.getCurrentMethod();

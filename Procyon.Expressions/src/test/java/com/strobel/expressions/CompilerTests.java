@@ -1293,6 +1293,75 @@ public final class CompilerTests extends AbstractExpressionTest {
         assertEquals("return", dequeue());
     }
 
+    @Test
+    public void testHoistedLocals() throws Throwable {
+        final ParameterExpression v1 = variable(PrimitiveTypes.Integer, "i");
+        final MemberExpression out = field(null, Type.of(System.class).getField("out"));
+
+        final LabelTarget breakLabel = label();
+        final LabelTarget continueLabel = label();
+
+        final LambdaExpression<?> e = lambda(
+            block(
+                new ParameterExpressionList(v1),
+                assign(v1, constant(0)),
+                loop(
+                    block(
+                        PrimitiveTypes.Void,
+                        ifThen(
+                            greaterThanOrEqual(v1, constant(5)),
+                            makeBreak(breakLabel)
+                        ),
+                    call(
+                        Type.of(CompilerTests.class),
+                        "run",
+                        TypeList.empty(),
+                        lambda(
+                            Types.Runnable,
+                            Expression.invoke(
+                                lambda(call(out, "printf", constant("i=%d\n"), preIncrementAssign(v1)))
+                            )
+                        )
+                    )
+
+//                    Expression.invoke(
+//                        lambda(
+//                            Types.Runnable,
+//                            Expression.invoke(
+//                                lambda(call(out, "printf", constant("i=%d\n"), preIncrementAssign(v1)))
+//                            ))
+//                    )
+
+//                        call(
+//                            Type.of(CompilerTests.class),
+//                            "run",
+//                            TypeList.empty(),
+//                            lambda(
+//                                Types.Runnable,
+//                                call(out, "printf", constant("i=%d\n"), preIncrementAssign(v1))
+//                            )
+//                        )
+                    ),
+                    breakLabel,
+                    continueLabel
+                )
+            )
+        );
+
+        System.out.println(e.getDebugView());
+        queue().clear();
+
+        final Delegate<?> delegate = e.compileDelegate();
+
+        delegate.invokeDynamic();
+
+        assertEquals("i=1", dequeue());
+        assertEquals("i=2", dequeue());
+        assertEquals("i=3", dequeue());
+        assertEquals("i=4", dequeue());
+        assertEquals("i=5", dequeue());
+    }
+
     static <T> T invoke(final Callable<T> callback) {
         try {
             return callback.call();
@@ -1300,6 +1369,10 @@ public final class CompilerTests extends AbstractExpressionTest {
         catch (Exception e) {
             throw new TargetInvocationException(e);
         }
+    }
+
+    static void run(final Runnable callback) {
+        callback.run();
     }
 
     static void maybeThrow(final boolean throwException) {

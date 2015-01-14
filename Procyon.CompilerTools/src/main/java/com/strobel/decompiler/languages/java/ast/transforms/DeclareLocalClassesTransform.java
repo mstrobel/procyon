@@ -30,14 +30,12 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
 
 @SuppressWarnings("ProtectedField")
 public class DeclareLocalClassesTransform implements IAstTransform {
-    protected final List<TypeToDeclare> typesToDeclare = new ArrayList<>();
     protected final DecompilerContext context;
     protected final AstBuilder astBuilder;
 
@@ -54,28 +52,6 @@ public class DeclareLocalClassesTransform implements IAstTransform {
         }
 
         run(node, null);
-
-        for (final TypeToDeclare v : typesToDeclare) {
-            final BlockStatement block = (BlockStatement) v.getInsertionPoint().getParent();
-
-            if (block == null) {
-                continue;
-            }
-
-            Statement insertionPoint = v.getInsertionPoint();
-
-            while (insertionPoint.getPreviousSibling() instanceof LabelStatement) {
-                insertionPoint = (Statement) insertionPoint.getPreviousSibling();
-            }
-
-            block.insertChildBefore(
-                insertionPoint,
-                new LocalTypeDeclarationStatement(Expression.MYSTERY_OFFSET, v.getDeclaration()),
-                BlockStatement.STATEMENT_ROLE
-            );
-        }
-
-        typesToDeclare.clear();
     }
 
     private void run(final AstNode node, final DefiniteAssignmentAnalysis daa) {
@@ -96,14 +72,81 @@ public class DeclareLocalClassesTransform implements IAstTransform {
                 for (final TypeDeclaration localType : localTypes) {
                     localType.remove();
                 }
-            }
 
-            if (analysis == null) {
-                analysis = new DefiniteAssignmentAnalysis(method.getBody(), new JavaResolver(context));
-            }
+                if (analysis == null) {
+                    analysis = new DefiniteAssignmentAnalysis(method.getBody(), new JavaResolver(context));
+                }
 
-            for (final TypeDeclaration localType : localTypes) {
-                declareTypeInBlock(method.getBody(), localType, true);
+                boolean madeProgress;
+
+                final Set<TypeToDeclare> typesToDeclare = new LinkedHashSet<>();
+
+                do {
+                    madeProgress = false;
+
+                    //
+                    // Run through the unplaced local classes and try to find the latest possible declaration
+                    // site based on where the classes are referenced.
+                    //
+
+                    for (final Iterator<TypeDeclaration> iterator = localTypes.iterator(); iterator.hasNext(); ) {
+                        final TypeDeclaration localType = iterator.next();
+
+                        if (declareTypeInBlock(method.getBody(), localType, true, typesToDeclare)) {
+                            madeProgress = true;
+                            iterator.remove();
+                        }
+                    }
+
+                    if (!madeProgress && !localTypes.isEmpty()) {
+                        //
+                        // We have some unplaced local class declarations, but we didn't find any dependent
+                        // statements to use as insertion points.  There may still be interdependencies among
+                        // those as-of-yet undeclared classes, so insert any one of them at the beginning of
+                        // the method, then try once more to place the remaining declarations.
+                        //
+
+                        final TypeDeclaration firstUndeclared = first(localTypes);
+
+                        method.getBody().insertChildBefore(
+                            method.getBody().getFirstChild(),
+                            new LocalTypeDeclarationStatement(Expression.MYSTERY_OFFSET, firstUndeclared),
+                            BlockStatement.STATEMENT_ROLE
+                        );
+
+                        madeProgress = true;
+                        localTypes.remove(0);
+                    }
+
+                    for (final TypeToDeclare v : typesToDeclare) {
+                        final BlockStatement block = (BlockStatement) v.getInsertionPoint().getParent();
+
+                        if (block == null) {
+                            continue;
+                        }
+
+                        Statement insertionPoint = v.getInsertionPoint();
+
+                        while (insertionPoint.getPreviousSibling() instanceof LabelStatement) {
+                            insertionPoint = (Statement) insertionPoint.getPreviousSibling();
+                        }
+
+                        block.insertChildBefore(
+                            insertionPoint,
+                            new LocalTypeDeclarationStatement(Expression.MYSTERY_OFFSET, v.getDeclaration()),
+                            BlockStatement.STATEMENT_ROLE
+                        );
+                    }
+
+                    typesToDeclare.clear();
+
+                    //
+                    // We might not have found insertion points for all our local classes, but if succeeded
+                    // for any of them, then we might have introduced the dependencies we were looking for.
+                    // If we made at least some progress, run through the list again.
+                    //
+                }
+                while (madeProgress && !localTypes.isEmpty());
             }
         }
 
@@ -136,10 +179,11 @@ public class DeclareLocalClassesTransform implements IAstTransform {
     }
 
     @SuppressWarnings("ConstantConditions")
-    private void declareTypeInBlock(
+    private boolean declareTypeInBlock(
         final BlockStatement block,
         final TypeDeclaration type,
-        final boolean allowPassIntoLoops) {
+        final boolean allowPassIntoLoops,
+        final Set<TypeToDeclare> typesToDeclare) {
 
         //
         // The point at which the variable would be declared if we decide to declare it in this block.
@@ -159,7 +203,7 @@ public class DeclareLocalClassesTransform implements IAstTransform {
             //
             // The variable isn't used at all.
             //
-            return;
+            return false;
         }
 
         if (canMoveVariableIntoSubBlocks) {
@@ -170,16 +214,16 @@ public class DeclareLocalClassesTransform implements IAstTransform {
 
                 for (final AstNode child : statement.getChildren()) {
                     if (child instanceof BlockStatement) {
-                        declareTypeInBlock((BlockStatement) child, type, allowPassIntoLoops);
+                        if (declareTypeInBlock((BlockStatement) child, type, allowPassIntoLoops, typesToDeclare)) {
+                            return true;
+                        }
                     }
                     else if (hasNestedBlocks(child)) {
                         for (final AstNode nestedChild : child.getChildren()) {
-                            if (nestedChild instanceof BlockStatement) {
-                                declareTypeInBlock(
-                                    (BlockStatement) nestedChild,
-                                    type,
-                                    allowPassIntoLoops
-                                );
+                            if (nestedChild instanceof BlockStatement &&
+                                declareTypeInBlock((BlockStatement) nestedChild, type, allowPassIntoLoops, typesToDeclare)) {
+
+                                return true;
                             }
                         }
                     }
@@ -196,13 +240,16 @@ public class DeclareLocalClassesTransform implements IAstTransform {
                 if (!canStillMoveIntoSubBlocks && declarationPoint.get() != null) {
                     final TypeToDeclare vtd = new TypeToDeclare(type, typeDefinition, declarationPoint.get(), block);
                     typesToDeclare.add(vtd);
-                    return;
+                    return true;
                 }
             }
+
+            return false;
         }
         else {
             final TypeToDeclare vtd = new TypeToDeclare(type, typeDefinition, declarationPoint.get(), block);
             typesToDeclare.add(vtd);
+            return true;
         }
     }
 
@@ -378,8 +425,24 @@ public class DeclareLocalClassesTransform implements IAstTransform {
             return false;
         }
 
+        if (node instanceof LocalTypeDeclarationStatement) {
+            return referencesType(((LocalTypeDeclarationStatement) node).getTypeDeclaration(), localType);
+        }
+
         if (node instanceof TypeDeclaration) {
             final TypeDeclaration type = (TypeDeclaration) node;
+
+            final AstType baseType = type.getBaseType();
+
+            if (baseType != null && !baseType.isNull() && referencesType(baseType, localType)) {
+                return true;
+            }
+
+            for (final AstType ifType : type.getInterfaces()) {
+                if (referencesType(ifType, localType)) {
+                    return true;
+                }
+            }
 
             for (final FieldDeclaration field : ofType(type.getMembers(), FieldDeclaration.class)) {
                 final FieldDefinition fieldDefinition = field.getUserData(Keys.FIELD_DEFINITION);

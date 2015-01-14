@@ -830,7 +830,7 @@ final class StackSpiller {
         // we do need to rebuild the tree above us so it includes the new node.
         final RewriteAction action = (analyzedLambda == node) ? RewriteAction.None : RewriteAction.Copy;
 
-        return new Result(action, expr);
+        return new Result(action, analyzedLambda);
     }
 
     private Result rewriteInvocationExpression(final Expression expr, final Stack stack) {

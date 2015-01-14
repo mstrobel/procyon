@@ -110,8 +110,6 @@ final class LambdaCompiler {
 
         this.lambda = lambda;
 
-        _hasClosureArgument = false;
-
         final TypeList parameterTypes = getParameterTypes(lambda);
 
         method.setReturnType(lambda.getReturnType());
@@ -125,8 +123,9 @@ final class LambdaCompiler {
 
         this.typeBuilder = method.getDeclaringType();
         this.methodBuilder = method;
-        this._constructorBuilder = constructor;
+        this._hasClosureArgument = false;
         this._closureField = null;
+        this._constructorBuilder = constructor;
 
         this.generator = methodBuilder.getCodeGenerator();
 
@@ -143,11 +142,11 @@ final class LambdaCompiler {
         _freeLocals = parent._freeLocals;
         this.lambda = lambda;
         this.methodBuilder = parent.methodBuilder;
-        this._closureField = parent._closureField;
-        this._constructorBuilder = parent._constructorBuilder;
         this.generator = parent.generator;
-        _hasClosureArgument = parent._hasClosureArgument;
         this.typeBuilder = parent.typeBuilder;
+        _hasClosureArgument = parent._hasClosureArgument;
+        _closureField = parent._closureField;
+        _constructorBuilder = parent._constructorBuilder;
         _scope = _tree.scopes.get(lambda);
         _boundConstants = parent._boundConstants;
     }
@@ -319,7 +318,7 @@ final class LambdaCompiler {
                 MemberType.methodsOnly(),
                 BindingFlags.PublicInstanceDeclared,
                 Type.FilterMethodOverride,
-                lambda.getType().getMethods().get(0)
+                Expression.getInvokeMethod(lambda.getType(), true)
             );
 
             return new Delegate<>(
@@ -2871,7 +2870,11 @@ final class LambdaCompiler {
             return;
         }
 
-        ensureClosure();
+        inner.ensureClosure();
+
+        if (boundConstants) {
+            ensureClosure();
+        }
 
         final Type<Object[]> objectArrayType = Type.of(Object[].class);
 

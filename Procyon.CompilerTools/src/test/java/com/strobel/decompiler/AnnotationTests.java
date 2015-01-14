@@ -84,7 +84,6 @@ public class AnnotationTests extends DecompilerTest {
             "        private static final int TEST = 3;\n" +
             "        private int y;\n" +
             "        public A(int y) {\n" +
-            "            super();\n" +
             "            this.y = y;\n" +
             "        }\n" +
             "    }\n" +
