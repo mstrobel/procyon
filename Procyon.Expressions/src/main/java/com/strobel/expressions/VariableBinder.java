@@ -21,7 +21,7 @@ import com.strobel.reflection.emit.CodeGenerator;
 import com.strobel.util.ContractUtils;
 
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Stack;
 
 /**
@@ -255,7 +255,7 @@ final class VariableBinder extends ExpressionVisitor {
 
                 // Otherwise, merge it .
                 if (currentScope.mergedScopes == null) {
-                    currentScope.mergedScopes = new HashSet<>();
+                    currentScope.mergedScopes = new LinkedHashSet<>();
                 }
 
                 currentScope.mergedScopes.add(block);

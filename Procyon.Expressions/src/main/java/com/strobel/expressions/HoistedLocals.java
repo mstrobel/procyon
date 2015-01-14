@@ -85,12 +85,12 @@ final class HoistedLocals {
 
         final Map<ParameterExpression, Integer> indexes = new HashMap<>();
 
-        for (int i = 0, n = variables.size(); i < n; i++) {
-            final ParameterExpression variable = variables.get(i);
+        for (int i = 0, n = this.variables.size(); i < n; i++) {
+            final ParameterExpression variable = this.variables.get(i);
             indexes.put(variable, i);
         }
 
-        this.selfVariable = Expression.variable(Types.Object, null);
+        this.selfVariable = Expression.variable(Types.Object.makeArrayType(), null);
         this.indexes = Collections.unmodifiableMap(indexes);
     }
 

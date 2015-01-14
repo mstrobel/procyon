@@ -25,11 +25,10 @@ import com.strobel.reflection.FieldInfo;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
 import com.strobel.reflection.emit.LocalBuilder;
-import com.strobel.reflection.emit.OpCode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -40,7 +39,7 @@ import java.util.Set;
 final class CompilerScope {
     private final static FieldInfo ClosureLocalsField = Type.of(Closure.class).getField("locals");
 
-    private final Map<ParameterExpression, Storage> _locals = new HashMap<>();
+    private final Map<ParameterExpression, Storage> _locals = new LinkedHashMap<>();
 
     private HoistedLocals _hoistedLocals;
     private HoistedLocals _closureHoistedLocals;
@@ -63,7 +62,7 @@ final class CompilerScope {
 
         final ParameterExpressionList variables = getVariables(node);
 
-        this.definitions = new HashMap<>(variables.size());
+        this.definitions = new LinkedHashMap<>(variables.size());
 
         for (final ParameterExpression v : variables) {
             definitions.put(v, VariableStorageKind.Local);
@@ -553,7 +552,7 @@ final class CompilerScope {
             _array.emitLoad();
             compiler.generator.emitInteger(_index);
             compiler.generator.emitLoadElement(Types.Object);
-            compiler.generator.emit(OpCode.CHECKCAST, _boxType);
+            compiler.generator.emitConversion(Types.Object, _boxType);
         }
 
         @Override
