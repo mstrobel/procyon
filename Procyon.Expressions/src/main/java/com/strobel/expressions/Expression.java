@@ -759,7 +759,9 @@ public abstract class Expression {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static ConstantExpression constant(final Object value) {
-        return ConstantExpression.make(value, value == null ? Types.Object : Type.of(value.getClass()));
+        final Type<?> type = value == null ? Types.Object
+                                           : TypeUtils.getUnderlyingPrimitiveOrSelf(Type.of(value.getClass()));
+        return ConstantExpression.make(value, type);
     }
 
     public static ConstantExpression constant(final Object value, final Type type) {
@@ -769,7 +771,7 @@ public abstract class Expression {
             throw Error.argumentTypesMustMatch();
         }
 
-        if (value != null && !type.getErasedClass().isInstance(value)) {
+        if (value != null && !TypeUtils.getBoxedTypeOrSelf(type).getErasedClass().isInstance(value)) {
             throw Error.argumentTypesMustMatch();
         }
 

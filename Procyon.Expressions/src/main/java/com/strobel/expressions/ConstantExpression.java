@@ -41,8 +41,7 @@ public class ConstantExpression extends Expression {
         if (_value == null) {
             return Types.Object;
         }
-        final Type<?> valueType = Type.getType(_value);
-        return TypeUtils.getUnderlyingPrimitiveOrSelf(valueType);
+        return Type.getType(_value);
     }
 
     @Override
@@ -56,12 +55,28 @@ public class ConstantExpression extends Expression {
     }
 
     static ConstantExpression make(final Object value, final Type type) {
-        if ((value == null && type == Types.Object) || (value != null && Type.of(value.getClass()) == type)) {
+        if (type.isPrimitive()) {
+            return new PrimitiveConstantExpression(value);
+        }
+
+        if (value == null && type == Types.Object ||
+            value != null && Type.of(value.getClass()) == type) {
+
             return new ConstantExpression(value);
         }
-        else {
-            return new TypedConstantExpression(value, type);
-        }
+
+        return new TypedConstantExpression(value, type);
+    }
+}
+
+class PrimitiveConstantExpression extends ConstantExpression {
+    PrimitiveConstantExpression(final Object value) {
+        super(value);
+    }
+
+    @Override
+    public final Type<?> getType() {
+        return TypeUtils.getUnderlyingPrimitiveOrSelf(super.getType());
     }
 }
 

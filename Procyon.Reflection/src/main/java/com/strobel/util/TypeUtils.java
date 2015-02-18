@@ -77,10 +77,8 @@ public final class TypeUtils {
     }
 
     public static Type<?> getUnderlyingPrimitiveOrSelf(final Type<?> type) {
-        if (isAutoUnboxed(type)) {
-            return getUnderlyingPrimitive(type);
-        }
-        return type;
+        final Type<?> underlyingPrimitive = getUnderlyingPrimitive(type);
+        return  underlyingPrimitive != null ? underlyingPrimitive : type;
     }
 
     public static Type<?> getBoxedType(final Type<?> type) {
