@@ -133,6 +133,11 @@ final class PrimitiveType<T> extends Type<T> {
     }
 
     @Override
+    public String getInternalName() {
+        return _signature;
+    }
+
+    @Override
     public Type getDeclaringType() {
         return null;
     }
