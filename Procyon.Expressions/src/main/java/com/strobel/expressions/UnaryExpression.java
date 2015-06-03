@@ -21,6 +21,7 @@ import com.strobel.reflection.Type;
 
 /**
  * Represents an expression that has a unary operator.
+ *
  * @author Mike Strobel
  */
 public final class UnaryExpression extends Expression {
@@ -38,6 +39,7 @@ public final class UnaryExpression extends Expression {
 
     /**
      * Gets the implementing method for the unary operation.
+     *
      * @return an {@link Expression} that represents the operand of the unary operation.
      */
     public final Expression getOperand() {
@@ -46,6 +48,7 @@ public final class UnaryExpression extends Expression {
 
     /**
      * Gets the implementing method for the unary operation.
+     *
      * @return the {@link MethodInfo} that represents the implementing method.
      */
     public final MethodInfo getMethod() {
@@ -70,6 +73,9 @@ public final class UnaryExpression extends Expression {
     @Override
     public final boolean canReduce() {
         switch (_nodeType) {
+            case UnaryPlus:
+                return _method == null;
+
             case PreIncrementAssign:
             case PreDecrementAssign:
             case PostIncrementAssign:
@@ -82,6 +88,10 @@ public final class UnaryExpression extends Expression {
     @Override
     public final Expression reduce() {
         if (canReduce()) {
+            if (_nodeType == ExpressionType.UnaryPlus) {
+                return _operand;
+            }
+
             switch (_operand.getNodeType()) {
                 case MemberAccess:
                     return reduceMember();
@@ -112,7 +122,7 @@ public final class UnaryExpression extends Expression {
     }
 
     private Expression reduceMember() {
-        MemberExpression member = (MemberExpression)_operand;
+        MemberExpression member = (MemberExpression) _operand;
         if (member.getTarget() == null) {
             // Static member; reduce the same as variable.
             return reduceVariable();
@@ -126,7 +136,7 @@ public final class UnaryExpression extends Expression {
             if (isPrefix()) {
                 // (op) value.member => temp1 = value; temp1.member = op(temp1.member)
                 return block(
-                    new ParameterExpression[]{temp1},
+                    new ParameterExpression[] { temp1 },
                     initTemp1,
                     assign(member, functionalOp(member))
                 );
@@ -137,7 +147,7 @@ public final class UnaryExpression extends Expression {
             final ParameterExpression temp2 = parameter(member.getType(), null);
 
             return block(
-                new ParameterExpression[]{temp1, temp2},
+                new ParameterExpression[] { temp1, temp2 },
                 initTemp1,
                 assign(temp2, member),
                 assign(member, functionalOp(temp2)),

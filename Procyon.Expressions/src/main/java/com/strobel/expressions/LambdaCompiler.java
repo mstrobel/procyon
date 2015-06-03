@@ -3004,7 +3004,7 @@ final class LambdaCompiler {
                     try {
                         emitConstant(field.getRawField().get(null), field.getFieldType());
                     }
-                    catch (IllegalAccessException e) {
+                    catch (final IllegalAccessException e) {
                         generator.getField(field);
                     }
                 }
@@ -3572,10 +3572,20 @@ final class LambdaCompiler {
     }
 
     private void emitUnaryMethod(final UnaryExpression node, final int flags) {
-        emitMethodCallExpression(
-            Expression.call(node.getMethod(), node.getOperand()),
-            flags
-        );
+        final MethodInfo method = node.getMethod();
+
+        if (method.isStatic()) {
+            emitMethodCallExpression(
+                Expression.call(method, node.getOperand()),
+                flags
+            );
+        }
+        else {
+            emitMethodCallExpression(
+                Expression.call(node.getOperand(), method),
+                flags
+            );
+        }
     }
 
     private void emitConvertUnaryExpression(final Expression expr, final int flags) {
