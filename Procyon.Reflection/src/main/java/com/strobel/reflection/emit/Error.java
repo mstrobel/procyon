@@ -223,6 +223,26 @@ final class Error {
         return new IllegalArgumentException("Base type cannot be an interface.");
     }
 
+    public static RuntimeException typeCannotHaveItselfAsBaseType() {
+        return new IllegalArgumentException("A type cannot have itself as its base type.");
+    }
+
+    public static RuntimeException typeCannotHaveItselfAsInterface() {
+        return new IllegalArgumentException("A type cannot have itself as an interface.");
+    }
+
+    public static RuntimeException typeMustBeInterface() {
+        return new IllegalArgumentException("Type is not an interface.");
+    }
+
+    public static RuntimeException typeMustBeInterface(final Type<?> type) {
+        if (type == null) {
+            return typeMustBeInterface();
+        }
+
+        return new IllegalArgumentException(format("Type %s is not an interface.", type.getName()));
+    }
+
     public static RuntimeException typeNotCreated() {
         return new RuntimeException(
             "Type has not been created yet."

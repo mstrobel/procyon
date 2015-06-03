@@ -15,6 +15,7 @@ package com.strobel.reflection;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.core.VerifyArgument;
+import com.strobel.util.TypeUtils;
 
 import javax.lang.model.element.Modifier;
 import java.lang.annotation.Annotation;
@@ -51,6 +52,13 @@ public abstract class FieldInfo extends MemberInfo {
     @Override
     public Annotation[] getDeclaredAnnotations() {
         return getRawField().getDeclaredAnnotations();
+    }
+
+    @Override
+    public boolean isEquivalentTo(final MemberInfo m) {
+        return m instanceof FieldInfo &&
+               super.isEquivalentTo(m) &&
+               TypeUtils.areEquivalent(((FieldInfo) m).getFieldType(), getFieldType());
     }
 
     @Override
@@ -194,11 +202,17 @@ public abstract class FieldInfo extends MemberInfo {
 
 class ReflectedField extends FieldInfo {
     private final Type _declaringType;
+    private final Type _reflectedType;
     private final Field _rawField;
     private final Type _fieldType;
 
     ReflectedField(final Type declaringType, final Field rawField, final Type fieldType) {
+        this(declaringType, declaringType, rawField, fieldType);
+    }
+
+    ReflectedField(final Type declaringType, final Type reflectedType, final Field rawField, final Type fieldType) {
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+        _reflectedType = VerifyArgument.notNull(reflectedType, "reflectedType");
         _rawField = VerifyArgument.notNull(rawField, "rawField");
         _fieldType = VerifyArgument.notNull(fieldType, "fieldType");
     }
@@ -226,6 +240,11 @@ class ReflectedField extends FieldInfo {
     @Override
     public Type getDeclaringType() {
         return _declaringType;
+    }
+
+    @Override
+    public Type getReflectedType() {
+        return _reflectedType;
     }
 
     @Override

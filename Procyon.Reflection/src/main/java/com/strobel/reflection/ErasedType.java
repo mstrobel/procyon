@@ -187,6 +187,12 @@ final class ErasedType<T> extends Type<T> {
         return (Class<T>)_originalType.getErasedClass();
     }
 
+    @NotNull
+    @Override
+    protected Type<?> getUnderlyingTypeCore() {
+        return _originalType;
+    }
+
     @Override
     public TypeList getExplicitInterfaces() {
         ensureInterfaces();

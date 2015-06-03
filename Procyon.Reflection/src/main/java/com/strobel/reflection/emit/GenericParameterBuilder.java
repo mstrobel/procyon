@@ -53,6 +53,21 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
+    protected String getClassFullName() {
+        return typeBuilder.getClassFullName();
+    }
+
+    @Override
+    protected String getClassSimpleName() {
+        return typeBuilder.getClassSimpleName();
+    }
+
+    @Override
+    public String getShortName() {
+        return typeBuilder.getShortName();
+    }
+
+    @Override
     public Type<? super T> getBaseType() {
         return typeBuilder.getBaseType();
     }
@@ -85,6 +100,11 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     @Override
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
         return typeBuilder.appendSimpleDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendGenericSignature(final StringBuilder sb) {
+        return typeBuilder.appendGenericSignature(sb);
     }
 
     @Override
@@ -238,24 +258,8 @@ public final class GenericParameterBuilder<T> extends Type<T> {
     }
 
     @Override
-    @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
-    public boolean equals(final Object obj) {
-        return typeBuilder.equals(obj);
-    }
-
-    @Override
     public int hashCode() {
         return typeBuilder.hashCode();
-    }
-
-    @Override
-    public boolean hasElementType() {
-        return false;
-    }
-
-    @Override
-    public boolean isArray() {
-        return false;
     }
 
     @Override
@@ -275,7 +279,9 @@ public final class GenericParameterBuilder<T> extends Type<T> {
 
     @Override
     public boolean isEquivalentTo(final Type<?> other) {
-        return typeBuilder.isEquivalentTo(other);
+        return other == this ||
+               other == typeBuilder ||
+               typeBuilder.isEquivalentTo(other);
     }
 
     @Override

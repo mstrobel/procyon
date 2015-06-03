@@ -104,7 +104,7 @@ final class TypeBuilderInstantiation extends Type {
     }
 
     @Override
-    protected TypeList getExplicitInterfaces() {
+    public TypeList getExplicitInterfaces() {
         final TypeList definitionInterfaces = _definition.getExplicitInterfaces();
         final ArrayList<Type<?>> interfaces = new ArrayList<>();
 
@@ -178,5 +178,30 @@ final class TypeBuilderInstantiation extends Type {
     @Override
     public Object accept(final TypeVisitor visitor, final Object parameter) {
         return visitor.visitClassType(this, parameter);
+    }
+
+    @Override
+    public boolean isEquivalentTo(final Type other) {
+        if (other == this) {
+            return true;
+        }
+
+        if (other == null) {
+            return false;
+        }
+
+        if (other == _definition) {
+            return _typeBindings.getBoundTypes().isEquivalentTo(_definition.getGenericTypeParameters());
+        }
+
+        if (other instanceof TypeBuilderInstantiation) {
+            final TypeBuilderInstantiation tbi = (TypeBuilderInstantiation) other;
+
+            return tbi._definition == _definition &&
+                   _typeBindings.getBoundTypes().isEquivalentTo(tbi._typeBindings.getBoundTypes());
+        }
+
+        return _definition.isCreated() &&
+               _definition.createType().makeGenericType(_typeBindings.getBoundTypes()).isEquivalentTo(other);
     }
 }

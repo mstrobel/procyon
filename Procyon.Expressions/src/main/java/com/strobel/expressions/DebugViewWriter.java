@@ -480,6 +480,7 @@ final class DebugViewWriter extends ExpressionVisitor {
             case IsTrue:
             case IsFalse:
             case Unbox:
+            case Convert:
                 return true;
         }
 
@@ -1080,12 +1081,82 @@ final class DebugViewWriter extends ExpressionVisitor {
 
     @Override
     protected Expression visitUnary(final UnaryExpression node) {
-        return super.visitUnary(node);
+        final boolean parenthesize = needsParentheses(node, node.getOperand());
+
+        final String op;
+        int beforeOp = FLOW_SPACE;
+        boolean trailing = false;
+        Type<?> secondOp = null;
+
+        switch (node.getNodeType()) {
+            case Negate:
+                op = "-";
+                break;
+
+            case Convert:
+                secondOp = node.getType();
+                // fall through...
+
+            case Not:
+            case IsFalse:
+            case IsTrue:
+            case OnesComplement:
+            case ArrayLength:
+            case IsNull:
+            case IsNotNull:
+            case Throw:
+            case Unbox:
+                op = "." + node.getNodeType();
+                break;
+
+            case UnaryPlus:
+                op = "+";
+                break;
+
+            case PostDecrementAssign:
+                trailing = true;
+            case PreDecrementAssign:
+                op = "--";
+                break;
+
+            case PostIncrementAssign:
+                trailing = true;
+            case PreIncrementAssign:
+                op = "++";
+                break;
+
+            default:
+                throw ContractUtils.unreachable();
+        }
+
+        if (!trailing) {
+            out(beforeOp, op, parenthesize ? FLOW_NONE : FLOW_SPACE | FLOW_BREAK);
+        }
+
+        if (parenthesize) {
+            out("(", FLOW_NONE);
+        }
+
+        visit(node.getOperand());
+
+        if (parenthesize) {
+            out(FLOW_NONE, ")", FLOW_BREAK);
+        }
+
+        if (trailing) {
+            out(beforeOp, op, parenthesize ? FLOW_NONE : FLOW_SPACE | FLOW_BREAK);
+        }
+
+        return node;
     }
 
     @Override
     protected Expression visitTypeBinary(final TypeBinaryExpression node) {
-        return super.visitTypeBinary(node);
+        visit(node.getOperand());
+        out(" ");
+        out(node.getNodeType() == ExpressionType.InstanceOf ? " .InstanceOf " : " .TypeEqual ");
+        out(node.getType().toString());
+        return node;
     }
 
     @Override

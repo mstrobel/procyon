@@ -21,7 +21,7 @@ import com.strobel.core.StrongBox;
 import com.strobel.reflection.Types;
 
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 
@@ -83,7 +83,7 @@ final class HoistedLocals {
             this.variables = variables;
         }
 
-        final Map<ParameterExpression, Integer> indexes = new HashMap<>();
+        final Map<ParameterExpression, Integer> indexes = new LinkedHashMap<>();
 
         for (int i = 0, n = this.variables.size(); i < n; i++) {
             final ParameterExpression variable = this.variables.get(i);

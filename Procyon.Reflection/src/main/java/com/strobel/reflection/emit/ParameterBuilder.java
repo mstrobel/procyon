@@ -22,7 +22,7 @@ import java.lang.annotation.Annotation;
 /**
  * @author Mike Strobel
  */
-public final class ParameterBuilder  {
+public final class ParameterBuilder {
     private final MethodBuilder _declaringMethod;
     private final Type<?> _parameterType;
     private final int _position;

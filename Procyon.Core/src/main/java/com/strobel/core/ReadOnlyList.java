@@ -24,6 +24,7 @@ import java.util.*;
  */
 public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess {
     private final static ReadOnlyList<?> EMPTY = new ReadOnlyList<Object>();
+    private final static ReadOnlyCollectionIterator<?> EMPTY_ITERATOR = new ReadOnlyCollectionIterator<>(EMPTY);
 
     @SuppressWarnings("unchecked")
     public static <T> ReadOnlyList<T> emptyList() {
@@ -118,8 +119,12 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
 
     @NotNull
     @Override
+    @SuppressWarnings("unchecked")
     public final Iterator<T> iterator() {
-        return new ReadOnlyCollectionIterator();
+        if (isEmpty()) {
+            return (Iterator<T>) EMPTY_ITERATOR;
+        }
+        return new ReadOnlyCollectionIterator(this);
     }
 
     @NotNull
@@ -135,11 +140,11 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     @NotNull
     @Override
     @SuppressWarnings({"unchecked", "SuspiciousSystemArraycopy"})
-    public final <T> T[] toArray(@NotNull final T[] a) {
+    public final <U> U[] toArray(@NotNull final U[] a) {
         final int length = _length;
 
         if (a.length < length) {
-            return (T[])Arrays.copyOfRange(_elements, _offset, _offset + _length, _elements.getClass());
+            return (U[])Arrays.copyOfRange(_elements, _offset, _offset + _length, _elements.getClass());
         }
 
         System.arraycopy(_elements, _offset, a, 0, length);
@@ -327,13 +332,13 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
     @NotNull
     @Override
     public final ListIterator<T> listIterator() {
-        return new ReadOnlyCollectionIterator();
+        return new ReadOnlyCollectionIterator<>(this);
     }
 
     @NotNull
     @Override
     public final ListIterator<T> listIterator(final int index) {
-        return new ReadOnlyCollectionIterator(index);
+        return new ReadOnlyCollectionIterator<>(this, index);
     }
 
     protected static void subListRangeCheck(final int fromIndex, final int toIndex, final int size) {
@@ -355,21 +360,25 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
         return new ReadOnlyList<>(this, _offset + fromIndex, _offset + toIndex);
     }
 
-    private final class ReadOnlyCollectionIterator implements ListIterator<T> {
+    private static class ReadOnlyCollectionIterator<T> implements ListIterator<T> {
+        private final ReadOnlyList<T> _list;
         private int _position = -1;
 
-        ReadOnlyCollectionIterator() {}
+        ReadOnlyCollectionIterator(final ReadOnlyList<T> list) {
+            this._list = list;
+        }
 
-        ReadOnlyCollectionIterator(final int startPosition) {
-            if (startPosition < -1 || startPosition >= size()) {
+        ReadOnlyCollectionIterator(final ReadOnlyList<T> list, final int startPosition) {
+            if (startPosition < -1 || startPosition >= list.size()) {
                 throw new IllegalArgumentException();
             }
             _position = startPosition;
+            _list = list;
         }
 
         @Override
         public final boolean hasNext() {
-            return _position + 1 < size();
+            return _position + 1 < _list.size();
         }
 
         @Override
@@ -377,7 +386,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
             if (!hasNext()) {
                 throw new IllegalStateException();
             }
-            return get(++_position);
+            return _list.get(++_position);
         }
 
         @Override
@@ -390,7 +399,7 @@ public class ReadOnlyList<T> implements IReadOnlyList<T>, List<T>, RandomAccess 
             if (!hasPrevious()) {
                 throw new IllegalStateException();
             }
-            return get(--_position);
+            return _list.get(--_position);
         }
 
         @Override

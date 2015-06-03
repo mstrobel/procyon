@@ -24,7 +24,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.io.PathHelper;
 import com.strobel.reflection.*;
-import com.strobel.util.ContractUtils;
+import com.strobel.util.EmptyArrayCache;
 import com.strobel.util.TypeUtils;
 import sun.misc.Unsafe;
 
@@ -37,52 +37,53 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author strobelm
  */
 @SuppressWarnings({ "unchecked", "PackageVisibleField" })
 public final class TypeBuilder<T> extends Type<T> {
-    private final static String DumpGeneratedClassesProperty     = "com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses";
+    private final static String DumpGeneratedClassesProperty = "com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses";
     private final static String GeneratedClassOutputPathProperty = "com.strobel.reflection.emit.TypeBuilder.GeneratedClassOutputPath";
 
-    final ConstantPool                          constantPool;
-    final ArrayList<ConstructorBuilder>         constructorBuilders;
-    final ArrayList<MethodBuilder>              methodBuilders;
-    final ArrayList<FieldBuilder>               fieldBuilders;
+    final ConstantPool constantPool;
+    final ArrayList<ConstructorBuilder> constructorBuilders;
+    final ArrayList<MethodBuilder> methodBuilders;
+    final ArrayList<FieldBuilder> fieldBuilders;
     final ArrayList<GenericParameterBuilder<?>> genericParameterBuilders;
-    final ArrayList<MethodOverride>             methodOverrides;
+    final ArrayList<MethodOverride> methodOverrides;
 
-    private String          _name;
-    private String          _fullName;
-    private String          _internalName;
-    private Package         _package;
+    private String _name;
+    private String _fullName;
+    private String _internalName;
+    private Package _package;
     private Type<? super T> _baseType;
     private ConstructorList _constructors;
-    private MethodList      _methods;
-    private FieldList       _fields;
-    private TypeList        _interfaces;
-    private TypeBuilder     _declaringType;
-    private MethodBuilder   _declaringMethod;
-    private int             _modifiers;
-    private boolean         _hasBeenCreated;
-    private Class<T>        _generatedClass;
-    private Type<T>         _generatedType;
-    private Type<?>         _extendsBound;
+    private MethodList _methods;
+    private FieldList _fields;
+    private TypeList _interfaces;
+    private TypeBuilder _declaringType;
+    private MethodBuilder _declaringMethod;
+    private int _modifiers;
+    private boolean _hasBeenCreated;
+    private Class<T> _generatedClass;
+    private Type<T> _generatedType;
+    private Type<?> _extendsBound;
 
-    private       int                                                   _genericParameterPosition;
-    private       boolean                                               _isGenericParameter;
-    private       boolean                                               _isGenericTypeDefinition;
-    private       TypeBindings                                          _typeBindings;
-    private       ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
-    private final ProtectionDomain                                      _protectionDomain;
-
+    private int _genericParameterPosition;
+    private boolean _isGenericParameter;
+    private boolean _isGenericTypeDefinition;
+    private TypeBindings _typeBindings;
+    private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
+    private Map<Class<? extends Annotation>, AnnotationBuilder<? extends Annotation>> _annotationMap;
+    private final ProtectionDomain _protectionDomain;
 
     // <editor-fold defaultstate="collapsed" desc="Constructors and Initializers">
+
+    public TypeBuilder(final String name, final int modifiers) {
+        this(name, modifiers, Types.Object, TypeList.empty());
+    }
 
     public TypeBuilder(
         final String name,
@@ -222,19 +223,37 @@ public final class TypeBuilder<T> extends Type<T> {
         setInterfaces(interfaces);
     }
 
-    final void setInterfaces(final TypeList interfaces) {
+    public final void setInterfaces(final TypeList interfaces) {
         verifyNotCreated();
-        _interfaces = interfaces != null ? interfaces : TypeList.empty();
+
+        if (interfaces == null) {
+            _interfaces = TypeList.empty();
+        }
+        else {
+            for (final Type<?> ifType : interfaces) {
+                if (!ifType.isInterface()) {
+                    throw Error.typeMustBeInterface(ifType);
+                }
+                if (this.isEquivalentTo(ifType)) {
+                    throw Error.typeCannotHaveItselfAsInterface();
+                }
+            }
+            _interfaces = interfaces;
+        }
+
         updateExtendsBound();
     }
 
-    final void setBaseType(final Type baseType) {
+    public final void setBaseType(final Type baseType) {
         verifyNotGeneric();
         verifyNotCreated();
 
         if (baseType != null) {
             if (baseType.isInterface()) {
                 throw Error.baseTypeCannotBeInterface();
+            }
+            if (this.isEquivalentTo(baseType)) {
+                throw Error.typeCannotHaveItselfAsBaseType();
             }
             _baseType = baseType;
             updateExtendsBound();
@@ -313,8 +332,18 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
+    protected String getClassSimpleName() {
+        return _name;
+    }
+
+    @Override
     protected String getClassFullName() {
         return _fullName;
+    }
+
+    @Override
+    public String getShortName() {
+        return _name;
     }
 
     @Override
@@ -349,8 +378,8 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    protected String getClassSimpleName() {
-        return _name;
+    public StringBuilder appendSignature(final StringBuilder sb) {
+        return super.appendSignature(sb);
     }
 
     @Override
@@ -359,7 +388,7 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    protected TypeList getExplicitInterfaces() {
+    public TypeList getExplicitInterfaces() {
         return _interfaces;
     }
 
@@ -381,6 +410,10 @@ public final class TypeBuilder<T> extends Type<T> {
 
         if (other == null) {
             return false;
+        }
+
+        if (other instanceof GenericParameterBuilder<?>) {
+            return ((GenericParameterBuilder) other).typeBuilder == this;
         }
 
         final Type<?> runtimeType = other instanceof TypeBuilder<?>
@@ -543,10 +576,25 @@ public final class TypeBuilder<T> extends Type<T> {
 
     public void addCustomAnnotation(final AnnotationBuilder<? extends Annotation> annotation) {
         VerifyArgument.notNull(annotation, "annotation");
+
+        final Class<? extends Annotation> annotationClass = annotation.getAnnotationType().getErasedClass();
+
+        if (_annotationMap != null) {
+            if (_annotationMap.containsKey(annotationClass)) {
+                throw new IllegalArgumentException(
+                    "@" + annotation.getAnnotationType().getShortName() + " is already defined."
+                );
+            }
+        }
+        else {
+            _annotationMap = new HashMap<>();
+        }
+
         final AnnotationBuilder[] newAnnotations = new AnnotationBuilder[this._annotations.size() + 1];
         _annotations.toArray(newAnnotations);
         newAnnotations[this._annotations.size()] = annotation;
         _annotations = new ReadOnlyList<AnnotationBuilder<? extends Annotation>>(newAnnotations);
+        _annotationMap.put(annotationClass, annotation);
     }
 
     public ReadOnlyList<AnnotationBuilder<? extends Annotation>> getCustomAnnotations() {
@@ -554,16 +602,77 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     @Override
-    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
-        verifyCreated();
-        return _generatedType.getAnnotation(annotationClass);
+    public <A extends Annotation> A getAnnotation(final Class<A> annotationClass) {
+        if (isCreated()) {
+            return _generatedType.getAnnotation(annotationClass);
+        }
+        else {
+            final AnnotationBuilder<A> annotation = (AnnotationBuilder<A>) _annotationMap.get(annotationClass);
+
+            if (annotation != null) {
+                return annotation.getAnnotation();
+            }
+
+            return null;
+        }
     }
 
     @NotNull
     @Override
     public Annotation[] getAnnotations() {
-        verifyCreated();
-        return _generatedType.getAnnotations();
+        if (isCreated()) {
+            return _generatedType.getAnnotations();
+        }
+        else {
+            final Type<? super T> baseType = getBaseType();
+
+            final Annotation[] declaredAnnotations = bakeAnnotations();
+            final Annotation[] ancestorAnnotations;
+
+            if (baseType != null) {
+                ancestorAnnotations = baseType.getAnnotations();
+            }
+            else {
+                ancestorAnnotations = EmptyArrayCache.fromElementType(Annotation.class);
+            }
+
+            if (ancestorAnnotations.length == 0) {
+                return declaredAnnotations;
+            }
+
+            final Set<Class<? extends Annotation>> annotationTypes = new HashSet<>();
+            final List<Annotation> annotations = new ArrayList<>();
+
+            for (final Annotation annotation : declaredAnnotations) {
+                annotationTypes.add(annotation.annotationType());
+            }
+
+            for (final Annotation annotation : ancestorAnnotations) {
+                if (annotationTypes.add(annotation.annotationType())) {
+                    annotations.add(annotation);
+                }
+            }
+
+            Collections.addAll(annotations, declaredAnnotations);
+
+            return annotations.toArray(new Annotation[annotations.size()]);
+        }
+    }
+
+    private Annotation[] bakeAnnotations() {
+        final List<AnnotationBuilder<? extends Annotation>> annotationList = _annotations;
+
+        if (annotationList.isEmpty()) {
+            return EmptyArrayCache.fromElementType(Annotation.class);
+        }
+
+        final Annotation[] annotations = new Annotation[annotationList.size()];
+
+        for (int i = 0; i < annotations.length; i++) {
+            annotations[i] = annotationList.get(i).getAnnotation();
+        }
+
+        return annotations;
     }
 
     @NotNull
@@ -599,7 +708,7 @@ public final class TypeBuilder<T> extends Type<T> {
         try {
             return createTypeNoLock(null);
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             throw ExceptionUtilities.asRuntimeException(e);
         }
     }
@@ -608,7 +717,7 @@ public final class TypeBuilder<T> extends Type<T> {
         try (final FileOutputStream outputStream = new FileOutputStream(outputFile)) {
             return createTypeNoLock(outputStream);
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             throw ExceptionUtilities.asRuntimeException(e);
         }
     }
@@ -617,7 +726,7 @@ public final class TypeBuilder<T> extends Type<T> {
         try {
             return createTypeNoLock(outputStream);
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             throw ExceptionUtilities.asRuntimeException(e);
         }
     }
@@ -769,6 +878,13 @@ public final class TypeBuilder<T> extends Type<T> {
 
     public MethodBuilder defineMethod(
         final String name,
+        final int modifiers) {
+
+        return defineMethod(name, modifiers, PrimitiveTypes.Void, TypeList.empty(), TypeList.empty());
+    }
+
+    public MethodBuilder defineMethod(
+        final String name,
         final int modifiers,
         final Type<?> returnType) {
 
@@ -910,6 +1026,8 @@ public final class TypeBuilder<T> extends Type<T> {
             );
         }
 
+        Collections.addAll(genericParameterBuilders, genericParameters);
+
         _typeBindings = TypeBindings.createUnbound(Type.list(genericParameters));
 
         return genericParameters;
@@ -927,14 +1045,14 @@ public final class TypeBuilder<T> extends Type<T> {
     short getMethodToken(final MethodBase method) {
         VerifyArgument.notNull(method, "method");
         if (method.getDeclaringType().isInterface()) {
-            return (short) (constantPool.getInterfaceMethodReference((MethodInfo) erase(method)).index & 0xFFFF);
+            return (short) (constantPool.getInterfaceMethodReference((MethodInfo) method).index & 0xFFFF);
         }
-        return (short) (constantPool.getMethodReference(erase(method)).index & 0xFFFF);
+        return (short) (constantPool.getMethodReference(method).index & 0xFFFF);
     }
 
     short getFieldToken(final FieldInfo field) {
         VerifyArgument.notNull(field, "field");
-        return (short) (constantPool.getFieldReference(erase(field)).index & 0xFFFF);
+        return (short) (constantPool.getFieldReference(field).index & 0xFFFF);
     }
 
     short getConstantToken(final int value) {
@@ -966,6 +1084,7 @@ public final class TypeBuilder<T> extends Type<T> {
         return def.getErasedType();
     }
 
+/*
     private static MethodBase erase(final MethodBase m) {
         if (m instanceof MethodInfo) {
             return ((MethodInfo) m).getErasedMethodDefinition();
@@ -992,7 +1111,9 @@ public final class TypeBuilder<T> extends Type<T> {
 
         throw ContractUtils.unreachable();
     }
+*/
 
+/*
     private static FieldInfo erase(final FieldInfo f) {
         if (!f.getDeclaringType().isGenericType()) {
             return f;
@@ -1015,6 +1136,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
         throw ContractUtils.unreachable();
     }
+*/
 
     // </editor-fold>
 
@@ -1110,7 +1232,7 @@ public final class TypeBuilder<T> extends Type<T> {
 
             _generatedType = Type.of(_generatedClass);
         }
-        catch (Throwable t) {
+        catch (final Throwable t) {
             throw Error.classGenerationFailed(this, t);
         }
         finally {
@@ -1178,11 +1300,15 @@ public final class TypeBuilder<T> extends Type<T> {
     }
 
     private boolean isBridgeMethodNeeded(final MethodOverride methodOverride) {
-        final MethodInfo baseMethod = methodOverride.baseMethod;
-        final MethodBuilder override = methodOverride.override;
+        return isBridgeMethodNeeded(methodOverride.baseMethod, methodOverride.override);
+    }
 
-        final Type<?> baseReturnType = baseMethod.getReturnType().getErasedType();
-        final Type<?> overrideReturnType = override.getReturnType().getErasedType();
+    static boolean isBridgeMethodNeeded(final MethodInfo baseMethod, final MethodInfo override) {
+        final MethodInfo erasedBase = baseMethod.getErasedMethodDefinition();
+        final MethodInfo erasedOverride = override.getErasedMethodDefinition();
+
+        final Type<?> baseReturnType = erasedBase.getReturnType().getErasedType();
+        final Type<?> overrideReturnType = erasedOverride.getReturnType().getErasedType();
 
         if ((baseReturnType == PrimitiveTypes.Void) !=
             (overrideReturnType == PrimitiveTypes.Void)) {
@@ -1194,21 +1320,23 @@ public final class TypeBuilder<T> extends Type<T> {
             return true;
         }
 
-        final ParameterBuilder[] parameterBuilders = override.parameterBuilders;
+        final TypeList parameterTypes = (erasedOverride instanceof MethodBuilder)
+                                        ? ((MethodBuilder) erasedOverride).getParameterTypes().getErasedTypes()
+                                        : erasedOverride.getParameters().getParameterTypes().getErasedTypes();
 
-        final TypeList baseParameters = (baseMethod instanceof MethodBuilder)
-                                        ? ((MethodBuilder) baseMethod).getParameterTypes().getErasedTypes()
-                                        : baseMethod.getParameters().getParameterTypes().getErasedTypes();
+        final TypeList baseParameters = (erasedBase instanceof MethodBuilder)
+                                        ? ((MethodBuilder) erasedBase).getParameterTypes().getErasedTypes()
+                                        : erasedBase.getParameters().getParameterTypes().getErasedTypes();
 
-        if (baseParameters.size() != parameterBuilders.length) {
+        if (baseParameters.size() != parameterTypes.size()) {
             throw Error.parameterCountMismatch();
         }
 
-        for (int i = 0, n = parameterBuilders.length; i < n; i++) {
-            final Class<?> c1 = parameterBuilders[i].getParameterType().getErasedClass();
-            final Class<?> c2 = baseParameters.get(i).getErasedClass();
+        for (int i = 0, n = parameterTypes.size(); i < n; i++) {
+            final Type<?> t1 = parameterTypes.get(i);
+            final Type<?> t2 = baseParameters.get(i);
 
-            if (c1 != c2) {
+            if (!t1.isEquivalentTo(t2)) {
                 return true;
             }
         }
@@ -1242,7 +1370,7 @@ public final class TypeBuilder<T> extends Type<T> {
         try {
             return new FileOutputStream(temp);
         }
-        catch (IOException e) {
+        catch (final IOException e) {
             return null;
         }
     }
@@ -1251,13 +1379,18 @@ public final class TypeBuilder<T> extends Type<T> {
         final FieldList generatedFields = _generatedType.getFields(BindingFlags.AllDeclared);
         final MethodList generatedMethods = _generatedType.getMethods(BindingFlags.AllDeclared);
         final ConstructorList generatedConstructors = _generatedType.getConstructors(BindingFlags.AllDeclared);
+        final TypeList generatedTypeParameters = _isGenericTypeDefinition ? _generatedType.getGenericTypeParameters() : TypeList.empty();
+
+        for (int i = 0, n = genericParameterBuilders.size(); i < n; i++) {
+            genericParameterBuilders.get(i).typeBuilder._generatedType = generatedTypeParameters.get(i);
+        }
 
         for (int i = 0, n = fieldBuilders.size(); i < n; i++) {
             fieldBuilders.get(i).generatedField = generatedFields.get(i);
         }
 
         final HashMap<TypeList, ConstructorInfo> constructorLookup = new HashMap<>();
-        final HashMap<Pair<String, TypeList>, MethodInfo> methodLookup = new HashMap<>();
+        final HashMap<Pair<String, String>, MethodInfo> methodLookup = new HashMap<>();
 
         for (final ConstructorInfo constructor : generatedConstructors) {
             constructorLookup.put(
@@ -1273,7 +1406,7 @@ public final class TypeBuilder<T> extends Type<T> {
                 methodLookup.put(
                     Pair.create(
                         method.getName(),
-                        method.getParameters().getParameterTypes()
+                        method.getErasedSignature()
                     ),
                     method
                 );
@@ -1287,12 +1420,26 @@ public final class TypeBuilder<T> extends Type<T> {
         }
 
         for (final MethodBuilder methodBuilder : methodBuilders) {
-            methodBuilder.generatedMethod = methodLookup.get(
+            if ((methodBuilder.getModifiers() & Flags.ACC_BRIDGE) != 0) {
+                continue;
+            }
+
+            final MethodInfo generatedMethod = methodLookup.get(
                 Pair.create(
                     methodBuilder.getName(),
-                    methodBuilder.getParameterTypes()
+                    methodBuilder.getErasedSignature()
                 )
             );
+
+            if (generatedMethod != null && methodBuilder.isGenericMethodDefinition()) {
+                final TypeList generatedMethodTypeParameters = generatedMethod.getGenericMethodParameters();
+
+                for (int i = 0, n = methodBuilder.genericParameterBuilders.length; i < n; i++) {
+                    methodBuilder.genericParameterBuilders[i].typeBuilder._generatedType = generatedMethodTypeParameters.get(i);
+                }
+            }
+
+            methodBuilder.generatedMethod = generatedMethod;
         }
     }
 
@@ -1311,7 +1458,7 @@ public final class TypeBuilder<T> extends Type<T> {
         try {
             _unsafe = Unsafe.getUnsafe();
         }
-        catch (Throwable ignored) {
+        catch (final Throwable ignored) {
         }
 
         try {
@@ -1319,7 +1466,7 @@ public final class TypeBuilder<T> extends Type<T> {
             instanceField.setAccessible(true);
             _unsafe = (Unsafe) instanceField.get(Unsafe.class);
         }
-        catch (Throwable t) {
+        catch (final Throwable t) {
             throw Error.couldNotLoadUnsafeClassInstance();
         }
 

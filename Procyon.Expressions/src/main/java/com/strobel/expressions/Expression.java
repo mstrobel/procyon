@@ -778,6 +778,11 @@ public abstract class Expression {
         return ConstantExpression.make(value, type);
     }
 
+    public static ConstantExpression classConstant(final Type<?> value) {
+        VerifyArgument.notNull(value, "value");
+        return ConstantExpression.make(value, Types.Class.makeGenericType(value));
+    }
+
     //
     // PARAMETERS AND VARIABLES
     //

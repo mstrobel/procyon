@@ -11,6 +11,8 @@ allprojects {
     apply plugin: 'idea'
     apply plugin: 'maven'
 
+    buildDir = rootDir.canonicalPath + "/build/" + rootProject.relativePath(projectDir.canonicalPath)
+
     version "1.0-SNAPSHOT"
 
     group 'org.bitbucket.mstrobel'
@@ -24,6 +26,11 @@ allprojects {
         testCompile 'junit:junit:4.11'
     }
 }
+
+//
+// The root project is empty and doesn't need any tasks.
+//
+rootProject.tasks.each { it.enabled = false }
 
 subprojects {
     apply plugin: 'maven'
