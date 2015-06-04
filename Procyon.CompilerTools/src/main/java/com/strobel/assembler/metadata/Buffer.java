@@ -51,6 +51,11 @@ public class Buffer {
         return _length;
     }
 
+    public void flip() {
+        _length = _position;
+        _position = 0;
+    }
+
     public int position() {
         return _position;
     }
@@ -384,13 +389,15 @@ public class Buffer {
     }
 
     protected void ensureWriteableBytes(final int size) {
-        if (_length + size <= _data.length) {
-            return;
+        final int minLength = _position + size;
+
+        if (minLength > _data.length) {
+            final int length1 = 2 * _data.length;
+            final int length2 = _position + size;
+
+            _data = Arrays.copyOf(_data, Math.max(length1, length2));
         }
 
-        final int length1 = 2 * _data.length;
-        final int length2 = _length + size;
-
-        _data = Arrays.copyOf(_data, length1 > length2 ? length1 : length2);
+        _length = Math.max(minLength, _length);
     }
 }
