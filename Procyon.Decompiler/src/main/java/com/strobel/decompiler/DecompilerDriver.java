@@ -314,7 +314,10 @@ public class DecompilerDriver {
         final TypeDecompilationResults results = settings.getLanguage().decompileType(resolvedType, output, options);
 
         writer.flush();
-        writer.close();
+
+        if (writeToFile) {
+            writer.close();
+        }
 
         // If we're writing to a file and we were asked to include line numbers in any way,
         // then reformat the file to include that line number information.
