@@ -6,6 +6,31 @@ apply plugin: 'idea'
 
 archivesBaseName = 'procyon'
 
+ext.getProcyonVersion = { ->
+    final def fallbackVersion = "1.0-SNAPSHOT";
+    final def versionFilePath = rootDir.canonicalPath + "/Procyon.Core/src/main/java/com/strobel/Procyon.java";
+    final def versionFile = new File(versionFilePath);
+
+    if (versionFile.exists()) {
+        try {
+            final def String fileContents = new File(versionFilePath).getText('UTF-8')
+            final def matcher = fileContents =~ /VERSION\s*=\s*"([^"]+)"/
+
+            if (matcher.find()) {
+                return matcher.group(1).trim()
+            }
+        }
+        catch (final Throwable ignored) {
+        }
+    }
+
+    logger.warn("wARNING: Could not resolve version from source; falling back to '$fallbackVersion'.")
+
+    return fallbackVersion
+}
+
+final def procyonVersion = getProcyonVersion()
+
 allprojects {
     apply plugin: 'java'
     apply plugin: 'idea'
@@ -13,7 +38,7 @@ allprojects {
 
     buildDir = rootDir.canonicalPath + "/build/" + rootProject.relativePath(projectDir.canonicalPath)
 
-    version "1.0-SNAPSHOT"
+    version procyonVersion
 
     group 'org.bitbucket.mstrobel'
     sourceCompatibility = 1.7    // JDK version

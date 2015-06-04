@@ -1,6 +1,7 @@
 package com.strobel.decompiler;
 
 import com.beust.jcommander.JCommander;
+import com.strobel.Procyon;
 import com.strobel.annotations.NotNull;
 import com.strobel.assembler.InputTypeLoader;
 import com.strobel.assembler.metadata.*;
@@ -61,6 +62,14 @@ public class DecompilerDriver {
         final String jarFile = options.getJarFile();
         final boolean decompileJar = !StringUtilities.isNullOrWhitespace(jarFile);
 
+        if (options.getPrintVersion()) {
+            JCommander.getConsole().println(Procyon.version());
+            if (options.getPrintUsage()) {
+                jCommander.usage();
+            }
+            return;
+        }
+
         if (options.getPrintUsage() ||
             typeNames.isEmpty() && !decompileJar) {
 
@@ -85,6 +94,7 @@ public class DecompilerDriver {
         settings.setSimplifyMemberReferences(options.getSimplifyMemberReferences());
         settings.setDisableForEachTransforms(options.getDisableForEachTransforms());
         settings.setTypeLoader(new InputTypeLoader());
+        settings.setOutputFileHeaderText("\nDecompiled by Procyon v" + Procyon.version() + "\n");
 
         if (options.isRawBytecode()) {
             settings.setLanguage(Languages.bytecode());

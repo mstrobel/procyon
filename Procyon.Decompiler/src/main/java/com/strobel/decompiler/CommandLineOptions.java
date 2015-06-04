@@ -144,6 +144,11 @@ public class CommandLineOptions {
         description = "Disable 'for each' loop transforms.")
     private boolean _disableForEachTransforms;
 
+    @Parameter(
+        names = { "--version" },
+        description = "Display the decompiler version and exit.")
+    private boolean _printVersion;
+
     public final List<String> getInputs() {
         return _inputs;
     }
@@ -330,5 +335,13 @@ public class CommandLineOptions {
 
     public final void setDisableForEachTransforms(final boolean disableForEachTransforms) {
         _disableForEachTransforms = disableForEachTransforms;
+    }
+
+    public final boolean getPrintVersion() {
+        return _printVersion;
+    }
+
+    public final void setPrintVersion(final boolean printVersion) {
+        _printVersion = printVersion;
     }
 }
