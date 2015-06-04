@@ -188,7 +188,7 @@ public final class TypeBindings {
         }
         else {
             genericParameters = _genericParameters;
-            boundTypes = _boundTypes.toArray();
+            boundTypes = _boundTypes.toArray(new Type[_boundTypes.size()]);
         }
 
         boundTypes[index] = typeArgument;

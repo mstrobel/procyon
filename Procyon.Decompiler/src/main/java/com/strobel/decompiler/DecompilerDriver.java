@@ -1,6 +1,7 @@
 package com.strobel.decompiler;
 
 import com.beust.jcommander.JCommander;
+import com.strobel.Procyon;
 import com.strobel.annotations.NotNull;
 import com.strobel.assembler.InputTypeLoader;
 import com.strobel.assembler.metadata.*;
@@ -61,6 +62,14 @@ public class DecompilerDriver {
         final String jarFile = options.getJarFile();
         final boolean decompileJar = !StringUtilities.isNullOrWhitespace(jarFile);
 
+        if (options.getPrintVersion()) {
+            JCommander.getConsole().println(Procyon.version());
+            if (options.getPrintUsage()) {
+                jCommander.usage();
+            }
+            return;
+        }
+
         if (options.getPrintUsage() ||
             typeNames.isEmpty() && !decompileJar) {
 
@@ -71,7 +80,7 @@ public class DecompilerDriver {
         final DecompilerSettings settings = new DecompilerSettings();
 
         settings.setFlattenSwitchBlocks(options.getFlattenSwitchBlocks());
-        settings.setForceExplicitImports(options.getForceExplicitImports());
+        settings.setForceExplicitImports(!options.getCollapseImports());
         settings.setForceExplicitTypeArguments(options.getForceExplicitTypeArguments());
         settings.setRetainRedundantCasts(options.getRetainRedundantCasts());
         settings.setShowSyntheticMembers(options.getShowSyntheticMembers());
@@ -85,6 +94,7 @@ public class DecompilerDriver {
         settings.setSimplifyMemberReferences(options.getSimplifyMemberReferences());
         settings.setDisableForEachTransforms(options.getDisableForEachTransforms());
         settings.setTypeLoader(new InputTypeLoader());
+        settings.setOutputFileHeaderText("\nDecompiled by Procyon v" + Procyon.version() + "\n");
 
         if (options.isRawBytecode()) {
             settings.setLanguage(Languages.bytecode());
@@ -304,7 +314,10 @@ public class DecompilerDriver {
         final TypeDecompilationResults results = settings.getLanguage().decompileType(resolvedType, output, options);
 
         writer.flush();
-        writer.close();
+
+        if (writeToFile) {
+            writer.close();
+        }
 
         // If we're writing to a file and we were asked to include line numbers in any way,
         // then reformat the file to include that line number information.

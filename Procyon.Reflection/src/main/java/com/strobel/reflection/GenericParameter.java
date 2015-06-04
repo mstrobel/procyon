@@ -15,7 +15,9 @@ package com.strobel.reflection;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.core.Comparer;
+import com.strobel.core.HashUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.reflection.emit.GenericParameterBuilder;
 
 import javax.lang.model.type.TypeKind;
 import java.lang.annotation.Annotation;
@@ -34,7 +36,7 @@ class GenericParameter<T> extends Type<T> {
     private Class<T> _erasedClass;
     private TypeVariable<?> _typeVariable;
 
-    GenericParameter(final String name, TypeVariable<?> typeVariable, final int position) {
+    GenericParameter(final String name, final TypeVariable<?> typeVariable, final int position) {
         _typeVariable = typeVariable;
         _name = VerifyArgument.notNull(name, "name");
         _declaringType = null;
@@ -91,7 +93,16 @@ class GenericParameter<T> extends Type<T> {
     }
 
     private TypeVariable<?> resolveTypeVariable() {
-        for (final TypeVariable typeVariable : _declaringType.getErasedClass().getTypeParameters()) {
+        final TypeVariable[] parameters;
+
+        if (_declaringMethod != null) {
+            parameters = _declaringMethod.getRawMethod().getTypeParameters();
+        }
+        else {
+            parameters = _declaringType.getErasedClass().getTypeParameters();
+        }
+
+        for (final TypeVariable typeVariable : parameters) {
             if (_name.equals(typeVariable.getName())) {
                 return typeVariable;
             }
@@ -147,19 +158,7 @@ class GenericParameter<T> extends Type<T> {
 
     @Override
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
-        sb.append(getFullName());
-
-        final Type<?> upperBound = getExtendsBound();
-
-        if (upperBound != null && upperBound != Types.Object) {
-            sb.append(" extends ");
-            if (upperBound.isGenericParameter() || upperBound == getDeclaringType()) {
-                return sb.append(upperBound.getName());
-            }
-            return upperBound.appendErasedDescription(sb);
-        }
-
-        return sb;
+        return sb.append(getName());
     }
 
     @Override
@@ -226,7 +225,7 @@ class GenericParameter<T> extends Type<T> {
         if (_erasedClass == null) {
             synchronized (CACHE_LOCK) {
                 if (_erasedClass == null) {
-                    _erasedClass = (Class<T>)resolveErasedClass();
+                    _erasedClass = (Class<T>) resolveErasedClass();
                 }
             }
         }
@@ -277,26 +276,30 @@ class GenericParameter<T> extends Type<T> {
 
     @Override
     public int hashCode() {
-        return getGenericParameterPosition();
+        return HashUtilities.hashCode(_typeVariable);
     }
 
     @Override
-    public boolean equals(final Object obj) {
-        if (obj == this) {
+    public boolean isEquivalentTo(final Type<?> member) {
+        if (member == this) {
             return true;
         }
-        
-        if (obj == null) {
+
+        if (member == null) {
             return false;
         }
-        
-        if (obj instanceof GenericParameter<?>) {
-            if (obj instanceof CapturedType<?>) {
+
+        if (member instanceof GenericParameter<?>) {
+            if (member instanceof CapturedType<?>) {
                 return false;
             }
-            final GenericParameter<?> other = (GenericParameter<?>)obj;
+            final GenericParameter<?> other = (GenericParameter<?>) member;
             return other._position == _position &&
                    Comparer.equals(other.getRawTypeVariable(), _typeVariable);
+        }
+
+        if (member instanceof GenericParameterBuilder<?>) {
+            return member.isEquivalentTo(this);
         }
 
         return false;

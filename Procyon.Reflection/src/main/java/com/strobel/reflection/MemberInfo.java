@@ -14,8 +14,10 @@
 package com.strobel.reflection;
 
 import com.strobel.annotations.NotNull;
-import com.strobel.core.StringComparator;
+import com.strobel.core.HashUtilities;
+import com.strobel.core.StringUtilities;
 import com.strobel.util.EmptyArrayCache;
+import com.strobel.util.TypeUtils;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Modifier;
@@ -34,8 +36,9 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
     private String _erasedDescription;
     private String _briefDescription;
     private String _simpleDescription;
-    
-    MemberInfo() {}
+
+    MemberInfo() {
+    }
 
     public abstract MemberType getMemberType();
     public abstract String getName();
@@ -111,10 +114,29 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
         return EmptyArrayCache.fromElementType(annotationClass);
     }
 
-    public boolean isEquivalentTo(final MemberInfo other) {
-        return other == this ||
-               other != null && other.getDeclaringType() == getDeclaringType() &&
-               StringComparator.Ordinal.equals(getName(),  other.getName());
+    @Override
+    public boolean equals(final Object o) {
+        return o instanceof MemberInfo &&
+               isEquivalentTo((MemberInfo) o);
+    }
+
+    @Override
+    public int hashCode() {
+        final int nameHash = HashUtilities.hashCode(getName());
+        final Type t = getDeclaringType();
+
+        if (t != null) {
+            return HashUtilities.combineHashCodes(t.hashCode(), nameHash);
+        }
+
+        return nameHash;
+    }
+
+    public boolean isEquivalentTo(final MemberInfo m) {
+        return m == this ||
+               (m != null &&
+                TypeUtils.areEquivalent(m.getDeclaringType(), getDeclaringType()) &&
+                StringUtilities.equals(getName(), m.getName()));
     }
 
     /**
@@ -193,5 +215,9 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
     public abstract StringBuilder appendErasedDescription(StringBuilder sb);
     public abstract StringBuilder appendSignature(StringBuilder sb);
     public abstract StringBuilder appendErasedSignature(StringBuilder sb);
-    public abstract StringBuilder appendSimpleDescription(final StringBuilder sb);
+    public abstract StringBuilder appendSimpleDescription(StringBuilder sb);
+
+    public StringBuilder appendGenericSignature(final StringBuilder sb) {
+        return appendSignature(sb);
+    }
 }

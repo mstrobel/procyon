@@ -21,17 +21,15 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
-import com.strobel.decompiler.patterns.Choice;
-import com.strobel.decompiler.patterns.Match;
-import com.strobel.decompiler.patterns.NamedNode;
-import com.strobel.decompiler.patterns.Pattern;
+import com.strobel.decompiler.patterns.*;
 
 import javax.lang.model.element.Modifier;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.strobel.core.CollectionUtilities.*;
+import static com.strobel.core.CollectionUtilities.first;
+import static com.strobel.core.CollectionUtilities.firstOrDefault;
 
 public class EnumRewriterTransform implements IAstTransform {
     private final DecompilerContext _context;
@@ -214,6 +212,23 @@ public class EnumRewriterTransform implements IAstTransform {
             return super.visitAssignmentExpression(node, data);
         }
 
+        private final static INode SUPER_PATTERN = new SubtreeMatch(
+            new BlockStatement(
+                new Repeat(new TypedNode(VariableDeclarationStatement.class)).toStatement(),
+                new NamedNode(
+                    "superCall",
+                    new ExpressionStatement(
+                        new InvocationExpression(
+                            Expression.MYSTERY_OFFSET,
+                            new SuperReferenceExpression(Expression.MYSTERY_OFFSET),
+                            new Repeat(new AnyNode()).toExpression()
+                        )
+                    )
+                ).toStatement(),
+                new Repeat(new AnyNode()).toStatement()
+            )
+        );
+
         @Override
         public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
             final TypeDefinition currentType = context.getCurrentType();
@@ -223,23 +238,23 @@ public class EnumRewriterTransform implements IAstTransform {
                 final List<ParameterDefinition> pDefinitions = constructor.getParameters();
                 final AstNodeCollection<ParameterDeclaration> pDeclarations = node.getParameters();
 
-                for (int i = 0; i < pDefinitions.size() && i < pDeclarations.size() && pDefinitions.get(i).isSynthetic(); i++) {
+                for (int i = 0; i < pDefinitions.size() && !pDeclarations.isEmpty() && pDefinitions.get(i).isSynthetic(); i++) {
                     pDeclarations.firstOrNullObject().remove();
                 }
 
-                final AstNodeCollection<Statement> statements = node.getBody().getStatements();
-                final Statement firstStatement = statements.firstOrNullObject();
+                final BlockStatement body = node.getBody();
+                final Match superCallMatch = SUPER_PATTERN.match(body);
+                final AstNodeCollection<Statement> statements = body.getStatements();
 
-                if (firstStatement instanceof ExpressionStatement) {
-                    final Expression e = ((ExpressionStatement) firstStatement).getExpression();
-
-                    if (e instanceof InvocationExpression && ((InvocationExpression) e).getTarget() instanceof SuperReferenceExpression) {
-                        firstStatement.remove();
-                    }
+                if (superCallMatch.success()) {
+                    final Statement superCall = first(superCallMatch.<Statement>get("superCall"));
+                    superCall.remove();
                 }
 
                 if (statements.isEmpty()) {
-                    node.remove();
+                    if (pDeclarations.isEmpty()) {
+                        node.remove();
+                    }
                 }
                 else if (currentType.isAnonymous()) {
                     final InstanceInitializer initializer = new InstanceInitializer();

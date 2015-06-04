@@ -14,11 +14,13 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.annotations.NotNull;
+import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.reflection.*;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
+import java.util.List;
 
 /**
  * @author Mike Strobel
@@ -132,7 +134,7 @@ public final class ConstructorBuilder extends ConstructorInfo {
     }
 
     @Override
-    public Type getDeclaringType() {
+    public TypeBuilder<?> getDeclaringType() {
         return _methodBuilder.getDeclaringType();
     }
 
@@ -148,12 +150,15 @@ public final class ConstructorBuilder extends ConstructorInfo {
 
     @Override
     public ParameterList getParameters() {
-        verifyTypeCreated();
-        return generatedConstructor.getParameters();
+        return isTypeCreated() ? generatedConstructor.getParameters() : _methodBuilder.createParameters();
     }
 
-    TypeList getParameterTypes() {
+    public TypeList getParameterTypes() {
         return _methodBuilder.getParameterTypes();
+    }
+
+    public List<ParameterBuilder> getDefinedParameters() {
+        return _methodBuilder.getDefinedParameters();
     }
 
     public void defineParameter(final int position, final String name) {

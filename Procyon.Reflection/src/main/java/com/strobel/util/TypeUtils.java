@@ -13,6 +13,8 @@
 
 package com.strobel.util;
 
+import com.strobel.annotations.NotNull;
+import com.strobel.core.VerifyArgument;
 import com.strobel.reflection.BindingFlags;
 import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.PrimitiveTypes;
@@ -77,10 +79,8 @@ public final class TypeUtils {
     }
 
     public static Type<?> getUnderlyingPrimitiveOrSelf(final Type<?> type) {
-        if (isAutoUnboxed(type)) {
-            return getUnderlyingPrimitive(type);
-        }
-        return type;
+        final Type<?> underlyingPrimitive = getUnderlyingPrimitive(type);
+        return  underlyingPrimitive != null ? underlyingPrimitive : type;
     }
 
     public static Type<?> getBoxedType(final Type<?> type) {
@@ -264,8 +264,8 @@ public final class TypeUtils {
     public static MethodInfo getCoercionMethod(final Type<?> source, final Type<?> destination) {
         // NOTE: If destination type is an autoboxing type, we will need an implicit box later.
         final Type<?> unboxedDestinationType = isAutoUnboxed(destination)
-                                            ? getUnderlyingPrimitive(destination)
-                                            : destination;
+                                               ? getUnderlyingPrimitive(destination)
+                                               : destination;
 
         if (destination == Types.String) {
             return Types.String.getMethod("valueOf", source);
@@ -541,5 +541,19 @@ public final class TypeUtils {
         }
 
         return false;
+    }
+
+    public static String getInternalName(@NotNull final Class<?> clazz) {
+        VerifyArgument.notNull(clazz, "clazz");
+
+        final StringBuilder sb = new StringBuilder(clazz.getName());
+
+        for (int i = 0, n = sb.length(); i < n; i++) {
+            if (sb.charAt(i) == '.') {
+                sb.setCharAt(i, '/');
+            }
+        }
+
+        return sb.toString();
     }
 }

@@ -361,7 +361,7 @@ final class Resolver {
 
                 final Type fromCache = Type.CACHE.find(
                     Type.CACHE.key(
-                        rawType.getErasedClass(),
+                        rawType,
                         Type.list(resolvedTypeArguments)
                     )
                 );
@@ -475,7 +475,13 @@ final class Resolver {
             // Redundant: Frame constructor adds nested type to its declaring type.
             if (declaringType instanceof ReflectedType<?>) {
                 final ReflectedType<?> owner = (ReflectedType<?>) declaringType;
-                if (owner.findNestedType(c) == null) {
+                final ReflectedType<?> nestedType = owner.findNestedType(c);
+
+                if (nestedType != null) {
+                    return nestedType;
+                }
+
+                if (nestedType == null) {
                     owner.addNestedType(currentType);
                 }
             }
@@ -843,7 +849,7 @@ final class Resolver {
         final ReflectedType<?> declaringType = frame.getCurrentClass();
 
         final ReflectedMethod method = new ReflectedMethod(
-            declaringType,
+            null, declaringType,
             m,
             new ParameterList(parameters),
             resolvedReturnType,
@@ -1307,7 +1313,7 @@ class ReflectedType<T> extends Type<T> {
         if (dottedName) {
             return sb.append(_name);
         }
-        return super._appendClassName(sb, fullName, dottedName);
+        return super._appendClassName(sb, true, false);
     }
 
     private final static SimpleVisitor<java.lang.reflect.Type, GenericParameter> GenericParameterFinder =

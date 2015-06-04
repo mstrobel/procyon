@@ -18,6 +18,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.strobel.core.CollectionUtilities.*;
 import static org.junit.Assert.*;
 
 /**
@@ -199,6 +200,34 @@ public final class TypeTests {
         testSignatureRoundTrip(Types.Map.makeGenericType(Types.Map.getGenericTypeParameters().get(0), Types.String));
     }
 
+    @Test
+    public void testCyclicInheritance() {
+        final Type<Cycle.A> a = Type.of(Cycle.A.class);
+        final Type<Cycle.B> b = Type.of(Cycle.B.class);
+        final Type<Cycle.C> c = Type.of(Cycle.C.class);
+
+        assertTrue(b.getBaseType().isEquivalentTo(a.makeGenericType(c)));
+        assertTrue(c.getBaseType().isEquivalentTo(b));
+    }
+
+    @Test
+    public void testCyclicInheritanceWithTypeParameters() {
+        final Type<G> g = Type.of(G.class);
+        final Type<F> f = Type.of(F.class);
+
+        final Type<G.Node> gn = Type.of(G.Node.class);
+        final Type<F.MyNode> fn = Type.of(F.MyNode.class);
+
+        final Type<?> gv = first(g.getGenericTypeParameters());
+        final Type<?> gnv = first(gn.getGenericTypeParameters());
+
+        assertEquals(gn.makeGenericType(gv), gv.getExtendsBound());
+        assertEquals(gn.makeGenericType(gnv), gnv.getExtendsBound());
+
+        assertEquals(g.makeGenericType(fn), f.getBaseType());
+        assertEquals(gn.makeGenericType(fn), fn.getBaseType());
+    }
+
     private void testSignatureRoundTrip(final Type<?> t) {
         final String signature = t.getSignature();
         final Type<?> resolvedType = Type.forName(signature);
@@ -217,4 +246,19 @@ public final class TypeTests {
     private static class D extends C {}
 
     private static class E<K extends B & I, V> {}
-}
+
+    private static class Cycle {
+        class A<T> {}
+        class B extends A<C> {}
+        class C extends B {}
+    }
+
+    private static class G<N extends G.Node<N>> {
+        static class Node<N extends Node<N>> {
+        }
+    }
+
+    private static class F extends G<F.MyNode> {
+        static class MyNode extends G.Node<MyNode> {
+        }
+    }}

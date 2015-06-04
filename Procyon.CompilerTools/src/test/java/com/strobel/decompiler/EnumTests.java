@@ -6,7 +6,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Map;
 
-@SuppressWarnings({ "UnnecessarySemicolon", "UnusedDeclaration" })
+@SuppressWarnings({ "UnnecessarySemicolon", "UnusedDeclaration", "UnnecessaryEnumModifier" })
 public class EnumTests extends DecompilerTest {
     private enum A {
         FOO,
@@ -90,6 +90,19 @@ public class EnumTests extends DecompilerTest {
 
         private E(final int code) {
             this.code = code;
+        }
+    }
+
+    private enum F {
+        VALUE("one") {
+            {
+                String w = "w";
+                System.out.println(w);
+            }
+
+        };
+
+        F(String a) {
         }
     }
 
@@ -205,6 +218,24 @@ public class EnumTests extends DecompilerTest {
             "        this.code = code;\n" +
             "    }\n" +
             "}"
+        );
+    }
+
+    @Test
+    public void testEnumInitializerVariableDeclaredAfterSuperCall() {
+        verifyOutput(
+            F.class,
+            defaultSettings(),
+            "private enum F {\n" +
+            "    VALUE(\"one\") {\n" +
+            "        {\n" +
+            "            final String w = \"w\";\n" +
+            "            System.out.println(w);\n" +
+            "        }\n" +
+            "    };\n" +
+            "    private F(final String a) {\n" +
+            "    }\n" +
+            "}\n"
         );
     }
 }

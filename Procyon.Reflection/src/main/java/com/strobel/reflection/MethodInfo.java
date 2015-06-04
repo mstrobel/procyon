@@ -15,8 +15,10 @@ package com.strobel.reflection;
 
 import com.strobel.annotations.NotNull;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.Fences;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
+import com.strobel.util.TypeUtils;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
@@ -28,7 +30,7 @@ import java.lang.reflect.TypeVariable;
  * @author Mike Strobel
  */
 public abstract class MethodInfo extends MethodBase {
-    private MethodInfo _erasedMethodDefinition;
+    protected MethodInfo _erasedMethodDefinition;
 
     public final boolean isAbstract() {
         return Modifier.isAbstract(getModifiers());
@@ -81,6 +83,13 @@ public abstract class MethodInfo extends MethodBase {
     }
 
     @Override
+    public boolean isEquivalentTo(final MemberInfo m) {
+        return m instanceof MethodInfo &&
+               super.isEquivalentTo(m) &&
+               ((MethodInfo) m).getReturnType().isEquivalentTo(getReturnType());
+    }
+
+    @Override
     public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
         return getRawMethod().isAnnotationPresent(annotationClass);
     }
@@ -103,11 +112,19 @@ public abstract class MethodInfo extends MethodBase {
     public MethodInfo findOverriddenMethod() {
         final Type baseType = getDeclaringType().getBaseType();
 
-        if (baseType == null || baseType == Type.NullType) {
-            return null;
+        MethodInfo baseMethod;
+
+        if (baseType != null && baseType != Type.NullType && (baseMethod = findBaseMethod(baseType)) != null) {
+            return baseMethod;
         }
 
-        return findBaseMethod(baseType);
+        for (final Type<?> ifType : getDeclaringType().getExplicitInterfaces()) {
+            if ((baseMethod = findBaseMethod(ifType)) != null) {
+                return baseMethod;
+            }
+        }
+
+        return null;
     }
 
     public MethodInfo findBaseMethod(final Type<?> relativeTo) {
@@ -119,7 +136,7 @@ public abstract class MethodInfo extends MethodBase {
             throw Error.invalidAncestorType(relativeTo, declaringType);
         }
 
-        if (isStatic() || isPrivate() || declaringType.isInterface()) {
+        if (isStatic() || isPrivate()) {
             return null;
         }
 
@@ -466,64 +483,103 @@ public abstract class MethodInfo extends MethodBase {
             return _erasedMethodDefinition;
         }
 
-        final Type<?> declaringType = getDeclaringType();
+//        final Type<?> declaringType = getDeclaringType();
+//
+//        if (declaringType.isGenericTypeDefinition()) {
+//            final Type<?> erasedType = declaringType.getErasedType();
+//
+//            final MemberList<? extends MemberInfo> members = erasedType.findMembers(
+//                MemberType.methodsOnly(),
+//                BindingFlags.fromMember(this),
+//                Type.FilterRawMember,
+//                getRawMethod()
+//            );
+//
+//            assert !members.isEmpty();
+//
+//            final MethodInfo erasedTypeMethod = (MethodInfo) members.get(0);
+//
+//            final MethodInfo erasedMethodDefinition = erasedTypeMethod.isGenericMethod() ? erasedTypeMethod.getErasedMethodDefinition()
+//                                                                                         : erasedTypeMethod;
+//
+//            if (TypeUtils.areEquivalent(getReflectedType(), erasedMethodDefinition.getReflectedType())) {
+//                _erasedMethodDefinition = erasedMethodDefinition;
+//            }
+//            else {
+//                _erasedMethodDefinition = new RuntimeMethodInfo(
+//                    erasedMethodDefinition.getRawMethod(),
+//                    erasedMethodDefinition.getDeclaringType(),
+//                    getReflectedType().getCache(),
+//                    erasedMethodDefinition.getModifiers(),
+//                    erasedMethodDefinition instanceof RuntimeMethodInfo ? ((RuntimeMethodInfo) erasedMethodDefinition).getBindingFlags()
+//                                                                        : BindingFlags.fromMember(erasedMethodDefinition),
+//                    erasedMethodDefinition.getParameters(),
+//                    erasedMethodDefinition.getReturnType(),
+//                    erasedMethodDefinition.getThrownTypes(),
+//                    erasedMethodDefinition.getTypeBindings()
+//                );
+//            }
+//
+//            return _erasedMethodDefinition;
+//        }
+//
+//        if (isGenericMethod()) {
+//            if (isGenericMethodDefinition()) {
+//                final ParameterList oldParameters = getParameters();
+//                final TypeList parameterTypes = Helper.erasure(oldParameters.getParameterTypes());
+//
+//                final ParameterInfo[] parameters = new ParameterInfo[oldParameters.size()];
+//
+//                for (int i = 0, n = parameters.length; i < n; i++) {
+//                    final ParameterInfo oldParameter = oldParameters.get(i);
+//                    if (parameterTypes.get(i) == oldParameter.getParameterType()) {
+//                        parameters[i] = oldParameter;
+//                    }
+//                    else {
+//                        parameters[i] = new ParameterInfo(
+//                            oldParameter.getName(),
+//                            oldParameter.getPosition(),
+//                            parameterTypes.get(i)
+//                        );
+//                    }
+//                }
+//
+//                _erasedMethodDefinition = new ReflectedMethod(
+//                    declaringType.isGenericType() ? declaringType.getErasedType()
+//                                                  : declaringType,
+//                    getReflectedType(),
+//                    getRawMethod(),
+//                    new ParameterList(parameters),
+//                    Helper.erasure(getReturnType()),
+//                    Helper.erasure(getThrownTypes()),
+//                    TypeBindings.empty()
+//                );
+//
+//                return _erasedMethodDefinition;
+//            }
+//
+//            _erasedMethodDefinition = getGenericMethodDefinition().getErasedMethodDefinition();
+//        }
+//        else {
+//            _erasedMethodDefinition = this;
+//        }
 
-        if (declaringType.isGenericType() && !declaringType.isGenericTypeDefinition()) {
-            final Type<?> erasedType = declaringType.getErasedType();
+        final Type<?> declaringType = this.getDeclaringType();
+        final Type<?> actualDeclaringType;
 
-            final MemberList<? extends MemberInfo> members = erasedType.findMembers(
-                MemberType.methodsOnly(),
-                BindingFlags.fromMember(this),
-                Type.FilterRawMember,
-                getRawMethod()
-            );
-
-            assert !members.isEmpty();
-
-            _erasedMethodDefinition = ((MethodInfo) members.get(0)).getErasedMethodDefinition();
-
-            return _erasedMethodDefinition;
-        }
-
-        if (isGenericMethod()) {
-            if (isGenericMethodDefinition()) {
-                final ParameterList oldParameters = getParameters();
-                final TypeList parameterTypes = Helper.erasure(oldParameters.getParameterTypes());
-
-                final ParameterInfo[] parameters = new ParameterInfo[oldParameters.size()];
-
-                for (int i = 0, n = parameters.length; i < n; i++) {
-                    final ParameterInfo oldParameter = oldParameters.get(i);
-                    if (parameterTypes.get(i) == oldParameter.getParameterType()) {
-                        parameters[i] = oldParameter;
-                    }
-                    else {
-                        parameters[i] = new ParameterInfo(
-                            oldParameter.getName(),
-                            oldParameter.getPosition(),
-                            parameterTypes.get(i)
-                        );
-                    }
-                }
-
-                _erasedMethodDefinition = new ReflectedMethod(
-                    declaringType,
-                    getReflectedType(),
-                    getRawMethod(),
-                    new ParameterList(parameters),
-                    Helper.erasure(getReturnType()),
-                    Helper.erasure(getThrownTypes()),
-                    TypeBindings.empty()
-                );
-
-                return _erasedMethodDefinition;
-            }
-
-            _erasedMethodDefinition = getGenericMethodDefinition().getErasedMethodDefinition();
+        if (declaringType.isGenericType()) {
+            actualDeclaringType = declaringType.getErasedType();
         }
         else {
-            _erasedMethodDefinition = this;
+            actualDeclaringType = declaringType;
         }
+
+        _erasedMethodDefinition = ErasedType.GenericEraser.visitMethod(
+            actualDeclaringType,
+            this.isGenericMethod() ? this.getGenericMethodDefinition()
+                                   : this,
+            getTypeBindings()
+        );
 
         return _erasedMethodDefinition;
     }
@@ -562,9 +618,28 @@ public abstract class MethodInfo extends MethodBase {
 
         return new GenericMethod(bindings, this);
     }
+
+    static MethodInfo reflectedOn(final MethodInfo method, final Type<?> reflectedType) {
+        if (TypeUtils.areEquivalent(reflectedType, method.getReflectedType())) {
+            return method;
+        }
+
+        return new DelegatingMethodInfo(method, reflectedType);
+    }
+
+    static MethodInfo declaredOn(final MethodInfo method, final Type<?> declaringType, final Type<?> reflectedType) {
+        if (TypeUtils.areEquivalent(declaringType, method.getDeclaringType()) &&
+            TypeUtils.areEquivalent(reflectedType, method.getReflectedType())) {
+
+            return method;
+        }
+
+        return new DelegatingMethodInfo(method, declaringType, reflectedType);
+    }
 }
 
 class ReflectedMethod extends MethodInfo {
+    private final MethodInfo _baseMethod;
     private final Type<?> _declaringType;
     private final Method _rawMethod;
     private final ParameterList _parameters;
@@ -574,6 +649,7 @@ class ReflectedMethod extends MethodInfo {
     private final Type<?> _reflectedType;
 
     ReflectedMethod(
+        final MethodInfo baseMethod,
         final Type<?> declaringType,
         final Method rawMethod,
         final ParameterList parameters,
@@ -582,6 +658,7 @@ class ReflectedMethod extends MethodInfo {
         final TypeBindings bindings) {
 
         this(
+            baseMethod,
             declaringType,
             declaringType,
             rawMethod,
@@ -593,6 +670,7 @@ class ReflectedMethod extends MethodInfo {
     }
 
     ReflectedMethod(
+        final MethodInfo baseMethod,
         final Type declaringType,
         final Type reflectedType,
         final Method rawMethod,
@@ -600,6 +678,8 @@ class ReflectedMethod extends MethodInfo {
         final Type returnType,
         final TypeList thrownTypes,
         final TypeBindings bindings) {
+
+        _baseMethod = baseMethod;
 
         Type[] genericParameters = null;
 
@@ -701,6 +781,24 @@ class ReflectedMethod extends MethodInfo {
     }
 
     @Override
+    public MethodInfo getErasedMethodDefinition() {
+        if (_erasedMethodDefinition != null) {
+            return _erasedMethodDefinition;
+        }
+
+        if (_baseMethod != null) {
+            _erasedMethodDefinition = Fences.orderWrites(
+                reflectedOn(
+                    _baseMethod.getErasedMethodDefinition(),
+                    getReflectedType()
+                )
+            );
+        }
+
+        return super.getErasedMethodDefinition();
+    }
+
+    @Override
     public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
         return _rawMethod.getAnnotation(annotationClass);
     }
@@ -721,10 +819,280 @@ class ReflectedMethod extends MethodInfo {
     public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
         return _rawMethod.isAnnotationPresent(annotationClass);
     }
+
+    @Override
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        if (_baseMethod != null) {
+            return _baseMethod.appendErasedDescription(sb);
+        }
+        return super.appendErasedDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        if (_baseMethod != null) {
+            return _baseMethod.appendErasedSignature(sb);
+        }
+        return super.appendErasedSignature(sb);
+    }
+}
+
+final class DelegatingMethodInfo extends MethodInfo {
+    private final Type<?> _reflectedType;
+    private final Type<?> _declaringType;
+    private final MethodInfo _methodInfo;
+
+    DelegatingMethodInfo(final MethodInfo method, final Type<?> reflectedType) {
+        _methodInfo = unwrap(VerifyArgument.notNull(method, "method"));
+        _declaringType = _methodInfo.getDeclaringType();
+        _reflectedType = VerifyArgument.notNull(reflectedType, "reflectedType");
+    }
+
+    DelegatingMethodInfo(final MethodInfo method, final Type<?> declaringType, final Type<?> reflectedType) {
+        _methodInfo = unwrap(VerifyArgument.notNull(method, "method"));
+        _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
+        _reflectedType = VerifyArgument.notNull(reflectedType, "reflectedType");
+    }
+
+    private static MethodInfo unwrap(final MethodInfo method) {
+        MethodInfo m = method;
+
+        while (m instanceof DelegatingMethodInfo) {
+            m = ((DelegatingMethodInfo) m)._methodInfo;
+        }
+
+        return m;
+    }
+
+    @Override
+    public Type<?> getReturnType() {
+        return _methodInfo.getReturnType();
+    }
+
+    @Override
+    public Method getRawMethod() {
+        return _methodInfo.getRawMethod();
+    }
+
+    @Override
+    public Object getDefaultValue() {
+        return _methodInfo.getDefaultValue();
+    }
+
+    @Override
+    public String getName() {
+        return _methodInfo.getName();
+    }
+
+    @Override
+    public <T extends Annotation> T getAnnotation(final Class<T> annotationClass) {
+        return _methodInfo.getAnnotation(annotationClass);
+    }
+
+    @NotNull
+    @Override
+    public Annotation[] getAnnotations() {
+        return _methodInfo.getAnnotations();
+    }
+
+    @NotNull
+    @Override
+    public Annotation[] getDeclaredAnnotations() {
+        return _methodInfo.getDeclaredAnnotations();
+    }
+
+    @Override
+    public boolean isAnnotationPresent(final Class<? extends Annotation> annotationClass) {
+        return _methodInfo.isAnnotationPresent(annotationClass);
+    }
+
+    @Override
+    public Object invoke(final Object instance, final Object... args) {
+        return _methodInfo.invoke(instance, args);
+    }
+
+    @Override
+    public MethodInfo findOverriddenMethod() {
+        return _methodInfo.findOverriddenMethod();
+    }
+
+    @Override
+    public MethodInfo findBaseMethod(final Type<?> relativeTo) {
+        return _methodInfo.findBaseMethod(relativeTo);
+    }
+
+    @Override
+    public StringBuilder appendDescription(final StringBuilder sb) {
+        return _methodInfo.appendDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        return _methodInfo.appendSimpleDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendBriefDescription(final StringBuilder sb) {
+        return _methodInfo.appendBriefDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        return _methodInfo.appendErasedDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendSignature(final StringBuilder sb) {
+        return _methodInfo.appendSignature(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        return _methodInfo.appendErasedSignature(sb);
+    }
+
+    @Override
+    public boolean isGenericMethod() {
+        return _methodInfo.isGenericMethod();
+    }
+
+    @Override
+    public boolean isGenericMethodDefinition() {
+        return _methodInfo.isGenericMethodDefinition();
+    }
+
+    @Override
+    public TypeBindings getTypeBindings() {
+        return _methodInfo.getTypeBindings();
+    }
+
+    @Override
+    public TypeList getTypeArguments() {
+        return _methodInfo.getTypeArguments();
+    }
+
+    @Override
+    public TypeList getGenericMethodParameters() {
+        return _methodInfo.getGenericMethodParameters();
+    }
+
+    @Override
+    public MethodInfo getGenericMethodDefinition() {
+        return _methodInfo.getGenericMethodDefinition();
+    }
+
+    @Override
+    public MethodInfo getErasedMethodDefinition() {
+        return _methodInfo.getErasedMethodDefinition();
+    }
+
+    @Override
+    public boolean containsGenericParameters() {
+        return _methodInfo.containsGenericParameters();
+    }
+
+    @Override
+    public MethodInfo makeGenericMethod(final Type<?>... typeArguments) {
+        return _methodInfo.makeGenericMethod(typeArguments);
+    }
+
+    @Override
+    public MethodInfo makeGenericMethod(final TypeList typeArguments) {
+        return _methodInfo.makeGenericMethod(typeArguments);
+    }
+
+    @Override
+    public SignatureType getSignatureType() {
+        return _methodInfo.getSignatureType();
+    }
+
+    @Override
+    public ParameterList getParameters() {
+        return _methodInfo.getParameters();
+    }
+
+    @Override
+    public TypeList getThrownTypes() {
+        return _methodInfo.getThrownTypes();
+    }
+
+    @Override
+    public CallingConvention getCallingConvention() {
+        return _methodInfo.getCallingConvention();
+    }
+
+    @Override
+    public Type getDeclaringType() {
+        return _declaringType;
+    }
+
+    @Override
+    public Type getReflectedType() {
+        return _reflectedType;
+    }
+
+    @Override
+    public int getModifiers() {
+        return _methodInfo.getModifiers();
+    }
+
+    @Override
+    public <T extends Annotation> T getDeclaredAnnotation(final Class<T> annotationClass) {
+        return _methodInfo.getDeclaredAnnotation(annotationClass);
+    }
+
+    @Override
+    public <T extends Annotation> T[] getAnnotationsByType(final Class<T> annotationClass) {
+        return _methodInfo.getAnnotationsByType(annotationClass);
+    }
+
+    @Override
+    public <T extends Annotation> T[] getDeclaredAnnotationsByType(final Class<T> annotationClass) {
+        return _methodInfo.getDeclaredAnnotationsByType(annotationClass);
+    }
+
+    @Override
+    public boolean isEquivalentTo(final MemberInfo m) {
+        return _methodInfo.isEquivalentTo(m);
+    }
+
+    @Override
+    public String getSignature() {
+        return _methodInfo.getSignature();
+    }
+
+    @Override
+    public String getErasedSignature() {
+        return _methodInfo.getErasedSignature();
+    }
+
+    @Override
+    public String getBriefDescription() {
+        return _methodInfo.getBriefDescription();
+    }
+
+    @Override
+    public String getDescription() {
+        return _methodInfo.getDescription();
+    }
+
+    @Override
+    public String getErasedDescription() {
+        return _methodInfo.getErasedDescription();
+    }
+
+    @Override
+    public String getSimpleDescription() {
+        return _methodInfo.getSimpleDescription();
+    }
+
+    @Override
+    public String toString() {
+        return _methodInfo.toString();
+    }
 }
 
 final class GenericMethod extends MethodInfo {
-
     private final MethodInfo _genericMethodDefinition;
     private final TypeBindings _typeBindings;
     private final ParameterList _parameters;
@@ -807,6 +1175,16 @@ final class GenericMethod extends MethodInfo {
     @Override
     public String getName() {
         return _genericMethodDefinition.getName();
+    }
+
+    @Override
+    public StringBuilder appendErasedDescription(final StringBuilder sb) {
+        return _genericMethodDefinition.appendErasedDescription(sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        return _genericMethodDefinition.appendErasedSignature(sb);
     }
 
     @Override

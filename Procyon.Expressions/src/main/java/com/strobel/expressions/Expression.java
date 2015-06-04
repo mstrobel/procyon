@@ -594,10 +594,9 @@ public abstract class Expression {
         final ReadOnlyList<CatchBlock> catchBlocks;
 
         if (handlers != null) {
-            catchBlocks = new ReadOnlyList<>(handlers);
+            catchBlocks = new ReadOnlyList<>(VerifyArgument.noNullElements(handlers, "handlers"));
         }
         else {
-            VerifyArgument.noNullElements(handlers, "handlers");
             catchBlocks = ReadOnlyList.emptyList();
         }
 
@@ -759,7 +758,9 @@ public abstract class Expression {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static ConstantExpression constant(final Object value) {
-        return ConstantExpression.make(value, value == null ? Types.Object : Type.of(value.getClass()));
+        final Type<?> type = value == null ? Types.Object
+                                           : TypeUtils.getUnderlyingPrimitiveOrSelf(Type.of(value.getClass()));
+        return ConstantExpression.make(value, type);
     }
 
     public static ConstantExpression constant(final Object value, final Type type) {
@@ -769,11 +770,16 @@ public abstract class Expression {
             throw Error.argumentTypesMustMatch();
         }
 
-        if (value != null && !type.getErasedClass().isInstance(value)) {
+        if (value != null && !TypeUtils.getBoxedTypeOrSelf(type).getErasedClass().isInstance(value)) {
             throw Error.argumentTypesMustMatch();
         }
 
         return ConstantExpression.make(value, type);
+    }
+
+    public static ConstantExpression classConstant(final Type<?> value) {
+        VerifyArgument.notNull(value, "value");
+        return ConstantExpression.make(value, Types.Class.makeGenericType(value));
     }
 
     //
@@ -1023,7 +1029,7 @@ public abstract class Expression {
     }
 
     public static UnaryExpression unaryPlus(final Expression expression) {
-        return negate(expression, null);
+        return unaryPlus(expression, null);
     }
 
     public static UnaryExpression unaryPlus(final Expression expression, final MethodInfo method) {
@@ -1033,7 +1039,7 @@ public abstract class Expression {
             if (TypeUtils.isArithmetic(expression.getType())) {
                 return new UnaryExpression(ExpressionType.UnaryPlus, expression, expression.getType(), null);
             }
-            return getMethodBasedUnaryOperatorOrThrow(ExpressionType.UnaryPlus, "abs", expression);
+            throw Error.unaryOperatorNotDefined(ExpressionType.UnaryPlus, expression.getType());
         }
 
         return getMethodBasedUnaryOperator(ExpressionType.UnaryPlus, expression, method);
@@ -2845,6 +2851,7 @@ public abstract class Expression {
             // When comparison method is not present, all the test values must have
             // the same type. Use the first test value's type as the baseline.
             final Expression firstTestValue = cases.get(0).getTestValues().get(0);
+
             for (int i = 0, n = cases.size(); i < n; i++) {
                 final SwitchCase c = cases.get(i);
 
@@ -2862,7 +2869,7 @@ public abstract class Expression {
 
             // Now we need to validate that switchValue.Type and testValueType make sense in an
             // Equal node. Fortunately, Equal throws a reasonable error, so just call it.
-            final BinaryExpression equal = equal(switchValue, firstTestValue, comparison);
+            final BinaryExpression equal = equal(switchValue, firstTestValue, null);
 
             // Get the comparison function from equals node.
             actualComparison = equal.getMethod();
@@ -3083,6 +3090,23 @@ public abstract class Expression {
         throw Error.unaryOperatorNotDefined(unaryType, operand.getType());
     }
 
+    private static UnaryExpression getMethodBasedUnaryOperatorOrThrow(
+        final ExpressionType unaryType,
+        final Expression operand,
+        final String... methodNames) {
+
+        for (final String methodName : methodNames) {
+            final UnaryExpression u = getMethodBasedUnaryOperator(unaryType, methodName, operand);
+
+            if (u != null) {
+                validateOperator(u.getMethod());
+                return u;
+            }
+        }
+
+        throw Error.unaryOperatorNotDefined(unaryType, operand.getType());
+    }
+
     private static UnaryExpression getMethodBasedUnaryOperator(
         final ExpressionType unaryType,
         final String methodName,
@@ -3116,7 +3140,7 @@ public abstract class Expression {
             throw Error.operatorMethodParametersMustMatchReturnValue(method);
         }
 
-        if (TypeUtils.areReferenceAssignable(method.getDeclaringType(), returnType)) {
+        if (!TypeUtils.areReferenceAssignable(method.getDeclaringType(), returnType)) {
             throw Error.methodBasedOperatorMustHaveValidReturnType(method);
         }
     }
