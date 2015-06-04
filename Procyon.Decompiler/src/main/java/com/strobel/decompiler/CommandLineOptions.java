@@ -40,8 +40,14 @@ public class CommandLineOptions {
 
     @Parameter(
         names = { "-ei", "--explicit-imports" },
-        description = "Force explicit type imports (i.e., never import '*').")
+        description = "[DEPRECATED] Explicit imports are now enabled by default.  " +
+                      "This option will be removed in a future release.")
     private boolean _forceExplicitImports;
+
+    @Parameter(
+        names = { "-ci", "--collapse-imports" },
+        description = "Collapse multiple imports from the same package into a single wildcard import.")
+    private boolean _collapseImports;
 
     @Parameter(
         names = { "-eta", "--explicit-type-arguments" },
@@ -90,7 +96,7 @@ public class CommandLineOptions {
 
     @Parameter(
         names = { "-jar", "--jar-file" },
-        description = "Decompile all classes in the specified jar file (disables -ent and -s) [DEPRECATED].")
+        description = "[DEPRECATED] Decompile all classes in the specified jar file (disables -ent and -s).")
     private String _jarFile;
 
     @Parameter(
@@ -177,12 +183,12 @@ public class CommandLineOptions {
         _flattenSwitchBlocks = flattenSwitchBlocks;
     }
 
-    public final boolean getForceExplicitImports() {
-        return _forceExplicitImports;
+    public final boolean getCollapseImports() {
+        return _collapseImports;
     }
 
-    public final void setForceExplicitImports(final boolean forceExplicitImports) {
-        _forceExplicitImports = forceExplicitImports;
+    public final void setCollapseImports(final boolean collapseImports) {
+        _collapseImports = collapseImports;
     }
 
     public final boolean getForceExplicitTypeArguments() {

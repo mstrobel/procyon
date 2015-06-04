@@ -80,7 +80,7 @@ public class DecompilerDriver {
         final DecompilerSettings settings = new DecompilerSettings();
 
         settings.setFlattenSwitchBlocks(options.getFlattenSwitchBlocks());
-        settings.setForceExplicitImports(options.getForceExplicitImports());
+        settings.setForceExplicitImports(!options.getCollapseImports());
         settings.setForceExplicitTypeArguments(options.getForceExplicitTypeArguments());
         settings.setRetainRedundantCasts(options.getRetainRedundantCasts());
         settings.setShowSyntheticMembers(options.getShowSyntheticMembers());
