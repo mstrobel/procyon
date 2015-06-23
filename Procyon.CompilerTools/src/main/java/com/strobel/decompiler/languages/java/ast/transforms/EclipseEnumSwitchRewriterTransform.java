@@ -16,14 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
-import com.strobel.assembler.metadata.BuiltinTypes;
-import com.strobel.assembler.metadata.FieldDefinition;
-import com.strobel.assembler.metadata.FieldReference;
-import com.strobel.assembler.metadata.MetadataParser;
-import com.strobel.assembler.metadata.MetadataResolver;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
@@ -428,15 +421,25 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
             body.add(new Repeat(tryCatch).toStatement());
 
             body.add(
-                new ExpressionStatement(
-                    new AssignmentExpression(
-                        new BackReference("fieldAccess").toExpression(),
-                        new DeclaredVariableBackReference("v2").toExpression()
+                new Choice(
+                    new BlockStatement(
+                        new ExpressionStatement(
+                            new AssignmentExpression(
+                                new BackReference("fieldAccess").toExpression(),
+                                new DeclaredVariableBackReference("v2").toExpression()
+                            )
+                        ),
+                        new ReturnStatement(Expression.MYSTERY_OFFSET, new DeclaredVariableBackReference("v2").toExpression())
+                    ),
+                    new ReturnStatement(
+                        Expression.MYSTERY_OFFSET,
+                        new AssignmentExpression(
+                            new BackReference("fieldAccess").toExpression(),
+                            new DeclaredVariableBackReference("v2").toExpression()
+                        )
                     )
-                )
+                ).toStatement()
             );
-
-            body.add(new ReturnStatement(Expression.MYSTERY_OFFSET, new DeclaredVariableBackReference("v2").toExpression()));
 
             SWITCH_TABLE_METHOD_BODY = body;
 

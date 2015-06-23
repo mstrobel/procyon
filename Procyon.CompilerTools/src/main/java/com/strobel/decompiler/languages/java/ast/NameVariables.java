@@ -223,7 +223,7 @@ public class NameVariables {
         final String nameWithoutDigits = splitName(oldVariableName, number);
 
         if (!_typeNames.containsKey(nameWithoutDigits) && !JavaOutputVisitor.isKeyword(oldVariableName)) {
-            _typeNames.put(nameWithoutDigits, Math.min(number.value, 1));
+            _typeNames.put(nameWithoutDigits, Math.max(number.value, 1));
             return oldVariableName;
         }
 
