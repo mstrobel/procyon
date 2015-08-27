@@ -3693,7 +3693,13 @@ public final class AstBuilder {
             return;
         }
 
-        final Node firstNode = firstOrDefault(catchBlock.getBody());
+        final Node firstNode = firstOrDefault(
+            skipWhile(
+                catchBlock.getBody(),
+                Predicates.<Node>instanceOf(Label.class)
+            )
+        );
+
         final StrongBox<Expression> popArgument;
 
         if (firstNode != null &&
