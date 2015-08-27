@@ -89,6 +89,10 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         _typeLoader = typeLoader;
     }
 
+    public final CompilerTarget getCompilerTarget() {
+        return CompilerTarget.lookup(getCompilerMajorVersion(), getCompilerMinorVersion());
+    }
+
     public final int getCompilerMajorVersion() {
         return _compilerVersion >>> 16;
     }

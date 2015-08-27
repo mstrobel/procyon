@@ -843,8 +843,8 @@ public class StackMappingVisitor implements MethodVisitor {
 
                 return;
             }
-            else if (code == OpCode.JSR || code == OpCode.JSR) {
-                set(0, FrameValue.makeAddress(instruction.getNext()));
+            else if (code.isJumpToSubroutine()) {
+                push(FrameValue.makeAddress(instruction.getNext()));
             }
 
             switch (code.getStackBehaviorPush()) {

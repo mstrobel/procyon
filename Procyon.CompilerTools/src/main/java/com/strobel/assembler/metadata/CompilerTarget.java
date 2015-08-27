@@ -77,7 +77,7 @@ public enum CompilerTarget {
     public final int majorVersion;
     public final int minorVersion;
 
-    private CompilerTarget(final String name, final int majorVersion, final int minorVersion) {
+    CompilerTarget(final String name, final int majorVersion, final int minorVersion) {
         this.name = name;
         this.majorVersion = majorVersion;
         this.minorVersion = minorVersion;
@@ -267,7 +267,7 @@ public enum CompilerTarget {
     /**
      * Does the VM support an invokedynamic instruction?
      */
-    public boolean hasInvokedynamic() {
+    public boolean hasInvokeDynamic() {
         return compareTo(JDK1_7) >= 0;
     }
 
@@ -277,7 +277,7 @@ public enum CompilerTarget {
      * An alias for {@code hasInvokedynamic}, since all the JSR 292 features appear together.
      */
     public boolean hasMethodHandles() {
-        return hasInvokedynamic();
+        return hasInvokeDynamic();
     }
 
     /**

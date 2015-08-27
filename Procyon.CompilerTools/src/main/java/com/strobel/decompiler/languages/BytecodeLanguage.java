@@ -133,14 +133,17 @@ public class BytecodeLanguage extends Language {
         }
     }
 
+    private static final char[] HEX_CHARS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+
     private void writeTypeAttribute(final ITextOutput output, final TypeDefinition type, final SourceAttribute attribute) {
         if (attribute instanceof BlobAttribute) {
+            writeBlobAttribute(output, (BlobAttribute) attribute);
             return;
         }
 
         switch (attribute.getName()) {
             case AttributeNames.SourceFile: {
-                output.writeAttribute("SourceFile");
+                output.writeAttribute(AttributeNames.SourceFile);
                 output.write(": ");
                 output.writeTextLiteral(((SourceFileAttribute) attribute).getSourceFile());
                 output.writeLine();
@@ -148,7 +151,7 @@ public class BytecodeLanguage extends Language {
             }
 
             case AttributeNames.Deprecated: {
-                output.writeAttribute("Deprecated");
+                output.writeAttribute(AttributeNames.Deprecated);
                 output.writeLine();
                 break;
             }
@@ -167,7 +170,7 @@ public class BytecodeLanguage extends Language {
                 if (enclosingMethod != null) {
                     final TypeReference declaringType = enclosingMethod.getDeclaringType();
 
-                    output.writeAttribute("EnclosingMethod");
+                    output.writeAttribute(AttributeNames.EnclosingMethod);
                     output.write(": ");
                     output.writeReference(declaringType.getInternalName(), declaringType);
                     output.writeDelimiter(".");
@@ -184,7 +187,7 @@ public class BytecodeLanguage extends Language {
                 final InnerClassesAttribute innerClasses = (InnerClassesAttribute) attribute;
                 final List<InnerClassEntry> entries = innerClasses.getEntries();
 
-                output.writeAttribute("InnerClasses");
+                output.writeAttribute(AttributeNames.InnerClasses);
                 output.writeLine(": ");
                 output.indent();
 
@@ -196,17 +199,88 @@ public class BytecodeLanguage extends Language {
                 finally {
                     output.unindent();
                 }
+
+                break;
             }
 
             case AttributeNames.Signature: {
-                output.writeAttribute("Signature");
+                output.writeAttribute(AttributeNames.Signature);
                 output.write(": ");
                 DecompilerHelpers.writeGenericSignature(output, type);
                 output.writeLine();
+                break;
+            }
+
+            case AttributeNames.BootstrapMethods: {
+                final BootstrapMethodsAttribute innerClasses = (BootstrapMethodsAttribute) attribute;
+                final List<BootstrapMethodsTableEntry> entries = innerClasses.getBootstrapMethods();
+
+                output.writeAttribute(AttributeNames.BootstrapMethods);
+                output.writeLine(": ");
+                output.indent();
+
+                try {
+                    int i = 0;
+
+                    for (final BootstrapMethodsTableEntry entry : entries) {
+                        output.writeLiteral(i++);
+                        output.write(": ");
+                        writeBootstrapMethodEntry(output, type, entry);
+                    }
+                }
+                finally {
+                    output.unindent();
+                }
+
+                break;
             }
         }
     }
 
+    private void writeBlobAttribute(final ITextOutput output, final BlobAttribute attribute) {
+        output.writeAttribute(attribute.getName());
+        output.write(":");
+        for (final byte r : attribute.getData()) {
+            final int b = r & 0xFF;
+
+            output.write(' ');
+
+            if (b < 0x10) {
+                output.writeLiteral('0');
+            }
+            else {
+                output.writeLiteral(HEX_CHARS[b >> 4]);
+            }
+
+            output.writeLiteral(HEX_CHARS[b & 0xF]);
+        }
+        output.writeLine();
+    }
+
+    private void writeBootstrapMethodEntry(final ITextOutput output, final TypeDefinition type, final BootstrapMethodsTableEntry entry) {
+        DecompilerHelpers.writeMethod(output, entry.getMethod());
+
+        output.writeLine();
+        output.indent();
+
+        try {
+            output.writeLine("Method Arguments:");
+            output.indent();
+
+            try {
+                for (final Object argument : entry.getArguments()) {
+                    DecompilerHelpers.writeOperand(output, argument);
+                    output.writeLine();
+                }
+            }
+            finally {
+                output.unindent();
+            }
+        }
+        finally {
+            output.unindent();
+        }
+    }
     private void writeInnerClassEntry(final ITextOutput output, final TypeDefinition type, final InnerClassEntry entry) {
         final String shortName = entry.getShortName();
         final String innerClassName = entry.getInnerClassName();

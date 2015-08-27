@@ -226,14 +226,26 @@ public class CoreMetadataFactory implements MetadataFactory {
                     lastDollarIndex = -1;
                 }
 
-                declaringType = makeNamedType(name.substring(0, lastDollarIndex).replace('/', '.'));
+                if (lastDollarIndex < 0) {
+                    if (_owner != null && _owner.getCompilerTarget().compareTo(CompilerTarget.JDK1_4) < 0) {
+                        declaringType = _owner;
+                    }
+                    else {
+                        declaringType = null;
+                    }
+                }
+                else {
+                    declaringType = makeNamedType(name.substring(0, lastDollarIndex).replace('/', '.'));
+                }
             }
 
-            return new UnresolvedType(
-                declaringType,
-                packageEnd < 0 ? innerClassName : innerClassName.substring(packageEnd + 1),
-                shortName
-            );
+            if (declaringType != null) {
+                return new UnresolvedType(
+                    declaringType,
+                    packageEnd < 0 ? innerClassName : innerClassName.substring(packageEnd + 1),
+                    shortName
+                );
+            }
         }
 
         final int packageEnd = name.lastIndexOf('.');
