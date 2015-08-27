@@ -45,6 +45,7 @@ public final class Roles {
     public final static Role<Annotation> ANNOTATION = new Role<>("Annotation", Annotation.class);
     public final static Role<VariableInitializer> VARIABLE = new Role<>("Variable", VariableInitializer.class, VariableInitializer.NULL);
     public final static Role<EntityDeclaration> TYPE_MEMBER = new Role<>("TypeMember", EntityDeclaration.class);
+    public final static Role<TypeDeclaration> TOP_LEVEL_TYPE_ROLE = new Role<>("TopLevelType", TypeDeclaration.class, TypeDeclaration.NULL);
     public final static Role<TypeDeclaration> LOCAL_TYPE_DECLARATION = new Role<>("LocalTypeDeclaration", TypeDeclaration.class, TypeDeclaration.NULL);
     public final static Role<AstType> THROWN_TYPE = new Role<>("ThrownType", AstType.class, AstType.NULL);
     public final static Role<PackageDeclaration> PACKAGE = new Role<>("Package", PackageDeclaration.class, PackageDeclaration.NULL);

@@ -26,7 +26,7 @@ import java.util.NoSuchElementException;
 import java.util.Stack;
 
 public class CompilationUnit extends AstNode {
-    public final static Role<AstNode> MEMBER_ROLE = new Role<>("Member", AstNode.class, AstNode.NULL);
+    public final static Role<TypeDeclaration> TYPE_ROLE = Roles.TOP_LEVEL_TYPE_ROLE;
     public final static Role<ImportDeclaration> IMPORT_ROLE = new Role<>("Import", ImportDeclaration.class, ImportDeclaration.NULL);
 
     private AstNode _topExpression;
@@ -61,8 +61,8 @@ public class CompilationUnit extends AstNode {
         _topExpression = topExpression;
     }
 
-    public final AstNodeCollection<AstNode> getMembers() {
-        return getChildrenByRole(MEMBER_ROLE);
+    public final AstNodeCollection<TypeDeclaration> getTypes() {
+        return getChildrenByRole(TYPE_ROLE);
     }
 
     @Override
@@ -79,11 +79,7 @@ public class CompilationUnit extends AstNode {
     public boolean matches(final INode other, final Match match) {
         return other instanceof CompilationUnit &&
                !other.isNull() &&
-               getMembers().matches(((CompilationUnit) other).getMembers(), match);
-    }
-
-    public Iterable<TypeDeclaration> getTypes() {
-        return getTypes(false);
+               getTypes().matches(((CompilationUnit) other).getTypes(), match);
     }
 
     public Iterable<TypeDeclaration> getTypes(final boolean includeInnerTypes) {

@@ -25,7 +25,9 @@ import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 
 import static com.strobel.core.CollectionUtilities.first;
@@ -44,6 +46,11 @@ public class AddReferenceQualifiersTransform extends ContextTrackingVisitor<Void
     public void run(final AstNode compilationUnit) {
         super.run(compilationUnit);
 
+        addQualifiersWhereNecessary();
+        removeQualifiersWherePossible();
+    }
+
+    private void addQualifiersWhereNecessary() {
         for (final AstNode candidate : _addQualifierCandidates) {
             if (candidate instanceof SimpleType) {
                 final SimpleType type = (SimpleType) candidate;
@@ -61,7 +68,9 @@ public class AddReferenceQualifiersTransform extends ContextTrackingVisitor<Void
                 }
             }
         }
+    }
 
+    private void removeQualifiersWherePossible() {
         for (final AstNode candidate : _removeQualifierCandidates) {
             if (candidate instanceof MemberReferenceExpression) {
                 final FieldReference field = (FieldReference) candidate.getUserData(Keys.MEMBER_REFERENCE);
@@ -121,7 +130,6 @@ public class AddReferenceQualifiersTransform extends ContextTrackingVisitor<Void
         final AstNode parent = node.getParent();
 
         if (parent instanceof ObjectCreationExpression &&
-            ((ObjectCreationExpression) parent).getTarget() != null &&
             !((ObjectCreationExpression) parent).getTarget().isNull()) {
 
             //
@@ -147,7 +155,7 @@ public class AddReferenceQualifiersTransform extends ContextTrackingVisitor<Void
             name = name.substring(0, i);
         }
 
-        if (type != null && !type.isPrimitive()) {
+        if (!type.isPrimitive()) {
             final Object resolvedObject = resolveName(node, name, modeForType(node));
 
             if (resolvedObject == null ||
@@ -159,6 +167,34 @@ public class AddReferenceQualifiersTransform extends ContextTrackingVisitor<Void
         }
 
         return super.visitSimpleType(node, data);
+    }
+
+    @Override
+    public Void visitCompilationUnit(final CompilationUnit node, final Void data) {
+        super.visitCompilationUnit(node, data);
+
+        final Set<String> topLevelTypeNames = new LinkedHashSet<>();
+        final List<ImportDeclaration> importsToRemove = new ArrayList<>();
+
+        for (final AstNode m : node.getChildrenByRole(CompilationUnit.TYPE_ROLE)) {
+            if (m instanceof TypeDeclaration) {
+                topLevelTypeNames.add(((TypeDeclaration) m).getName());
+            }
+        }
+
+        for (final ImportDeclaration d : node.getChildrenByRole(CompilationUnit.IMPORT_ROLE)) {
+            final TypeReference importedType = d.getUserData(Keys.TYPE_REFERENCE);
+
+            if (importedType != null && topLevelTypeNames.contains(importedType.getSimpleName())) {
+                importsToRemove.add(d);
+            }
+        }
+
+        for (final ImportDeclaration d : importsToRemove) {
+            d.remove();
+        }
+
+        return null;
     }
 
     @Override
