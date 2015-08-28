@@ -21,6 +21,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -141,17 +142,26 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     public TypeReference makeGenericType(final TypeReference... typeArguments) {
         VerifyArgument.noNullElementsAndNotEmpty(typeArguments, "typeArguments");
 
+        final TypeReference[] adjustedTypeArguments = Arrays.copyOf(typeArguments, typeArguments.length);
+
+        if (checkRecursive(this, ArrayUtilities.asUnmodifiableList(adjustedTypeArguments))) {
+            for (int i = 0; i < adjustedTypeArguments.length; i++) {
+                final TypeReference t = adjustedTypeArguments[i];
+                adjustedTypeArguments[i] = t.isGenericType() ? t.getRawType() : t;
+            }
+        }
+
         if (isGenericDefinition()) {
             return new ParameterizedType(
                 this,
-                ArrayUtilities.asUnmodifiableList(typeArguments)
+                ArrayUtilities.asUnmodifiableList(adjustedTypeArguments)
             );
         }
 
         if (this instanceof IGenericInstance) {
             return new ParameterizedType(
                 (TypeReference) ((IGenericInstance) this).getGenericDefinition(),
-                ArrayUtilities.asUnmodifiableList(typeArguments)
+                ArrayUtilities.asUnmodifiableList(adjustedTypeArguments)
             );
         }
 
@@ -600,6 +610,34 @@ public abstract class TypeReference extends MemberReference implements IGenericP
         }
 
         return null;
+    }
+
+    protected static boolean checkRecursive(final TypeReference type, final List<? extends TypeReference> arguments) {
+        //noinspection SimplifiableIfStatement
+        if (type.isGenericParameter() || type.isWildcardType()) {
+            return false;
+        }
+        return checkRecursiveCore(type.getInternalName(), arguments, 0);
+    }
+
+    private static boolean checkRecursiveCore(final String typeName, final List<? extends TypeReference> arguments, final int depth) {
+        for (final TypeReference argument : arguments) {
+            if (argument instanceof IGenericInstance) {
+                final String argumentName = argument.getInternalName();
+
+                if (StringUtilities.equals(argumentName, typeName)) {
+                    if (depth > 3) {
+                        return true;
+                    }
+
+                    if (checkRecursiveCore(typeName, ((IGenericInstance) argument).getTypeArguments(), depth + 1)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     // </editor-fold>

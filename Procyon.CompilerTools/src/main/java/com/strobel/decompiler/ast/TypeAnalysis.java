@@ -600,9 +600,9 @@ public final class TypeAnalysis {
             return true;
         }
 
-        if (variable.isParameter()) {
-            final ParameterDefinition parameter = variable.getOriginalParameter();
+        final ParameterDefinition parameter = variable.getOriginalParameter();
 
+        if (parameter != null) {
             if (parameter == _context.getCurrentMethod().getBody().getThisParameter()) {
                 return false;
             }
@@ -2104,8 +2104,11 @@ public final class TypeAnalysis {
         runInference(left);
         runInference(right);
 
-        left.setExpectedType(left.getInferredType());
-        right.setExpectedType(left.getInferredType());
+        final TypeReference lInferred = left.getInferredType();
+        final TypeReference rInferred = right.getInferredType();
+
+        left.setExpectedType(lInferred);
+        right.setExpectedType(lInferred);
         left.setInferredType(null);
         right.setInferredType(null);
 
@@ -2181,13 +2184,18 @@ public final class TypeAnalysis {
             }
         }
 
+        final TypeReference lType = isSameType(lInferred, left.getExpectedType())
+                                    ? lInferred
+                                    : doInferTypeForExpression(left, left.getExpectedType(), true, operandFlags);
+
+        final TypeReference rType = isSameType(rInferred, right.getExpectedType())
+                                    ? rInferred
+                                    : doInferTypeForExpression(right, right.getExpectedType(), true, operandFlags);
+        
         final TypeReference operandType = inferBinaryArguments(
             left,
             right,
-            typeWithMoreInformation(
-                doInferTypeForExpression(left, left.getExpectedType(), true, operandFlags),
-                doInferTypeForExpression(right, right.getExpectedType(), true, operandFlags)
-            ),
+            typeWithMoreInformation(lType, rType),
             false,
             null,
             null,
@@ -2730,9 +2738,11 @@ public final class TypeAnalysis {
             return adjustType(expectedType, flags);
         }
 
+        final ParameterDefinition p = v.getOriginalParameter();
+
         return adjustType(
-            v.isParameter() ? v.getOriginalParameter().getParameterType()
-                            : v.getOriginalVariable().getVariableType(),
+            p != null ? p.getParameterType()
+                      : v.getOriginalVariable().getVariableType(),
             flags
         );
     }
@@ -2839,6 +2849,10 @@ public final class TypeAnalysis {
     }
 
     private TypeReference typeWithMoreInformation(final TypeReference leftPreferred, final TypeReference rightPreferred) {
+        if (leftPreferred == rightPreferred) {
+            return leftPreferred;
+        }
+
         final int left = getInformationAmount(leftPreferred);
         final int right = getInformationAmount(rightPreferred);
 
@@ -3044,16 +3058,6 @@ public final class TypeAnalysis {
 */
 
     private boolean isSameType(final TypeReference t1, final TypeReference t2) {
-/*
-        //noinspection SimplifiableIfStatement
-        if (t1 == t2) {
-            return true;
-        }
-
-        return t1 != null &&
-               t2 != null &&
-               Comparer.equals(t1.getFullName(), t2.getFullName());
-*/
         return MetadataHelper.isSameType(t1, t2, true);
     }
 
@@ -3127,7 +3131,7 @@ public final class TypeAnalysis {
         public Void visitArrayType(final ArrayType t, final Map<TypeReference, TypeReference> map) {
             final TypeReference a = argumentType;
 
-            if (a.isArray() && t.isArray()) {
+            if (a.isArray()) {
                 argumentType = a.getElementType();
                 visit(t.getElementType(), map);
             }

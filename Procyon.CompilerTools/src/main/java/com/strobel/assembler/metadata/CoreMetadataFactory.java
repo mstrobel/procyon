@@ -29,6 +29,7 @@ import com.strobel.core.ArrayUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Stack;
 
@@ -151,6 +152,7 @@ public class CoreMetadataFactory implements MetadataFactory {
         if (typeArguments.length == 0) {
             return declaration;
         }
+
         return declaration.makeGenericType(typeArguments);
     }
 
@@ -564,22 +566,21 @@ public class CoreMetadataFactory implements MetadataFactory {
         }
 
         @Override
-        public TypeReference makeGenericType(final List<? extends TypeReference> typeArguments) {
-            VerifyArgument.noNullElementsAndNotEmpty(typeArguments, "typeArguments");
-
-            return new UnresolvedGenericType(
-                this,
-                ArrayUtilities.asUnmodifiableList(typeArguments.toArray(new TypeReference[typeArguments.size()]))
-            );
-        }
-
-        @Override
         public TypeReference makeGenericType(final TypeReference... typeArguments) {
             VerifyArgument.noNullElementsAndNotEmpty(typeArguments, "typeArguments");
 
+            final TypeReference[] adjustedTypeArguments = Arrays.copyOf(typeArguments, typeArguments.length);
+
+            if (checkRecursive(this, ArrayUtilities.asUnmodifiableList(adjustedTypeArguments))) {
+                for (int i = 0; i < adjustedTypeArguments.length; i++) {
+                    final TypeReference t = adjustedTypeArguments[i];
+                    adjustedTypeArguments[i] = t.isGenericType() ? t.getRawType() : t;
+                }
+            }
+
             return new UnresolvedGenericType(
                 this,
-                ArrayUtilities.asUnmodifiableList(typeArguments.clone())
+                ArrayUtilities.asUnmodifiableList(adjustedTypeArguments)
             );
         }
 
