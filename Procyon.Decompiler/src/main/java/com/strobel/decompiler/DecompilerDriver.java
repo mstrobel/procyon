@@ -30,7 +30,6 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.logging.ConsoleHandler;
@@ -42,8 +41,6 @@ import java.util.logging.Logger;
 
 public class DecompilerDriver {
     public static void main(final String[] args) {
-        final long startTime = System.nanoTime();
-
         final CommandLineOptions options = new CommandLineOptions();
         final JCommander jCommander;
         final List<String> typeNames;
@@ -146,11 +143,6 @@ public class DecompilerDriver {
                 }
             }
         }
-
-        final long endTime = System.nanoTime();
-        final long elapsed = TimeUnit.NANOSECONDS.toSeconds(endTime - startTime);
-
-        System.err.printf("Elapsed time: %s seconds", elapsed);
     }
 
     private static void configureLogging(final CommandLineOptions options) {
