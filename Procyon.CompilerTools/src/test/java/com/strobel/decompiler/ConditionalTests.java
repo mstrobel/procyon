@@ -404,6 +404,18 @@ public class ConditionalTests extends DecompilerTest {
         }
     }
 
+    @SuppressWarnings("StatementWithEmptyBody")
+    private static class L {
+        public static void test(final int a) {
+            if (a == 0) {
+            }
+
+            if (a == 1) {
+                System.getProperty("something");
+            }
+        }
+    }
+
     @Test
     public void testComplexIfElse() throws Throwable {
         verifyOutput(
@@ -800,6 +812,22 @@ public class ConditionalTests extends DecompilerTest {
             "    public boolean test6(final boolean a, final boolean b, final boolean[] c) {\n" +
             "        System.out.println((b && a == (c[index() + K.i] = !c[index() + this.j])) || !c[index() + this.j]);\n" +
             "        return c[index() + K.i];\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testEmptyIfFollowedByRegularIf() throws Throwable {
+        verifyOutput(
+            L.class,
+            defaultSettings(),
+            "private static class L {\n" +
+            "    public static void test(final int a) {\n" +
+            "        if (a == 0) {}\n" +
+            "        if (a == 1) {\n" +
+            "            System.getProperty(\"something\");\n" +
+            "        }\n" +
             "    }\n" +
             "}\n"
         );

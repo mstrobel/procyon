@@ -114,7 +114,7 @@ public final class AstBuilder {
             _packagePlaceholder.remove();
         }
 
-        _compileUnit.addChild(astType, CompilationUnit.MEMBER_ROLE);
+        _compileUnit.addChild(astType, CompilationUnit.TYPE_ROLE);
     }
 
     public final TypeDeclaration createType(final TypeDefinition type) {

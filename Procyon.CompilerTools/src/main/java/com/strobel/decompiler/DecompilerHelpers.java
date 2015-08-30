@@ -85,6 +85,15 @@ public final class DecompilerHelpers {
         formatMethodSignature(writer, signature, typeStack);
     }
 
+    public static void writeMethodHandle(final ITextOutput writer, final MethodHandle handle) {
+        VerifyArgument.notNull(handle, "handle");
+        VerifyArgument.notNull(writer, "writer");
+
+        writer.writeReference(handle.getHandleType().name().toLowerCase(), handle.getHandleType());
+        writer.write(' ');
+        writeMethod(writer, handle.getMethod());
+    }
+
     public static void writeField(final ITextOutput writer, final FieldReference field) {
         VerifyArgument.notNull(field, "field");
         VerifyArgument.notNull(writer, "writer");
@@ -175,6 +184,16 @@ public final class DecompilerHelpers {
 
         if (operand instanceof MethodReference) {
             writeMethod(writer, (MethodReference) operand);
+            return;
+        }
+
+        if (operand instanceof IMethodSignature) {
+            writeMethodSignature(writer, (IMethodSignature) operand);
+            return;
+        }
+
+        if (operand instanceof MethodHandle) {
+            writeMethodHandle(writer, (MethodHandle) operand);
             return;
         }
 

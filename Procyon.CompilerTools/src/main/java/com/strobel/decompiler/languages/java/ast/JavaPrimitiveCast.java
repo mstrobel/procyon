@@ -33,7 +33,7 @@ public final class JavaPrimitiveCast {
                     return ((Number) input).longValue() != 0L;
                 }
                 if (input instanceof Character) {
-                    return input != '\0';
+                    return (char) input != '\0';
                 }
                 if (input instanceof String) {
                     return StringUtilities.isTrue((String) input);

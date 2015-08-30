@@ -37,7 +37,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static com.strobel.core.CollectionUtilities.*;
-import static com.strobel.decompiler.ast.PatternMatching.match;
+import static com.strobel.decompiler.ast.PatternMatching.*;
 import static java.lang.String.format;
 
 public final class AstBuilder {
@@ -95,10 +95,9 @@ public final class AstBuilder {
 
         builder.removeGetClassCallsForInvokeDynamic();
         builder.pruneExceptionHandlers();
+        builder.inlineSubroutines();
 
         FinallyInlining.run(builder._body, builder._instructions, builder._exceptionHandlers, builder._removed);
-
-        builder.inlineSubroutines();
 
         builder._cfg = ControlFlowGraphBuilder.build(builder._instructions, builder._exceptionHandlers);
         builder._cfg.computeDominance();
@@ -2846,9 +2845,8 @@ public final class AstBuilder {
                 }
 
                 for (final ByteCode b : definitions) {
-                    TypeReference variableType;
-
                     final FrameValue stackValue;
+                    final TypeReference variableType;
 
                     if (b.code == AstCode.Inc) {
                         stackValue = FrameValue.INTEGER;
@@ -3669,69 +3667,59 @@ public final class AstBuilder {
         final ByteCode loadException = _loadExceptions.get(handler);
         final int handlerStart = handler.getHandlerBlock().getFirstInstruction().getOffset();
 
-        if (loadException.storeTo == null || loadException.storeTo.isEmpty()) {
-            //
-            // Exception is not used.
-            //
-            catchBlock.setExceptionVariable(null);
-        }
-        else {
-            if (loadException.storeTo.size() == 1) {
-                if (!catchBlock.getBody().isEmpty() &&
-                    catchBlock.getBody().get(0) instanceof Expression &&
-                    !((Expression) catchBlock.getBody().get(0)).getArguments().isEmpty()) {
+        if (loadException.storeTo == null || loadException.storeTo.size() != 1) {
+            final Variable exceptionTemp = new Variable();
 
-                    final Expression first = (Expression) catchBlock.getBody().get(0);
-                    final AstCode firstCode = first.getCode();
-                    final Expression firstArgument = first.getArguments().get(0);
+            exceptionTemp.setName(format("ex_%1$02X", handlerStart));
+            exceptionTemp.setGenerated(true);
+            exceptionTemp.setType(catchBlock.getExceptionType());
 
-                    if (firstCode == AstCode.Pop &&
-                        firstArgument.getCode() == AstCode.Load &&
-                        firstArgument.getOperand() == loadException.storeTo.get(0)) {
+            catchBlock.setExceptionVariable(exceptionTemp);
 
-                        //
-                        // The exception is just popped; optimize it away.
-                        //
-                        if (_context.getSettings().getAlwaysGenerateExceptionVariableForCatchBlocks()) {
-                            final Variable exceptionVariable = new Variable();
-
-                            exceptionVariable.setName(format("ex_%1$02X", handlerStart));
-                            exceptionVariable.setGenerated(true);
-//                            exceptionVariable.setType(catchType);
-
-                            catchBlock.setExceptionVariable(exceptionVariable);
-                        }
-                        else {
-                            catchBlock.setExceptionVariable(null);
-                        }
-                    }
-                    else {
-                        catchBlock.setExceptionVariable(loadException.storeTo.get(0));
-//                        catchBlock.getExceptionVariable().setType(catchType);
-                    }
-                }
-                else {
-                    catchBlock.setExceptionVariable(loadException.storeTo.get(0));
-//                        catchBlock.getExceptionVariable().setType(catchType);
-                }
-            }
-            else {
-                final Variable exceptionTemp = new Variable();
-
-                exceptionTemp.setName(format("ex_%1$02X", handlerStart));
-                exceptionTemp.setGenerated(true);
-//                exceptionTemp.setType(catchType);
-
-                catchBlock.setExceptionVariable(exceptionTemp);
-
+            if (loadException.storeTo != null) {
                 for (final Variable storeTo : loadException.storeTo) {
                     catchBlock.getBody().add(
                         0,
-                        new Expression(AstCode.Store, storeTo, Expression.MYSTERY_OFFSET, new Expression(AstCode.Load, exceptionTemp, Expression.MYSTERY_OFFSET))
+                        new Expression(
+                            AstCode.Store,
+                            storeTo,
+                            Expression.MYSTERY_OFFSET,
+                            new Expression(AstCode.Load, exceptionTemp, Expression.MYSTERY_OFFSET)
+                        )
                     );
                 }
             }
+
+            return;
         }
+
+        final Node firstNode = firstOrDefault(
+            skipWhile(
+                catchBlock.getBody(),
+                Predicates.<Node>instanceOf(Label.class)
+            )
+        );
+
+        final StrongBox<Expression> popArgument;
+
+        if (firstNode != null &&
+            matchGetArgument(firstNode, AstCode.Pop, popArgument = new StrongBox<>()) &&
+            matchLoad(popArgument.value, first(loadException.storeTo))) {
+
+            //
+            // The exception is just popped; optimize it away.
+            //
+            final Variable exceptionVariable = new Variable();
+
+            exceptionVariable.setName(format("ex_%1$02X", handlerStart));
+            exceptionVariable.setGenerated(true);
+
+            catchBlock.setExceptionVariable(exceptionVariable);
+
+            return;
+        }
+
+        catchBlock.setExceptionVariable(loadException.storeTo.get(0));
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -4206,7 +4194,7 @@ public final class AstBuilder {
 
                 terminals.remove(handlerNode);
 
-                if (handler.isFinally()) {
+                if (handler.isFinally() && handlerNode != null) {
                     terminals.add(handlerNode.getEndFinallyNode());
                 }
 

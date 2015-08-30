@@ -880,9 +880,6 @@ final class LoopsAndConditions {
                     final Block trueBlock = new Block();
                     final Block falseBlock = new Block();
 
-                    trueBlock.setEntryGoto(new Expression(AstCode.Goto, trueLabel.get(), Expression.MYSTERY_OFFSET));
-                    falseBlock.setEntryGoto(new Expression(AstCode.Goto, falseLabel.get(), Expression.MYSTERY_OFFSET));
-
                     conditionNode.setCondition(condition.get());
                     conditionNode.setTrueBlock(trueBlock);
                     conditionNode.setFalseBlock(falseBlock);
@@ -896,23 +893,31 @@ final class LoopsAndConditions {
                     //
                     removeOrThrow(scope, node);
 
-                    final ControlFlowNode trueTarget = labelsToNodes.get(trueLabel.get());
-                    final ControlFlowNode falseTarget = labelsToNodes.get(falseLabel.get());
-
                     //
-                    // Pull in the conditional code.
+                    // Assuming the `if` block isn't empty, pull in the child blocks.
                     //
+                    if (falseLabel.get() != trueLabel.get()) {
+                        trueBlock.setEntryGoto(new Expression(AstCode.Goto, trueLabel.get(), Expression.MYSTERY_OFFSET));
+                        falseBlock.setEntryGoto(new Expression(AstCode.Goto, falseLabel.get(), Expression.MYSTERY_OFFSET));
 
-                    if (trueTarget != null && hasSingleEdgeEnteringBlock(trueTarget)) {
-                        final Set<ControlFlowNode> content = findDominatedNodes(scope, trueTarget);
-                        scope.removeAll(content);
-                        conditionNode.getTrueBlock().getBody().addAll(findConditions(content, trueTarget));
-                    }
+                        final ControlFlowNode trueTarget = labelsToNodes.get(trueLabel.get());
+                        final ControlFlowNode falseTarget = labelsToNodes.get(falseLabel.get());
 
-                    if (falseTarget != null && hasSingleEdgeEnteringBlock(falseTarget)) {
-                        final Set<ControlFlowNode> content = findDominatedNodes(scope, falseTarget);
-                        scope.removeAll(content);
-                        conditionNode.getFalseBlock().getBody().addAll(findConditions(content, falseTarget));
+                        //
+                        // Pull in the conditional code.
+                        //
+
+                        if (trueTarget != null && hasSingleEdgeEnteringBlock(trueTarget)) {
+                            final Set<ControlFlowNode> content = findDominatedNodes(scope, trueTarget);
+                            scope.removeAll(content);
+                            conditionNode.getTrueBlock().getBody().addAll(findConditions(content, trueTarget));
+                        }
+
+                        if (falseTarget != null && hasSingleEdgeEnteringBlock(falseTarget)) {
+                            final Set<ControlFlowNode> content = findDominatedNodes(scope, falseTarget);
+                            scope.removeAll(content);
+                            conditionNode.getFalseBlock().getBody().addAll(findConditions(content, falseTarget));
+                        }
                     }
                 }
 

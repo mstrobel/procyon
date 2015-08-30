@@ -94,7 +94,10 @@ public class DecompilerDriver {
         settings.setSimplifyMemberReferences(options.getSimplifyMemberReferences());
         settings.setDisableForEachTransforms(options.getDisableForEachTransforms());
         settings.setTypeLoader(new InputTypeLoader());
-        settings.setOutputFileHeaderText("\nDecompiled by Procyon v" + Procyon.version() + "\n");
+
+        if (!options.getSuppressBanner()) {
+            settings.setOutputFileHeaderText("\nDecompiled by Procyon v" + Procyon.version() + "\n");
+        }
 
         if (options.isRawBytecode()) {
             settings.setLanguage(Languages.bytecode());

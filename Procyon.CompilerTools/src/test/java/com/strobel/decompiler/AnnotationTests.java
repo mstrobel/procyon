@@ -5,7 +5,14 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-@SuppressWarnings({ "unchecked", "UnusedDeclaration", "Convert2Diamond", "LocalCanBeFinal" })
+@SuppressWarnings({
+    "unchecked",
+    "UnusedDeclaration",
+    "Convert2Diamond",
+    "LocalCanBeFinal",
+    "UnnecessaryInterfaceModifier",
+    "FieldMayBeFinal"
+})
 public class AnnotationTests extends DecompilerTest {
     private @interface A {
         String[] value();
@@ -83,7 +90,7 @@ public class AnnotationTests extends DecompilerTest {
             "    {\n" +
             "        private static final int TEST = 3;\n" +
             "        private int y;\n" +
-            "        public A(int y) {\n" +
+            "        public A(final int y) {\n" +
             "            this.y = y;\n" +
             "        }\n" +
             "    }\n" +

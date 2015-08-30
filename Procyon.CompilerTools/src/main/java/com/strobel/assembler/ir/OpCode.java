@@ -185,7 +185,7 @@ public enum OpCode {
     IF_ACMPEQ(0xA5, FlowControl.ConditionalBranch, OpCodeType.Macro, OperandType.BranchTarget, StackBehavior.PopA_PopA, StackBehavior.Push0),
     IF_ACMPNE(0xA6, FlowControl.ConditionalBranch, OpCodeType.Macro, OperandType.BranchTarget, StackBehavior.PopA_PopA, StackBehavior.Push0),
     GOTO(0xA7, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.Push0),
-    JSR(0xA8, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.Push0),
+    JSR(0xA8, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.Pop0, StackBehavior.PushAddress),
     RET(0xA9, FlowControl.Branch, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.Push0),
     TABLESWITCH(0xAA, FlowControl.Branch, OpCodeType.Primitive, OperandType.Switch, StackBehavior.PopI4, StackBehavior.Push0),
     LOOKUPSWITCH(0xAB, FlowControl.Branch, OpCodeType.Primitive, OperandType.Switch, StackBehavior.PopI4, StackBehavior.Push0),
@@ -217,7 +217,7 @@ public enum OpCode {
     IFNULL(0xC6, FlowControl.ConditionalBranch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.PopA, StackBehavior.Push0),
     IFNONNULL(0xC7, FlowControl.ConditionalBranch, OpCodeType.Primitive, OperandType.BranchTarget, StackBehavior.PopA, StackBehavior.Push0),
     GOTO_W(0xC8, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTargetWide, StackBehavior.Pop0, StackBehavior.Push0),
-    JSR_W(0xC9, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTargetWide, StackBehavior.Pop0, StackBehavior.Push0),
+    JSR_W(0xC9, FlowControl.Branch, OpCodeType.Primitive, OperandType.BranchTargetWide, StackBehavior.Pop0, StackBehavior.PushAddress),
     BREAKPOINT(0xC9, FlowControl.Breakpoint, OpCodeType.Primitive, OperandType.None, StackBehavior.Pop0, StackBehavior.Push0),
     ILOAD_W(0xC415, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.PushI4),
     LLOAD_W(0xC416, FlowControl.Next, OpCodeType.Primitive, OperandType.Local, StackBehavior.Pop0, StackBehavior.PushI8),
@@ -329,6 +329,16 @@ public enum OpCode {
             case ConditionalBranch:
             case Return:
             case Throw:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public boolean isGoto() {
+        switch (this) {
+            case GOTO:
+            case GOTO_W:
                 return true;
             default:
                 return false;

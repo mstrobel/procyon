@@ -212,7 +212,8 @@ public class AnsiTextOutput extends PlainTextOutput {
 
         if (reference instanceof Instruction ||
             reference instanceof OpCode ||
-            reference instanceof AstCode) {
+            reference instanceof AstCode ||
+            reference instanceof MethodHandleType) {
 
             colorizedText = colorize(text, _instruction);
         }
