@@ -155,6 +155,12 @@ public class CommandLineOptions {
         description = "Display the decompiler version and exit.")
     private boolean _printVersion;
 
+    @Parameter(
+        names = { "--suppress-banner" },
+        description = "Do not display the 'Decompiled by Procyon' banner in output.",
+        hidden = true)
+    private boolean _suppressBanner;
+
     public final List<String> getInputs() {
         return _inputs;
     }
@@ -349,5 +355,13 @@ public class CommandLineOptions {
 
     public final void setPrintVersion(final boolean printVersion) {
         _printVersion = printVersion;
+    }
+
+    public final boolean getSuppressBanner() {
+        return _suppressBanner;
+    }
+
+    public final void setSuppressBanner(final boolean suppressBanner) {
+        _suppressBanner = suppressBanner;
     }
 }
