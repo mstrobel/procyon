@@ -20,7 +20,7 @@ import org.junit.Test;
 
 import java.util.Iterator;
 
-@SuppressWarnings({ "UnusedDeclaration", "UnnecessaryLocalVariable" })
+@SuppressWarnings({ "UnusedDeclaration", "UnnecessaryLocalVariable", "UnnecessaryInterfaceModifier" })
 public class InnerClassTests extends DecompilerTest {
     private class T {
         void test() {
@@ -300,7 +300,9 @@ public class InnerClassTests extends DecompilerTest {
                 {
                     System.out.println("This is an initializer block.");
                 }
+
                 int x = 5;
+
                 {
                     System.out.println(x);
                 }
@@ -334,6 +336,26 @@ public class InnerClassTests extends DecompilerTest {
             class Test extends Base {
             }
             new Test();
+        }
+    }
+
+    private static class Q {
+        protected class Inner {}
+
+        private class SubClass extends Q {
+            public void test() {
+                final Inner inner = new Inner();
+            }
+        }
+    }
+
+    private static class R<X> {
+        protected class Inner {}
+
+        private class SubClass extends R<String> {
+            public void test() {
+                final Inner inner = new Inner();
+            }
         }
     }
 
@@ -739,6 +761,7 @@ public class InnerClassTests extends DecompilerTest {
             "}\n"
         );
     }
+
     @Test
     public void testUnusedLocalClassesWithInterdependencies() {
         verifyOutput(
@@ -755,12 +778,36 @@ public class InnerClassTests extends DecompilerTest {
             "}\n"
         );
     }
-}
 
-class lolwut {
-    public static final lolwut$omg omg = new lolwut$omg();
-}
+    @Test
+    public void testProtectedInnerClassConstructorsInOuterSubClass() {
+        verifyOutput(
+            Q.class,
+            defaultSettings(),
+            "private static class Q {\n" +
+            "    protected class Inner { }\n" +
+            "    private class SubClass extends Q {\n" +
+            "        public void test() {\n" +
+            "            final Inner inner = new Inner();\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
 
-class lolwut$omg {
-
+    @Test
+    public void testProtectedInnerClassConstructorsInGenericOuterSubClass() {
+        verifyOutput(
+            R.class,
+            defaultSettings(),
+            "private static class R<X> {\n" +
+            "    protected class Inner { }\n" +
+            "    private class SubClass extends R<String> {\n" +
+            "        public void test() {\n" +
+            "            final Inner inner = new Inner();\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
 }

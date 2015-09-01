@@ -50,23 +50,29 @@ public final class MetadataHelper {
     }
 
     public static boolean isEnclosedBy(final TypeReference innerType, final TypeReference outerType) {
-        if (innerType == null) {
+        if (innerType == null || outerType == null || BuiltinTypes.Object.isEquivalentTo(outerType)) {
             return false;
         }
 
-        for (TypeReference current = innerType;
+        final TypeDefinition innerResolved = innerType.resolve();
+        final TypeDefinition outerResolved = outerType.resolve();
+
+        final TypeReference inner = innerResolved != null ? innerResolved : innerType;
+        final TypeReference outer = outerResolved != null ? outerResolved : outerType;
+
+        for (TypeReference current = inner.getDeclaringType();
              current != null;
              current = current.getDeclaringType()) {
 
-            if (isSameType(current, outerType)) {
+            if (isSameType(current, outer, false)) {
                 return true;
             }
         }
 
-        final TypeDefinition resolvedInnerType = innerType.resolve();
+        final TypeReference outerBaseType = outerResolved != null ? outerResolved.getBaseType() : null;
 
-        return resolvedInnerType != null &&
-               isEnclosedBy(resolvedInnerType.getBaseType(), outerType);
+        return outerBaseType != null && isEnclosedBy(inner, outerBaseType) ||
+               innerResolved != null && isEnclosedBy(innerResolved.getBaseType(), outer);
     }
 
     public static boolean canReferenceTypeVariablesOf(final TypeReference declaringType, final TypeReference referenceSite) {

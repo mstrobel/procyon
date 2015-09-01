@@ -25,6 +25,8 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.semantics.ResolveResult;
 
+import static com.strobel.assembler.metadata.MetadataHelper.isEnclosedBy;
+
 public class RewriteInnerClassConstructorCalls extends ContextTrackingVisitor<Void> {
     private final JavaResolver _resolver;
 
@@ -120,26 +122,6 @@ public class RewriteInnerClassConstructorCalls extends ContextTrackingVisitor<Vo
         }
 
         return null;
-    }
-
-    private static boolean isEnclosedBy(final TypeReference innerType, final TypeReference outerType) {
-        if (innerType == null) {
-            return false;
-        }
-
-        for (TypeReference current = innerType.getDeclaringType();
-             current != null;
-             current = current.getDeclaringType()) {
-
-            if (MetadataResolver.areEquivalent(current, outerType)) {
-                return true;
-            }
-        }
-
-        final TypeDefinition resolvedInnerType = innerType.resolve();
-
-        return resolvedInnerType != null &&
-               isEnclosedBy(resolvedInnerType.getBaseType(), outerType);
     }
 
     private boolean isContextWithinTypeInstance(final TypeReference type) {
