@@ -97,7 +97,6 @@ public class CallTests extends DecompilerTest {
     }
 
     @Test
-    @Ignore
     public void testOuterSuperMethodCalls() throws Throwable {
         verifyOutput(
             B.class,
@@ -115,12 +114,12 @@ public class CallTests extends DecompilerTest {
             "        }\n" +
             "        private void h() {\n" +
             "            B.this.f(\"B.f()\");\n" +
-            "            super.f(\"B.f()\");\n" +
+            "            B.this.f(\"B.f()\");\n" +
             "            this.f(\"C.f()\");\n" +
             "            this.f(\"C.f()\");\n" +
-            "            super.f(\"B.f()\");\n" +
+            "            B.this.f(\"B.f()\");\n" +
             "            B.this.g(\"B.g()\");\n" +
-            "            super.g(\"B.g()\");\n" +
+            "            B.this.g(\"B.g()\");\n" +
             "            this.g(\"C.g()\");\n" +
             "            this.g(\"C.g()\");\n" +
             "            super.g(\"B.g()\");\n" +
@@ -134,15 +133,15 @@ public class CallTests extends DecompilerTest {
             "            private void h() {\n" +
             "                B.this.f(\"B.f()\");\n" +
             "                C.this.f(\"C.f()\");\n" +
-            "                C.super.f(\"B.f()\");\n" +
-            "                super.f(\"C.f()\");\n" +
+            "                B.this.f(\"B.f()\");\n" +
+            "                C.this.f(\"C.f()\");\n" +
             "                this.f(\"D.f()\");\n" +
-            "                super.f(\"C.f()\");\n" +
+            "                C.this.f(\"C.f()\");\n" +
             "                this.f(\"D.f()\");\n" +
             "                B.this.g(\"B.g()\");\n" +
             "                C.this.g(\"C.g()\");\n" +
-            "                C.super.g(\"B.g()\");\n" +
-            "                super.g(\"C.g()\");\n" +
+            "                B.this.g(\"B.g()\");\n" +
+            "                C.this.g(\"C.g()\");\n" +
             "                this.g(\"D.g()\");\n" +
             "                super.g(\"C.g()\");\n" +
             "                this.g(\"D.g()\");\n" +
