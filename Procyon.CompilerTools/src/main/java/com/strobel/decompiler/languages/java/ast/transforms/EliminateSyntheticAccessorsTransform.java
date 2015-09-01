@@ -208,33 +208,24 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
 
                 final TypeReference baseType = currentType.getBaseType();
 
-                if (baseType == null) {
-                    node.getTarget().replaceWith(
-                        new SuperReferenceExpression(
-                            node.getTarget().getOffset(),
-                            node.getTarget().getStartLocation()
-                        )
-                    );
-                }
-                else {
-                    final ThisReferenceExpression s = new ThisReferenceExpression(
+                final ThisReferenceExpression s = new ThisReferenceExpression(
+                    node.getTarget().getOffset(),
+                    node.getTarget().getStartLocation()
+                );
+
+                final SimpleType type = new SimpleType(declaringType.getSimpleName());
+
+                s.putUserData(Keys.TYPE_REFERENCE, declaringType);
+                type.putUserData(Keys.TYPE_REFERENCE, declaringType);
+
+                s.setTarget(
+                    new TypeReferenceExpression(
                         node.getTarget().getOffset(),
-                        node.getTarget().getStartLocation()
-                    );
+                        type
+                    )
+                );
 
-                    final SimpleType type = new SimpleType(declaringType.getSimpleName());
-
-                    type.putUserData(Keys.TYPE_REFERENCE, declaringType);
-
-                    s.setTarget(
-                        new TypeReferenceExpression(
-                            node.getTarget().getOffset(),
-                            type
-                        )
-                    );
-
-                    node.getTarget().replaceWith(s);
-                }
+                node.getTarget().replaceWith(s);
             }
 
             return null;
