@@ -66,6 +66,8 @@ public abstract class VariableReference extends Freezable implements IMetadataTy
 
     @Override
     public String toString() {
-        return getName();
+        return "VariableReference{" + "Slot=" + getSlot() +
+               ", Name=" + (hasName() ? _name : "<unnamed>")
+               + ", VariableType=" + _variableType + '}';
     }
 }

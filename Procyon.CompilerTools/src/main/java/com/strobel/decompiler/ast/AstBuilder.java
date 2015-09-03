@@ -2693,7 +2693,7 @@ public final class AstBuilder {
                 }
             }
 
-            final List<VariableInfo> newVariables;
+            List<VariableInfo> newVariables;
 //            boolean fromUnknownDefinition = false;
 //
 //            if (_optimize) {
@@ -2724,97 +2724,7 @@ public final class AstBuilder {
             }
             else*/
             if (!_optimize/* || fromUnknownDefinition*/) {
-                final Variable variable = new Variable();
-
-                if (vDef != null) {
-                    variable.setType(vDef.getVariableType());
-
-                    variable.setName(
-                        StringUtilities.isNullOrEmpty(vDef.getName()) ? "var_" + slot
-                                                                      : vDef.getName()
-                    );
-                }
-                else {
-                    variable.setName("var_" + slot);
-
-                    for (final ByteCode b : definitions) {
-                        final FrameValue stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
-
-                        if (stackValue != FrameValue.UNINITIALIZED &&
-                            stackValue != FrameValue.UNINITIALIZED_THIS) {
-
-                            final TypeReference variableType;
-
-                            switch (stackValue.getType()) {
-                                case Integer:
-                                    variableType = BuiltinTypes.Integer;
-                                    break;
-                                case Float:
-                                    variableType = BuiltinTypes.Float;
-                                    break;
-                                case Long:
-                                    variableType = BuiltinTypes.Long;
-                                    break;
-                                case Double:
-                                    variableType = BuiltinTypes.Double;
-                                    break;
-                                case Uninitialized:
-                                    if (stackValue.getParameter() instanceof Instruction &&
-                                        ((Instruction) stackValue.getParameter()).getOpCode() == OpCode.NEW) {
-
-                                        variableType = ((Instruction) stackValue.getParameter()).getOperand(0);
-                                    }
-                                    else if (vDef != null) {
-                                        variableType = vDef.getVariableType();
-                                    }
-                                    else {
-                                        variableType = BuiltinTypes.Object;
-                                    }
-                                    break;
-                                case UninitializedThis:
-                                    variableType = _context.getCurrentType();
-                                    break;
-                                case Reference:
-                                    variableType = (TypeReference) stackValue.getParameter();
-                                    break;
-                                case Address:
-                                    variableType = BuiltinTypes.Integer;
-                                    break;
-                                case Null:
-                                    variableType = BuiltinTypes.Null;
-                                    break;
-                                default:
-                                    if (vDef != null) {
-                                        variableType = vDef.getVariableType();
-                                    }
-                                    else {
-                                        variableType = BuiltinTypes.Object;
-                                    }
-                                    break;
-                            }
-
-                            variable.setType(variableType);
-                            break;
-                        }
-                    }
-
-                    if (variable.getType() == null) {
-                        variable.setType(BuiltinTypes.Object);
-                    }
-                }
-
-                if (vDef == null) {
-                    variable.setOriginalVariable(new VariableDefinition(slot, variable.getName(), method, variable.getType()));
-                }
-                else {
-                    variable.setOriginalVariable(vDef);
-                }
-
-                variable.setGenerated(false);
-
-                final VariableInfo variableInfo = new VariableInfo(slot, variable, definitions, references);
-
-                newVariables = Collections.singletonList(variableInfo);
+                newVariables = processVariableUnoptimized(method, slot, definitions, references, vDef);
             }
             else {
                 newVariables = new ArrayList<>();
@@ -3032,24 +2942,32 @@ public final class AstBuilder {
                             mergedReferences.addAll(v.references);
                         }
 
-                        final VariableInfo mergedVariable = new VariableInfo(
-                            slot,
-                            mergeVariables.get(0).variable,
-                            mergedDefinitions,
-                            mergedReferences
-                        );
-
-                        if (parameterVariable != null && mergeVariables.contains(parameterVariable)) {
-                            parameterVariable = mergedVariable;
-                            parameterVariable.variable.setOriginalParameter(parameter);
-                            parameterVariableAdded = true;
+                        if (mergeVariables.isEmpty()) {
+                            //
+                            // TODO: Figure out why this happens.
+                            //
+                            newVariables = processVariableUnoptimized(method, slot, definitions, references, vDef);
                         }
+                        else {
+                            final VariableInfo mergedVariable = new VariableInfo(
+                                slot,
+                                mergeVariables.get(0).variable,
+                                mergedDefinitions,
+                                mergedReferences
+                            );
 
-                        mergedVariable.variable.setType(mergeVariableType(mergeVariables));
-                        mergedVariable.references.add(ref);
+                            if (parameterVariable != null && mergeVariables.contains(parameterVariable)) {
+                                parameterVariable = mergedVariable;
+                                parameterVariable.variable.setOriginalParameter(parameter);
+                                parameterVariableAdded = true;
+                            }
 
-                        newVariables.removeAll(mergeVariables);
-                        newVariables.add(mergedVariable);
+                            mergedVariable.variable.setType(mergeVariableType(mergeVariables));
+                            mergedVariable.references.add(ref);
+
+                            newVariables.removeAll(mergeVariables);
+                            newVariables.add(mergedVariable);
+                        }
                     }
                 }
             }
@@ -3122,6 +3040,106 @@ public final class AstBuilder {
                 }
             }
         }
+    }
+
+    private List<VariableInfo> processVariableUnoptimized(
+        final MethodDefinition method,
+        final int slot,
+        final List<ByteCode> definitions,
+        final List<ByteCode> references,
+        final VariableDefinition vDef) {
+
+        final Variable variable = new Variable();
+
+        if (vDef != null) {
+            variable.setType(vDef.getVariableType());
+
+            variable.setName(
+                StringUtilities.isNullOrEmpty(vDef.getName()) ? "var_" + slot
+                                                              : vDef.getName()
+            );
+        }
+        else {
+            variable.setName("var_" + slot);
+
+            for (final ByteCode b : definitions) {
+                final FrameValue stackValue = b.stackBefore[b.stackBefore.length - b.popCount].value;
+
+                if (stackValue != FrameValue.UNINITIALIZED &&
+                    stackValue != FrameValue.UNINITIALIZED_THIS) {
+
+                    final TypeReference variableType;
+
+                    switch (stackValue.getType()) {
+                        case Integer:
+                            variableType = BuiltinTypes.Integer;
+                            break;
+                        case Float:
+                            variableType = BuiltinTypes.Float;
+                            break;
+                        case Long:
+                            variableType = BuiltinTypes.Long;
+                            break;
+                        case Double:
+                            variableType = BuiltinTypes.Double;
+                            break;
+                        case Uninitialized:
+                            if (stackValue.getParameter() instanceof Instruction &&
+                                ((Instruction) stackValue.getParameter()).getOpCode() == OpCode.NEW) {
+
+                                variableType = ((Instruction) stackValue.getParameter()).getOperand(0);
+                            }
+                            else if (vDef != null) {
+                                variableType = vDef.getVariableType();
+                            }
+                            else {
+                                variableType = BuiltinTypes.Object;
+                            }
+                            break;
+                        case UninitializedThis:
+                            variableType = _context.getCurrentType();
+                            break;
+                        case Reference:
+                            variableType = (TypeReference) stackValue.getParameter();
+                            break;
+                        case Address:
+                            variableType = BuiltinTypes.Integer;
+                            break;
+                        case Null:
+                            variableType = BuiltinTypes.Null;
+                            break;
+                        default:
+                            if (vDef != null) {
+                                variableType = vDef.getVariableType();
+                            }
+                            else {
+                                variableType = BuiltinTypes.Object;
+                            }
+                            break;
+                    }
+
+                    variable.setType(variableType);
+                    break;
+                }
+            }
+
+            if (variable.getType() == null) {
+                variable.setType(BuiltinTypes.Object);
+            }
+        }
+
+        if (vDef == null) {
+            variable.setOriginalVariable(new VariableDefinition(slot, variable.getName(), method, variable.getType()));
+        }
+        else {
+            variable.setOriginalVariable(vDef);
+        }
+
+        variable.setGenerated(false);
+
+        final VariableInfo variableInfo = new VariableInfo(slot, variable, definitions, references);
+
+        return Collections.singletonList(variableInfo);
     }
 
     private boolean mightBeBoolean(final VariableInfo info) {

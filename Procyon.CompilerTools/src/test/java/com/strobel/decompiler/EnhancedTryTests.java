@@ -13,6 +13,7 @@
 
 package com.strobel.decompiler;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -120,6 +121,21 @@ public class EnhancedTryTests extends DecompilerTest {
                 catch (RuntimeException e) {
                     e.printStackTrace();
                 }
+            }
+        }
+    }
+
+    private static final class J {
+        public void test() throws IOException {
+            try (final StringWriter writer1 = new StringWriter()) {
+            }
+        }
+    }
+
+    private static final class K {
+        public void test() throws IOException {
+            try (final StringWriter writer1 = new StringWriter();
+                 final StringWriter writer2 = new StringWriter()) {
             }
         }
     }
@@ -285,6 +301,37 @@ public class EnhancedTryTests extends DecompilerTest {
             "            catch (RuntimeException e) {\n" +
             "                e.printStackTrace();\n" +
             "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    @Ignore
+    public void testEnhancedTryEmptyBody() throws Throwable {
+        verifyOutput(
+            J.class,
+            defaultSettings(),
+            "private static final class J {\n" +
+            "    public void test() throws IOException {\n" +
+            "        try (final StringWriter writer1 = new StringWriter()) {\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    @Ignore
+    public void testEnhancedTryTwoResourcesEmptyBody() throws Throwable {
+        verifyOutput(
+            K.class,
+            defaultSettings(),
+            "private static final class K {\n" +
+            "    public void test() throws IOException {\n" +
+            "        try (final StringWriter writer1 = new StringWriter();\n" +
+            "             final StringWriter writer2 = new StringWriter()) {\n" +
             "        }\n" +
             "    }\n" +
             "}\n"

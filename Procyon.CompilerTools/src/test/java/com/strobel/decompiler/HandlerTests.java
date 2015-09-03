@@ -9,13 +9,20 @@ import java.io.IOException;
 import java.util.List;
 
 @SuppressWarnings({
-                      "UnnecessaryReturnStatement",
-                      "ThrowFromFinallyBlock",
-                      "EmptyCatchBlock",
-                      "UnusedParameters",
-                      "UnusedAssignment",
-                      "UnusedDeclaration"
-                  })
+    "UnnecessaryReturnStatement",
+    "ThrowFromFinallyBlock",
+    "EmptyCatchBlock",
+    "UnusedParameters",
+    "UnusedAssignment",
+    "UnusedDeclaration",
+    "LocalCanBeFinal",
+    "ConstantConditions",
+    "ReturnInsideFinallyBlock",
+    "UnnecessaryBreak",
+    "ContinueOrBreakFromFinallyBlock",
+    "InfiniteLoopStatement",
+    "finally"
+})
 public class HandlerTests extends DecompilerTest {
     private static class A {
         public static <X> List<X> f(final X x) throws IllegalStateException {
@@ -58,13 +65,13 @@ public class HandlerTests extends DecompilerTest {
             try {
                 throw new Exception();
             }
-            catch (Exception e) {
+            catch (Exception ex) {
             }
             finally {
                 try {
                     throw new Exception();
                 }
-                catch (Exception e) {
+                catch (Exception ex) {
                 }
             }
         }
@@ -75,14 +82,14 @@ public class HandlerTests extends DecompilerTest {
             try {
                 throw new Exception();
             }
-            catch (Exception e) {
+            catch (Exception ex) {
             }
             finally {
                 try {
                     int k = 0;
                     k = 1 / k;
                 }
-                catch (Exception e) {
+                catch (Exception ex) {
                 }
             }
         }
@@ -285,7 +292,7 @@ public class HandlerTests extends DecompilerTest {
                     System.out.print(3);
                     throw new NoSuchFieldException();
                 }
-                catch (NoSuchFieldException e) {
+                catch (NoSuchFieldException ex) {
                 }
             }
             finally {
@@ -405,11 +412,13 @@ public class HandlerTests extends DecompilerTest {
                         try {
                             System.out.println("C");
                             f();
-                        } finally {
+                        }
+                        finally {
                             System.out.println("D");
                         }
                     }
-                } finally {
+                }
+                finally {
                     System.out.println("E");
                 }
                 System.out.println("F");
@@ -472,12 +481,12 @@ public class HandlerTests extends DecompilerTest {
             "        try {\n" +
             "            throw new Exception();\n" +
             "        }\n" +
-            "        catch (Exception e) {}\n" +
+            "        catch (Exception ex) {}\n" +
             "        finally {\n" +
             "            try {\n" +
             "                throw new Exception();\n" +
             "            }\n" +
-            "            catch (Exception e2) {}\n" +
+            "            catch (Exception ex2) {}\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
@@ -494,13 +503,13 @@ public class HandlerTests extends DecompilerTest {
             "        try {\n" +
             "            throw new Exception();\n" +
             "        }\n" +
-            "        catch (Exception e) {}\n" +
+            "        catch (Exception ex) {}\n" +
             "        finally {\n" +
             "            try {\n" +
             "                int k = 0;\n" +
             "                k = 1 / k;\n" +
             "            }\n" +
-            "            catch (Exception ex) {}\n" +
+            "            catch (Exception ex2) {}\n" +
             "        }\n" +
             "    }\n" +
             "}\n"
@@ -740,7 +749,7 @@ public class HandlerTests extends DecompilerTest {
             "            System.out.print(3);\n" +
             "            throw new NoSuchFieldException();\n" +
             "        }\n" +
-            "        catch (NoSuchFieldException e) {}\n" +
+            "        catch (NoSuchFieldException ex) {}\n" +
             "        finally {\n" +
             "            System.out.print(\"finally\");\n" +
             "        }\n" +
@@ -848,6 +857,7 @@ public class HandlerTests extends DecompilerTest {
             "}\n"
         );
     }
+
     @Test
     public void testFinallyWithinFinallyFourLevels() throws Throwable {
         verifyOutput(
