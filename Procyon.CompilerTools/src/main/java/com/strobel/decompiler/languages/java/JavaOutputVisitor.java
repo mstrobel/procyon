@@ -1363,17 +1363,17 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             space();
         }
 
-        if (definition == null || !definition.isTypeInitializer()) {
-            final LineNumberTableAttribute lineNumberTable = SourceAttribute.find(
+        final LineNumberTableAttribute lineNumberTable = SourceAttribute.find(
                 AttributeNames.LineNumberTable,
                 definition != null ? definition.getSourceAttributes()
                                    : Collections.<SourceAttribute>emptyList()
-            );
+        );
 
-            if (lineNumberTable != null) {
-                formatter.resetLineNumberOffsets(new LineNumberTableConverter(lineNumberTable));
-            }
-
+        if (lineNumberTable != null) {
+            formatter.resetLineNumberOffsets(new LineNumberTableConverter(lineNumberTable));
+        }
+        
+        if (definition == null || !definition.isTypeInitializer()) {
             final AstNodeCollection<TypeParameterDeclaration> typeParameters = node.getTypeParameters();
 
             if (any(typeParameters)) {
@@ -1431,6 +1431,17 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         final AstNode parent = node.getParent();
         final TypeDeclaration type = parent instanceof TypeDeclaration ? (TypeDeclaration) parent : null;
 
+        final MethodDefinition constructor = node.getUserData(Keys.METHOD_DEFINITION);        
+        final LineNumberTableAttribute lineNumberTable = SourceAttribute.find(
+                AttributeNames.LineNumberTable,
+                constructor != null ? constructor.getSourceAttributes()
+                                   : Collections.<SourceAttribute>emptyList()
+        );
+        
+        if (lineNumberTable != null) {
+            formatter.resetLineNumberOffsets(new LineNumberTableConverter(lineNumberTable));
+        }
+        
         startNode(node.getNameToken());
         writeIdentifier(type != null ? type.getName() : node.getName());
         endNode(node.getNameToken());
