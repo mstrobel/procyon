@@ -359,6 +359,37 @@ public class InnerClassTests extends DecompilerTest {
         }
     }
 
+    public class S {
+        public void foo(final T.U y) {
+            System.out.println(y.getX(1, 2, 3));
+        }
+
+        public class T {
+            public class U {
+                private int x;
+
+                private int getX(final int a, final int b, final int c) {
+                    return a + b + c + this.x;
+                }
+            }
+        }
+    }
+
+    public class U {
+        public int test() {
+            class V {
+                public V create() {
+                    return new V();
+                }
+
+                int get() {
+                    return 1;
+                }
+            }
+            return new V().create().get();
+        }
+    }
+
     @Test
     public void testComplexInnerClassRelations() {
         //
@@ -806,6 +837,48 @@ public class InnerClassTests extends DecompilerTest {
             "        public void test() {\n" +
             "            final Inner inner = new Inner();\n" +
             "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testAccessInnerClassPrivateMemberFromOuter() {
+        verifyOutput(
+            S.class,
+            defaultSettings(),
+            "public class S {\n" +
+            "    public void foo(final T.U y) {\n" +
+            "        System.out.println(y.getX(1, 2, 3));\n" +
+            "    }\n" +
+            "    public class T {\n" +
+            "        public class U {\n" +
+            "            private int x;\n" +
+            "            private int getX(final int a, final int b, final int c) {\n" +
+            "                return a + b + c + this.x;\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testLocalClassInstantiatesItself() {
+        verifyOutput(
+            U.class,
+            defaultSettings(),
+            "public class U {\n" +
+            "    public int test() {\n" +
+            "        class V {\n" +
+            "            public V create() {\n" +
+            "                return new V();\n" +
+            "            }\n" +
+            "            int get() {\n" +
+            "                return 1;\n" +
+            "            }\n" +
+            "        }\n" +
+            "        return new V().create().get();\n" +
             "    }\n" +
             "}\n"
         );

@@ -124,7 +124,10 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
 
                         final MethodDeclaration clone = (MethodDeclaration) declaration.clone();
 
-                        if (!declaration.getParameters().isEmpty()) {
+                        if (!declaration.getParameters().isEmpty() &&
+                            !arguments.isEmpty() &&
+                            isThisOrOuterThisReference(first(arguments))) {
+
                             new ReplaceSuperReferencesVisitor(clone.getParameters().firstOrNullObject().getName()).run(clone.getBody());
                         }
 
@@ -178,6 +181,35 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         return null;
     }
 
+    private static boolean isThisOrOuterThisReference(final Expression e) {
+        if (e == null || e.isNull()) {
+            return false;
+        }
+
+        if (e instanceof ThisReferenceExpression && ((ThisReferenceExpression) e).getTarget().isNull()) {
+            return true;
+        }
+
+        if (e instanceof MemberReferenceExpression) {
+            final MemberReference m = e.getUserData(Keys.MEMBER_REFERENCE);
+
+            if (m instanceof FieldReference) {
+                final FieldDefinition resolvedField = ((FieldReference) m).resolve();
+
+                if (resolvedField != null &&
+                    resolvedField.isSynthetic() &&
+                    resolvedField.getDeclaringType().isInnerClass() &&
+                    resolvedField.getDeclaringType().getDeclaringType() != null &&
+                    resolvedField.getDeclaringType().getDeclaringType().isEquivalentTo(resolvedField.getFieldType())) {
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     // <editor-fold defaultstate="collapsed" desc="ReplaceSuperReferencesVisitor Class">
 
     private class ReplaceSuperReferencesVisitor extends ContextTrackingVisitor<Void> {
@@ -205,8 +237,6 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                 if (MetadataResolver.areEquivalent(declaringType, currentType)) {
                     return null;
                 }
-
-                final TypeReference baseType = currentType.getBaseType();
 
                 final ThisReferenceExpression s = new ThisReferenceExpression(
                     node.getTarget().getOffset(),
