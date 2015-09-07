@@ -20,7 +20,7 @@ import org.junit.Test;
 
 import java.util.Iterator;
 
-@SuppressWarnings({ "UnusedDeclaration", "UnnecessaryLocalVariable" })
+@SuppressWarnings({ "UnusedDeclaration", "UnnecessaryLocalVariable", "UnnecessaryInterfaceModifier" })
 public class InnerClassTests extends DecompilerTest {
     private class T {
         void test() {
@@ -300,7 +300,9 @@ public class InnerClassTests extends DecompilerTest {
                 {
                     System.out.println("This is an initializer block.");
                 }
+
                 int x = 5;
+
                 {
                     System.out.println(x);
                 }
@@ -334,6 +336,57 @@ public class InnerClassTests extends DecompilerTest {
             class Test extends Base {
             }
             new Test();
+        }
+    }
+
+    private static class Q {
+        protected class Inner {}
+
+        private class SubClass extends Q {
+            public void test() {
+                final Inner inner = new Inner();
+            }
+        }
+    }
+
+    private static class R<X> {
+        protected class Inner {}
+
+        private class SubClass extends R<String> {
+            public void test() {
+                final Inner inner = new Inner();
+            }
+        }
+    }
+
+    public class S {
+        public void foo(final T.U y) {
+            System.out.println(y.getX(1, 2, 3));
+        }
+
+        public class T {
+            public class U {
+                private int x;
+
+                private int getX(final int a, final int b, final int c) {
+                    return a + b + c + this.x;
+                }
+            }
+        }
+    }
+
+    public class U {
+        public int test() {
+            class V {
+                public V create() {
+                    return new V();
+                }
+
+                int get() {
+                    return 1;
+                }
+            }
+            return new V().create().get();
         }
     }
 
@@ -739,6 +792,7 @@ public class InnerClassTests extends DecompilerTest {
             "}\n"
         );
     }
+
     @Test
     public void testUnusedLocalClassesWithInterdependencies() {
         verifyOutput(
@@ -755,12 +809,78 @@ public class InnerClassTests extends DecompilerTest {
             "}\n"
         );
     }
-}
 
-class lolwut {
-    public static final lolwut$omg omg = new lolwut$omg();
-}
+    @Test
+    public void testProtectedInnerClassConstructorsInOuterSubClass() {
+        verifyOutput(
+            Q.class,
+            defaultSettings(),
+            "private static class Q {\n" +
+            "    protected class Inner { }\n" +
+            "    private class SubClass extends Q {\n" +
+            "        public void test() {\n" +
+            "            final Inner inner = new Inner();\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
 
-class lolwut$omg {
+    @Test
+    public void testProtectedInnerClassConstructorsInGenericOuterSubClass() {
+        verifyOutput(
+            R.class,
+            defaultSettings(),
+            "private static class R<X> {\n" +
+            "    protected class Inner { }\n" +
+            "    private class SubClass extends R<String> {\n" +
+            "        public void test() {\n" +
+            "            final Inner inner = new Inner();\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
 
+    @Test
+    public void testAccessInnerClassPrivateMemberFromOuter() {
+        verifyOutput(
+            S.class,
+            defaultSettings(),
+            "public class S {\n" +
+            "    public void foo(final T.U y) {\n" +
+            "        System.out.println(y.getX(1, 2, 3));\n" +
+            "    }\n" +
+            "    public class T {\n" +
+            "        public class U {\n" +
+            "            private int x;\n" +
+            "            private int getX(final int a, final int b, final int c) {\n" +
+            "                return a + b + c + this.x;\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testLocalClassInstantiatesItself() {
+        verifyOutput(
+            U.class,
+            defaultSettings(),
+            "public class U {\n" +
+            "    public int test() {\n" +
+            "        class V {\n" +
+            "            public V create() {\n" +
+            "                return new V();\n" +
+            "            }\n" +
+            "            int get() {\n" +
+            "                return 1;\n" +
+            "            }\n" +
+            "        }\n" +
+            "        return new V().create().get();\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
 }

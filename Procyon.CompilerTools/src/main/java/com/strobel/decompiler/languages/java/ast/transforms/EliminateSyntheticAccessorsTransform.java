@@ -117,7 +117,21 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                             parameterMap.put(parameters.get(i++), argument);
                         }
 
-                        final AstNode inlinedBody = InliningHelper.inlineMethod(declaration, parameterMap);
+                        //
+                        // Clone the synthetic accessor so we can replace references to the target
+                        // with the appropriate `super` or `Ancestor.this` expressions before inlining.
+                        //
+
+                        final MethodDeclaration clone = (MethodDeclaration) declaration.clone();
+
+                        if (!declaration.getParameters().isEmpty() &&
+                            !arguments.isEmpty() &&
+                            isThisOrOuterThisReference(first(arguments))) {
+
+                            new ReplaceSuperReferencesVisitor(clone.getParameters().firstOrNullObject().getName()).run(clone.getBody());
+                        }
+
+                        final AstNode inlinedBody = InliningHelper.inlineMethod(clone, parameterMap);
 
                         if (inlinedBody instanceof Expression) {
                             node.replaceWith(inlinedBody);
@@ -166,6 +180,89 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
 
         return null;
     }
+
+    private static boolean isThisOrOuterThisReference(final Expression e) {
+        if (e == null || e.isNull()) {
+            return false;
+        }
+
+        if (e instanceof ThisReferenceExpression && ((ThisReferenceExpression) e).getTarget().isNull()) {
+            return true;
+        }
+
+        if (e instanceof MemberReferenceExpression) {
+            final MemberReference m = e.getUserData(Keys.MEMBER_REFERENCE);
+
+            if (m instanceof FieldReference) {
+                final FieldDefinition resolvedField = ((FieldReference) m).resolve();
+
+                if (resolvedField != null &&
+                    resolvedField.isSynthetic() &&
+                    resolvedField.getDeclaringType().isInnerClass() &&
+                    resolvedField.getDeclaringType().getDeclaringType() != null &&
+                    resolvedField.getDeclaringType().getDeclaringType().isEquivalentTo(resolvedField.getFieldType())) {
+
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    // <editor-fold defaultstate="collapsed" desc="ReplaceSuperReferencesVisitor Class">
+
+    private class ReplaceSuperReferencesVisitor extends ContextTrackingVisitor<Void> {
+        private final IdentifierExpression _identifierPattern;
+
+        private ReplaceSuperReferencesVisitor(final String identifierName) {
+            super(EliminateSyntheticAccessorsTransform.this.context);
+            _identifierPattern = new IdentifierExpression(Expression.MYSTERY_OFFSET, identifierName);
+        }
+
+        @Override
+        public Void visitMemberReferenceExpression(final MemberReferenceExpression node, final Void data) {
+            super.visitMemberReferenceExpression(node, data);
+
+            if (_identifierPattern.matches(node.getTarget())) {
+                final MemberReference memberReference = node.getParent().getUserData(Keys.MEMBER_REFERENCE);
+
+                if (memberReference == null) {
+                    return null;
+                }
+
+                final TypeReference declaringType = memberReference.getDeclaringType();
+                final TypeDefinition currentType = this.context.getCurrentType();
+
+                if (MetadataResolver.areEquivalent(declaringType, currentType)) {
+                    return null;
+                }
+
+                final ThisReferenceExpression s = new ThisReferenceExpression(
+                    node.getTarget().getOffset(),
+                    node.getTarget().getStartLocation()
+                );
+
+                final SimpleType type = new SimpleType(declaringType.getSimpleName());
+
+                s.putUserData(Keys.TYPE_REFERENCE, declaringType);
+                type.putUserData(Keys.TYPE_REFERENCE, declaringType);
+
+                s.setTarget(
+                    new TypeReferenceExpression(
+                        node.getTarget().getOffset(),
+                        type
+                    )
+                );
+
+                node.getTarget().replaceWith(s);
+            }
+
+            return null;
+        }
+    }
+
+    // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="PhaseOneVisitor Class">
 

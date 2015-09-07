@@ -368,7 +368,12 @@ public final class AstOptimizer {
     // <editor-fold defaultstate="collapsed" desc="RemoveUnreachableBlocks Step">
 
     private static void removeUnreachableBlocks(final Block method) {
-        final BasicBlock entryBlock = first(ofType(method.getBody(), BasicBlock.class));
+        final BasicBlock entryBlock = firstOrDefault(ofType(method.getBody(), BasicBlock.class));
+
+        if (entryBlock == null) {
+            return;
+        }
+
         final Set<Label> liveLabels = new LinkedHashSet<>();
 
         @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
@@ -991,12 +996,11 @@ public final class AstOptimizer {
             return false;
         }
 
-        final List<Node> body = tryCatch.getTryBlock().getBody();
-
-        if (body.isEmpty()) {
+        if (matchEmptyBlockOrLeave(tryCatch.getTryBlock())) {
             return true;
         }
 
+        final List<Node> body = tryCatch.getTryBlock().getBody();
         final StrongBox<Label> label = new StrongBox<>();
 
         return body.size() == 3 &&

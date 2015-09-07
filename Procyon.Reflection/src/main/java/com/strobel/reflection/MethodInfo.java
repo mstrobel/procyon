@@ -37,7 +37,7 @@ public abstract class MethodInfo extends MethodBase {
     }
 
     public final boolean isDefault() {
-        if (isAbstract()) {
+        if (isAbstract() || isStatic()) {
             return false;
         }
 

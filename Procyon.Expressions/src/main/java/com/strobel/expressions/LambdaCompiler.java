@@ -70,7 +70,7 @@ final class LambdaCompiler {
             Type.list(lambda.getType())
         );
 
-        final MethodInfo interfaceMethod = lambda.getType().getMethods().get(0);
+        final MethodInfo interfaceMethod = Expression.getInvokeMethod(lambda.getType(), true);
 
         methodBuilder = typeBuilder.defineMethod(
             interfaceMethod.getName(),

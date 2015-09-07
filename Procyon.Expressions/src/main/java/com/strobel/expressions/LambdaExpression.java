@@ -58,7 +58,8 @@ public final class LambdaExpression<T> extends Expression {
         _body = body;
         _tailCall = tailCall;
         _parameters = parameters;
-        _returnType = _interfaceType.getMethods().get(0).getReturnType();
+        //noinspection ConstantConditions
+        _returnType = Expression.getInvokeMethod(_interfaceType, true).getReturnType();
         _creationContext = CallerResolver.getCallerClass(2);
     }
 

@@ -222,6 +222,30 @@ public final class PatternMatching {
         return false;
     }
 
+    public static boolean matchEmptyBlockOrLeave(final Node node) {
+        if (node instanceof Block || node instanceof BasicBlock) {
+            final List<Node> body = node instanceof Block ? ((Block) node).getBody()
+                                                          : ((BasicBlock) node).getBody();
+
+            switch (body.size()) {
+                case 0:
+                    return true;
+                case 1:
+                    return match(body.get(0), AstCode.Leave);
+                default:
+                    return false;
+            }
+        }
+
+        if (node instanceof Expression) {
+            final Expression e = (Expression) node;
+
+            return e.getCode() == AstCode.Leave;
+        }
+
+        return false;
+    }
+
     public static <T> boolean matchSingle(
         final BasicBlock block,
         final AstCode code,

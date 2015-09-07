@@ -68,7 +68,10 @@ public class RewriteLocalClassesTransform extends ContextTrackingVisitor<Void> {
         final TypeReference type = node.getType().getUserData(Keys.TYPE_REFERENCE);
         final TypeDefinition resolvedType = type != null ? type.resolve() : null;
 
-        if (resolvedType != null && isLocalOrAnonymous(resolvedType)) {
+        if (resolvedType != null &&
+            isLocalOrAnonymous(resolvedType) &&
+            !resolvedType.isEquivalentTo(context.getCurrentType())) {
+
             List<ObjectCreationExpression> instantiations = _instantiations.get(type);
 
             if (instantiations == null) {

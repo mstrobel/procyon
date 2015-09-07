@@ -3339,7 +3339,7 @@ public abstract class Expression {
         MethodInfo invokeMethod = null;
 
         for (final MethodInfo method : methods) {
-            if (method.isDefault()) {
+            if (method.isDefault() || method.isStatic()) {
                 continue;
             }
 
