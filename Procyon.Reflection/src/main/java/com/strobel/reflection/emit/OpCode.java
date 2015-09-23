@@ -223,7 +223,7 @@ public enum OpCode {
     GOTO_W(0xc8, BranchW),
     JSR_W(0xc9, BranchW),
 
-    BREAKPOINT(0xc9, NoOperands),
+    BREAKPOINT(0xca, NoOperands),
 
     // wide opcodes
     ILOAD_W(0xc415, WideCPRefWide),

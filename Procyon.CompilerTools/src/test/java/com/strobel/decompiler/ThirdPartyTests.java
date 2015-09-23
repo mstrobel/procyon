@@ -503,4 +503,17 @@ public class ThirdPartyTests extends DecompilerTest {
             "}"
         );
     }
+
+    @Test
+    public void testJsrWithoutRet() throws Throwable {
+        verifyOutput(
+            "JsrWithoutRet",
+            defaultSettings(),
+            "public class JsrWithoutRet {\n" +
+            "    public static void main(final String[] array) {\n" +
+            "        System.out.println(\"Hello world\");\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
 }
