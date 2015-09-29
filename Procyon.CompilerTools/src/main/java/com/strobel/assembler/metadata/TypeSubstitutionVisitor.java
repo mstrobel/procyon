@@ -295,6 +295,29 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
         return m;
     }
 
+    @Override
+    public TypeReference visitCapturedType(
+        final CapturedType t,
+        final Map<TypeReference, TypeReference> map) {
+
+        final TypeReference oldExtendsBound = t.getExtendsBound();
+        final TypeReference oldSuperBound = t.getSuperBound();
+        final TypeReference oldWildcard = t.getWildcard();
+
+        final TypeReference newExtendsBound = visit(oldExtendsBound, map);
+        final TypeReference newSuperBound = visit(oldSuperBound, map);
+        final TypeReference newWildcard = visitWildcard((WildcardType) oldWildcard, map);
+
+        if (newExtendsBound != oldExtendsBound ||
+            newSuperBound != oldSuperBound ||
+            newWildcard != oldWildcard) {
+
+            return new CapturedType(newSuperBound, newExtendsBound, (WildcardType) newWildcard);
+        }
+
+        return t;
+    }
+
     protected List<TypeReference> visitTypes(
         final List<TypeReference> types,
         final Map<TypeReference, TypeReference> map) {

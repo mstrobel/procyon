@@ -243,7 +243,8 @@ public abstract class MetadataReader {
                 final BootstrapMethodsTableEntry[] methods = new BootstrapMethodsTableEntry[buffer.readUnsignedShort()];
 
                 for (int i = 0; i < methods.length; i++) {
-                    final MethodReference bootstrapMethod = scope.lookupMethod(buffer.readUnsignedShort());
+                    final MethodHandle bootstrapMethodHandle = scope.lookupMethodHandle(buffer.readUnsignedShort());
+                    final MethodReference bootstrapMethod = bootstrapMethodHandle.getMethod();
                     final Object[] arguments = new Object[buffer.readUnsignedShort()];
                     final List<ParameterDefinition> parameters = bootstrapMethod.getParameters();
 
@@ -282,7 +283,7 @@ public abstract class MetadataReader {
                         }
                     }
 
-                    methods[i] = new BootstrapMethodsTableEntry(bootstrapMethod, arguments);
+                    methods[i] = new BootstrapMethodsTableEntry(bootstrapMethodHandle, arguments);
                 }
 
                 return new BootstrapMethodsAttribute(methods);

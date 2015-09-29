@@ -42,6 +42,12 @@ public class SwitchSection extends AstNode {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends SwitchSection> getRole() {
+        return (Role<? extends SwitchSection>) super.getRole();
+    }
+
+    @Override
     public boolean matches(final INode other, final Match match) {
         if (other instanceof SwitchSection) {
             final SwitchSection otherSection = (SwitchSection) other;

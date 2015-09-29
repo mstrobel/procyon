@@ -142,7 +142,7 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
         }
 
         if (node.getParent() instanceof MemberReferenceExpression &&
-            tryIntroduceOuterClassReference((MemberReferenceExpression) node.getParent(), hasThisOnLeft)) {
+            tryIntroduceOuterClassReference((MemberReferenceExpression) node.getParent(), true)) {
 
             return true;
         }
@@ -191,7 +191,11 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
             variable.isParameter() &&
             _parametersToRemove.contains(variable.getOriginalParameter())) {
 
-            final TypeReference parameterType = variable.getOriginalParameter().getParameterType();
+            final ParameterDefinition parameter = variable.getOriginalParameter();
+
+            assert parameter != null;
+
+            final TypeReference parameterType = parameter.getParameterType();
 
             if (!MetadataResolver.areEquivalent(context.getCurrentType(), parameterType) &&
                 isContextWithinTypeInstance(parameterType)) {
@@ -284,8 +288,8 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
         }
 
         @Override
-        public Void visitAssignmentExpression(final AssignmentExpression node, final Void _) {
-            super.visitAssignmentExpression(node, _);
+        public Void visitAssignmentExpression(final AssignmentExpression node, final Void p) {
+            super.visitAssignmentExpression(node, p);
 
             final TypeDefinition currentType = context.getCurrentType();
 
@@ -321,6 +325,8 @@ public class IntroduceOuterClassReferencesTransform extends ContextTrackingVisit
                             MetadataResolver.areEquivalent(resolvedField.getFieldType(), currentType.getDeclaringType())) {
 
                             final ParameterDefinition parameter = variable.getOriginalParameter();
+
+                            assert parameter != null;
 
                             _outerClassFields.add(resolvedField.getFullName());
                             _parametersToRemove.add(parameter);

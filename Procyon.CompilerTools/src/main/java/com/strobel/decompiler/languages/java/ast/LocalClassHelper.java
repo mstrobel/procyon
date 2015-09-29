@@ -33,8 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
-import static com.strobel.core.CollectionUtilities.getOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 
 public final class LocalClassHelper {
     private static final ConvertTypeOptions OUTER_TYPE_CONVERT_OPTIONS;
@@ -43,7 +42,7 @@ public final class LocalClassHelper {
         OUTER_TYPE_CONVERT_OPTIONS = new ConvertTypeOptions(false, false);
         OUTER_TYPE_CONVERT_OPTIONS.setIncludeTypeArguments(false);
     }
-    
+
     public static void replaceClosureMembers(final DecompilerContext context, final AnonymousObjectCreationExpression node) {
         replaceClosureMembers(context, node.getTypeDeclaration(), Collections.singletonList(node));
     }
@@ -155,13 +154,13 @@ public final class LocalClassHelper {
         }
 
         @Override
-        public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
+        public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void p) {
             final boolean wasDone = _baseConstructorCalled;
 
             _baseConstructorCalled = false;
 
             try {
-                return super.visitConstructorDeclaration(node, _);
+                return super.visitConstructorDeclaration(node, p);
             }
             finally {
                 _baseConstructorCalled = wasDone;
@@ -169,19 +168,19 @@ public final class LocalClassHelper {
         }
 
         @Override
-        protected Void visitChildren(final AstNode node, final Void _) {
+        protected Void visitChildren(final AstNode node, final Void p) {
             final MethodDefinition currentMethod = context.getCurrentMethod();
 
             if (currentMethod != null && !(currentMethod.isConstructor()/* && currentMethod.isSynthetic()*/)) {
                 return null;
             }
 
-            return super.visitChildren(node, _);
+            return super.visitChildren(node, p);
         }
 
         @Override
-        public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void _) {
-            super.visitSuperReferenceExpression(node, _);
+        public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void p) {
+            super.visitSuperReferenceExpression(node, p);
 
             if (context.getCurrentMethod() != null &&
                 context.getCurrentMethod().isConstructor() &&
@@ -197,8 +196,8 @@ public final class LocalClassHelper {
         }
 
         @Override
-        public Void visitAssignmentExpression(final AssignmentExpression node, final Void _) {
-            super.visitAssignmentExpression(node, _);
+        public Void visitAssignmentExpression(final AssignmentExpression node, final Void p) {
+            super.visitAssignmentExpression(node, p);
 
             if (context.getCurrentMethod() == null || !context.getCurrentMethod().isConstructor()) {
                 return null;
@@ -225,6 +224,10 @@ public final class LocalClassHelper {
 
                         if (resolvedField != null && resolvedField.isSynthetic()) {
                             final ParameterDefinition parameter = variable.getOriginalParameter();
+
+                            if (parameter == null) {
+                                return null;
+                            }
 
                             int parameterIndex = parameter.getPosition();
 
@@ -280,6 +283,11 @@ public final class LocalClassHelper {
 
                             if (rightVariable.isParameter()) {
                                 final ParameterDefinition parameter = variable.getOriginalParameter();
+
+                                if (parameter == null) {
+                                    return null;
+                                }
+                                
                                 final int parameterIndex = parameter.getPosition();
 
                                 if (parameterIndex >= 0 && parameterIndex < _originalArguments.size()) {
@@ -410,8 +418,8 @@ public final class LocalClassHelper {
         }
 
         @Override
-        public Void visitMemberReferenceExpression(final MemberReferenceExpression node, final Void _) {
-            super.visitMemberReferenceExpression(node, _);
+        public Void visitMemberReferenceExpression(final MemberReferenceExpression node, final Void p) {
+            super.visitMemberReferenceExpression(node, p);
 
             if (node.getParent() instanceof AssignmentExpression &&
                 node.getRole() == AssignmentExpression.LEFT_ROLE) {
@@ -486,8 +494,8 @@ public final class LocalClassHelper {
         }
 
         @Override
-        public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void _) {
-            super.visitSuperReferenceExpression(node, _);
+        public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void p) {
+            super.visitSuperReferenceExpression(node, p);
 
             if (context.getCurrentMethod() != null &&
                 context.getCurrentMethod().isConstructor() &&
@@ -514,7 +522,7 @@ public final class LocalClassHelper {
                 final InstanceInitializer initializer = new InstanceInitializer();
                 final BlockStatement initializerBody = new BlockStatement();
 
-                for (Statement current = parentStatement.getNextStatement(); current != null;) {
+                for (Statement current = parentStatement.getNextStatement(); current != null; ) {
                     final Statement next = current.getNextStatement();
 
                     current.remove();

@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.core.CollectionUtilities;
 import com.strobel.core.Predicate;
 import com.strobel.core.VerifyArgument;
@@ -87,6 +88,7 @@ public final class AstNodeCollection<T extends AstNode> extends AbstractCollecti
                ((AstNode) o).getRole() == _role;
     }
 
+    @NotNull
     @Override
     public Iterator<T> iterator() {
         return new Iterator<T>() {
@@ -140,9 +142,10 @@ public final class AstNodeCollection<T extends AstNode> extends AbstractCollecti
         return toArray(new Object[size()]);
     }
 
+    @NotNull
     @Override
     @SuppressWarnings("unchecked")
-    public <T1> T1[] toArray(final T1[] a) {
+    public <T1> T1[] toArray(@NotNull final T1[] a) {
         int index = 0;
         T1[] destination = a;
 

@@ -12,7 +12,6 @@ import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.Annotation;
 import com.strobel.decompiler.languages.java.ast.AstBuilder;
-import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.decompiler.languages.java.ast.ContextTrackingVisitor;
 import com.strobel.decompiler.languages.java.ast.Keys;
 import com.strobel.decompiler.languages.java.ast.MethodDeclaration;
@@ -31,9 +30,9 @@ public final class InsertOverrideAnnotationsTransform extends ContextTrackingVis
     }
 
     @Override
-    public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
+    public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
         tryAddOverrideAnnotation(node);
-        return super.visitMethodDeclaration(node, _);
+        return super.visitMethodDeclaration(node, p);
     }
 
     private void tryAddOverrideAnnotation(final MethodDeclaration node) {

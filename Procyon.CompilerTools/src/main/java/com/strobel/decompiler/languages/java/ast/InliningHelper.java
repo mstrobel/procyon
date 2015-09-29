@@ -95,11 +95,13 @@ public final class InliningHelper {
         }
 
         @Override
-        public Void visitIdentifierExpression(final IdentifierExpression node, final Void _) {
+        public Void visitIdentifierExpression(final IdentifierExpression node, final Void p) {
             final Variable variable = node.getUserData(Keys.VARIABLE);
 
             if (variable != null && variable.isParameter()) {
                 final ParameterDefinition parameter = variable.getOriginalParameter();
+
+                assert parameter != null;
 
                 if (areMethodsEquivalent((MethodReference) parameter.getMethod(), context.getCurrentMethod())) {
                     final AstNode replacement = _argumentMappings.get(parameter);
@@ -111,7 +113,7 @@ public final class InliningHelper {
                 }
             }
 
-            return super.visitIdentifierExpression(node, _);
+            return super.visitIdentifierExpression(node, p);
         }
 
         private boolean areMethodsEquivalent(final MethodReference m1, final MethodDefinition m2) {
@@ -119,6 +121,7 @@ public final class InliningHelper {
                 return true;
             }
 
+            //noinspection SimplifiableIfStatement
             if (m1 == null || m2 == null) {
                 return false;
             }

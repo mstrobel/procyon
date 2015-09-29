@@ -17,6 +17,7 @@
 package com.strobel.decompiler;
 
 import com.strobel.assembler.metadata.ITypeLoader;
+import com.strobel.decompiler.languages.BytecodeOutputOptions;
 import com.strobel.decompiler.languages.Language;
 import com.strobel.decompiler.languages.Languages;
 import com.strobel.decompiler.languages.java.JavaFormattingOptions;
@@ -36,7 +37,8 @@ public class DecompilerSettings {
     private boolean _includeErrorDiagnostics = true;
     private boolean _mergeVariables;
     private boolean _disableForEachTransforms;
-    private JavaFormattingOptions _formattingOptions;
+    private JavaFormattingOptions _javaFormattingOptions;
+    private BytecodeOutputOptions _bytecodeOutputOptions;
     private Language _language;
     private String _outputFileHeaderText;
     private String _outputDirectory;
@@ -110,13 +112,17 @@ public class DecompilerSettings {
         _showSyntheticMembers = showSyntheticMembers;
     }
 
-    public final JavaFormattingOptions getFormattingOptions() {
-        return _formattingOptions;
+    public final JavaFormattingOptions getJavaFormattingOptions() {
+        return _javaFormattingOptions;
     }
 
-    public final void setFormattingOptions(final JavaFormattingOptions formattingOptions) {
-        _formattingOptions = formattingOptions;
+    public final void setJavaFormattingOptions(final JavaFormattingOptions javaFormattingOptions) {
+        _javaFormattingOptions = javaFormattingOptions;
     }
+
+    public final BytecodeOutputOptions getBytecodeOutputOptions() { return _bytecodeOutputOptions; }
+
+    public final void setBytecodeOutputOptions(final BytecodeOutputOptions bytecodeOutputOptions) { _bytecodeOutputOptions = bytecodeOutputOptions; }
 
     public final boolean getAlwaysGenerateExceptionVariableForCatchBlocks() {
         return _alwaysGenerateExceptionVariableForCatchBlocks;
@@ -182,7 +188,7 @@ public class DecompilerSettings {
         _mergeVariables = mergeVariables;
     }
 
-    public final void setShowDebugLineNumbers(boolean showDebugLineNumbers) {
+    public final void setShowDebugLineNumbers(final boolean showDebugLineNumbers) {
         _showDebugLineNumbers = showDebugLineNumbers;
     }
     
@@ -208,7 +214,7 @@ public class DecompilerSettings {
 
     public static DecompilerSettings javaDefaults() {
         final DecompilerSettings settings = new DecompilerSettings();
-        settings.setFormattingOptions(JavaFormattingOptions.createDefault());
+        settings.setJavaFormattingOptions(JavaFormattingOptions.createDefault());
         return settings;
     }
 }

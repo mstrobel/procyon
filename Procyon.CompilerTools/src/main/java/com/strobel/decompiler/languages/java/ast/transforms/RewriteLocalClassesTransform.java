@@ -62,8 +62,8 @@ public class RewriteLocalClassesTransform extends ContextTrackingVisitor<Void> {
     }
 
     @Override
-    public Void visitObjectCreationExpression(final ObjectCreationExpression node, final Void _) {
-        super.visitObjectCreationExpression(node, _);
+    public Void visitObjectCreationExpression(final ObjectCreationExpression node, final Void p) {
+        super.visitObjectCreationExpression(node, p);
 
         final TypeReference type = node.getType().getUserData(Keys.TYPE_REFERENCE);
         final TypeDefinition resolvedType = type != null ? type.resolve() : null;
@@ -92,8 +92,8 @@ public class RewriteLocalClassesTransform extends ContextTrackingVisitor<Void> {
     }
 
     @Override
-    public Void visitAnonymousObjectCreationExpression(final AnonymousObjectCreationExpression node, final Void _) {
-        super.visitAnonymousObjectCreationExpression(node, _);
+    public Void visitAnonymousObjectCreationExpression(final AnonymousObjectCreationExpression node, final Void p) {
+        super.visitAnonymousObjectCreationExpression(node, p);
 
         final TypeDefinition resolvedType = node.getTypeDeclaration().getUserData(Keys.TYPE_DEFINITION);
 
@@ -116,14 +116,14 @@ public class RewriteLocalClassesTransform extends ContextTrackingVisitor<Void> {
         }
 
         @Override
-        public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void _) {
+        public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
             final TypeDefinition type = typeDeclaration.getUserData(Keys.TYPE_DEFINITION);
 
             if (type != null && (isLocalOrAnonymous(type) || type.isAnonymous())) {
                 _localTypes.put(type, typeDeclaration);
             }
 
-            return super.visitTypeDeclaration(typeDeclaration, _);
+            return super.visitTypeDeclaration(typeDeclaration, p);
         }
     }
 }

@@ -878,10 +878,13 @@ final class Helper {
                 return null;
             }
 
+            if (t.isRawType() && p.isGenericType() && t.isAssignableFrom(p.getErasedType())) {
+                return t;
+            }
+
             if (t.isGenericType()) {
                 if (p.isGenericType()) {
                     if (t.getGenericTypeDefinition() == p.getGenericTypeDefinition()) {
-
                         boolean areTypeArgumentsAssignable = true;
 
                         final TypeList ta = t.getTypeArguments();
@@ -891,8 +894,9 @@ final class Helper {
                             final Type<?> at = ta.get(i);
                             final Type<?> ap = tp.get(i);
 
-                            if (ap == at)
+                            if (ap == at) {
                                 continue;
+                            }
 
                             if (ap.hasExtendsBound()) {
                                 final Type<?> extendsBound = ap.getExtendsBound();

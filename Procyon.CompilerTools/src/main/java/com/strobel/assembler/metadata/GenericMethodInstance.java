@@ -38,7 +38,10 @@ final class GenericMethodInstance extends MethodReference implements IGenericIns
 
         _declaringType = VerifyArgument.notNull(declaringType, "declaringType");
         _genericDefinition = VerifyArgument.notNull(definition, "definition");
-        _returnType = VerifyArgument.notNull(returnType, "returnType");
+
+        VerifyArgument.notNull(returnType, "returnType");
+
+        _returnType = returnType;
         _parameters = new ParameterDefinitionCollection(this);
         _typeArguments = VerifyArgument.notNull(typeArguments, "typeArguments");
 

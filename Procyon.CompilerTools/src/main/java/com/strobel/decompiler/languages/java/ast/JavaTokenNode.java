@@ -91,6 +91,12 @@ public class JavaTokenNode extends AstNode {
     // </editor-fold>
 
     @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends JavaTokenNode> getRole() {
+        return (Role<? extends JavaTokenNode>) super.getRole();
+    }
+
+    @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
         return visitor.visitJavaTokenNode(this, data);
     }

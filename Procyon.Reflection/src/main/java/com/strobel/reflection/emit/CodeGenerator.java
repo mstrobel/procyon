@@ -583,6 +583,9 @@ public class CodeGenerator {
         if (method.isStatic()) {
             emit(OpCode.INVOKESTATIC, method);
         }
+        else if (method.isPrivate()) {
+            emit(OpCode.INVOKESPECIAL, method);
+        }
         else if (method.getDeclaringType().isInterface()) {
             emit(OpCode.INVOKEINTERFACE, method);
         }

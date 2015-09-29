@@ -109,6 +109,17 @@ public final class ParameterDefinition extends ParameterReference implements IAn
         return _declaringType;
     }
 
+    @Override
+    protected void setParameterType(final TypeReference parameterType) {
+        super.setParameterType(parameterType);
+
+        final IMethodSignature method = _method;
+
+        if (method != null) {
+            method.invalidateSignature();
+        }
+    }
+
     final void setDeclaringType(final TypeReference declaringType) {
         _declaringType = declaringType;
     }

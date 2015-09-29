@@ -38,13 +38,13 @@ public class RemoveRedundantInitializersTransform extends ContextTrackingVisitor
     }
 
     @Override
-    public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
+    public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void p) {
         final boolean wasInConstructor = _inConstructor;
 
         _inConstructor = true;
 
         try {
-            return super.visitConstructorDeclaration(node, _);
+            return super.visitConstructorDeclaration(node, p);
         }
         finally {
             _inConstructor = wasInConstructor;

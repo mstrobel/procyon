@@ -133,7 +133,7 @@ public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode
     }
 
     @Override
-    public AstNode visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void _) {
+    public AstNode visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void p) {
         if (node.getOperator() == UnaryOperatorType.NOT &&
             node.getExpression() instanceof BinaryOperatorExpression) {
 
@@ -173,7 +173,7 @@ public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode
 
             if (successful) {
                 node.replaceWith(binary);
-                return binary.acceptVisitor(this, _);
+                return binary.acceptVisitor(this, p);
             }
 
             successful = true;
@@ -196,11 +196,11 @@ public class SimplifyAssignmentsTransform extends ContextTrackingVisitor<AstNode
                 binary.getLeft().replaceWith(NEGATE_FUNCTION);
                 binary.getRight().replaceWith(NEGATE_FUNCTION);
                 node.replaceWith(binary);
-                return binary.acceptVisitor(this, _);
+                return binary.acceptVisitor(this, p);
             }
         }
 
-        return super.visitUnaryOperatorExpression(node, _);
+        return super.visitUnaryOperatorExpression(node, p);
     }
 
     @Override

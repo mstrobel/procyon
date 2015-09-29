@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.Role;
 
 public class CaseLabel extends AstNode {
     public final static TokenRole CASE_KEYWORD_ROLE = new TokenRole("case", TokenRole.FLAG_KEYWORD);
@@ -33,6 +34,12 @@ public class CaseLabel extends AstNode {
     @Override
     public NodeType getNodeType() {
         return NodeType.UNKNOWN;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends CaseLabel> getRole() {
+        return (Role<? extends CaseLabel>) super.getRole();
     }
 
     public final JavaTokenNode getColonToken() {

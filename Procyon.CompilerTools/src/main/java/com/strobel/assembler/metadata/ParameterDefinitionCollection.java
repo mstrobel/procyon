@@ -53,6 +53,8 @@ public final class ParameterDefinitionCollection extends Collection<ParameterDef
                 get(i).setPosition(i + 1);
             }
         }
+
+        signature.invalidateSignature();
     }
 
     @Override
@@ -66,6 +68,8 @@ public final class ParameterDefinitionCollection extends Collection<ParameterDef
         p.setMethod(signature);
         p.setPosition(index);
         p.setDeclaringType(_declaringType);
+
+        signature.invalidateSignature();
     }
 
     @Override
@@ -77,6 +81,8 @@ public final class ParameterDefinitionCollection extends Collection<ParameterDef
         for (int i = index; i < size(); i++) {
             get(i).setPosition(i);
         }
+
+        signature.invalidateSignature();
     }
 
     @Override
@@ -86,5 +92,7 @@ public final class ParameterDefinitionCollection extends Collection<ParameterDef
             get(i).setPosition(-1);
             get(i).setDeclaringType(null);
         }
+
+        signature.invalidateSignature();
     }
 }

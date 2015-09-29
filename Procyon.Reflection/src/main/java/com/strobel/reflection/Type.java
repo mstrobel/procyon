@@ -260,7 +260,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         return this;
     }
 
-    public Type getElementType() {
+    public Type<?> getElementType() {
         throw Error.noElementType(this);
     }
 
@@ -328,24 +328,16 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         if (isGenericParameter()) {
-            return genericParameter == this ||
-                   getExtendsBound().containsGenericParameter(genericParameter);
+            return this.isEquivalentTo(genericParameter);
         }
 
-        if (isWildcardType()) {
-            return hasSuperBound() && getSuperBound().containsGenericParameter(genericParameter) ||
-                   getExtendsBound().containsGenericParameter(genericParameter);
-        }
+        if (isGenericTypeDefinition()) {
+            final TypeBindings typeArguments = getTypeBindings();
 
-        if (!isGenericType()) {
-            return false;
-        }
-
-        final TypeBindings typeArguments = getTypeBindings();
-
-        for (int i = 0, n = typeArguments.size(); i < n; i++) {
-            if (typeArguments.getBoundType(i).containsGenericParameters()) {
-                return true;
+            for (int i = 0, n = typeArguments.size(); i < n; i++) {
+                if (typeArguments.getBoundType(i).containsGenericParameter(genericParameter)) {
+                    return true;
+                }
             }
         }
 
@@ -1419,6 +1411,12 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         }
 
         return s;
+    }
+
+    @Override
+    protected void invalidateCaches() {
+        super.invalidateCaches();
+        _cache = null;
     }
 
     public StringBuilder appendErasedSignature(final StringBuilder sb) {

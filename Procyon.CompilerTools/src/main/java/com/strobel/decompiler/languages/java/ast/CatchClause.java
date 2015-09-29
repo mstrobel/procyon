@@ -79,6 +79,12 @@ public class CatchClause extends AstNode {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends CatchClause> getRole() {
+        return (Role<? extends CatchClause>) super.getRole();
+    }
+
+    @Override
     public NodeType getNodeType() {
         return NodeType.UNKNOWN;
     }

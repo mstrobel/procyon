@@ -20,6 +20,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.Role;
 
 public class TextNode extends AstNode {
     private String _text;
@@ -64,6 +65,12 @@ public class TextNode extends AstNode {
     public final void setEndLocation(final TextLocation endLocation) {
         verifyNotFrozen();
         _endLocation = endLocation;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends TextNode> getRole() {
+        return (Role<? extends TextNode>) super.getRole();
     }
 
     @Override

@@ -8,6 +8,7 @@ import com.strobel.assembler.metadata.*;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.LineNumberFormatter.LineNumberOption;
+import com.strobel.decompiler.languages.BytecodeOutputOptions;
 import com.strobel.decompiler.languages.BytecodeLanguage;
 import com.strobel.decompiler.languages.Languages;
 import com.strobel.decompiler.languages.LineNumberPosition;
@@ -47,7 +48,7 @@ public class DecompilerDriver {
 
         try {
             jCommander = new JCommander(options);
-            jCommander.setAllowAbbreviatedOptions(true);
+            jCommander.setAllowAbbreviatedOptions(false);
             jCommander.parse(args);
             typeNames = options.getInputs();
         }
@@ -101,6 +102,7 @@ public class DecompilerDriver {
 
         if (options.isRawBytecode()) {
             settings.setLanguage(Languages.bytecode());
+            settings.setBytecodeOutputOptions(createBytecodeFormattingOptions(options));
         }
         else if (options.isBytecodeAst()) {
             settings.setLanguage(
@@ -114,8 +116,8 @@ public class DecompilerDriver {
         decompilationOptions.setSettings(settings);
         decompilationOptions.setFullDecompilation(true);
 
-        if (settings.getFormattingOptions() == null) {
-            settings.setFormattingOptions(JavaFormattingOptions.createDefault());
+        if (settings.getJavaFormattingOptions() == null) {
+            settings.setJavaFormattingOptions(JavaFormattingOptions.createDefault());
         }
 
         if (decompileJar) {
@@ -148,6 +150,22 @@ public class DecompilerDriver {
         }
     }
 
+    private static BytecodeOutputOptions createBytecodeFormattingOptions(final CommandLineOptions options) {
+        if (options.isVerbose()) {
+            return BytecodeOutputOptions.createVerbose();
+        }
+
+        final BytecodeOutputOptions bytecodeOptions = BytecodeOutputOptions.createDefault();
+
+        bytecodeOptions.showTypeAttributes = options.getShowTypeAttributes();
+        bytecodeOptions.showConstantPool = options.getShowConstantPool();
+        bytecodeOptions.showLineNumbers = options.getIncludeLineNumbers();
+        bytecodeOptions.showLocalVariableTables = options.getShowLocalVariableDetails();
+        bytecodeOptions.showMethodsStack = options.getShowLocalVariableDetails();
+
+        return bytecodeOptions;
+    }
+
     private static void configureLogging(final CommandLineOptions options) {
         final Logger globalLogger = Logger.getGlobal();
         final Logger rootLogger = Logger.getAnonymousLogger().getParent();
@@ -162,7 +180,7 @@ public class DecompilerDriver {
 
         final Level verboseLevel;
 
-        switch (options.getVerboseLevel()) {
+        switch (options.getLogLevel()) {
             case 0:
                 verboseLevel = Level.SEVERE;
                 break;

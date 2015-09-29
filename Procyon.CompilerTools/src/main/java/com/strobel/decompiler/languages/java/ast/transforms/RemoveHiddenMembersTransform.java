@@ -38,7 +38,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
     }
 
     @Override
-    public Void visitTypeDeclaration(final TypeDeclaration node, final Void _) {
+    public Void visitTypeDeclaration(final TypeDeclaration node, final Void p) {
         if (!(node.getParent() instanceof CompilationUnit)) {
             final TypeDefinition type = node.getUserData(Keys.TYPE_DEFINITION);
 
@@ -48,7 +48,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
             }
         }
 
-        return super.visitTypeDeclaration(node, _);
+        return super.visitTypeDeclaration(node, p);
     }
 
     @Override
@@ -64,7 +64,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
     }
 
     @Override
-    public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
+    public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
         final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
         if (method != null) {
@@ -81,7 +81,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
             }
         }
 
-        return super.visitMethodDeclaration(node, _);
+        return super.visitMethodDeclaration(node, p);
     }
 
     private final static INode DEFAULT_CONSTRUCTOR_BODY;
@@ -106,7 +106,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
     }
 
     @Override
-    public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
+    public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void p) {
         final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
         if (method != null) {
@@ -118,7 +118,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
                     //
                     // Keep initializer blocks in anonymous enum value bodies.
                     //
-                    return super.visitConstructorDeclaration(node, _);
+                    return super.visitConstructorDeclaration(node, p);
                 }
 
                 node.remove();
@@ -156,7 +156,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
             }
         }
 
-        return super.visitConstructorDeclaration(node, _);
+        return super.visitConstructorDeclaration(node, p);
     }
 
     @Override

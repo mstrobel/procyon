@@ -96,7 +96,7 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
 
                     switchMapField = r.resolve();
                 }
-                catch (Throwable t) {
+                catch (final Throwable t) {
                     return super.visitSwitchStatement(node, data);
                 }
 
@@ -134,7 +134,7 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
+        public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
             final MethodDefinition methodDefinition = node.getUserData(Keys.METHOD_DEFINITION);
 
             if (isSwitchMapMethod(methodDefinition)) {
@@ -169,7 +169,7 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
                 }
             }
 
-            return super.visitMethodDeclaration(node, _);
+            return super.visitMethodDeclaration(node, p);
         }
 
         private void rewrite() {
@@ -185,7 +185,6 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
             // Remove switch map type wrappers that are no longer referenced.
             //
 
-        outer:
             for (final SwitchMapInfo info : _switchMaps.values()) {
                 if (info.switchMapMethod == null ||
                     info.switchMapFieldDeclaration == null ||
@@ -231,7 +230,7 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
                 for (final CaseLabel caseLabel : section.getCaseLabels()) {
                     final Expression expression = caseLabel.getExpression();
 
-                    if (expression == null || expression.isNull()) {
+                    if (expression.isNull()) {
                         continue;
                     }
 

@@ -21,21 +21,28 @@ import com.strobel.core.VerifyArgument;
 import java.util.List;
 
 public final class DynamicCallSite {
-    private final MethodReference _bootstrapMethod;
+    private final int _bootstrapMethodIndex;
+    private final MethodHandle _bootstrapMethodHandle;
     private final List<Object> _bootstrapArguments;
     private final String _methodName;
     private final IMethodSignature _methodType;
 
     public DynamicCallSite(
-        final MethodReference method,
+        final int bootstrapMethodIndex,
+        final MethodHandle method,
         final List<Object> bootstrapArguments,
         final String methodName,
         final IMethodSignature methodType) {
 
-        _bootstrapMethod = VerifyArgument.notNull(method, "method");
+        _bootstrapMethodIndex = bootstrapMethodIndex;
+        _bootstrapMethodHandle = VerifyArgument.notNull(method, "method");
         _bootstrapArguments = VerifyArgument.notNull(bootstrapArguments, "bootstrapArguments");
         _methodName = VerifyArgument.notNull(methodName, "methodName");
         _methodType = VerifyArgument.notNull(methodType, "methodType");
+    }
+
+    public final int getBootstrapMethodIndex() {
+        return _bootstrapMethodIndex;
     }
 
     public final String getMethodName() {
@@ -50,7 +57,11 @@ public final class DynamicCallSite {
         return _bootstrapArguments;
     }
 
+    public final MethodHandle getBootstrapMethodHandle() {
+        return _bootstrapMethodHandle;
+    }
+
     public final MethodReference getBootstrapMethod() {
-        return _bootstrapMethod;
+        return _bootstrapMethodHandle.getMethod();
     }
 }

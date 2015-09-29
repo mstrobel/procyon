@@ -500,7 +500,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
         }
 
         @Override
-        public Void visitTypeDeclaration(final TypeDeclaration node, final Void _) {
+        public Void visitTypeDeclaration(final TypeDeclaration node, final Void p) {
             final TypeDefinition type = node.getUserData(Keys.TYPE_DEFINITION);
 
             if (type != null) {
@@ -509,11 +509,11 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                 }
             }
 
-            return super.visitTypeDeclaration(node, _);
+            return super.visitTypeDeclaration(node, p);
         }
 
         @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
+        public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
             final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
             if (method != null) {
@@ -524,21 +524,16 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                 }
             }
 
-            return super.visitMethodDeclaration(node, _);
+            return super.visitMethodDeclaration(node, p);
         }
 
         private boolean tryMatchAccessor(final MethodDeclaration node) {
-            if (SYNTHETIC_GET_ACCESSOR.matches(node) ||
-                SYNTHETIC_SET_ACCESSOR.matches(node) ||
-                SYNTHETIC_SET_ACCESSOR_ALT.matches(node) ||
-                SYNTHETIC_STATIC_GET_ACCESSOR.matches(node) ||
-                SYNTHETIC_STATIC_SET_ACCESSOR.matches(node) ||
-                SYNTHETIC_STATIC_SET_ACCESSOR_ALT.matches(node)) {
-
-                return true;
-            }
-
-            return false;
+            return SYNTHETIC_GET_ACCESSOR.matches(node) ||
+                   SYNTHETIC_SET_ACCESSOR.matches(node) ||
+                   SYNTHETIC_SET_ACCESSOR_ALT.matches(node) ||
+                   SYNTHETIC_STATIC_GET_ACCESSOR.matches(node) ||
+                   SYNTHETIC_STATIC_SET_ACCESSOR.matches(node) ||
+                   SYNTHETIC_STATIC_SET_ACCESSOR_ALT.matches(node);
         }
 
         private boolean tryMatchCallWrapper(final MethodDeclaration node) {

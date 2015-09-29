@@ -1269,4 +1269,34 @@ final class DebugViewWriter extends ExpressionVisitor {
         out("}");
         return node;
     }
+
+    @Override
+    protected Expression visitConcat(final ConcatExpression node) {
+        final ExpressionList<? extends Expression> operands = node.getOperands();
+
+        boolean first = true;
+
+        for (final Expression operand : operands) {
+            if (first) {
+                first = false;
+            }
+            else {
+                out(FLOW_SPACE, "+", FLOW_SPACE | FLOW_BREAK);
+            }
+
+            final boolean parenthesize = needsParentheses(node, operand);
+
+            if (parenthesize) {
+                out("(", FLOW_NONE);
+            }
+
+            visit(operand);
+
+            if (parenthesize) {
+                out(")", FLOW_NONE);
+            }
+        }
+
+        return node;
+    }
 }

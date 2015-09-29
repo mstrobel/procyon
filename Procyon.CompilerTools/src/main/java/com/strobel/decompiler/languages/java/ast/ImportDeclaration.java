@@ -21,6 +21,7 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.Role;
 
 public class ImportDeclaration extends AstNode {
     public final static TokenRole IMPORT_KEYWORD_RULE = new TokenRole("import", TokenRole.FLAG_KEYWORD);
@@ -76,6 +77,12 @@ public class ImportDeclaration extends AstNode {
 
     public final JavaTokenNode getSemicolonToken() {
         return getChildByRole(Roles.SEMICOLON);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends ImportDeclaration> getRole() {
+        return (Role<? extends ImportDeclaration>) super.getRole();
     }
 
     @Override

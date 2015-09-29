@@ -601,6 +601,22 @@ public abstract class MethodInfo extends MethodBase {
         return false;
     }
 
+    public boolean containsGenericParameter(final Type<?> genericParameter) {
+        if (!VerifyArgument.notNull(genericParameter, "genericParameter").isGenericParameter()) {
+            throw Error.notGenericParameter(genericParameter);
+        }
+
+        if (isGenericMethodDefinition()) {
+            for (final Type<?> gp : getGenericMethodParameters()) {
+                if (gp.containsGenericParameter(genericParameter)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public MethodInfo makeGenericMethod(final Type<?>... typeArguments) {
         return makeGenericMethod(Type.list(VerifyArgument.noNullElements(typeArguments, "typeArguments")));
     }

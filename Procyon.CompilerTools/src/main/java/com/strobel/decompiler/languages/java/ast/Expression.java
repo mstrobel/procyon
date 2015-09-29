@@ -89,6 +89,12 @@ public abstract class Expression extends AstNode {
         return NodeType.EXPRESSION;
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends Expression> getRole() {
+        return (Role<? extends Expression>) super.getRole();
+    }
+
     // <editor-fold defaultstate="collapsed" desc="Pattern Placeholder">
 
     public static Expression forPattern(final Pattern pattern) {

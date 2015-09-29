@@ -160,7 +160,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     }
 
     @SuppressWarnings("unchecked")
-    public final <T extends AstNode> T getPreviousSibling(final Role<T> role) {
+    public final <T extends AstNode> T getPreviousSibling(final Role<? extends T> role) {
         for (AstNode current = _previousSibling; current != null; current = current.getPreviousSibling()) {
             if (current.getRole() == role) {
                 return (T) current;
@@ -170,7 +170,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     }
 
     @SuppressWarnings("unchecked")
-    public final <T extends AstNode> T getNextSibling(final Role<T> role) {
+    public final <T extends AstNode> T getNextSibling(final Role<? extends T> role) {
         for (AstNode current = _nextSibling; current != null; current = current.getNextSibling()) {
             if (current.getRole() == role) {
                 return (T) current;
@@ -406,7 +406,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         return null;
     }
 
-    public final <T extends AstNode> void addChild(final T child, final Role<T> role) {
+    public final <T extends AstNode> void addChild(final T child, final Role<? extends T> role) {
         VerifyArgument.notNull(role, "role");
 
         if (child == null || child.isNull()) {
@@ -722,7 +722,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     }
 
     @Override
-    public final Role getRole() {
+    public Role<? extends AstNode> getRole() {
         return Role.get(flags & ROLE_INDEX_MASK);
     }
 

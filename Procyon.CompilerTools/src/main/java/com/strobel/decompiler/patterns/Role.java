@@ -67,7 +67,8 @@ public class Role<T> {
         return nodeType.isInstance(node);
     }
 
-    public static Role get(final int index) {
+    @SuppressWarnings("unchecked")
+    public static <U> Role<U> get(final int index) {
         return ROLES[index];
     }
 

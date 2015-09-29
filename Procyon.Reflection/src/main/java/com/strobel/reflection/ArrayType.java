@@ -67,7 +67,7 @@ final class ArrayType<T> extends Type<T> {
     }
 
     @Override
-    public Type getElementType() {
+    public Type<?> getElementType() {
         return _elementType;
     }
 
