@@ -3495,10 +3495,7 @@ public final class AstOptimizer {
 
                 if (resolvedMethod == null ||
                     resolvedMethod.getBody() == null ||
-                    !resolvedMethod.isSynthetic() ||
-                    !MetadataHelper.isEnclosedBy(resolvedMethod.getDeclaringType(), context.getCurrentType()) ||
-                    (StringUtilities.equals(resolvedMethod.getFullName(), context.getCurrentMethod().getFullName()) &&
-                     StringUtilities.equals(resolvedMethod.getSignature(), context.getCurrentMethod().getSignature()))) {
+                    !resolvedMethod.isSynthetic()) {
 
                     return null;
                 }
