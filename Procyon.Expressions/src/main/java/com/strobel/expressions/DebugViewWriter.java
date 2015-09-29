@@ -25,9 +25,9 @@ final class DebugViewWriter extends ExpressionVisitor {
     private final static int TAB_SIZE = 4;
     private final static int MAX_COLUMN = 160;
 
-    private StringBuilder _out;
-    private int _column;
+    private final StringBuilder _out;
 
+    private int _column;
     private int _delta;
     private int _flow;
 
@@ -662,6 +662,10 @@ final class DebugViewWriter extends ExpressionVisitor {
             visit(node.getRight());
             out("]");
         }
+        else if (node.getNodeType() == ExpressionType.ArrayLength) {
+            parenthesizedVisit(node, node.getLeft());
+            out(".length");
+        }
         else {
             final boolean parenthesizeLeft = needsParentheses(node, node.getLeft());
             final boolean parenthesizeRight = needsParentheses(node, node.getRight());
@@ -674,9 +678,11 @@ final class DebugViewWriter extends ExpressionVisitor {
                     op = "=";
                     break;
                 case Equal:
+                case ReferenceEqual:
                     op = "==";
                     break;
                 case NotEqual:
+                case ReferenceNotEqual:
                     op = "!=";
                     break;
                 case AndAlso:

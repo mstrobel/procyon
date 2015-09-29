@@ -30,7 +30,7 @@ public class ConcatTests extends AbstractExpressionTest {
             call(
                 outExpression(),
                 "println",
-                concat(constant("a"), constant("b"), constant("c"))
+                concat(constant("a"), constant('b'), constant("c"))
             )
         );
 
