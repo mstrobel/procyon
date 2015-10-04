@@ -53,7 +53,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         }
 
         @Override
-        public ResolveResult visitObjectCreationExpression(final ObjectCreationExpression node, final Void _) {
+        public ResolveResult visitObjectCreationExpression(final ObjectCreationExpression node, final Void p) {
 /*
             final ResolveResult result = resolveTypeFromMember(node.getUserData(Keys.MEMBER_REFERENCE));
 
@@ -61,27 +61,27 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                 return result;
             }
 */
-            return node.getType().acceptVisitor(this, _);
+            return node.getType().acceptVisitor(this, p);
         }
 
         @Override
-        public ResolveResult visitAnonymousObjectCreationExpression(final AnonymousObjectCreationExpression node, final Void _) {
+        public ResolveResult visitAnonymousObjectCreationExpression(final AnonymousObjectCreationExpression node, final Void p) {
             final ResolveResult result = resolveTypeFromMember(node.getUserData(Keys.MEMBER_REFERENCE));
 
             if (result != null) {
                 return result;
             }
 
-            return node.getType().acceptVisitor(this, _);
+            return node.getType().acceptVisitor(this, p);
         }
 
         @Override
-        public ResolveResult visitComposedType(final ComposedType node, final Void _) {
+        public ResolveResult visitComposedType(final ComposedType node, final Void p) {
             return resolveType(node.toTypeReference());
         }
 
         @Override
-        public ResolveResult visitSimpleType(final SimpleType node, final Void _) {
+        public ResolveResult visitSimpleType(final SimpleType node, final Void p) {
             return resolveType(node.toTypeReference());
         }
 
@@ -102,17 +102,17 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         }
 
         @Override
-        public ResolveResult visitTypeReference(final TypeReferenceExpression node, final Void _) {
+        public ResolveResult visitTypeReference(final TypeReferenceExpression node, final Void p) {
             return resolveType(node.getType().getUserData(Keys.TYPE_REFERENCE));
         }
 
         @Override
-        public ResolveResult visitWildcardType(final WildcardType node, final Void _) {
+        public ResolveResult visitWildcardType(final WildcardType node, final Void p) {
             return resolveType(node.toTypeReference());
         }
 
         @Override
-        public ResolveResult visitIdentifier(final Identifier node, final Void _) {
+        public ResolveResult visitIdentifier(final Identifier node, final Void p) {
             final ResolveResult result = resolveTypeFromMember(node.getUserData(Keys.MEMBER_REFERENCE));
 
             if (result != null) {
@@ -194,8 +194,8 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         }
 
         @Override
-        public ResolveResult visitMemberReferenceExpression(final MemberReferenceExpression node, final Void _) {
-            final ResolveResult targetResult = node.getTarget().acceptVisitor(this, _);
+        public ResolveResult visitMemberReferenceExpression(final MemberReferenceExpression node, final Void p) {
+            final ResolveResult targetResult = node.getTarget().acceptVisitor(this, p);
 
             MemberReference memberReference = node.getUserData(Keys.MEMBER_REFERENCE);
 
@@ -237,18 +237,18 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         }
 
         @Override
-        public ResolveResult visitInvocationExpression(final InvocationExpression node, final Void _) {
+        public ResolveResult visitInvocationExpression(final InvocationExpression node, final Void p) {
             final ResolveResult result = resolveTypeFromMember(node.getUserData(Keys.MEMBER_REFERENCE));
 
             if (result != null) {
                 return result;
             }
 
-            return node.getTarget().acceptVisitor(this, _);
+            return node.getTarget().acceptVisitor(this, p);
         }
 
         @Override
-        protected ResolveResult visitChildren(final AstNode node, final Void _) {
+        protected ResolveResult visitChildren(final AstNode node, final Void p) {
             ResolveResult result = null;
 
             AstNode next;
@@ -263,7 +263,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
                     continue;
                 }
 
-                final ResolveResult childResult = child.acceptVisitor(this, _);
+                final ResolveResult childResult = child.acceptVisitor(this, p);
 
                 if (childResult == null) {
                     return null;
@@ -343,7 +343,7 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         }
 
         @Override
-        public ResolveResult visitPrimitiveExpression(final PrimitiveExpression node, final Void _) {
+        public ResolveResult visitPrimitiveExpression(final PrimitiveExpression node, final Void p) {
             final String literalValue = node.getLiteralValue();
             final Object value = node.getValue();
 
@@ -673,8 +673,19 @@ public class JavaResolver implements Function<AstNode, ResolveResult> {
         TypeReference type = variable.getType();
 
         if (type == null) {
-            type = variable.isParameter() ? variable.getOriginalParameter().getParameterType()
-                                          : variable.getOriginalVariable().getVariableType();
+            if (variable.isParameter()) {
+                final ParameterDefinition parameter = variable.getOriginalParameter();
+
+                if (parameter != null) {
+                    type = parameter.getParameterType();
+                }
+            }
+
+            final VariableDefinition originalVariable = variable.getOriginalVariable();
+
+            if (originalVariable != null) {
+                type = originalVariable.getVariableType();
+            }
         }
 
         if (type != null) {

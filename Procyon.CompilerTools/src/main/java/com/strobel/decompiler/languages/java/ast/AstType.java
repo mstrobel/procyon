@@ -37,6 +37,12 @@ public abstract class AstType extends AstNode {
         return getUserData(Keys.TYPE_REFERENCE);
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends AstType> getRole() {
+        return (Role<? extends AstType>) super.getRole();
+    }
+
     // <editor-fold defaultstate="collapsed" desc="Null AstType">
 
     public final static AstType NULL = new NullAstType();

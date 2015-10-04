@@ -16,14 +16,7 @@ package com.strobel.reflection.emit;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.core.delegates.Func1;
-import com.strobel.reflection.ConstructorInfo;
-import com.strobel.reflection.FieldInfo;
-import com.strobel.reflection.MethodBase;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.TypeList;
-import com.strobel.reflection.Types;
+import com.strobel.reflection.*;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.TypeUtils;
 
@@ -582,6 +575,9 @@ public class CodeGenerator {
 
         if (method.isStatic()) {
             emit(OpCode.INVOKESTATIC, method);
+        }
+        else if (method.isPrivate()) {
+            emit(OpCode.INVOKESPECIAL, method);
         }
         else if (method.getDeclaringType().isInterface()) {
             emit(OpCode.INVOKEINTERFACE, method);
@@ -1912,6 +1908,9 @@ public class CodeGenerator {
             }
         }
         else if (!sourceType.isPrimitive() && !targetType.isPrimitive()) {
+            if (targetType == Types.Object) {
+                return;
+            }
             emit(OpCode.CHECKCAST, targetType);
         }
         else {

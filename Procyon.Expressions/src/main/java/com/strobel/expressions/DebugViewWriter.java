@@ -25,9 +25,9 @@ final class DebugViewWriter extends ExpressionVisitor {
     private final static int TAB_SIZE = 4;
     private final static int MAX_COLUMN = 160;
 
-    private StringBuilder _out;
-    private int _column;
+    private final StringBuilder _out;
 
+    private int _column;
     private int _delta;
     private int _flow;
 
@@ -662,6 +662,10 @@ final class DebugViewWriter extends ExpressionVisitor {
             visit(node.getRight());
             out("]");
         }
+        else if (node.getNodeType() == ExpressionType.ArrayLength) {
+            parenthesizedVisit(node, node.getLeft());
+            out(".length");
+        }
         else {
             final boolean parenthesizeLeft = needsParentheses(node, node.getLeft());
             final boolean parenthesizeRight = needsParentheses(node, node.getRight());
@@ -674,9 +678,11 @@ final class DebugViewWriter extends ExpressionVisitor {
                     op = "=";
                     break;
                 case Equal:
+                case ReferenceEqual:
                     op = "==";
                     break;
                 case NotEqual:
+                case ReferenceNotEqual:
                     op = "!=";
                     break;
                 case AndAlso:
@@ -1267,6 +1273,36 @@ final class DebugViewWriter extends ExpressionVisitor {
         }
 
         out("}");
+        return node;
+    }
+
+    @Override
+    protected Expression visitConcat(final ConcatExpression node) {
+        final ExpressionList<? extends Expression> operands = node.getOperands();
+
+        boolean first = true;
+
+        for (final Expression operand : operands) {
+            if (first) {
+                first = false;
+            }
+            else {
+                out(FLOW_SPACE, "+", FLOW_SPACE | FLOW_BREAK);
+            }
+
+            final boolean parenthesize = needsParentheses(node, operand);
+
+            if (parenthesize) {
+                out("(", FLOW_NONE);
+            }
+
+            visit(operand);
+
+            if (parenthesize) {
+                out(")", FLOW_NONE);
+            }
+        }
+
         return node;
     }
 }

@@ -180,6 +180,7 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
 
     protected final void setReturnType(final TypeReference returnType) {
         _returnType = returnType;
+        invalidateSignature();
     }
 
     protected final void setDeclaringType(final TypeDefinition declaringType) {
@@ -227,6 +228,12 @@ public class MethodDefinition extends MethodReference implements IMemberDefiniti
         }
 
         return false;
+    }
+
+    @Override
+    public void invalidateSignature() {
+        _signature = null;
+        _erasedSignature = null;
     }
 
     private boolean typeNamesMatch(final TypeReference t1, final TypeReference t2) {

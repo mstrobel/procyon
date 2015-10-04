@@ -31,6 +31,8 @@ public abstract class MethodBase extends MemberInfo {
         return CallingConvention.fromMethodModifiers(getModifiers());
     }
 
+    public abstract boolean containsGenericParameter(final Type<?> genericParameter);
+
     @Override
     public boolean isEquivalentTo(final MemberInfo m) {
         return m instanceof MethodBase &&

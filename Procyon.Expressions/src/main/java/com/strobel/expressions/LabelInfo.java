@@ -165,8 +165,8 @@ final class LabelInfo {
             reference,
             new Func1<LabelScopeInfo, LabelScopeInfo>() {
                 @Override
-                public LabelScopeInfo apply(final LabelScopeInfo _) {
-                    return _.parent;
+                public LabelScopeInfo apply(final LabelScopeInfo s) {
+                    return s.parent;
                 }
             }
         );

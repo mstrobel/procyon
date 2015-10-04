@@ -46,6 +46,7 @@ import java.util.*;
 public final class TypeBuilder<T> extends Type<T> {
     private final static String DumpGeneratedClassesProperty = "com.strobel.reflection.emit.TypeBuilder.DumpGeneratedClasses";
     private final static String GeneratedClassOutputPathProperty = "com.strobel.reflection.emit.TypeBuilder.GeneratedClassOutputPath";
+    private final static String VerifyGeneratedClassesProperty = "com.strobel.reflection.emit.TypeBuilder.VerifyGeneratedClasses";
 
     final ConstantPool constantPool;
     final ArrayList<ConstructorBuilder> constructorBuilders;
@@ -242,6 +243,7 @@ public final class TypeBuilder<T> extends Type<T> {
         }
 
         updateExtendsBound();
+        invalidateCaches();
     }
 
     public final void setBaseType(final Type baseType) {
@@ -251,6 +253,9 @@ public final class TypeBuilder<T> extends Type<T> {
         if (baseType != null) {
             if (baseType.isInterface()) {
                 throw Error.baseTypeCannotBeInterface();
+            }
+            if (baseType.isGenericParameter() && !this.isGenericParameter()) {
+                throw Error.baseTypeCannotBeGenericParameter();
             }
             if (this.isEquivalentTo(baseType)) {
                 throw Error.typeCannotHaveItselfAsBaseType();
@@ -268,6 +273,7 @@ public final class TypeBuilder<T> extends Type<T> {
         }
 
         updateExtendsBound();
+        invalidateCaches();
     }
 
     private void updateExtendsBound() {
@@ -1030,6 +1036,8 @@ public final class TypeBuilder<T> extends Type<T> {
 
         _typeBindings = TypeBindings.createUnbound(Type.list(genericParameters));
 
+        invalidateCaches();
+
         return genericParameters;
     }
 
@@ -1150,6 +1158,10 @@ public final class TypeBuilder<T> extends Type<T> {
 
         verifyNotGeneric();
         verifyNotCreated();
+
+        if (StringUtilities.isTrue(System.getProperty(VerifyGeneratedClassesProperty, "false"))) {
+            Verifier.verify(this);
+        }
 
         if (isGenericParameter()) {
             _hasBeenCreated = true;

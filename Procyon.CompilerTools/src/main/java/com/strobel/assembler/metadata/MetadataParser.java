@@ -33,6 +33,17 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Mike Strobel
  */
 public final class MetadataParser {
+    private final static ThreadLocal<MetadataParser> THREAD_UNBOUND_PARSERS = new ThreadLocal<MetadataParser>() {
+        @Override
+        protected MetadataParser initialValue() {
+            return new MetadataParser(IMetadataResolver.EMPTY);
+        }
+    };
+
+    public static MetadataParser unbound() {
+        return THREAD_UNBOUND_PARSERS.get();
+    }
+
     private final IMetadataResolver _resolver;
     private final SignatureParser _signatureParser;
     private final Stack<IGenericContext> _genericContexts;

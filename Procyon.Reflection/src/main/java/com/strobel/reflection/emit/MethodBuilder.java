@@ -225,6 +225,8 @@ public final class MethodBuilder extends MethodInfo {
 
             _signatureType = new SignatureType(newReturnType, newParameterTypes);
         }
+
+        invalidateCaches();
     }
 
     public void setParameters(final TypeList types) {
@@ -235,6 +237,7 @@ public final class MethodBuilder extends MethodInfo {
     public void setThrownTypes(final TypeList types) {
         verifyCodeGeneratorNotCreated();
         _thrownTypes = types != null ? types : TypeList.empty();
+        invalidateCaches();
     }
 
     @Override
@@ -288,6 +291,14 @@ public final class MethodBuilder extends MethodInfo {
     @Override
     public boolean isGenericMethodDefinition() {
         return isGenericMethod();
+    }
+
+    @Override
+    public TypeList getGenericMethodParameters() {
+        if (ArrayUtilities.isNullOrEmpty(genericParameterBuilders)) {
+            return TypeList.empty();
+        }
+        return Type.list(genericParameterBuilders);
     }
 
     @Override

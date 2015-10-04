@@ -70,6 +70,12 @@ public class VariableInitializer extends AstNode {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends VariableInitializer> getRole() {
+        return (Role<? extends VariableInitializer>) super.getRole();
+    }
+
+    @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
         return visitor.visitVariableInitializer(this, data);
     }

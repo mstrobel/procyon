@@ -26,13 +26,11 @@ import java.util.List;
 import java.util.Map;
 
 public class LambdaTransform extends ContextTrackingVisitor<Void> {
-    private final JavaResolver _resolver;
     private final Map<String, MethodDeclaration> _methodDeclarations;
 
     public LambdaTransform(final DecompilerContext context) {
         super(context);
         _methodDeclarations = new HashMap<>();
-        _resolver = new JavaResolver(context);
     }
 
     @Override
@@ -40,14 +38,14 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
         compilationUnit.acceptVisitor(
             new ContextTrackingVisitor<Void>(context) {
                 @Override
-                public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
+                public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
                     final MemberReference methodReference = node.getUserData(Keys.MEMBER_REFERENCE);
 
                     if (methodReference instanceof MethodReference) {
                         _methodDeclarations.put(makeMethodKey((MethodReference) methodReference), node);
                     }
 
-                    return super.visitMethodDeclaration(node, _);
+                    return super.visitMethodDeclaration(node, p);
                 }
             },
             null
@@ -111,7 +109,7 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
         body.acceptVisitor(
             new ContextTrackingVisitor<Void>(context) {
                 @Override
-                public Void visitIdentifier(final Identifier node, final Void _) {
+                public Void visitIdentifier(final Identifier node, final Void p) {
                     final String oldName = node.getName();
 
                     if (oldName != null) {
@@ -122,11 +120,11 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
                         }
                     }
 
-                    return super.visitIdentifier(node, _);
+                    return super.visitIdentifier(node, p);
                 }
 
                 @Override
-                public Void visitIdentifierExpression(final IdentifierExpression node, final Void _) {
+                public Void visitIdentifierExpression(final IdentifierExpression node, final Void p) {
                     final String oldName = node.getIdentifier();
 
                     if (oldName != null) {
@@ -138,7 +136,7 @@ public class LambdaTransform extends ContextTrackingVisitor<Void> {
                         }
                     }
 
-                    return super.visitIdentifierExpression(node, _);
+                    return super.visitIdentifierExpression(node, p);
                 }
             },
             null

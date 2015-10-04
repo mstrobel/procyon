@@ -74,17 +74,25 @@ public class BytecodeLanguage extends Language {
         output.writeLine();
         output.indent();
 
-        try {
-            writeTypeHeader(output, type);
+        final BytecodeOutputOptions formattingOptions = getBytecodeOptions(options);
 
-            for (final SourceAttribute attribute : type.getSourceAttributes()) {
-                writeTypeAttribute(output, type, attribute);
+        try {
+            if (formattingOptions.showTypeHeader) {
+                writeTypeHeader(output, type);
             }
 
-            final ConstantPool constantPool = type.getConstantPool();
+            if (formattingOptions.showTypeAttributes) {
+                for (final SourceAttribute attribute : type.getSourceAttributes()) {
+                    writeTypeAttribute(output, type, attribute);
+                }
+            }
 
-            if (constantPool != null) {
-                constantPool.accept(new ConstantPoolPrinter(output, options.getSettings()));
+            if (formattingOptions.showConstantPool) {
+                final ConstantPool constantPool = type.getConstantPool();
+
+                if (constantPool != null) {
+                    constantPool.accept(new ConstantPoolPrinter(output, options.getSettings()));
+                }
             }
 
             for (final FieldDefinition field : type.getDeclaredFields()) {
@@ -258,13 +266,15 @@ public class BytecodeLanguage extends Language {
     }
 
     private void writeBootstrapMethodEntry(final ITextOutput output, final TypeDefinition type, final BootstrapMethodsTableEntry entry) {
-        DecompilerHelpers.writeMethod(output, entry.getMethod());
+        DecompilerHelpers.writeMethodHandle(output, entry.getMethodHandle());
 
         output.writeLine();
         output.indent();
 
         try {
-            output.writeLine("Method Arguments:");
+            output.writeAttribute("Arguments");
+            output.writeDelimiter(":");
+            output.writeLine();
             output.indent();
 
             try {
@@ -391,6 +401,7 @@ public class BytecodeLanguage extends Language {
         final long flags = field.getFlags();
         final EnumSet<Flags.Flag> flagSet = Flags.asFlagSet(flags & Flags.VarFlags & ~Flags.ENUM, Flags.Kind.Field);
         final List<String> flagStrings = new ArrayList<>();
+        final BytecodeOutputOptions formattingOptions = getBytecodeOptions(options);
 
         for (final Flags.Flag flag : flagSet) {
             flagStrings.add(flag.toString());
@@ -423,21 +434,25 @@ public class BytecodeLanguage extends Language {
         output.indent();
 
         try {
-            output.writeAttribute("Flags");
-            output.write(": ");
+            if (formattingOptions.showFieldFlags) {
+                output.writeAttribute("Flags");
+                output.write(": ");
 
-            for (int i = 0; i < flagStrings.size(); i++) {
-                if (i != 0) {
-                    output.write(", ");
+                for (int i = 0; i < flagStrings.size(); i++) {
+                    if (i != 0) {
+                        output.write(", ");
+                    }
+
+                    output.writeLiteral(flagStrings.get(i));
                 }
 
-                output.writeLiteral(flagStrings.get(i));
+                output.writeLine();
             }
 
-            output.writeLine();
-
-            for (final SourceAttribute attribute : field.getSourceAttributes()) {
-                writeFieldAttribute(output, field, attribute);
+            if (formattingOptions.showFieldAttributes) {
+                for (final SourceAttribute attribute : field.getSourceAttributes()) {
+                    writeFieldAttribute(output, field, attribute);
+                }
             }
         }
         finally {
@@ -485,20 +500,31 @@ public class BytecodeLanguage extends Language {
 
     @Override
     public void decompileMethod(final MethodDefinition method, final ITextOutput output, final DecompilationOptions options) {
-        writeMethodHeader(output, method);
+        final BytecodeOutputOptions formattingOptions = getBytecodeOptions(options);
+
+        writeMethodHeader(output, method, options);
         writeMethodBody(output, method, options);
 
         for (final SourceAttribute attribute : method.getSourceAttributes()) {
-            writeMethodAttribute(output, method, attribute);
+            if (attribute instanceof LocalVariableTableAttribute) {
+                if (formattingOptions.showLocalVariableTables) {
+                    writeMethodAttribute(output, method, attribute);
+                }
+            }
+            else if (formattingOptions.showMethodAttributes) {
+                writeMethodAttribute(output, method, attribute);
+            }
         }
+
 
         writeMethodEnd(output, method, options);
     }
 
-    private void writeMethodHeader(final ITextOutput output, final MethodDefinition method) {
+    private void writeMethodHeader(final ITextOutput output, final MethodDefinition method, final DecompilationOptions options) {
         final String name = method.getName();
         final long flags = Flags.fromStandardFlags(method.getFlags(), Flags.Kind.Method);
         final List<String> flagStrings = new ArrayList<>();
+        final BytecodeOutputOptions formattingOptions = getBytecodeOptions(options);
 
         if ("<clinit>".equals(name)) {
             output.writeKeyword("static");
@@ -600,24 +626,26 @@ public class BytecodeLanguage extends Language {
             return;
         }
 
-        output.indent();
+        if (formattingOptions.showMethodsFlags) {
+            output.indent();
 
-        try {
-            output.writeAttribute("Flags");
-            output.write(": ");
+            try {
+                output.writeAttribute("Flags");
+                output.write(": ");
 
-            for (int i = 0; i < flagStrings.size(); i++) {
-                if (i != 0) {
-                    output.write(", ");
+                for (int i = 0; i < flagStrings.size(); i++) {
+                    if (i != 0) {
+                        output.write(", ");
+                    }
+
+                    output.writeLiteral(flagStrings.get(i));
                 }
 
-                output.writeLiteral(flagStrings.get(i));
+                output.writeLine();
             }
-
-            output.writeLine();
-        }
-        finally {
-            output.unindent();
+            finally {
+                output.unindent();
+            }
         }
     }
 
@@ -866,6 +894,7 @@ public class BytecodeLanguage extends Language {
         if (body == null) {
             return;
         }
+        final BytecodeOutputOptions formattingOptions = getBytecodeOptions(options);
 
         output.indent();
 
@@ -873,19 +902,21 @@ public class BytecodeLanguage extends Language {
             output.writeAttribute("Code");
             output.writeLine(":");
 
-            output.indent();
+            if (formattingOptions.showMethodsStack) {
+                output.indent();
 
-            try {
-                output.write("stack=");
-                output.writeLiteral(body.getMaxStackSize());
-                output.write(", locals=");
-                output.writeLiteral(body.getMaxLocals());
-                output.write(", arguments=");
-                output.writeLiteral(method.getParameters().size());
-                output.writeLine();
-            }
-            finally {
-                output.unindent();
+                try {
+                    output.write("stack=");
+                    output.writeLiteral(body.getMaxStackSize());
+                    output.write(", locals=");
+                    output.writeLiteral(body.getMaxLocals());
+                    output.write(", arguments=");
+                    output.writeLiteral(method.getParameters().size());
+                    output.writeLine();
+                }
+                finally {
+                    output.unindent();
+                }
             }
 
             final InstructionCollection instructions = body.getInstructions();
@@ -1048,6 +1079,17 @@ public class BytecodeLanguage extends Language {
                 output.unindent();
             }
         }
+    }
+
+    private static BytecodeOutputOptions getBytecodeOptions(final DecompilationOptions options) {
+        if (options != null &&
+            options.getSettings() != null &&
+            options.getSettings().getBytecodeOutputOptions() != null) {
+
+            return options.getSettings().getBytecodeOutputOptions();
+        }
+
+        return BytecodeOutputOptions.createDefault();
     }
 
     private static IMetadataResolver getResolver(final MethodBody body) {
@@ -1350,7 +1392,10 @@ public class BytecodeLanguage extends Language {
             printOpCode(op);
 
             _output.write(' ');
-
+            _output.writeAttribute("BootstrapMethod ");
+            _output.writeDelimiter("#");
+            _output.writeLiteral(callSite.getBootstrapMethodIndex());
+            _output.writeDelimiter(", ");
             _output.writeReference(callSite.getMethodName(), callSite.getMethodType());
             _output.writeDelimiter(":");
 

@@ -897,10 +897,10 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         @Override
-        public Boolean visitForStatement(final ForStatement node, final Void _) {
+        public Boolean visitForStatement(final ForStatement node, final Void p) {
             ++_loopOrTryDepth;
             try {
-                return super.visitForStatement(node, _);
+                return super.visitForStatement(node, p);
             }
             finally {
                 --_loopOrTryDepth;
@@ -908,13 +908,13 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         @Override
-        public Boolean visitForEachStatement(final ForEachStatement node, final Void _) {
+        public Boolean visitForEachStatement(final ForEachStatement node, final Void p) {
             ++_loopOrTryDepth;
             try {
                 if (StringUtilities.equals(node.getVariableName(), _variableName)) {
                     ++_assignmentCount;
                 }
-                return super.visitForEachStatement(node, _);
+                return super.visitForEachStatement(node, p);
             }
             finally {
                 --_loopOrTryDepth;
@@ -922,10 +922,10 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         @Override
-        public Boolean visitDoWhileStatement(final DoWhileStatement node, final Void _) {
+        public Boolean visitDoWhileStatement(final DoWhileStatement node, final Void p) {
             ++_loopOrTryDepth;
             try {
-                return super.visitDoWhileStatement(node, _);
+                return super.visitDoWhileStatement(node, p);
             }
             finally {
                 --_loopOrTryDepth;
@@ -933,10 +933,10 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         @Override
-        public Boolean visitWhileStatement(final WhileStatement node, final Void _) {
+        public Boolean visitWhileStatement(final WhileStatement node, final Void p) {
             ++_loopOrTryDepth;
             try {
-                return super.visitWhileStatement(node, _);
+                return super.visitWhileStatement(node, p);
             }
             finally {
                 --_loopOrTryDepth;
@@ -955,7 +955,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         @Override
-        public Boolean visitAssignmentExpression(final AssignmentExpression node, final Void _) {
+        public Boolean visitAssignmentExpression(final AssignmentExpression node, final Void p) {
             final Expression left = node.getLeft();
 
             if (left instanceof IdentifierExpression &&
@@ -969,7 +969,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                 ++_assignmentCount;
             }
 
-            return super.visitAssignmentExpression(node, _);
+            return super.visitAssignmentExpression(node, p);
         }
 
         @Override
@@ -978,7 +978,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         @Override
-        public Boolean visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void _) {
+        public Boolean visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void p) {
             final Expression operand = node.getExpression();
 
             switch (node.getOperator()) {
@@ -1004,7 +1004,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                 }
             }
 
-            return super.visitUnaryOperatorExpression(node, _);
+            return super.visitUnaryOperatorExpression(node, p);
         }
     }
 
@@ -1034,13 +1034,13 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         @Override
-        public Boolean visitAssignmentExpression(final AssignmentExpression node, final Void _) {
+        public Boolean visitAssignmentExpression(final AssignmentExpression node, final Void p) {
             final Expression left = node.getLeft();
             final Variable variable = left.getUserData(Keys.VARIABLE);
 
             if (variable != null && variable.isParameter()) {
                 _unassignedParameters.remove(variable.getOriginalParameter());
-                return super.visitAssignmentExpression(node, _);
+                return super.visitAssignmentExpression(node, p);
             }
 
             ParameterDefinition parameter = left.getUserData(Keys.PARAMETER_DEFINITION);
@@ -1053,7 +1053,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                 _unassignedParameters.remove(parameter);
             }
 
-            return super.visitAssignmentExpression(node, _);
+            return super.visitAssignmentExpression(node, p);
         }
 
         @Override
@@ -1062,7 +1062,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         @Override
-        public Boolean visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void _) {
+        public Boolean visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void p) {
             final Expression operand = node.getExpression();
 
             switch (node.getOperator()) {
@@ -1084,7 +1084,7 @@ public class DeclareVariablesTransform implements IAstTransform {
                 }
             }
 
-            return super.visitUnaryOperatorExpression(node, _);
+            return super.visitUnaryOperatorExpression(node, p);
         }
     }
 

@@ -248,7 +248,7 @@ public final class AstBuilder {
     }
 
     private boolean inlineSubroutine(final SubroutineInfo subroutine, final Instruction reference) {
-        if (!subroutine.start.getOpCode().isStore()) {
+        if (!subroutine.start.getOpCode().isStore() && subroutine.start.getOpCode() != OpCode.POP) {
             return false;
         }
 

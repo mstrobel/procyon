@@ -52,18 +52,7 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
 
     @Override
     public void run(final AstNode compilationUnit) {
-        new ContextTrackingVisitor<Void>(context) {
-            @Override
-            public Void visitFieldDeclaration(final FieldDeclaration node, final Void _) {
-                final FieldDefinition field = node.getUserData(Keys.FIELD_DEFINITION);
-
-                if (field != null) {
-                    _fieldDeclarations.put(field.getFullName(), node);
-                }
-
-                return super.visitFieldDeclaration(node, _);
-            }
-        }.run(compilationUnit);
+        new FieldGatherer().run(compilationUnit);
 
         super.run(compilationUnit);
 
@@ -124,7 +113,7 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
     }
 
     @Override
-    public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
+    public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
         final MethodDefinition oldInitializer = _currentInitializerMethod;
         final MethodDefinition oldConstructor = _currentConstructor;
 
@@ -140,7 +129,7 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
         }
 
         try {
-            return super.visitMethodDeclaration(node, _);
+            return super.visitMethodDeclaration(node, p);
         }
         finally {
             _currentConstructor = oldConstructor;
@@ -219,8 +208,8 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
     }
 
     @Override
-    public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void _) {
-        super.visitSuperReferenceExpression(node, _);
+    public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void p) {
+        super.visitSuperReferenceExpression(node, p);
 
         final MethodDefinition method = context.getCurrentMethod();
 
@@ -273,5 +262,22 @@ public class IntroduceInitializersTransform extends ContextTrackingVisitor<Void>
         }
 
         return null;
+    }
+
+    private final class FieldGatherer extends ContextTrackingVisitor<Void> {
+        public FieldGatherer() {
+            super(IntroduceInitializersTransform.this.context);
+        }
+
+        @Override
+        public Void visitFieldDeclaration(final FieldDeclaration node, final Void p) {
+            final FieldDefinition field = node.getUserData(Keys.FIELD_DEFINITION);
+
+            if (field != null) {
+                _fieldDeclarations.put(field.getFullName(), node);
+            }
+
+            return super.visitFieldDeclaration(node, p);
+        }
     }
 }

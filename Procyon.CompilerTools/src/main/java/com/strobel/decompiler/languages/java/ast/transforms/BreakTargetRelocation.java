@@ -53,8 +53,8 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
 
     @Override
     @SuppressWarnings("ConstantConditions")
-    public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
-        super.visitMethodDeclaration(node, _);
+    public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
+        super.visitMethodDeclaration(node, p);
 
         runForMethod(node);
 
@@ -62,8 +62,8 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
     }
 
     @Override
-    public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
-        super.visitConstructorDeclaration(node, _);
+    public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void p) {
+        super.visitConstructorDeclaration(node, p);
 
         runForMethod(node);
 
@@ -419,7 +419,9 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
                         break;
                     }
                 }
-                int offset = ((GotoStatement) start).getOffset();
+
+                final int offset = ((GotoStatement) start).getOffset();
+
                 if (continueNeedsLabel) {
                     start.replaceWith(new ContinueStatement(offset, labelInfo.name));
                 }

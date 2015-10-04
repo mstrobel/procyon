@@ -24,7 +24,7 @@ import java.util.NoSuchElementException;
 
 public interface INode {
     boolean isNull();
-    Role getRole();
+    Role<?> getRole();
     INode getFirstChild();
     INode getNextSibling();
 

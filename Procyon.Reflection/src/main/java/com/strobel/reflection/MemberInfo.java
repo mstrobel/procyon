@@ -220,4 +220,18 @@ public abstract class MemberInfo implements java.lang.reflect.AnnotatedElement {
     public StringBuilder appendGenericSignature(final StringBuilder sb) {
         return appendSignature(sb);
     }
+
+    /**
+     * Invalidate any cached type/member information.  This is not guaranteed to be thread-safe,
+     * should only be called when a partially constructed type/member definition changes (e.g.,
+     * a TypeBuilder, MethodBuilder, etc.).
+     */
+    protected void invalidateCaches() {
+        _signature = null;
+        _erasedSignature = null;
+        _description = null;
+        _erasedDescription = null;
+        _briefDescription = null;
+        _simpleDescription = null;
+    }
 }

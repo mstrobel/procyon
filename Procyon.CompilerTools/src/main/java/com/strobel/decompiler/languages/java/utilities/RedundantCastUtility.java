@@ -80,7 +80,7 @@ public final class RedundantCastUtility {
             operand = ((ParenthesizedExpression) operand).getExpression();
         }
 
-        if (operand == null || operand.isNull()) {
+        if (operand.isNull()) {
             return;
         }
 
@@ -137,7 +137,7 @@ public final class RedundantCastUtility {
         }
 
         @Override
-        public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void _) {
+        public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
             return null;
         }
 
@@ -147,12 +147,12 @@ public final class RedundantCastUtility {
         }
 
         @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void _) {
+        public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
             return null;
         }
 
         @Override
-        public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void _) {
+        public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void p) {
             return null;
         }
 
@@ -229,7 +229,7 @@ public final class RedundantCastUtility {
                 final TypeReference returnType = getType(methodDeclaration.getReturnType());
                 final Expression returnValue = node.getExpression();
 
-                if (returnType != null && returnValue != null && !returnValue.isNull()) {
+                if (returnType != null && !returnValue.isNull()) {
                     processPossibleTypeCast(returnValue, returnType);
                 }
             }
@@ -277,7 +277,7 @@ public final class RedundantCastUtility {
         public Void visitCastExpression(final CastExpression node, final Void data) {
             final Expression operand = node.getExpression();
 
-            if (operand == null || operand.isNull()) {
+            if (operand.isNull()) {
                 return null;
             }
 
@@ -461,10 +461,10 @@ public final class RedundantCastUtility {
 
             if (r instanceof CastExpression) {
                 final AstType castAstType = ((CastExpression) r).getType();
-                final TypeReference castType = castAstType != null ? castAstType.toTypeReference() : null;
+                final TypeReference castType = castAstType.toTypeReference();
                 final Expression castOperand = ((CastExpression) r).getExpression();
 
-                if (castOperand != null && !castOperand.isNull() && castType != null) {
+                if (!castOperand.isNull() && castType != null) {
                     final TypeReference operandType = getType(castOperand);
 
                     if (operandType != null) {
@@ -884,7 +884,8 @@ public final class RedundantCastUtility {
 
             final MethodBinder.BindResult result = MethodBinder.selectMethod(candidates, argumentTypes);
 
-            return !result.isFailure() &&
+            return result != null &&
+                   !result.isFailure() &&
                    !result.isAmbiguous() &&
                    StringUtilities.equals(resolvedMethod.getErasedSignature(), result.getMethod().getErasedSignature());
         }
@@ -1007,8 +1008,8 @@ public final class RedundantCastUtility {
                     firstOperand = temp;
                 }
 
-                if (firstOperand != null &&
-                    otherOperand != null &&
+                if (!firstOperand.isNull() &&
+                    !otherOperand.isNull() &&
                     castChangesComparisonSemantics(firstOperand, otherOperand, operand, expression.getOperator())) {
 
                     return true;

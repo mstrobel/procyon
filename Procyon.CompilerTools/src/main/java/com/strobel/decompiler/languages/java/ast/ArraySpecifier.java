@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.Role;
 
 public class ArraySpecifier extends AstNode {
     public final JavaTokenNode getLeftBracketToken() {
@@ -26,6 +27,12 @@ public class ArraySpecifier extends AstNode {
 
     public final JavaTokenNode getRightBracketToken() {
         return getChildByRole(Roles.RIGHT_BRACKET);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends ArraySpecifier> getRole() {
+        return (Role<? extends ArraySpecifier>) super.getRole();
     }
 
     @Override

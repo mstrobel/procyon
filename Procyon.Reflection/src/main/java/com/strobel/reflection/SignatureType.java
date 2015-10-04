@@ -1,5 +1,6 @@
 package com.strobel.reflection;
 
+import com.strobel.core.VerifyArgument;
 import com.strobel.util.TypeUtils;
 
 /**
@@ -14,7 +15,10 @@ public final class SignatureType {
     private SignatureType _erasedSignature;
 
     public SignatureType(final Type<?> returnType, final TypeList parameterTypes) {
-        _returnType = returnType;
+        VerifyArgument.notNull(returnType, "returnType");
+        VerifyArgument.notNull(parameterTypes, "parameterTypes");
+
+        _returnType = returnType.isWildcardType() ? returnType.getExtendsBound() : returnType;
         _parameterTypes = parameterTypes;
     }
 

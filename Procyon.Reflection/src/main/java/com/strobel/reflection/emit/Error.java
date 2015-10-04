@@ -223,6 +223,10 @@ final class Error {
         return new IllegalArgumentException("Base type cannot be an interface.");
     }
 
+    public static RuntimeException baseTypeCannotBeGenericParameter() {
+        return new IllegalArgumentException("Base type cannot be a generic type parameter.");
+    }
+
     public static RuntimeException typeCannotHaveItselfAsBaseType() {
         return new IllegalArgumentException("A type cannot have itself as its base type.");
     }
@@ -455,5 +459,9 @@ final class Error {
 
     public static IllegalArgumentException argumentMustBeTypeBuilder() {
         return new IllegalArgumentException("Argument must be a TypeBuilder.");
+    }
+
+    public static IllegalStateException cannotModifyFieldAfterTypeCreated() {
+        return new IllegalStateException("Field cannot be modified after declaring type has been created.");
     }
 }

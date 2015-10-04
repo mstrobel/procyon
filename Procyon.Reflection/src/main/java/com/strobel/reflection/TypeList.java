@@ -38,6 +38,14 @@ public class TypeList extends MemberList<Type<?>> {
         return combineCore(first, second, false);
     }
 
+    public static TypeList of(final Type... types) {
+        return new TypeList(types);
+    }
+
+    public static TypeList of(final List<? extends Type<?>> types) {
+        return new TypeList(types);
+    }
+
     private static TypeList combineCore(final TypeList first, final TypeList second, final boolean merge) {
         VerifyArgument.notNull(first, "first");
         VerifyArgument.notNull(second, "second");
@@ -70,15 +78,15 @@ public class TypeList extends MemberList<Type<?>> {
     }
 
     public TypeList(final Type... elements) {
-        super((Class<Type<?>>) (Class)Type.class, elements);
+        super((Class<Type<?>>) (Class) Type.class, elements);
     }
 
     public TypeList(final List<? extends Type<?>> elements) {
-        super((Class<Type<?>>) (Class)Type.class, elements);
+        super((Class<Type<?>>) (Class) Type.class, elements);
     }
 
     public TypeList(final Type[] elements, final int offset, final int length) {
-        super((Class<Type<?>>) (Class)Type.class, elements, offset, length);
+        super((Class<Type<?>>) (Class) Type.class, elements, offset, length);
     }
 
     @NotNull

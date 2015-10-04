@@ -18,6 +18,7 @@ import org.junit.After;
 import org.junit.Before;
 
 import java.io.PrintStream;
+import java.security.cert.PolicyQualifierInfo;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
@@ -56,6 +57,10 @@ public abstract class AbstractExpressionTest {
 
     public static Queue<Object> queue() {
         return OUTPUT_QUEUE.get();
+    }
+
+    public static void clearQueue() {
+        OUTPUT_QUEUE.get().clear();
     }
 
     public static Expression makePush(final Expression value) {

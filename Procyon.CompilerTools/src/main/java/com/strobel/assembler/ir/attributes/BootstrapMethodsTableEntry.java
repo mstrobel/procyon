@@ -16,6 +16,7 @@
 
 package com.strobel.assembler.ir.attributes;
 
+import com.strobel.assembler.metadata.MethodHandle;
 import com.strobel.assembler.metadata.MethodReference;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
@@ -24,14 +25,14 @@ import java.util.Collections;
 import java.util.List;
 
 public final class BootstrapMethodsTableEntry {
-    private final MethodReference _method;
+    private final MethodHandle _method;
     private final List<Object> _arguments;
 
-    public BootstrapMethodsTableEntry(final MethodReference method, final List<Object> arguments) {
+    public BootstrapMethodsTableEntry(final MethodHandle method, final List<Object> arguments) {
         this(method, VerifyArgument.notNull(arguments, "arguments").toArray());
     }
 
-    public BootstrapMethodsTableEntry(final MethodReference method, final Object... arguments) {
+    public BootstrapMethodsTableEntry(final MethodHandle method, final Object... arguments) {
         _method = VerifyArgument.notNull(method, "method");
 
         _arguments = ArrayUtilities.isNullOrEmpty(arguments) ? Collections.emptyList()
@@ -42,7 +43,11 @@ public final class BootstrapMethodsTableEntry {
         return _arguments;
     }
 
-    public final MethodReference getMethod() {
+    public final MethodHandle getMethodHandle() {
         return _method;
+    }
+
+    public final MethodReference getMethod() {
+        return _method.getMethod();
     }
 }

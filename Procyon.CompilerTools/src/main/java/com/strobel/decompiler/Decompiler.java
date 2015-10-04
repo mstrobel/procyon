@@ -63,8 +63,8 @@ public final class Decompiler {
         options.setSettings(settings);
         options.setFullDecompilation(true);
 
-        if (settings.getFormattingOptions() == null) {
-            settings.setFormattingOptions(JavaFormattingOptions.createDefault());
+        if (settings.getJavaFormattingOptions() == null) {
+            settings.setJavaFormattingOptions(JavaFormattingOptions.createDefault());
         }
 
         settings.getLanguage().decompileType(resolvedType, output, options);

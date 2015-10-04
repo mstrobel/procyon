@@ -36,6 +36,19 @@ public class AnsiTextOutput extends PlainTextOutput {
         final static String SLASH = "/";
         final static String LEFT_BRACKET = "[";
         final static String SEMICOLON = ";";
+
+        static String get(final char c) {
+            switch (c) {
+                case 'L': return L;
+                case 'T': return T;
+                case '$': return DOLLAR;
+                case '.': return DOT;
+                case '/': return SLASH;
+                case '[': return LEFT_BRACKET;
+                case ':': return SEMICOLON;
+            }
+            return String.valueOf(c);
+        }
     }
 
     private final Ansi _keyword;
@@ -158,7 +171,7 @@ public class AnsiTextOutput extends PlainTextOutput {
     @Override
     public void writeDefinition(final String text, final Object definition, final boolean isLocal) {
         if (text == null) {
-            super.write(text);
+            super.write(null);
             return;
         }
 
@@ -175,6 +188,7 @@ public class AnsiTextOutput extends PlainTextOutput {
         }
         else if (definition instanceof MethodReference ||
                  definition instanceof IMethodSignature) {
+
             colorizedText = colorize(text, _method);
         }
         else if (definition instanceof FieldReference) {
@@ -204,7 +218,7 @@ public class AnsiTextOutput extends PlainTextOutput {
     @Override
     public void writeReference(final String text, final Object reference, final boolean isLocal) {
         if (text == null) {
-            super.write(text);
+            super.write(null);
             return;
         }
 
@@ -222,6 +236,7 @@ public class AnsiTextOutput extends PlainTextOutput {
         }
         else if (reference instanceof MethodReference ||
                  reference instanceof IMethodSignature) {
+
             colorizedText = colorize(text, _method);
         }
         else if (reference instanceof FieldReference) {
@@ -250,8 +265,31 @@ public class AnsiTextOutput extends PlainTextOutput {
 
     @SuppressWarnings("ConstantConditions")
     private String colorizeType(final String text, final TypeReference type) {
-        if (type.isPrimitive()) {
-            return colorize(text, _keyword);
+        return colorizeTypeCore(new StringBuilder(), text, type).toString();
+    }
+
+    private StringBuilder colorizeTypeCore(final StringBuilder sb, final String text, final TypeReference type) {
+        if (type.isPrimitive() && text.length() > 1) {
+            return sb.append(colorize(text, _keyword));
+        }
+
+        int arrayDepth = 0;
+        TypeReference elementType = type;
+
+        while (arrayDepth < text.length() && text.charAt(arrayDepth) == '[') {
+            arrayDepth++;
+
+            if (elementType.isArray()) {
+                elementType = elementType.getElementType();
+            }
+        }
+
+        if (arrayDepth > 0) {
+            colorizeTypeCore(
+                sb.append(colorize(StringUtilities.repeat('[', arrayDepth), _delimiter)),
+                text.substring(arrayDepth),
+                elementType
+            );
         }
 
         final String packageName = type.getPackageName();
@@ -259,28 +297,19 @@ public class AnsiTextOutput extends PlainTextOutput {
 
         Ansi typeColor = type.isGenericParameter() ? _typeVariable : _type;
 
+        String s = text;
+
         if (StringUtilities.isNullOrEmpty(packageName)) {
             if (resolvedType != null && resolvedType.isAnnotation()) {
-                return colorize(text, _attribute);
+                return sb.append(colorize(s, _attribute));
             }
             else {
-                return colorize(text, typeColor);
+                return sb.append(colorize(s, typeColor));
             }
         }
 
-        String s = text;
         char delimiter = '.';
         String packagePrefix = packageName + delimiter;
-
-        int arrayDepth = 0;
-
-        while (arrayDepth < s.length() && s.charAt(arrayDepth) == '[') {
-            arrayDepth++;
-        }
-
-        if (arrayDepth > 0) {
-            s = s.substring(arrayDepth);
-        }
 
         final boolean isTypeVariable = s.startsWith("T") && s.endsWith(";");
         final boolean isSignature = isTypeVariable || s.startsWith("L") && s.endsWith(";");
@@ -295,14 +324,9 @@ public class AnsiTextOutput extends PlainTextOutput {
         }
 
         final String typeName;
-        final StringBuilder sb = new StringBuilder();
 
         if (StringUtilities.startsWith(s, packagePrefix)) {
             final String[] packageParts = packageName.split("\\.");
-
-            for (int i = 0; i < arrayDepth; i++) {
-                sb.append(colorize(Delimiters.LEFT_BRACKET, _delimiter));
-            }
 
             if (isSignature) {
                 sb.append(colorize(isTypeVariable ? Delimiters.T : Delimiters.L, _delimiter));
@@ -321,7 +345,7 @@ public class AnsiTextOutput extends PlainTextOutput {
             typeName = s.substring(packagePrefix.length());
         }
         else {
-            typeName = text;
+            typeName = s;
         }
 
         typeColor = resolvedType != null && resolvedType.isAnnotation() ? _attribute : typeColor;
@@ -332,7 +356,7 @@ public class AnsiTextOutput extends PlainTextOutput {
             sb.append(colorize(Delimiters.SEMICOLON, _delimiter));
         }
 
-        return sb.toString();
+        return sb;
     }
 
     private StringBuilder colorizeDelimitedName(final StringBuilder sb, final String typeName, final Ansi typeColor) {
@@ -349,10 +373,11 @@ public class AnsiTextOutput extends PlainTextOutput {
             final char ch = typeName.charAt(i);
 
             switch (ch) {
+                case '[':
                 case '.':
                 case '$':
                     sb.append(colorize(typeName.substring(start, i), typeColor));
-                    sb.append(colorize(ch == '.' ? Delimiters.DOT : Delimiters.DOLLAR, _delimiter));
+                    sb.append(colorize(Delimiters.get(ch), _delimiter));
                     start = i + 1;
                     break;
             }

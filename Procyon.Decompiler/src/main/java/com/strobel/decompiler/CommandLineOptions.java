@@ -76,8 +76,28 @@ public class CommandLineOptions {
 
     @Parameter(
         names = { "-r", "--raw-bytecode" },
-        description = "Output Raw Bytecode instead of Java.")
+        description = "Output Raw Bytecode instead of Java (to control the level of detail, see: -cp, -lv, -ta, -v).")
     private boolean _rawBytecode;
+
+    @Parameter(
+        names = { "-cp", "--constant-pool" },
+        description = "Includes the constant pool when displaying raw bytecode (unnecessary with -v).")
+    private boolean _showConstantPool;
+
+    @Parameter(
+        names = { "-lv", "--local-variables" },
+        description = "Includes the local variable tables when displaying raw bytecode (unnecessary with -v).")
+    private boolean _showLocalVariableDetails;
+
+    @Parameter(
+        names = { "-ta", "--type-attributes" },
+        description = "Includes type attributes when displaying raw bytecode (unnecessary with -v).")
+    private boolean _showTypeAttributes;
+
+    @Parameter(
+        names = { "-v", "--verbose" },
+        description = "Includes more detailed output depending on the output language (currently only supported for raw bytecode).")
+    private boolean _verbose;
 
     @Parameter(
         names = { "-u", "--unoptimized" },
@@ -120,10 +140,10 @@ public class CommandLineOptions {
     private boolean _retainPointlessSwitches;
 
     @Parameter(
-        names = { "-v", "--verbose" },
+        names = { "-ll", "--log-level" },
         description = "Set the level of log verbosity (0-3).  Level 0 disables logging.",
         arity = 1)
-    private int _verboseLevel;
+    private int _logLevel;
 
     @Parameter(
         names = { "-lc", "--light" },
@@ -171,6 +191,22 @@ public class CommandLineOptions {
 
     public final boolean isRawBytecode() {
         return _rawBytecode;
+    }
+
+    public final boolean isVerbose() {
+        return _verbose;
+    }
+
+    public final boolean getShowConstantPool() {
+        return _showConstantPool;
+    }
+
+    public final boolean getShowLocalVariableDetails() {
+        return _showLocalVariableDetails;
+    }
+
+    public final boolean getShowTypeAttributes() {
+        return _showTypeAttributes;
     }
 
     public final boolean getFlattenSwitchBlocks() {
@@ -293,12 +329,12 @@ public class CommandLineOptions {
         _retainPointlessSwitches = retainPointlessSwitches;
     }
 
-    public final int getVerboseLevel() {
-        return _verboseLevel;
+    public final int getLogLevel() {
+        return _logLevel;
     }
 
-    public final void setVerboseLevel(final int verboseLevel) {
-        _verboseLevel = verboseLevel;
+    public final void setLogLevel(final int logLevel) {
+        _logLevel = logLevel;
     }
 
     public final boolean getUseLightColorScheme() {

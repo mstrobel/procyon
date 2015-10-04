@@ -29,9 +29,10 @@ import java.lang.reflect.Field;
 public final class FieldBuilder extends FieldInfo {
     private final TypeBuilder _typeBuilder;
     private final String _name;
-    private final Type<?> _type;
     private final int _modifiers;
     private final Object _constantValue;
+
+    private Type<?> _type;
 
     private ReadOnlyList<AnnotationBuilder<? extends Annotation>> _annotations;
 
@@ -64,12 +65,23 @@ public final class FieldBuilder extends FieldInfo {
         return _annotations;
     }
 
+    final void verifyTypeNotCreated() {
+        if (_typeBuilder.isCreated() || generatedField != null) {
+            throw Error.cannotModifyFieldAfterTypeCreated();
+        }
+    }
+
     @Override
-    public Type getFieldType() {
+    public Type<?> getFieldType() {
         if (generatedField != null) {
             return generatedField.getFieldType();
         }
         return _type;
+    }
+
+    public void setFieldType(final Type<?> fieldType) {
+        _type = VerifyArgument.notNull(fieldType, "fieldType");
+        invalidateCaches();
     }
 
     @Override

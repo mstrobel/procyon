@@ -24,14 +24,16 @@ import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 
 public abstract class Statement extends AstNode {
-    
-    /** the offset of 'this' Expression, as computed for its bytecode by the Java compiler */
+
+    /**
+     * the offset of 'this' Expression, as computed for its bytecode by the Java compiler
+     */
     private int _offset;
-    
-    protected Statement( int offset) {
+
+    protected Statement(final int offset) {
         _offset = offset;
     }
-    
+
     @Override
     public Statement clone() {
         return (Statement) super.clone();
@@ -42,13 +44,19 @@ public abstract class Statement extends AstNode {
         return NodeType.STATEMENT;
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends Statement> getRole() {
+        return (Role<? extends Statement>) super.getRole();
+    }
+
     public boolean isEmbeddable() {
         return false;
     }
 
     // <editor-fold defaultstate="collapsed" desc="Null Statement">
 
-    public final static Statement NULL = new NullStatement( Expression.MYSTERY_OFFSET);
+    public final static Statement NULL = new NullStatement(Expression.MYSTERY_OFFSET);
 
     public final Statement getNextStatement() {
         AstNode next = getNextSibling();
@@ -71,10 +79,10 @@ public abstract class Statement extends AstNode {
     }
 
     private static final class NullStatement extends Statement {
-        public NullStatement( int offset) {
-            super( offset);
+        public NullStatement(final int offset) {
+            super(offset);
         }
-        
+
         @Override
         public final boolean isNull() {
             return true;
@@ -96,7 +104,7 @@ public abstract class Statement extends AstNode {
     // <editor-fold defaultstate="collapsed" desc="Pattern Placeholder">
 
     public static Statement forPattern(final Pattern pattern) {
-        return new PatternPlaceholder(Expression.MYSTERY_OFFSET,VerifyArgument.notNull(pattern, "pattern"));
+        return new PatternPlaceholder(Expression.MYSTERY_OFFSET, VerifyArgument.notNull(pattern, "pattern"));
     }
 
     private final static class PatternPlaceholder extends Statement {
@@ -134,6 +142,6 @@ public abstract class Statement extends AstNode {
     public int getOffset() {
         return _offset;
     }
-    
+
     // </editor-fold>
 }

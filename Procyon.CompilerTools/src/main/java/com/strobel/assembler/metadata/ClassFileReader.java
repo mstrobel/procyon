@@ -28,7 +28,6 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.util.EmptyArrayCache;
 
-import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -785,12 +784,11 @@ public final class ClassFileReader extends MetadataReader {
                 field.descriptor
             );
 
-            final FieldDefinition fieldDefinition = new FieldDefinition(_resolver);
+            final FieldDefinition fieldDefinition = new FieldDefinition(fieldType);
 
             fieldDefinition.setDeclaringType(_typeDefinition);
             fieldDefinition.setFlags(Flags.fromStandardFlags(field.accessFlags, Flags.Kind.Field));
             fieldDefinition.setName(field.name);
-            fieldDefinition.setFieldType(fieldType);
 
             declaredFields.add(fieldDefinition);
 
@@ -1278,7 +1276,8 @@ public final class ClassFileReader extends MetadataReader {
             final ConstantPool.NameAndTypeDescriptorEntry nameAndType = _constantPool.getEntry(entry.nameAndTypeDescriptorIndex);
 
             return new DynamicCallSite(
-                bootstrapMethod.getMethod(),
+                entry.bootstrapMethodAttributeIndex,
+                bootstrapMethod.getMethodHandle(),
                 bootstrapMethod.getArguments(),
                 nameAndType.getName(),
                 _parser.parseMethodSignature(nameAndType.getType())

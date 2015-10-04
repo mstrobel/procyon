@@ -262,7 +262,18 @@ public class ConstantPoolPrinter implements ConstantPool.Visitor {
 
     @Override
     public void visitMethodType(final ConstantPool.MethodTypeEntry info) {
-        _output.write("%1$-13s", info.getType());
+        IMethodSignature signature;
+
+        final String text = info.getType();
+
+        try {
+            signature = MetadataParser.unbound().parseMethodSignature(text);
+        }
+        catch (final Throwable ignored) {
+            signature = null;
+        }
+
+        _output.writeReference(text, signature);
     }
 
     @Override

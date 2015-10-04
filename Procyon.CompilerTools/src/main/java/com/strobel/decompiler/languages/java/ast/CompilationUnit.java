@@ -66,6 +66,12 @@ public class CompilationUnit extends AstNode {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends CompilationUnit> getRole() {
+        return (Role<? extends CompilationUnit>) super.getRole();
+    }
+
+    @Override
     public NodeType getNodeType() {
         return NodeType.UNKNOWN;
     }

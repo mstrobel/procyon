@@ -56,6 +56,12 @@ public abstract class EntityDeclaration extends AstNode {
         return NodeType.MEMBER;
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends EntityDeclaration> getRole() {
+        return (Role<? extends EntityDeclaration>) super.getRole();
+    }
+
     public abstract EntityType getEntityType();
 
     public final AstNodeCollection<Annotation> getAnnotations() {
@@ -107,8 +113,6 @@ public abstract class EntityDeclaration extends AstNode {
     }
 
     protected final boolean matchAnnotationsAndModifiers(final EntityDeclaration other, final Match match) {
-        VerifyArgument.notNull(other, "other");
-
         return other != null &&
                !other.isNull() &&
                (isAnyModifiers() || getModifiers().matches(other.getModifiers(), match)) &&

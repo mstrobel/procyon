@@ -25,7 +25,7 @@ import java.lang.reflect.Field;
  * @author Mike Strobel
  */
 public abstract class FieldInfo extends MemberInfo {
-    public abstract Type getFieldType();
+    public abstract Type<?> getFieldType();
     public abstract Field getRawField();
 
     public boolean isEnumConstant() {
@@ -223,7 +223,7 @@ class ReflectedField extends FieldInfo {
     }
 
     @Override
-    public Type getFieldType() {
+    public Type<?> getFieldType() {
         return _fieldType;
     }
 

@@ -374,6 +374,9 @@ public class CoreMetadataFactory implements MetadataFactory {
         private final List<GenericParameter> _genericParameters;
         private final List<TypeReference> _thrownTypes;
 
+        private String _signature;
+        private String _erasedSignature;
+
         MethodSignature(
             final List<TypeReference> parameterTypes,
             final TypeReference returnType,
@@ -421,6 +424,28 @@ public class CoreMetadataFactory implements MetadataFactory {
         @Override
         public List<TypeReference> getThrownTypes() {
             return _thrownTypes;
+        }
+
+        @Override
+        public String getSignature() {
+            if (_signature == null) {
+                _signature = MethodReference.appendSignature(this, new StringBuilder()).toString();
+            }
+            return _signature;
+        }
+
+        @Override
+        public String getErasedSignature() {
+            if (_erasedSignature == null) {
+                _erasedSignature = MethodReference.appendErasedSignature(this, new StringBuilder()).toString();
+            }
+            return _erasedSignature;
+        }
+
+        @Override
+        public void invalidateSignature() {
+            _signature = null;
+            _erasedSignature = null;
         }
 
         @Override

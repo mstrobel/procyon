@@ -18,7 +18,8 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.strobel.core.CollectionUtilities.*;
+import static com.strobel.core.CollectionUtilities.first;
+import static java.lang.String.format;
 import static org.junit.Assert.*;
 
 /**
@@ -29,6 +30,53 @@ public final class TypeTests {
     private static class StringList extends ArrayList<String> {}
 
     private final static class ExtendsStringList extends StringList {}
+
+    private static void assertSameType(final Type<?> expected, final Type<?> actual) {
+        if (Helper.isSameType(expected, actual)) {
+            return;
+        }
+        fail(
+            format(
+                "Type comparison failed!%nExpected: %s%n  Actual: %s",
+                expected != null ? expected.getSignature() : null,
+                actual != null ? actual.getSignature() : null
+            )
+        );
+    }
+
+    @Test
+    public void testAsSuperWithWildcards() throws Throwable {
+        final Type<?> arrayList = Types.ArrayList;
+        final Type<?> rawArrayList = Types.ArrayList.getErasedType();
+        final Type<?> genericArrayList = Types.ArrayList.makeGenericType(Types.String);
+        final Type<?> wildArrayList = Types.ArrayList.makeGenericType(Type.makeWildcard());
+
+        final Type<?> iterable = Types.Iterable;
+        final Type<?> rawIterable = Types.Iterable.getErasedType();
+        final Type<?> genericIterable = Types.Iterable.makeGenericType(Types.String);
+        final Type<?> wildIterable = Types.Iterable.makeGenericType(Type.makeWildcard());
+        final Type<?> iterableOfE = iterable.makeGenericType(arrayList.getGenericTypeParameters());
+
+        final Type<?> t1 = rawIterable.asSuperTypeOf(wildIterable);
+        final Type<?> t2 = rawIterable.asSuperTypeOf(wildArrayList);
+        final Type<?> t3 = wildIterable.asSuperTypeOf(iterable);
+        final Type<?> t4 = wildIterable.asSuperTypeOf(rawIterable);
+        final Type<?> t5 = wildIterable.asSuperTypeOf(genericIterable);
+        final Type<?> t6 = wildIterable.asSuperTypeOf(arrayList);
+        final Type<?> t7 = wildIterable.asSuperTypeOf(rawArrayList);
+        final Type<?> t8 = wildIterable.asSuperTypeOf(genericArrayList);
+        final Type<?> t9 = wildIterable.asSuperTypeOf(wildArrayList);
+
+        assertSameType(wildIterable, t1);
+        assertSameType(wildIterable, t2);
+        assertSameType(iterable, t3);
+        assertSameType(rawIterable, t4);
+        assertSameType(genericIterable, t5);
+        assertSameType(iterableOfE, t6);
+        assertSameType(rawIterable, t7);
+        assertSameType(genericIterable, t8);
+        assertSameType(wildIterable, t9);
+    }
 
     @Test
     public void testGenericAssignmentCompatibility() throws Throwable {
@@ -167,6 +215,12 @@ public final class TypeTests {
 
         // ArrayList a; List l = a;
         assertTrue(l.getErasedType().isAssignableFrom(a.getErasedType()));
+
+        // ArrayList<?> a; List l = a;
+        assertTrue(l.getErasedType().isAssignableFrom(a.makeGenericType(Type.makeWildcard())));
+
+        // ArrayList a; List<?> l = a;
+        assertTrue(l.makeGenericType(Type.makeWildcard()).isAssignableFrom(a.getErasedType()));
     }
 
     @Test
@@ -235,7 +289,8 @@ public final class TypeTests {
         assertSame(t, resolvedType);
     }
 
-    static void testMe(final Class c) {}
+    static void testMe(final Class c) {
+    }
 
     private interface I {}
 
@@ -249,7 +304,9 @@ public final class TypeTests {
 
     private static class Cycle {
         class A<T> {}
+
         class B extends A<C> {}
+
         class C extends B {}
     }
 
@@ -261,4 +318,5 @@ public final class TypeTests {
     private static class F extends G<F.MyNode> {
         static class MyNode extends G.Node<MyNode> {
         }
-    }}
+    }
+}

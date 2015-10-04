@@ -234,6 +234,11 @@ public abstract class ConstructorInfo extends MethodBase {
 
         return s;
     }
+
+    @Override
+    public boolean containsGenericParameter(final Type<?> genericParameter) {
+        return false;
+    }
 }
 
 class ReflectedConstructor extends ConstructorInfo {

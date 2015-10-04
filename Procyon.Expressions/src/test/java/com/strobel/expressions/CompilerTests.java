@@ -1003,6 +1003,36 @@ public final class CompilerTests extends AbstractExpressionTest {
     }
 
     @Test
+    public void testNestedLambdaInvocationWithWildcardCapture() throws Exception {
+        final String expectedResult = "EXPECTED_RESULT";
+        final Type<? extends CharSequence> wildcard = Type.makeExtendsWildcard(Type.of(CharSequence.class));
+        final Type<Callable<? extends CharSequence>> callable = Type.of(Callable.class).makeGenericType(wildcard);
+
+        final LambdaExpression<Callable<Object>> outer = lambda(
+            callable,
+            call(
+                Type.of(CompilerTests.class),
+                "invoke",
+                Type.list(wildcard),
+                lambda(callable, constant(expectedResult))
+            )
+        );
+
+        System.out.println();
+        System.out.println(outer);
+
+        final Callable<Object> delegate = outer.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        final Object result = delegate.call();
+
+        System.out.println(result);
+
+        assertSame(expectedResult, result);
+    }
+
+    @Test
     public void testNestedLambdaClosureAccess() throws Throwable {
         final Type<?> callable = Type.of(Callable.class).makeGenericType(Types.Integer);
 

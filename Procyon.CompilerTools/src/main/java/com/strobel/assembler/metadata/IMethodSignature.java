@@ -23,4 +23,14 @@ public interface IMethodSignature extends IGenericParameterProvider, IGenericCon
     List<ParameterDefinition> getParameters();
     TypeReference getReturnType();
     List<TypeReference> getThrownTypes();
+
+    String getSignature();
+    String getErasedSignature();
+
+    /**
+     * Invalidate any signature information.  This is not guaranteed to be thread-safe,
+     * should only be called when a partially constructed method definition changes, e.g.,
+     * by changing the return type or parameter types.
+     */
+    void invalidateSignature();
 }

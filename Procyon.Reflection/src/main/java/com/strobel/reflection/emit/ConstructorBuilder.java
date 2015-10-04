@@ -14,7 +14,6 @@
 package com.strobel.reflection.emit;
 
 import com.strobel.annotations.NotNull;
-import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.reflection.*;
 
@@ -98,6 +97,11 @@ public final class ConstructorBuilder extends ConstructorInfo {
 
     @Override
     public StringBuilder appendSimpleDescription(final StringBuilder sb) {
+        for (final javax.lang.model.element.Modifier modifier : Flags.asModifierSet(getModifiers())) {
+            sb.append(modifier.toString());
+            sb.append(' ');
+        }
+
         StringBuilder s = PrimitiveTypes.Void.appendBriefDescription(sb);
 
         s.append(' ');
@@ -155,6 +159,11 @@ public final class ConstructorBuilder extends ConstructorInfo {
 
     public TypeList getParameterTypes() {
         return _methodBuilder.getParameterTypes();
+    }
+
+    public void setParameterTypes(final TypeList parameterTypes) {
+        _methodBuilder.setSignature(null, parameterTypes);
+        invalidateCaches();
     }
 
     public List<ParameterBuilder> getDefinedParameters() {

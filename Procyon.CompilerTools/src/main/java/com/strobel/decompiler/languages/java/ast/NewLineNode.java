@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java.ast;
 
 import com.strobel.core.Environment;
 import com.strobel.decompiler.languages.TextLocation;
+import com.strobel.decompiler.patterns.Role;
 
 public abstract class NewLineNode extends AstNode {
     private final TextLocation _startLocation;
@@ -47,6 +48,12 @@ public abstract class NewLineNode extends AstNode {
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
         return visitor.visitNewLine(this, data);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends NewLineNode> getRole() {
+        return (Role<? extends NewLineNode>) super.getRole();
     }
 
     @Override

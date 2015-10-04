@@ -55,6 +55,12 @@ public class ParameterDeclaration extends EntityDeclaration {
 //        setChildByRole(Roles.IDENTIFIER, value);
 //    }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends ParameterDeclaration> getRole() {
+        return (Role<? extends ParameterDeclaration>) super.getRole();
+    }
+
     public final AstType getType() {
         return getChildByRole(Roles.TYPE);
     }

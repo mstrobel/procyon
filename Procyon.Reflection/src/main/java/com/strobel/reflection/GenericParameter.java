@@ -107,6 +107,7 @@ class GenericParameter<T> extends Type<T> {
                 return typeVariable;
             }
         }
+
         throw Error.couldNotResolveType(_name);
     }
 

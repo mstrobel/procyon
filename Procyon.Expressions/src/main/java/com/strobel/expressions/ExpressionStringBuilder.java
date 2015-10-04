@@ -36,8 +36,8 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     private final static String lineSeparator = System.getProperty("line.separator");
 
     private final StringBuilder _out;
-    private int     _indentLevel   = 0;
-    private int     _blockDepth    = 0;
+    private int _indentLevel = 0;
+    private int _blockDepth = 0;
     private boolean _indentPending = false;
     private HashMap<Object, Integer> _ids;
 
@@ -219,17 +219,17 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
             out("null");
         }
         else if (value instanceof Class<?>) {
-            out(((Class<?>)value).getSimpleName());
+            out(((Class<?>) value).getSimpleName());
             out(".class");
         }
         else if (value instanceof Type<?>) {
-            out(((Type<?>)value).getName());
+            out(((Type<?>) value).getName());
             out(".class");
         }
         else if (value instanceof Character) {
-            final char ch = (Character)value;
+            final char ch = (Character) value;
             if (ch < 0x20 || ch > 0x7E) {
-                out(String.format("'\\u%1$04X'", (int)ch));
+                out(String.format("'\\u%1$04X'", (int) ch));
             }
             else {
                 out('\'');
@@ -242,7 +242,7 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
 
             if (value instanceof String) {
                 out('"');
-                out(((String)value).replace("\r", "\\r").replace("\n", "\\n"));
+                out(((String) value).replace("\r", "\\r").replace("\n", "\\n"));
                 out('"');
             }
             else if (toString.equals(value.getClass().toString())) {
@@ -267,23 +267,23 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
 
         switch (type.getKind()) {
             case BOOLEAN:
-                return Arrays.toString((boolean[])value);
+                return Arrays.toString((boolean[]) value);
             case BYTE:
-                return Arrays.toString((byte[])value);
+                return Arrays.toString((byte[]) value);
             case SHORT:
-                return Arrays.toString((short[])value);
+                return Arrays.toString((short[]) value);
             case INT:
-                return Arrays.toString((int[])value);
+                return Arrays.toString((int[]) value);
             case LONG:
-                return Arrays.toString((long[])value);
+                return Arrays.toString((long[]) value);
             case CHAR:
-                return Arrays.toString((char[])value);
+                return Arrays.toString((char[]) value);
             case FLOAT:
-                return Arrays.toString((float[])value);
+                return Arrays.toString((float[]) value);
             case DOUBLE:
-                return Arrays.toString((double[])value);
+                return Arrays.toString((double[]) value);
             default:
-                return Arrays.toString((Object[])value);
+                return Arrays.toString((Object[]) value);
         }
     }
 
@@ -986,5 +986,29 @@ final class ExpressionStringBuilder extends ExpressionVisitor {
     @Override
     public ParameterExpressionList visitAndConvertList(final ParameterExpressionList nodes, final String callerName) {
         return super.visitAndConvertList(nodes, callerName);
+    }
+
+    @Override
+    protected Expression visitConcat(final ConcatExpression node) {
+        final ExpressionList<? extends Expression> operands = node.getOperands();
+
+        boolean first = true;
+
+        out("(");
+
+        for (final Expression operand : operands) {
+            if (first) {
+                first = false;
+            }
+            else {
+                out(" + ");
+            }
+
+            visit(operand);
+        }
+
+        out(")");
+
+        return node;
     }
 }

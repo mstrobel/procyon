@@ -16,6 +16,8 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.annotations.NotNull;
+import com.strobel.annotations.Nullable;
 import com.strobel.collections.ListBuffer;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.Pair;
@@ -862,7 +864,7 @@ public final class MetadataHelper {
             try {
                 map = adapt(method.getDeclaringType(), asSuper != null ? asSuper : base);
             }
-            catch (AdaptFailure ignored) {
+            catch (final AdaptFailure ignored) {
                 map = getGenericSubTypeMappings(method.getDeclaringType(), asSuper != null ? asSuper : base);
             }
 
@@ -873,6 +875,7 @@ public final class MetadataHelper {
             }
         }
 
+        @SuppressWarnings("UnnecessaryLocalVariable")
         final MethodReference result = specializeIfNecessary(method, asMember, base);
 
         return result;
@@ -949,13 +952,53 @@ public final class MetadataHelper {
             typeArguments = Collections.emptyList();
         }
 
+        final MethodReference definition = resolvedMethod != null ? resolvedMethod
+                                                                  : originalMethod;
+
         return new GenericMethodInstance(
             declaringType,
-            resolvedMethod != null ? resolvedMethod : originalMethod,
+            definition,
             returnType,
             copyParameters(method.getParameters()),
             typeArguments
         );
+    }
+
+    @NotNull
+    static List<TypeReference> checkTypeArguments(
+        @Nullable final IGenericParameterProvider owner,
+        @NotNull final List<TypeReference> typeArguments) {
+
+        final boolean allowWildcards = !(owner instanceof IMethodSignature);
+
+        if (typeArguments.isEmpty() || allowWildcards) {
+            return typeArguments;
+        }
+
+        boolean valid = true;
+
+        for (final TypeReference t : typeArguments) {
+            if (t.isWildcardType() || t instanceof ICapturedType) {
+                valid = false;
+                break;
+            }
+        }
+
+        if (valid) {
+            return typeArguments;
+        }
+
+        final TypeReference[] adjustedTypeArguments = typeArguments.toArray(new TypeReference[typeArguments.size()]);
+
+        for (int i = 0; i < adjustedTypeArguments.length; i++) {
+            final TypeReference t = adjustedTypeArguments[i];
+
+            if (t.isWildcardType() || t instanceof ICapturedType) {
+                adjustedTypeArguments[i] = t.getExtendsBound();
+            }
+        }
+
+        return ArrayUtilities.asUnmodifiableList(adjustedTypeArguments);
     }
 
     public static FieldReference asMemberOf(final FieldReference field, final TypeReference baseType) {
@@ -965,6 +1008,15 @@ public final class MetadataHelper {
         final Map<TypeReference, TypeReference> map = adapt(field.getDeclaringType(), baseType);
 
         return TypeSubstitutionVisitor.instance().visitField(field, map);
+    }
+
+    public static TypeReference asMemberOf(final TypeReference innerType, final TypeReference baseType) {
+        VerifyArgument.notNull(innerType, "innerType");
+        VerifyArgument.notNull(baseType, "baseType");
+
+        final Map<TypeReference, TypeReference> map = adapt(innerType.getDeclaringType(), baseType);
+
+        return TypeSubstitutionVisitor.instance().visit(innerType, map);
     }
 
     public static TypeReference substituteGenericArguments(
@@ -1182,10 +1234,8 @@ public final class MetadataHelper {
                         }
 
                         if (isVarArgs) {
-                            if (r != null && r.isVarArgs()) {
-                                return true;
-                            }
-                            return p.size() >= parameterCount;
+                            return r != null && r.isVarArgs() ||
+                                   p.size() >= parameterCount;
                         }
 
                         if (p.size() < parameterCount) {
@@ -1199,6 +1249,11 @@ public final class MetadataHelper {
         );
 
         return methods.size() > 1;
+    }
+
+    public static boolean isInterface(final TypeReference t) {
+        final TypeDefinition resolvedType = t.resolve();
+        return resolvedType != null && resolvedType.isInterface();
     }
 
     public static TypeReference getLowerBound(final TypeReference t) {
@@ -1545,11 +1600,8 @@ public final class MetadataHelper {
 
         final TypeReference r = t.resolve();
 
-        if (r != null && r.isGenericType()) {
-            return true;
-        }
-
-        return false;
+        return r != null &&
+               r.isGenericType();
     }
 
     public static int getUnboundGenericParameterCount(final TypeReference t) {
@@ -1763,6 +1815,8 @@ public final class MetadataHelper {
                 final TypeReference et = getElementType(t);
                 final TypeReference es = getElementType(s);
 
+                assert et != null && es != null;
+                
                 if (et.isPrimitive()) {
                     return isSameType(et, es);
                 }
@@ -1834,7 +1888,7 @@ public final class MetadataHelper {
                     return jt == JvmType.Boolean;
 
                 case Byte:
-                    return js != JvmType.Character && jt.isIntegral() && jt.bitWidth() <= js.bitWidth();
+                    return jt != JvmType.Character && jt.isIntegral() && jt.bitWidth() <= js.bitWidth();
 
                 case Character:
                     return jt == JvmType.Character;
@@ -1853,7 +1907,7 @@ public final class MetadataHelper {
                     return jt.isIntegral() || jt.bitWidth() <= js.bitWidth();
 
                 case Void:
-                    return s.getSimpleType() == JvmType.Void;
+                    return jt == JvmType.Void;
 
                 default:
                     return Boolean.FALSE;
@@ -2025,6 +2079,8 @@ public final class MetadataHelper {
         public TypeReference visitArrayType(final ArrayType t, final Void ignored) {
             final TypeReference et = getElementType(t);
 
+            assert et != null;
+            
             if (et.isPrimitive() || isSameType(et, BuiltinTypes.Object)) {
                 return arraySuperType(et);
             }
@@ -2221,6 +2277,7 @@ public final class MetadataHelper {
         }
 
         @Override
+        @SuppressWarnings("StatementWithEmptyBody")
         public Void visitGenericParameter(final GenericParameter source, final TypeReference target) {
             TypeReference value = mapping.get(source);
 
@@ -2315,22 +2372,15 @@ public final class MetadataHelper {
             }
 
             if (t.isGenericDefinition()) {
-                if (s.isGenericDefinition()) {
-                    return StringUtilities.equals(t.getInternalName(), s.getInternalName()) &&
-                           visit(t.getDeclaringType(), s.getDeclaringType());
-                }
-                return false;
+                return s.isGenericDefinition() &&
+                       StringUtilities.equals(t.getInternalName(), s.getInternalName()) &&
+                       visit(t.getDeclaringType(), s.getDeclaringType());
             }
 
-            if (s.getSimpleType() == JvmType.Object &&
-                StringUtilities.equals(t.getInternalName(), s.getInternalName()) &&
-                //isSameType(t.getDeclaringType(), s.getDeclaringType(), false) &&
-                containsTypes(getTypeArguments(t), getTypeArguments(s))) {
-
-                return true;
-            }
-
-            return false;
+            return s.getSimpleType() == JvmType.Object &&
+                   StringUtilities.equals(t.getInternalName(), s.getInternalName()) &&
+                   //isSameType(t.getDeclaringType(), s.getDeclaringType(), false) &&
+                   containsTypes(getTypeArguments(t), getTypeArguments(s));
         }
 
         @Override
@@ -2653,7 +2703,7 @@ public final class MetadataHelper {
             try {
                 mappings = adapt(base, t);
             }
-            catch (AdaptFailure ignored) {
+            catch (final AdaptFailure ignored) {
                 mappings = getGenericSubTypeMappings(t, base);
             }
 

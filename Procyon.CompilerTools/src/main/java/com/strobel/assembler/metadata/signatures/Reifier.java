@@ -25,13 +25,18 @@
 
 package com.strobel.assembler.metadata.signatures;
 
+import com.strobel.assembler.metadata.BuiltinTypes;
 import com.strobel.assembler.metadata.TypeReference;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class Reifier implements TypeTreeVisitor<TypeReference> {
+    private final static Logger LOG = Logger.getLogger(Reifier.class.getSimpleName());
+
     private final MetadataFactory factory;
     private TypeReference resultType;
 
@@ -52,9 +57,12 @@ public final class Reifier implements TypeTreeVisitor<TypeReference> {
         for (int i = 0; i < tas.length; i++) {
             tas[i].accept(this);
             ts[i] = resultType;
-            if (ts[i] == null)
-                System.err.println("BAD TYPE ARGUMENTS: " + Arrays.toString(tas) + "; " + Arrays.toString(ts));
-            assert ts[i] != null;
+            if (ts[i] == null) {
+                if (LOG.isLoggable(Level.WARNING)) {
+                    LOG.warning("BAD TYPE ARGUMENTS: " + Arrays.toString(tas) + "; " + Arrays.toString(ts));
+                }
+                ts[i] = BuiltinTypes.Object;
+            }
         }
         return ts;
     }

@@ -17,6 +17,7 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.core.StringUtilities;
+import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
 
 import java.util.Collections;
@@ -45,6 +46,10 @@ public abstract class MethodReference extends MemberReference implements IMethod
 
     public List<TypeReference> getThrownTypes() {
         return Collections.emptyList();
+    }
+
+    @Override
+    public void invalidateSignature() {
     }
 
     // </editor-fold>
@@ -178,7 +183,16 @@ public abstract class MethodReference extends MemberReference implements IMethod
 
     @Override
     public StringBuilder appendSignature(final StringBuilder sb) {
-        final List<ParameterDefinition> parameters = getParameters();
+        return appendSignature(this, sb);
+    }
+
+    @Override
+    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+        return appendErasedSignature(this, sb);
+    }
+
+    static StringBuilder appendSignature(final IMethodSignature method, final StringBuilder sb) {
+        final List<ParameterDefinition> parameters = method.getParameters();
 
         StringBuilder s = sb;
         s.append('(');
@@ -189,27 +203,27 @@ public abstract class MethodReference extends MemberReference implements IMethod
         }
 
         s.append(')');
-        s = getReturnType().appendSignature(s);
+        s = method.getReturnType().appendSignature(s);
 
         return s;
     }
 
-    @Override
-    public StringBuilder appendErasedSignature(final StringBuilder sb) {
+    static StringBuilder appendErasedSignature(final IMethodSignature method, final StringBuilder sb) {
         StringBuilder s = sb;
         s.append('(');
 
-        final List<ParameterDefinition> parameterTypes = getParameters();
+        final List<ParameterDefinition> parameterTypes = method.getParameters();
 
         for (int i = 0, n = parameterTypes.size(); i < n; ++i) {
             s = parameterTypes.get(i).getParameterType().appendErasedSignature(s);
         }
 
         s.append(')');
-        s = getReturnType().appendErasedSignature(s);
+        s = method.getReturnType().appendErasedSignature(s);
 
         return s;
     }
+
 
     // </editor-fold>
 }

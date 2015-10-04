@@ -109,28 +109,30 @@ public final class ConcatExpression extends Expression {
             );
         }
 
-        final ParameterExpression sb = variable(Types.StringBuilder);
-        final Expression[] body = new Expression[reducedOperands.size() + 2];
-
-        body[0] = assign(
-            sb,
-            makeNew(Types.StringBuilder.getConstructor())
-        );
-
-        int i = 0;
+        Expression result = null;
 
         for (ImmutableList<Expression> o = reducedOperands.toList();
              o.nonEmpty();
              o = o.tail) {
 
-            body[++i] = call(sb, "append", o.head);
+            if (result == null) {
+                if (o.head.getType() == Types.String) {
+                    result = makeNew(
+                        Types.StringBuilder.getConstructor(Types.String),
+                        o.head
+                    );
+                    continue;
+                }
+                else {
+                    result = makeNew(Types.StringBuilder.getConstructor());
+                }
+            }
+
+            result = call(result, "append", o.head);
         }
 
-        body[body.length - 1] = call(sb, "toString");
+        result = call(result, "toString");
 
-        return block(
-            new ParameterExpression[] { sb },
-            body
-        );
+        return result;
     }
 }

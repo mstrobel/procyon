@@ -16,7 +16,6 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
-import com.strobel.core.Predicate;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.decompiler.languages.java.ast.BlockStatement;
@@ -26,6 +25,7 @@ import com.strobel.decompiler.languages.java.ast.SwitchSection;
 import com.strobel.decompiler.languages.java.ast.VariableDeclarationStatement;
 
 import static com.strobel.core.CollectionUtilities.any;
+import static com.strobel.core.CollectionUtilities.ofType;
 
 public class FlattenSwitchBlocksTransform extends ContextTrackingVisitor<AstNode> implements IAstTransform {
     public FlattenSwitchBlocksTransform(final DecompilerContext context) {
@@ -40,9 +40,9 @@ public class FlattenSwitchBlocksTransform extends ContextTrackingVisitor<AstNode
     }
 
     @Override
-    public AstNode visitSwitchSection(final SwitchSection node, final Void _) {
+    public AstNode visitSwitchSection(final SwitchSection node, final Void p) {
         if (node.getStatements().size() != 1) {
-            return super.visitSwitchSection(node, _);
+            return super.visitSwitchSection(node, p);
         }
 
         final Statement firstStatement = node.getStatements().firstOrNullObject();
@@ -50,22 +50,14 @@ public class FlattenSwitchBlocksTransform extends ContextTrackingVisitor<AstNode
         if (firstStatement instanceof BlockStatement) {
             final BlockStatement block = (BlockStatement) firstStatement;
 
-            final boolean declaresVariables = any(
-                block.getStatements(),
-                new Predicate<Statement>() {
-                    @Override
-                    public boolean test(final Statement s) {
-                        return s instanceof VariableDeclarationStatement;
-                    }
-                }
-            );
-
-            if (!declaresVariables) {
-                block.remove();
-                block.getStatements().moveTo(node.getStatements());
+            if (any(ofType(block.getStatements(), VariableDeclarationStatement.class))) {
+                return super.visitSwitchSection(node, p);
             }
+
+            block.remove();
+            block.getStatements().moveTo(node.getStatements());
         }
 
-        return super.visitSwitchSection(node, _);
+        return super.visitSwitchSection(node, p);
     }
 }

@@ -67,7 +67,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                     LineNumberMode.WITH_DEBUG_LINE_NUMBERS : LineNumberMode.WITHOUT_DEBUG_LINE_NUMBERS
         );
 
-        final JavaFormattingOptions formattingOptions = settings.getFormattingOptions();
+        final JavaFormattingOptions formattingOptions = settings.getJavaFormattingOptions();
 
         this.policy = formattingOptions != null ? formattingOptions
                                                 : JavaFormattingOptions.createDefault();

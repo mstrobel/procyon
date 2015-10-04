@@ -21,6 +21,7 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.Role;
 
 public class Identifier extends AstNode {
     private TextLocation _startLocation;
@@ -61,6 +62,12 @@ public class Identifier extends AstNode {
             _startLocation.line(),
             _startLocation.column() + (name != null ? name.length() : 0)
         );
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends Identifier> getRole() {
+        return (Role<? extends Identifier>) super.getRole();
     }
 
     @Override

@@ -31,16 +31,15 @@ public class FieldDefinition extends FieldReference implements IMemberDefinition
     private final Collection<SourceAttribute> _sourceAttributes;
     private final List<CustomAnnotation> _customAnnotationsView;
     private final List<SourceAttribute> _sourceAttributesView;
-    private final IMetadataResolver _resolver;
 
     private String _name;
-    private Object _fieldType;
+    private TypeReference _fieldType;
     private TypeDefinition _declaringType;
     private Object _constantValue;
     private long _flags;
 
-    protected FieldDefinition(final IMetadataResolver resolver) {
-        _resolver = resolver;
+    protected FieldDefinition(final TypeReference fieldType) {
+        _fieldType = fieldType;
         _customAnnotations = new Collection<>();
         _customAnnotationsView = Collections.unmodifiableList(_customAnnotations);
         _sourceAttributes = new Collection<>();
@@ -104,22 +103,7 @@ public class FieldDefinition extends FieldReference implements IMemberDefinition
     }
 
     public final TypeReference getFieldType() {
-        if (_fieldType instanceof TypeReference) {
-            return (TypeReference) _fieldType;
-        }
-
-        if (_fieldType instanceof String &&
-            _resolver != null) {
-
-            final TypeReference fieldType = _resolver.lookupType((String) _fieldType);
-
-            if (fieldType != null) {
-                _fieldType = fieldType;
-                return fieldType;
-            }
-        }
-
-        return null;
+        return _fieldType;
     }
 
     protected final void setFieldType(final TypeReference fieldType) {

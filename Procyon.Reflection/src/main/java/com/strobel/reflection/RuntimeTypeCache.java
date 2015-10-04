@@ -1282,7 +1282,7 @@ final class RuntimeFieldInfo extends FieldInfo {
     }
 
     @Override
-    public Type getFieldType() {
+    public Type<?> getFieldType() {
         return _fieldType;
     }
 
@@ -1373,7 +1373,7 @@ final class ErasedField extends FieldInfo {
     }
 
     @Override
-    public Type getFieldType() {
+    public Type<?> getFieldType() {
         return _fieldType;
     }
 

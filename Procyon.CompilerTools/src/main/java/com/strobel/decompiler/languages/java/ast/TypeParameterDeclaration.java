@@ -59,6 +59,12 @@ public class TypeParameterDeclaration extends AstNode {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
+    public Role<? extends TypeParameterDeclaration> getRole() {
+        return (Role<? extends TypeParameterDeclaration>) super.getRole();
+    }
+
+    @Override
     public NodeType getNodeType() {
         return NodeType.UNKNOWN;
     }
