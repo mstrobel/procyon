@@ -22,7 +22,8 @@ import com.strobel.decompiler.languages.Languages;
 import com.strobel.io.PathHelper;
 
 import java.io.File;
-import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -90,18 +91,21 @@ public abstract class DecompilerTest {
     }
 
     protected void verifyOutput(final Class<?> type, final DecompilerSettings settings, final String expectedOutput) {
-        final String packageRoot = VerifyArgument.notNull(type, "type").getProtectionDomain().getCodeSource().getLocation().getFile();
-        final String path = PathHelper.combine(packageRoot, type.getName().replace('.', '/') + ".class");
+        VerifyArgument.notNull(type, "type");
 
         try {
+            final String packageRoot = type.getProtectionDomain().getCodeSource().getLocation().getFile();
+            final String decodedRoot = URLDecoder.decode(packageRoot, Charset.defaultCharset().displayName());
+            final String path = PathHelper.combine(decodedRoot, type.getName().replace('.', '/') + ".class");
+
             verifyOutput(
                 new File(path).getCanonicalPath(),
                 settings,
                 expectedOutput
             );
         }
-        catch (final IOException e) {
-            throw ExceptionUtilities.asRuntimeException(e);
+        catch (final Throwable t) {
+            throw ExceptionUtilities.rethrow(t);
         }
     }
     protected void verifyOutput(final String internalName, final DecompilerSettings settings, final String expectedOutput) {
