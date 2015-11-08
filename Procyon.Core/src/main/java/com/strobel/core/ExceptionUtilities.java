@@ -145,7 +145,7 @@ public final class ExceptionUtilities {
      *
      * @return This method will never return a value; it always throws.
      *
-     * @throws Throwable
+     * @throws T
      *     This method rethrows the original exception {@code t}, or a
      *     {@link NullPointerException} if {@code t} is {@code null}.
      */
@@ -169,7 +169,7 @@ public final class ExceptionUtilities {
      *
      * @return This method will never return a value; it always throws.
      *
-     * @throws Throwable
+     * @throws T
      *     This method rethrows the original exception {@code t}, or a
      *     {@link NullPointerException} if {@code t} is {@code null}.
      */
