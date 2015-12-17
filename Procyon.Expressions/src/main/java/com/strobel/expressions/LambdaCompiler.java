@@ -851,7 +851,7 @@ final class LambdaCompiler {
         final int emitAs = flags & CompilationFlags.EmitAsTypeMask;
 
         // Emit the target array.
-        emitExpression(left);
+        emitExpression(index.getLeft());
 
         // Emit the index.
         emitExpression(index.getRight());

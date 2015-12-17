@@ -711,6 +711,8 @@ final class StackSpiller {
                 return rewriteVariableAssignment(node, stack);
             case Extension:
                 return rewriteExtensionAssignment(node, stack);
+            case ArrayIndex:
+                return rewriteVariableAssignment(node, stack);
             default:
                 throw Error.invalidLValue(node.getLeft().getNodeType());
         }
