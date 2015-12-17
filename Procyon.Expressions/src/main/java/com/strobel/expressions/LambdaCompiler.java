@@ -4009,6 +4009,9 @@ final class LambdaCompiler {
                 if (isEnum) {
                     key = ((Enum) test.getValue()).ordinal();
                 }
+                else if (test.getValue() instanceof Character) {
+                    key = (Character) test.getValue();
+                }
                 else {
                     key = ((Number) test.getValue()).intValue();
                 }

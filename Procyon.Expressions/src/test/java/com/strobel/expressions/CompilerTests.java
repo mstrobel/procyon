@@ -475,6 +475,110 @@ public final class CompilerTests extends AbstractExpressionTest {
         assertEquals("something else", delegate.apply(6));
     }
 
+    @Test
+    public void testCharacterLookupSwitch() throws Exception {
+        final ParameterExpression character = parameter(Types.Character, "character");
+
+        final LambdaExpression<Func1<Character, String>> lambda = lambda(
+            Type.of(Func1.class).makeGenericType(Types.Character, Types.String),
+            makeSwitch(
+                unbox(character),
+                SwitchOptions.PreferLookup,
+                constant("something else"),
+                switchCase(
+                    constant("one or two"),
+                    constant('1'),
+                    constant('2')
+                ),
+                switchCase(
+                    constant("three"),
+                    constant('3')
+                ),
+                switchCase(
+                    constant("five"),
+                    constant('5')
+                )
+            ),
+            character
+        );
+
+        System.out.println();
+
+        System.out.println(lambda);
+
+        final Func1<Character, String> delegate = lambda.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        System.out.println(delegate.apply('0'));
+        System.out.println(delegate.apply('1'));
+        System.out.println(delegate.apply('2'));
+        System.out.println(delegate.apply('3'));
+        System.out.println(delegate.apply('4'));
+        System.out.println(delegate.apply('5'));
+        System.out.println(delegate.apply('6'));
+
+        assertEquals("something else", delegate.apply('0'));
+        assertEquals("one or two", delegate.apply('1'));
+        assertEquals("one or two", delegate.apply('2'));
+        assertEquals("three", delegate.apply('3'));
+        assertEquals("something else", delegate.apply('4'));
+        assertEquals("five", delegate.apply('5'));
+        assertEquals("something else", delegate.apply('6'));
+    }
+
+    @Test
+    public void testCharacterTableSwitch() throws Exception {
+        final ParameterExpression character = parameter(Types.Character, "character");
+
+        final LambdaExpression<Func1<Character, String>> lambda = lambda(
+            Type.of(Func1.class).makeGenericType(Types.Character, Types.String),
+            makeSwitch(
+                unbox(character),
+                SwitchOptions.PreferTable,
+                constant("something else"),
+                switchCase(
+                    constant("one or two"),
+                    constant('1'),
+                    constant('2')
+                ),
+                switchCase(
+                    constant("three"),
+                    constant('3')
+                ),
+                switchCase(
+                    constant("five"),
+                    constant('5')
+                )
+            ),
+            character
+        );
+
+        System.out.println();
+
+        System.out.println(lambda);
+
+        final Func1<Character, String> delegate = lambda.compile();
+
+        System.out.printf("\n[%s]\n", delegate.getClass().getSimpleName());
+
+        System.out.println(delegate.apply('0'));
+        System.out.println(delegate.apply('1'));
+        System.out.println(delegate.apply('2'));
+        System.out.println(delegate.apply('3'));
+        System.out.println(delegate.apply('4'));
+        System.out.println(delegate.apply('5'));
+        System.out.println(delegate.apply('6'));
+
+        assertEquals("something else", delegate.apply('0'));
+        assertEquals("one or two", delegate.apply('1'));
+        assertEquals("one or two", delegate.apply('2'));
+        assertEquals("three", delegate.apply('3'));
+        assertEquals("something else", delegate.apply('4'));
+        assertEquals("five", delegate.apply('5'));
+        assertEquals("something else", delegate.apply('6'));
+    }
+
     enum TestEnum {
         ZERO,
         ONE,
