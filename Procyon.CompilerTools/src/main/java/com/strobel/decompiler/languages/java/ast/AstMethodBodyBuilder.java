@@ -710,13 +710,12 @@ public class AstMethodBodyBuilder {
                 return new AssignmentExpression(fieldReference, arg2);
             }
 
-            case InvokeVirtual:
-                return transformCall(true, byteCode, arguments);
             case InvokeSpecial:
             case InvokeStatic:
                 return transformCall(false, byteCode, arguments);
+            case InvokeVirtual:
             case InvokeInterface:
-                return transformCall(false, byteCode, arguments);
+                return transformCall(true, byteCode, arguments);
 
             case InvokeDynamic: {
                 final DynamicCallSite callSite = (DynamicCallSite) operand;
