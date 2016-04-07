@@ -42,14 +42,32 @@ public final class AddStandardAnnotationsTransform extends ContextTrackingVisito
     @Override
     public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
         tryAddOverrideAnnotation(node);
-        tryAddDeprecatedAnnotation(node);
+        tryAddDeprecatedAnnotationToMember(node);
         return super.visitMethodDeclaration(node, p);
     }
 
     @Override
     public Void visitConstructorDeclaration(final ConstructorDeclaration node, final Void p) {
-        tryAddDeprecatedAnnotation(node);
+        tryAddDeprecatedAnnotationToMember(node);
         return super.visitConstructorDeclaration(node, p);
+    }
+
+    @Override
+    public Void visitFieldDeclaration(final FieldDeclaration node, final Void data) {
+        tryAddDeprecatedAnnotationToMember(node);
+        return super.visitFieldDeclaration(node, data);
+    }
+
+    @Override
+    public Void visitEnumValueDeclaration(final EnumValueDeclaration node, final Void data) {
+        tryAddDeprecatedAnnotationToMember(node);
+        return super.visitEnumValueDeclaration(node, data);
+    }
+
+    @Override
+    public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
+        tryAddDeprecatedAnnotationToType(typeDeclaration);
+        return super.visitTypeDeclaration(typeDeclaration, p);
     }
 
     private void tryAddOverrideAnnotation(final MethodDeclaration node) {
@@ -109,25 +127,65 @@ public final class AddStandardAnnotationsTransform extends ContextTrackingVisito
         }
     }
 
-    private void tryAddDeprecatedAnnotation(final EntityDeclaration node) {
+    private void tryAddDeprecatedAnnotationToMember(final EntityDeclaration node) {
         if (any(node.getAnnotations(), IS_DEPRECATED_ANNOTATION)) {
             return;
         }
 
-        final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
+        IMemberDefinition member = node.getUserData(Keys.METHOD_DEFINITION);
 
-        if ((method.getFlags() & Flags.DEPRECATED) != Flags.DEPRECATED) {
+        if (member == null) {
+            member = node.getUserData(Keys.FIELD_DEFINITION);
+        }
+
+        if (member == null || (member.getFlags() & Flags.DEPRECATED) != Flags.DEPRECATED) {
             return;
         }
 
-        final TypeDefinition declaringType = method.getDeclaringType();
+        final TypeReference declaringType = member.getDeclaringType();
 
-        if (declaringType.getCompilerMajorVersion() < CompilerTarget.JDK1_5.majorVersion) {
+        final TypeDefinition resolvedType = declaringType instanceof TypeDefinition
+                                            ? (TypeDefinition) declaringType
+                                            : declaringType.resolve();
+
+        if (resolvedType == null ||
+            resolvedType.getCompilerMajorVersion() < CompilerTarget.JDK1_5.majorVersion) {
+
+            return;
+        }
+
+        addAnnotation(node, resolvedType.getResolver(), DEPRECATED_ANNOTATION_NAME);
+    }
+
+    private void tryAddDeprecatedAnnotationToType(final TypeDeclaration node) {
+        if (any(node.getAnnotations(), IS_DEPRECATED_ANNOTATION)) {
+            return;
+        }
+
+        final TypeDefinition type = node.getUserData(Keys.TYPE_DEFINITION);
+
+        if (type == null || (type.getFlags() & Flags.DEPRECATED) != Flags.DEPRECATED) {
+            return;
+        }
+
+        if (type.getCompilerMajorVersion() < CompilerTarget.JDK1_5.majorVersion) {
+            return;
+        }
+
+        addAnnotation(node, type.getResolver(), DEPRECATED_ANNOTATION_NAME);
+    }
+
+    private void addAnnotation(
+        final EntityDeclaration node,
+        final IMetadataResolver resolver,
+        final String annotationName) {
+
+        if (resolver == null) {
             return;
         }
 
         final Annotation annotation = new Annotation();
-        final TypeReference annotationType = new MetadataParser(declaringType).parseTypeDescriptor(DEPRECATED_ANNOTATION_NAME);
+        final TypeReference annotationType = new MetadataParser(resolver).parseTypeDescriptor(annotationName);
 
         if (_astBuilder != null) {
             annotation.setType(_astBuilder.convertType(annotationType));
