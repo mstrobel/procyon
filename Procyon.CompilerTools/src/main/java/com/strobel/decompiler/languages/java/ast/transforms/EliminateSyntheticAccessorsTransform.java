@@ -300,7 +300,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
 
         final ParameterDeclaration setParameter2 = new ParameterDeclaration(
             Pattern.ANY_STRING,
-            new BackReference("returnType").toType()
+            new AnyNode().toType()
         );
 
         setParameter1.setAnyModifiers(true);
@@ -343,7 +343,13 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                                 FieldReference.class
                             ).toExpression(),
                             AssignmentOperatorType.ANY,
-                            new ParameterReferenceNode(1, "value").toExpression()
+                            new Choice(
+                                new ParameterReferenceNode(1, "value"),
+                                new CastExpression(
+                                    new BackReference("returnType").toType(),
+                                    new ParameterReferenceNode(1, "value").toExpression()
+                                )
+                            ).toExpression()
                         )
                     ),
                     new ReturnStatement(Expression.MYSTERY_OFFSET, new BackReference("value").toExpression())
@@ -361,7 +367,13 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                                 FieldReference.class
                             ).toExpression(),
                             AssignmentOperatorType.ANY,
-                            new ParameterReferenceNode(1, "value").toExpression()
+                            new Choice(
+                                new ParameterReferenceNode(1, "value"),
+                                new CastExpression(
+                                    new BackReference("returnType").toType(),
+                                    new ParameterReferenceNode(1, "value").toExpression()
+                                )
+                            ).toExpression()
                         )
                     )
                 )
