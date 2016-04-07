@@ -48,11 +48,14 @@ public final class SignatureParser {
     private char current() {
         assert (index <= input.length);
         try {
-            return input[index];
+            if (index < input.length) {
+                return input[index];
+            }
         }
-        catch (ArrayIndexOutOfBoundsException e) {
-            return EOI;
+        catch (final ArrayIndexOutOfBoundsException ignored) {
         }
+
+        return EOI;
     }
 
     private void advance() {

@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.ast;
 
+import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.core.Comparer;
 import com.strobel.core.Predicate;
 import com.strobel.core.StrongBox;
@@ -59,7 +60,12 @@ public final class PatternMatching {
         return false;
     }
 
-    public static <T> boolean matchGetOperand(final Node node, final AstCode code, final Class<T> operandType, final StrongBox<? super T> operand) {
+    public static <T> boolean matchGetOperand(
+        final Node node,
+        final AstCode code,
+        final Class<T> operandType,
+        final StrongBox<? super T> operand) {
+
         if (node instanceof Expression) {
             final Expression expression = (Expression) node;
 
@@ -92,7 +98,12 @@ public final class PatternMatching {
         return false;
     }
 
-    public static <T> boolean matchGetArguments(final Node node, final AstCode code, final StrongBox<? super T> operand, final List<Expression> arguments) {
+    public static <T> boolean matchGetArguments(
+        final Node node,
+        final AstCode code,
+        final StrongBox<? super T> operand,
+        final List<Expression> arguments) {
+
         if (node instanceof Expression) {
             final Expression expression = (Expression) node;
 
@@ -306,15 +317,10 @@ public final class PatternMatching {
     public static boolean matchSimpleBreak(final BasicBlock block, final Label label) {
         final List<Node> body = block.getBody();
 
-        if (body.size() == 2 &&
-            body.get(0) instanceof Label &&
-            match(body.get(1), AstCode.Goto) &&
-            ((Expression) body.get(1)).getOperand() == label) {
-
-            return true;
-        }
-
-        return false;
+        return body.size() == 2 &&
+               body.get(0) instanceof Label &&
+               match(body.get(1), AstCode.Goto) &&
+               ((Expression) body.get(1)).getOperand() == label;
     }
 
     public static boolean matchAssignmentAndConditionalBreak(
@@ -346,17 +352,13 @@ public final class PatternMatching {
                 return true;
             }
 
-            if (match(e, AstCode.StoreElement)) {
-                assignedValue.set(e.getArguments().get(2));
-                Expression arg0 = e.getArguments().get(0).clone();
-                Expression arg1 = e.getArguments().get(1).clone();
-                equivalentLoad.set(new Expression(AstCode.LoadElement, null, arg0.getOffset(), arg0, arg1));
+            if (matchElementAssignment(e, assignedValue, equivalentLoad)) {
                 return true;
             }
 
             if (match(e, AstCode.PutField)) {
+                final Expression arg0 = e.getArguments().get(0).clone();
                 assignedValue.set(e.getArguments().get(1));
-                Expression arg0 = e.getArguments().get(0).clone();
                 equivalentLoad.set(new Expression(AstCode.GetField, null, arg0.getOffset(), arg0));
                 return true;
             }
@@ -389,7 +391,11 @@ public final class PatternMatching {
         return false;
     }
 
-    public static boolean matchAssignment(final Node node, final StrongBox<Expression> assignedValue, final StrongBox<Expression> equivalentLoad) {
+    public static boolean matchAssignment(
+        final Node node,
+        final StrongBox<Expression> assignedValue,
+        final StrongBox<Expression> equivalentLoad) {
+
         if (node instanceof Expression) {
             final Expression e = (Expression) node;
 
@@ -405,23 +411,41 @@ public final class PatternMatching {
                 return true;
             }
 
-            if (match(e, AstCode.StoreElement)) {
-                assignedValue.set(e.getArguments().get(2));
-                Expression arg0 = e.getArguments().get(0).clone();
-                Expression arg1 = e.getArguments().get(1).clone();
-                equivalentLoad.set(new Expression(AstCode.LoadElement, null, arg0.getOffset(), arg0, arg1));
+            if (matchElementAssignment(e, assignedValue, equivalentLoad)) {
                 return true;
             }
 
             if (match(e, AstCode.PutField)) {
+                final Expression arg0 = e.getArguments().get(0).clone();
                 assignedValue.set(e.getArguments().get(1));
-                Expression arg0 = e.getArguments().get(0).clone();
                 equivalentLoad.set(new Expression(AstCode.GetField, e.getOperand(), arg0.getOffset(), arg0));
                 return true;
             }
         }
 
         assignedValue.set(null);
+        return false;
+    }
+
+    private static boolean matchElementAssignment(
+        final Node node,
+        final StrongBox<Expression> assignedValue,
+        final StrongBox<Expression> equivalentLoad) {
+
+        if (match(node, AstCode.StoreElement)) {
+            final Expression e = (Expression) node;
+            final Expression a0 = e.getArguments().get(0).clone();
+            final Expression a1 = e.getArguments().get(1).clone();
+
+            assignedValue.set(e.getArguments().get(2));
+            equivalentLoad.set(new Expression(AstCode.LoadElement, null, a0.getOffset(), a0, a1));
+
+            return true;
+        }
+
+        assignedValue.set(null);
+        equivalentLoad.set(null);
+
         return false;
     }
 
@@ -479,17 +503,7 @@ public final class PatternMatching {
         final StrongBox<? super T> operand,
         final StrongBox<Expression> argument) {
 
-        final List<Node> body = block.getBody();
-
-        if (body.size() >= 1 &&
-            matchGetArgument(body.get(body.size() - 1), code, operand, argument)) {
-
-            return true;
-        }
-
-        operand.set(null);
-        argument.set(null);
-        return false;
+        return matchLast(block.getBody(), code, operand, argument);
     }
 
     public static <T> boolean matchLast(
@@ -498,7 +512,14 @@ public final class PatternMatching {
         final StrongBox<? super T> operand,
         final StrongBox<Expression> argument) {
 
-        final List<Node> body = block.getBody();
+        return matchLast(block.getBody(), code, operand, argument);
+    }
+
+    private static <T> boolean matchLast(
+        final List<Node> body,
+        final AstCode code,
+        final StrongBox<? super T> operand,
+        final StrongBox<Expression> argument) {
 
         if (body.size() >= 1 &&
             matchGetArgument(body.get(body.size() - 1), code, operand, argument)) {
@@ -535,10 +556,11 @@ public final class PatternMatching {
 
     public static boolean matchThis(final Node node) {
         final StrongBox<Variable> operand = new StrongBox<>();
+        final ParameterDefinition p;
 
         return matchGetOperand(node, AstCode.Load, operand) &&
-               operand.get().isParameter() &&
-               operand.get().getOriginalParameter().getPosition() == -1;
+               (p = operand.get().getOriginalParameter()) != null &&
+               p.getPosition() == -1;
     }
 
     public static boolean matchLoadAny(final Node node, final Iterable<Variable> expectedVariables) {
@@ -557,11 +579,99 @@ public final class PatternMatching {
         return matchGetOperand(node, AstCode.Load, variable);
     }
 
-    public static boolean matchStore(final Node node, final StrongBox<Variable> variable, final StrongBox<Expression> argument) {
+    public static boolean matchNumericLdC(final Node node, final StrongBox<Number> value) {
+        //noinspection ConstantConditions
+        if (matchGetOperand(node, AstCode.LdC, value) &&
+            value.get() instanceof Number) {
+
+            return true;
+        }
+
+        value.set(null);
+        return false;
+    }
+
+    public static boolean matchVariableIncDec(final Node node, final StrongBox<Variable> variable) {
+        if (node instanceof Expression) {
+            final Expression e = (Expression) node;
+            final List<Expression> a = e.getArguments();
+            final AstCode code = e.getCode();
+
+            if (code.isIncDec()) {
+                final Variable v;
+
+                @SuppressWarnings("unchecked")
+                final StrongBox<Number> valueBox = (StrongBox)variable;
+                final StrongBox<Expression> argument = new StrongBox<>();
+
+                if (matchGetArgument(e, AstCode.Inc, variable, argument) &&
+                    (v = variable.get()) != null &&
+                    matchNumericLdC(argument.get(), valueBox)) {
+
+                    variable.set(v);
+                    return true;
+                }
+
+                //noinspection ConstantConditions
+                if (matchGetArgument(e, code, valueBox, argument) &&
+                    valueBox.get() instanceof Number &&
+                    matchLoad(argument.get(), variable)) {
+
+                    return true;
+                }
+            }
+        }
+
+        variable.set(null);
+        return false;
+    }
+
+    public static boolean matchVariableIncDec(
+        final Node node,
+        final StrongBox<Variable> variable,
+        final StrongBox<Number> amount) {
+
+        if (node instanceof Expression) {
+            final Expression e = (Expression) node;
+            final AstCode code = e.getCode();
+
+            if (code.isIncDec()) {
+                final StrongBox<Expression> argument = new StrongBox<>();
+
+                if (matchGetArgument(e, AstCode.Inc, variable, argument) &&
+                    matchNumericLdC(argument.get(), amount)) {
+
+                    return true;
+                }
+
+                //noinspection ConstantConditions
+                if (matchGetArgument(e, code, amount, argument) &&
+                    amount.get() instanceof Number &&
+                    matchLoad(argument.get(), variable)) {
+
+                    return true;
+                }
+            }
+        }
+
+        variable.set(null);
+        amount.set(null);
+        return false;
+    }
+
+    public static boolean matchStore(
+        final Node node,
+        final StrongBox<Variable> variable,
+        final StrongBox<Expression> argument) {
+
         return matchGetArgument(node, AstCode.Store, variable, argument);
     }
 
-    public static boolean matchStore(final Node node, final StrongBox<Variable> variable, final List<Expression> argument) {
+    public static boolean matchStore(
+        final Node node,
+        final StrongBox<Variable> variable,
+        final List<Expression> argument) {
+
         return matchGetArguments(node, AstCode.Store, variable, argument);
     }
 
@@ -582,7 +692,11 @@ public final class PatternMatching {
                Comparer.equals(((Expression) node).getOperand(), expectedVariable);
     }
 
-    public static boolean matchStore(final Node node, final Variable expectedVariable, final StrongBox<Expression> value) {
+    public static boolean matchStore(
+        final Node node,
+        final Variable expectedVariable,
+        final StrongBox<Expression> value) {
+
         final StrongBox<Variable> v = new StrongBox<>();
 
         if (matchGetArgument(node, AstCode.Store, v, value) &&
@@ -596,14 +710,22 @@ public final class PatternMatching {
         return false;
     }
 
-    public static boolean matchLoad(final Node node, final Variable expectedVariable, final StrongBox<Expression> argument) {
+    public static boolean matchLoad(
+        final Node node,
+        final Variable expectedVariable,
+        final StrongBox<Expression> argument) {
+
         final StrongBox<Variable> operand = new StrongBox<>();
 
         return matchGetArgument(node, AstCode.Load, operand, argument) &&
                Comparer.equals(operand.get(), expectedVariable);
     }
 
-    public static boolean matchLoadStore(final Node node, final Variable expectedVariable, final StrongBox<Variable> targetVariable) {
+    public static boolean matchLoadStore(
+        final Node node,
+        final Variable expectedVariable,
+        final StrongBox<Variable> targetVariable) {
+
         final StrongBox<Expression> temp = new StrongBox<>();
 
         if (matchGetArgument(node, AstCode.Store, targetVariable, temp) &&
@@ -616,7 +738,11 @@ public final class PatternMatching {
         return false;
     }
 
-    public static boolean matchLoadStoreAny(final Node node, final Iterable<Variable> expectedVariables, final StrongBox<Variable> targetVariable) {
+    public static boolean matchLoadStoreAny(
+        final Node node,
+        final Iterable<Variable> expectedVariables,
+        final StrongBox<Variable> targetVariable) {
+
         for (final Variable variable : VerifyArgument.notNull(expectedVariables, "expectedVariables")) {
             if (matchLoadStore(node, variable, targetVariable)) {
                 return true;
@@ -626,7 +752,11 @@ public final class PatternMatching {
         return false;
     }
 
-    public static boolean matchBooleanComparison(final Node node, final StrongBox<Expression> argument, final StrongBox<Boolean> comparand) {
+    public static boolean matchBooleanComparison(
+        final Node node,
+        final StrongBox<Expression> argument,
+        final StrongBox<Boolean> comparand) {
+
         final List<Expression> a = new ArrayList<>(2);
 
         if (matchGetArguments(node, AstCode.CmpEq, a) || matchGetArguments(node, AstCode.CmpNe, a)) {
@@ -652,7 +782,11 @@ public final class PatternMatching {
         return false;
     }
 
-    public static boolean matchComparison(final Node node, final StrongBox<Expression> left, final StrongBox<Expression> right) {
+    public static boolean matchComparison(
+        final Node node,
+        final StrongBox<Expression> left,
+        final StrongBox<Expression> right) {
+
         if (node instanceof Expression) {
             final Expression e = (Expression) node;
 
