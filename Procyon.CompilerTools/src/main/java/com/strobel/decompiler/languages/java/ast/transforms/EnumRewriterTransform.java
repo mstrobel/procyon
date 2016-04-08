@@ -345,6 +345,11 @@ public class EnumRewriterTransform implements IAstTransform {
                 enumDeclaration.putUserData(Keys.FIELD_DEFINITION, field.getUserData(Keys.FIELD_DEFINITION));
                 enumDeclaration.putUserData(Keys.MEMBER_REFERENCE, field.getUserData(Keys.MEMBER_REFERENCE));
 
+                for (final Annotation annotation : field.getAnnotations()) {
+                    annotation.remove();
+                    enumDeclaration.getAnnotations().add(annotation);
+                }
+
                 if (resolvedConstructor != null) {
                     enumDeclaration.putUserData(Keys.TYPE_DEFINITION, resolvedConstructor.getDeclaringType());
                 }
