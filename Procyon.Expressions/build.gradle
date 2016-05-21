@@ -1,4 +1,5 @@
 dependencies {
+    compile project(':Procyon.Core')
     compile project(':Procyon.Reflection')
 }
 
