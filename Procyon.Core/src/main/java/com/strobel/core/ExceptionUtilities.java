@@ -164,7 +164,7 @@ public final class ExceptionUtilities {
      * <p>Example:</p>
      * <pre>
      * public static &lt;T, R&gt; Function&lt;T, R&gt; throwing(final Throwable t) {
-     *     return _ -> ExceptionUtilities.rethrowAs(t);
+     *     return _ -&gt; ExceptionUtilities.rethrowAs(t);
      * }</pre>
      *
      * @return This method will never return a value; it always throws.
