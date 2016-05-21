@@ -461,6 +461,11 @@ public class BytecodeLanguage extends Language {
     }
 
     private void writeFieldAttribute(final ITextOutput output, final FieldDefinition field, final SourceAttribute attribute) {
+        if (attribute instanceof BlobAttribute) {
+            writeBlobAttribute(output, (BlobAttribute) attribute);
+            return;
+        }
+
         switch (attribute.getName()) {
             case AttributeNames.ConstantValue: {
                 final Object constantValue = ((ConstantValueAttribute) attribute).getValue();
@@ -651,6 +656,17 @@ public class BytecodeLanguage extends Language {
 
     @SuppressWarnings("ConstantConditions")
     private void writeMethodAttribute(final ITextOutput output, final MethodDefinition method, final SourceAttribute attribute) {
+        if (attribute instanceof BlobAttribute) {
+            output.indent();
+            try {
+                writeBlobAttribute(output, (BlobAttribute) attribute);
+            }
+            finally {
+                output.unindent();
+            }
+            return;
+        }
+
         switch (attribute.getName()) {
             case AttributeNames.Exceptions: {
                 final ExceptionsAttribute exceptionsAttribute = (ExceptionsAttribute) attribute;
@@ -1022,7 +1038,7 @@ public class BytecodeLanguage extends Language {
                             isFinally = false;
                         }
                         else {
-                            catchType = getResolver(body).lookupType("java/lang/Throwable");
+                            catchType = body.getResolver().lookupType("java/lang/Throwable");
                             isFinally = true;
                         }
 
@@ -1090,24 +1106,6 @@ public class BytecodeLanguage extends Language {
         }
 
         return BytecodeOutputOptions.createDefault();
-    }
-
-    private static IMetadataResolver getResolver(final MethodBody body) {
-        final MethodReference method = body.getMethod();
-
-        if (method != null) {
-            final MethodDefinition resolvedMethod = method.resolve();
-
-            if (resolvedMethod != null) {
-                final TypeDefinition declaringType = resolvedMethod.getDeclaringType();
-
-                if (declaringType != null) {
-                    return declaringType.getResolver();
-                }
-            }
-        }
-
-        return MetadataSystem.instance();
     }
 
     private final static class InstructionPrinter implements InstructionVisitor {

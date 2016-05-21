@@ -1428,6 +1428,14 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeAnnotations(node.getAnnotations(), true);
         writeModifiers(node.getModifiers());
 
+        final AstNodeCollection<TypeParameterDeclaration> typeParameters = node.getTypeParameters();
+
+        if (any(typeParameters)) {
+            space();
+            writeTypeParameters(typeParameters);
+            space();
+        }
+
         final AstNode parent = node.getParent();
         final TypeDeclaration type = parent instanceof TypeDeclaration ? (TypeDeclaration) parent : null;
 

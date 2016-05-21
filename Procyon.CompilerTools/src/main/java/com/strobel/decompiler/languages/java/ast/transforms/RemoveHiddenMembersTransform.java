@@ -127,6 +127,8 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
 
             if (!context.getSettings().getShowSyntheticMembers() &&
                 node.getParameters().isEmpty() &&
+                node.getTypeParameters().isEmpty() &&
+                node.getAnnotations().isEmpty() &&
                 DEFAULT_CONSTRUCTOR_BODY.matches(node.getBody())) {
 
                 //

@@ -23,6 +23,10 @@ import com.strobel.decompiler.patterns.Match;
 public class ConstructorDeclaration extends EntityDeclaration {
     public final static TokenRole THROWS_KEYWORD = MethodDeclaration.THROWS_KEYWORD;
 
+    public final AstNodeCollection<TypeParameterDeclaration> getTypeParameters() {
+        return getChildrenByRole(Roles.TYPE_PARAMETER);
+    }
+
     public final AstNodeCollection<ParameterDeclaration> getParameters() {
         return getChildrenByRole(Roles.PARAMETER);
     }
@@ -65,6 +69,7 @@ public class ConstructorDeclaration extends EntityDeclaration {
             return !otherDeclaration.isNull() &&
                    matchString(getName(), otherDeclaration.getName()) &&
                    matchAnnotationsAndModifiers(otherDeclaration, match) &&
+                   getTypeParameters().matches(otherDeclaration.getTypeParameters(), match) &&
                    getParameters().matches(otherDeclaration.getParameters(), match) &&
                    getBody().matches(otherDeclaration.getBody(), match);
         }

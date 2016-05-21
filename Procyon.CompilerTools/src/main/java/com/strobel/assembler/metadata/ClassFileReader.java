@@ -422,8 +422,8 @@ public final class ClassFileReader extends MetadataReader {
                         declaringMethod = null;
                     }
                 }
-                catch (final Throwable t) {
-                    throw ExceptionUtilities.asRuntimeException(t);
+                catch (final Exception e) {
+                    throw ExceptionUtilities.asRuntimeException(e);
                 }
 
                 if (declaringMethod != null) {
@@ -1071,8 +1071,8 @@ public final class ClassFileReader extends MetadataReader {
                 }
             }
         }
-        catch (final Throwable t) {
-            throw ExceptionUtilities.asRuntimeException(t);
+        catch (final Exception e) {
+            throw ExceptionUtilities.asRuntimeException(e);
         }
     }
 

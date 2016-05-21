@@ -104,8 +104,8 @@ public abstract class DecompilerTest {
                 expectedOutput
             );
         }
-        catch (final Throwable t) {
-            throw ExceptionUtilities.rethrow(t);
+        catch (final Exception e) {
+            throw ExceptionUtilities.asRuntimeException(e);
         }
     }
     protected void verifyOutput(final String internalName, final DecompilerSettings settings, final String expectedOutput) {
