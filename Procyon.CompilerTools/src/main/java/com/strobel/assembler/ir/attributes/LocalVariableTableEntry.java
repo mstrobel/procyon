@@ -26,21 +26,27 @@ public final class LocalVariableTableEntry {
     private final int _index;
     private final String _name;
     private final TypeReference _type;
+    private final String _originalSignature;
     private final int _scopeOffset;
     private final int _scopeLength;
+    private final boolean _isBadType;
 
     public LocalVariableTableEntry(
         final int index,
         final String name,
         final TypeReference type,
+        final String originalSignature,
         final int scopeOffset,
-        final int scopeLength) {
+        final int scopeLength,
+        final boolean isBadType) {
 
         _index = VerifyArgument.isNonNegative(index, "index");
         _name = VerifyArgument.notNull(name, "name");
         _type = VerifyArgument.notNull(type, "type");
+        _originalSignature = VerifyArgument.notNull(originalSignature, "originalSignature");
         _scopeOffset = VerifyArgument.isNonNegative(scopeOffset, "scopeOffset");
         _scopeLength = VerifyArgument.isNonNegative(scopeLength, "scopeLength");
+        _isBadType = isBadType;
     }
 
     public int getIndex() {
@@ -63,14 +69,24 @@ public final class LocalVariableTableEntry {
         return _scopeLength;
     }
 
+    public String getOriginalSignature() {
+        return _originalSignature;
+    }
+
+    public boolean isBadType() {
+        return _isBadType;
+    }
+
     @Override
     public String toString() {
         return "LocalVariableTableEntry{" +
                "Index=" + _index +
                ", Name='" + _name + '\'' +
                ", Type=" + _type +
+               ", OriginalSignature=" + _originalSignature +
                ", ScopeOffset=" + _scopeOffset +
                ", ScopeLength=" + _scopeLength +
+               ", IsBadType=" + _isBadType +
                '}';
     }
 }

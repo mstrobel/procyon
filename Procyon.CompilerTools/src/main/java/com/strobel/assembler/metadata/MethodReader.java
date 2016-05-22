@@ -594,8 +594,11 @@ public class MethodReader {
                 variable.setName(entry.getName());
             }
 
-            variable.setVariableType(entry.getType());
-            variable.setTypeKnown(true);
+            if (!entry.isBadType()) {
+                variable.setVariableType(entry.getType());
+                variable.setTypeKnown(true);
+            }
+
             variable.setFromMetadata(true);
             variable.setScopeStart(scopeStart);
             variable.setScopeEnd(scopeEnd);

@@ -99,6 +99,7 @@ public abstract class MetadataReader {
                 final int exceptionTableLength = buffer.readUnsignedShort();
                 final ExceptionTableEntry[] exceptionTable = new ExceptionTableEntry[exceptionTableLength];
 
+
                 for (int k = 0; k < exceptionTableLength; k++) {
                     final int startOffset = buffer.readUnsignedShort();
                     final int endOffset = buffer.readUnsignedShort();
@@ -177,12 +178,23 @@ public abstract class MetadataReader {
                     final String variableName = scope.lookupConstant(nameToken);
                     final String descriptor = scope.lookupConstant(typeToken);
 
+                    TypeReference parsedType;
+
+                    try {
+                        parsedType = getParser().parseTypeSignature(descriptor);
+                    }
+                    catch (final java.lang.Error | Exception ignored) {
+                        parsedType = null;
+                    }
+
                     entries[i] = new LocalVariableTableEntry(
                         variableIndex,
                         variableName,
-                        getParser().parseTypeSignature(descriptor),
+                        parsedType != null ? parsedType : BuiltinTypes.Object,
+                        descriptor,
                         scopeOffset,
-                        scopeLength
+                        scopeLength,
+                        parsedType == null
                     );
                 }
 

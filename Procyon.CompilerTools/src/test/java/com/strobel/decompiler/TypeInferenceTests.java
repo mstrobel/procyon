@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
+@SuppressWarnings("ALL")
 public class TypeInferenceTests extends DecompilerTest {
     private static class A {
         public void test(final String[] array) {
@@ -32,7 +33,6 @@ public class TypeInferenceTests extends DecompilerTest {
     }
 
     private static class B {
-        @SuppressWarnings("LocalCanBeFinal")
         public strictfp void test() {
             double n = 9.007199254740992E15;
             double n2 = n * n;
@@ -63,7 +63,6 @@ public class TypeInferenceTests extends DecompilerTest {
         }
     }
 
-    @SuppressWarnings({ "Convert2Diamond", "LocalCanBeFinal" })
     private static class F {
         public static <T> List<T> safeCopyOf(final Iterable<T> iterable) {
             final ArrayList<T> list = new ArrayList<T>();
@@ -76,7 +75,6 @@ public class TypeInferenceTests extends DecompilerTest {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private static class G {
         public static void test(final String[] args) throws Throwable {
             String s = null;
@@ -110,13 +108,14 @@ public class TypeInferenceTests extends DecompilerTest {
             private static class Inner1 {
                 final Outer outer = null;
             }
+
             private class Inner2 {
                 final Outer<T> outer = null;
             }
         }
     }
 
-        @Test
+    @Test
     public void testBooleanInference() throws Throwable {
         verifyOutput(
             A.class,
