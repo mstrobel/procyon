@@ -18,6 +18,7 @@ package com.strobel.assembler.metadata;
 
 import com.strobel.core.Freezable;
 import com.strobel.core.StringUtilities;
+import com.strobel.core.VerifyArgument;
 
 /**
  * User: Mike Strobel
@@ -29,12 +30,12 @@ public abstract class VariableReference extends Freezable implements IMetadataTy
     private TypeReference _variableType;
 
     protected VariableReference(final TypeReference variableType) {
-        _variableType = variableType;
+        _variableType = VerifyArgument.notNull(variableType, "variableType");
     }
 
     protected VariableReference(final String name, final TypeReference variableType) {
         _name = name;
-        _variableType = variableType;
+        _variableType = VerifyArgument.notNull(variableType, "variableType");
     }
 
     public final String getName() {
