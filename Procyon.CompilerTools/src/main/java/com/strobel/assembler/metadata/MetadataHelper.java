@@ -1793,6 +1793,18 @@ public final class MetadataHelper {
         public TypeReference visitCapturedType(final CapturedType t, final Void ignored) {
             return t.getExtendsBound();
         }
+
+        @Override
+        public TypeReference visitArrayType(final ArrayType t, final Void ignored) {
+            final TypeReference oldElementType = t.getElementType();
+            final TypeReference newElementType = visit(t.getElementType(), ignored);
+
+            if (oldElementType != newElementType) {
+                return newElementType.makeArrayType();
+            }
+
+            return t;
+        }
     };
 
     private final static TypeMapper<Void> LOWER_BOUND_VISITOR = new TypeMapper<Void>() {
@@ -1805,6 +1817,18 @@ public final class MetadataHelper {
         @Override
         public TypeReference visitCapturedType(final CapturedType t, final Void ignored) {
             return t.getSuperBound();
+        }
+
+        @Override
+        public TypeReference visitArrayType(final ArrayType t, final Void ignored) {
+            final TypeReference oldElementType = t.getElementType();
+            final TypeReference newElementType = visit(t.getElementType(), ignored);
+
+            if (oldElementType != newElementType) {
+                return newElementType.makeArrayType();
+            }
+
+            return t;
         }
     };
 

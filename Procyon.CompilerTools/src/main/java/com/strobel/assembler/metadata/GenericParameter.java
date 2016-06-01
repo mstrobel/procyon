@@ -155,7 +155,7 @@ public final class GenericParameter extends TypeDefinition {
                 }
             }
         }
-        return null;
+        return this;
     }
 
     // <editor-fold defaultstate="collapsed" desc="Name and Signature Formatting">

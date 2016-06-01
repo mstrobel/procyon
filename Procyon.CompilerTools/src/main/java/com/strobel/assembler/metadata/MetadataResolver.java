@@ -216,15 +216,17 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
                 final TypeReference referenceType = reference.getFieldType();
                 final TypeReference candidateType = candidate.getFieldType();
 
-                if (candidateType.isGenericParameter() && !referenceType.isGenericParameter()) {
-                    if (areEquivalent(MetadataHelper.getUpperBound(candidateType), referenceType)) {
-                        return candidate;
-                    }
+                if (areEquivalent(candidateType, referenceType)) {
+                    return candidate;
                 }
-                else {
-                    if (areEquivalent(candidateType, referenceType)) {
-                        return candidate;
-                    }
+                
+                final TypeReference rawCandidateType = MetadataHelper.eraseRecursive(candidateType);
+                final TypeReference rawReferenceType = MetadataHelper.eraseRecursive(referenceType);
+
+                if ((rawCandidateType != candidateType || rawReferenceType != referenceType) &&
+                    areEquivalent(rawCandidateType, rawReferenceType)) {
+
+                    return candidate;
                 }
             }
         }
