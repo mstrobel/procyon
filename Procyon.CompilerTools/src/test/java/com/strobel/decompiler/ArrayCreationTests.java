@@ -80,6 +80,14 @@ public class ArrayCreationTests extends DecompilerTest {
         }
     }
 
+    private static class H {
+        int[] arr;
+
+        public void test(final boolean b) {
+            this.arr = b ? new int[] { 1, 2 } : new int[] { 1 };
+        }
+    }
+
     @Test
     public void testSimpleArrayCreation() {
         verifyOutput(
@@ -182,6 +190,20 @@ public class ArrayCreationTests extends DecompilerTest {
             "        y[3][0] = x;\n" +
             "        final long[] z = { 0L };\n" +
             "        z[0] = -(int)z[0];\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testArrayInitExpressionsWithinTernaryOperator() {
+        verifyOutput(
+            H.class,
+            defaultSettings(),
+            "private static class H {\n" +
+            "    int[] arr;\n" +
+            "    public void test(final boolean b) {\n" +
+            "        this.arr = (b ? new int[] { 1, 2 } : new int[] { 1 });\n" +
             "    }\n" +
             "}\n"
         );

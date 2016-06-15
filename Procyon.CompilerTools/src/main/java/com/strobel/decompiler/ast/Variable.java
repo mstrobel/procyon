@@ -51,6 +51,10 @@ public final class Variable {
         return _isGenerated;
     }
 
+    public final boolean isGeneratedStackVariable() {
+        return _isGenerated && _name != null && _name.startsWith("stack_");
+    }
+
     public final void setGenerated(final boolean generated) {
         _isGenerated = generated;
     }
