@@ -312,6 +312,8 @@ public class ThirdPartyTests extends DecompilerTest {
             "    static long l;\n" +
             "    static float f;\n" +
             "    static double d;\n" +
+            "    private LiteralAssignments() {\n" +
+            "    }\n" +
             "    public static void testByteAssignments() {\n" +
             "        LiteralAssignments.b = -128;\n" +
             "        LiteralAssignments.b = 127;\n" +
