@@ -224,6 +224,24 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         return null;
     }
 
+    @Override
+    public Void visitArrayInitializerExpression(final ArrayInitializerExpression node, final Void data) {
+        super.visitArrayInitializerExpression(node, data);
+
+        ArrayCreationExpression creation =
+            (ArrayCreationExpression) firstOrDefault(node.getAncestors(), Predicates.<AstNode>instanceOf(ArrayCreationExpression.class));
+
+        if(creation == null || !creation.getAdditionalArraySpecifiers().hasSingleElement()) {
+            return null;
+        }
+
+        for(Expression element : node.getElements()) {
+            addCastForAssignment(creation.getType(), element);
+        }
+
+        return null;
+    }
+
     private boolean addCastForAssignment(final AstNode left, final Expression right) {
         final ResolveResult targetResult = _resolver.apply(left);
 
