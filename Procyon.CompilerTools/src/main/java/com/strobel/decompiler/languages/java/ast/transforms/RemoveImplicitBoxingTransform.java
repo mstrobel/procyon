@@ -228,14 +228,41 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         final MethodReference unboxMethod = (MethodReference) e.getUserData(Keys.MEMBER_REFERENCE);
         final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
 
-        boxedValue.remove();
+        //
+        // If we have a situation where we're unboxing an boxed value, we do some additional
+        // analysis to make sure we end up with a concise but *legal* type conversion.
+        //
+        // For example, given `f(double _d)`, `g(int _i)`, a Double `d` and an Integer `i`:
+        //
+        // `f(i.floatValue())` can be simplified to `f((double)i)` or even `f(i)`
+        //
+        // ...but...
+        //
+        // `g(d.intValue())` cannot be simplified to `g((int)d)`. A boxed type `S` can only
+        // be cast to a primitive type `t` if there exists an implicit conversion from
+        // the underlying primitive type `s` to `t`.
+        //
+        final TypeReference targetType = unboxMethod.getReturnType();
+        final TypeReference sourceType = unboxMethod.getDeclaringType();
 
-        e.replaceWith(
-            new CastExpression(
-                astBuilder.convertType(unboxMethod.getReturnType()),
-                boxedValue
-            )
-        );
+        switch (MetadataHelper.getNumericConversionType(targetType, sourceType)) {
+            case IDENTITY:
+            case IMPLICIT: {
+                boxedValue.remove();
+
+                e.replaceWith(
+                    new CastExpression(
+                        astBuilder.convertType(unboxMethod.getReturnType()),
+                        boxedValue
+                    )
+                );
+                return;
+            }
+
+            default: {
+                return;
+            }
+        }
     }
 
     private void removeUnboxingForArgument(final InvocationExpression e) {
