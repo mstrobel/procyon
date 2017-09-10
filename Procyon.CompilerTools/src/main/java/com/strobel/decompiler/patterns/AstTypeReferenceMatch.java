@@ -16,27 +16,31 @@
 
 package com.strobel.decompiler.patterns;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.metadata.TypeReference;
-import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.languages.java.ast.AstType;
 import com.strobel.decompiler.languages.java.ast.Keys;
-import com.strobel.decompiler.languages.java.ast.TypeReferenceExpression;
 
-public final class TypeReferenceDescriptorComparisonNode extends Pattern {
-    private final String _descriptor;
+public final class AstTypeReferenceMatch extends Pattern {
+    private final TypeReference _type;
 
-    public TypeReferenceDescriptorComparisonNode(final String descriptor) {
-        _descriptor = VerifyArgument.notNull(descriptor, "descriptor");
+    public AstTypeReferenceMatch(final TypeReference type) {
+        _type = VerifyArgument.notNull(type, "type");
+    }
+
+    @NotNull
+    public final TypeReference getType() {
+        return _type;
     }
 
     @Override
     public boolean matches(final INode other, final Match match) {
-        if (other instanceof TypeReferenceExpression) {
-            final TypeReferenceExpression typeReferenceExpression = (TypeReferenceExpression) other;
-            final TypeReference typeReference = typeReferenceExpression.getType().getUserData(Keys.TYPE_REFERENCE);
+        if (other instanceof AstType) {
+            final TypeReference otherType = ((AstType) other).getUserData(Keys.TYPE_REFERENCE);
 
-            return typeReference != null &&
-                   StringUtilities.equals(_descriptor, typeReference.getInternalName());
+            return otherType != null &&
+                   _type.isEquivalentTo(otherType);
         }
         return false;
     }

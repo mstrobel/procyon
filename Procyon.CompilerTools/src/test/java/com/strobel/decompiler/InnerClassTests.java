@@ -72,7 +72,6 @@ public class InnerClassTests extends DecompilerTest {
             return new Iterable<String>() {
                 private final boolean y = b;
 
-                @NotNull
                 @Override
                 public Iterator<String> iterator() {
                     return new Iterator<String>() {
@@ -102,7 +101,6 @@ public class InnerClassTests extends DecompilerTest {
             final class MethodScopedIterable implements Iterable<String> {
                 private final boolean y = b;
 
-                @NotNull
                 @Override
                 public Iterator<String> iterator() {
                     return new Iterator<String>() {
@@ -477,7 +475,6 @@ public class InnerClassTests extends DecompilerTest {
             "    public Iterable<String> test(final boolean b) {\n" +
             "        return new Iterable<String>() {\n" +
             "            private final boolean y = b;\n" +
-            "            @NotNull\n" +
             "            @Override\n" +
             "            public Iterator<String> iterator() {\n" +
             "                return new Iterator<String>() {\n" +
@@ -510,7 +507,6 @@ public class InnerClassTests extends DecompilerTest {
             "    public Iterable<String> test(final boolean b) {\n" +
             "        final class MethodScopedIterable implements Iterable<String> {\n" +
             "            private final boolean y = b;\n" +
-            "            @NotNull\n" +
             "            @Override\n" +
             "            public Iterator<String> iterator() {\n" +
             "                return new Iterator<String>() {\n" +

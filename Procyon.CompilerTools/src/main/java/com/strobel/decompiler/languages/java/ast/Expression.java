@@ -164,5 +164,9 @@ public abstract class Expression extends AstNode {
         return new MemberReferenceExpression(this.getOffset(), this, memberName);
     }
 
+    public CastExpression cast(final AstType type) {
+        return new CastExpression(type, this);
+    }
+
     // </editor-fold>
 }

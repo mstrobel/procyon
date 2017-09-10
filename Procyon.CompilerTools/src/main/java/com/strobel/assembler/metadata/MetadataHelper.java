@@ -51,6 +51,30 @@ public final class MetadataHelper {
         return rank;
     }
 
+    @Nullable
+    public static TypeDefinition getOutermostEnclosingType(final TypeReference innerType) {
+        if (innerType == null) {
+            return null;
+        }
+
+        TypeReference t = innerType;
+
+        while (t != null) {
+            final TypeDefinition r = t.resolve();
+
+            if (r == null || !r.isNested()) {
+                return r;
+            }
+
+            final MethodReference m = r.getDeclaringMethod();
+
+            t = m != null ? m.getDeclaringType()
+                          : t.getDeclaringType();
+        }
+
+        return null;
+    }
+
     public static boolean isEnclosedBy(final TypeReference innerType, final TypeReference outerType) {
         if (innerType == null || outerType == null || BuiltinTypes.Object.isEquivalentTo(outerType)) {
             return false;

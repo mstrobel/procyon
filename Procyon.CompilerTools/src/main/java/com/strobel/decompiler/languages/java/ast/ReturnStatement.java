@@ -22,8 +22,17 @@ import com.strobel.decompiler.patterns.Match;
 public class ReturnStatement extends Statement {
     public final static TokenRole RETURN_KEYWORD_ROLE = new TokenRole("return", TokenRole.FLAG_KEYWORD);
 
+    public ReturnStatement() {
+        super(Expression.MYSTERY_OFFSET);
+    }
+
     public ReturnStatement(final int offset) {
         super(offset);
+    }
+
+    public ReturnStatement(final Expression returnValue) {
+        super(returnValue.getOffset());
+        setExpression(returnValue);
     }
 
     public ReturnStatement(final int offset, final Expression returnValue) {

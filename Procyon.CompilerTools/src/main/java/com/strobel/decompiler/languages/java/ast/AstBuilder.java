@@ -641,7 +641,7 @@ public final class AstBuilder {
         return astField;
     }
 
-    private MethodDeclaration createMethod(final MethodDefinition method) {
+    public final MethodDeclaration createMethod(final MethodDefinition method) {
         final MethodDeclaration astMethod = new MethodDeclaration();
 
         final Set<Modifier> modifiers;

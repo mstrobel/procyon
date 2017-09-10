@@ -133,22 +133,33 @@ public abstract class AstType extends AstNode {
     }
 
     public InvocationExpression invoke(final String methodName, final Expression... arguments) {
-        return new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this).invoke(methodName, arguments);
+        return reference().invoke(methodName, arguments);
     }
 
     public InvocationExpression invoke(final String methodName, final Iterable<Expression> arguments) {
-        return new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this).invoke(methodName, arguments);
+        return reference().invoke(methodName, arguments);
     }
 
     public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Expression... arguments) {
-        return new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this).invoke(methodName, typeArguments, arguments);
+        return reference().invoke(methodName, typeArguments, arguments);
     }
 
     public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Iterable<Expression> arguments) {
-        return new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this).invoke(methodName, typeArguments, arguments);
+        return reference().invoke(methodName, typeArguments, arguments);
     }
 
     public MemberReferenceExpression member(final String memberName) {
-        return new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this).member(memberName);
+        return reference().member(memberName);
+    }
+
+    private TypeReferenceExpression reference() {
+        final TypeReferenceExpression t = new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this);
+        final TypeReference r = getUserData(Keys.TYPE_REFERENCE);
+
+        if (r != null) {
+            t.putUserData(Keys.TYPE_REFERENCE, r);
+        }
+
+        return t;
     }
 }

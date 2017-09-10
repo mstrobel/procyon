@@ -22,6 +22,8 @@ public final class CommonTypeReferences {
     public final static TypeReference Object;
     public final static TypeReference String;
     public final static TypeReference Serializable;
+    public final static TypeReference Class;
+    public final static TypeReference Throwable;
 
     public final static TypeReference Number;
 
@@ -41,6 +43,8 @@ public final class CommonTypeReferences {
         Object = parser.parseTypeDescriptor("java/lang/Object");
         String = parser.parseTypeDescriptor("java/lang/String");
         Serializable = parser.parseTypeDescriptor("java/lang/Serializable");
+        Class = parser.parseTypeDescriptor("java/lang/Class");
+        Throwable = parser.parseTypeDescriptor("java/lang/Throwable");
 
         Number = parser.parseTypeDescriptor("java/lang/Number");
 
