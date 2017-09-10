@@ -646,8 +646,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         else if (childNode instanceof ParameterReferenceNode) {
             visitParameterReferenceNode((ParameterReferenceNode) childNode);
         }
-        else if (childNode instanceof AstTypeReferenceMatch) {
-            visitAstTypeReferenceMatch((AstTypeReferenceMatch) childNode);
+        else if (childNode instanceof AstTypeMatch) {
+            visitAstTypeMatch((AstTypeMatch) childNode);
 
         }
         else {
@@ -752,7 +752,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         rightParenthesis();
     }
 
-    private void visitAstTypeReferenceMatch(final AstTypeReferenceMatch repeat) {
+    private void visitAstTypeMatch(final AstTypeMatch repeat) {
         final SimpleType t = new SimpleType(repeat.getType().getFullName());
 
         t.putUserData(Keys.TYPE_REFERENCE, repeat.getType());

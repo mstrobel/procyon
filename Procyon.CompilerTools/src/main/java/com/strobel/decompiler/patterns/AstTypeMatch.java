@@ -22,10 +22,10 @@ import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.languages.java.ast.AstType;
 import com.strobel.decompiler.languages.java.ast.Keys;
 
-public final class AstTypeReferenceMatch extends Pattern {
+public final class AstTypeMatch extends Pattern {
     private final TypeReference _type;
 
-    public AstTypeReferenceMatch(final TypeReference type) {
+    public AstTypeMatch(final TypeReference type) {
         _type = VerifyArgument.notNull(type, "type");
     }
 

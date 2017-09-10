@@ -133,26 +133,26 @@ public abstract class AstType extends AstNode {
     }
 
     public InvocationExpression invoke(final String methodName, final Expression... arguments) {
-        return reference().invoke(methodName, arguments);
+        return makeReference().invoke(methodName, arguments);
     }
 
     public InvocationExpression invoke(final String methodName, final Iterable<Expression> arguments) {
-        return reference().invoke(methodName, arguments);
+        return makeReference().invoke(methodName, arguments);
     }
 
     public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Expression... arguments) {
-        return reference().invoke(methodName, typeArguments, arguments);
+        return makeReference().invoke(methodName, typeArguments, arguments);
     }
 
     public InvocationExpression invoke(final String methodName, final Iterable<AstType> typeArguments, final Iterable<Expression> arguments) {
-        return reference().invoke(methodName, typeArguments, arguments);
+        return makeReference().invoke(methodName, typeArguments, arguments);
     }
 
     public MemberReferenceExpression member(final String memberName) {
-        return reference().member(memberName);
+        return makeReference().member(memberName);
     }
 
-    private TypeReferenceExpression reference() {
+    public TypeReferenceExpression makeReference() {
         final TypeReferenceExpression t = new TypeReferenceExpression(Expression.MYSTERY_OFFSET, this);
         final TypeReference r = getUserData(Keys.TYPE_REFERENCE);
 
@@ -161,5 +161,17 @@ public abstract class AstType extends AstNode {
         }
 
         return t;
+    }
+
+    public ObjectCreationExpression makeNew() {
+        return new ObjectCreationExpression(Expression.MYSTERY_OFFSET, this, Expression.EMPTY_EXPESSIONS);
+    }
+
+    public ObjectCreationExpression makeNew(final Expression... arguments) {
+        return new ObjectCreationExpression(Expression.MYSTERY_OFFSET, this, arguments);
+    }
+
+    public ObjectCreationExpression makeNew(final Iterable<Expression> arguments) {
+        return new ObjectCreationExpression(Expression.MYSTERY_OFFSET, this, arguments);
     }
 }

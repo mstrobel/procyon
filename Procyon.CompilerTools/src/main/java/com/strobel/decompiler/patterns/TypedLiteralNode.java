@@ -19,16 +19,16 @@ package com.strobel.decompiler.patterns;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.languages.java.ast.PrimitiveExpression;
 
-public final class TypedPrimitiveValueNode extends Pattern {
+public final class TypedLiteralNode extends Pattern {
     private final String _groupName;
     private final Class<?> _primitiveType;
 
-    public TypedPrimitiveValueNode(final Class<?> primitiveType) {
+    public TypedLiteralNode(final Class<?> primitiveType) {
         _groupName = null;
         _primitiveType = VerifyArgument.notNull(primitiveType, "primitiveType");
     }
 
-    public TypedPrimitiveValueNode(final String groupName, final Class<?> primitiveType) {
+    public TypedLiteralNode(final String groupName, final Class<?> primitiveType) {
         _groupName = groupName;
         _primitiveType = VerifyArgument.notNull(primitiveType, "primitiveType");
     }

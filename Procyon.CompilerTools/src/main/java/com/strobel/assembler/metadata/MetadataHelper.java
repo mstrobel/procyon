@@ -53,10 +53,6 @@ public final class MetadataHelper {
 
     @Nullable
     public static TypeDefinition getOutermostEnclosingType(final TypeReference innerType) {
-        if (innerType == null) {
-            return null;
-        }
-
         TypeReference t = innerType;
 
         while (t != null) {

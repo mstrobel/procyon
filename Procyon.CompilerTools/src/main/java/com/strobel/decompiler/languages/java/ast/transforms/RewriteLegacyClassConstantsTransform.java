@@ -171,16 +171,8 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
             //         return Class.forName(s);
             //     }
             //     catch (ClassNotFoundException ex) {
-            //         throw new NoClassDefFoundError().initCause((Throwable)ex);
-            //     }
-            // }
-            //
-            // static /* synthetic */ Class class$(final String x0) {
-            //     try {
-            //         return Class.forName(x0);
-            //     }
-            //     catch (ClassNotFoundException ex) {
-            //         throw new NoClassDefFoundError(ex.getMessage());
+            //         /* 1.4 */ throw new NoClassDefFoundError().initCause((Throwable)ex);
+            //         /* 1.2 */ throw new NoClassDefFoundError(ex.getMessage());
             //     }
             // }
             //
@@ -191,57 +183,50 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
             final TypeReference classNotFoundException = parser.parseTypeDescriptor("java/lang/ClassNotFoundException");
             final TypeReference noClassDefFoundError = parser.parseTypeDescriptor("java/lang/NoClassDefFoundError");
 
+            final AstType classType = new AstTypeMatch(CommonTypeReferences.Class).toType();
+            final AstType throwable = new AstTypeMatch(CommonTypeReferences.Throwable).toType();
+
             method.setName(Pattern.ANY_STRING);
             method.getModifiers().add(new JavaModifierToken(Modifier.STATIC));
-            method.setReturnType(new AstTypeReferenceMatch(CommonTypeReferences.Class).toType());
+            method.setReturnType(classType);
 
             method.getParameters().add(
                 new ParameterDeclaration(
                     Pattern.ANY_STRING,
-                    new AstTypeReferenceMatch(CommonTypeReferences.String).toType()
+                    new AstTypeMatch(CommonTypeReferences.String).toType()
                 )
             );
 
             final BlockStatement tryBlock = new BlockStatement(
-                new ReturnStatement(
-                    new InvocationExpression(
-                        new MemberReferenceExpression(
-                            new TypeReferenceExpression(
-                                new AstTypeReferenceMatch(CommonTypeReferences.Class).toType()
-                            ),
-                            "forName"
-                        ),
-                        new ParameterReferenceNode(0).toExpression()
-                    )
-                )
+                classType.clone()
+                         .makeReference()
+                         .invoke("forName", new ParameterReferenceNode(0).toExpression())
+                         .makeReturn()
             );
 
-            final BlockStatement catchBlock = new BlockStatement(
-                new ThrowStatement(
-                    new ObjectCreationExpression(new AstTypeReferenceMatch(noClassDefFoundError).toType()).invoke(
-                        "initCause",
-                        new CastExpression(
-                            new AstTypeReferenceMatch(CommonTypeReferences.Throwable).toType(),
-                            new IdentifierExpressionBackReference("catch").toExpression()
-                        )
-                    )
+            final BlockStatement catchBlock = new Choice(
+                // Java 1.4 Pattern: throw new NoClassDefFoundError().initCause((Throwable)ex);
+                new BlockStatement(
+                    new AstTypeMatch(noClassDefFoundError)
+                        .toType()
+                        .makeNew()
+                        .invoke("initCause", new IdentifierExpressionBackReference("catch").toExpression().cast(throwable))
+                        .makeThrow()
+                ),
+                // Java 1.2 Pattern: throw new NoClassDefFoundError(ex.getMessage());
+                new BlockStatement(
+                    new AstTypeMatch(noClassDefFoundError)
+                        .toType()
+                        .makeNew(new IdentifierExpressionBackReference("catch").toExpression().invoke("getMessage"))
+                        .makeThrow()
                 )
-            );
-
-            final BlockStatement alternateCatchBlock = new BlockStatement(
-                new ThrowStatement(
-                    new ObjectCreationExpression(
-                        new AstTypeReferenceMatch(noClassDefFoundError).toType(),
-                        new IdentifierExpressionBackReference("catch").toExpression().invoke("getMessage")
-                    )
-                )
-            );
+            ).toBlockStatement();
 
             final CatchClause catchClause = new CatchClause();
 
             catchClause.setVariableName(Pattern.ANY_STRING);
-            catchClause.getExceptionTypes().add(new AstTypeReferenceMatch(classNotFoundException).toType());
-            catchClause.setBody(new Choice(catchBlock, alternateCatchBlock).toBlockStatement());
+            catchClause.getExceptionTypes().add(new AstTypeMatch(classNotFoundException).toType());
+            catchClause.setBody(catchBlock);
 
             final TryCatchStatement tryCatch = new TryCatchStatement();
 
@@ -250,12 +235,11 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
 
             method.setBody(
                 new BlockStatement(
-                    new OptionalNode(
-                        new VariableDeclarationStatement(
-                            new AstTypeReferenceMatch(classNotFoundException).toType(),
-                            Pattern.ANY_STRING
-                        )
-                    ).toStatement(),
+                    // As yet un-removed variable declaration: ClassNotFoundException ex;
+                    new VariableDeclarationStatement(
+                        new AstTypeMatch(classNotFoundException).toType(),
+                        Pattern.ANY_STRING
+                    ).makeOptional().toStatement(),
                     tryCatch
                 )
             );
@@ -297,7 +281,7 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
                     return null;
                 }
 
-                final PrimitiveExpression className = firstOrDefault(m.<PrimitiveExpression>get("className"));
+                final PrimitiveExpression className = firstOrDefault(m.<PrimitiveExpression>get("class"));
 
                 if (className != null &&
                     className.getValue() instanceof String) {
@@ -321,35 +305,23 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
         // <editor-fold defaultstate="collapsed" desc="Pattern Construction">
 
         private static ConditionalExpression createPattern() {
-            final Expression optionalTypeTarget = new OptionalNode(
-                new TypeReferenceExpression(new AnyNode().toType())
-            ).toExpression();
-
-            final MemberReferenceExpression fieldAccess = new MemberReferenceExpression(
-                optionalTypeTarget,
-                Pattern.ANY_STRING
-            );
+            final Expression target = new TypeReferenceExpression(new AnyNode().toType()).makeOptional().toExpression();
+            final MemberReferenceExpression access = new MemberReferenceExpression(target, Pattern.ANY_STRING);
 
             @SuppressWarnings("UnnecessaryLocalVariable")
             final ConditionalExpression pattern = new ConditionalExpression(
                 new BinaryOperatorExpression(
-                    new NamedNode("fieldAccess", fieldAccess).toExpression(),
+                    access.withName("fieldAccess").toExpression(),
                     BinaryOperatorType.EQUALITY,
                     new NullReferenceExpression()
                 ),
                 new AssignmentExpression(
                     new BackReference("fieldAccess").toExpression(),
                     AssignmentOperatorType.ASSIGN,
-                    new NamedNode(
-                        "methodCall",
-                        new InvocationExpression(
-                            new MemberReferenceExpression(
-                                optionalTypeTarget.clone(),
-                                Pattern.ANY_STRING
-                            ),
-                            new TypedPrimitiveValueNode("className", String.class).toExpression()
-                        )
-                    ).toExpression()
+                    target.clone()
+                          .invoke(Pattern.ANY_STRING, new TypedLiteralNode("class", String.class).toExpression())
+                          .withName("methodCall")
+                          .toExpression()
                 ),
                 new BackReference("fieldAccess").toExpression()
             );

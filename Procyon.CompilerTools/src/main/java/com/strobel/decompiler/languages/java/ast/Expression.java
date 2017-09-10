@@ -24,6 +24,8 @@ import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 
 public abstract class Expression extends AstNode {
+    public final static Expression[] EMPTY_EXPESSIONS = new Expression[0];
+
     // <editor-fold defaultstate="collapsed" desc="Null Expression">
 
     public final static Expression NULL = new NullExpression();
@@ -166,6 +168,14 @@ public abstract class Expression extends AstNode {
 
     public CastExpression cast(final AstType type) {
         return new CastExpression(type, this);
+    }
+
+    public ReturnStatement makeReturn() {
+        return new ReturnStatement(getOffset(), this);
+    }
+
+    public ThrowStatement makeThrow() {
+        return new ThrowStatement(this);
     }
 
     // </editor-fold>
