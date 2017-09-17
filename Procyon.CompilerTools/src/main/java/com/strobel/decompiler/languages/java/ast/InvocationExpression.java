@@ -21,8 +21,17 @@ import com.strobel.decompiler.patterns.Match;
 
 public class InvocationExpression extends Expression {
 
-    public InvocationExpression( int offset, final Expression target, final Iterable<Expression> arguments) {
-        super( offset);
+    public InvocationExpression(final Expression target, final Expression... arguments) {
+        this(target.getOffset(), target, arguments);
+    }
+
+    public InvocationExpression(final Expression target, final Iterable<Expression> arguments) {
+        this(target.getOffset(), target, arguments);
+    }
+
+    public InvocationExpression(final int offset, final Expression target, final Iterable<Expression> arguments) {
+        super(offset);
+
         addChild(target, Roles.TARGET_EXPRESSION);
 
         if (arguments != null) {
@@ -32,8 +41,9 @@ public class InvocationExpression extends Expression {
         }
     }
 
-    public InvocationExpression( int offset, final Expression target, final Expression... arguments) {
-        super( offset);
+    public InvocationExpression(final int offset, final Expression target, final Expression... arguments) {
+        super(offset);
+
         addChild(target, Roles.TARGET_EXPRESSION);
 
         if (arguments != null) {
@@ -62,7 +72,7 @@ public class InvocationExpression extends Expression {
     public final JavaTokenNode getRightParenthesisToken() {
         return getChildByRole(Roles.LEFT_PARENTHESIS);
     }
-    
+
     @Override
     public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
         return visitor.visitInvocationExpression(this, data);

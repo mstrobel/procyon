@@ -404,7 +404,7 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
                             )
                         )
                     ),
-                    new TypedPrimitiveValueNode("tableValue", Integer.class).toExpression()
+                    new TypedLiteralNode("tableValue", Integer.class).toExpression()
                 )
             );
 

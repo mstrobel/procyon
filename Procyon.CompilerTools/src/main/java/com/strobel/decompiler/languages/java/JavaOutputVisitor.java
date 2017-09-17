@@ -646,12 +646,16 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         else if (childNode instanceof ParameterReferenceNode) {
             visitParameterReferenceNode((ParameterReferenceNode) childNode);
         }
+        else if (childNode instanceof AstTypeMatch) {
+            visitAstTypeMatch((AstTypeMatch) childNode);
+
+        }
         else {
             writePrimitiveValue(childNode);
         }
     }
 
-    private void visitTypedNode(final TypedNode node) {
+    private void    visitTypedNode(final TypedNode node) {
         writeKeyword("anyOf");
         leftParenthesis();
         writeIdentifier(node.getNodeType().getSimpleName());
@@ -745,6 +749,17 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         visitNodeInPattern(repeat.getNode());
+        rightParenthesis();
+    }
+
+    private void visitAstTypeMatch(final AstTypeMatch repeat) {
+        final SimpleType t = new SimpleType(repeat.getType().getFullName());
+
+        t.putUserData(Keys.TYPE_REFERENCE, repeat.getType());
+
+        writeKeyword("astType");
+        leftParenthesis();
+        visitSimpleType(t, null);
         rightParenthesis();
     }
 

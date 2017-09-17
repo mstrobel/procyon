@@ -22,10 +22,18 @@ import com.strobel.decompiler.patterns.Pattern;
 /// AST visitor with a default implementation that visits all node depth-first.
 /// </summary>
 public abstract class DepthFirstAstVisitor<T, S> implements IAstVisitor<T, S> {
+    protected boolean shouldContinue() {
+        return true;
+    }
+
     protected S visitChildren(final AstNode node, final T data) {
         AstNode next;
         
         for (AstNode child = node.getFirstChild(); child != null; child = next) {
+            if (!shouldContinue()) {
+                break;
+            }
+
             //
             // Store next to allow the loop to continue if the visitor removes/replaces child.
             //

@@ -430,6 +430,10 @@ public class TextOutputFormatter implements IOutputFormatter {
                 parent = parent.getParent();
             }
 
+            if (parent == null) {
+                return null;
+            }
+
             definition = parent.getUserData(Keys.TYPE_DEFINITION);
 
             if (definition != null) {

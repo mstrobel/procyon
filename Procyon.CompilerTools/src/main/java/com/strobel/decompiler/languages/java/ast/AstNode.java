@@ -34,6 +34,8 @@ import com.strobel.decompiler.languages.java.JavaOutputVisitor;
 import com.strobel.decompiler.patterns.BacktrackingInfo;
 import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.NamedNode;
+import com.strobel.decompiler.patterns.OptionalNode;
 import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 import com.strobel.decompiler.utilities.TreeTraversal;
@@ -791,6 +793,14 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
             return child.matchesCollection(role, position, match, backtrackingInfo);
         }
+    }
+
+    public NamedNode withName(final String name) {
+        return new NamedNode(name, this);
+    }
+
+    public OptionalNode makeOptional() {
+        return new OptionalNode(this);
     }
 
     // </editor-fold>

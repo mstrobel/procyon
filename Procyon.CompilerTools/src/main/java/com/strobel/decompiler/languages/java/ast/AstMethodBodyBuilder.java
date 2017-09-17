@@ -1196,6 +1196,10 @@ public class AstMethodBodyBuilder {
                 convertTypeArguments(methodReference),
                 adjustArgumentsForMethodCall(methodReference, arguments)
             );
+
+            if (target.isNull()) {
+                invocation.setOffset(byteCode.getOffset());
+            }
         }
 
         invocation.putUserData(Keys.MEMBER_REFERENCE, methodReference);

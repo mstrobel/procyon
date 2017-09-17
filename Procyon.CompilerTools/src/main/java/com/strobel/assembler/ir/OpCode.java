@@ -291,6 +291,19 @@ public enum OpCode {
         return _flowControl == FlowControl.Throw;
     }
 
+    public boolean isInvoke() {
+        switch (this) {
+            case INVOKEVIRTUAL:
+            case INVOKESPECIAL:
+            case INVOKESTATIC:
+            case INVOKEINTERFACE:
+            case INVOKEDYNAMIC:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public boolean isJumpToSubroutine() {
         switch (this) {
             case JSR:

@@ -21,8 +21,30 @@ import com.strobel.decompiler.patterns.Match;
 
 public class MemberReferenceExpression extends Expression {
 
-    public MemberReferenceExpression( int offset, final Expression target, final String memberName, final Iterable<AstType> typeArguments) {
-        super( offset);
+    public MemberReferenceExpression(
+        final Expression target,
+        final String memberName,
+        final AstType... typeArguments) {
+
+        this(target.getOffset(), target, memberName, typeArguments);
+    }
+
+    public MemberReferenceExpression(
+        final Expression target,
+        final String memberName,
+        final Iterable<AstType> typeArguments) {
+
+        this(target.getOffset(), target, memberName, typeArguments);
+    }
+
+    public MemberReferenceExpression(
+        final int offset,
+        final Expression target,
+        final String memberName,
+        final Iterable<AstType> typeArguments) {
+
+        super(offset);
+
         addChild(target, Roles.TARGET_EXPRESSION);
 
         setMemberName(memberName);
@@ -34,8 +56,14 @@ public class MemberReferenceExpression extends Expression {
         }
     }
 
-    public MemberReferenceExpression( int offset, final Expression target, final String memberName, final AstType... typeArguments) {
-        super( offset);
+    public MemberReferenceExpression(
+        final int offset,
+        final Expression target,
+        final String memberName,
+        final AstType... typeArguments) {
+
+        super(offset);
+
         addChild(target, Roles.TARGET_EXPRESSION);
 
         setMemberName(memberName);
@@ -78,7 +106,7 @@ public class MemberReferenceExpression extends Expression {
     public final JavaTokenNode getDotToken() {
         return getChildByRole(Roles.DOT);
     }
-    
+
     public final JavaTokenNode getLeftChevronToken() {
         return getChildByRole(Roles.LEFT_CHEVRON);
     }

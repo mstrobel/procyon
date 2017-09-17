@@ -29,6 +29,7 @@ public final class TransformationPipeline {
     @SuppressWarnings("UnusedParameters")
     public static IAstTransform[] createPipeline(final DecompilerContext context) {
         return new IAstTransform[] {
+            new RewriteLegacyClassConstantsTransform(context),
             new EnumRewriterTransform(context),
             new EnumSwitchRewriterTransform(context),
             new EclipseEnumSwitchRewriterTransform(context),

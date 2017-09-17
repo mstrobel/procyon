@@ -34,7 +34,11 @@ public class VariableDeclarationStatement extends Statement {
         super(Expression.MYSTERY_OFFSET);
     }
 
-    public VariableDeclarationStatement(final AstType type, final String name, int offset) {
+    public VariableDeclarationStatement(final AstType type, final String name) {
+        this(type, name, Expression.MYSTERY_OFFSET, null);
+    }
+
+    public VariableDeclarationStatement(final AstType type, final String name, final int offset) {
         this(type, name, offset, null);
     }
 
@@ -42,7 +46,7 @@ public class VariableDeclarationStatement extends Statement {
         this( type, name, Expression.MYSTERY_OFFSET, initializer);
     }
 
-    public VariableDeclarationStatement(final AstType type, final String name, int offset, final Expression initializer) {
+    public VariableDeclarationStatement(final AstType type, final String name, final int offset, final Expression initializer) {
         super(initializer == null ? offset : initializer.getOffset());
         setType(type);
         getVariables().add(new VariableInitializer(name, initializer));
