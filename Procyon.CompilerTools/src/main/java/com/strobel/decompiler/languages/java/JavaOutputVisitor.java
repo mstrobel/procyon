@@ -655,7 +655,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
     }
 
-    private void    visitTypedNode(final TypedNode node) {
+    private void visitTypedNode(final TypedNode node) {
         writeKeyword("anyOf");
         leftParenthesis();
         writeIdentifier(node.getNodeType().getSimpleName());

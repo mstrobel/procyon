@@ -16,8 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
-public enum BinaryOperatorType
-{
+public enum BinaryOperatorType {
     ANY,
     BITWISE_AND,
     BITWISE_OR,
@@ -39,6 +38,17 @@ public enum BinaryOperatorType
     SHIFT_RIGHT,
     UNSIGNED_SHIFT_RIGHT;
 
+    public final boolean isLogical() {
+        switch (this) {
+            case LOGICAL_AND:
+            case LOGICAL_OR:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
     public final boolean isCommutative() {
         switch (this) {
             case BITWISE_AND:
@@ -48,6 +58,50 @@ public enum BinaryOperatorType
             case INEQUALITY:
             case ADD:
             case MULTIPLY:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public final boolean isRelational() {
+        switch (this) {
+            case GREATER_THAN:
+            case GREATER_THAN_OR_EQUAL:
+            case LESS_THAN:
+            case LESS_THAN_OR_EQUAL:
+            case EQUALITY:
+            case INEQUALITY:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public final boolean isArithmetic() {
+        switch (this) {
+            case ADD:
+            case SUBTRACT:
+            case MULTIPLY:
+            case DIVIDE:
+            case MODULUS:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public final boolean isBitwise() {
+        switch (this) {
+            case BITWISE_AND:
+            case BITWISE_OR:
+            case EXCLUSIVE_OR:
+            case SHIFT_LEFT:
+            case SHIFT_RIGHT:
+            case UNSIGNED_SHIFT_RIGHT:
                 return true;
 
             default:

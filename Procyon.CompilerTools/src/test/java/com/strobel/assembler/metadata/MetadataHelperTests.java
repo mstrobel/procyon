@@ -4,6 +4,7 @@ import com.strobel.compilerservices.RuntimeHelpers;
 import org.junit.Test;
 
 import static com.strobel.assembler.metadata.MetadataHelper.isAssignableFrom;
+import static com.strobel.assembler.metadata.ConversionType.*;
 import static com.strobel.core.CollectionUtilities.single;
 import static java.lang.String.format;
 import static org.junit.Assert.*;
@@ -22,6 +23,16 @@ public class MetadataHelperTests {
         { false, false, false, false, true, true, true }, // long
         { false, false, false, false, false, true, true }, // float
         { false, false, false, false, false, false, true }, // double
+    };
+
+    private static final ConversionType[][] CONVERSIONS = {
+        { IDENTITY, IMPLICIT, EXPLICIT, IMPLICIT, IMPLICIT, IMPLICIT, IMPLICIT }, // byte
+        { EXPLICIT, IDENTITY, EXPLICIT, IMPLICIT, IMPLICIT, IMPLICIT, IMPLICIT }, // short
+        { EXPLICIT, EXPLICIT, IDENTITY, IMPLICIT, IMPLICIT, IMPLICIT, IMPLICIT }, // char
+        { EXPLICIT, EXPLICIT, EXPLICIT, IDENTITY, IMPLICIT, IMPLICIT_LOSSY, IMPLICIT }, // int
+        { EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, IDENTITY, IMPLICIT_LOSSY, IMPLICIT_LOSSY }, // long
+        { EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, IDENTITY, IMPLICIT }, // float
+        { EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, IDENTITY }, // double
     };
 
     private static TypeReference string() {
@@ -77,34 +88,12 @@ public class MetadataHelperTests {
 
         for (int i = 0, n = IS_ASSIGNABLE_BIT_SET.length; i < n; i++) {
             for (int j = 0; j < n; j++) {
-                assertEquals(
-                    format(
-                        "%s (assignable from) %s = %s",
-                        primitiveTypes[i],
-                        primitiveTypes[j],
-                        IS_ASSIGNABLE_BIT_SET[j][i]
-                    ),
-                    MetadataHelper.isAssignableFrom(
-                        primitiveTypes[i],
-                        primitiveTypes[j]
-                    ),
-                    IS_ASSIGNABLE_BIT_SET[j][i]
-                );
-                assertEquals(
-                    format(
-                        "%s (conversion from) %s = %s",
-                        primitiveTypes[i],
-                        primitiveTypes[j],
-                        IS_ASSIGNABLE_BIT_SET[j][i] ? (i == j ? ConversionType.IDENTITY : ConversionType.IMPLICIT)
-                                                    : ConversionType.EXPLICIT
-                    ),
-                    MetadataHelper.getConversionType(
-                        primitiveTypes[i],
-                        primitiveTypes[j]
-                    ),
-                    IS_ASSIGNABLE_BIT_SET[j][i] ? (i == j ? ConversionType.IDENTITY : ConversionType.IMPLICIT)
-                                                : ConversionType.EXPLICIT
-                );
+                if (MetadataHelper.isAssignableFrom(primitiveTypes[i], primitiveTypes[j]) != IS_ASSIGNABLE_BIT_SET[j][i]) {
+                    fail(format("%s (assignable from) %s = %s", primitiveTypes[i], primitiveTypes[j], IS_ASSIGNABLE_BIT_SET[j][i]));
+                }
+                if (MetadataHelper.getConversionType(primitiveTypes[i], primitiveTypes[j]) != CONVERSIONS[j][i]) {
+                    fail(format("%s (conversion from) %s = %s", primitiveTypes[i], primitiveTypes[j], CONVERSIONS[j][i]));
+                }
             }
         }
     }

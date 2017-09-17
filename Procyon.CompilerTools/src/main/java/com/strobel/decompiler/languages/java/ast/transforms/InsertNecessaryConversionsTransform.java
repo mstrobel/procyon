@@ -32,7 +32,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 
 public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<Void> {
     private final static ConvertTypeOptions NO_IMPORT_OPTIONS;
@@ -228,14 +228,13 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
     public Void visitArrayInitializerExpression(final ArrayInitializerExpression node, final Void data) {
         super.visitArrayInitializerExpression(node, data);
 
-        ArrayCreationExpression creation =
-            (ArrayCreationExpression) firstOrDefault(node.getAncestors(), Predicates.<AstNode>instanceOf(ArrayCreationExpression.class));
+        final ArrayCreationExpression creation = firstOrDefault(ofType(node.getAncestors(), ArrayCreationExpression.class));
 
-        if(creation == null || !creation.getAdditionalArraySpecifiers().hasSingleElement()) {
+        if (creation == null || !creation.getAdditionalArraySpecifiers().hasSingleElement()) {
             return null;
         }
 
-        for(Expression element : node.getElements()) {
+        for (final Expression element : node.getElements()) {
             addCastForAssignment(creation.getType(), element);
         }
 

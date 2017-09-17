@@ -320,7 +320,7 @@ public class ThirdPartyTests extends DecompilerTest {
             "        LiteralAssignments.b = (byte)(char)(-129);\n" +
             "        LiteralAssignments.b = (byte)(char)(-128);\n" +
             "        LiteralAssignments.b = 127;\n" +
-            "        LiteralAssignments.b = (byte)(char)128;\n" +
+            "        LiteralAssignments.b = (byte)128;\n" +
             "        LiteralAssignments.b = (byte)(-129);\n" +
             "        LiteralAssignments.b = -128;\n" +
             "        LiteralAssignments.b = 127;\n" +

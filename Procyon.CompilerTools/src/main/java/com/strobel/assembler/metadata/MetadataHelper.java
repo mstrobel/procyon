@@ -344,6 +344,7 @@ public final class MetadataHelper {
         return ConversionType.EXPLICIT;
     }
 
+    @NotNull
     public static ConversionType getNumericConversionType(final TypeReference target, final TypeReference source) {
         VerifyArgument.notNull(source, "source");
         VerifyArgument.notNull(target, "target");
@@ -353,35 +354,10 @@ public final class MetadataHelper {
         }
 
         if (!source.isPrimitive()) {
-            final TypeReference unboxedSourceType;
+            final TypeReference unboxedSourceType = getUnderlyingPrimitiveTypeOrSelf(source);
 
-            switch (source.getInternalName()) {
-                case "java/lang/Byte":
-                    unboxedSourceType = BuiltinTypes.Byte;
-                    break;
-                case "java/lang/Character":
-                    unboxedSourceType = BuiltinTypes.Character;
-                    break;
-                case "java/lang/Short":
-                    unboxedSourceType = BuiltinTypes.Short;
-                    break;
-                case "java/lang/Integer":
-                    unboxedSourceType = BuiltinTypes.Integer;
-                    break;
-                case "java/lang/Long":
-                    unboxedSourceType = BuiltinTypes.Long;
-                    break;
-                case "java/lang/Float":
-                    unboxedSourceType = BuiltinTypes.Float;
-                    break;
-                case "java/lang/Double":
-                    unboxedSourceType = BuiltinTypes.Double;
-                    break;
-                case "java/lang/Boolean":
-                    unboxedSourceType = BuiltinTypes.Boolean;
-                    break;
-                default:
-                    return ConversionType.NONE;
+            if (unboxedSourceType == source || unboxedSourceType == BuiltinTypes.Void) {
+                return ConversionType.NONE;
             }
 
             final ConversionType unboxedConversion = getNumericConversionType(target, unboxedSourceType);
@@ -390,6 +366,8 @@ public final class MetadataHelper {
                 case IDENTITY:
                 case IMPLICIT:
                     return ConversionType.IMPLICIT;
+                case IMPLICIT_LOSSY:
+                    return ConversionType.IMPLICIT_LOSSY; // loss of 'null' -> lossy
                 case EXPLICIT:
                     return ConversionType.NONE;
                 default:
@@ -398,35 +376,10 @@ public final class MetadataHelper {
         }
 
         if (!target.isPrimitive()) {
-            final TypeReference unboxedTargetType;
+            final TypeReference unboxedTargetType = getUnderlyingPrimitiveTypeOrSelf(target);
 
-            switch (target.getInternalName()) {
-                case "java/lang/Byte":
-                    unboxedTargetType = BuiltinTypes.Byte;
-                    break;
-                case "java/lang/Character":
-                    unboxedTargetType = BuiltinTypes.Character;
-                    break;
-                case "java/lang/Short":
-                    unboxedTargetType = BuiltinTypes.Short;
-                    break;
-                case "java/lang/Integer":
-                    unboxedTargetType = BuiltinTypes.Integer;
-                    break;
-                case "java/lang/Long":
-                    unboxedTargetType = BuiltinTypes.Long;
-                    break;
-                case "java/lang/Float":
-                    unboxedTargetType = BuiltinTypes.Float;
-                    break;
-                case "java/lang/Double":
-                    unboxedTargetType = BuiltinTypes.Double;
-                    break;
-                case "java/lang/Boolean":
-                    unboxedTargetType = BuiltinTypes.Boolean;
-                    break;
-                default:
-                    return ConversionType.NONE;
+            if (unboxedTargetType == target || unboxedTargetType == BuiltinTypes.Void) {
+                return ConversionType.NONE;
             }
 
             switch (getNumericConversionType(unboxedTargetType, source)) {
@@ -434,7 +387,7 @@ public final class MetadataHelper {
                     return ConversionType.IMPLICIT;
                 case IMPLICIT:
                     return ConversionType.EXPLICIT_TO_UNBOXED;
-                case EXPLICIT:
+                case IMPLICIT_LOSSY:
                     return ConversionType.EXPLICIT;
                 default:
                     return ConversionType.NONE;
@@ -454,20 +407,26 @@ public final class MetadataHelper {
 
         switch (targetJvmType) {
             case Float:
-            case Double:
-                if (sourceJvmType.isIntegral() || sourceJvmType.bitWidth() <= targetJvmType.bitWidth()) {
-                    return ConversionType.IMPLICIT;
+            case Double: {
+                if (sourceJvmType.isIntegral()) {
+                    return sourceJvmType.bitWidth() >= targetJvmType.bitWidth() ? ConversionType.IMPLICIT_LOSSY
+                                                                                : ConversionType.IMPLICIT;
                 }
-                return ConversionType.EXPLICIT;
+
+                return sourceJvmType.bitWidth() <= targetJvmType.bitWidth() ? ConversionType.IMPLICIT
+                                                                            : ConversionType.EXPLICIT;
+            }
 
             case Byte:
-            case Short:
+            case Short: {
                 if (sourceJvmType == JvmType.Character) {
                     return ConversionType.EXPLICIT;
                 }
                 // fall through
+            }
+
             case Integer:
-            case Long:
+            case Long: {
                 if (sourceJvmType.isIntegral() &&
                     sourceJvmType.bitWidth() <= targetJvmType.bitWidth()) {
 
@@ -475,10 +434,12 @@ public final class MetadataHelper {
                 }
 
                 return ConversionType.EXPLICIT;
+            }
 
-            case Character:
+            case Character: {
                 return sourceJvmType.isNumeric() ? ConversionType.EXPLICIT
                                                  : ConversionType.NONE;
+            }
         }
 
         return ConversionType.NONE;
@@ -548,13 +509,7 @@ public final class MetadataHelper {
         }
 
         if (tPrimitive) {
-            switch (getNumericConversionType(target, source)) {
-                case IDENTITY:
-                case IMPLICIT:
-                    return true;
-                default:
-                    return false;
-            }
+            return getNumericConversionType(target, source).isImplicit();
         }
 
         return allowUnchecked ? isSubTypeUnchecked(getBoxedTypeOrSelf(source), target)
@@ -662,8 +617,13 @@ public final class MetadataHelper {
         return type;
     }
 
-    public static TypeReference getUnderlyingPrimitiveTypeOrSelf(final TypeReference type) {
+    @NotNull
+    public static TypeReference getUnderlyingPrimitiveTypeOrSelf(@NotNull final TypeReference type) {
         VerifyArgument.notNull(type, "type");
+
+        if (type.isPrimitive()) {
+            return type;
+        }
 
         switch (type.getInternalName()) {
             case "java/lang/Void":

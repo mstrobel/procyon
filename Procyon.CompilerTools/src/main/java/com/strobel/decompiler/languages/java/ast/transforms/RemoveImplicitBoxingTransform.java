@@ -133,19 +133,26 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
                                              : leftResult.getType().isPrimitive());
         }
 
-        //
-        // TODO: Remove the `if` below once overload resolution is written and integrated.
-        //
-        if (node.getRole() == Roles.ARGUMENT) {
-            final MemberReference member = parent.getUserData(Keys.MEMBER_REFERENCE);
+//        //
+//        // IGNORE_TODO: Remove the `if` below once overload resolution is written and integrated.
+//        //
+//        if (node.getRole() == Roles.ARGUMENT) {
+//            final MemberReference member = parent.getUserData(Keys.MEMBER_REFERENCE);
+//
+//            if (member instanceof MethodReference) {
+//                final MethodReference method = (MethodReference) parent.getUserData(Keys.MEMBER_REFERENCE);
+//
+//                if (method == null || MetadataHelper.isOverloadCheckingRequired(method)) {
+//                    return false;
+//                }
+//            }
+//        }
 
-            if (member instanceof MethodReference) {
-                final MethodReference method = (MethodReference) parent.getUserData(Keys.MEMBER_REFERENCE);
+        if (node.getRole() == Roles.TARGET_EXPRESSION &&
+            parent instanceof MemberReferenceExpression &&
+            isUnboxingExpression(parent.getParent())) {
 
-                if (method == null || MetadataHelper.isOverloadCheckingRequired(method)) {
-                    return false;
-                }
-            }
+            return true;
         }
 
         return !(
@@ -156,26 +163,36 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         );
     }
 
-    private void removeUnboxing(final InvocationExpression e) {
-        if (e == null || e.isNull()) {
-            return;
+    private boolean isUnboxingExpression(final AstNode node) {
+        if (!(node instanceof InvocationExpression)) {
+            return false;
+        }
+
+        final InvocationExpression e = (InvocationExpression) node;
+
+        if (e.isNull()) {
+            return false;
         }
 
         final Expression target = e.getTarget();
 
         if (!(target instanceof MemberReferenceExpression)) {
-            return;
+            return false;
         }
 
         final MemberReference reference = e.getUserData(Keys.MEMBER_REFERENCE);
 
         if (!(reference instanceof MethodReference)) {
-            return;
+            return false;
         }
 
         final String key = reference.getFullName() + ":" + reference.getSignature();
 
-        if (!UNBOX_METHODS.contains(key)) {
+        return UNBOX_METHODS.contains(key);
+    }
+
+    private void removeUnboxing(final InvocationExpression e) {
+        if (!isUnboxingExpression(e)) {
             return;
         }
 
@@ -204,26 +221,26 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 //            return;
 //        }
 
-        performUnboxingRemoval(e, (MemberReferenceExpression) target);
+        performUnboxingRemoval(e, (MemberReferenceExpression) e.getTarget());
     }
 
-    private void removeUnboxingForCondition(
-        final InvocationExpression e,
-        final MemberReferenceExpression target,
-        final ConditionalExpression parent) {
+//    private void removeUnboxingForCondition(
+//        final InvocationExpression e,
+//        final MemberReferenceExpression target,
+//        final ConditionalExpression parent) {
+//
+//        final boolean leftSide = parent.getTrueExpression().isAncestorOf(e);
+//        final Expression otherSide = leftSide ? parent.getFalseExpression() : parent.getTrueExpression();
+//        final ResolveResult otherResult = _resolver.apply(otherSide);
+//
+//        if (otherResult == null || otherResult.getType() == null || !otherResult.getType().isPrimitive()) {
+//            return;
+//        }
+//
+//        performUnboxingRemoval(e, target);
+//    }
 
-        final boolean leftSide = parent.getTrueExpression().isAncestorOf(e);
-        final Expression otherSide = leftSide ? parent.getFalseExpression() : parent.getTrueExpression();
-        final ResolveResult otherResult = _resolver.apply(otherSide);
-
-        if (otherResult == null || otherResult.getType() == null || !otherResult.getType().isPrimitive()) {
-            return;
-        }
-
-        performUnboxingRemoval(e, target);
-    }
-
-    private void performUnboxingRemoval(final InvocationExpression e, final MemberReferenceExpression target) {
+    private boolean performUnboxingRemoval(final InvocationExpression e, final MemberReferenceExpression target) {
         final Expression boxedValue = target.getTarget();
         final MethodReference unboxMethod = (MethodReference) e.getUserData(Keys.MEMBER_REFERENCE);
         final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
@@ -247,7 +264,8 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
 
         switch (MetadataHelper.getNumericConversionType(targetType, sourceType)) {
             case IDENTITY:
-            case IMPLICIT: {
+            case IMPLICIT:
+            case IMPLICIT_LOSSY: {
                 boxedValue.remove();
 
                 e.replaceWith(
@@ -256,146 +274,145 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
                         boxedValue
                     )
                 );
-                return;
-            }
 
-            default: {
-                return;
+                return true;
             }
         }
+
+        return false;
     }
 
-    private void removeUnboxingForArgument(final InvocationExpression e) {
-        final AstNode parent = e.getParent();
-
-        final MemberReference unboxMethod = e.getUserData(Keys.MEMBER_REFERENCE);
-        final MemberReference outerBoxMethod = parent.getUserData(Keys.MEMBER_REFERENCE);
-
-        if (!(unboxMethod instanceof MethodReference && outerBoxMethod instanceof MethodReference)) {
-            return;
-        }
-
-        final String unboxMethodKey = unboxMethod.getFullName() + ":" + unboxMethod.getSignature();
-        final String boxMethodKey = outerBoxMethod.getFullName() + ":" + outerBoxMethod.getSignature();
-
-        if (!UNBOX_METHODS.contains(unboxMethodKey)) {
-            return;
-        }
-
-        final Expression boxedValue = ((MemberReferenceExpression) e.getTarget()).getTarget();
-
-        if (!BOX_METHODS.contains(boxMethodKey) ||
-            !(parent instanceof InvocationExpression &&
-              isValidPrimitiveParent((InvocationExpression) parent, parent.getParent()))) {
-
-            boxedValue.remove();
-            e.replaceWith(boxedValue);
-            return;
-        }
-
-        //
-        // If we have a situation where we're boxing an unboxed value, we do some additional
-        // analysis to make sure we end up with a concise but *legal* type conversion.
-        //
-        // For example, given `f(Double d)`, `g(Short s)`, and an Integer `i`:
-        //
-        // `f(Double.valueOf((double)i.intValue()))` can be simplified to `f((double)i)`
-        //
-        // ...but...
-        //
-        // `g(Short.valueOf((short)i.intValue()))` cannot be simplified to `g((short)i)`;
-        // it must be simplified to `g((short)i.intValue())`.  A boxed type `S` can only
-        // be cast to a primitive type `t` if there exists an implicit conversion from
-        // the underlying primitive type `s` to `t`.
-        //
-
-        final ResolveResult boxedValueResult = _resolver.apply(boxedValue);
-
-        if (boxedValueResult == null || boxedValueResult.getType() == null) {
-            return;
-        }
-
-        final TypeReference targetType = ((MethodReference) outerBoxMethod).getReturnType();
-        final TypeReference sourceType = boxedValueResult.getType();
-
-        switch (MetadataHelper.getNumericConversionType(targetType, sourceType)) {
-            case IDENTITY:
-            case IMPLICIT: {
-                //
-                // We don't actually want to remove round-trip boxing without some sort of cast,
-                // or we may end up with:
-                //
-                // Integer i = null; Integer j = Integer.valueOf(i.intValue());
-                //
-                // ...becoming:
-                //
-                // Integer i = null; Integer j = i;
-                //
-/*
-                boxedValue.remove();
-                parent.replaceWith(boxedValue);
-                break;
-*/
-                return;
-            }
-
-            case EXPLICIT_TO_UNBOXED: {
-                final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
-
-                if (astBuilder == null) {
-                    return;
-                }
-
-                boxedValue.remove();
-
-                final TypeReference castType = ((MethodReference) outerBoxMethod).getParameters().get(0).getParameterType();
-                final CastExpression cast = new CastExpression(astBuilder.convertType(castType), boxedValue);
-
-                parent.replaceWith(cast);
-
-                break;
-            }
-
-            default: {
-                return;
-            }
-        }
-    }
-
-    private void removeUnboxingForCast(
-        final InvocationExpression e,
-        final MemberReferenceExpression target,
-        final CastExpression parent) {
-
-        final TypeReference targetType = parent.getType().toTypeReference();
-
-        if (targetType == null || !targetType.isPrimitive()) {
-            return;
-        }
-
-        final Expression boxedValue = target.getTarget();
-        final ResolveResult boxedValueResult = _resolver.apply(boxedValue);
-
-        if (boxedValueResult == null || boxedValueResult.getType() == null) {
-            return;
-        }
-
-        final TypeReference sourceType = boxedValueResult.getType();
-        final ConversionType conversionType = MetadataHelper.getNumericConversionType(targetType, sourceType);
-
-        switch (conversionType) {
-            case IMPLICIT:
-            case EXPLICIT:
-            case EXPLICIT_TO_UNBOXED: {
-                boxedValue.remove();
-                e.replaceWith(boxedValue);
-                return;
-            }
-
-            default:
-                return;
-        }
-    }
+//    private void removeUnboxingForArgument(final InvocationExpression e) {
+//        final AstNode parent = e.getParent();
+//
+//        final MemberReference unboxMethod = e.getUserData(Keys.MEMBER_REFERENCE);
+//        final MemberReference outerBoxMethod = parent.getUserData(Keys.MEMBER_REFERENCE);
+//
+//        if (!(unboxMethod instanceof MethodReference && outerBoxMethod instanceof MethodReference)) {
+//            return;
+//        }
+//
+//        final String unboxMethodKey = unboxMethod.getFullName() + ":" + unboxMethod.getSignature();
+//        final String boxMethodKey = outerBoxMethod.getFullName() + ":" + outerBoxMethod.getSignature();
+//
+//        if (!UNBOX_METHODS.contains(unboxMethodKey)) {
+//            return;
+//        }
+//
+//        final Expression boxedValue = ((MemberReferenceExpression) e.getTarget()).getTarget();
+//
+//        if (!BOX_METHODS.contains(boxMethodKey) ||
+//            !(parent instanceof InvocationExpression &&
+//              isValidPrimitiveParent((InvocationExpression) parent, parent.getParent()))) {
+//
+//            boxedValue.remove();
+//            e.replaceWith(boxedValue);
+//            return;
+//        }
+//
+//        //
+//        // If we have a situation where we're boxing an unboxed value, we do some additional
+//        // analysis to make sure we end up with a concise but *legal* type conversion.
+//        //
+//        // For example, given `f(Double d)`, `g(Short s)`, and an Integer `i`:
+//        //
+//        // `f(Double.valueOf((double)i.intValue()))` can be simplified to `f((double)i)`
+//        //
+//        // ...but...
+//        //
+//        // `g(Short.valueOf((short)i.intValue()))` cannot be simplified to `g((short)i)`;
+//        // it must be simplified to `g((short)i.intValue())`.  A boxed type `S` can only
+//        // be cast to a primitive type `t` if there exists an implicit conversion from
+//        // the underlying primitive type `s` to `t`.
+//        //
+//
+//        final ResolveResult boxedValueResult = _resolver.apply(boxedValue);
+//
+//        if (boxedValueResult == null || boxedValueResult.getType() == null) {
+//            return;
+//        }
+//
+//        final TypeReference targetType = ((MethodReference) outerBoxMethod).getReturnType();
+//        final TypeReference sourceType = boxedValueResult.getType();
+//
+//        switch (MetadataHelper.getNumericConversionType(targetType, sourceType)) {
+//            case IDENTITY:
+//            case IMPLICIT: {
+//                //
+//                // We don't actually want to remove round-trip boxing without some sort of cast,
+//                // or we may end up with:
+//                //
+//                // Integer i = null; Integer j = Integer.valueOf(i.intValue());
+//                //
+//                // ...becoming:
+//                //
+//                // Integer i = null; Integer j = i;
+//                //
+///*
+//                boxedValue.remove();
+//                parent.replaceWith(boxedValue);
+//                break;
+//*/
+//                return;
+//            }
+//
+//            case EXPLICIT_TO_UNBOXED: {
+//                final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
+//
+//                if (astBuilder == null) {
+//                    return;
+//                }
+//
+//                boxedValue.remove();
+//
+//                final TypeReference castType = ((MethodReference) outerBoxMethod).getParameters().get(0).getParameterType();
+//                final CastExpression cast = new CastExpression(astBuilder.convertType(castType), boxedValue);
+//
+//                parent.replaceWith(cast);
+//
+//                break;
+//            }
+//
+//            default: {
+//                return;
+//            }
+//        }
+//    }
+//
+//    private void removeUnboxingForCast(
+//        final InvocationExpression e,
+//        final MemberReferenceExpression target,
+//        final CastExpression parent) {
+//
+//        final TypeReference targetType = parent.getType().toTypeReference();
+//
+//        if (targetType == null || !targetType.isPrimitive()) {
+//            return;
+//        }
+//
+//        final Expression boxedValue = target.getTarget();
+//        final ResolveResult boxedValueResult = _resolver.apply(boxedValue);
+//
+//        if (boxedValueResult == null || boxedValueResult.getType() == null) {
+//            return;
+//        }
+//
+//        final TypeReference sourceType = boxedValueResult.getType();
+//        final ConversionType conversionType = MetadataHelper.getNumericConversionType(targetType, sourceType);
+//
+//        switch (conversionType) {
+//            case IMPLICIT:
+//            case EXPLICIT:
+//            case EXPLICIT_TO_UNBOXED: {
+//                boxedValue.remove();
+//                e.replaceWith(boxedValue);
+//                return;
+//            }
+//
+//            default:
+//                return;
+//        }
+//    }
 
     private void removeBoxing(final InvocationExpression node) {
         if (!isValidPrimitiveParent(node, node.getParent())) {
@@ -427,11 +444,12 @@ public class RemoveImplicitBoxingTransform extends ContextTrackingVisitor<Void> 
         final ConversionType conversionType = MetadataHelper.getNumericConversionType(targetType, sourceType);
 
         switch (conversionType) {
-            case IMPLICIT: {
+            case IMPLICIT:
+            case IMPLICIT_LOSSY: /*{
                 underlyingValue.remove();
                 node.replaceWith(underlyingValue);
                 break;
-            }
+            }*/
 
             case EXPLICIT:
             case EXPLICIT_TO_UNBOXED: {

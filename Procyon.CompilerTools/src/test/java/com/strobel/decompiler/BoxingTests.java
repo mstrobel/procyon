@@ -2,6 +2,7 @@ package com.strobel.decompiler;
 
 import org.junit.Test;
 
+@SuppressWarnings({ "unused", "UnnecessaryBoxing" })
 public class BoxingTests extends DecompilerTest {
     @SuppressWarnings("InfiniteRecursion")
     private static class A {
@@ -121,17 +122,17 @@ public class BoxingTests extends DecompilerTest {
             return null;
         }
     }
-    
+
     @SuppressWarnings("UnusedParameters")
     private static class G {
         Float valueF() {
             return null;
         }
-        
+
         Integer valueI() {
             return null;
         }
-        
+
         void testI(final int i) {
         }
 
@@ -139,13 +140,13 @@ public class BoxingTests extends DecompilerTest {
         }
 
         void test1() {
-        	testF(valueI());
-        	testF((float) valueI());
-        	testF(valueI().floatValue());
+            testF(valueI());
+            testF((float) valueI());
+            testF(valueI().floatValue());
         }
 
         void test2() {
-        	testI(valueF().intValue());
+            testI(valueF().intValue());
         }
     }
 
@@ -268,7 +269,7 @@ public class BoxingTests extends DecompilerTest {
             "    void t(final boolean b) {\n" +
             "        final Double d = 4.3;\n" +
             "        final Integer i = 3;\n" +
-            "        final short s = (short)(b ? i : ((int)Integer.valueOf((int)(double)d)));\n" +
+            "        final short s = (short)(b ? i : ((int)(double)d));\n" +
             "    }\n" +
             "}\n"
         );
@@ -300,7 +301,7 @@ public class BoxingTests extends DecompilerTest {
             "}\n"
         );
     }
-    
+
     @Test
     public void testKeepRequiredUnboxingCalls() throws Exception {
         verifyOutput(

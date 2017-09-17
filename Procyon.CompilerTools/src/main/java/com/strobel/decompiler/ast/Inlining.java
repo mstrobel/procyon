@@ -710,7 +710,8 @@ final class Inlining {
                     //
                     // Parameters can be copied only if they aren't assigned to.
                     //
-                    return count(storeCounts, v) == 0;
+                    return count(storeCounts, v) == 0 &&
+                           notFromMetadata(copyVariable);
                 }
 
                 //

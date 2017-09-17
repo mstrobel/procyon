@@ -29,16 +29,19 @@ import com.strobel.functions.Function;
 
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.indexOf;
 
 public final class TypeUtilities {
     private static final String OBJECT_DESCRIPTOR = "java/lang/Object";
     private static final String STRING_DESCRIPTOR = "java/lang/String";
 
     private static final Map<JvmType, Integer> TYPE_TO_RANK_MAP;
+    private static final Map<Class, TypeDefinition> BOXED_PRIMITIVES_BY_CLASS;
 
     private static final int BYTE_RANK = 1;
     private static final int SHORT_RANK = 2;
@@ -53,6 +56,7 @@ public final class TypeUtilities {
 
     static {
         final Map<JvmType, Integer> rankMap = new EnumMap<>(JvmType.class);
+        final Map<Class, TypeDefinition> boxedPrimitivesByClass = new HashMap<>();
 
         rankMap.put(JvmType.Byte, BYTE_RANK);
         rankMap.put(JvmType.Short, SHORT_RANK);
@@ -63,7 +67,18 @@ public final class TypeUtilities {
         rankMap.put(JvmType.Double, DOUBLE_RANK);
         rankMap.put(JvmType.Boolean, BOOL_RANK);
 
+        boxedPrimitivesByClass.put(Byte.class, BuiltinTypes.Byte);
+        boxedPrimitivesByClass.put(Short.class, BuiltinTypes.Short);
+        boxedPrimitivesByClass.put(Character.class, BuiltinTypes.Character);
+        boxedPrimitivesByClass.put(Integer.class, BuiltinTypes.Integer);
+        boxedPrimitivesByClass.put(Long.class, BuiltinTypes.Long);
+        boxedPrimitivesByClass.put(Float.class, BuiltinTypes.Float);
+        boxedPrimitivesByClass.put(Double.class, BuiltinTypes.Double);
+        boxedPrimitivesByClass.put(Boolean.class, BuiltinTypes.Boolean);
+        boxedPrimitivesByClass.put(Void.class, BuiltinTypes.Void);
+
         TYPE_TO_RANK_MAP = Collections.unmodifiableMap(rankMap);
+        BOXED_PRIMITIVES_BY_CLASS = Collections.unmodifiableMap(boxedPrimitivesByClass);
     }
 
     private static int getTypeRank(@NotNull final TypeReference type) {
@@ -249,7 +264,9 @@ public final class TypeUtilities {
         }
 
         if(isApplicable && expectedResultType != null) {
-            final int expectedResultRank = getTypeRank(MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(expectedResultType));
+            final int expectedResultRank = getTypeRank(
+                MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(expectedResultType)
+            );
             isApplicable = resultRank == expectedResultRank;
         }
 
@@ -316,6 +333,20 @@ public final class TypeUtilities {
                 }
             }
         }
+        else if (parent instanceof ArrayCreationExpression &&
+                 expression.getRole() == ArrayCreationExpression.INITIALIZER_ROLE) {
+
+            return getType(resolver, parent);
+        }
+        else if (expression instanceof ArrayInitializerExpression &&
+                 parent instanceof ArrayInitializerExpression) {
+
+            final TypeReference expectedArrayType = getExpectedTypeByParent(resolver, (Expression) parent);
+
+            if (expectedArrayType != null && expectedArrayType.isArray()) {
+                return expectedArrayType.getElementType();
+            }
+        }
         else if (parent instanceof AssignmentExpression) {
             if (checkSameExpression(expression, ((AssignmentExpression) parent).getRight())) {
                 return getType(resolver, ((AssignmentExpression) parent).getLeft());
@@ -351,6 +382,25 @@ public final class TypeUtilities {
                 return getType(resolver, ((ConditionalExpression) parent).getTrueExpression());
             }
         }
+        else if (expression.getRole() == Roles.ARGUMENT && parent instanceof InvocationExpression) {
+            final MemberReference reference = parent.getUserData(Keys.MEMBER_REFERENCE);
+            final MethodReference method = reference instanceof MethodReference ? (MethodReference) reference : null;
+            final int position = indexOf(((InvocationExpression) parent).getArguments(), expression);
+
+            if (method != null && position >= 0 && method.getParameters().size() > 0) {
+                final MethodDefinition resolved = method.resolve();
+
+                if (resolved != null &&
+                    resolved.getParameters().size() == method.getParameters().size() &&
+                    resolved.isVarArgs() &&
+                    position >= resolved.getParameters().size() - 1) {
+
+                    return method.getParameters().get(method.getParameters().size() - 1).getParameterType();
+                }
+
+                return method.getParameters().get(position).getParameterType();
+            }
+        }
 
         return null;
     }
@@ -378,10 +428,13 @@ public final class TypeUtilities {
 
         if (n instanceof Float || n instanceof Double) {
             if (targetType.getSimpleType() == JvmType.Float) {
-                return n.doubleValue() >= Float.MIN_VALUE && n.doubleValue() <= Float.MAX_VALUE;
+                return n.doubleValue() == (double)(float)n.doubleValue();
             }
             return targetType.getSimpleType() == JvmType.Double;
         }
+
+        final TypeDefinition valueType = BOXED_PRIMITIVES_BY_CLASS.get(n.getClass());
+        final JvmType valueJvmType = valueType != null ? valueType.getSimpleType() : JvmType.Void;
 
         if (n instanceof Long) {
             switch (targetType.getSimpleType()) {
@@ -389,26 +442,38 @@ public final class TypeUtilities {
                 case Float:
                 case Double:
                     return true;
-
-                default:
-                    return false;
             }
         }
 
         switch (targetType.getSimpleType()) {
             case Byte:
-                return n.intValue() >= Byte.MIN_VALUE && n.intValue() <= Byte.MAX_VALUE;
+                return valueJvmType.isSubWordOrInt32() &&
+                       valueJvmType != JvmType.Boolean &&
+                       n.intValue() >= Byte.MIN_VALUE &&
+                       n.intValue() <= Byte.MAX_VALUE;
 
             case Character:
-                return n.intValue() >= Character.MIN_VALUE && n.intValue() <= Character.MAX_VALUE;
+                return valueJvmType.isSubWordOrInt32() &&
+                       valueJvmType != JvmType.Boolean &&
+                       n.intValue() >= Character.MIN_VALUE &&
+                       n.intValue() <= Character.MAX_VALUE;
 
             case Short:
-                return n.intValue() >= Short.MIN_VALUE && n.intValue() <= Short.MAX_VALUE;
+                return valueJvmType.isSubWordOrInt32() &&
+                       valueJvmType != JvmType.Boolean &&
+                       n.intValue() >= Short.MIN_VALUE &&
+                       n.intValue() <= Short.MAX_VALUE;
 
             case Integer:
-                return n.longValue() >= Integer.MIN_VALUE && n.longValue() <= Integer.MAX_VALUE;
+                return valueJvmType.isSubWordOrInt32() &&
+                       valueJvmType != JvmType.Boolean &&
+                       n.longValue() >= Integer.MIN_VALUE &&
+                       n.longValue() <= Integer.MAX_VALUE;
 
             case Long:
+                return valueJvmType.isIntegral() &&
+                       valueJvmType != JvmType.Boolean;
+
             case Float:
             case Double:
                 return true;

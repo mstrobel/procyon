@@ -56,6 +56,7 @@ public final class TransformationPipeline {
             new IntroduceInitializersTransform(context),
             new MarkReferencedSyntheticsTransform(context),
             new RemoveRedundantCastsTransform(context), // (again due to inlined synthetic accessors)
+            new RewriteBoxingCastsTransform(context),
             new InsertNecessaryConversionsTransform(context),
             new IntroduceStringConcatenationTransform(context),
             new SimplifyAssignmentsTransform(context), // (again due to inlined synthetic accessors, string concatenation)

@@ -227,8 +227,7 @@ public class ArrayCreationTests extends DecompilerTest {
         verifyOutput(
             I.class,
             defaultSettings(),
-            "private static class I\n" +
-            "{\n" +
+            "private static class I {\n" +
             "    public void test() {\n" +
             "        final int[] a = { this.valueB() ? 1 : 0 };\n" +
             "        final int[] b = { this.valueB() ? 0 : 1, this.valueB() ? 1 : 0 };\n" +
