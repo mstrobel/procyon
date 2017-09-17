@@ -111,12 +111,14 @@ public final class TypeUtilities {
         @NotNull final BinaryOperatorType op,
         @NotNull final AstType lType,
         @NotNull final AstType rType,
+        @Nullable final TypeReference expectedResultType,
         final boolean strict) {
 
         return isBinaryOperatorApplicable(
             op,
             VerifyArgument.notNull(lType, "lType").toTypeReference(),
             VerifyArgument.notNull(rType, "rType").toTypeReference(),
+            expectedResultType,
             strict
         );
     }
@@ -125,6 +127,7 @@ public final class TypeUtilities {
         @NotNull final BinaryOperatorType op,
         @Nullable final TypeReference lType,
         @Nullable final TypeReference rType,
+        @Nullable final TypeReference expectedResultType,
         final boolean strict) {
 
         if (lType == null || rType == null) {
@@ -169,7 +172,6 @@ public final class TypeUtilities {
             case LESS_THAN_OR_EQUAL: {
                 if (lUnboxed.isPrimitive() && rUnboxed.isPrimitive()) {
                     isApplicable = lRank <= MAX_NUMERIC_RANK && rRank <= MAX_NUMERIC_RANK;
-                    resultRank = INT_RANK;
                 }
                 break;
             }
@@ -244,6 +246,11 @@ public final class TypeUtilities {
             else {
                 isApplicable = lRank <= MAX_NUMERIC_RANK;
             }
+        }
+
+        if(isApplicable && expectedResultType != null) {
+            final int expectedResultRank = getTypeRank(MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(expectedResultType));
+            isApplicable = resultRank == expectedResultRank;
         }
 
         return isApplicable;

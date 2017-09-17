@@ -88,6 +88,19 @@ public class ArrayCreationTests extends DecompilerTest {
         }
     }
 
+    private static class I {
+        public void test() {
+            final int[] a = { valueB() ? 1 : 0 };
+            final int[] b = { valueB() ? 0 : 1, valueB() ? 1 : 0 };
+            final int[][] c = { { valueB() ? 0 : 1, 15 }, { valueB() ? 1 : 0, valueB() ? 1 : 0 }, null };
+            final int[][][] d = { { { valueB() ? 0 : 1, valueB() ? 1 : 0 }, { valueB() ? 0 : 1 } } };
+        }
+
+        private boolean valueB() {
+            return true;
+        }
+    }
+
     @Test
     public void testSimpleArrayCreation() {
         verifyOutput(
@@ -204,6 +217,26 @@ public class ArrayCreationTests extends DecompilerTest {
             "    int[] arr;\n" +
             "    public void test(final boolean b) {\n" +
             "        this.arr = (b ? new int[] { 1, 2 } : new int[] { 1 });\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testIntArrayInitializationFromBoolean() {
+        verifyOutput(
+            I.class,
+            defaultSettings(),
+            "private static class I\n" +
+            "{\n" +
+            "    public void test() {\n" +
+            "        final int[] a = { this.valueB() ? 1 : 0 };\n" +
+            "        final int[] b = { this.valueB() ? 0 : 1, this.valueB() ? 1 : 0 };\n" +
+            "        final int[][] c = { { this.valueB() ? 0 : 1, 15 }, { this.valueB() ? 1 : 0, this.valueB() ? 1 : 0 }, null };\n" +
+            "        final int[][][] d = { { { this.valueB() ? 0 : 1, this.valueB() ? 1 : 0 }, { this.valueB() ? 0 : 1 } } };\n" +
+            "    }\n" +
+            "    private boolean valueB() {\n" +
+            "        return true;\n" +
             "    }\n" +
             "}\n"
         );

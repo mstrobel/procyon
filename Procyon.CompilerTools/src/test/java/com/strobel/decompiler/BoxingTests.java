@@ -121,6 +121,33 @@ public class BoxingTests extends DecompilerTest {
             return null;
         }
     }
+    
+    @SuppressWarnings("UnusedParameters")
+    private static class G {
+        Float valueF() {
+            return null;
+        }
+        
+        Integer valueI() {
+            return null;
+        }
+        
+        void testI(final int i) {
+        }
+
+        void testF(final float f) {
+        }
+
+        void test1() {
+        	testF(valueI());
+        	testF((float) valueI());
+        	testF(valueI().floatValue());
+        }
+
+        void test2() {
+        	testI(valueF().intValue());
+        }
+    }
 
     @Test
     public void testImplicitBoxingTranslation() throws Throwable {
@@ -269,6 +296,34 @@ public class BoxingTests extends DecompilerTest {
             "            return \"'\\\\013'\";\n" +
             "        }\n" +
             "        return null;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+    
+    @Test
+    public void testKeepRequiredUnboxingCalls() throws Exception {
+        verifyOutput(
+            G.class,
+            defaultSettings(),
+            "private static class G {\n" +
+            "    Float valueF() {\n" +
+            "        return null;\n" +
+            "    }\n" +
+            "    Integer valueI() {\n" +
+            "        return null;\n" +
+            "    }\n" +
+            "    void testI(final int i) {\n" +
+            "    }\n" +
+            "    void testF(final float f) {\n" +
+            "    }\n" +
+            "    void test1() {\n" +
+            "        this.testF(this.valueI());\n" +
+            "        this.testF(this.valueI());\n" +
+            "        this.testF(this.valueI());\n" +
+            "    }\n" +
+            "    void test2() {\n" +
+            "        this.testI(this.valueF().intValue());\n" +
             "    }\n" +
             "}\n"
         );

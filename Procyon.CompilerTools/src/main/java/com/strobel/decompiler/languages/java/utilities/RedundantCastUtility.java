@@ -241,9 +241,10 @@ public final class RedundantCastUtility {
         public Void visitBinaryOperatorExpression(final BinaryOperatorExpression node, final Void data) {
             final TypeReference leftType = getType(node.getLeft());
             final TypeReference rightType = getType(node.getRight());
+            final TypeReference resultType = _resolver.apply(node).getType();
 
-            processBinaryExpressionOperand(node.getLeft(), rightType, node.getOperator());
-            processBinaryExpressionOperand(node.getRight(), leftType, node.getOperator());
+            processBinaryExpressionOperand(node.getLeft(), rightType, node.getOperator(), resultType);
+            processBinaryExpressionOperand(node.getRight(), leftType, node.getOperator(), resultType);
 
             return super.visitBinaryOperatorExpression(node, data);
         }
@@ -496,7 +497,8 @@ public final class RedundantCastUtility {
         protected void processBinaryExpressionOperand(
             final Expression operand,
             final TypeReference otherType,
-            final BinaryOperatorType op) {
+            final BinaryOperatorType op,
+            final TypeReference resultType) {
 
             if (operand instanceof CastExpression) {
                 final CastExpression cast = (CastExpression) operand;
@@ -506,7 +508,12 @@ public final class RedundantCastUtility {
 
                 if (castType != null &&
                     innerType != null &&
-                    TypeUtilities.isBinaryOperatorApplicable(op, innerType, otherType, false)) {
+                    // Cast is only redundant, if without it the operator is still applicable and yields the same result type as before.
+                    // A changed result type is an indicator for:
+                    //    - Clash of integer and floating-point arithmetic: `1 / (float)5` is not equal to `1 / 5`.
+                    //    - Possibility of overflows: `5 * (long)Integer.MAX_VALUE` is not equal to `5 * Integer.MAX_VALUE`
+                    //
+                    TypeUtilities.isBinaryOperatorApplicable(op, innerType, otherType, resultType, false)) {
 
                     addToResults(cast, false);
                 }
