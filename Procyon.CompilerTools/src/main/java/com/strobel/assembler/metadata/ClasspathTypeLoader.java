@@ -16,19 +16,11 @@
 
 package com.strobel.assembler.metadata;
 
-import com.strobel.core.StringUtilities;
-import com.strobel.core.VerifyArgument;
-import sun.misc.Resource;
-import sun.misc.URLClassPath;
-
-import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.UndeclaredThrowableException;
-import java.net.MalformedURLException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 
 /**
  * @author Mike Strobel
@@ -36,35 +28,20 @@ import java.util.regex.Pattern;
 public final class ClasspathTypeLoader implements ITypeLoader {
     private final static Logger LOG = Logger.getLogger(ClasspathTypeLoader.class.getSimpleName());
 
-    private final URLClassPath _classPath;
+    private final ClassLoader _loader;
 
     public ClasspathTypeLoader() {
-        this(
-            StringUtilities.join(
-                System.getProperty("path.separator"),
-                System.getProperty("java.class.path"),
-                System.getProperty("sun.boot.class.path")
-            )
-        );
+        _loader = ClassLoader.getSystemClassLoader();
     }
 
-    public ClasspathTypeLoader(final String classPath) {
-        final String[] parts = VerifyArgument.notNull(classPath, "classPath")
-                                             .split(Pattern.quote(System.getProperty("path.separator")));
-
-        final URL[] urls = new URL[parts.length];
-
-        for (int i = 0; i < parts.length; i++) {
-            try {
-                urls[i] = new File(parts[i]).toURI().toURL();
-            }
-            catch (MalformedURLException e) {
-                throw new UndeclaredThrowableException(e);
-            }
-        }
-
-        _classPath = new URLClassPath(urls);
-    }
+    //
+    // Temporarily removing this constructor to get a Java 9 compatibility fix out quickly.
+    // Hopefully nobody is using it.  Will restore once ClasspathTypeLoader can be fleshed
+    // out to support arbitrary paths.
+    //
+//    public ClasspathTypeLoader(final String classPath) {
+//        throw new UnsupportedOperationException("Custom classpaths are temporarily unsupported.");
+//    }
 
     @Override
     public boolean tryLoadType(final String internalName, final Buffer buffer) {
@@ -73,29 +50,32 @@ public final class ClasspathTypeLoader implements ITypeLoader {
         }
 
         final String path = internalName.concat(".class");
-        final Resource resource = _classPath.getResource(path, false);
+        final URL resource = _loader.getResource(path);
 
         if (resource == null) {
             return false;
         }
 
-        final byte[] data;
+        try (final InputStream stream = _loader.getResourceAsStream(path)) {
+            final byte[] temp = new byte[4096];
 
-        try {
-            data = resource.getBytes();
-            assert data.length == resource.getContentLength();
+            int bytesRead;
+
+            while ((bytesRead = stream.read(temp, 0, temp.length)) > 0) {
+                buffer.ensureWriteableBytes(bytesRead);
+                buffer.putByteArray(temp, 0, bytesRead);
+            }
+
+            buffer.flip();
+
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.fine("Type loaded from " + resource + ".");
+            }
+
+            return true;
         }
-        catch (IOException e) {
+        catch (final IOException ignored) {
             return false;
         }
-
-        buffer.reset(data.length);
-        System.arraycopy(data, 0, buffer.array(), 0, data.length);
-
-        if (LOG.isLoggable(Level.FINE)) {
-            LOG.fine("Type loaded from " + resource.getURL() + ".");
-        }
-
-        return true;
     }
 }

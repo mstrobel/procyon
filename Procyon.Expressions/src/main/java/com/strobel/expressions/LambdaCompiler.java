@@ -2792,10 +2792,10 @@ final class LambdaCompiler {
         }
 
         if (name != null) {
-            return String.format("%s.%s[0x%3$04x]", p.getName(), name, nextId.getAndIncrement());
+            return String.format("%s.%s$0x%3$04x", p.getName(), name, nextId.getAndIncrement());
         }
 
-        return String.format("%s.f__Lambda[0x%2$04x]", p.getName(), nextId.getAndIncrement());
+        return String.format("%s.f__Lambda$0x%2$04x", p.getName(), nextId.getAndIncrement());
     }
 
     private void emitLambdaBody() {

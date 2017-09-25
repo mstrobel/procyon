@@ -464,9 +464,9 @@ final class NoRetryMetadataSystem extends MetadataSystem {
     NoRetryMetadataSystem() {
     }
 
-    NoRetryMetadataSystem(final String classPath) {
-        super(classPath);
-    }
+//    NoRetryMetadataSystem(final String classPath) {
+//        super(classPath);
+//    }
 
     NoRetryMetadataSystem(final ITypeLoader typeLoader) {
         super(typeLoader);
