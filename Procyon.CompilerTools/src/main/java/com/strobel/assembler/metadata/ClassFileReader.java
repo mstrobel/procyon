@@ -75,7 +75,6 @@ public final class ClassFileReader extends MetadataReader {
 
         super();
 
-        _typeDefinition = new TypeDefinition();
         _options = options;
         _resolver = resolver;
         _resolverFrame = new ResolverFrame();
@@ -86,6 +85,11 @@ public final class ClassFileReader extends MetadataReader {
         _interfaceEntries = VerifyArgument.notNull(interfaceEntries, "interfaceEntries");
         _fields = new ArrayList<>();
         _methods = new ArrayList<>();
+
+        _typeDefinition = new TypeDefinition();
+        _typeDefinition.setResolver(_resolver);
+        _typeDefinition.setFlags(accessFlags);
+        _typeDefinition.setCompilerVersion(majorVersion, minorVersion);
 
         final int delimiter = _internalName.lastIndexOf('/');
 
@@ -110,9 +114,6 @@ public final class ClassFileReader extends MetadataReader {
             _typeDefinition.setName(_internalName.substring(delimiterIndex + 1));
         }
 
-        _typeDefinition.setResolver(_resolver);
-        _typeDefinition.setFlags(accessFlags);
-        _typeDefinition.setCompilerVersion(majorVersion, minorVersion);
         _resolverFrame.addType(_typeDefinition);
         _parser = new MetadataParser(_typeDefinition);
         _scope = new Scope(_parser, _typeDefinition, constantPool);

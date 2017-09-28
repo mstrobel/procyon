@@ -227,13 +227,7 @@ public class DecompilerDriver {
         final ITypeLoader oldTypeLoader = settings.getTypeLoader();
 
         settings.setShowSyntheticMembers(false);
-
-        settings.setTypeLoader(
-            new CompositeTypeLoader(
-                new JarTypeLoader(jar),
-                settings.getTypeLoader()
-            )
-        );
+        settings.setTypeLoader(new CompositeTypeLoader(new JarTypeLoader(jar), oldTypeLoader));
 
         try {
             MetadataSystem metadataSystem = new NoRetryMetadataSystem(settings.getTypeLoader());
