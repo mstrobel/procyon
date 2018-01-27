@@ -115,9 +115,15 @@ public class CollapseImportsTransform implements IAstTransform {
         final AstNodeCollection<ImportDeclaration> imports = compilationUnit.getImports();
         final PackageDeclaration packageDeclaration = compilationUnit.getChildByRole(Roles.PACKAGE);
         final String filePackage = packageDeclaration.isNull() ? null : packageDeclaration.getName();
+        final boolean removeAllImports = _settings.getForceFullyQualifiedReferences();
 
         for (final ImportDeclaration oldImport : imports) {
             final Identifier importedType = oldImport.getImportIdentifier();
+
+            if (removeAllImports) {
+                oldImport.remove();
+                continue;
+            }
 
             if (!importedType.isNull()) {
                 final TypeReference type = oldImport.getUserData(Keys.TYPE_REFERENCE);

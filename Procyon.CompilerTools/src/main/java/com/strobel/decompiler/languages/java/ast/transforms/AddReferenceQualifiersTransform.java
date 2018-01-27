@@ -104,7 +104,8 @@ public class AddReferenceQualifiersTransform extends ContextTrackingVisitor<Void
         final TypeReference t = resolvedType != null ? resolvedType : (type.isGenericType() ? type.getUnderlyingType() : type);
         final Object resolvedObject = resolveName(node, t.getSimpleName(), modeForType(node));
 
-        if (resolvedObject instanceof TypeReference &&
+        if (!context.getSettings().getForceFullyQualifiedReferences() &&
+            resolvedObject instanceof TypeReference &&
             MetadataHelper.isSameType(t, (TypeReference) resolvedObject)) {
 
             return t.getSimpleName();
@@ -143,9 +144,9 @@ public class AddReferenceQualifiersTransform extends ContextTrackingVisitor<Void
         String name = node.getIdentifier();
         TypeReference type = node.getUserData(Keys.TYPE_REFERENCE);
 
-        if (type.isGenericParameter()) {
+        if (type.isPrimitive() || type.isGenericParameter()) {
             //
-            // Ignore generic parameters.  They cannot be qualified.
+            // Ignore primitives and generic parameters; they cannot be qualified.
             //
             return super.visitSimpleType(node, data);
         }
@@ -155,15 +156,14 @@ public class AddReferenceQualifiersTransform extends ContextTrackingVisitor<Void
             name = name.substring(0, i);
         }
 
-        if (!type.isPrimitive()) {
-            final Object resolvedObject = resolveName(node, name, modeForType(node));
+        final Object resolvedObject = resolveName(node, name, modeForType(node));
 
-            if (resolvedObject == null ||
-                !(resolvedObject instanceof TypeReference &&
-                  MetadataHelper.isSameType(type, (TypeReference) resolvedObject))) {
+        if (context.getSettings().getForceFullyQualifiedReferences() ||
+            resolvedObject == null ||
+            !(resolvedObject instanceof TypeReference &&
+              MetadataHelper.isSameType(type, (TypeReference) resolvedObject))) {
 
-                _addQualifierCandidates.add(node);
-            }
+            _addQualifierCandidates.add(node);
         }
 
         return super.visitSimpleType(node, data);

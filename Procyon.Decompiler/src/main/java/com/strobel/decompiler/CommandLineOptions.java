@@ -165,6 +165,12 @@ public class CommandLineOptions {
         description = "Simplify type-qualified member references in Java output [EXPERIMENTAL].")
     private boolean _simplifyMemberReferences;
 
+
+    @Parameter(
+        names = { "-fq", "--force-qualified-references" },
+        description = "Force fully qualified type and member references in Java output.")
+    private boolean _forceFullyQualifiedReferences;
+
     @Parameter(
         names = { "--disable-foreach" },
         description = "Disable 'for each' loop transforms.")
@@ -375,6 +381,14 @@ public class CommandLineOptions {
 
     public final void setSimplifyMemberReferences(final boolean simplifyMemberReferences) {
         _simplifyMemberReferences = simplifyMemberReferences;
+    }
+
+    public boolean getForceFullyQualifiedReferences() {
+        return _forceFullyQualifiedReferences;
+    }
+
+    public void setForceFullyQualifiedReferences(final boolean forceFullyQualifiedReferences) {
+        _forceFullyQualifiedReferences = forceFullyQualifiedReferences;
     }
 
     public final boolean getDisableForEachTransforms() {

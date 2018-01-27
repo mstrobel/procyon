@@ -93,6 +93,7 @@ public class DecompilerDriver {
         settings.setMergeVariables(options.getMergeVariables());
         settings.setShowDebugLineNumbers(options.getShowDebugLineNumbers());
         settings.setSimplifyMemberReferences(options.getSimplifyMemberReferences());
+        settings.setForceFullyQualifiedReferences(options.getForceFullyQualifiedReferences());
         settings.setDisableForEachTransforms(options.getDisableForEachTransforms());
         settings.setTypeLoader(new InputTypeLoader());
 
