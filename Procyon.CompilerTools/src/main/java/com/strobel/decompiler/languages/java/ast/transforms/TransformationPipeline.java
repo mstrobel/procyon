@@ -29,6 +29,7 @@ public final class TransformationPipeline {
     @SuppressWarnings("UnusedParameters")
     public static IAstTransform[] createPipeline(final DecompilerContext context) {
         return new IAstTransform[] {
+            new RewriteLegacyClassConstantsTransform(context),
             new EnumRewriterTransform(context),
             new EnumSwitchRewriterTransform(context),
             new EclipseEnumSwitchRewriterTransform(context),
@@ -55,6 +56,7 @@ public final class TransformationPipeline {
             new IntroduceInitializersTransform(context),
             new MarkReferencedSyntheticsTransform(context),
             new RemoveRedundantCastsTransform(context), // (again due to inlined synthetic accessors)
+            new RewriteBoxingCastsTransform(context),
             new InsertNecessaryConversionsTransform(context),
             new IntroduceStringConcatenationTransform(context),
             new SimplifyAssignmentsTransform(context), // (again due to inlined synthetic accessors, string concatenation)
@@ -63,7 +65,7 @@ public final class TransformationPipeline {
             new InsertConstantReferencesTransform(context),
             new SimplifyArithmeticExpressionsTransform(context),
             new DeclareLocalClassesTransform(context),
-            new InsertOverrideAnnotationsTransform(context),
+            new AddStandardAnnotationsTransform(context),
             new AddReferenceQualifiersTransform(context),
             new RemoveHiddenMembersTransform(context),
             new CollapseImportsTransform(context)

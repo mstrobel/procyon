@@ -295,9 +295,12 @@ public class AnsiTextOutput extends PlainTextOutput {
         final String packageName = type.getPackageName();
         final TypeDefinition resolvedType = type.resolve();
 
-        Ansi typeColor = type.isGenericParameter() ? _typeVariable : _type;
-
         String s = text;
+
+        final boolean isTypeVariable = s.startsWith("T") && s.endsWith(";");
+        final boolean isSignature = isTypeVariable || s.startsWith("L") && s.endsWith(";");
+
+        Ansi typeColor = isTypeVariable || type.isGenericParameter() ? _typeVariable : _type;
 
         if (StringUtilities.isNullOrEmpty(packageName)) {
             if (resolvedType != null && resolvedType.isAnnotation()) {
@@ -311,9 +314,6 @@ public class AnsiTextOutput extends PlainTextOutput {
         char delimiter = '.';
         String packagePrefix = packageName + delimiter;
 
-        final boolean isTypeVariable = s.startsWith("T") && s.endsWith(";");
-        final boolean isSignature = isTypeVariable || s.startsWith("L") && s.endsWith(";");
-
         if (isSignature) {
             s = s.substring(1, s.length() - 1);
         }
@@ -325,12 +325,12 @@ public class AnsiTextOutput extends PlainTextOutput {
 
         final String typeName;
 
+        if (isSignature) {
+            sb.append(colorize(isTypeVariable ? Delimiters.T : Delimiters.L, _delimiter));
+        }
+
         if (StringUtilities.startsWith(s, packagePrefix)) {
             final String[] packageParts = packageName.split("\\.");
-
-            if (isSignature) {
-                sb.append(colorize(isTypeVariable ? Delimiters.T : Delimiters.L, _delimiter));
-            }
 
             for (int i = 0; i < packageParts.length; i++) {
                 if (i != 0) {

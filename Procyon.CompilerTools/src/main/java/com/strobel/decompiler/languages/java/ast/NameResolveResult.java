@@ -16,8 +16,6 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
-import com.strobel.assembler.metadata.IMetadataTypeMember;
-
 import java.util.List;
 
 public abstract class NameResolveResult {

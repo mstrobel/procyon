@@ -121,8 +121,8 @@ public class BytecodeLanguage extends Language {
                 decompileType(innerType, output, options);
             }
         }
-        
-        return new TypeDecompilationResults( null /*no line number mapping*/);
+
+        return new TypeDecompilationResults(null /*no line number mapping*/);
     }
 
     private void writeMethodBodyParseError(final ITextOutput output, final Throwable error) {
@@ -291,6 +291,7 @@ public class BytecodeLanguage extends Language {
             output.unindent();
         }
     }
+
     private void writeInnerClassEntry(final ITextOutput output, final TypeDefinition type, final InnerClassEntry entry) {
         final String shortName = entry.getShortName();
         final String innerClassName = entry.getInnerClassName();
@@ -461,6 +462,11 @@ public class BytecodeLanguage extends Language {
     }
 
     private void writeFieldAttribute(final ITextOutput output, final FieldDefinition field, final SourceAttribute attribute) {
+        if (attribute instanceof BlobAttribute) {
+            writeBlobAttribute(output, (BlobAttribute) attribute);
+            return;
+        }
+
         switch (attribute.getName()) {
             case AttributeNames.ConstantValue: {
                 final Object constantValue = ((ConstantValueAttribute) attribute).getValue();
@@ -515,7 +521,6 @@ public class BytecodeLanguage extends Language {
                 writeMethodAttribute(output, method, attribute);
             }
         }
-
 
         writeMethodEnd(output, method, options);
     }
@@ -651,6 +656,17 @@ public class BytecodeLanguage extends Language {
 
     @SuppressWarnings("ConstantConditions")
     private void writeMethodAttribute(final ITextOutput output, final MethodDefinition method, final SourceAttribute attribute) {
+        if (attribute instanceof BlobAttribute) {
+            output.indent();
+            try {
+                writeBlobAttribute(output, (BlobAttribute) attribute);
+            }
+            finally {
+                output.unindent();
+            }
+            return;
+        }
+
         switch (attribute.getName()) {
             case AttributeNames.Exceptions: {
                 final ExceptionsAttribute exceptionsAttribute = (ExceptionsAttribute) attribute;
@@ -699,7 +715,10 @@ public class BytecodeLanguage extends Language {
                     final TypeReference type = entry.getType();
 
                     if (type != null) {
-                        if (attribute.getName().equals(AttributeNames.LocalVariableTypeTable)) {
+                        if (entry.isBadType()) {
+                            signature = entry.getOriginalSignature();
+                        }
+                        else if (attribute.getName().equals(AttributeNames.LocalVariableTypeTable)) {
                             signature = type.getSignature();
                         }
                         else {
@@ -760,7 +779,12 @@ public class BytecodeLanguage extends Language {
                                 variables != null ? variables.tryFind(entry.getIndex(), entry.getScopeOffset()) : null
                             );
 
-                            DecompilerHelpers.writeType(output, entry.getType(), nameSyntax);
+                            if (entry.isBadType()) {
+                                output.writeError(entry.getOriginalSignature());
+                            }
+                            else {
+                                DecompilerHelpers.writeType(output, entry.getType(), nameSyntax);
+                            }
 
                             output.writeLine();
                         }
@@ -1022,7 +1046,7 @@ public class BytecodeLanguage extends Language {
                             isFinally = false;
                         }
                         else {
-                            catchType = getResolver(body).lookupType("java/lang/Throwable");
+                            catchType = body.getResolver().lookupType("java/lang/Throwable");
                             isFinally = true;
                         }
 
@@ -1090,24 +1114,6 @@ public class BytecodeLanguage extends Language {
         }
 
         return BytecodeOutputOptions.createDefault();
-    }
-
-    private static IMetadataResolver getResolver(final MethodBody body) {
-        final MethodReference method = body.getMethod();
-
-        if (method != null) {
-            final MethodDefinition resolvedMethod = method.resolve();
-
-            if (resolvedMethod != null) {
-                final TypeDefinition declaringType = resolvedMethod.getDeclaringType();
-
-                if (declaringType != null) {
-                    return declaringType.getResolver();
-                }
-            }
-        }
-
-        return MetadataSystem.instance();
     }
 
     private final static class InstructionPrinter implements InstructionVisitor {

@@ -1132,7 +1132,7 @@ public final class TypeAnalysis {
                         (expectedType.getSimpleType() == JvmType.Integer ||
                          expectedType.getSimpleType() == JvmType.Long)) {
 
-                        return numericPromotion(
+                        return doBinaryNumericPromotion(
                             inferTypeForExpression(
                                 arguments.get(0),
                                 expectedType,
@@ -1141,7 +1141,7 @@ public final class TypeAnalysis {
                         );
                     }
 
-                    return numericPromotion(
+                    return doBinaryNumericPromotion(
                         inferTypeForExpression(
                             arguments.get(0),
                             null,
@@ -1156,7 +1156,7 @@ public final class TypeAnalysis {
                         inferTypeForExpression(arguments.get(1), BuiltinTypes.Integer, flags | FLAG_BOOLEAN_PROHIBITED);
                     }
 
-                    final TypeReference type = numericPromotion(
+                    final TypeReference type = doBinaryNumericPromotion(
                         inferTypeForExpression(
                             arguments.get(0),
                             null,
@@ -2211,6 +2211,16 @@ public final class TypeAnalysis {
             case CmpLe:
                 return BuiltinTypes.Boolean;
 
+            case Add:
+            case Sub:
+            case Mul:
+            case Or:
+            case And:
+            case Xor:
+            case Div:
+            case Rem:
+                return adjustType(doBinaryNumericPromotion(operandType), flags);
+
             default:
                 return adjustType(operandType, flags);
         }
@@ -2754,13 +2764,14 @@ public final class TypeAnalysis {
         return type;
     }
 
-    private TypeReference numericPromotion(final TypeReference type) {
+    private TypeReference doBinaryNumericPromotion(final TypeReference type) {
         if (type == null) {
             return null;
         }
 
         switch (type.getSimpleType()) {
             case Byte:
+            case Character:
             case Short:
                 return BuiltinTypes.Integer;
 

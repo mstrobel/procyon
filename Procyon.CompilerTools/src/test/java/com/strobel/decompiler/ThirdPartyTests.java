@@ -312,13 +312,15 @@ public class ThirdPartyTests extends DecompilerTest {
             "    static long l;\n" +
             "    static float f;\n" +
             "    static double d;\n" +
+            "    private LiteralAssignments() {\n" +
+            "    }\n" +
             "    public static void testByteAssignments() {\n" +
             "        LiteralAssignments.b = -128;\n" +
             "        LiteralAssignments.b = 127;\n" +
             "        LiteralAssignments.b = (byte)(char)(-129);\n" +
             "        LiteralAssignments.b = (byte)(char)(-128);\n" +
             "        LiteralAssignments.b = 127;\n" +
-            "        LiteralAssignments.b = (byte)(char)128;\n" +
+            "        LiteralAssignments.b = (byte)128;\n" +
             "        LiteralAssignments.b = (byte)(-129);\n" +
             "        LiteralAssignments.b = -128;\n" +
             "        LiteralAssignments.b = 127;\n" +
@@ -514,6 +516,146 @@ public class ThirdPartyTests extends DecompilerTest {
             "        System.out.println(\"Hello world\");\n" +
             "    }\n" +
             "}\n"
+        );
+    }
+
+    @Test
+    public void testJava12ClassConstantRewriting() throws Exception {
+        verifyOutput(
+            Class.forName("Java12ClassConstants"),
+            defaultSettings(),
+            "public class Java12ClassConstants {\n" +
+            "    void f() {\n" +
+            "        System.out.println(Integer.class);\n" +
+            "        System.out.println(Java12ClassConstants.class);\n" +
+            "        new Local() {\n" +
+            "            void f() {\n" +
+            "                System.out.println(Integer.class);\n" +
+            "                System.out.println(Local.class);\n" +
+            "                System.out.println(Java12ClassConstants.class);\n" +
+            "            }\n" +
+            "        };\n" +
+            "    }\n" +
+            "    class Local {" +
+            "        void f() {\n" +
+            "            System.out.println(Integer.class);\n" +
+            "            System.out.println(Local.class);\n" +
+            "            System.out.println(Java12ClassConstants.class);\n" +
+            "        }\n" +
+            "    }\n" +
+            "    class Inner {" +
+            "        void f() {\n" +
+            "            System.out.println(Integer.class);\n" +
+            "            System.out.println(Inner.class);\n" +
+            "            System.out.println(Java12ClassConstants.class);\n" +
+            "            new Local() {\n" +
+            "                void f() {\n" +
+            "                    System.out.println(Integer.class);\n" +
+            "                    System.out.println(Local.class);\n" +
+            "                    System.out.println(Java12ClassConstants.class);\n" +
+            "                }\n" +
+            "            };\n" +
+            "        }\n" +
+            "        class Local {" +
+            "            void f() {\n" +
+            "                System.out.println(Integer.class);\n" +
+            "                System.out.println(Local.class);\n" +
+            "                System.out.println(Java12ClassConstants.class);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    static class StaticInner {" +
+            "        void f() {\n" +
+            "            System.out.println(Integer.class);\n" +
+            "            System.out.println(StaticInner.class);\n" +
+            "            System.out.println(Java12ClassConstants.class);\n" +
+            "            new Local() {\n" +
+            "                void f() {\n" +
+            "                    System.out.println(Integer.class);\n" +
+            "                    System.out.println(Local.class);\n" +
+            "                    System.out.println(Java12ClassConstants.class);\n" +
+            "                }\n" +
+            "            };\n" +
+            "        }\n" +
+            "        class Local {" +
+            "            void f() {\n" +
+            "                System.out.println(Integer.class);\n" +
+            "                System.out.println(Local.class);\n" +
+            "                System.out.println(Java12ClassConstants.class);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}"
+        );
+    }
+
+    @Test
+    public void testJava14ClassConstantRewriting() throws Exception {
+        verifyOutput(
+            Class.forName("Java14ClassConstants"),
+            defaultSettings(),
+            "public class Java14ClassConstants {\n" +
+            "    void f() {\n" +
+            "        System.out.println(Integer.class);\n" +
+            "        System.out.println(Java14ClassConstants.class);\n" +
+            "        new Local() {\n" +
+            "            void f() {\n" +
+            "                System.out.println(Integer.class);\n" +
+            "                System.out.println(Local.class);\n" +
+            "                System.out.println(Java14ClassConstants.class);\n" +
+            "            }\n" +
+            "        };\n" +
+            "    }\n" +
+            "    class Local {" +
+            "        void f() {\n" +
+            "            System.out.println(Integer.class);\n" +
+            "            System.out.println(Local.class);\n" +
+            "            System.out.println(Java14ClassConstants.class);\n" +
+            "        }\n" +
+            "    }\n" +
+            "    class Inner {" +
+            "        void f() {\n" +
+            "            System.out.println(Integer.class);\n" +
+            "            System.out.println(Inner.class);\n" +
+            "            System.out.println(Java14ClassConstants.class);\n" +
+            "            new Local() {\n" +
+            "                void f() {\n" +
+            "                    System.out.println(Integer.class);\n" +
+            "                    System.out.println(Local.class);\n" +
+            "                    System.out.println(Java14ClassConstants.class);\n" +
+            "                }\n" +
+            "            };\n" +
+            "        }\n" +
+            "        class Local {" +
+            "            void f() {\n" +
+            "                System.out.println(Integer.class);\n" +
+            "                System.out.println(Local.class);\n" +
+            "                System.out.println(Java14ClassConstants.class);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "    static class StaticInner {" +
+            "        void f() {\n" +
+            "            System.out.println(Integer.class);\n" +
+            "            System.out.println(StaticInner.class);\n" +
+            "            System.out.println(Java14ClassConstants.class);\n" +
+            "            new Local() {\n" +
+            "                void f() {\n" +
+            "                    System.out.println(Integer.class);\n" +
+            "                    System.out.println(Local.class);\n" +
+            "                    System.out.println(Java14ClassConstants.class);\n" +
+            "                }\n" +
+            "            };\n" +
+            "        }\n" +
+            "        class Local {" +
+            "            void f() {\n" +
+            "                System.out.println(Integer.class);\n" +
+            "                System.out.println(Local.class);\n" +
+            "                System.out.println(Java14ClassConstants.class);\n" +
+            "            }\n" +
+            "        }\n" +
+            "    }\n" +
+            "}"
         );
     }
 }

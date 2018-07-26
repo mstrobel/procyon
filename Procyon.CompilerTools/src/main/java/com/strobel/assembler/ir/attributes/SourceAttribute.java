@@ -193,12 +193,23 @@ public class SourceAttribute {
                     final String descriptor = scope.lookupConstant(buffer.readUnsignedShort());
                     final int variableIndex = buffer.readUnsignedShort();
 
+                    TypeReference parsedType;
+
+                    try {
+                        parsedType = resolver.lookupType(descriptor);
+                    }
+                    catch (final java.lang.Error | Exception ignored) {
+                        parsedType = null;
+                    }
+
                     entries[i] = new LocalVariableTableEntry(
                         variableIndex,
                         variableName,
-                        resolver.lookupType(descriptor),
+                        parsedType != null ? parsedType : BuiltinTypes.Object,
+                        descriptor,
                         scopeOffset,
-                        scopeLength
+                        scopeLength,
+                        parsedType == null
                     );
                 }
 

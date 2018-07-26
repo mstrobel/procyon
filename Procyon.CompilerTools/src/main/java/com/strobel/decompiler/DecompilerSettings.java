@@ -27,6 +27,7 @@ public class DecompilerSettings {
     private boolean _includeLineNumbersInBytecode = true;
     private boolean _showSyntheticMembers;
     private boolean _alwaysGenerateExceptionVariableForCatchBlocks = true;
+    private boolean _forceFullyQualifiedReferences;
     private boolean _forceExplicitImports;
     private boolean _forceExplicitTypeArguments;
     private boolean _flattenSwitchBlocks;
@@ -210,6 +211,14 @@ public class DecompilerSettings {
 
     public final void setDisableForEachTransforms(final boolean disableForEachTransforms) {
         _disableForEachTransforms = disableForEachTransforms;
+    }
+
+    public boolean getForceFullyQualifiedReferences() {
+        return _forceFullyQualifiedReferences;
+    }
+
+    public void setForceFullyQualifiedReferences(final boolean forceFullyQualifiedReferences) {
+        _forceFullyQualifiedReferences = forceFullyQualifiedReferences;
     }
 
     public static DecompilerSettings javaDefaults() {

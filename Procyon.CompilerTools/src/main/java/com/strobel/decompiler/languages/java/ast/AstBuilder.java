@@ -23,8 +23,10 @@ import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
 import com.strobel.assembler.metadata.annotations.*;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.Closeables;
 import com.strobel.core.MutableInteger;
 import com.strobel.core.Predicate;
+import com.strobel.core.SafeCloseable;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
@@ -51,6 +53,7 @@ public final class AstBuilder {
 
     private boolean _decompileMethodBodies = true;
     private boolean _haveTransformationsRun;
+    private int _suppressImportsDepth;
 
     public AstBuilder(final DecompilerContext context) {
         _context = VerifyArgument.notNull(context, "context");
@@ -77,6 +80,23 @@ public final class AstBuilder {
 
     final DecompilerContext getContext() {
         return _context;
+    }
+
+    public final boolean areImportsSuppressed() {
+        return _suppressImportsDepth > 0;
+    }
+
+    public final SafeCloseable suppressImports() {
+        ++_suppressImportsDepth;
+
+        return Closeables.create(
+            new Runnable() {
+                @Override
+                public void run() {
+                    --_suppressImportsDepth;
+                }
+            }
+        );
     }
 
     public final boolean getDecompileMethodBodies() {
@@ -332,7 +352,7 @@ public final class AstBuilder {
                 unqualifiedName = nameSource.getSimpleName();
             }
 
-            if (options.getAddImports() && !_typeDeclarations.containsKey(typeToImport.getInternalName())) {
+            if (options.getAddImports() && !areImportsSuppressed() && !_typeDeclarations.containsKey(typeToImport.getInternalName())) {
                 String importedName = _unqualifiedTypeNames.get(typeToImport.getSimpleName());
 
                 if (importedName == null) {
@@ -621,7 +641,7 @@ public final class AstBuilder {
         return astField;
     }
 
-    private MethodDeclaration createMethod(final MethodDefinition method) {
+    public final MethodDeclaration createMethod(final MethodDefinition method) {
         final MethodDeclaration astMethod = new MethodDeclaration();
 
         final Set<Modifier> modifiers;
@@ -689,9 +709,14 @@ public final class AstBuilder {
 
         astMethod.setName(method.getDeclaringType().getName());
         astMethod.getParameters().addAll(createParameters(method.getParameters()));
+        astMethod.getTypeParameters().addAll(createTypeParameters(method.getGenericParameters()));
         astMethod.setBody(createMethodBody(method, astMethod.getParameters()));
         astMethod.putUserData(Keys.METHOD_DEFINITION, method);
         astMethod.putUserData(Keys.MEMBER_REFERENCE, method);
+
+        for (final CustomAnnotation annotation : method.getAnnotations()) {
+            astMethod.getAnnotations().add(createAnnotation(annotation));
+        }
 
         for (final TypeReference thrownType : method.getThrownTypes()) {
             astMethod.addChild(convertType(thrownType), Roles.THROWN_TYPE);

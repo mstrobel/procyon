@@ -19,7 +19,44 @@ package com.strobel.assembler.metadata;
 public enum ConversionType {
     IDENTITY,
     IMPLICIT,
+    IMPLICIT_LOSSY,
     EXPLICIT,
     EXPLICIT_TO_UNBOXED,
-    NONE
+    NONE;
+
+    public final boolean isImplicit() {
+        switch (this) {
+            case IDENTITY:
+            case IMPLICIT:
+            case IMPLICIT_LOSSY:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public final boolean isDirect() {
+        switch (this) {
+            case IDENTITY:
+            case IMPLICIT:
+            case IMPLICIT_LOSSY:
+            case EXPLICIT:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public final boolean isLossless() {
+        switch (this) {
+            case IDENTITY:
+            case IMPLICIT:
+                return true;
+
+            default:
+                return false;
+        }
+    }
 }

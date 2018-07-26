@@ -320,10 +320,16 @@ public enum AstCode {
 
     DefaultValue;
 
+    private final String _name;
+
+    AstCode() {
+        _name = StringUtilities.trimAndRemoveLeft(name().toLowerCase(), "__");
+    }
+
     private final static OpCode[] STANDARD_CODES = OpCode.values();
 
     public final String getName() {
-        return StringUtilities.trimAndRemoveLeft(name().toLowerCase(), "__");
+        return _name;
     }
 
     public final boolean isLoad() {
@@ -365,6 +371,18 @@ public enum AstCode {
     public final boolean isStore() {
         switch (this) {
             case Store:
+            case Inc:
+            case PreIncrement:
+            case PostIncrement:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    public final boolean isIncDec() {
+        switch (this) {
             case Inc:
             case PreIncrement:
             case PostIncrement:

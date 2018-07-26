@@ -30,23 +30,6 @@ import java.util.Map;
 import java.util.Set;
 
 public final class StackMapAnalyzer {
-    private static IMetadataResolver getResolver(final MethodBody body) {
-        final MethodReference method = body.getMethod();
-
-        if (method != null) {
-            final MethodDefinition resolvedMethod = method.resolve();
-
-            if (resolvedMethod != null) {
-                final TypeDefinition declaringType = resolvedMethod.getDeclaringType();
-
-                if (declaringType != null) {
-                    return declaringType.getResolver();
-                }
-            }
-        }
-
-        return MetadataSystem.instance();
-    }
 
     @SuppressWarnings("ConstantConditions")
     public static List<StackMapFrame> computeStackMapTable(final MethodBody body) {
@@ -66,7 +49,7 @@ public final class StackMapAnalyzer {
         final Map<Instruction, Frame> frames = new IdentityHashMap<>();
         final Set<Instruction> branchTargets = new LinkedHashSet<>();
 
-        final IMetadataResolver resolver = getResolver(body);
+        final IMetadataResolver resolver = body.getResolver();
         final TypeReference throwableType = resolver.lookupType("java/lang/Throwable");
 
         for (final ExceptionHandler handler : exceptionHandlers) {

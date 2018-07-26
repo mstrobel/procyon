@@ -33,15 +33,16 @@ public final class VariableDefinition extends VariableReference {
     private boolean _fromMetadata;
     private ParameterDefinition _parameter;
 
-    public VariableDefinition(final int slot, final String name, final MethodDefinition declaringMethod) {
-        super(name, VerifyArgument.notNull(declaringMethod, "declaringMethod").getDeclaringType());
-        _declaringMethod = declaringMethod;
-        _slot = slot;
-    }
+    public VariableDefinition(
+        final int slot,
+        final String name,
+        final MethodDefinition declaringMethod,
+        final TypeReference variableType) {
 
-    public VariableDefinition(final int slot, final String name, final MethodDefinition declaringMethod, final TypeReference variableType) {
-        this(slot, name, declaringMethod);
-        setVariableType(variableType);
+        super(name, variableType);
+
+        _slot = slot;
+        _declaringMethod = VerifyArgument.notNull(declaringMethod, "declaringMethod");
     }
 
     public final boolean isParameter() {
@@ -57,8 +58,12 @@ public final class VariableDefinition extends VariableReference {
         _parameter = parameter;
     }
 
+    public final MethodDefinition getDeclaringMethod() {
+        return _declaringMethod;
+    }
+
     @Override
-    public final TypeReference getDeclaringType() {
+    public final TypeDefinition getDeclaringType() {
         return _declaringMethod.getDeclaringType();
     }
 

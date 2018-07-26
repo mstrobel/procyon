@@ -17,6 +17,7 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.FieldDefinition;
+import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.MethodReference;
@@ -29,8 +30,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.NamedNode;
 
-import static com.strobel.core.CollectionUtilities.any;
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 
 public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
     public RemoveHiddenMembersTransform(final DecompilerContext context) {
@@ -110,32 +110,36 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
         final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
         if (method != null) {
-            if (AstBuilder.isMemberHidden(method, context)) {
-                if (method.getDeclaringType().isEnum() &&
-                    method.getDeclaringType().isAnonymous() &&
-                    !node.getBody().getStatements().isEmpty()) {
+            final TypeDefinition declaringType = method.getDeclaringType();
 
-                    //
-                    // Keep initializer blocks in anonymous enum value bodies.
-                    //
-                    return super.visitConstructorDeclaration(node, p);
+            if (declaringType != null) {
+                if (AstBuilder.isMemberHidden(method, context)) {
+                    if (declaringType.isEnum() &&
+                        declaringType.isAnonymous() &&
+                        !node.getBody().getStatements().isEmpty()) {
+
+                        //
+                        // Keep initializer blocks in anonymous enum value bodies.
+                        //
+                        return super.visitConstructorDeclaration(node, p);
+                    }
+
+                    node.remove();
+                    return null;
                 }
 
-                node.remove();
-                return null;
-            }
+                if (!context.getSettings().getShowSyntheticMembers() &&
+                    (method.getModifiers() & Flags.AccessFlags) == (declaringType.getModifiers() & Flags.AccessFlags) &&
+                    node.getParameters().isEmpty() &&
+                    node.getThrownTypes().isEmpty() &&
+                    node.getTypeParameters().isEmpty() &&
+                    node.getAnnotations().isEmpty() &&
+                    DEFAULT_CONSTRUCTOR_BODY.matches(node.getBody())) {
 
-            if (!context.getSettings().getShowSyntheticMembers() &&
-                node.getParameters().isEmpty() &&
-                DEFAULT_CONSTRUCTOR_BODY.matches(node.getBody())) {
+                    //
+                    // Remove redundant default constructors.
+                    //
 
-                //
-                // Remove redundant default constructors.
-                //
-
-                final TypeDefinition declaringType = method.getDeclaringType();
-
-                if (declaringType != null) {
                     final boolean hasOtherConstructors = any(
                         declaringType.getDeclaredMethods(),
                         new Predicate<MethodDefinition>() {
@@ -172,7 +176,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
             final Match match = EMPTY_SUPER.match(node);
 
             if (match.success()) {
-                final AstNode target = firstOrDefault(match.<AstNode>get("target"));
+                final AstNode target = first(match.<AstNode>get("target"));
                 final MemberReference member = target.getUserData(Keys.MEMBER_REFERENCE);
 
                 if (member instanceof MethodReference && ((MethodReference) member).isConstructor()) {

@@ -93,6 +93,7 @@ public class DecompilerDriver {
         settings.setMergeVariables(options.getMergeVariables());
         settings.setShowDebugLineNumbers(options.getShowDebugLineNumbers());
         settings.setSimplifyMemberReferences(options.getSimplifyMemberReferences());
+        settings.setForceFullyQualifiedReferences(options.getForceFullyQualifiedReferences());
         settings.setDisableForEachTransforms(options.getDisableForEachTransforms());
         settings.setTypeLoader(new InputTypeLoader());
 
@@ -227,13 +228,7 @@ public class DecompilerDriver {
         final ITypeLoader oldTypeLoader = settings.getTypeLoader();
 
         settings.setShowSyntheticMembers(false);
-
-        settings.setTypeLoader(
-            new CompositeTypeLoader(
-                new JarTypeLoader(jar),
-                settings.getTypeLoader()
-            )
-        );
+        settings.setTypeLoader(new CompositeTypeLoader(new JarTypeLoader(jar), oldTypeLoader));
 
         try {
             MetadataSystem metadataSystem = new NoRetryMetadataSystem(settings.getTypeLoader());
@@ -464,9 +459,9 @@ final class NoRetryMetadataSystem extends MetadataSystem {
     NoRetryMetadataSystem() {
     }
 
-    NoRetryMetadataSystem(final String classPath) {
-        super(classPath);
-    }
+//    NoRetryMetadataSystem(final String classPath) {
+//        super(classPath);
+//    }
 
     NoRetryMetadataSystem(final ITypeLoader typeLoader) {
         super(typeLoader);

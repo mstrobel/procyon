@@ -2,6 +2,7 @@ package com.strobel.decompiler;
 
 import org.junit.Test;
 
+@SuppressWarnings({ "unused", "UnnecessaryBoxing" })
 public class BoxingTests extends DecompilerTest {
     @SuppressWarnings("InfiniteRecursion")
     private static class A {
@@ -119,6 +120,33 @@ public class BoxingTests extends DecompilerTest {
                 return "'\\013'";
             }
             return null;
+        }
+    }
+
+    @SuppressWarnings("UnusedParameters")
+    private static class G {
+        Float valueF() {
+            return null;
+        }
+
+        Integer valueI() {
+            return null;
+        }
+
+        void testI(final int i) {
+        }
+
+        void testF(final float f) {
+        }
+
+        void test1() {
+            testF(valueI());
+            testF((float) valueI());
+            testF(valueI().floatValue());
+        }
+
+        void test2() {
+            testI(valueF().intValue());
         }
     }
 
@@ -241,7 +269,7 @@ public class BoxingTests extends DecompilerTest {
             "    void t(final boolean b) {\n" +
             "        final Double d = 4.3;\n" +
             "        final Integer i = 3;\n" +
-            "        final short s = (short)(b ? i : ((int)Integer.valueOf((int)(double)d)));\n" +
+            "        final short s = (short)(b ? i : ((int)(double)d));\n" +
             "    }\n" +
             "}\n"
         );
@@ -269,6 +297,34 @@ public class BoxingTests extends DecompilerTest {
             "            return \"'\\\\013'\";\n" +
             "        }\n" +
             "        return null;\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testKeepRequiredUnboxingCalls() throws Exception {
+        verifyOutput(
+            G.class,
+            defaultSettings(),
+            "private static class G {\n" +
+            "    Float valueF() {\n" +
+            "        return null;\n" +
+            "    }\n" +
+            "    Integer valueI() {\n" +
+            "        return null;\n" +
+            "    }\n" +
+            "    void testI(final int i) {\n" +
+            "    }\n" +
+            "    void testF(final float f) {\n" +
+            "    }\n" +
+            "    void test1() {\n" +
+            "        this.testF(this.valueI());\n" +
+            "        this.testF(this.valueI());\n" +
+            "        this.testF(this.valueI());\n" +
+            "    }\n" +
+            "    void test2() {\n" +
+            "        this.testI(this.valueF().intValue());\n" +
             "    }\n" +
             "}\n"
         );

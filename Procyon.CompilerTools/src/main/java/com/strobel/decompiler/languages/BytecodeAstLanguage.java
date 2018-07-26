@@ -16,12 +16,7 @@
 
 package com.strobel.decompiler.languages;
 
-import com.strobel.assembler.metadata.Flags;
-import com.strobel.assembler.metadata.MethodBody;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.StringUtilities;
@@ -156,7 +151,7 @@ public class BytecodeAstLanguage extends Language {
                     final TypeReference type = variable.getType();
 
                     if (type != null) {
-                        output.write(" : ");
+                        output.writeDelimiter(" : ");
                         DecompilerHelpers.writeType(output, type, NameSyntax.SHORT_TYPE_NAME);
                     }
 
@@ -172,7 +167,7 @@ public class BytecodeAstLanguage extends Language {
 
             methodAst.writeTo(output);
         }
-        catch (Throwable t) {
+        catch (final Throwable t) {
             writeError(output, t);
         }
         finally {
@@ -243,6 +238,25 @@ public class BytecodeAstLanguage extends Language {
             }
         }
 
+        final List<GenericParameter> genericParameters = method.getGenericParameters();
+
+        if (!genericParameters.isEmpty()) {
+            output.writeDelimiter("<");
+
+            for (int i = 0; i < genericParameters.size(); i++) {
+                final GenericParameter gp = genericParameters.get(i);
+
+                if (i != 0) {
+                    output.writeDelimiter(", ");
+                }
+
+                DecompilerHelpers.writeType(output, gp, NameSyntax.TYPE_NAME);
+            }
+
+            output.writeDelimiter(">");
+            output.write(' ');
+        }
+
         if (!method.isTypeInitializer()) {
             DecompilerHelpers.writeType(output, method.getReturnType(), NameSyntax.TYPE_NAME);
             output.write(' ');
@@ -254,7 +268,7 @@ public class BytecodeAstLanguage extends Language {
                 output.writeReference(method.getName(), method);
             }
 
-            output.write("(");
+            output.writeDelimiter("(");
 
             final List<ParameterDefinition> parameters = method.getParameters();
 
@@ -262,7 +276,7 @@ public class BytecodeAstLanguage extends Language {
                 final ParameterDefinition parameter = parameters.get(i);
 
                 if (i != 0) {
-                    output.write(", ");
+                    output.writeDelimiter(", ");
                 }
 
                 DecompilerHelpers.writeType(output, parameter.getParameterType(), NameSyntax.TYPE_NAME);
@@ -270,7 +284,7 @@ public class BytecodeAstLanguage extends Language {
                 output.writeReference(parameter.getName(), parameter);
             }
 
-            output.write(")");
+            output.writeDelimiter(")");
         }
     }
 

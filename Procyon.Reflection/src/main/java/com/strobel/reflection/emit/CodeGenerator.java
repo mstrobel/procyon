@@ -346,6 +346,22 @@ public class CodeGenerator {
         emit(OpCode.DUP2_X2);
     }
 
+    public void dup(final Type<?> type) {
+        switch (type.getKind()) {
+            case LONG:
+            case DOUBLE:
+                emit(OpCode.DUP2);
+                break;
+
+            case VOID:
+                break;
+
+            default:
+                emit(OpCode.DUP);
+                break;
+        }
+    }
+
     public void pop() {
         emit(OpCode.POP);
     }
@@ -450,13 +466,32 @@ public class CodeGenerator {
         int stackChange = 0;
 
         if (constructor instanceof ConstructorBuilder) {
-            stackChange -= ((ConstructorBuilder)constructor).getParameterTypes().size();
+            for (final Type<?> type : ((ConstructorBuilder) constructor).getParameterTypes()) {
+                stackChange -= stackSize(type);
+            }
         }
         else {
+            for (final ParameterInfo p : constructor.getParameters()) {
+                stackChange -= stackSize(p.getParameterType());
+            }
             stackChange -= constructor.getParameters().size();
         }
 
         updateStackSize(opCode, stackChange);
+    }
+
+    private static int stackSize(final Type<?> type) {
+        final TypeKind kind = type.getKind();
+
+        if (kind == TypeKind.LONG || kind == TypeKind.DOUBLE) {
+            return 2;
+        }
+
+        if (kind == TypeKind.VOID) {
+            return 0;
+        }
+
+        return 1;
     }
 
     public void emit(final OpCode opCode, final MethodInfo method) {
@@ -474,6 +509,7 @@ public class CodeGenerator {
 
         final TypeList parameterTypes;
 
+        int stackChange = 0;
         int formalParametersSize = 0;
 
         if (method instanceof MethodBuilder) {
@@ -484,10 +520,10 @@ public class CodeGenerator {
         }
 
         for (final Type<?> parameterType : parameterTypes) {
-            ++formalParametersSize;
-            if (parameterType == PrimitiveTypes.Long || parameterType == PrimitiveTypes.Double) {
-                ++formalParametersSize;
-            }
+            final int size = stackSize(parameterType);
+
+            stackChange -= size;
+            formalParametersSize += size;
         }
 
         if (opCode == OpCode.INVOKEINTERFACE) {
@@ -499,16 +535,7 @@ public class CodeGenerator {
 
         registerCheckedExceptions(method);
 
-        int stackChange = -formalParametersSize;
-
-        final Type<?> returnType = method.getReturnType();
-
-        if (returnType != PrimitiveTypes.Void) {
-            ++stackChange;
-            if (returnType == PrimitiveTypes.Long || returnType == PrimitiveTypes.Double) {
-                ++stackChange;
-            }
-        }
+        stackChange += stackSize(method.getReturnType());
 
         updateStackSize(opCode, stackChange);
     }
@@ -524,7 +551,18 @@ public class CodeGenerator {
 
         final int fieldToken = methodBuilder.getDeclaringType().getFieldToken(field);
 
+
+        int stackChange = 0;
+
+        if (opCode == OpCode.PUTFIELD || opCode == OpCode.PUTSTATIC) {
+            stackChange -= stackSize(field.getFieldType());
+        }
+        else {
+            stackChange += stackSize(field.getFieldType());
+        }
+
         emit(opCode, (short)fieldToken);
+        updateStackSize(opCode, stackChange);
     }
 
     public void emit(final OpCode opCode, final Label label) {

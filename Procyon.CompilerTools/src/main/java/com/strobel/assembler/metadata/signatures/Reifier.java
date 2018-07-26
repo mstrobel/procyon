@@ -156,6 +156,10 @@ public final class Reifier implements TypeTreeVisitor<TypeReference> {
 
     public void visitTypeVariableSignature(final TypeVariableSignature tv) {
         resultType = getFactory().findTypeVariable(tv.getName());
+
+//        if (resultType == null) {
+//            resultType = BuiltinTypes.Object;
+//        }
     }
 
     public void visitWildcard(final Wildcard w) {

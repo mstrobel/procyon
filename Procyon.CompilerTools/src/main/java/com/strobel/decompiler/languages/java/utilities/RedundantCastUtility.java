@@ -239,11 +239,13 @@ public final class RedundantCastUtility {
 
         @Override
         public Void visitBinaryOperatorExpression(final BinaryOperatorExpression node, final Void data) {
-            final TypeReference leftType = getType(node.getLeft());
-            final TypeReference rightType = getType(node.getRight());
+            final BinaryOperatorType operator = node.getOperator();
 
-            processBinaryExpressionOperand(node.getLeft(), rightType, node.getOperator());
-            processBinaryExpressionOperand(node.getRight(), leftType, node.getOperator());
+            final TypeReference resultType = operator.isRelational() ? BuiltinTypes.Boolean
+                                                                     : getType(node);
+
+            processBinaryExpressionOperand(node.getRight(), node.getLeft(), operator, resultType);
+            processBinaryExpressionOperand(node.getLeft(), node.getRight(), operator, resultType);
 
             return super.visitBinaryOperatorExpression(node, data);
         }
@@ -270,7 +272,46 @@ public final class RedundantCastUtility {
                 argument.acceptVisitor(this, data);
             }
             processCall(node);
+            node.getTypeDeclaration().acceptVisitor(this, data);
             return null;
+        }
+
+        @Override
+        public Void visitArrayInitializerExpression(final ArrayInitializerExpression node, final Void data) {
+            processArrayInitializer(node);
+            return super.visitArrayInitializerExpression(node, data);
+        }
+
+        private void processArrayInitializer(final ArrayInitializerExpression node) {
+            final TypeReference expectedArrayType = getExpectedTypeByParent(_resolver, node);
+
+            if (expectedArrayType == null || !expectedArrayType.isArray()) {
+                return;
+            }
+
+            final TypeReference target = expectedArrayType.getElementType();
+
+            for (final Expression element : node.getElements()) {
+                if (element instanceof CastExpression) {
+                    final Expression value = ((CastExpression) element).getExpression();
+
+                    final TypeReference middle = getType(element);
+                    final TypeReference source = getType(value);
+
+                    if (middle != null &&
+                        source != null &&
+                        getConversion(target, middle, null).isImplicit() &&
+                        getConversion(target, source, value).isImplicit() &&
+                        getConversion(source, middle, null).isImplicit()) {
+
+                        final ConversionType sourceToMiddle = getConversion(middle, source, value);
+
+                        if (sourceToMiddle.isImplicit() && sourceToMiddle.isLossless()) {
+                            addToResults((CastExpression) element, false);
+                        }
+                    }
+                }
+            }
         }
 
         @Override
@@ -300,16 +341,23 @@ public final class RedundantCastUtility {
                 final Expression innerOperand = innerCast.getExpression();
                 final TypeReference innerOperandType = getType(innerOperand);
 
+                final TypeReference expectedType = getExpectedTypeByParent(_resolver, node);
+
+                final boolean nullReferencePossible = expectedType != null &&
+                                                      !expectedType.isPrimitive() &&
+                                                      !innerOperandType.isPrimitive() &&
+                                                      innerCastType.isPrimitive();
+
                 if (!innerCastType.isPrimitive()) {
                     if (innerOperandType != null &&
-                        MetadataHelper.getConversionType(topCastType, innerOperandType) != ConversionType.NONE) {
+                        MetadataHelper.getConversionType(topCastType, innerOperandType).isDirect()) {
 
                         addToResults(innerCast, false);
                     }
                 }
-                else {
-                    final ConversionType valueToInner = MetadataHelper.getNumericConversionType(innerCastType, innerOperandType);
-                    final ConversionType outerToInner = MetadataHelper.getNumericConversionType(innerCastType, topCastType);
+                else if (!nullReferencePossible) {
+                    final ConversionType valueToInner = getNumericConversion(innerCastType, innerOperandType, innerOperand);
+                    final ConversionType outerToInner = getNumericConversion(innerCastType, topCastType, innerOperand);
 
                     if (outerToInner == ConversionType.IDENTITY) {
                         if (valueToInner == ConversionType.IDENTITY) {
@@ -326,21 +374,24 @@ public final class RedundantCastUtility {
                             addToResults(innerCast, true);
                         }
                     }
-                    else if (outerToInner == ConversionType.IMPLICIT) {
-                        final ConversionType valueToOuter = MetadataHelper.getNumericConversionType(topCastType, innerOperandType);
+                    else if (valueToInner == ConversionType.IDENTITY) {
+                        addToResults(innerCast, true);
+                    }
+                    else {
+                        final ConversionType valueToOuter = getNumericConversion(topCastType, innerOperandType, innerOperand);
 
-                        if (valueToOuter != ConversionType.NONE) {
+                        if (outerToInner == ConversionType.IMPLICIT && valueToOuter.isDirect()) {
                             //
-                            // If V -> T is equivalent to U -> T (assumed if T -> U is an implicit/non-narrowing conversion):
+                            // If V -> T is equivalent to U -> T (assumed if T -> U is an implicit, lossless,
+                            // non-narrowing conversion, and there exists a direct conversion from U -> T):
+                            //
                             // V v; (T)(U)v => (T)v
                             //
                             addToResults(innerCast, true);
                         }
-                    }
-                    else if (valueToInner == ConversionType.IMPLICIT &&
-                             MetadataHelper.getNumericConversionType(topCastType, innerOperandType) == ConversionType.IMPLICIT) {
-
-                        addToResults(innerCast, true);
+                        else if (valueToInner == ConversionType.IMPLICIT && valueToOuter.isImplicit()) {
+                            addToResults(innerCast, true);
+                        }
                     }
                 }
             }
@@ -388,14 +439,14 @@ public final class RedundantCastUtility {
                         return null;
                     }
 
-                    final ResolveResult lambdaResult = _resolver.apply(e);
+                    final TypeReference lambdaType = getType(e);
                     final TypeReference functionalInterfaceType;
 
-                    if (lambdaResult != null && lambdaResult.getType() != null) {
-                        final TypeReference asSubType = MetadataHelper.asSubType(lambdaResult.getType(), topCastType);
+                    if (lambdaType != null) {
+                        final TypeReference asSubType = MetadataHelper.asSubType(lambdaType, topCastType);
 
                         functionalInterfaceType = asSubType != null ? asSubType
-                                                                    : lambdaResult.getType();
+                                                                    : lambdaType;
                     }
                     else {
                         //
@@ -459,30 +510,39 @@ public final class RedundantCastUtility {
 
             final Expression r = removeParentheses(rightExpression);
 
-            if (r instanceof CastExpression) {
-                final AstType castAstType = ((CastExpression) r).getType();
-                final TypeReference castType = castAstType.toTypeReference();
-                final Expression castOperand = ((CastExpression) r).getExpression();
+            if (!(r instanceof CastExpression)) {
+                return;
+            }
+            
+            final AstType castAstType = ((CastExpression) r).getType();
+            final TypeReference castType = castAstType.toTypeReference();
+            final Expression castOperand = ((CastExpression) r).getExpression();
 
-                if (!castOperand.isNull() && castType != null) {
-                    final TypeReference operandType = getType(castOperand);
+            if (castOperand.isNull() || castType == null) {
+                return;
+            }
+            
+            final TypeReference operandType = getType(castOperand);
 
-                    if (operandType != null) {
-                        if (MetadataHelper.isAssignableFrom(leftType, operandType, false)) {
-                            addToResults((CastExpression) r, false);
-                        }
-                        else {
-                            final TypeReference unboxedCastType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(castType);
-                            final TypeReference unboxedLeftType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(leftType);
+            if (operandType == null) {
+                return;
+            }
+            
+            if (MetadataHelper.isAssignableFrom(leftType, operandType, false)) {
+                addToResults((CastExpression) r, false);
+                return;
+            }
 
-                            if (castOperand instanceof PrimitiveExpression &&
-                                TypeUtilities.isValidPrimitiveLiteralAssignment(unboxedCastType, ((PrimitiveExpression) castOperand).getValue()) &&
-                                TypeUtilities.isValidPrimitiveLiteralAssignment(unboxedLeftType, ((PrimitiveExpression) castOperand).getValue())) {
+            final ResolveResult rr = _resolver.apply(castOperand);
 
-                                addToResults((CastExpression) r, true);
-                            }
-                        }
-                    }
+            if (rr.isCompileTimeConstant()) {
+                final TypeReference unboxedCastType = unbox(castType);
+                final TypeReference unboxedLeftType = unbox(leftType);
+
+                if (isValidPrimitiveLiteralAssignment(unboxedLeftType, rr.getConstantValue()) &&
+                    isValidPrimitiveLiteralAssignment(unboxedCastType, rr.getConstantValue())) {
+
+                    addToResults((CastExpression) r, true);
                 }
             }
         }
@@ -495,20 +555,40 @@ public final class RedundantCastUtility {
 
         protected void processBinaryExpressionOperand(
             final Expression operand,
-            final TypeReference otherType,
-            final BinaryOperatorType op) {
+            final Expression other,
+            final BinaryOperatorType op,
+            final TypeReference resultType) {
 
             if (operand instanceof CastExpression) {
                 final CastExpression cast = (CastExpression) operand;
                 final Expression toCast = cast.getExpression();
                 final TypeReference castType = getType(cast);
                 final TypeReference innerType = getType(toCast);
+                final TypeReference otherType = getType(other);
 
-                if (castType != null &&
-                    innerType != null &&
-                    TypeUtilities.isBinaryOperatorApplicable(op, innerType, otherType, false)) {
+                if (castType != null && innerType != null) {
+                    //
+                    // Cast is only redundant if without it the operator is still applicable and
+                    // yields the same result type as before.
+                    //
+                    // A changed result type is an indicator for:
+                    //    - Clash of integer and floating-point arithmetic:
+                    //        `1 / (float)5` is not equal to `1 / 5`.
+                    //    - Possibility of overflows:
+                    //        `5 * (long)Integer.MAX_VALUE` is not equal to `5 * Integer.MAX_VALUE`
+                    //
 
-                    addToResults(cast, false);
+                    final boolean isApplicable = isBinaryOperatorApplicable(
+                        op,
+                        innerType,
+                        otherType,
+                        op.isRelational() ? null : resultType,
+                        false
+                    );
+
+                    if (isApplicable) {
+                        addToResults(cast, false);
+                    }
                 }
             }
         }
@@ -582,7 +662,9 @@ public final class RedundantCastUtility {
             }
 
             //noinspection StatementWithEmptyBody
-            for (int i = parameters.size() - 1; i >= 0 && parameters.get(i).isSynthetic(); --i, ++syntheticTrailingCount) {
+            for (int i = parameters.size() - 1;
+                 i >= 0 && parameters.get(i).isSynthetic();
+                 i--, syntheticTrailingCount++) {
             }
 
             for (final Expression argument : arguments) {
@@ -679,7 +761,7 @@ public final class RedundantCastUtility {
 
                         final boolean castNeeded = !MetadataHelper.isSameType(
                             castType,
-                            MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(newParameter.getParameterType())
+                            unbox(newParameter.getParameterType())
                         );
 
                         if (castNeeded) {
@@ -733,8 +815,10 @@ public final class RedundantCastUtility {
                 return;
             }
 
-            final TypeReference expectedType = TypeUtilities.getExpectedTypeByParent(_resolver, cast);
-            final boolean isCharConversion = (operandType == BuiltinTypes.Character) ^ (castTo == BuiltinTypes.Character);
+            final TypeReference expectedType = getExpectedTypeByParent(_resolver, cast);
+
+            final boolean isCharConversion = (operandType == BuiltinTypes.Character) ^
+                                             (castTo == BuiltinTypes.Character);
 
             if (expectedType != null) {
                 if (isCharConversion && !expectedType.isPrimitive()) {
@@ -908,38 +992,72 @@ public final class RedundantCastUtility {
                 return false;
             }
 
+            final AstNode parent = skipParenthesesUp(cast.getParent());
+
+            TypeReference binaryTypeAfterRemoval = null;
+
+            if (parent instanceof BinaryOperatorExpression) {
+                final BinaryOperatorExpression b = (BinaryOperatorExpression) parent;
+                final BinaryOperatorType operator = b.getOperator();
+
+                Expression firstOperand = b.getLeft();
+                Expression otherOperand = b.getRight();
+
+                if (!firstOperand.isNull() && !otherOperand.isNull()) {
+                    if (otherOperand.isAncestorOf(cast, b)) {
+                        final Expression temp = otherOperand;
+                        otherOperand = firstOperand;
+                        firstOperand= temp;
+                    }
+
+                    if (castChangesBinarySemantics(firstOperand, otherOperand, operand, operator)) {
+                        return true;
+                    }
+
+                    final TypeReference tFirst = getType(firstOperand);
+                    final TypeReference tOther = getType(otherOperand);
+
+                    if (tFirst != null && tFirst.isPrimitive() ||
+                        tOther != null && tOther.isPrimitive()) {
+
+                        //
+                        // See if removing the cast would change the intermediate type (e.g., the result
+                        // of binary numeric type promotion).  If so, don't remove it.
+                        //
+
+                        final TypeReference t1 = MetadataHelper.findCommonSuperType(unbox(tFirst) ,unbox(tOther));
+                        final TypeReference t2 = MetadataHelper.findCommonSuperType(unbox(opType) ,unbox(tOther));
+
+                        if (!MetadataResolver.areEquivalent(t1, t2)) {
+                            return true;
+                        }
+
+                        binaryTypeAfterRemoval = t2;
+                    }
+                }
+            }
+
             if (castType instanceof PrimitiveType) {
                 if (opType instanceof PrimitiveType) {
-                    if (operand instanceof PrimitiveExpression) {
-                        final TypeReference unboxedCastType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(castType);
-                        final TypeReference unboxedOpType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(opType);
+                    final ConversionType conversionType = getNumericConversion(castType, opType, operand);
 
-                        if (TypeUtilities.isValidPrimitiveLiteralAssignment(unboxedCastType, ((PrimitiveExpression) operand).getValue()) &&
-                            TypeUtilities.isValidPrimitiveLiteralAssignment(unboxedOpType, ((PrimitiveExpression) operand).getValue())) {
+                    if (conversionType.isImplicit() ||
+                        conversionType == ConversionType.EXPLICIT_TO_UNBOXED) {
 
+                        if (conversionType.isLossless()) {
+                            return false;
+                        }
+
+                        if (castType.isEquivalentTo(binaryTypeAfterRemoval)) {
+                            //
+                            // Lossy conversions are generally semantic, but if the same conversions would be
+                            // applied by binary numeric promotion anyway, then we can safely remove the cast.
+                            //
                             return false;
                         }
                     }
 
-                    final ConversionType conversionType = MetadataHelper.getNumericConversionType(castType, opType);
-
-                    if (conversionType != ConversionType.IDENTITY &&
-                        conversionType != ConversionType.IMPLICIT) {
-
-                        return true;
-                    }
-                }
-
-                final TypeReference unboxedOpType = MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(opType);
-
-                if (unboxedOpType.isPrimitive()) {
-                    final ConversionType conversionType = MetadataHelper.getNumericConversionType(castType, unboxedOpType);
-
-                    if (conversionType != ConversionType.IDENTITY &&
-                        conversionType != ConversionType.IMPLICIT) {
-
-                        return true;
-                    }
+                    return true;
                 }
             }
             else if (castType instanceof IGenericInstance) {
@@ -990,44 +1108,76 @@ public final class RedundantCastUtility {
                 }
             }
 
-            AstNode parent = cast.getParent();
+            if (parent instanceof ConditionalExpression &&
+                opType.isPrimitive() &&
+                !(getType(parent) instanceof PrimitiveType)) {
 
-            while (parent instanceof ParenthesizedExpression) {
-                parent = parent.getParent();
-            }
+                final TypeReference expectedType = getExpectedTypeByParent(_resolver, (Expression) parent);
 
-            if (parent instanceof BinaryOperatorExpression) {
-                final BinaryOperatorExpression expression = (BinaryOperatorExpression) parent;
-
-                Expression firstOperand = expression.getLeft();
-                Expression otherOperand = expression.getRight();
-
-                if (otherOperand.isAncestorOf(cast)) {
-                    final Expression temp = otherOperand;
-                    otherOperand = firstOperand;
-                    firstOperand = temp;
-                }
-
-                if (!firstOperand.isNull() &&
-                    !otherOperand.isNull() &&
-                    castChangesComparisonSemantics(firstOperand, otherOperand, operand, expression.getOperator())) {
-
+                if (expectedType != null && unbox(expectedType).isPrimitive()) {
                     return true;
-                }
-            }
-            else if (parent instanceof ConditionalExpression) {
-                if (opType.isPrimitive() && !(getType(parent) instanceof PrimitiveType)) {
-                    final TypeReference expectedType = TypeUtilities.getExpectedTypeByParent(_resolver, (Expression) parent);
-
-                    if (expectedType != null &&
-                        MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(expectedType).isPrimitive()) {
-
-                        return true;
-                    }
                 }
             }
 
             return false;
+        }
+
+        private static TypeReference unbox(final TypeReference t) {
+            return t != null ? MetadataHelper.getUnderlyingPrimitiveTypeOrSelf(t)
+                             : null;
+        }
+
+        /**
+         * Determines the conversion type, taking lossiness into consideration for numeric conversions.
+         * Returns {@link ConversionType#NONE} if a determination could not be made.
+         */
+        private ConversionType getConversion(
+            @NotNull final TypeReference target,
+            @NotNull final TypeReference source,
+            @Nullable final Expression value) {
+
+            final TypeReference unboxedTarget = unbox(target);
+            final TypeReference unboxedSource = unbox(source);
+
+            if (unboxedTarget.getSimpleType().isNumeric() && unboxedSource.getSimpleType().isNumeric()) {
+                return getNumericConversion(target, source, value);
+            }
+
+            return MetadataHelper.getConversionType(target, source);
+        }
+
+        /**
+         * Determines the numeric conversion type, taking lossiness into consideration.
+         * Returns {@link ConversionType#NONE} if a determination could not be made.
+         */
+        private ConversionType getNumericConversion(
+            @NotNull final TypeReference target,
+            @NotNull final TypeReference source,
+            @Nullable final Expression value) {
+
+            final TypeReference unboxedTarget = unbox(target);
+            final TypeReference unboxedSource = unbox(source);
+
+            final JvmType jvmSource = unboxedSource.getSimpleType();
+            final JvmType jvmTarget = unboxedTarget.getSimpleType();
+
+            if (jvmSource == JvmType.Boolean || !jvmSource.isNumeric() ||
+                jvmTarget == JvmType.Boolean || !jvmTarget.isNumeric()) {
+
+                return ConversionType.NONE;
+            }
+
+            final ResolveResult resolveResult = value != null ? _resolver.apply(value) : null;
+            final Object constantValue = resolveResult != null ? resolveResult.getConstantValue() : null;
+
+            if (constantValue != null &&
+                isValidPrimitiveLiteralAssignment(unboxedTarget, constantValue) &&
+                isValidPrimitiveLiteralAssignment(unboxedSource, constantValue)) {
+
+                return ConversionType.IDENTITY;
+            }
+
+            return MetadataHelper.getNumericConversionType(target, source);
         }
 
         public boolean isInPolymorphicCall(final CastExpression cast) {
@@ -1076,7 +1226,7 @@ public final class RedundantCastUtility {
             return false;
         }
 
-        private boolean castChangesComparisonSemantics(
+        private boolean castChangesBinarySemantics(
             final Expression operand,
             final Expression otherOperand,
             final Expression toCast,
@@ -1086,8 +1236,8 @@ public final class RedundantCastUtility {
             final TypeReference otherType = getType(otherOperand);
             final TypeReference castType = getType(toCast);
 
-            final boolean isPrimitiveComparisonWithCast;
-            final boolean isPrimitiveComparisonWithoutCast;
+            final boolean isPrimitiveOperationWithCast;
+            final boolean isPrimitiveOperationWithoutCast;
 
             if (operator == BinaryOperatorType.EQUALITY || operator == BinaryOperatorType.INEQUALITY) {
                 //
@@ -1095,23 +1245,23 @@ public final class RedundantCastUtility {
                 //
 
                 if (isPrimitive(otherType)) {
-                    isPrimitiveComparisonWithCast = isPrimitiveOrWrapper(operandType);
-                    isPrimitiveComparisonWithoutCast = isPrimitiveOrWrapper(castType);
+                    isPrimitiveOperationWithCast = isPrimitiveOrWrapper(operandType);
+                    isPrimitiveOperationWithoutCast = isPrimitiveOrWrapper(castType);
                 }
                 else {
                     //
                     // Even if `otherType` isn't a wrapper, a reference-to-primitive cast has a side
                     // effect and should not be removed.
                     //
-                    isPrimitiveComparisonWithCast = isPrimitive(operandType);
-                    isPrimitiveComparisonWithoutCast = isPrimitive(castType);
+                    isPrimitiveOperationWithCast = isPrimitive(operandType);
+                    isPrimitiveOperationWithoutCast = isPrimitive(castType);
                 }
             }
             else {
-                isPrimitiveComparisonWithCast = operandType != null && operandType.isPrimitive() ||
+                isPrimitiveOperationWithCast = operandType != null && operandType.isPrimitive() ||
                                                 otherType != null && otherType.isPrimitive();
 
-                isPrimitiveComparisonWithoutCast = castType != null && castType.isPrimitive() ||
+                isPrimitiveOperationWithoutCast = castType != null && castType.isPrimitive() ||
                                                    operandType != null && operandType.isPrimitive();
             }
 
@@ -1119,7 +1269,7 @@ public final class RedundantCastUtility {
             // Wrapper cast to primitive vs. wrapper comparison
             //
 
-            return isPrimitiveComparisonWithCast != isPrimitiveComparisonWithoutCast;
+            return isPrimitiveOperationWithCast ^ isPrimitiveOperationWithoutCast;
         }
 
         // </editor-fold>

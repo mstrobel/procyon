@@ -2703,7 +2703,23 @@ public final class AstOptimizer {
 
                 int instructionsToRemove = 0;
 
-                for (int j = position + 1; j < body.size(); j++) {
+                final boolean hasInnocuousStackAssignment;
+
+                if (position < body.size() - 1) {
+                    final StrongBox<Variable> stackVariable = new StrongBox<>();
+                    final StrongBox<Expression> stackAssignment = new StrongBox<>();
+
+                    hasInnocuousStackAssignment = matchStore(body.get(position + 1), stackVariable, stackAssignment) &&
+                                                  matchLoad(stackAssignment.value, v.value) &&
+                                                  stackVariable.value.isGeneratedStackVariable();
+                }
+                else {
+                    hasInnocuousStackAssignment = false;
+                }
+
+                final int storeElementStart = hasInnocuousStackAssignment ? 2 : 1;
+
+                for (int j = position + storeElementStart; j < body.size(); j++) {
                     final Node node = body.get(j);
 
                     if (!(node instanceof Expression)) {
@@ -2751,7 +2767,7 @@ public final class AstOptimizer {
                     head.getArguments().set(0, new Expression(AstCode.InitArray, arrayType, head.getOffset(), initializers));
 
                     for (int i = 0; i < instructionsToRemove; i++) {
-                        body.remove(position + 1);
+                        body.remove(position + storeElementStart);
                     }
 
                     new Inlining(context, method).inlineIfPossible(body, new MutableInteger(position));

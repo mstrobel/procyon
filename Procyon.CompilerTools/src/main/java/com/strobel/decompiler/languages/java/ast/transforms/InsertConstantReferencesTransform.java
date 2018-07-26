@@ -191,9 +191,9 @@ public class InsertConstantReferencesTransform extends ContextTrackingVisitor<Vo
                     case "POSITIVE_INFINITY": {
                         node.replaceWith(
                             new BinaryOperatorExpression(
-                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? 1d : 1f),
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? (Object) 1d : 1f),
                                 BinaryOperatorType.DIVIDE,
-                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? 0d : 0f)
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? (Object) 0d : 0f)
                             )
                         );
                         return;
@@ -202,9 +202,9 @@ public class InsertConstantReferencesTransform extends ContextTrackingVisitor<Vo
                     case "NEGATIVE_INFINITY": {
                         node.replaceWith(
                             new BinaryOperatorExpression(
-                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? -1d : -1f),
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? (Object) (-1d) : -1f),
                                 BinaryOperatorType.DIVIDE,
-                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? 0d : 0f)
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? (Object) 0d : 0f)
                             )
                         );
                         return;
@@ -213,9 +213,9 @@ public class InsertConstantReferencesTransform extends ContextTrackingVisitor<Vo
                     case "NaN": {
                         node.replaceWith(
                             new BinaryOperatorExpression(
-                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? 0d : 0f),
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? (Object) 0d : 0f),
                                 BinaryOperatorType.DIVIDE,
-                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? 0d : 0f)
+                                new PrimitiveExpression(node.getOffset(), jvmType == JvmType.Double ? (Object) 0d : 0f)
                             )
                         );
                         return;

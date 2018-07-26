@@ -17,6 +17,8 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.*;
+import com.strobel.core.SafeCloseable;
+import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
@@ -83,20 +85,22 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                 final MethodReference method = (MethodReference) reference;
                 final TypeReference declaringType = method.getDeclaringType();
 
-                if (!MetadataResolver.areEquivalent(context.getCurrentType(), declaringType) &&
+                if (StringUtilities.equals(declaringType.getPackageName(), context.getCurrentType().getPackageName()) &&
+                    !MetadataResolver.areEquivalent(context.getCurrentType(), declaringType) &&
                     !MetadataHelper.isEnclosedBy(context.getCurrentType(), declaringType) &&
                     !_visitedTypes.contains(declaringType.getInternalName())) {
 
-                    final MethodDefinition resolvedMethod = method.resolve();
+                    final MethodDefinition md = method.resolve();
 
-                    if (resolvedMethod != null &&
-                        resolvedMethod.isSynthetic()) {
+                    if (md != null && md.isSynthetic() && !md.isBridgeMethod() && md.isPackagePrivate()) {
                         final AstBuilder astBuilder = context.getUserData(Keys.AST_BUILDER);
 
                         if (astBuilder != null) {
-                            final TypeDeclaration ownerTypeDeclaration = astBuilder.createType(resolvedMethod.getDeclaringType());
+                            try (final SafeCloseable importSuppression = astBuilder.suppressImports()) {
+                                final TypeDeclaration ownerTypeDeclaration = astBuilder.createType(md.getDeclaringType());
 
-                            ownerTypeDeclaration.acceptVisitor(new PhaseOneVisitor(), data);
+                                ownerTypeDeclaration.acceptVisitor(new PhaseOneVisitor(), data);
+                            }
                         }
                     }
                 }
@@ -300,7 +304,7 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
 
         final ParameterDeclaration setParameter2 = new ParameterDeclaration(
             Pattern.ANY_STRING,
-            new BackReference("returnType").toType()
+            new AnyNode().toType()
         );
 
         setParameter1.setAnyModifiers(true);
@@ -343,7 +347,13 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                                 FieldReference.class
                             ).toExpression(),
                             AssignmentOperatorType.ANY,
-                            new ParameterReferenceNode(1, "value").toExpression()
+                            new Choice(
+                                new ParameterReferenceNode(1, "value"),
+                                new CastExpression(
+                                    new BackReference("returnType").toType(),
+                                    new ParameterReferenceNode(1, "value").toExpression()
+                                )
+                            ).toExpression()
                         )
                     ),
                     new ReturnStatement(Expression.MYSTERY_OFFSET, new BackReference("value").toExpression())
@@ -361,7 +371,13 @@ public class EliminateSyntheticAccessorsTransform extends ContextTrackingVisitor
                                 FieldReference.class
                             ).toExpression(),
                             AssignmentOperatorType.ANY,
-                            new ParameterReferenceNode(1, "value").toExpression()
+                            new Choice(
+                                new ParameterReferenceNode(1, "value"),
+                                new CastExpression(
+                                    new BackReference("returnType").toType(),
+                                    new ParameterReferenceNode(1, "value").toExpression()
+                                )
+                            ).toExpression()
                         )
                     )
                 )

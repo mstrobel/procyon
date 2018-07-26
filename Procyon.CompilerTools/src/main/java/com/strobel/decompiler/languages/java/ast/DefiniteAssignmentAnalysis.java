@@ -49,7 +49,7 @@ public class DefiniteAssignmentAnalysis {
     private final List<IdentifierExpression> unassignedVariableUsesView = Collections.unmodifiableList(unassignedVariableUses);
     private final ArrayDeque<DefiniteAssignmentNode> nodesWithModifiedInput = new ArrayDeque<>();
 
-    private Function<AstNode, ResolveResult> resolver;
+    private final Function<AstNode, ResolveResult> resolver;
 
     private String variableName;
 
@@ -82,6 +82,18 @@ public class DefiniteAssignmentAnalysis {
             if (node.getType() == ControlFlowNodeType.StartNode ||
                 node.getType() == ControlFlowNodeType.BetweenStatements) {
 
+                //
+                // Anonymous methods have separate control flow graphs, but we also need to analyze those.
+                // Iterate backwards so that anonymous methods are inserted in the correct order.
+                //
+                for (AstNode child = node.getNextStatement().getLastChild(); child != null; child = child.getPreviousSibling()) {
+                    insertAnonymousMethods(i + 1, child, builder);
+                }
+            }
+
+            if (node.getType() == ControlFlowNodeType.StartNode ||
+                node.getType() == ControlFlowNodeType.BetweenStatements) {
+
                 beginNodeMap.put(node.getNextStatement(), node);
             }
 
@@ -100,6 +112,42 @@ public class DefiniteAssignmentAnalysis {
         this.analyzedRangeEnd = allNodes.size() - 1;
     }
 
+    private void insertAnonymousMethods(
+        final int insertPosition,
+        final AstNode node,
+        final ControlFlowGraphBuilder builder) {
+
+        //
+        // Ignore any statements, as those have their own ControlFlowNode and get handled separately.
+        //
+        if (node instanceof Statement) {
+            return;
+        }
+
+        if (node instanceof LambdaExpression){
+            final LambdaExpression lambda = (LambdaExpression) node;
+
+            if (lambda.getBody() instanceof Statement) {
+                @SuppressWarnings("unchecked")
+                final List<? extends DefiniteAssignmentNode> nodes = (List) builder.buildControlFlowGraph(
+                    (Statement) lambda.getBody(),
+                    resolver
+                );
+
+                allNodes.addAll(insertPosition, nodes);
+
+                return;
+            }
+        }
+
+        //
+        // Descend into child expressions.  Iterate backwards so that anonymous methods
+        // are inserted in the correct order.
+        //
+        for (AstNode child = node.getLastChild(); child != null; child = child.getPreviousSibling()) {
+            insertAnonymousMethods(insertPosition, child, builder);
+        }
+    }
     public List<IdentifierExpression> getUnassignedVariableUses() {
         return unassignedVariableUsesView;
     }
@@ -498,6 +546,17 @@ public class DefiniteAssignmentAnalysis {
             else {
                 return visitChildren(node, data);
             }
+        }
+
+        @Override
+        public DefiniteAssignmentStatus visitLambdaExpression(final LambdaExpression node, final DefiniteAssignmentStatus data) {
+            if (node.getBody() instanceof Statement) {
+                changeNodeStatus(beginNodeMap.get(node.getBody()), data);
+            }
+            else {
+                node.getBody().acceptVisitor(this, data);
+            }
+            return data;
         }
 
         final DefiniteAssignmentStatus handleAssignment(final Expression left, final Expression right, final DefiniteAssignmentStatus initialStatus) {

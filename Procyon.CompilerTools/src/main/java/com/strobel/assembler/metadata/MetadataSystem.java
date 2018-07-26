@@ -48,9 +48,14 @@ public class MetadataSystem extends MetadataResolver {
         this(new ClasspathTypeLoader());
     }
 
-    public MetadataSystem(final String classPath) {
-        this(new ClasspathTypeLoader(VerifyArgument.notNull(classPath, "classPath")));
-    }
+    //
+    // Temporarily removing this constructor to get a Java 9 compatibility fix out quickly.
+    // Hopefully nobody is using it.  Will restore once ClasspathTypeLoader can be fleshed
+    // out to support arbitrary paths.
+    //
+//    public MetadataSystem(final String classPath) {
+//        this(new ClasspathTypeLoader(VerifyArgument.notNull(classPath, "classPath")));
+//    }
 
     public MetadataSystem(final ITypeLoader typeLoader) {
         _typeLoader = VerifyArgument.notNull(typeLoader, "typeLoader");

@@ -67,6 +67,41 @@ public class CastTests extends DecompilerTest {
         }
     }
 
+    private static class E {
+        public int valueI() {
+            return Integer.MAX_VALUE;
+        }
+
+        public float valueF() {
+            return 1.0f;
+        }
+
+        public long valueL() {
+            return 5L;
+        }
+
+        public void test() {
+            // A cast on at least one of the integer values is required, to prevent potential overflow
+            System.out.println(valueI() * (long)valueI());
+            System.out.println((long)valueI() * valueI());
+            System.out.println((long)valueI() * (long)valueI());
+
+            // To perform floating-point arithmetic with two integer operands, at least one of them needs to be cast.
+            System.out.println(valueI() / (float)valueI());
+            System.out.println((float)valueI() / valueL());
+            System.out.println((float)valueI() / (float)valueI());
+
+            // Just an integer division
+            System.out.println(valueI() / valueI());
+
+            // These casts are redundant
+            System.out.println(valueF() * (float)valueI());
+            System.out.println(valueI() + valueF());
+            System.out.println(valueF() - (float)valueL());
+            System.out.println(valueI() / valueF());
+        }
+    }
+
     @Test
     public void testPrimitiveComparisonCastAnalysis() {
         verifyOutput(
@@ -137,6 +172,38 @@ public class CastTests extends DecompilerTest {
             "            ++n;\n" +
             "        }\n" +
             "        return 1;\n" +
+            "    }\n" +
+            "}"
+        );
+    }
+
+    @Test
+    public void testBinaryOperatorResultTypeRetainsCast() {
+        verifyOutput(
+            E.class,
+            defaultSettings(),
+            "private static class E {\n" +
+            "    public int valueI() {\n" +
+            "        return Integer.MAX_VALUE;\n" +
+            "    }\n" +
+            "    public float valueF() {\n" +
+            "        return 1.0f;\n" +
+            "    }\n" +
+            "    public long valueL() {\n" +
+            "        return 5L;\n" +
+            "    }\n" +
+            "    public void test() {\n" +
+            "        System.out.println(this.valueI() * (long)this.valueI());\n" +
+            "        System.out.println(this.valueI() * (long)this.valueI());\n" +
+            "        System.out.println(this.valueI() * (long)this.valueI());\n" +
+            "        System.out.println(this.valueI() / (float)this.valueI());\n" +
+            "        System.out.println(this.valueI() / (float)this.valueL());\n" +
+            "        System.out.println(this.valueI() / (float)this.valueI());\n" +
+            "        System.out.println(this.valueI() / this.valueI());\n" +
+            "        System.out.println(this.valueF() * this.valueI());\n" +
+            "        System.out.println(this.valueI() + this.valueF());\n" +
+            "        System.out.println(this.valueF() - this.valueL());\n" +
+            "        System.out.println(this.valueI() / this.valueF());\n" +
             "    }\n" +
             "}"
         );

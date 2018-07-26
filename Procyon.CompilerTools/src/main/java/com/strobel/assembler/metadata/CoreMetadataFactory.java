@@ -61,6 +61,8 @@ public class CoreMetadataFactory implements MetadataFactory {
     public GenericParameter makeTypeVariable(final String name, final FieldTypeSignature[] bounds) {
         final GenericParameter genericParameter = new GenericParameter(name);
 
+        genericParameter.setResolver(_resolver);
+
         if (ArrayUtilities.isNullOrEmpty(bounds)) {
             return genericParameter;
         }

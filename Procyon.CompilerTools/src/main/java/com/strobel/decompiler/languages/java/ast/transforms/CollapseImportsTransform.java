@@ -16,7 +16,9 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.metadata.PackageReference;
+import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
@@ -62,7 +64,7 @@ public class CollapseImportsTransform implements IAstTransform {
         for (final ImportDeclaration oldImport : imports) {
             final Identifier importedType = oldImport.getImportIdentifier();
 
-            if (importedType != null && !importedType.isNull()) {
+            if (!importedType.isNull()) {
                 final TypeReference type = oldImport.getUserData(Keys.TYPE_REFERENCE);
 
                 if (type != null) {
@@ -99,15 +101,31 @@ public class CollapseImportsTransform implements IAstTransform {
         }
     }
 
+    private static boolean isPublic(@NotNull final TypeReference type) {
+        if (type instanceof TypeDefinition) {
+            return ((TypeDefinition) type).isPublic();
+        }
+
+        final TypeDefinition resolvedType = type.resolve();
+
+        return resolvedType == null || resolvedType.isPublic();
+    }
+
     private void removeRedundantImports(final CompilationUnit compilationUnit) {
         final AstNodeCollection<ImportDeclaration> imports = compilationUnit.getImports();
         final PackageDeclaration packageDeclaration = compilationUnit.getChildByRole(Roles.PACKAGE);
         final String filePackage = packageDeclaration.isNull() ? null : packageDeclaration.getName();
+        final boolean removeAllImports = _settings.getForceFullyQualifiedReferences();
 
         for (final ImportDeclaration oldImport : imports) {
             final Identifier importedType = oldImport.getImportIdentifier();
 
-            if (importedType != null && !importedType.isNull()) {
+            if (removeAllImports) {
+                oldImport.remove();
+                continue;
+            }
+
+            if (!importedType.isNull()) {
                 final TypeReference type = oldImport.getUserData(Keys.TYPE_REFERENCE);
 
                 if (type != null) {
@@ -115,7 +133,8 @@ public class CollapseImportsTransform implements IAstTransform {
 
                     if (StringUtilities.isNullOrEmpty(packageName) ||
                         StringUtilities.equals(packageName, "java.lang") ||
-                        StringUtilities.equals(packageName, filePackage)) {
+                        StringUtilities.equals(packageName, filePackage) ||
+                        !isPublic(type)) {
 
                         oldImport.remove();
                     }

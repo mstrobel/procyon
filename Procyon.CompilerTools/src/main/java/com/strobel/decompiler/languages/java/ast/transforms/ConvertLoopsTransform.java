@@ -148,7 +148,7 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             final ControlFlowNode from = edge.getFrom();
             final Statement statement = from.getPreviousStatement();
 
-            if (statement != null && body.isAncestorOf(statement)) {
+            if (statement != null && body.isAncestorOf(statement, node)) {
                 bodyNodes.add(from);
             }
         }
@@ -899,15 +899,20 @@ public final class ConvertLoopsTransform extends ContextTrackingVisitor<AstNode>
             }
         }
 
-        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, body);
-        final Statement firstStatement = firstOrDefault(body.getStatements());
-        final Statement lastStatement = lastOrDefault(body.getStatements());
-
-        analysis.setAnalyzedRange(firstStatement, lastStatement);
-        analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
-
-        if (!analysis.isPotentiallyAssigned()) {
+        if (body.getStatements().isEmpty()) {
             forEach.addVariableModifier(Modifier.FINAL);
+        }
+        else {
+            final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, body);
+            final Statement firstStatement = firstOrDefault(body.getStatements());
+            final Statement lastStatement = lastOrDefault(body.getStatements());
+
+            analysis.setAnalyzedRange(firstStatement, lastStatement);
+            analysis.analyze(item.getIdentifier(), DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+
+            if (!analysis.isPotentiallyAssigned()) {
+                forEach.addVariableModifier(Modifier.FINAL);
+            }
         }
 
         return forEach;

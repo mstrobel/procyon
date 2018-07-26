@@ -32,7 +32,7 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
-import static com.strobel.core.CollectionUtilities.firstOrDefault;
+import static com.strobel.core.CollectionUtilities.*;
 
 public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<Void> {
     private final static ConvertTypeOptions NO_IMPORT_OPTIONS;
@@ -103,32 +103,55 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
             return null;
         }
 
-        final ResolveResult valueResult = _resolver.apply(node.getTarget());
+        final Expression target = node.getTarget();
+        final ResolveResult valueResult = _resolver.apply(target);
 
         TypeReference declaringType = member.getDeclaringType();
 
         if (valueResult != null &&
             valueResult.getType() != null) {
 
+            if (target instanceof LambdaExpression || target instanceof MethodGroupExpression) {
+                final TypeReference finalDeclaringType = adjustDeclaringType(valueResult, declaringType);
+
+                target.replaceWith(
+                    new Function<AstNode, AstNode>() {
+                        @Override
+                        public AstNode apply(final AstNode input) {
+                            return new CastExpression(astBuilder.convertType(finalDeclaringType), target);
+                        }
+                    }
+                );
+
+                recurse(node);
+
+                return null;
+            }
+
             if (MetadataHelper.isAssignableFrom(declaringType, valueResult.getType())) {
                 return null;
             }
 
-            if (valueResult.getType().isGenericType() &&
-                (declaringType.isGenericType() ||
-                 MetadataHelper.isRawType(declaringType))) {
-
-                final TypeReference asSuper = MetadataHelper.asSuper(declaringType, valueResult.getType());
-
-                if (asSuper != null) {
-                    declaringType = asSuper;
-                }
-            }
+            declaringType = adjustDeclaringType(valueResult, declaringType);
         }
 
-        addCastForAssignment(astBuilder.convertType(declaringType, NO_IMPORT_OPTIONS), node.getTarget());
+        addCastForAssignment(astBuilder.convertType(declaringType, NO_IMPORT_OPTIONS), target);
 
         return null;
+    }
+
+    private static TypeReference adjustDeclaringType(final ResolveResult valueResult, final TypeReference declaringType) {
+        if (valueResult.getType().isGenericType() &&
+            (declaringType.isGenericType() ||
+             MetadataHelper.isRawType(declaringType))) {
+
+            final TypeReference asSuper = MetadataHelper.asSuper(declaringType, valueResult.getType());
+
+            if (asSuper != null) {
+                return asSuper;
+            }
+        }
+        return declaringType;
     }
 
     @Override
@@ -197,6 +220,23 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
         final Expression right = node.getExpression();
 
         addCastForAssignment(left, right);
+
+        return null;
+    }
+
+    @Override
+    public Void visitArrayInitializerExpression(final ArrayInitializerExpression node, final Void data) {
+        super.visitArrayInitializerExpression(node, data);
+
+        final ArrayCreationExpression creation = firstOrDefault(ofType(node.getAncestors(), ArrayCreationExpression.class));
+
+        if (creation == null || !creation.getAdditionalArraySpecifiers().hasSingleElement()) {
+            return null;
+        }
+
+        for (final Expression element : node.getElements()) {
+            addCastForAssignment(creation.getType(), element);
+        }
 
         return null;
     }

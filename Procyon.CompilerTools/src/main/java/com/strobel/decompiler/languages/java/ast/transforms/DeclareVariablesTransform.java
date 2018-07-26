@@ -898,7 +898,12 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         @Override
         public Boolean visitForStatement(final ForStatement node, final Void p) {
+            if (_abort) {
+                return Boolean.FALSE;
+            }
+
             ++_loopOrTryDepth;
+
             try {
                 return super.visitForStatement(node, p);
             }
@@ -908,8 +913,54 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
 
         @Override
+        public Boolean visitIfElseStatement(final IfElseStatement node, final Void data) {
+            return visitCondition(node.getCondition(), node.getTrueStatement(), node.getFalseStatement());
+        }
+
+        @Override
+        public Boolean visitConditionalExpression(final ConditionalExpression node, final Void data) {
+            return visitCondition(node.getCondition(), node.getTrueExpression(), node.getFalseExpression());
+        }
+
+        private Boolean visitCondition(final AstNode condition, final AstNode ifTrue, final AstNode ifFalse) {
+            if (_abort) {
+                return Boolean.FALSE;
+            }
+
+            condition.acceptVisitor(this, null);
+
+            final int originalAssignmentCount = _assignmentCount;
+
+            _assignmentCount = 0;
+
+            try {
+                ifTrue.acceptVisitor(this, null);
+
+                if (_assignmentCount > 0) {
+                    _abort = true;
+                }
+                else {
+                    ifFalse.acceptVisitor(this, null);
+                    _abort |= _assignmentCount > 0;
+                }
+            }
+            finally {
+                _assignmentCount += originalAssignmentCount;
+            }
+
+            _abort |= _assignmentCount > 1;
+
+            return !_abort;
+        }
+
+        @Override
         public Boolean visitForEachStatement(final ForEachStatement node, final Void p) {
+            if (_abort) {
+                return Boolean.FALSE;
+            }
+
             ++_loopOrTryDepth;
+
             try {
                 if (StringUtilities.equals(node.getVariableName(), _variableName)) {
                     ++_assignmentCount;
@@ -923,7 +974,12 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         @Override
         public Boolean visitDoWhileStatement(final DoWhileStatement node, final Void p) {
+            if (_abort) {
+                return Boolean.FALSE;
+            }
+
             ++_loopOrTryDepth;
+
             try {
                 return super.visitDoWhileStatement(node, p);
             }
@@ -934,7 +990,12 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         @Override
         public Boolean visitWhileStatement(final WhileStatement node, final Void p) {
+            if (_abort) {
+                return Boolean.FALSE;
+            }
+
             ++_loopOrTryDepth;
+
             try {
                 return super.visitWhileStatement(node, p);
             }
@@ -945,7 +1006,12 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         @Override
         public Boolean visitTryCatchStatement(final TryCatchStatement node, final Void data) {
+            if (_abort) {
+                return Boolean.FALSE;
+            }
+
             ++_loopOrTryDepth;
+
             try {
                 return super.visitTryCatchStatement(node, data);
             }
@@ -956,6 +1022,10 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         @Override
         public Boolean visitAssignmentExpression(final AssignmentExpression node, final Void p) {
+            if (_abort) {
+                return Boolean.FALSE;
+            }
+
             final Expression left = node.getLeft();
 
             if (left instanceof IdentifierExpression &&
@@ -974,11 +1044,15 @@ public class DeclareVariablesTransform implements IAstTransform {
 
         @Override
         public Boolean visitTypeDeclaration(final TypeDeclaration node, final Void data) {
-            return null;
+            return !_abort;
         }
 
         @Override
         public Boolean visitUnaryOperatorExpression(final UnaryOperatorExpression node, final Void p) {
+            if (_abort) {
+                return Boolean.FALSE;
+            }
+
             final Expression operand = node.getExpression();
 
             switch (node.getOperator()) {

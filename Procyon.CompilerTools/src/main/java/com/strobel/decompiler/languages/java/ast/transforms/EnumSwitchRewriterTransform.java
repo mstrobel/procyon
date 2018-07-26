@@ -21,6 +21,7 @@ import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.MethodDefinition;
 import com.strobel.assembler.metadata.TypeDefinition;
 import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.core.SafeCloseable;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
@@ -152,9 +153,11 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
                             astBuilder = new AstBuilder(context);
                         }
 
-                        final TypeDeclaration declaration = astBuilder.createType(resolvedType);
+                        try (final SafeCloseable importSuppression = astBuilder.suppressImports()) {
+                            final TypeDeclaration declaration = astBuilder.createType(resolvedType);
 
-                        declaration.acceptVisitor(this, data);
+                            declaration.acceptVisitor(this, data);
+                        }
                     }
                 }
 

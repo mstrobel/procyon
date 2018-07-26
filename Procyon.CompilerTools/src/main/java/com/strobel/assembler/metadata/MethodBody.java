@@ -45,6 +45,16 @@ public final class MethodBody extends Freezable {
         _exceptionHandlers = new Collection<>();
     }
 
+    public final IMetadataResolver getResolver() {
+        final TypeDefinition declaringType = _method.getDeclaringType();
+
+        if (declaringType != null) {
+            return declaringType.getResolver();
+        }
+
+        return MetadataSystem.instance();
+    }
+
     public final InstructionCollection getInstructions() {
         return _instructions;
     }

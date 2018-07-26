@@ -528,14 +528,14 @@ public enum OpCode {
         /* DRETURN */ -2,
         /* ARETURN */ -1,
         /* RETURN */ 0,
-        /* GETSTATIC */ 1,
-        /* PUTSTATIC */ -1,
-        /* GETFIELD */ 1,
-        /* PUTFIELD */ -1,
-        /* INVOKEVIRTUAL */ -1,         // pops 'this' (unless static)
-        /* INVOKESPECIAL */ -1,         // but needs to account for
-        /* INVOKESTATIC */ 0,           // parameters and return type
-        /* INVOKEINTERFACE */ -1,       //
+        /* GETSTATIC */ 0,              // <-+-- pops 'this' (unless static)
+        /* PUTSTATIC */ 0,              //   |   but needs to account for
+        /* GETFIELD */ 1,               //   |   field type
+        /* PUTFIELD */ -1,              // <-+
+        /* INVOKEVIRTUAL */ -1,         // <-+-- pops 'this' (unless static)
+        /* INVOKESPECIAL */ -1,         //   |   but needs to account for
+        /* INVOKESTATIC */ 0,           //   |   parameter and return types
+        /* INVOKEINTERFACE */ -1,       // <-+
         /* XXXUNUSEDXXX */ 0,
         /* NEW */ 1,
         /* NEWARRAY */ 0,

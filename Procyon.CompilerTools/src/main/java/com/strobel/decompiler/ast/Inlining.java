@@ -44,6 +44,8 @@ final class Inlining {
     final Map<Variable, MutableInteger> loadCounts;
     final Map<Variable, MutableInteger> storeCounts;
     final Map<Variable, List<Expression>> loads;
+    final StrongBox<Variable> _tempVariable = new StrongBox<>();
+    final StrongBox<Expression> _tempExpression = new StrongBox<>();
 
     public Inlining(final DecompilerContext context, final Block method) {
         this(context, method, false);
@@ -72,40 +74,33 @@ final class Inlining {
 
     final void analyzeNode(final Node node) {
         if (node instanceof Expression) {
-            final Expression expression = (Expression) node;
-            final Object operand = expression.getOperand();
+            final Expression e = (Expression) node;
 
-            if (operand instanceof Variable) {
-                final AstCode code = expression.getCode();
-                final Variable localVariable = (Variable) operand;
-
-                if (code == AstCode.Load) {
-                    increment(loadCounts, localVariable);
-                    loads.get(localVariable).add(expression);
-                }
-                else if (code == AstCode.Store) {
-                    increment(storeCounts, localVariable);
-                }
-                else if (code == AstCode.Inc) {
-                    increment(loadCounts, localVariable);
-                    increment(storeCounts, localVariable);
-                    loads.get(localVariable).add(expression);
-                }
-                else if (code == AstCode.PostIncrement) {
-                    increment(loadCounts, localVariable);
-                    increment(storeCounts, localVariable);
-                    loads.get(localVariable).add(expression);
-                }
-                else if (code == AstCode.Ret) {
-                    increment(loadCounts, localVariable);
-                    loads.get(localVariable).add(expression);
-                }
-                else {
-                    throw new IllegalStateException("Unexpected AST op code: " + code.getName());
-                }
+            if (matchLoadOrRet(e, _tempVariable)) {
+                increment(loadCounts, _tempVariable.get());
+                loads.get(_tempVariable.get()).add(e);
+            }
+            else if (matchStore(e, _tempVariable, _tempExpression)) {
+                increment(storeCounts, _tempVariable.get());
+            }
+            else if (matchVariableIncDec(e, _tempVariable)) {
+                increment(loadCounts, _tempVariable.get());
+                increment(storeCounts, _tempVariable.get());
+                loads.get(_tempVariable.get()).add(e);
+            }
+            else if (e.getOperand() instanceof Variable) {
+                throw new IllegalStateException(
+                    String.format(
+                        "Unexpected instruction <%s> with variable operand at offset %d in %s:%s",
+                        e,
+                        e.getOffset(),
+                        _context.getCurrentMethod().getFullName(),
+                        _context.getCurrentMethod().getErasedSignature()
+                    )
+                );
             }
 
-            for (final Expression argument : expression.getArguments()) {
+            for (final Expression argument : e.getArguments()) {
                 analyzeNode(argument);
             }
         }
@@ -715,7 +710,8 @@ final class Inlining {
                     //
                     // Parameters can be copied only if they aren't assigned to.
                     //
-                    return count(storeCounts, v) == 0;
+                    return count(storeCounts, v) == 0 &&
+                           notFromMetadata(copyVariable);
                 }
 
                 //
@@ -819,7 +815,7 @@ final class Inlining {
 
                     @SuppressWarnings("unchecked")
                     private Expression updateCurrent(Expression node) {
-                        while (node != null && node != Node.NULL) {
+                        if (node != null && node != Node.NULL) {
                             if (node == scope) {
                                 return null;
                             }

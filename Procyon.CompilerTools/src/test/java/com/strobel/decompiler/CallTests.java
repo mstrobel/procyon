@@ -1,14 +1,15 @@
 package com.strobel.decompiler;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
+@SuppressWarnings("RedundantCast")
 public class CallTests extends DecompilerTest {
     private static class A {
         void f() {
         }
 
         static class B extends A {
+            @Override
             void f() {
             }
 
@@ -30,6 +31,7 @@ public class CallTests extends DecompilerTest {
             private void f(final String s) {
             }
 
+            @Override
             void g(final String s) {
             }
 
@@ -51,6 +53,7 @@ public class CallTests extends DecompilerTest {
                 private void f(final String s) {
                 }
 
+                @Override
                 void g(final String s) {
                 }
 
@@ -72,6 +75,21 @@ public class CallTests extends DecompilerTest {
                     this.g("D.g()");
                 }
             }
+        }
+    }
+
+    private interface IC {
+        int f();
+    }
+
+    private static class C implements IC {
+        @Override
+        public int f() {
+            return 0;
+        }
+
+        public int test() {
+            return ((IC) this).f();
         }
     }
 
@@ -147,6 +165,23 @@ public class CallTests extends DecompilerTest {
             "                this.g(\"D.g()\");\n" +
             "            }\n" +
             "        }\n" +
+            "    }\n" +
+            "}\n"
+        );
+    }
+
+    @Test
+    public void testInvokeInterfaceMethodOnThis() throws Throwable {
+        verifyOutput(
+            C.class,
+            defaultSettings(),
+            "private static class C implements IC {\n" +
+            "    @Override\n" +
+            "    public int f() {\n" +
+            "        return 0;\n" +
+            "    }\n" +
+            "    public int test() {\n" +
+            "        return this.f();\n" +
             "    }\n" +
             "}\n"
         );

@@ -58,6 +58,9 @@ public final class BuiltinTypes {
 
         final MetadataSystem metadataSystem = MetadataSystem.instance();
 
+        Bottom.setResolver(metadataSystem);
+        Null.setResolver(metadataSystem);
+
         Object = ClassFileReader.readClass(metadataSystem, buffer);
 
         buffer.reset();
