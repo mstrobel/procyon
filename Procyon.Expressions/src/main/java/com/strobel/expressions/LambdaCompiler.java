@@ -786,7 +786,7 @@ final class LambdaCompiler {
 
         if (emitAs != CompilationFlags.EmitAsVoidType) {
             // Save the value so we can return it.
-            generator.dup();
+            generator.dup(node.getType());
             generator.emitStore(temp = getLocal(node.getType()));
         }
 
@@ -838,7 +838,7 @@ final class LambdaCompiler {
         }
 
         if (emitAs != CompilationFlags.EmitAsVoidType) {
-            generator.dup();
+            generator.dup(variable.getType());
         }
 
         _scope.emitSet(variable);
@@ -867,7 +867,7 @@ final class LambdaCompiler {
         LocalBuilder temp = null;
 
         if (emitAs != CompilationFlags.EmitAsVoidType) {
-            generator.dup();
+            generator.dup(node.getType());
             generator.emitStore(temp = getLocal(node.getType()));
         }
 
@@ -2999,19 +2999,36 @@ final class LambdaCompiler {
     private void emitMemberGet(final MemberInfo member) {
         switch (member.getMemberType()) {
             case Field:
+                final boolean isConstant;
+                final Object constantValue;
                 final FieldInfo field = (FieldInfo) member;
-                if (field.getFieldType().isPrimitive() && field.isStatic() && field.isFinal()) {
-                    try {
-                        emitConstant(field.getRawField().get(null), field.getFieldType());
+                final Type<?> fieldType = field.getFieldType();
+
+                try {
+                    if (field instanceof FieldBuilder) {
+                        final FieldBuilder fb = (FieldBuilder) field;
+
+                        constantValue = fb.getConstantValue();
+                        isConstant = constantValue != null && field.isFinal();
                     }
-                    catch (final IllegalAccessException e) {
-                        generator.getField(field);
+                    else {
+                        isConstant = field.isStatic() &&
+                                     field.isFinal() &&
+                                     (fieldType.isPrimitive() || fieldType.isEnum() || Types.String.isEquivalentTo(fieldType));
+                        constantValue = isConstant ? field.getRawField().get(null) : null;
+                    }
+
+                    if (isConstant) {
+                        emitConstant(constantValue, fieldType);
+                        break;
                     }
                 }
-                else {
-                    generator.getField(field);
+                catch (final IllegalAccessException ignored) {
                 }
+
+                generator.getField(field);
                 break;
+
             default:
                 throw ContractUtils.unreachable();
         }
