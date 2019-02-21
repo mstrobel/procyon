@@ -84,10 +84,13 @@ public final class TypeBuilderTests {
 
         assertSame(parameter, result);
 
+        final TestAnnotation bakedTypeAnnotation = annotation.getAnnotation();
         final TestAnnotation createdTypeAnnotation = createdType.getErasedClass().getAnnotation(TestAnnotation.class);
 
         assertNotNull(createdTypeAnnotation);
         assertEquals(createdTypeAnnotation.value(), 42);
+        assertEquals(bakedTypeAnnotation, createdTypeAnnotation);
+        assertEquals(createdTypeAnnotation, bakedTypeAnnotation);
     }
 
     @Test

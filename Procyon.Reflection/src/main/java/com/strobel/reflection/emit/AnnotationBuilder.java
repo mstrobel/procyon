@@ -19,7 +19,6 @@ import com.strobel.reflection.MethodInfo;
 import com.strobel.reflection.MethodList;
 import com.strobel.reflection.Type;
 import com.strobel.reflection.Types;
-import sun.reflect.annotation.AnnotationParser;
 
 import java.lang.annotation.Annotation;
 import java.util.HashMap;
@@ -194,7 +193,7 @@ public final class AnnotationBuilder<A extends Annotation> {
         }
 
         @SuppressWarnings({ "unchecked", "UnnecessaryLocalVariable" })
-        final A annotation = (A)AnnotationParser.annotationForMap(
+        final A annotation = AnnotationSupport.annotationForMap(
             _annotationType.getErasedClass(),
             valueMap
         );
