@@ -151,7 +151,7 @@ final class Resolver {
                 currentFrame = currentFrame._previous;
             }
 
-            return null;
+            return Type.tryFind(e);
         }
 
         Type<?> resolveType(final java.lang.reflect.Type t) {
@@ -184,7 +184,7 @@ final class Resolver {
             if (t instanceof Class<?>) {
                 final Class<?> classType = (Class<?>) t;
 
-                if (classType.isPrimitive() || classType.isEnum() || classType == Void.TYPE) {
+                if (classType.isPrimitive()) {
                     return Type.of(classType);
                 }
 

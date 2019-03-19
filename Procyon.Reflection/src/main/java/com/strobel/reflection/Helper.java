@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.strobel.collections.ListBuffer.lb;
+import static com.strobel.util.TypeUtils.*;
 
 /**
  * @author Mike Strobel
@@ -1241,43 +1242,37 @@ final class Helper {
     private final static TypeRelation IsSubtypeRelation = new TypeRelation() {
         @Override
         public Boolean visitPrimitiveType(final Type t, final Type p) {
-            if (t == p) {
+            final TypeKind kt = t.getKind();
+            final TypeKind kp = p.getKind();
+
+            if (kt == kp) {
                 return true;
             }
 
-            if (t == PrimitiveTypes.Byte) {
-                return p == PrimitiveTypes.Character ||
-                       p == PrimitiveTypes.Short;
+            if (kt == TypeKind.BOOLEAN || kp == TypeKind.BOOLEAN) {
+                return false;
             }
 
-            if (t == PrimitiveTypes.Character) {
-                return p == PrimitiveTypes.Short ||
-                       p == PrimitiveTypes.Integer;
-            }
+            switch (kp) {
+                case BYTE:
+                    return kt != TypeKind.CHAR && isIntegral(kt) && bitWidth(kt) <= bitWidth(kp);
 
-            if (t == PrimitiveTypes.Short) {
-                return p == PrimitiveTypes.Integer ||
-                       p == PrimitiveTypes.Long ||
-                       p == PrimitiveTypes.Float ||
-                       p == PrimitiveTypes.Double;
-            }
+                case SHORT:
+                    if (kt == TypeKind.CHAR) {
+                        return false;
+                    }
+                    // fall through
+                case INT:
+                case LONG:
+                    return isIntegral(kt) && bitWidth(kt) <= bitWidth(kp);
 
-            if (t == PrimitiveTypes.Integer) {
-                return p == PrimitiveTypes.Long ||
-                       p == PrimitiveTypes.Float ||
-                       p == PrimitiveTypes.Double;
-            }
+                case FLOAT:
+                case DOUBLE:
+                    return isIntegral(kt) || bitWidth(kt) <= bitWidth(kp);
 
-            if (t == PrimitiveTypes.Long) {
-                return p == PrimitiveTypes.Float ||
-                       p == PrimitiveTypes.Double;
+                default:
+                    return Boolean.FALSE;
             }
-
-            if (t == PrimitiveTypes.Float) {
-                return p == PrimitiveTypes.Double;
-            }
-
-            return Boolean.FALSE;
         }
 
         public Boolean visitType(final Type t, final Type s) {

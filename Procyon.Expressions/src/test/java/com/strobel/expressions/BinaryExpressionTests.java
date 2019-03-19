@@ -13,14 +13,16 @@
 
 package com.strobel.expressions;
 
+import com.strobel.reflection.PrimitiveTypes;
 import com.strobel.reflection.Types;
 import org.junit.Test;
 
+import java.lang.invoke.MethodHandle;
 import java.math.BigInteger;
 import java.util.concurrent.Callable;
 
 import static com.strobel.expressions.Expression.*;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 /**
  * @author Mike Strobel
@@ -124,6 +126,58 @@ public class BinaryExpressionTests extends AbstractExpressionTest {
         assertResultTrue(notEqual(one, zero));
     }
     
+    @Test
+    public void testLongArithmeticOperators() throws Throwable {
+        final ParameterExpression boxed = parameter(Types.Long, "boxed");
+        final ParameterExpression unboxed = parameter(PrimitiveTypes.Long, "unboxed");
+
+        final long left = 13L;
+        final long right = 7L;
+
+        final long[][] resultsByOperation = {
+            { left + right, right + left },
+            { left - right, right - left },
+            { left * right, right * left },
+            { left / right, right / left },
+            { left % right, right % left },
+        };
+
+        final ExpressionType[] types = new ExpressionType[] {
+            ExpressionType.Add,
+            ExpressionType.Subtract,
+            ExpressionType.Multiply,
+            ExpressionType.Divide,
+            ExpressionType.Modulo
+        };
+
+        for (int i = 0; i < types.length; i++) {
+            final ExpressionType type = types[i];
+            final long[] results = resultsByOperation[i];
+
+            final LambdaExpression lambda = lambda(makeBinary(type, boxed, unboxed), boxed, unboxed);
+            final MethodHandle handle = lambda.compileHandle();
+
+            assertEquals(results[0], handle.invoke(left, right));
+            assertEquals(results[1], handle.invoke(right, left));
+
+            try {
+                handle.invoke(null, right);
+                fail("NPE expected.");
+            }
+            catch (final NullPointerException ignored) {
+            }
+
+            final LambdaExpression lambda2 = lambda(makeBinary(type, constant(left, Types.Long), constant(right, PrimitiveTypes.Long)));
+            final MethodHandle handle2 = lambda2.compileHandle();
+
+            final LambdaExpression lambda3 = lambda(makeBinary(type, constant(right, PrimitiveTypes.Long), constant(left, Types.Long)));
+            final MethodHandle handle3 = lambda3.compileHandle();
+
+            assertEquals(results[0], handle2.invoke());
+            assertEquals(results[1], handle3.invoke());
+        }
+    }
+
     @Test
     public void testComparisonOperators() throws Throwable {
         assertResultTrue(lessThanOrEqual(constant(1), constant(1)));

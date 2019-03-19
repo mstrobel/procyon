@@ -15,25 +15,31 @@ public class MetadataHelperTests {
         RuntimeHelpers.ensureClassInitialized(MetadataSystem.class);
     }
 
+    // @formatter:off
     private static final boolean[][] IS_ASSIGNABLE_BIT_SET = {
-        { true, true, false, true, true, true, true }, // byte
-        { false, true, false, true, true, true, true }, // short
-        { false, false, true, true, true, true, true }, // char
-        { false, false, false, true, true, true, true }, // int
-        { false, false, false, false, true, true, true }, // long
-        { false, false, false, false, false, true, true }, // float
-        { false, false, false, false, false, false, true }, // double
+       // bool   byte   short  char   int    long   float  double
+        { true,  false, false, false, false, false, false, false },  // bool
+        { false, true,  true,  false, true,  true,  true,  true  },  // byte
+        { false, false, true,  false, true,  true,  true,  true  },  // short
+        { false, false, false, true,  true,  true,  true,  true  },  // char
+        { false, false, false, false, true,  true,  true,  true  },  // int
+        { false, false, false, false, false, true,  true,  true  },  // long
+        { false, false, false, false, false, false, true,  true  },  // float
+        { false, false, false, false, false, false, false, true  },  // double
     };
 
     private static final ConversionType[][] CONVERSIONS = {
-        { IDENTITY, IMPLICIT, EXPLICIT, IMPLICIT, IMPLICIT, IMPLICIT, IMPLICIT }, // byte
-        { EXPLICIT, IDENTITY, EXPLICIT, IMPLICIT, IMPLICIT, IMPLICIT, IMPLICIT }, // short
-        { EXPLICIT, EXPLICIT, IDENTITY, IMPLICIT, IMPLICIT, IMPLICIT, IMPLICIT }, // char
-        { EXPLICIT, EXPLICIT, EXPLICIT, IDENTITY, IMPLICIT, IMPLICIT_LOSSY, IMPLICIT }, // int
-        { EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, IDENTITY, IMPLICIT_LOSSY, IMPLICIT_LOSSY }, // long
-        { EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, IDENTITY, IMPLICIT }, // float
-        { EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, IDENTITY }, // double
+       // bool      byte      short     char      int       long      float           double
+        { IDENTITY, NONE,     NONE,     NONE,     NONE,     NONE,     NONE,           NONE           },  // bool
+        { NONE,     IDENTITY, IMPLICIT, EXPLICIT, IMPLICIT, IMPLICIT, IMPLICIT,       IMPLICIT       },  // byte
+        { NONE,     EXPLICIT, IDENTITY, EXPLICIT, IMPLICIT, IMPLICIT, IMPLICIT,       IMPLICIT       },  // short
+        { NONE,     EXPLICIT, EXPLICIT, IDENTITY, IMPLICIT, IMPLICIT, IMPLICIT,       IMPLICIT       },  // char
+        { NONE,     EXPLICIT, EXPLICIT, EXPLICIT, IDENTITY, IMPLICIT, IMPLICIT_LOSSY, IMPLICIT       },  // int
+        { NONE,     EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, IDENTITY, IMPLICIT_LOSSY, IMPLICIT_LOSSY },  // long
+        { NONE,     EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, IDENTITY,       IMPLICIT       },  // float
+        { NONE,     EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT, EXPLICIT,       IDENTITY       },  // double
     };
+    // @formatter:on
 
     private static TypeReference string() {
         return MetadataSystem.instance().lookupTypeCore("java/lang/String");
@@ -77,6 +83,7 @@ public class MetadataHelperTests {
         final JvmType[] jvmTypes = JvmType.values();
 
         final TypeReference[] primitiveTypes = {
+            BuiltinTypes.Boolean,
             BuiltinTypes.Byte,
             BuiltinTypes.Short,
             BuiltinTypes.Character,
