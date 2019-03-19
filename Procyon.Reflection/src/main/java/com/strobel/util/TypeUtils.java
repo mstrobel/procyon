@@ -29,6 +29,7 @@ import java.util.Set;
 /**
  * @author Mike Strobel
  */
+@SuppressWarnings("Duplicates")
 public final class TypeUtils {
     private TypeUtils() {
         throw ContractUtils.unreachable();
@@ -319,20 +320,12 @@ public final class TypeUtils {
     }
 
     public static MethodInfo getBoxMethod(final Type<?> type) {
-        final Type<?> boxedType;
-        final Type<?> primitiveType;
+        final Type<?> boxedType = getBoxedTypeOrSelf(type);
+        final Type<?> primitiveType = TypeUtils.getUnderlyingPrimitive(boxedType);
 
-        if (type.isPrimitive()) {
-            boxedType = TypeUtils.getBoxedType(type);
-        }
-        else if (TypeUtils.isAutoUnboxed(type)) {
-            boxedType = type;
-        }
-        else {
+        if (primitiveType == null) {
             return null;
         }
-
-        primitiveType = TypeUtils.getUnderlyingPrimitive(boxedType);
 
         final MethodInfo boxMethod = boxedType.getMethod(
             "valueOf",
@@ -348,20 +341,12 @@ public final class TypeUtils {
     }
 
     public static MethodInfo getUnboxMethod(final Type<?> type) {
-        final Type<?> boxedType;
-        final Type<?> primitiveType;
+        final Type<?> boxedType = getBoxedTypeOrSelf(type);
+        final Type<?> primitiveType= TypeUtils.getUnderlyingPrimitive(boxedType);
 
-        if (type.isPrimitive()) {
-            boxedType = TypeUtils.getBoxedType(type);
-        }
-        else if (TypeUtils.isAutoUnboxed(type)) {
-            boxedType = type;
-        }
-        else {
+        if (primitiveType == null) {
             return null;
         }
-
-        primitiveType = TypeUtils.getUnderlyingPrimitive(boxedType);
 
         final Set<BindingFlags> bindingFlags = BindingFlags.PublicInstance;
 
@@ -406,6 +391,55 @@ public final class TypeUtils {
         }
 
         if (unboxMethod == null || !areEquivalent(unboxMethod.getReturnType(), primitiveType)) {
+            return null;
+        }
+
+        return unboxMethod;
+    }
+
+    public static MethodInfo getUnboxMethod(final Type<?> boxedType, final Type<?> unboxedType) {
+        final Set<BindingFlags> bindingFlags = BindingFlags.PublicInstance;
+        final MethodInfo unboxMethod;
+
+        switch (unboxedType.getKind()) {
+            case BOOLEAN:
+                unboxMethod = boxedType.getMethod("booleanValue", bindingFlags);
+                break;
+
+            case BYTE:
+                unboxMethod = boxedType.getMethod("byteValue", bindingFlags);
+                break;
+
+            case SHORT:
+                unboxMethod = boxedType.getMethod("shortValue", bindingFlags);
+                break;
+
+            case INT:
+                unboxMethod = boxedType.getMethod("intValue", bindingFlags);
+                break;
+
+            case LONG:
+                unboxMethod = boxedType.getMethod("longValue", bindingFlags);
+                break;
+
+            case CHAR:
+                unboxMethod = boxedType.getMethod("charValue", bindingFlags);
+                break;
+
+            case FLOAT:
+                unboxMethod = boxedType.getMethod("floatValue", bindingFlags);
+                break;
+
+            case DOUBLE:
+                unboxMethod = boxedType.getMethod("doubleValue", bindingFlags);
+                break;
+
+            default:
+                unboxMethod = null;
+                break;
+        }
+
+        if (unboxMethod == null || !areEquivalent(unboxMethod.getReturnType(), unboxedType)) {
             return null;
         }
 
@@ -555,5 +589,109 @@ public final class TypeUtils {
         }
 
         return sb.toString();
+    }
+
+    public static boolean isSingleWord(final Type<?> type) {
+        return isSingleWord(type.getKind());
+    }
+
+    public static boolean isSingleWord(final TypeKind kind) {
+        switch (kind) {
+            case LONG:
+            case DOUBLE:
+            case VOID:
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    public static boolean isDoubleWord(final Type<?> type) {
+        return isDoubleWord(type.getKind());
+    }
+
+    public static boolean isDoubleWord(final TypeKind kind) {
+        switch (kind) {
+            case LONG:
+            case DOUBLE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public static boolean isNumeric(final TypeKind kind) {
+        switch (kind) {
+            case BOOLEAN:
+            case BYTE:
+            case CHAR:
+            case SHORT:
+            case INT:
+            case LONG:
+            case FLOAT:
+            case DOUBLE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public static boolean isIntegral(final TypeKind kind) {
+        switch (kind) {
+            case BOOLEAN:
+            case BYTE:
+            case CHAR:
+            case SHORT:
+            case INT:
+            case LONG:
+                return true;
+            default:
+            case FLOAT:
+            case DOUBLE:
+                return false;
+        }
+    }
+
+    public static boolean isSubWordOrInt32(final Type<?> type) {
+        return isSubWordOrInt32(type.getKind());
+    }
+
+    public static boolean isSubWordOrInt32(final TypeKind kind) {
+        switch (kind) {
+            case BOOLEAN:
+            case BYTE:
+            case CHAR:
+            case SHORT:
+            case INT:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public static int bitWidth(final Type<?> type) {
+        return bitWidth(type.getKind());
+    }
+
+    public static int bitWidth(final TypeKind kind) {
+        switch (kind) {
+            case BOOLEAN:
+                return 1;
+            case BYTE:
+                return 8;
+            case CHAR:
+            case SHORT:
+                return 16;
+            case INT:
+                return 32;
+            case LONG:
+                return 64;
+            case FLOAT:
+                return 32;
+            case DOUBLE:
+                return 64;
+            default:
+                return 0;
+        }
     }
 }

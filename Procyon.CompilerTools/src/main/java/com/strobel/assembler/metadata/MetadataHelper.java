@@ -1887,15 +1887,17 @@ public final class MetadataHelper {
             final JvmType jt = t.getSimpleType();
             final JvmType js = s.getSimpleType();
 
-            switch (js) {
-                case Boolean:
-                    return jt == JvmType.Boolean;
+            if (jt == js) {
+                return true;
+            }
 
+            if (jt == JvmType.Boolean || js == JvmType.Boolean) {
+                return false;
+            }
+
+            switch (js) {
                 case Byte:
                     return jt != JvmType.Character && jt.isIntegral() && jt.bitWidth() <= js.bitWidth();
-
-                case Character:
-                    return jt == JvmType.Character;
 
                 case Short:
                     if (jt == JvmType.Character) {
@@ -1909,9 +1911,6 @@ public final class MetadataHelper {
                 case Float:
                 case Double:
                     return jt.isIntegral() || jt.bitWidth() <= js.bitWidth();
-
-                case Void:
-                    return jt == JvmType.Void;
 
                 default:
                     return Boolean.FALSE;

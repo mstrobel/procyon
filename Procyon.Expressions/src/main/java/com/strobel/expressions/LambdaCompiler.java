@@ -2002,8 +2002,29 @@ final class LambdaCompiler {
     private void emitConstant(final Object value, final Type<?> type) {
         // Try to emit the constant directly into IL
         if (CodeGenerator.canEmitConstant(value, type)) {
-            generator.emitConstant(value, type);
-            return;
+            final boolean isBoxed = TypeUtils.isAutoUnboxed(type);
+            final boolean isClosureAvailable = canEmitBoundConstants();
+
+            if (!isBoxed || !isClosureAvailable) {
+                generator.emitConstant(value, type);
+
+                //
+                // NOTE: For backward compatibility, allow boxed values to be emitted as constants when
+                //       a closure is not available.  Previously, we allowed, e.g., a Long to be stored
+                //       as a long constant, but we didn't emit any boxing upon loading it.  This caused
+                //       problems when the constant was being used as an Object, e.g., as a method
+                //       invocation target.
+                //
+                //       To prevent code that previously worked from breaking, allow the unboxed value
+                //       to be emitted for a boxed ConstantExpression when no alternative is available,
+                //       but emit the boxing operation immediately afterward to avoid the problem above.
+                //
+                if (isBoxed) {
+                    generator.emitBox(type);
+                }
+
+                return;
+            }
         }
 
         _boundConstants.emitConstant(this, value, type);
@@ -3635,7 +3656,14 @@ final class LambdaCompiler {
         // Unboxing leaves the unboxed value on the stack
         emitExpression(node.getOperand());
 
-        generator.emitUnbox(node.getType());
+        final MethodInfo method = ((UnaryExpression) expr).getMethod();
+
+        if (method != null) {
+            generator.call(method);
+        }
+        else {
+            generator.emitUnbox(node.getType());
+        }
     }
 
     // </editor-fold>

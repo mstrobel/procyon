@@ -1749,7 +1749,7 @@ public abstract class Type<T> extends MemberInfo implements java.lang.reflect.Ty
         if (type instanceof Class<?>) {
             final Class<?> classType = (Class<?>) type;
 
-            if (classType.isPrimitive() || classType == Void.class) {
+            if (classType.isPrimitive()) {
                 return of(classType);
             }
 

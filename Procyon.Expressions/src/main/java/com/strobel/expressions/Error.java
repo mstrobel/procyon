@@ -69,15 +69,11 @@ final class Error {
     }
 
     public static IllegalStateException argumentTypesMustMatch() {
-        return new IllegalStateException(
-            format("Argument types must match.")
-        );
+        return new IllegalStateException("Argument types must match.");
     }
 
     public static IllegalStateException argumentCannotBeOfTypeVoid() {
-        return new IllegalStateException(
-            format("Argument cannot be of type 'void'.")
-        );
+        return new IllegalStateException("Argument cannot be of type 'void'.");
     }
 
     public static IllegalStateException expressionMustBeWriteable(final String parameterName) {
@@ -241,6 +237,12 @@ final class Error {
         );
     }
 
+    public static IllegalArgumentException unboxNotDefined(final Type<?> boxedType, final Type<?> unboxedType) {
+        return new IllegalArgumentException(
+            format("Could not resolve an unboxing method from %s to %s.", boxedType.getName(), unboxedType.getName())
+        );
+    }
+
     public static IllegalStateException invalidBoxType() {
         return new IllegalStateException(
             "Can only unbox from a standard boxed type or java.lang.Object to a primitive type."
@@ -361,6 +363,16 @@ final class Error {
             format(
                 "An invocation target expression is required for access to non-static " +
                 "field '%s.%s'.",
+                field.getDeclaringType().getBriefDescription(),
+                field.getName()
+            )
+        );
+    }
+
+    public static IllegalStateException targetInvalidForStaticFieldAccess(final FieldInfo field) {
+        return new IllegalStateException(
+            format(
+                "A target expression cannot be used to access static field '%s.%s'.",
                 field.getDeclaringType().getBriefDescription(),
                 field.getName()
             )

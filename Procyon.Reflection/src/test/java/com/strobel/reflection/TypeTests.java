@@ -15,6 +15,7 @@ package com.strobel.reflection;
 
 import org.junit.Test;
 
+import javax.lang.model.type.TypeKind;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +28,17 @@ import static org.junit.Assert.*;
  */
 @SuppressWarnings({ "unchecked", "UnusedDeclaration" })
 public final class TypeTests {
+    private static final boolean[][] IS_ASSIGNABLE_BIT_SET = {
+        { true, false, false, false, false, false, false, false }, // boolean
+        { false, true, true, false, true, true, true, true }, // byte
+        { false, false, true, false, true, true, true, true }, // short
+        { false, false, false, true, true, true, true, true }, // char
+        { false, false, false, false, true, true, true, true }, // int
+        { false, false, false, false, false, true, true, true }, // long
+        { false, false, false, false, false, false, true, true }, // float
+        { false, false, false, false, false, false, false, true }, // double
+    };
+
     private static class StringList extends ArrayList<String> {}
 
     private final static class ExtendsStringList extends StringList {}
@@ -42,6 +54,30 @@ public final class TypeTests {
                 actual != null ? actual.getSignature() : null
             )
         );
+    }
+
+    @Test
+    public void testIsAssignableBetweenPrimitives() throws Throwable {
+        final TypeKind[] jvmTypes = TypeKind.values();
+
+        final Type<?>[] primitiveTypes = {
+            PrimitiveTypes.Boolean,
+            PrimitiveTypes.Byte,
+            PrimitiveTypes.Short,
+            PrimitiveTypes.Character,
+            PrimitiveTypes.Integer,
+            PrimitiveTypes.Long,
+            PrimitiveTypes.Float,
+            PrimitiveTypes.Double,
+        };
+
+        for (int i = 0, n = IS_ASSIGNABLE_BIT_SET.length; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                if (primitiveTypes[i].isAssignableFrom(primitiveTypes[j]) != IS_ASSIGNABLE_BIT_SET[j][i]) {
+                    fail(format("%s (assignable from) %s = %s", primitiveTypes[i], primitiveTypes[j], IS_ASSIGNABLE_BIT_SET[j][i]));
+                }
+            }
+        }
     }
 
     @Test

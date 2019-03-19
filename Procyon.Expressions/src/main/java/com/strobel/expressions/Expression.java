@@ -720,11 +720,16 @@ public abstract class Expression {
     public static MemberExpression field(final Expression target, final FieldInfo field) {
         VerifyArgument.notNull(field, "field");
 
-        if (!field.isStatic() && target == null) {
-            throw Error.targetRequiredForNonStaticFieldAccess(field);
+        if (field.isStatic() ^ target == null) {
+            throw field.isStatic() ? Error.targetRequiredForNonStaticFieldAccess(field)
+                                   : Error.targetInvalidForStaticFieldAccess(field);
         }
 
         return new FieldExpression(target, field);
+    }
+
+    public static MemberExpression field(final FieldInfo field) {
+        return field(null, field);
     }
 
     public static MemberExpression field(final Type<?> declaringType, final String fieldName) {
@@ -787,6 +792,10 @@ public abstract class Expression {
     //
 
     public static ParameterExpressionList parameters(final ParameterExpression... parameters) {
+        return new ParameterExpressionList(parameters);
+    }
+
+    public static ParameterExpressionList variables(final ParameterExpression... parameters) {
         return new ParameterExpressionList(parameters);
     }
 
@@ -869,6 +878,10 @@ public abstract class Expression {
                 return preDecrementAssign(operand, method);
             case PostDecrementAssign:
                 return postDecrementAssign(operand, method);
+            case IsNull:
+                return isNull(operand);
+            case IsNotNull:
+                return isNotNull(operand);
             default:
                 throw Error.unhandledUnary(unaryType);
         }
@@ -1068,13 +1081,36 @@ public abstract class Expression {
         verifyCanRead(expression, "expression");
         VerifyArgument.notNull(type, "type");
 
-        final Type sourceType = expression.getType();
+        Type sourceType = expression.getType();
+        Expression operand = expression;
 
-        if (!TypeUtils.isAutoUnboxed(sourceType) && sourceType != Types.Object || !type.isPrimitive()) {
+        if (sourceType == Types.Object) {
+            final Type boxedType;
+
+            if (TypeUtils.isNumeric(type) && type != PrimitiveTypes.Character) {
+                boxedType = Types.Number;
+            }
+            else {
+                boxedType = TypeUtils.getBoxedType(type);
+            }
+
+            if (boxedType != null) {
+                operand = convert(operand, boxedType);
+                sourceType = operand.getType();
+            }
+        }
+
+        if (sourceType.isPrimitive() || !type.isPrimitive()) {
             throw Error.invalidUnboxType();
         }
 
-        return new UnaryExpression(ExpressionType.Unbox, expression, type, null);
+        final MethodInfo unboxMethod = TypeUtils.getUnboxMethod(sourceType, type);
+
+        if (unboxMethod == null) {
+            throw Error.unboxNotDefined(expression.getType(), type);
+        }
+
+        return new UnaryExpression(ExpressionType.Unbox, operand, type, unboxMethod);
     }
 
     public static UnaryExpression increment(final Expression expression) {
