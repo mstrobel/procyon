@@ -23,6 +23,34 @@ import static org.junit.Assert.*;
 
 public class UnaryExpressionTests extends AbstractExpressionTest {
     @Test
+    public void testIsTrue() throws Throwable {
+        assertResultEquals(isTrue(constant(false)), false);
+        assertResultEquals(isTrue(constant(true)), true);
+
+        final ConstantExpression boxedNull = constant(null, Types.Boolean);
+        final ConstantExpression boxedTrue = constant(Boolean.TRUE, Types.Boolean);
+        final ConstantExpression boxedFalse = constant(Boolean.FALSE, Types.Boolean);
+
+        assertResultEquals(condition(isNull(boxedNull), defaultValue(Types.Boolean), isTrue(unbox(boxedNull))), null);
+        assertResultEquals(condition(isNull(boxedTrue), defaultValue(Types.Boolean), isTrue(unbox(boxedTrue))), true);
+        assertResultEquals(condition(isNull(boxedFalse), defaultValue(Types.Boolean), isTrue(unbox(boxedFalse))), false);
+    }
+
+    @Test
+    public void testIsFalse() throws Throwable {
+        assertResultEquals(isFalse(constant(false)), true);
+        assertResultEquals(isFalse(constant(true)), false);
+
+        final ConstantExpression boxedNull = constant(null, Types.Boolean);
+        final ConstantExpression boxedTrue = constant(Boolean.TRUE, Types.Boolean);
+        final ConstantExpression boxedFalse = constant(Boolean.FALSE, Types.Boolean);
+
+        assertResultEquals(condition(isNull(boxedNull), defaultValue(Types.Boolean), isFalse(unbox(boxedNull))), null);
+        assertResultEquals(condition(isNull(boxedTrue), defaultValue(Types.Boolean), isFalse(unbox(boxedTrue))), false);
+        assertResultEquals(condition(isNull(boxedFalse), defaultValue(Types.Boolean), isFalse(unbox(boxedFalse))), true);
+    }
+
+    @Test
     public void testUnaryPlus() throws Throwable {
         assertResultEquals(unaryPlus(constant((byte) -5)), (byte) -5);
         assertResultEquals(unaryPlus(constant((short) -5)), (short) -5);
