@@ -50,7 +50,7 @@ public class CodeGenerator {
     private final static int MIN_BYTE = 0x00;
     private final static int MAX_BYTE = 0xFF;
 
-    private CodeStream _codeStream;
+    private final CodeStream _codeStream;
 
     private int[] _labelList;
     private int _labelCount;
@@ -99,6 +99,7 @@ public class CodeGenerator {
 
     // <editor-fold defaultstate="collapsed" desc="Exceptions">
 
+    @SuppressWarnings("UnusedReturnValue")
     public Label beginExceptionBlock() {
         if (_exceptions == null) {
             _exceptions = new __ExceptionInfo[DefaultExceptionArraySize];
@@ -1205,7 +1206,7 @@ public class CodeGenerator {
             }
 
             final TypeList parameterTypes = methodBuilder.getParameterTypes();
-            
+
             for (int i = 0, n = parameterTypes.size(); i < localIndex && i < n; i++) {
                 final TypeKind kind = parameterTypes.get(i).getKind();
                 if (kind == TypeKind.LONG || kind == TypeKind.DOUBLE) {
@@ -1216,7 +1217,7 @@ public class CodeGenerator {
 
         return index;
     }
-    
+
     final int translateLocal(final int localIndex) {
         int index = 0;
 
@@ -1971,6 +1972,7 @@ public class CodeGenerator {
 
             case BYTE: {
                 switch (sourceKind) {
+                    case BOOLEAN:
                     case CHAR:
                     case SHORT:
                     case INT:
@@ -1992,10 +1994,12 @@ public class CodeGenerator {
                         emit(OpCode.I2B);
                         return;
                 }
+                break;
             }
 
             case SHORT: {
                 switch (sourceKind) {
+                    case BOOLEAN:
                     case BYTE:
                     case CHAR:
                     case INT:
@@ -2017,10 +2021,12 @@ public class CodeGenerator {
                         emit(OpCode.I2S);
                         return;
                 }
+                break;
             }
 
             case INT: {
                 switch (sourceKind) {
+                    case BOOLEAN:
                     case BYTE:
                     case CHAR:
                     case SHORT:
@@ -2038,10 +2044,12 @@ public class CodeGenerator {
                         emit(OpCode.D2I);
                         return;
                 }
+                break;
             }
 
             case LONG: {
                 switch (sourceKind) {
+                    case BOOLEAN:
                     case BYTE:
                     case CHAR:
                     case SHORT:
@@ -2057,10 +2065,12 @@ public class CodeGenerator {
                         emit(OpCode.D2L);
                         return;
                 }
+                break;
             }
 
             case CHAR: {
                 switch (sourceKind) {
+                    case BOOLEAN:
                     case BYTE:
                     case SHORT:
                     case INT:
@@ -2082,10 +2092,12 @@ public class CodeGenerator {
                         emit(OpCode.I2C);
                         return;
                 }
+                break;
             }
 
             case FLOAT: {
                 switch (sourceKind) {
+                    case BOOLEAN:
                     case BYTE:
                     case CHAR:
                     case SHORT:
@@ -2101,10 +2113,12 @@ public class CodeGenerator {
                         emit(OpCode.D2F);
                         return;
                 }
+                break;
             }
 
             case DOUBLE: {
                 switch (sourceKind) {
+                    case BOOLEAN:
                     case BYTE:
                     case CHAR:
                     case SHORT:
@@ -2120,6 +2134,7 @@ public class CodeGenerator {
                         emit(OpCode.F2D);
                         return;
                 }
+                break;
             }
         }
 
@@ -2248,7 +2263,7 @@ public class CodeGenerator {
             callback.emitDefault(breakTarget);
             markLabel(breakTarget);
         }
-        catch (Exception e) {
+        catch (final Exception e) {
             throw Error.codeGenerationException(e);
         }
     }
@@ -2315,7 +2330,7 @@ public class CodeGenerator {
                                     : SwitchOptions.Default);
             }
         }
-        catch (Exception e) {
+        catch (final Exception e) {
             throw Error.codeGenerationException(e);
         }
     }
@@ -2367,13 +2382,13 @@ public class CodeGenerator {
             intKeys,
             new SwitchCallback() {
                 @Override
-                public void emitCase(final int key, final Label ignore) throws Exception {
+                public void emitCase(final int key, final Label ignore) {
                     final List<String> bucket = buckets.get(key);
                     stringSwitchHelper(bucket, callback, defaultLabel, breakTarget, 0);
                 }
 
                 @Override
-                public void emitDefault(final Label breakTarget) throws Exception {
+                public void emitDefault(final Label breakTarget) {
                     emitGoto(defaultLabel);
                 }
             });
@@ -2389,7 +2404,7 @@ public class CodeGenerator {
         final StringSwitchCallback callback,
         final Label defaultLabel,
         final Label breakTarget,
-        final int index) throws Exception {
+        final int index) {
 
         final int length = bucket.get(0).length();
 
@@ -2433,7 +2448,7 @@ public class CodeGenerator {
                 }
 
                 @Override
-                public void emitDefault(final Label breakTarget) throws Exception {
+                public void emitDefault(final Label breakTarget) {
                     emitGoto(defaultLabel);
                 }
             }
@@ -2475,7 +2490,7 @@ public class CodeGenerator {
                     final List<String> bucket = buckets.get(key);
                     Label next = null;
 
-                    for (Iterator<String> it = bucket.iterator(); it.hasNext(); ) {
+                    for (final Iterator<String> it = bucket.iterator(); it.hasNext(); ) {
                         final String string = it.next();
 
                         if (next != null) {
@@ -2502,7 +2517,7 @@ public class CodeGenerator {
                 }
 
                 @Override
-                public void emitDefault(final Label breakTarget) throws Exception {
+                public void emitDefault(final Label breakTarget) {
                     pop();
                 }
             },
