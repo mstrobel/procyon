@@ -10,3 +10,7 @@ out/
 *.iml
 build/
 cache.txt
+gradlew.bat
+gradle/wrapper/gradle-wrapper.properties
+gradle/wrapper/gradle-wrapper.jar
+gradlew
