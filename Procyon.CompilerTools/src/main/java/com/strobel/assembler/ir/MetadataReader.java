@@ -264,7 +264,18 @@ public abstract class MetadataReader {
                         final MethodDefinition resolved = bootstrapMethod.resolve();
 
                         if (resolved == null || !resolved.isVarArgs() || parameters.size() >= arguments.length + 3) {
-                            throw Error.invalidBootstrapMethodEntry(bootstrapMethod, parameters.size(), arguments.length);
+                        	
+                        	if("java/lang/invoke/StringConcatFactory.makeConcatWithConstants".equals(resolved.getFullName())
+                        			&& parameters.size() == 5 && arguments.length == 1) {
+                        		/*
+                        		 * This is a valid case compiled by open JDK
+                        		 * For some reason it is ignoring last varargs parameter for strings 
+                        		 */
+                        	}
+                        	else
+                        	{
+                        		throw Error.invalidBootstrapMethodEntry(bootstrapMethod, parameters.size(), arguments.length);
+                        	}
                         }
                     }
 
