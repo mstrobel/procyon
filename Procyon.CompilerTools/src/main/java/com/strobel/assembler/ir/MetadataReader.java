@@ -260,22 +260,24 @@ public abstract class MetadataReader {
                     final Object[] arguments = new Object[buffer.readUnsignedShort()];
                     final List<ParameterDefinition> parameters = bootstrapMethod.getParameters();
 
-                    if (parameters.size() != arguments.length + 3) {
+                    final int methodParameters = parameters.size();
+                    
+                    if (methodParameters != arguments.length + 3) {
                         final MethodDefinition resolved = bootstrapMethod.resolve();
 
-                        if (resolved == null || !resolved.isVarArgs() || parameters.size() >= arguments.length + 3) {
-                        	
-                        	if("java/lang/invoke/StringConcatFactory.makeConcatWithConstants".equals(resolved.getFullName())
-                        			&& parameters.size() == 5 && arguments.length == 1) {
-                        		/*
-                        		 * This is a valid case compiled by open JDK
-                        		 * For some reason it is ignoring last varargs parameter for strings 
-                        		 */
-                        	}
-                        	else
-                        	{
-                        		throw Error.invalidBootstrapMethodEntry(bootstrapMethod, parameters.size(), arguments.length);
-                        	}
+                        final int varArgsAdjustment;
+                        
+                        if(resolved == null || !resolved.isVarArgs()) {
+                            varArgsAdjustment = 0;
+                        }
+                        else {
+                            varArgsAdjustment = 1;
+                        }
+
+                        final int varArgsAdjustedMethodParameters = methodParameters - varArgsAdjustment;
+
+                        if (varArgsAdjustedMethodParameters > arguments.length + 3) {
+                       		throw Error.invalidBootstrapMethodEntry(bootstrapMethod, varArgsAdjustedMethodParameters, arguments.length);
                         }
                     }
 
@@ -284,7 +286,7 @@ public abstract class MetadataReader {
                         final int token = buffer.readUnsignedShort();
                         final int parameterIndex = j + 3;
 
-                        if (parameterIndex < parameters.size()) {
+                        if (parameterIndex < methodParameters) {
                             parameterType = parameters.get(parameterIndex).getParameterType();
                         }
                         else {
