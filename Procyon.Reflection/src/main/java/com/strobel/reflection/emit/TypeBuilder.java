@@ -1236,7 +1236,7 @@ public final class TypeBuilder<T> extends Type<T> {
                 classBytes,
                 0,
                 classBytes.length,
-                ClassLoader.getSystemClassLoader(),
+                Thread.currentThread().getContextClassLoader(),
                 _protectionDomain
             );
 
