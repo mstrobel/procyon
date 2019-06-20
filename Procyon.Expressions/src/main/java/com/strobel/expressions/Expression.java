@@ -3176,7 +3176,9 @@ public abstract class Expression {
             throw Error.operatorMethodParametersMustMatchReturnValue(method);
         }
 
-        if (!TypeUtils.areReferenceAssignable(method.getDeclaringType(), returnType)) {
+        final Type<?> returnClass = TypeUtils.getBoxedTypeOrSelf(returnType);
+
+        if (!TypeUtils.areReferenceAssignable(method.getDeclaringType(), returnClass)) {
             throw Error.methodBasedOperatorMustHaveValidReturnType(method);
         }
     }
