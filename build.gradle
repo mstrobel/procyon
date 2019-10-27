@@ -1,4 +1,5 @@
-import org.gradle.api.artifacts.maven.MavenDeployment
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 apply plugin: 'java'
 apply plugin: 'maven'
@@ -7,13 +8,13 @@ apply plugin: 'idea'
 archivesBaseName = 'procyon'
 
 ext.getProcyonVersion = { ->
-    final def fallbackVersion = "1.0-SNAPSHOT";
-    final def versionFilePath = rootDir.canonicalPath + "/Procyon.Core/src/main/java/com/strobel/Procyon.java";
-    final def versionFile = new File(versionFilePath);
+    final def fallbackVersion = "1.0-SNAPSHOT"
+    final def versionFilePath = rootDir.canonicalPath + "/Procyon.Core/src/main/java/com/strobel/Procyon.java"
+    final def versionFile = new File(versionFilePath)
 
     if (versionFile.exists()) {
         try {
-            final def String fileContents = new File(versionFilePath).getText('UTF-8')
+            final String fileContents = new File(versionFilePath).getText('UTF-8')
             final def matcher = fileContents =~ /VERSION\s*=\s*"([^"]+)"/
 
             if (matcher.find()) {
@@ -62,7 +63,7 @@ subprojects {
     apply plugin: 'maven'
     apply plugin: 'signing'
 
-    archivesBaseName = 'procyon-' + it.name.split("\\.")[1].toLowerCase()
+    archivesBaseName = "procyon-${(it.name as String).split('\\.')[1].toLowerCase()}"
 
     jar {
         metaInf {
@@ -79,6 +80,42 @@ subprojects {
     task sourcesJar(type: Jar, dependsOn: classes) {
         classifier = 'sources'
         from sourceSets.main.allSource
+    }
+
+    tasks.withType(Test) {
+        testLogging {
+            // set options for log level LIFECYCLE
+            events TestLogEvent.FAILED,
+                   TestLogEvent.PASSED,
+                   TestLogEvent.SKIPPED
+            exceptionFormat TestExceptionFormat.FULL
+            showExceptions true
+            showCauses true
+            showStackTraces true
+
+            // set options for log level DEBUG and INFO
+            debug.with {
+                events TestLogEvent.STARTED,
+                       TestLogEvent.FAILED,
+                       TestLogEvent.PASSED,
+                       TestLogEvent.SKIPPED,
+                       TestLogEvent.STANDARD_ERROR,
+                       TestLogEvent.STANDARD_OUT
+                exceptionFormat TestExceptionFormat.FULL
+            }
+
+            info.events = debug.events
+            info.exceptionFormat = debug.exceptionFormat
+
+            afterSuite { desc, result ->
+                if (!desc.parent) { // will match the outermost suite
+                    def output = "Results: ${result.resultType} (${result.testCount} tests, ${result.successfulTestCount} successes, ${result.failedTestCount} failures, ${result.skippedTestCount} skipped)"
+                    def startItem = '|  ', endItem = '  |'
+                    def repeatLength = startItem.length() + output.length() + endItem.length() - 2
+                    logger.lifecycle('\n' + '+' + ('-' * repeatLength) + '+' + '\n' + startItem + output + endItem + '\n' + '+' + ('-' * repeatLength) + '+')
+                }
+            }
+        }
     }
 
     if (project.name != "Procyon.Decompiler") {
