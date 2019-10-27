@@ -16,6 +16,8 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.decompiler.ast.typeinference.AndType;
+
 /**
  * @author Mike Strobel
  */
@@ -32,4 +34,5 @@ public interface TypeMetadataVisitor<P, R> {
     R visitNullType(final TypeReference t, final P p);
     R visitBottomType(final TypeReference t, final P p);
     R visitRawType(final RawType t, final P p);
+    R visitAndType(AndType t, P parameter);
 }

@@ -14,6 +14,7 @@
 package com.strobel.core;
 
 import com.strobel.annotations.NotNull;
+import com.strobel.functions.Function;
 import com.strobel.functions.Supplier;
 import com.strobel.util.ContractUtils;
 import com.strobel.util.EmptyArrayCache;
@@ -694,6 +695,34 @@ public final class CollectionUtilities {
 
         return new Buffer<>(elementType, sequence.iterator()).toArray();
     }
+
+    public static <T, R> List<R> map(List<T> list, Function<T, R> function) {
+        List<R> result = new ArrayList<>(list.size());
+        for (T t : list) {
+            result.add(function.apply(t));
+        }
+        return result;
+    }
+
+    public static <T> String collectionToString(Collection<T> collection, Function<? super T, String> toString) {
+        return collectionToString(collection, toString, ", ");
+    }
+
+    public static <T> String collectionToString(Collection<T> collection, Function<? super T, String> toString, String separator) {
+        StringBuilder s = new StringBuilder();
+
+        boolean first = true;
+        for (T t : collection) {
+            if (!first) {
+                s.append(separator);
+            }
+            first = false;
+            s.append(toString.apply(t));
+        }
+
+        return s.toString();
+    }
+
 
     private final static class Buffer<E> {
         final Class<E> elementType;

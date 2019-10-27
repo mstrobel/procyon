@@ -20,6 +20,7 @@ import com.strobel.assembler.metadata.*;
 import com.strobel.core.*;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.DecompilerSettings;
+import com.strobel.decompiler.ast.typeinference.TypeInferer;
 import com.strobel.functions.Function;
 import com.strobel.functions.Supplier;
 import com.strobel.functions.Suppliers;
@@ -106,7 +107,15 @@ public final class AstOptimizer {
             return;
         }
 
-        TypeAnalysis.run(context, method);
+        boolean fallback = false;
+        try {
+            new TypeInferer(context).solve(method);
+        } catch (Throwable t) {
+            // Fall back to old inference system
+            LOG.warning("Falling back to old inference system for " + context.getCurrentType().getFullName() + ":" + context.getCurrentMethod().getFullName());
+            fallback = true;
+            TypeAnalysis.run(context, method);
+        }
 
         boolean done = false;
 
@@ -340,8 +349,10 @@ public final class AstOptimizer {
             return;
         }
 
-        TypeAnalysis.reset(context, method);
-        TypeAnalysis.run(context, method);
+        if (fallback) {
+            TypeAnalysis.reset(context, method);
+            TypeAnalysis.run(context, method);
+        }
 
         LOG.fine("Finished bytecode AST optimization.");
     }

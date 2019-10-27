@@ -840,7 +840,8 @@ public class AstMethodBodyBuilder {
                 return new ThrowStatement(arg1);
 
             case CheckCast:
-                return new CastExpression(operandType, arg1);
+                return arg1;
+                // return new CastExpression(operandType, arg1);
 
             case InstanceOf:
                 return new InstanceOfExpression( byteCode.getOffset(), arg1, operandType);

@@ -16,7 +16,11 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.core.VerifyArgument;
 import com.strobel.util.ContractUtils;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author Mike Strobel
@@ -93,5 +97,45 @@ public final class BuiltinTypes {
             default:
                 throw ContractUtils.unreachable();
         }
+    }
+
+    private static final Map<Class<?>, TypeDefinition> CLASSES_TO_BUILTIN_TYPES;
+
+    static {
+        final HashMap<Class<?>, TypeDefinition> map = new HashMap<>();
+
+        map.put(Void.class, Void);
+        map.put(Boolean.class, Boolean);
+        map.put(Character.class, Character);
+        map.put(Byte.class, Byte);
+        map.put(Short.class, Short);
+        map.put(Integer.class, Integer);
+        map.put(Long.class, Long);
+        map.put(Float.class, Float);
+        map.put(Double.class, Double);
+
+        map.put(void.class, Void);
+        map.put(boolean.class, Boolean);
+        map.put(char.class, Character);
+        map.put(byte.class, Byte);
+        map.put(short.class, Short);
+        map.put(int.class, Integer);
+        map.put(long.class, Long);
+        map.put(float.class, Float);
+        map.put(double.class, Double);
+
+        CLASSES_TO_BUILTIN_TYPES = map;
+    }
+
+    public static TypeDefinition forClass(final Class<?> clazz) {
+        VerifyArgument.notNull(clazz, "clazz");
+
+        final TypeDefinition jvmType = CLASSES_TO_BUILTIN_TYPES.get(clazz);
+
+        if (jvmType != null) {
+            return jvmType;
+        }
+
+        return Object;
     }
 }

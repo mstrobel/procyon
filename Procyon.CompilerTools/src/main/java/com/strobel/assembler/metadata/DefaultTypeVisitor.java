@@ -16,6 +16,8 @@
 
 package com.strobel.assembler.metadata;
 
+import com.strobel.decompiler.ast.typeinference.AndType;
+
 public abstract class DefaultTypeVisitor<P, R> implements TypeMetadataVisitor<P, R> {
     public R visit(final TypeReference t) {
         return visit(t, null);
@@ -82,6 +84,11 @@ public abstract class DefaultTypeVisitor<P, R> implements TypeMetadataVisitor<P,
 
     @Override
     public R visitCapturedType(final CapturedType t, final P p) {
+        return visitType(t, p);
+    }
+
+    @Override
+    public R visitAndType(final AndType t, final P p) {
         return visitType(t, p);
     }
 }

@@ -49,7 +49,7 @@ public final class GenericParameter extends TypeDefinition {
                                                  : GenericParameterType.Type;
     }
 
-    protected final void setExtendsBound(final TypeReference extendsBound) {
+    public final void setExtendsBound(final TypeReference extendsBound) {
         _extendsBound = extendsBound;
     }
 

@@ -17,10 +17,9 @@
 package com.strobel.assembler.metadata;
 
 import com.strobel.core.ArrayUtilities;
+import com.strobel.decompiler.ast.typeinference.AndType;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeReference, TypeReference>, TypeReference>
     implements MethodMetadataVisitor<Map<TypeReference, TypeReference>, MethodReference>,
@@ -64,29 +63,6 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
 
         if (current == null) {
             return t;
-        }
-
-        if (current.isPrimitive()) {
-            switch (current.getSimpleType()) {
-                case Boolean:
-                    return CommonTypeReferences.Boolean;
-                case Byte:
-                    return CommonTypeReferences.Byte;
-                case Character:
-                    return CommonTypeReferences.Character;
-                case Short:
-                    return CommonTypeReferences.Short;
-                case Integer:
-                    return CommonTypeReferences.Integer;
-                case Long:
-                    return CommonTypeReferences.Long;
-                case Float:
-                    return CommonTypeReferences.Float;
-                case Double:
-                    return CommonTypeReferences.Double;
-                case Void:
-                    return CommonTypeReferences.Void;
-            }
         }
 
         return current;
@@ -158,6 +134,20 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
         }
 
         return t;
+    }
+
+    @Override
+    public TypeReference visitAndType(final AndType t, final Map<TypeReference, TypeReference> map) {
+        Set<TypeReference> newTypes = new LinkedHashSet<>();
+        for (TypeReference u : t.getTypes()) {
+            newTypes.add(visit(u, map));
+        }
+
+        if (newTypes.size() == 1) {
+            return newTypes.iterator().next();
+        }
+
+        return new AndType(newTypes.toArray(new TypeReference[0]));
     }
 
     @Override

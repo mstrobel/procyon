@@ -25,6 +25,7 @@ import com.strobel.core.Predicate;
 import com.strobel.core.Predicates;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.ast.typeinference.TypeInferer;
 
 import java.util.*;
 
@@ -295,6 +296,10 @@ public final class MetadataHelper {
 //        return current;
     }
 
+    public static TypeReference findCommonSubtype(TypeReference type1, TypeReference type2) {
+        return null; // TODO
+    }
+
     public static ConversionType getConversionType(final TypeReference target, final TypeReference source) {
         VerifyArgument.notNull(source, "source");
         VerifyArgument.notNull(target, "target");
@@ -302,7 +307,7 @@ public final class MetadataHelper {
         final TypeReference underlyingTarget = getUnderlyingPrimitiveTypeOrSelf(target);
         final TypeReference underlyingSource = getUnderlyingPrimitiveTypeOrSelf(source);
 
-        if (underlyingTarget.getSimpleType().isNumeric() && underlyingSource.getSimpleType().isNumeric()) {
+        if (underlyingTarget.getSimpleType().isNumeric() || underlyingSource.getSimpleType().isNumeric()) {
             return getNumericConversionType(target, source);
         }
 
@@ -1176,7 +1181,7 @@ public final class MetadataHelper {
 
                     if (descriptors.add(key)) {
                         if (results == null) {
-                            results = new ArrayList<>();
+                            results = new LinkedList<>();
                         }
 
                         final MethodReference asMember = asMemberOf(method, type);
@@ -1291,6 +1296,20 @@ public final class MetadataHelper {
             }
 
             return true;
+        } else if (type instanceof CompoundTypeReference){
+            final CompoundTypeReference c = (CompoundTypeReference)type;
+
+            if (isSubType(c.getBaseType(), baseType, capture)){
+                return true;
+            }
+
+            for (final TypeReference interfaceType : c.getInterfaces()) {
+                if (isSubType(interfaceType, baseType, capture)) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         final TypeReference lower = getLowerBound(baseType);
@@ -1887,17 +1906,25 @@ public final class MetadataHelper {
             final JvmType jt = t.getSimpleType();
             final JvmType js = s.getSimpleType();
 
-            if (jt == js) {
-                return true;
-            }
+            if (js == JvmType.Object) {
+                if (s == TypeInferer.INT_OR_BOOLEAN) {
+                    return jt == JvmType.Integer || jt == JvmType.Boolean;
+                } else if (s == TypeInferer.NUMERIC) {
+                    return jt == JvmType.Integer || jt == JvmType.Long || jt == JvmType.Float || jt == JvmType.Double;
+                }
 
-            if (jt == JvmType.Boolean || js == JvmType.Boolean) {
                 return false;
             }
 
             switch (js) {
+                case Boolean:
+                    return jt == JvmType.Boolean;
+
                 case Byte:
                     return jt != JvmType.Character && jt.isIntegral() && jt.bitWidth() <= js.bitWidth();
+
+                case Character:
+                    return jt == JvmType.Character;
 
                 case Short:
                     if (jt == JvmType.Character) {
@@ -1911,6 +1938,9 @@ public final class MetadataHelper {
                 case Float:
                 case Double:
                     return jt.isIntegral() || jt.bitWidth() <= js.bitWidth();
+
+                case Void:
+                    return jt == JvmType.Void;
 
                 default:
                     return Boolean.FALSE;
@@ -2204,7 +2234,7 @@ public final class MetadataHelper {
     };
 
     static List<ParameterDefinition> copyParameters(final List<ParameterDefinition> parameters) {
-        final List<ParameterDefinition> newParameters = new ArrayList<>();
+        final List<ParameterDefinition> newParameters = new ArrayList<>(parameters.size());
 
         for (final ParameterDefinition p : parameters) {
             if (p.hasName()) {
@@ -2492,6 +2522,10 @@ public final class MetadataHelper {
             final IGenericParameterProvider owner1 = gp1.getOwner();
             final IGenericParameterProvider owner2 = gp2.getOwner();
 
+            if (owner1 == null) {
+                return owner2 == null; // TODO
+            }
+
             if (owner1.getGenericParameters().indexOf(gp1) != owner1.getGenericParameters().indexOf(gp2)) {
                 return false;
             }
@@ -2628,7 +2662,7 @@ public final class MetadataHelper {
                     final List<? extends TypeReference> formal = getTypeArguments(r);
                     final List<? extends TypeReference> actual = getTypeArguments(t);
 
-                    final ArrayList<TypeReference> result = new ArrayList<>();
+                    final ArrayList<TypeReference> result = new ArrayList<>(interfaces.size());
                     final Map<TypeReference, TypeReference> mappings = new HashMap<>();
 
                     for (int i = 0, n = formal.size(); i < n; i++) {
