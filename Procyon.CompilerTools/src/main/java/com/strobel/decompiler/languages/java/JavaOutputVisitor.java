@@ -2253,10 +2253,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeToken(MethodGroupExpression.DOUBLE_COLON_ROLE);
 
         if (isKeyword(node.getMethodName())) {
-            writeKeyword(node.getMethodName());
+            writeKeyword(node.getMethodName(), node.getMethodNameToken().getRole());
         }
         else {
-            writeIdentifier(node.getMethodName());
+            node.getMethodNameToken().acceptVisitor(this, null);
         }
 
         endNode(node);
