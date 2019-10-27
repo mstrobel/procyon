@@ -20,23 +20,7 @@ import com.strobel.collections.ImmutableList;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.ReadOnlyList;
 import com.strobel.core.VerifyArgument;
-import com.strobel.reflection.BindingFlags;
-import com.strobel.reflection.CallingConvention;
-import com.strobel.reflection.ConstructorInfo;
-import com.strobel.reflection.DynamicMethod;
-import com.strobel.reflection.FieldInfo;
-import com.strobel.reflection.MemberInfo;
-import com.strobel.reflection.MemberList;
-import com.strobel.reflection.MemberType;
-import com.strobel.reflection.MethodBase;
-import com.strobel.reflection.MethodInfo;
-import com.strobel.reflection.MethodList;
-import com.strobel.reflection.ParameterInfo;
-import com.strobel.reflection.ParameterList;
-import com.strobel.reflection.PrimitiveTypes;
-import com.strobel.reflection.Type;
-import com.strobel.reflection.TypeList;
-import com.strobel.reflection.Types;
+import com.strobel.reflection.*;
 import com.strobel.reflection.emit.ConstructorBuilder;
 import com.strobel.reflection.emit.MethodBuilder;
 import com.strobel.reflection.emit.SwitchOptions;
@@ -3030,6 +3014,7 @@ public abstract class Expression {
                 }
                 break;
 
+            case ArrayIndex:
             case Parameter:
                 canWrite = true;
                 break;

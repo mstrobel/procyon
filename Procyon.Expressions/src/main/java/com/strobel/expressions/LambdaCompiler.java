@@ -846,7 +846,7 @@ final class LambdaCompiler {
         final int emitAs = flags & CompilationFlags.EmitAsTypeMask;
 
         // Emit the target array.
-        emitExpression(left);
+        emitExpression(index.getLeft());
 
         // Emit the index.
         emitExpression(index.getRight());
@@ -4044,6 +4044,9 @@ final class LambdaCompiler {
 
                 if (isEnum) {
                     key = ((Enum) test.getValue()).ordinal();
+                }
+                else if (test.getValue() instanceof Character) {
+                    key = (Character) test.getValue();
                 }
                 else {
                     key = ((Number) test.getValue()).intValue();

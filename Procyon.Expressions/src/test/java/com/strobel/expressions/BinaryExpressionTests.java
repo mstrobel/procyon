@@ -70,6 +70,27 @@ public class BinaryExpressionTests extends AbstractExpressionTest {
     }
 
     @Test
+    public void testArrayIndexAssignment() throws Throwable {
+        final ParameterExpression array = variable(PrimitiveTypes.Integer.makeArrayType());
+
+        final LambdaExpression<Callable<int[]>> lambda = lambda(
+            Types.Callable.makeGenericType(PrimitiveTypes.Integer.makeArrayType()),
+            block(
+                parameters(array),
+                assign(array, newArrayBounds(PrimitiveTypes.Integer, constant(3))),
+                assign(arrayIndex(array, constant(0)), constant(5)),
+                assign(arrayIndex(array, constant(1)), constant(6)),
+                assign(arrayIndex(array, constant(2)), constant(7)),
+                array
+            )
+
+        );
+
+        final int[] result = lambda.compile().call();
+        assertArrayEquals(new int[]{5,6,7}, result);
+    }
+
+    @Test
     public void testMethodBasedComparisonOperators() throws Throwable {
         Expression zero = constant(new BigInteger("0"));
         Expression one = constant(new BigInteger("1"));
@@ -239,6 +260,9 @@ public class BinaryExpressionTests extends AbstractExpressionTest {
         assertResultFalse(notEqual(constant((byte)1), constant((char)1)));
         assertResultTrue(notEqual(constant((byte)1), constant((char)0)));
     }
+
+
+
 
 /*
     private static void generateTests() throws Throwable {
