@@ -57,11 +57,14 @@ allprojects {
 // The root project is empty and doesn't need any tasks.
 //
 rootProject.tasks.each { it.enabled = false }
+rootProject.tasks.withType(DefaultTask).each { it.enabled = true }
 rootProject.uploadArchives.enabled = false
 
 subprojects {
     apply plugin: 'maven'
     apply plugin: 'signing'
+
+    final boolean shouldSign = "true".equalsIgnoreCase(System.properties.getProperty("procyon.signing.enabled"))
 
     archivesBaseName = "procyon-${(it.name as String).split('\\.')[1].toLowerCase()}"
 
@@ -129,21 +132,28 @@ subprojects {
             archives sourcesJar
         }
 
-        signing {
-            sign configurations.archives
+        if (shouldSign) {
+            signing {
+                sign configurations.archives
+            }
         }
 
         uploadArchives {
             repositories.mavenDeployer {
-                beforeDeployment { MavenDeployment deployment ->
-                    signing.signPom(deployment)
+                if (shouldSign) {
+                    beforeDeployment { MavenDeployment deployment ->
+                        signing.signPom(deployment)
+                    }
                 }
+
                 snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots") {
-                    authentication(userName: project.properties.get("sonatypeUsername"), password: project.properties.get("sonatypePassword"))
+                    authentication(userName: project.properties.get("procyon.sonatype.username"),
+                                   password: project.properties.get("procyon.sonatype.password"))
                 }
 
                 repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2") {
-                    authentication(userName: project.properties.get("sonatypeUsername"), password: project.properties.get("sonatypePassword"))
+                    authentication(userName: project.properties.get("procyon.sonatype.username"),
+                                   password: project.properties.get("procyon.sonatype.password"))
                 }
 
                 pom {
