@@ -26,3 +26,7 @@ dependencies {
     compile project(':Procyon.Core')
     compile project(':Procyon.CompilerTools')
 }
+
+artifacts {
+    archives fatJar
+}
