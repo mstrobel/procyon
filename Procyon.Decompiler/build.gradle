@@ -22,7 +22,7 @@ fatJar {
 }
 
 dependencies {
-    compile 'com.beust:jcommander:1.30'
+    compileOnly 'com.beust:jcommander:1.30'
     compile project(':Procyon.Core')
     compile project(':Procyon.CompilerTools')
 }
