@@ -23,7 +23,7 @@ import java.util.List;
 
 public class CommandLineOptions {
     @Parameter(description = "<type names or class/jar files>")
-    private final List<String> _inputs = new ArrayList<>();
+    private List<String> _inputs = new ArrayList<>();
 
     @Parameter(
         names = { "-?", "--help" },
