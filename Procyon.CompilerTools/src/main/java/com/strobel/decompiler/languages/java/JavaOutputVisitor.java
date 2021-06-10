@@ -1470,6 +1470,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         final TypeDeclaration type = parent instanceof TypeDeclaration ? (TypeDeclaration) parent : null;
 
         final MethodDefinition constructor = node.getUserData(Keys.METHOD_DEFINITION);
+        final TypeDefinition declaringType = constructor.getDeclaringType();
 
         final LineNumberTableAttribute lineNumberTable = SourceAttribute.find(
             AttributeNames.LineNumberTable,
@@ -1485,7 +1486,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeIdentifier(node.getNameToken(), type != null ? type.getName() : node.getName());
         endNode(node.getNameToken());
         space(policy.SpaceBeforeConstructorDeclarationParentheses);
-        writeCommaSeparatedListInParenthesis(node.getParameters(), policy.SpaceWithinMethodDeclarationParentheses);
+
+        if (constructor == null || declaringType == null || !declaringType.isRecord() || !node.getParameters().isEmpty()) {
+            writeCommaSeparatedListInParenthesis(node.getParameters(), policy.SpaceWithinMethodDeclarationParentheses);
+        }
 
         final AstNodeCollection<AstType> thrownTypes = node.getThrownTypes();
 
@@ -1581,13 +1585,18 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                                          type.isAnonymous() &&
                                          node.getParent() instanceof AnonymousObjectCreationExpression;
 
+        final ClassType classType = node.getClassType();
+
         if (!isTrulyAnonymous) {
             writeAnnotations(node.getAnnotations(), true);
             writeModifiers(node.getModifiers());
 
-            switch (node.getClassType()) {
+            switch (classType) {
                 case ENUM:
                     writeKeyword(Roles.ENUM_KEYWORD);
+                    break;
+                case RECORD:
+                    writeKeyword(Roles.RECORD_KEYWORD);
                     break;
                 case INTERFACE:
                     writeKeyword(Roles.INTERFACE_KEYWORD);
@@ -1603,6 +1612,11 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             node.getNameToken().acceptVisitor(this, ignored);
             writeTypeParameters(node.getTypeParameters());
 
+            if (classType == ClassType.RECORD) {
+                writeCommaSeparatedListInParenthesis(node.getChildrenByRole(EntityDeclaration.RECORD_COMPONENT),
+                                                     policy.SpaceWithinRecordDeclarationParentheses);
+            }
+
             if (!node.getBaseType().isNull()) {
                 space();
                 writeKeyword(Roles.EXTENDS_KEYWORD);
@@ -1613,7 +1627,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             if (any(node.getInterfaces())) {
                 final Collection<AstType> interfaceTypes;
 
-                if (node.getClassType() == ClassType.ANNOTATION) {
+                if (classType == ClassType.ANNOTATION) {
                     interfaceTypes = new ArrayList<>();
 
                     for (final AstType t : node.getInterfaces()) {
@@ -1633,7 +1647,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 if (any(interfaceTypes)) {
                     space();
 
-                    if (node.getClassType() == ClassType.INTERFACE || node.getClassType() == ClassType.ANNOTATION) {
+                    if (classType == ClassType.INTERFACE || classType == ClassType.ANNOTATION) {
                         writeKeyword(Roles.EXTENDS_KEYWORD);
                     }
                     else {
@@ -1646,12 +1660,23 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             }
         }
 
+        if (classType == ClassType.RECORD && node.getMembers().isEmpty()) {
+            openBrace(BraceStyle.BannerStyle);
+            closeBrace(BraceStyle.BannerStyle);
+            endNode(node);
+            newLine();
+            return null;
+        }
+
         final BraceStyle braceStyle;
         final AstNodeCollection<EntityDeclaration> members = node.getMembers();
 
-        switch (node.getClassType()) {
+        switch (classType) {
             case ENUM:
                 braceStyle = policy.EnumBraceStyle;
+                break;
+            case RECORD:
+                braceStyle = policy.RecordBraceStyle;
                 break;
             case INTERFACE:
                 braceStyle = policy.InterfaceBraceStyle;

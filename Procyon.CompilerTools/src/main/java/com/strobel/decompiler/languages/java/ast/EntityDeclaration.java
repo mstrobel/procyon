@@ -33,6 +33,7 @@ public abstract class EntityDeclaration extends AstNode {
     public final static Role<Annotation> UNATTACHED_ANNOTATION_ROLE = new Role<>("UnattachedAnnotation", Annotation.class);
     public final static Role<JavaModifierToken> MODIFIER_ROLE = new Role<>("Modifier", JavaModifierToken.class);
     public final static Role<AstType> PRIVATE_IMPLEMENTATION_TYPE_ROLE = new Role<>("PrivateImplementationType", AstType.class, AstType.NULL);
+    public final static Role<ParameterDeclaration> RECORD_COMPONENT = new Role<>("ParameterDeclaration", ParameterDeclaration.class);
 
     private boolean _anyModifiers;
 

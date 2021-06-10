@@ -38,7 +38,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
     }
 
     @Override
-    public Void visitTypeDeclaration(final TypeDeclaration node, final Void p) {
+    protected Void visitTypeDeclarationOverride(final TypeDeclaration node, final Void p) {
         if (!(node.getParent() instanceof CompilationUnit)) {
             final TypeDefinition type = node.getUserData(Keys.TYPE_DEFINITION);
 
@@ -48,7 +48,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
             }
         }
 
-        return super.visitTypeDeclaration(node, p);
+        return super.visitTypeDeclarationOverride(node, p);
     }
 
     @Override
@@ -64,7 +64,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
     }
 
     @Override
-    public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
+    protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
         final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
         if (method != null) {
@@ -81,7 +81,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
             }
         }
 
-        return super.visitMethodDeclaration(node, p);
+        return super.visitMethodDeclarationOverride(node, p);
     }
 
     private final static INode DEFAULT_CONSTRUCTOR_BODY;

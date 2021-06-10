@@ -23,6 +23,7 @@ import com.strobel.assembler.metadata.annotations.CustomAnnotation;
 import com.strobel.core.ArrayUtilities;
 import com.strobel.core.VerifyArgument;
 
+import java.util.Collections;
 import java.util.List;
 
 /**

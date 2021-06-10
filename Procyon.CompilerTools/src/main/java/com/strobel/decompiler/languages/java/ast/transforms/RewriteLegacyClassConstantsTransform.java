@@ -100,7 +100,7 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
+        protected Void visitTypeDeclarationOverride(final TypeDeclaration typeDeclaration, final Void p) {
             if (_currentType != null) {
                 return null;
             }
@@ -108,7 +108,7 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
             _currentType = typeDeclaration;
 
             try {
-                return super.visitTypeDeclaration(typeDeclaration, p);
+                return super.visitTypeDeclarationOverride(typeDeclaration, p);
             }
             finally {
                 _currentType = null;
@@ -141,7 +141,7 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
+        protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
             final MethodDefinition m = node.getUserData(Keys.METHOD_DEFINITION);
 
             if (isClassMethodCandidate(m) && PATTERN.matches(node)) {

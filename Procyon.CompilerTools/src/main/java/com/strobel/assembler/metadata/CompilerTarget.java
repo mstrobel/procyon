@@ -47,7 +47,47 @@ public enum CompilerTarget {
     /**
      * JDK 8.
      */
-    JDK1_8("1.8", 52, 0);
+    JDK1_8("1.8", 52, 0),
+    
+    /**
+     * JDK 9.
+     */
+    JDK9("9", 53, 0),
+    
+    /**
+     * JDK 10.
+     */
+    JDK10("10", 54, 0),
+    
+    /**
+     * JDK 11.
+     */
+    JDK11("11", 55, 0),
+    
+    /**
+     * JDK 12.
+     */
+    JDK12("12", 56, 0),
+    
+    /**
+     * JDK 13.
+     */
+    JDK13("13", 57, 0),
+    
+    /**
+     * JDK 14.
+     */
+    JDK14("14", 58, 0),
+    
+    /**
+     * JDK 15.
+     */
+    JDK15("15", 59, 0),
+    
+    /**
+     * JDK 16.
+     */
+    JDK16("16", 60, 0);
 
     private static final CompilerTarget[] VALUES = values();
     private static final CompilerTarget MIN = VALUES[0];

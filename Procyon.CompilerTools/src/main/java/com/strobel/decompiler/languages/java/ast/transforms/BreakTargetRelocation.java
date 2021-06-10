@@ -52,9 +52,8 @@ public final class BreakTargetRelocation extends ContextTrackingVisitor<Void> {
     }
 
     @Override
-    @SuppressWarnings("ConstantConditions")
-    public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
-        super.visitMethodDeclaration(node, p);
+    protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
+        super.visitMethodDeclarationOverride(node, p);
 
         runForMethod(node);
 

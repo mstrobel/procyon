@@ -134,7 +134,7 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
+        protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
             final MethodDefinition methodDefinition = node.getUserData(Keys.METHOD_DEFINITION);
 
             if (isSwitchMapMethod(methodDefinition)) {
@@ -169,7 +169,7 @@ public class EclipseEnumSwitchRewriterTransform implements IAstTransform {
                 }
             }
 
-            return super.visitMethodDeclaration(node, p);
+            return super.visitMethodDeclarationOverride(node, p);
         }
 
         private void rewrite() {

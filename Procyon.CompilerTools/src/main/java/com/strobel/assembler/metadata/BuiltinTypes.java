@@ -35,6 +35,7 @@ public final class BuiltinTypes {
     public final static TypeDefinition Bottom;
     public final static TypeDefinition Null;
     public final static TypeDefinition Class;
+    public final static TypeDefinition Record;
 
     static {
         Boolean = new PrimitiveType(JvmType.Boolean);
@@ -70,6 +71,15 @@ public final class BuiltinTypes {
         }
 
         Class = ClassFileReader.readClass(metadataSystem, buffer);
+
+        buffer.reset();
+
+        if (typeLoader.tryLoadType("java/lang/Record", buffer)) {
+            Record = ClassFileReader.readClass(metadataSystem, buffer);
+        }
+        else {
+            Record = RecordTypeDefinition.INSTANCE;
+        }
     }
 
     public static TypeDefinition fromPrimitiveTypeCode(final int code) {

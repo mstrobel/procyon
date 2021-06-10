@@ -238,9 +238,12 @@ public final class DecompilerHelpers {
     }
 
     public static void writeDynamicCallSite(final ITextOutput output, final DynamicCallSite operand) {
+        writeMethodHandle(output, operand.getBootstrapMethodHandle());
+        output.write(", ");
         output.writeReference(operand.getMethodName(), operand.getMethodType());
         output.writeDelimiter(":");
         writeMethodSignature(output, operand.getMethodType());
+        writeOperandList(output, operand.getBootstrapArguments());
     }
 
     public static String offsetToString(final int offset) {
@@ -424,6 +427,15 @@ public final class DecompilerHelpers {
                 writer.write(", ");
             }
             writeOperand(writer, instruction.getOperand(i));
+        }
+    }
+
+    private static void writeOperandList(final ITextOutput writer, final List<? extends Object> operands) {
+        for (int i = 0, n = operands.size(); i < n; i++) {
+            if (i != 0) {
+                writer.write(", ");
+            }
+            writeOperand(writer, operands.get(i));
         }
     }
 

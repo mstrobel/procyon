@@ -65,7 +65,7 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
+        protected Void visitTypeDeclarationOverride(final TypeDeclaration typeDeclaration, final Void p) {
             final boolean oldIsSwitchMapWrapper = _isSwitchMapWrapper;
             final TypeDefinition typeDefinition = typeDeclaration.getUserData(Keys.TYPE_DEFINITION);
             final boolean isSwitchMapWrapper = isSwitchMapWrapper(typeDefinition);
@@ -85,7 +85,7 @@ public class EnumSwitchRewriterTransform implements IAstTransform {
             _isSwitchMapWrapper = isSwitchMapWrapper;
 
             try {
-                super.visitTypeDeclaration(typeDeclaration, p);
+                super.visitTypeDeclarationOverride(typeDeclaration, p);
             }
             finally {
                 _isSwitchMapWrapper = oldIsSwitchMapWrapper;

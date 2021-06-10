@@ -47,6 +47,7 @@ public final class TransformationPipeline {
             new EliminateSyntheticAccessorsTransform(context),
             new LambdaTransform(context),
             new RewriteNewArrayLambdas(context),
+            new RewriteRecordClassesTransform(context),
             new RewriteLocalClassesTransform(context),
             new IntroduceOuterClassReferencesTransform(context),
             new RewriteInnerClassConstructorCalls(context),

@@ -80,6 +80,7 @@ public final class Roles {
     public final static TokenRole DEFAULT_KEYWORD = new TokenRole("default", TokenRole.FLAG_KEYWORD);
     public final static TokenRole PACKAGE_KEYWORD = new TokenRole("package", TokenRole.FLAG_KEYWORD);
     public final static TokenRole ENUM_KEYWORD = new TokenRole("enum", TokenRole.FLAG_KEYWORD);
+    public final static TokenRole RECORD_KEYWORD = new TokenRole("record", TokenRole.FLAG_KEYWORD);
     public final static TokenRole INTERFACE_KEYWORD = new TokenRole("interface", TokenRole.FLAG_KEYWORD);
     public final static TokenRole CLASS_KEYWORD = new TokenRole("class", TokenRole.FLAG_KEYWORD);
     public final static TokenRole ANNOTATION_KEYWORD = new TokenRole("@interface", TokenRole.FLAG_KEYWORD);

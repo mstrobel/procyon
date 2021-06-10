@@ -256,6 +256,60 @@ public final class ClassFileReader extends MetadataReader {
 
                 return new InnerClassesAttribute(length, ArrayUtilities.asUnmodifiableList(entries));
             }
+
+            case AttributeNames.Record: {
+                // Record_attribute {
+                //     u2 attribute_name_index;
+                //     u4 attribute_length;
+                //     u2 components_count;
+                //     record_component_info components[components_count];
+                // }
+
+                final int componentCount = buffer.readUnsignedShort();
+                final RecordComponentInfo[] components = new RecordComponentInfo[componentCount];
+
+                // record_component_info {
+                //     u2 name_index;
+                //     u2 descriptor_index;
+                //     u2 attributes_count;
+                //     attribute_info attributes[attributes_count];
+                // }
+
+                for (int i = 0; i < components.length; i++) {
+                    final String componentName = _scope.lookupConstant(buffer.readUnsignedShort());
+                    final String componentDescriptor = _scope.lookupConstant(buffer.readUnsignedShort());
+                    final int componentAttributeCount = buffer.readUnsignedShort();
+                    final List<SourceAttribute> componentAttributes;
+
+                    TypeReference componentType;
+
+                    try {
+                        componentType = getParser().parseTypeSignature(componentDescriptor);
+                    }
+                    catch (final java.lang.Error | Exception ignored) {
+                        componentType = BuiltinTypes.Object;
+                    }
+
+                    if (componentAttributeCount > 0) {
+                        final SourceAttribute[] cAttr = new SourceAttribute[componentAttributeCount];
+
+                        for (int j = 0; j < cAttr.length; j++) {
+                            cAttr[j] = readAttribute(buffer);
+                        }
+
+                        componentAttributes = ArrayUtilities.asUnmodifiableList(cAttr);
+                    }
+                    else {
+                        componentAttributes = Collections.emptyList();
+                    }
+
+                    components[i] = new RecordComponentInfo(componentName, componentDescriptor, componentType, componentAttributes);
+                }
+
+                _scope._typeDefinition.setFlags(_scope._typeDefinition.getFlags() | Flags.RECORD);
+
+                return new RecordAttribute(length, ArrayUtilities.asUnmodifiableList(components));
+            }
         }
 
         return super.readAttributeCore(name, buffer, originalOffset, length);

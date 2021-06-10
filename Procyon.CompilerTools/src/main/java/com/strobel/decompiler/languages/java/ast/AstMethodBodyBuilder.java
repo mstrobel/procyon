@@ -1070,6 +1070,10 @@ public class AstMethodBodyBuilder {
 
         final Expression inlinedAssembly = inlineAssembly(byteCode, arguments);
 
+        if (operand instanceof DynamicCallSite) {
+            inlinedAssembly.putUserData(Keys.DYNAMIC_CALL_SITE, (DynamicCallSite) operand);
+        }
+
         if (isTopLevel) {
             return new CommentStatement(" " + inlinedAssembly.toString());
         }
@@ -1344,6 +1348,7 @@ public class AstMethodBodyBuilder {
         return arguments.subList(first, last + 1);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private boolean isCastRequired(final TypeReference targetType, final TypeReference sourceType, final boolean exactMatch) {
         if (targetType == null || sourceType == null) {
             return false;
@@ -1362,10 +1367,9 @@ public class AstMethodBodyBuilder {
 
     private static Expression inlineAssembly(final com.strobel.decompiler.ast.Expression byteCode, final List<Expression> arguments) {
         if (byteCode.getOperand() != null) {
-            arguments.add(0, new IdentifierExpression( byteCode.getOffset(),
-                    formatByteCodeOperand(byteCode.getOperand())));
+            arguments.add(0, new IdentifierExpression(byteCode.getOffset(), formatByteCodeOperand(byteCode.getOperand())));
         }
-        return new IdentifierExpression( byteCode.getOffset(), byteCode.getCode().getName()).invoke(arguments);
+        return new IdentifierExpression(byteCode.getOffset(), byteCode.getCode().getName()).invoke(arguments);
     }
 
     private static String formatByteCodeOperand(final Object operand) {

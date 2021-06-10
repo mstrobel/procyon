@@ -383,6 +383,10 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         return Flags.testAny(getFlags(), Flags.ENUM);
     }
 
+    public final boolean isRecord() {
+        return Flags.testAny(getFlags(), Flags.RECORD);
+    }
+
     public final boolean isAnonymous() {
         return Flags.testAny(getFlags(), Flags.ANONYMOUS);
     }

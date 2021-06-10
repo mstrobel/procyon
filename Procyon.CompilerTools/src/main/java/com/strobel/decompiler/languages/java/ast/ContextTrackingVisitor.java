@@ -42,14 +42,14 @@ public abstract class ContextTrackingVisitor<TResult> extends DepthFirstAstVisit
         return context.getCurrentMethod() != null;
     }
 
-    public TResult visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
+    public final TResult visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
         final TypeDefinition oldType = context.getCurrentType();
         final MethodDefinition oldMethod = context.getCurrentMethod();
 
         try {
             context.setCurrentType(typeDeclaration.getUserData(Keys.TYPE_DEFINITION));
             context.setCurrentMethod(null);
-            return super.visitTypeDeclaration(typeDeclaration, p);
+            return visitTypeDeclarationOverride(typeDeclaration, p);
         }
         finally {
             context.setCurrentType(oldType);
@@ -57,15 +57,23 @@ public abstract class ContextTrackingVisitor<TResult> extends DepthFirstAstVisit
         }
     }
 
+    protected TResult visitTypeDeclarationOverride(final TypeDeclaration typeDeclaration, final Void p) {
+        return super.visitTypeDeclaration(typeDeclaration, p);
+    }
+
     public TResult visitMethodDeclaration(final MethodDeclaration node, final Void p) {
         assert context.getCurrentMethod() == null;
         try {
             context.setCurrentMethod(node.getUserData(Keys.METHOD_DEFINITION));
-            return super.visitMethodDeclaration(node, p);
+            return visitMethodDeclarationOverride(node, p);
         }
         finally {
             context.setCurrentMethod(null);
         }
+    }
+
+    protected TResult visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
+        return super.visitMethodDeclaration(node, p);
     }
 
     public TResult visitConstructorDeclaration(final ConstructorDeclaration node, final Void p) {

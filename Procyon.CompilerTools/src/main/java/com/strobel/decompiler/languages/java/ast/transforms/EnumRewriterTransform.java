@@ -53,7 +53,7 @@ public class EnumRewriterTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitTypeDeclaration(final TypeDeclaration typeDeclaration, final Void p) {
+        protected Void visitTypeDeclarationOverride(final TypeDeclaration typeDeclaration, final Void p) {
             final MemberReference oldValuesField = _valuesField;
             final Map<String, FieldDeclaration> oldValueFields = _valueFields;
             final Map<String, ObjectCreationExpression> oldValueInitializers = _valueInitializers;
@@ -66,7 +66,7 @@ public class EnumRewriterTransform implements IAstTransform {
             _valueInitializers = valueInitializers;
 
             try {
-                super.visitTypeDeclaration(typeDeclaration, p);
+                super.visitTypeDeclarationOverride(typeDeclaration, p);
             }
             finally {
                 _valuesField = oldValuesField;
@@ -274,7 +274,7 @@ public class EnumRewriterTransform implements IAstTransform {
         }
 
         @Override
-        public Void visitMethodDeclaration(final MethodDeclaration node, final Void p) {
+        protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
             final TypeDefinition currentType = context.getCurrentType();
 
             if (currentType != null && currentType.isEnum() && !context.getSettings().getShowSyntheticMembers()) {
@@ -310,7 +310,7 @@ public class EnumRewriterTransform implements IAstTransform {
                 }
             }
 
-            return super.visitMethodDeclaration(node, p);
+            return super.visitMethodDeclarationOverride(node, p);
         }
 
         private void rewrite(
