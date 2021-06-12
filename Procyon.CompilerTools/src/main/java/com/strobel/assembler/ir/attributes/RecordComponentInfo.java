@@ -1,10 +1,8 @@
 package com.strobel.assembler.ir.attributes;
 
 import com.strobel.annotations.NotNull;
-import com.strobel.annotations.Nullable;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.VerifyArgument;
-import com.sun.xml.internal.bind.v2.model.core.TypeRef;
 
 import java.util.List;
 
