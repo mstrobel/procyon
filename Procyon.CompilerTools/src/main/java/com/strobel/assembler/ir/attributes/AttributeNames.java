@@ -42,6 +42,10 @@ public final class AttributeNames {
     public static final String AnnotationDefault = "AnnotationDefault";
     public static final String MethodParameters = "MethodParameters";
     public static final String Record = "Record";
+    public static final String Module = "Module";
+    public static final String ModulePackages = "ModulePackages";
+    public static final String ModuleMainClass = "ModuleMainClass";
+    public static final String ModuleTarget = "ModuleTarget";
 
     private AttributeNames() {
         throw ContractUtils.unreachable();

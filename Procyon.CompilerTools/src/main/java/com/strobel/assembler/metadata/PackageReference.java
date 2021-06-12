@@ -28,6 +28,7 @@ public class PackageReference {
     private final String _name;
 
     private String _fullName;
+    private String _internalName;
 
     private PackageReference() {
         _parent = null;
@@ -58,10 +59,22 @@ public class PackageReference {
                 _fullName = getName();
             }
             else {
-                _fullName = _parent.getFullName() + "." + getName();
+                _fullName = _parent.getFullName() + '.' + getName();
             }
         }
         return _fullName;
+    }
+
+    public final String getInternalName() {
+        if (_internalName == null) {
+            if (_parent == null || _parent.equals(GLOBAL)) {
+                _internalName = getName();
+            }
+            else {
+                _internalName = _parent.getInternalName() + '/' + getName();
+            }
+        }
+        return _internalName;
     }
 
     public final PackageReference getParent() {

@@ -166,6 +166,45 @@ public class Flags {
     public static EnumSet<Flag> asFlagSet(final long mask, final Kind kind) {
         final EnumSet<Flag> flags = EnumSet.noneOf(Flag.class);
 
+        if (kind == Kind.Module) {
+            if ((mask & ACC_OPEN) != 0) {
+                flags.add(Flag.OPEN);
+            }
+            if ((mask & ACC_SYNTHETIC) != 0) {
+                flags.add(Flag.SYNTHETIC);
+            }
+            if ((mask & ACC_MANDATED) != 0) {
+                flags.add(Flag.MANDATED);
+            }
+            return flags;
+        }
+
+        if (kind == Kind.Requires) {
+            if ((mask & ACC_TRANSITIVE) != 0) {
+                flags.add(Flag.TRANSITIVE);
+            }
+            if ((mask & ACC_STATIC_PHASE) != 0) {
+                flags.add(Flag.STATIC_PHASE);
+            }
+            if ((mask & ACC_SYNTHETIC) != 0) {
+                flags.add(Flag.SYNTHETIC);
+            }
+            if ((mask & ACC_MANDATED) != 0) {
+                flags.add(Flag.MANDATED);
+            }
+            return flags;
+        }
+
+        if (kind == Kind.ExportsOpens) {
+            if ((mask & ACC_SYNTHETIC) != 0) {
+                flags.add(Flag.SYNTHETIC);
+            }
+            if ((mask & ACC_MANDATED) != 0) {
+                flags.add(Flag.MANDATED);
+            }
+            return flags;
+        }
+
         if ((mask & PUBLIC) != 0) {
             flags.add(Flag.PUBLIC);
         }
@@ -267,7 +306,10 @@ public class Flags {
         Class,
         InnerClass,
         Field,
-        Method
+        Method,
+        Module,
+        Requires,
+        ExportsOpens
     }
 
     /*
@@ -311,10 +353,19 @@ public class Flags {
     // bit positions, we translate them when reading and writing class
     // files into unique bits positions: ACC_SYNTHETIC <-> SYNTHETIC,
     // for example.
-    public static final int ACC_FINAL     = 0x0010;
-    public static final int ACC_SUPER     = 0x0020;
-    public static final int ACC_BRIDGE    = 0x0040;
-    public static final int ACC_VARARGS   = 0x0080;
+    public static final int ACC_FINAL        = 0x0010;
+    public static final int ACC_SUPER        = 0x0020;
+    public static final int ACC_BRIDGE       = 0x0040;
+    public static final int ACC_VARARGS      = 0x0080;
+    public static final int ACC_MODULE       = 0x8000;
+
+    public static final int ACC_OPEN         = 0x0020;
+    public static final int ACC_SYNTHETIC    = 0x1000;
+    public static final int ACC_MANDATED     = 0x8000;
+
+    public static final int ACC_TRANSITIVE   = 0x0020;
+    public static final int ACC_STATIC_PHASE = 0x0040;
+
 
     /*****************************************
      * Internal compiler flags (no bits in the lower 16).
@@ -489,6 +540,11 @@ public class Flags {
     public static final long DEOBFUSCATED = 1L << 47;
 
     /**
+     * Flag to indicate class symbol is for module-info
+     */
+    public static final long MODULE = 1L<<51;
+
+    /**
      * Flag to indicate that a class is a record. The flag is also used to mark fields that are
      * part of the state vector of a record and to mark the canonical constructor
      */
@@ -524,6 +580,9 @@ public class Flags {
      * Modifier masks.
      */
     public static final int
+        ModuleFlags                       = ACC_OPEN | ACC_SYNTHETIC | ACC_MANDATED,
+        RequiresFlags                     = ACC_TRANSITIVE | ACC_STATIC_PHASE | ACC_SYNTHETIC | ACC_MANDATED,
+        ExportsOpensFlags                 = ACC_SYNTHETIC | ACC_MANDATED,
         AccessFlags                       = PUBLIC | PROTECTED | PRIVATE,
         LocalClassFlags                   = FINAL | ABSTRACT | STRICTFP | ENUM | SYNTHETIC,
         StaticLocalFlags                  = LocalClassFlags | STATIC | INTERFACE,
@@ -597,7 +656,7 @@ public class Flags {
 
         return modifiers;
     }
-    
+
     public static int toModifiers(final long flags) {
         int modifiers = 0;
 
@@ -713,7 +772,10 @@ public class Flags {
         ACYCLIC("acyclic"),
         PARAMETER("parameter"),
         VARARGS("varargs"),
-        PACKAGE("package");
+        PACKAGE("package"),
+        OPEN("open"),
+        TRANSITIVE("transitive"),
+        STATIC_PHASE("static");
 
         public final String name;
 

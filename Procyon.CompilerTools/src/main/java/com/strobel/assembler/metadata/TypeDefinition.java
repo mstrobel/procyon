@@ -387,6 +387,10 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
         return Flags.testAny(getFlags(), Flags.RECORD);
     }
 
+    public final boolean isModule() {
+        return Flags.testAny(getFlags(), Flags.MODULE);
+    }
+
     public final boolean isAnonymous() {
         return Flags.testAny(getFlags(), Flags.ANONYMOUS);
     }

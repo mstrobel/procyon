@@ -34,6 +34,7 @@ public class JavaFormattingOptions {
     public BraceStyle InterfaceBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle AnnotationBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle EnumBraceStyle = BraceStyle.DoNotChange;
+    public BraceStyle ModuleBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle RecordBraceStyle = BraceStyle.EndOfLine;
     public BraceStyle MethodBraceStyle = BraceStyle.DoNotChange;
     public BraceStyle InitializerBlockBraceStyle = BraceStyle.DoNotChange;

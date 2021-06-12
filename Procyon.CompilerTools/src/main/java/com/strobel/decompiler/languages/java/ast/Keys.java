@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast;
 
+import com.strobel.assembler.ir.attributes.ModuleAttribute;
 import com.strobel.assembler.metadata.*;
 import com.strobel.componentmodel.Key;
 import com.strobel.core.ArrayUtilities;
@@ -35,6 +36,7 @@ public final class Keys {
     public final static Key<FieldDefinition> FIELD_DEFINITION = Key.create("FieldDefinition");
     public final static Key<MethodDefinition> METHOD_DEFINITION = Key.create("MethodDefinition");
     public final static Key<TypeDefinition> TYPE_DEFINITION = Key.create("TypeDefinition");
+    public final static Key<ModuleReference> MODULE_REFERENCE = Key.create("ModuleReference");
     public final static Key<TypeReference> TYPE_REFERENCE = Key.create("TypeReference");
     public final static Key<TypeReference> ANONYMOUS_BASE_TYPE_REFERENCE = Key.create("AnonymousBaseTypeReference");
     public final static Key<DynamicCallSite> DYNAMIC_CALL_SITE = Key.create("DynamicCallSite");

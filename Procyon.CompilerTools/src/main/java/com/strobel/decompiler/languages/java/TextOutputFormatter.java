@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java;
 
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodReference;
+import com.strobel.assembler.metadata.ModuleReference;
 import com.strobel.assembler.metadata.PackageReference;
 import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeReference;
@@ -40,7 +41,7 @@ public class TextOutputFormatter implements IOutputFormatter {
     private boolean firstUsingDeclaration;
     private boolean lastUsingDeclaration;
     private LineNumberMode lineNumberMode;
-    
+
     /**
      * whether or not to emit debug line number comments into the source code
      */
@@ -48,15 +49,21 @@ public class TextOutputFormatter implements IOutputFormatter {
         WITH_DEBUG_LINE_NUMBERS,
         WITHOUT_DEBUG_LINE_NUMBERS,
     }
-    
-    /** when writing out line numbers, keeps track of the most recently used one to avoid redundancy */
+
+    /**
+     * when writing out line numbers, keeps track of the most recently used one to avoid redundancy
+     */
     private int lastObservedLineNumber = OffsetToLineNumberConverter.UNKNOWN_LINE_NUMBER;
-    
-    /** converts from bytecode offset to line number */
+
+    /**
+     * converts from bytecode offset to line number
+     */
     private OffsetToLineNumberConverter offset2LineNumber = OffsetToLineNumberConverter.NOOP_CONVERTER;
-    
-    /** maps original line numbers to decompiler-emitted line numbers and columns */
-    private final List<LineNumberPosition> lineNumberPositions = new ArrayList<LineNumberPosition>(); 
+
+    /**
+     * maps original line numbers to decompiler-emitted line numbers and columns
+     */
+    private final List<LineNumberPosition> lineNumberPositions = new ArrayList<LineNumberPosition>();
 
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final Stack<TextLocation> startLocations = new Stack<>();
@@ -80,35 +87,36 @@ public class TextOutputFormatter implements IOutputFormatter {
         }
 
         nodeStack.push(node);
-        
+
         // Build a data structure of Java line numbers.
         int offset = Expression.MYSTERY_OFFSET;
         String prefix = null;
-        if ( node instanceof Expression) {
+        if (node instanceof Expression) {
             offset = ((Expression) node).getOffset();
             prefix = "/*EL:";
-        } else if ( node instanceof Statement) {
+        }
+        else if (node instanceof Statement) {
             offset = ((Statement) node).getOffset();
             prefix = "/*SL:";
         }
-        if ( offset != Expression.MYSTERY_OFFSET) {
+        if (offset != Expression.MYSTERY_OFFSET) {
             // Convert to a line number.
-            int lineNumber = offset2LineNumber.getLineForOffset( offset);
-            if ( lineNumber > lastObservedLineNumber) {
+            int lineNumber = offset2LineNumber.getLineForOffset(offset);
+            if (lineNumber > lastObservedLineNumber) {
                 // Record a data structure mapping original to actual line numbers.
                 int lineOfComment = output.getRow();
                 int columnOfComment = output.getColumn();
-                LineNumberPosition pos = new LineNumberPosition( lineNumber, lineOfComment, columnOfComment);
-                lineNumberPositions.add( pos);                
+                LineNumberPosition pos = new LineNumberPosition(lineNumber, lineOfComment, columnOfComment);
+                lineNumberPositions.add(pos);
                 lastObservedLineNumber = lineNumber;
-                if ( lineNumberMode == LineNumberMode.WITH_DEBUG_LINE_NUMBERS) {
+                if (lineNumberMode == LineNumberMode.WITH_DEBUG_LINE_NUMBERS) {
                     // Emit a comment showing the original line number.
                     String commentStr = prefix + lineNumber + "*/";
-                    output.writeComment( commentStr);
+                    output.writeComment(commentStr);
                 }
             }
         }
-        
+
         startLocations.push(new TextLocation(output.getRow(), output.getColumn()));
 
         if (node instanceof EntityDeclaration &&
@@ -145,6 +153,13 @@ public class TextOutputFormatter implements IOutputFormatter {
         }
 
         reference = getCurrentMemberReference();
+
+        if (reference != null) {
+            output.writeReference(identifier, reference);
+            return;
+        }
+
+        reference = getCurrentModuleReference();
 
         if (reference != null) {
             output.writeReference(identifier, reference);
@@ -434,6 +449,12 @@ public class TextOutputFormatter implements IOutputFormatter {
                 return null;
             }
 
+            definition = parent.getUserData(Keys.MODULE_REFERENCE);
+
+            if (definition != null) {
+                return definition;
+            }
+
             definition = parent.getUserData(Keys.TYPE_DEFINITION);
 
             if (definition != null) {
@@ -472,6 +493,25 @@ public class TextOutputFormatter implements IOutputFormatter {
                 parent instanceof ImportDeclaration) {
 
                 return parent.getUserData(Keys.TYPE_REFERENCE);
+            }
+        }
+
+        return null;
+    }
+
+    private ModuleReference getCurrentModuleReference() {
+        final AstNode node = nodeStack.peek();
+        final ModuleReference moduleReference = node.getUserData(Keys.MODULE_REFERENCE);
+
+        if (moduleReference != null) {
+            return moduleReference;
+        }
+
+        if (node instanceof Identifier) {
+            final AstNode parent = node.getParent();
+
+            if (parent instanceof ModuleDeclaration) {
+                return parent.getUserData(Keys.MODULE_REFERENCE);
             }
         }
 
@@ -580,13 +620,13 @@ public class TextOutputFormatter implements IOutputFormatter {
     }
 
     @Override
-    public void resetLineNumberOffsets( OffsetToLineNumberConverter offset2LineNumber) {
+    public void resetLineNumberOffsets(OffsetToLineNumberConverter offset2LineNumber) {
         // Forget what we used to know about the stream of line number offsets and start from
         // scratch.  Also capture the new converter.,
         lastObservedLineNumber = OffsetToLineNumberConverter.UNKNOWN_LINE_NUMBER;
         this.offset2LineNumber = offset2LineNumber;
     }
-    
+
     /**
      * Returns the mapping from original to decompiler-emitted line numbers.
      */

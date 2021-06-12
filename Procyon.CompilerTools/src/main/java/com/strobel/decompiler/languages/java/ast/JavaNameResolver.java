@@ -62,7 +62,7 @@ public final class JavaNameResolver {
 
     private final static class FindDeclarationVisitor implements IAstVisitor<String, Set<Object>> {
         private final NameResolveMode _mode;
-        private boolean _isStaticContext = false;
+        private boolean _isStaticContext;
 
         FindDeclarationVisitor(final NameResolveMode mode, final boolean isStaticContext) {
             _mode = VerifyArgument.notNull(mode, "mode");
@@ -705,6 +705,11 @@ public final class JavaNameResolver {
                 new LinkedHashSet<String>(),
                 true
             );
+        }
+
+        @Override
+        public Set<Object> visitModuleDeclaration(final ModuleDeclaration node, final String data) {
+            return Collections.emptySet();
         }
 
         @Override

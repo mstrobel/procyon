@@ -19,6 +19,7 @@ package com.strobel.decompiler.languages.java.ast;
 import com.strobel.assembler.ir.attributes.AnnotationDefaultAttribute;
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
+import com.strobel.assembler.ir.attributes.ModuleAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.*;
 import com.strobel.assembler.metadata.annotations.*;
@@ -122,7 +123,16 @@ public final class AstBuilder {
     }
 
     public final void addType(final TypeDefinition type) {
-        final TypeDeclaration astType = createType(type);
+        if (type.isModule()) {
+            final ModuleAttribute attribute = SourceAttribute.find(AttributeNames.Module, type.getSourceAttributes());
+
+            if (attribute != null) {
+                _compileUnit.addChild(createModuleNoCache(type, attribute), CompilationUnit.MODULE_ROLE);
+                return;
+            }
+        }
+
+        final EntityDeclaration astType = createType(type);
         final String packageName = type.getPackageName();
 
         if (_compileUnit.getPackage().isNull() && !StringUtilities.isNullOrWhitespace(packageName)) {
@@ -148,6 +158,28 @@ public final class AstBuilder {
         }
 
         return createTypeNoCache(type);
+    }
+
+    protected final ModuleDeclaration createModuleNoCache(final TypeDefinition type, final ModuleAttribute attribute) {
+        VerifyArgument.notNull(type, "type");
+
+        final TypeDefinition oldCurrentType = _context.getCurrentType();
+
+        _context.setCurrentType(type);
+
+        try {
+            final ModuleDeclaration declaration = new ModuleDeclaration();
+
+            declaration.setName(attribute.getModuleName());
+            declaration.putUserData(Keys.TYPE_DEFINITION, type);
+            declaration.putUserData(Keys.MODULE_REFERENCE, new ModuleReference(attribute.getModuleName(), attribute.getVersion()));
+
+            return declaration;
+
+        }
+        finally {
+            _context.setCurrentType(oldCurrentType);
+        }
     }
 
     protected final TypeDeclaration createTypeNoCache(final TypeDefinition type) {
@@ -320,17 +352,17 @@ public final class AstBuilder {
         else {
             final TypeReference typeToImport;
 
-            String unqualifiedName;
+            StringBuilder unqualifiedName;
 
             if (packageDeclaration != null &&
                 StringUtilities.equals(packageDeclaration.getName(), nameSource.getPackageName())) {
 
-                unqualifiedName = nameSource.getSimpleName();
-                name = unqualifiedName;
+                unqualifiedName = new StringBuilder(nameSource.getSimpleName());
+                name = unqualifiedName.toString();
             }
 
             if (nameSource.isNested()) {
-                unqualifiedName = nameSource.getSimpleName();
+                unqualifiedName = new StringBuilder(nameSource.getSimpleName());
 
                 TypeReference current = nameSource;
 
@@ -341,15 +373,15 @@ public final class AstBuilder {
                         break;
                     }
 
-                    unqualifiedName = current.getSimpleName() + "." + unqualifiedName;
+                    unqualifiedName.insert(0, current.getSimpleName() + ".");
                 }
 
-                name = unqualifiedName;
+                name = unqualifiedName.toString();
                 typeToImport = current;
             }
             else {
                 typeToImport = nameSource;
-                unqualifiedName = nameSource.getSimpleName();
+                unqualifiedName = new StringBuilder(nameSource.getSimpleName());
             }
 
             if (options.getAddImports() && !areImportsSuppressed() && !_typeDeclarations.containsKey(typeToImport.getInternalName())) {
@@ -377,7 +409,7 @@ public final class AstBuilder {
 
                 if (name == null) {
                     if (importedName.equals(typeToImport.getFullName())) {
-                        name = unqualifiedName;
+                        name = unqualifiedName.toString();
                     }
                     else {
                         final String packageName = nameSource.getPackageName();

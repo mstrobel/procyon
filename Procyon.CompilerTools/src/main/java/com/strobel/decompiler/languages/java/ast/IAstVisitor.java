@@ -59,6 +59,7 @@ public interface IAstVisitor<T, R> {
     R visitParameterDeclaration(ParameterDeclaration node, T data);
     R visitFieldDeclaration(FieldDeclaration node, T data);
     R visitTypeDeclaration(TypeDeclaration node, T data);
+    R visitModuleDeclaration(ModuleDeclaration node, T data);
     R visitCompilationUnit(CompilationUnit node, T data);
     R visitPackageDeclaration(PackageDeclaration node, T data);
     R visitArraySpecifier(ArraySpecifier node, T data);

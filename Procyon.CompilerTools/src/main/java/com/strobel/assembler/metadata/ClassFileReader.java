@@ -310,9 +310,159 @@ public final class ClassFileReader extends MetadataReader {
 
                 return new RecordAttribute(length, ArrayUtilities.asUnmodifiableList(components));
             }
+
+            case AttributeNames.Module: {
+                // Module_attribute {
+                //     u2 attribute_name_index;
+                //     u4 attribute_length;
+                //
+                //     u2 module_name_index;
+                //     u2 module_flags;
+                //     u2 module_version_index;
+                //
+                //     u2 requires_count; {...} requires[requires_count];
+                //     u2 exports_count; {...} exports[exports_count];
+                //     u2 opens_count; {...} opens[opens_count];
+                //     u2 uses_count; {...} uses[uses_count];
+                //     u2 provides_count; {...} provides[provides_count];
+                // }
+
+                final String moduleName = _scope.lookupConstant(buffer.readUnsignedShort());
+                final int flags = buffer.readUnsignedShort();
+                final int versionIndex = buffer.readUnsignedShort();
+                final String moduleVersion = versionIndex > 0 ? _scope.<String>lookupConstant(versionIndex) : null;
+
+                final int requiresCount = buffer.readUnsignedShort();
+                final ModuleDependency[] requires = requiresCount > 0 ? new ModuleDependency[requiresCount] : ModuleDependency.EMPTY;
+
+                for (int i = 0; i < requiresCount; i++) {
+                    requires[i] = readModuleDependency(buffer);
+                }
+
+                final int exportsCount = buffer.readUnsignedShort();
+                final PackageInfo[] exports = exportsCount > 0 ? new PackageInfo[exportsCount] : PackageInfo.EMPTY;
+
+                for (int i = 0; i < exportsCount; i++) {
+                    exports[i] = readPackageInfo(buffer);
+                }
+
+                final int opensCount = buffer.readUnsignedShort();
+                final PackageInfo[] opens = opensCount > 0 ? new PackageInfo[opensCount] : PackageInfo.EMPTY;
+
+                for (int i = 0; i < opensCount; i++) {
+                    opens[i] = readPackageInfo(buffer);
+                }
+
+                final int usesCount = buffer.readUnsignedShort();
+                final TypeReference[] uses = usesCount > 0 ? new TypeReference[usesCount] : TypeReference.EMPTY_REFERENCES;
+
+                for (int i = 0; i < usesCount; i++) {
+                    uses[i] = _scope.lookupType(buffer.readUnsignedShort());
+                }
+
+                final int providesCount = buffer.readUnsignedShort();
+                final ServiceInfo[] provides = providesCount > 0 ? new ServiceInfo[providesCount] : ServiceInfo.EMPTY;
+
+                for (int i = 0; i < providesCount; i++) {
+                    provides[i] = readServiceInfo(buffer);
+                }
+
+                return new ModuleAttribute(length, moduleName, moduleVersion, flags, requires, exports, opens, uses, provides);
+            }
+
+            case AttributeNames.ModulePackages: {
+                // ModulePackages_attribute {
+                //     u2 attribute_name_index;
+                //     u4 attribute_length;
+                //     u2 package_count;
+                //     u2 package_index[package_count];
+                // }
+
+                final int packageCount = buffer.readUnsignedShort();
+                final String[] packages = packageCount > 0 ? new String[packageCount] : EmptyArrayCache.EMPTY_STRING_ARRAY;
+
+                for (int i = 0; i < packageCount; i++) {
+                    packages[i] = _scope.lookupConstant(buffer.readUnsignedShort());
+                }
+
+                return new ModulePackagesAttribute(packages);
+            }
+
+            case AttributeNames.ModuleMainClass: {
+                // ModuleMainClass_attribute {
+                //     u2 attribute_name_index;
+                //     u4 attribute_length;
+                //     u2 main_class_index;
+                // }
+
+                return new ModuleMainClassAttribute(_scope.lookupType(buffer.readUnsignedShort()));
+            }
+
+            case AttributeNames.ModuleTarget: {
+                // ModuleTarget_attribute {
+                //     u2 attribute_name_index;
+                //     u4 attribute_length;
+                //     u2 target_index;
+                // }
+
+                return new ModuleTargetAttribute(_scope.<String>lookupConstant(buffer.readUnsignedShort()));
+            }
         }
 
         return super.readAttributeCore(name, buffer, originalOffset, length);
+    }
+
+    protected final ModuleDependency readModuleDependency(final Buffer buffer) {
+        // u2 requires_count;
+        // {   u2 requires_index;
+        //     u2 requires_flags;
+        //     u2 requires_version_index;
+        // } requires[requires_count];
+
+        final String name = _scope.lookupConstant(buffer.readUnsignedShort());
+        final int flags = buffer.readUnsignedShort();
+        final int versionIndex = buffer.readUnsignedShort();
+        final String version = versionIndex > 0 ? _scope.<String>lookupConstant(versionIndex) : null;
+
+        return new ModuleDependency(name, version, flags);
+    }
+
+    protected final PackageInfo readPackageInfo(final Buffer buffer) {
+        // u2 opens_count;
+        // {   u2 opens_index;
+        //     u2 opens_flags;
+        //     u2 opens_to_count;
+        //     u2 opens_to_index[opens_to_count];
+        // } opens[opens_count];
+
+        final String name = _scope.lookupConstant(buffer.readUnsignedShort());
+        final int flags = buffer.readUnsignedShort();
+        final int moduleCount = buffer.readUnsignedShort();
+        final String[] modules = moduleCount > 0 ? new String[moduleCount] : EmptyArrayCache.EMPTY_STRING_ARRAY;
+
+        for (int i = 0; i < moduleCount; i++) {
+            modules[i] = _scope.lookupConstant(buffer.readUnsignedShort());
+        }
+
+        return new PackageInfo(name, flags, modules);
+    }
+
+    protected final ServiceInfo readServiceInfo(final Buffer buffer) {
+        // u2 provides_count;
+        // {   u2 provides_index;
+        //     u2 provides_with_count;
+        //     u2 provides_with_index[provides_with_count];
+        // } provides[provides_count];
+
+        final TypeReference serviceInterface = _scope.lookupType(buffer.readUnsignedShort());
+        final int implementationCount = buffer.readUnsignedShort();
+        final TypeReference[] implementations = implementationCount > 0 ? new TypeReference[implementationCount] : TypeReference.EMPTY_REFERENCES;
+
+        for (int i = 0; i < implementationCount; i++) {
+            implementations[i] = _scope.lookupType(buffer.readUnsignedShort());
+        }
+
+        return new ServiceInfo(serviceInterface, implementations);
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -496,6 +646,7 @@ public final class ClassFileReader extends MetadataReader {
                     populateNamedInnerTypes();
                     populateAnonymousInnerTypes();
                     checkEnclosingMethodAttributes();
+                    checkModuleAttribute();
                 }
                 finally {
                     if (declaringMethod != null) {
@@ -511,6 +662,18 @@ public final class ClassFileReader extends MetadataReader {
         }
         finally {
             _parser.popGenericContext();
+        }
+    }
+
+    private void checkModuleAttribute() {
+        final ModuleAttribute moduleAttribute = SourceAttribute.find(AttributeNames.Module, _attributes);
+
+        if (moduleAttribute != null &&
+            _typeDefinition.getDeclaredMethods().isEmpty() &&
+            _typeDefinition.getDeclaredFields().isEmpty() &&
+            _typeDefinition.getDeclaredTypes().isEmpty()) {
+
+            _typeDefinition.setFlags(_typeDefinition.getFlags() | Flags.MODULE);
         }
     }
 

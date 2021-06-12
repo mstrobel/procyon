@@ -18,6 +18,7 @@ package com.strobel.decompiler.languages.java;
 
 import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
+import com.strobel.assembler.ir.attributes.ModuleAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
 import com.strobel.assembler.metadata.FieldDefinition;
 import com.strobel.assembler.metadata.Flags;
@@ -31,6 +32,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
+import com.strobel.decompiler.languages.BytecodeLanguage;
 import com.strobel.decompiler.languages.LineNumberPosition;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.TextOutputFormatter.LineNumberMode;
@@ -201,7 +203,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeSpecialsUpToRole(Roles.LEFT_BRACE);
 
         space(
-            (style == BraceStyle.EndOfLine || style == BraceStyle.BannerStyle) &&
+            (style == BraceStyle.EndOfLine || style == BraceStyle.BannerStyle || style == BraceStyle.DoNotChange) &&
             lastWritten != LastWritten.Whitespace && lastWritten != LastWritten.LeftParenthesis
         );
 
@@ -1729,6 +1731,25 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
 
         endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitModuleDeclaration(final ModuleDeclaration node, final Void ignored) {
+        startNode(node);
+
+        final TypeDefinition type = node.getUserData(Keys.TYPE_DEFINITION);
+        final ModuleAttribute attribute = SourceAttribute.find(AttributeNames.Module, type.getSourceAttributes());
+        final BraceStyle braceStyle = policy.ModuleBraceStyle;
+
+        writeKeyword(Roles.MODULE_KEYWORD);
+        node.getNameToken().acceptVisitor(this, ignored);
+        openBrace(braceStyle);
+
+        BytecodeLanguage.writeModuleBody(output, attribute, true);
+
+        closeBrace(braceStyle);
+        newLine();
         return null;
     }
 

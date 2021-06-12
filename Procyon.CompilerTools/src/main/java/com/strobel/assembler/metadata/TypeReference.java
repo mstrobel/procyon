@@ -26,6 +26,8 @@ import java.util.Collections;
 import java.util.List;
 
 public abstract class TypeReference extends MemberReference implements IGenericParameterProvider, IGenericContext {
+    public final static TypeReference[] EMPTY_REFERENCES = new TypeReference[0];
+
     private String _name;
     private TypeReference _declaringType;
     private ArrayType _arrayType;
