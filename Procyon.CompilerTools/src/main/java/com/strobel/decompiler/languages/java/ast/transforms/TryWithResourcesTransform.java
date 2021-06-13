@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.AnyNode;
@@ -30,6 +31,7 @@ import javax.lang.model.element.Modifier;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.languages.java.ast.transforms.ConvertLoopsTransform.*;
+import static com.strobel.decompiler.languages.java.ast.transforms.NewTryWithResourcesTransform.isDefinitelyNotCloseable;
 
 public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
     private final static INode J7_RESOURCE_INIT_PATTERN;
@@ -193,9 +195,12 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
             _tryPattern.matches(node, m)) {
 
             final IdentifierExpression resource = first(m.<IdentifierExpression>get("resource"));
+
+            @SuppressWarnings("DuplicatedCode")
+            final TypeReference resourceType;
             final ResolveResult resourceResult = _resolver.apply(resource);
 
-            if (resourceResult == null || resourceResult.getType() == null) {
+            if (resourceResult == null || (resourceType = resourceResult.getType()) == null || isDefinitelyNotCloseable(resourceType)) {
                 return null;
             }
 

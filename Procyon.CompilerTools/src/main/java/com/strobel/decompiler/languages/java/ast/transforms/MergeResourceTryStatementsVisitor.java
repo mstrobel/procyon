@@ -4,15 +4,40 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.decompiler.languages.java.ast.BlockStatement;
 import com.strobel.decompiler.languages.java.ast.ContextTrackingVisitor;
+import com.strobel.decompiler.languages.java.ast.ExpressionStatement;
 import com.strobel.decompiler.languages.java.ast.TryCatchStatement;
 import com.strobel.decompiler.languages.java.ast.VariableDeclarationStatement;
+import com.strobel.decompiler.patterns.AnyNode;
+import com.strobel.decompiler.patterns.DeclaredVariableBackReference;
+import com.strobel.decompiler.patterns.Match;
+import com.strobel.decompiler.patterns.NamedNode;
+import com.strobel.decompiler.patterns.Pattern;
 
+import javax.lang.model.element.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.strobel.core.CollectionUtilities.first;
+
 public class MergeResourceTryStatementsVisitor extends ContextTrackingVisitor<Void> {
+    private final BlockStatement _emptyResource;
+
     public MergeResourceTryStatementsVisitor(final DecompilerContext context) {
         super(context);
+
+        final VariableDeclarationStatement rv = new VariableDeclarationStatement(
+            new AnyNode().toType(),
+            Pattern.ANY_STRING,
+            new AnyNode().toExpression()
+        );
+
+        rv.addModifier(Modifier.FINAL);
+
+        _emptyResource = new BlockStatement(
+            new NamedNode("resourceDeclaration", rv).toStatement(),
+            new NamedNode("resourceDisposal",
+                          new ExpressionStatement(new DeclaredVariableBackReference("resourceDeclaration").toExpression().invoke("close"))).toStatement()
+        );
     }
 
     @Override
@@ -29,6 +54,15 @@ public class MergeResourceTryStatementsVisitor extends ContextTrackingVisitor<Vo
 
         while (current.getCatchClauses().isEmpty() &&
                current.getFinallyBlock().isNull()) {
+
+            final Match m = _emptyResource.match(current.getTryBlock());
+
+            if (m.success()) {
+                final VariableDeclarationStatement innerResource = first(m.<VariableDeclarationStatement>get("resourceDeclaration"));
+
+                current.getTryBlock().getStatements().clear();
+                current.getResources().add(innerResource);
+            }
 
             final AstNode parent = current.getParent();
 

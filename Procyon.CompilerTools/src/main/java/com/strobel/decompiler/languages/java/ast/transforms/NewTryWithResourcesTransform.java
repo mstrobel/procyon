@@ -16,6 +16,10 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.IMetadataResolver;
+import com.strobel.assembler.metadata.MetadataHelper;
+import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
@@ -32,6 +36,8 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
     private final TryCatchStatement _tryPattern;
     private final JavaResolver _resolver;
 
+    private AstBuilder _builder;
+
     public NewTryWithResourcesTransform(final DecompilerContext context) {
         super(context);
 
@@ -43,40 +49,43 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
             new AnyNode().toExpression()
         );
 
-        rv.addModifier(Modifier.FINAL);
+        rv.setAnyModifiers(true);
 
-        _resourceDeclaration = new NamedNode("resource", rv).toStatement();
+        _resourceDeclaration = new Choice(new NamedNode("resource", rv),
+                                          new ExpressionStatement(
+                                              new AssignmentExpression(new NamedNode("resource",
+                                                                                     new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                                                                       new AnyNode().toExpression())
+                                          )).toStatement();
 
         final TryCatchStatement tryPattern = new TryCatchStatement(Expression.MYSTERY_OFFSET);
-
-
-
 
         final TryCatchStatement nestedTryWithResourceDisposal = new TryCatchStatement();
 
         nestedTryWithResourceDisposal.setTryBlock(new AnyNode().toBlockStatement());
         nestedTryWithResourceDisposal.getCatchClauses().add(new Repeat(new AnyNode()).toCatchClause());
+
+        final Expression resourceReference = new Choice(new DeclaredVariableBackReference("resource"),
+                                                        new IdentifierExpressionBackReference("resource")).toExpression();
+
         nestedTryWithResourceDisposal.setFinallyBlock(
             new BlockStatement(
                 new Repeat(new AnyNode()).toStatement(),
                 new NamedNode(
                     "resourceDisposal",
                     new Choice(
-                        new ExpressionStatement(new DeclaredVariableBackReference("resource").toExpression().invoke("close")),
+                        new ExpressionStatement(resourceReference.invoke("close")),
                         new IfElseStatement(
                             Expression.MYSTERY_OFFSET,
-                            new BinaryOperatorExpression(new DeclaredVariableBackReference("resource").toExpression(),
+                            new BinaryOperatorExpression(resourceReference.clone(),
                                                          BinaryOperatorType.INEQUALITY,
                                                          new NullReferenceExpression()),
-                            new BlockStatement(new ExpressionStatement(new DeclaredVariableBackReference("resource").toExpression().invoke("close")))
+                            new BlockStatement(new ExpressionStatement(resourceReference.clone().invoke("close")))
                         )
                     )
                 ).toStatement()
             )
         );
-
-
-
 
         final BlockStatement tryContent = new NamedNode(
             "tryContent",
@@ -86,13 +95,13 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                     new NamedNode(
                         "resourceDisposal",
                         new Choice(
-                            new ExpressionStatement(new DeclaredVariableBackReference("resource").toExpression().invoke("close")),
+                            new ExpressionStatement(resourceReference.clone().invoke("close")),
                             new IfElseStatement(
                                 Expression.MYSTERY_OFFSET,
-                                new BinaryOperatorExpression(new DeclaredVariableBackReference("resource").toExpression(),
+                                new BinaryOperatorExpression(resourceReference.clone(),
                                                              BinaryOperatorType.INEQUALITY,
                                                              new NullReferenceExpression()),
-                                new BlockStatement(new ExpressionStatement(new DeclaredVariableBackReference("resource").toExpression().invoke("close")))
+                                new BlockStatement(new ExpressionStatement(resourceReference.clone().invoke("close")))
                             )
                         )
                     ),
@@ -105,13 +114,12 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                             new IfElseStatement(
                                 Expression.MYSTERY_OFFSET,
                                 new BinaryOperatorExpression(new NamedNode("otherId",
-                                                                           new IdentifierExpression(Expression.MYSTERY_OFFSET,
-                                                                                                    Pattern.ANY_STRING)).toExpression(),
+                                                                           new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
                                                              BinaryOperatorType.INEQUALITY,
                                                              new NullReferenceExpression()),
                                 new BlockStatement(new ExpressionStatement(new IdentifierExpressionBackReference("otherId").toExpression().invoke("close")))
                             ),
-                            new ExpressionStatement(new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING).invoke("close"))
+                            new ExpressionStatement(new IdentifierExpression(Pattern.ANY_STRING).invoke("close"))
                         ).toStatement()
                     )
                 ).toStatement(),
@@ -123,15 +131,15 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
         final TryCatchStatement disposeTry = new TryCatchStatement(Expression.MYSTERY_OFFSET);
 
-        disposeTry.setTryBlock(new BlockStatement(new ExpressionStatement(new DeclaredVariableBackReference("resource").toExpression().invoke("close"))));
+        disposeTry.setTryBlock(new BlockStatement(new ExpressionStatement(resourceReference.clone().invoke("close"))));
 
-        final Expression outerException = new NamedNode("error", new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression();
+        final Expression outerException = new NamedNode("error", new IdentifierExpression(Pattern.ANY_STRING)).toExpression();
 
         final CatchClause disposeCatch = new CatchClause(
             new BlockStatement(
                 new ExpressionStatement(
                     outerException.invoke("addSuppressed",
-                                          new NamedNode("innerError", new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression())
+                                          new NamedNode("innerError", new IdentifierExpression(Pattern.ANY_STRING)).toExpression())
                 )
             )
         );
@@ -145,7 +153,7 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
             new BlockStatement(
                 new Choice(new NamedNode("disposeTry", disposeTry),
                            new IfElseStatement(Expression.MYSTERY_OFFSET,
-                                               new BinaryOperatorExpression(new DeclaredVariableBackReference("resource").toExpression(),
+                                               new BinaryOperatorExpression(resourceReference.clone(),
                                                                             BinaryOperatorType.INEQUALITY,
                                                                             new NullReferenceExpression()),
                                                new BlockStatement(new NamedNode("disposeTry", disposeTry).toStatement()))).toStatement(),
@@ -166,9 +174,22 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
             return;
         }
 
-        super.run(compilationUnit);
+        final AstBuilder builder = context.getUserData(Keys.AST_BUILDER);
 
-        new MergeResourceTryStatementsVisitor(context).run(compilationUnit);
+        if (builder == null) {
+            return;
+        }
+
+        final AstBuilder oldBuilder = _builder;
+
+        _builder = builder;
+
+        try {
+            super.run(compilationUnit);
+        }
+        finally {
+            _builder = oldBuilder;
+        }
     }
 
     @Override
@@ -191,15 +212,22 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
         if (_resourceDeclaration.matches(initializeResource, m) &&
             _tryPattern.matches(node, m)) {
 
-            final VariableDeclarationStatement resourceDeclaration = first(m.<VariableDeclarationStatement>get("resource"));
+            final AstNode declaration = first(m.<AstNode>get("resource"));
 
-            if (!(resourceDeclaration.getParent() instanceof BlockStatement)) {
+            if (!(declaration instanceof VariableDeclarationStatement || declaration instanceof IdentifierExpression)) {
                 return null;
             }
 
-            final ResolveResult resourceResult = _resolver.apply(resourceDeclaration);
+            final Statement declarationStatement = declaration instanceof Statement ? (Statement) declaration : declaration.getParent(Statement.class);
 
-            if (resourceResult == null || resourceResult.getType() == null) {
+            if (declarationStatement == null || declarationStatement.isNull() || !(declarationStatement.getParent() instanceof BlockStatement)) {
+                return null;
+            }
+
+            final TypeReference resourceType;
+            final ResolveResult resourceResult = _resolver.apply(declaration);
+
+            if (resourceResult == null || (resourceType = resourceResult.getType()) == null || isDefinitelyNotCloseable(resourceType)) {
                 return null;
             }
 
@@ -235,8 +263,16 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
                 analysis.setAnalyzedRange(firstStatement, lastStatement);
 
-                analysis.analyze(resourceDeclaration.getVariables().firstOrNullObject().getInitializer().getText(),
-                                 DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+                final String resourceName;
+
+                if (declaration instanceof VariableDeclarationStatement) {
+                    resourceName = ((VariableDeclarationStatement) declaration).getVariables().firstOrNullObject().getName();
+                }
+                else {
+                    resourceName = ((IdentifierExpression) declaration).getIdentifier();
+                }
+
+                analysis.analyze(resourceName, DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
 
                 if (analysis.isPotentiallyAssigned()) {
                     // Resource declarations are effectively final; if it's reassigned, we can't rewrite.
@@ -244,8 +280,28 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                 }
             }
 
-            resourceDeclaration.remove();
-            node.getResources().add(resourceDeclaration);
+            final VariableDeclarationStatement vd;
+
+            if (declaration instanceof VariableDeclarationStatement) {
+                vd = (VariableDeclarationStatement) declaration;
+            }
+            else {
+                final IdentifierExpression identifier = (IdentifierExpression) declaration;
+                final AssignmentExpression assignment = declaration.getParent(AssignmentExpression.class);
+
+                if (assignment == null || assignment.isNull()) {
+                    return null;
+                }
+
+                final Expression initializer = assignment.getRight();
+
+                initializer.remove();
+                vd = new VariableDeclarationStatement(_builder.convertType(resourceType), identifier.getIdentifier(), initializer);
+            }
+
+            vd.addModifier(Modifier.FINAL);
+            declarationStatement.remove();
+            node.getResources().add(vd);
             caughtParent.remove();
 
             final AstNode resourceDisposal = firstOrDefault(m.<AstNode>get("resourceDisposal"));
@@ -261,6 +317,26 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
         }
 
         return null;
+    }
+
+    static boolean isDefinitelyNotCloseable(final TypeReference t) {
+        if (t == null) {
+            return true;
+        }
+
+        final TypeDefinition resolved = t.resolve();
+
+        if (resolved == null) {
+            return false;
+        }
+
+        final IMetadataResolver resolver = resolved.getResolver();
+        final TypeReference autoCloseable = resolver.lookupType("java/lang/AutoCloseable");
+        final TypeDefinition acResolved;
+
+        return autoCloseable != null &&
+               (acResolved = autoCloseable.resolve()) != null &&
+               !MetadataHelper.isAssignableFrom(acResolved, resolved);
     }
 }
 
