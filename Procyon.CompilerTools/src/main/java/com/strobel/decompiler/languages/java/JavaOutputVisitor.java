@@ -222,7 +222,9 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     void writeIdentifier(final Identifier identifier, final String text) {
         // for now, set the start location to *here*
         identifier.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
-        boolean wroteSpace = writeIdentifier(text);
+
+        final boolean wroteSpace = writeIdentifier(text);
+
         if (wroteSpace) {
             // shift the start position over by one
             identifier.setStartLocation(new TextLocation(identifier.getStartLocation().line(), identifier.getStartLocation().column() + 1));
@@ -268,7 +270,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeToken(tokenRole.getToken(), tokenRole);
     }
 
-    void writeToken(final String token, final Role role) {
+    void writeToken(final String token, final Role<?> role) {
         writeSpecialsUpToRole(role);
 
         if (lastWritten == LastWritten.Plus && token.charAt(0) == '+' ||
@@ -358,7 +360,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     void semicolon() {
-        final Role role = containerStack.peek().getRole();
+        final Role<?> role = containerStack.peek().getRole();
         if (!(role == ForStatement.INITIALIZER_ROLE || role == ForStatement.ITERATOR_ROLE)) {
             writeToken(Roles.SEMICOLON);
             newLine();
@@ -416,18 +418,6 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         }
         rightParenthesis();
     }
-
-/*
-    private void writeCommaSeparatedListInBrackets(final Iterable<? extends AstNode> list, final boolean spaceWithin) {
-        writeToken(Roles.LEFT_BRACKET);
-        if (any(list)) {
-            space(spaceWithin);
-            writeCommaSeparatedList(list);
-            space(spaceWithin);
-        }
-        writeToken(Roles.RIGHT_BRACKET);
-    }
-*/
 
     // </editor-fold>
 
@@ -536,14 +526,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         final boolean addBraces;
         final AstNodeCollection<Statement> statements = body.getStatements();
 
-        switch (braceEnforcement) {
-            case RemoveBraces:
-                addBraces = false;
-                break;
-            default:
-                addBraces = true;
-                break;
-        }
+        addBraces = braceEnforcement != BraceEnforcement.RemoveBraces;
 
         if (addBraces) {
             openBrace(style);
@@ -613,7 +596,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         writeKeyword(token, null);
     }
 
-    void writeKeyword(final String token, final Role tokenRole) {
+    void writeKeyword(final String token, final Role<?> tokenRole) {
         if (tokenRole != null) {
             writeSpecialsUpToRole(tokenRole);
         }
@@ -634,8 +617,8 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         if (childNode instanceof AstNode) {
             ((AstNode) childNode).acceptVisitor(this, null);
         }
-        else if (childNode instanceof IdentifierExpressionBackReference) {
-            visitIdentifierExpressionBackReference((IdentifierExpressionBackReference) childNode);
+        else if (childNode instanceof IdentifierBackReference) {
+            visitIdentifierExpressionBackReference((IdentifierBackReference) childNode);
         }
         else if (childNode instanceof Choice) {
             visitChoice((Choice) childNode);
@@ -687,7 +670,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         rightParenthesis();
     }
 
-    private void visitIdentifierExpressionBackReference(final IdentifierExpressionBackReference node) {
+    private void visitIdentifierExpressionBackReference(final IdentifierBackReference node) {
         writeKeyword("identifierBackReference");
         leftParenthesis();
         writeIdentifier(node.getReferencedGroupName());
@@ -873,6 +856,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitThisReferenceExpression(final ThisReferenceExpression node, final Void ignored) {
         node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
@@ -890,6 +874,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitSuperReferenceExpression(final SuperReferenceExpression node, final Void ignored) {
         node.setStartLocation(new TextLocation(output.getRow(), output.getColumn()));
         startNode(node);
@@ -955,14 +940,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         final boolean addBraces;
 
-        switch (braceEnforcement) {
-            case RemoveBraces:
-                addBraces = false;
-                break;
-            default:
-                addBraces = true;
-                break;
-        }
+        addBraces = braceEnforcement != BraceEnforcement.RemoveBraces;
 
         if (addBraces) {
             openBrace(style);
@@ -1578,6 +1556,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitTypeDeclaration(final TypeDeclaration node, final Void ignored) {
         startNode(node);
 
@@ -1698,6 +1677,20 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         openBrace(braceStyle);
 
+        writeMembers(members);
+
+        closeBrace(braceStyle);
+
+        if (type == null || !type.isAnonymous()) {
+            optionalSemicolon();
+            newLine();
+        }
+
+        endNode(node);
+        return null;
+    }
+
+    private void writeMembers(final AstNodeCollection<EntityDeclaration> members) {
         boolean first = true;
         EntityDeclaration lastMember = null;
 
@@ -1719,19 +1712,10 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                     formatter.newLine();
                 }
             }
-            member.acceptVisitor(this, ignored);
+
+            member.acceptVisitor(this, null);
             lastMember = member;
         }
-
-        closeBrace(braceStyle);
-
-        if (type == null || !type.isAnonymous()) {
-            optionalSemicolon();
-            newLine();
-        }
-
-        endNode(node);
-        return null;
     }
 
     @Override
@@ -1916,6 +1900,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
                         return isBitwiseContext(TypeUtilities.skipParenthesesDown(comparand), null);
                     }
+                    break;
                 }
 
                 default: {
@@ -1924,12 +1909,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             }
         }
         else if (parent instanceof UnaryOperatorExpression) {
-            switch (((UnaryOperatorExpression) parent).getOperator()) {
-                case BITWISE_NOT:
-                    return true;
-                default:
-                    return false;
-            }
+            return ((UnaryOperatorExpression) parent).getOperator() == UnaryOperatorType.BITWISE_NOT;
         }
 
         return false;
@@ -1975,7 +1955,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                 }
                 return;
             }
-            formatter.writeLiteral(Float.toString(f) + "f");
+            formatter.writeLiteral(f + "f");
             lastWritten = LastWritten.Other;
         }
         else if (val instanceof Double) {
@@ -2243,6 +2223,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitObjectCreationExpression(final ObjectCreationExpression node, final Void ignored) {
         startNode(node);
 
@@ -2262,6 +2243,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitAnonymousObjectCreationExpression(final AnonymousObjectCreationExpression node, final Void ignored) {
         startNode(node);
 
@@ -2325,6 +2307,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    @SuppressWarnings("DuplicatedCode")
     public Void visitEnumValueDeclaration(final EnumValueDeclaration node, final Void ignored) {
         startNode(node);
         writeAnnotations(node.getAnnotations(), true);
@@ -2343,32 +2326,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             final BraceStyle braceStyle = policy.AnonymousClassBraceStyle;
 
             openBrace(braceStyle);
-
-            boolean first = true;
-            EntityDeclaration lastMember = null;
-
-            for (final EntityDeclaration member : node.getMembers()) {
-                if (first) {
-                    first = false;
-                }
-                else {
-                    final int blankLines;
-
-                    if (member instanceof FieldDeclaration && lastMember instanceof FieldDeclaration) {
-                        blankLines = policy.BlankLinesBetweenFields;
-                    }
-                    else {
-                        blankLines = policy.BlankLinesBetweenMembers;
-                    }
-
-                    for (int i = 0; i < blankLines; i++) {
-                        formatter.newLine();
-                    }
-                }
-                member.acceptVisitor(this, ignored);
-                lastMember = member;
-            }
-
+            writeMembers(node.getMembers());
             closeBrace(braceStyle);
         }
 
@@ -2450,6 +2408,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
 
         boolean needType = true;
 
+        //noinspection RedundantIfStatement
         if (node.getDimensions().isEmpty() &&
             node.getType() != null &&
             (node.getParent() instanceof ArrayInitializerExpression ||

@@ -20,7 +20,7 @@ import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.AnyNode;
 import com.strobel.decompiler.patterns.INode;
-import com.strobel.decompiler.patterns.IdentifierExpressionBackReference;
+import com.strobel.decompiler.patterns.IdentifierBackReference;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.NamedNode;
 import com.strobel.decompiler.patterns.Pattern;
@@ -91,11 +91,11 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
             new BlockStatement(
                 new ExpressionStatement(
                     new AssignmentExpression(
-                        new IdentifierExpressionBackReference("savedException").toExpression(),
+                        new IdentifierBackReference("savedException").toExpression(),
                         new NamedNode("caughtException", new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression()
                     )
                 ),
-                new ThrowStatement(new IdentifierExpressionBackReference("caughtException").toExpression())
+                new ThrowStatement(new IdentifierBackReference("caughtException").toExpression())
             )
         );
 
@@ -109,7 +109,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
         disposeTry.setTryBlock(
             new BlockStatement(
                 new ExpressionStatement(
-                    new IdentifierExpressionBackReference("resource").toExpression().invoke("close")
+                    new IdentifierBackReference("resource").toExpression().invoke("close")
                 )
             )
         );
@@ -117,7 +117,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
         final CatchClause disposeCatch = new CatchClause(
             new BlockStatement(
                 new ExpressionStatement(
-                    new IdentifierExpressionBackReference("savedException").toExpression().invoke(
+                    new IdentifierBackReference("savedException").toExpression().invoke(
                         "addSuppressed",
                         new NamedNode("caughtOnClose", new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression()
                     )
@@ -134,14 +134,14 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
             new BlockStatement(
                 new IfElseStatement( Expression.MYSTERY_OFFSET,
                     new BinaryOperatorExpression(
-                        new IdentifierExpressionBackReference("resource").toExpression(),
+                        new IdentifierBackReference("resource").toExpression(),
                         BinaryOperatorType.INEQUALITY,
                         new NullReferenceExpression(Expression.MYSTERY_OFFSET)
                     ),
                     new BlockStatement(
                         new IfElseStatement( Expression.MYSTERY_OFFSET,
                             new BinaryOperatorExpression(
-                                new IdentifierExpressionBackReference("savedException").toExpression(),
+                                new IdentifierBackReference("savedException").toExpression(),
                                 BinaryOperatorType.INEQUALITY,
                                 new NullReferenceExpression(Expression.MYSTERY_OFFSET)
                             ),
@@ -150,7 +150,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                             ),
                             new BlockStatement(
                                 new ExpressionStatement(
-                                    new IdentifierExpressionBackReference("resource").toExpression().invoke("close")
+                                    new IdentifierBackReference("resource").toExpression().invoke("close")
                                 )
                             )
                         )

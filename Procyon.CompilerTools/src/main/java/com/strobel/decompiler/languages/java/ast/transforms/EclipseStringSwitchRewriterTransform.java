@@ -91,7 +91,7 @@ public class EclipseStringSwitchRewriterTransform extends ContextTrackingVisitor
     // </editor-fold>
 
     @Override
-    @SuppressWarnings("ConstantConditions")
+    @SuppressWarnings("DuplicatedCode")
     public Void visitSwitchStatement(final SwitchStatement node, final Void data) {
         super.visitSwitchStatement(node, data);
 

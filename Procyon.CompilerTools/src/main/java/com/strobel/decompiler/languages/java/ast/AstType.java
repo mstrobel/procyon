@@ -105,7 +105,7 @@ public abstract class AstType extends AstNode {
         }
 
         @Override
-        public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
+        public boolean matchesCollection(final Role<?> role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
             return _child.matchesCollection(role, position, match, backtrackingInfo);
         }
     }

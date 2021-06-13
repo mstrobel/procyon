@@ -23,7 +23,7 @@ import com.strobel.core.Predicate;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.AnyNode;
-import com.strobel.decompiler.patterns.IdentifierExpressionBackReference;
+import com.strobel.decompiler.patterns.IdentifierBackReference;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.NamedNode;
 import com.strobel.decompiler.patterns.OptionalNode;
@@ -99,7 +99,7 @@ public class StringSwitchRewriterTransform extends ContextTrackingVisitor<Void> 
                 Expression.MYSTERY_OFFSET,
                 new MemberReferenceExpression(
                     Expression.MYSTERY_OFFSET,
-                    new IdentifierExpressionBackReference("input").toExpression(),
+                    new IdentifierBackReference("input").toExpression(),
                     "equals"
                 ),
                 new NamedNode("stringValue", new PrimitiveExpression( Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)).toExpression()
@@ -107,7 +107,7 @@ public class StringSwitchRewriterTransform extends ContextTrackingVisitor<Void> 
             new BlockStatement(
                 new ExpressionStatement(
                     new AssignmentExpression(
-                        new IdentifierExpressionBackReference("tableSwitchInput").toExpression(),
+                        new IdentifierBackReference("tableSwitchInput").toExpression(),
                         new NamedNode("tableSwitchCaseValue", new PrimitiveExpression( Expression.MYSTERY_OFFSET, PrimitiveExpression.ANY_VALUE)).toExpression()
                     )
                 ),
@@ -125,7 +125,7 @@ public class StringSwitchRewriterTransform extends ContextTrackingVisitor<Void> 
     // </editor-fold>
 
     @Override
-    @SuppressWarnings("ConstantConditions")
+    @SuppressWarnings("DuplicatedCode")
     public Void visitSwitchStatement(final SwitchStatement node, final Void data) {
         super.visitSwitchStatement(node, data);
 
@@ -250,10 +250,11 @@ public class StringSwitchRewriterTransform extends ContextTrackingVisitor<Void> 
                                new Predicate<CaseLabel>() {
                                    @Override
                                    public boolean test(final CaseLabel c) {
+                                       final Object constantValue;
                                        return c.getExpression().isNull() ||
                                               (c.getExpression() instanceof PrimitiveExpression &&
-                                               ((PrimitiveExpression) c.getExpression()).getValue() instanceof Integer &&
-                                               tableInputMap.containsKey(((PrimitiveExpression) c.getExpression()).getValue()));
+                                               (constantValue = ((PrimitiveExpression) c.getExpression()).getValue()) instanceof Integer &&
+                                               tableInputMap.containsKey(constantValue));
                                    }
                                }
                            );

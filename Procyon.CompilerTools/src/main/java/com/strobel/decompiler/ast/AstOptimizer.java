@@ -132,7 +132,7 @@ public final class AstOptimizer {
                     break;
                 }
 
-                modified |= runOptimization(block, new RemoveInnerClassInitSecurityChecksOptimization(context, method));
+                modified |= runOptimization(block, new RemoveInnerClassAccessNullChecksOptimization(context, method));
 
                 if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.PreProcessShortCircuitAssignments)) {
                     done = true;
@@ -346,6 +346,7 @@ public final class AstOptimizer {
         LOG.fine("Finished bytecode AST optimization.");
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean shouldPerformStep(final AstOptimizationStep abortBeforeStep, final AstOptimizationStep nextStep) {
         if (abortBeforeStep == nextStep) {
             return false;
@@ -647,6 +648,7 @@ public final class AstOptimizer {
                 lockInfo = null;
             }
 
+            //noinspection UnnecessaryBreak
             break test;
         }
 
@@ -775,7 +777,7 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="RemoveRedundantCode Step">
 
-    @SuppressWarnings({ "ConstantConditions", "StatementWithEmptyBody" })
+    @SuppressWarnings("StatementWithEmptyBody")
     static void removeRedundantCode(final Block method, final DecompilerSettings settings) {
         final Map<Label, MutableInteger> labelReferenceCount = new IdentityHashMap<>();
 
@@ -1325,6 +1327,7 @@ public final class AstOptimizer {
                             continue;
                     }
 
+                    //noinspection SuspiciousListRemoveInLoop
                     body.remove(i);
                     break;
                 }
@@ -1405,8 +1408,8 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="RemoveInnerClassInitSecurityChecks Step">
 
-    private final static class RemoveInnerClassInitSecurityChecksOptimization extends AbstractExpressionOptimization {
-        protected RemoveInnerClassInitSecurityChecksOptimization(final DecompilerContext context, final Block method) {
+    private final static class RemoveInnerClassAccessNullChecksOptimization extends AbstractExpressionOptimization {
+        protected RemoveInnerClassAccessNullChecksOptimization(final DecompilerContext context, final Block method) {
             super(context, method);
         }
 
@@ -1420,17 +1423,16 @@ public final class AstOptimizer {
             final StrongBox<MethodReference> getClassMethod = new StrongBox<>();
             final List<Expression> arguments = new ArrayList<>();
 
+            // matchGetArgument(previous, AstCode.InvokeStatic, getClassMethod, getClassArgument) && isRequireNonNull(getClassMethod.get())
             if (position > 0) {
                 final Node previous = body.get(position - 1);
-
-                arguments.clear();
 
                 if (matchGetArguments(head, AstCode.InvokeSpecial, constructor, arguments) &&
                     arguments.size() > 1 &&
                     matchGetOperand(arguments.get(0), AstCode.Load, constructorTargetVariable) &&
                     matchGetOperand(arguments.get(1), AstCode.Load, constructorArgumentVariable) &&
-                    matchGetArgument(previous, AstCode.InvokeVirtual, getClassMethod, getClassArgument) &&
-                    isGetClassMethod(getClassMethod.get()) &&
+                    (matchGetArgument(previous, AstCode.InvokeVirtual, getClassMethod, getClassArgument) && isGetClassMethod(getClassMethod.get()) ||
+                     matchGetArgument(previous, AstCode.InvokeStatic, getClassMethod, getClassArgument) && isRequireNonNull(getClassMethod.get())) &&
                     matchGetOperand(getClassArgument.get(), AstCode.Load, getClassArgumentVariable) &&
                     getClassArgumentVariable.get() == constructorArgumentVariable.get()) {
 
@@ -1460,7 +1462,13 @@ public final class AstOptimizer {
 
         private static boolean isGetClassMethod(final MethodReference method) {
             return method.getParameters().isEmpty() &&
-                   StringUtilities.equals(method.getName(), "getClass");
+                   "getClass".equals(method.getName());
+        }
+
+        private static boolean isRequireNonNull(final MethodReference method) {
+            return "requireNonNull".equals(method.getName()) &&
+                   "java/util/Objects".equals(method.getDeclaringType().getInternalName()) &&
+                   method.getParameters().size() == 1;
         }
 
         private static boolean isEnclosedBy(final TypeReference innerType, final TypeReference outerType) {
@@ -3252,7 +3260,6 @@ public final class AstOptimizer {
 
     // <editor-fold defaultstate="collapsed" desc="FlattenBasicBlocks Step">
 
-    @SuppressWarnings("StatementWithEmptyBody")
     private static void flattenBasicBlocks(final Node node) {
         if (node instanceof Block) {
             final Block block = (Block) node;
@@ -4184,6 +4191,7 @@ public final class AstOptimizer {
         return false;
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean containsMatch(final Node node, final Expression pattern) {
         for (final Expression e : node.getSelfAndChildrenRecursive(Expression.class)) {
             if (e.isEquivalentTo(pattern)) {

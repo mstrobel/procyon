@@ -96,7 +96,6 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
     public abstract <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data);
 
     @Override
-    @SuppressWarnings("CloneDoesntDeclareCloneNotSupportedException")
     public AstNode clone() {
         try {
             final AstNode clone = (AstNode) super.clone();
@@ -120,7 +119,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
             return clone;
         }
-        catch (CloneNotSupportedException e) {
+        catch (final CloneNotSupportedException e) {
             throw new UndeclaredThrowableException(e);
         }
     }
@@ -571,15 +570,11 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
         verifyNotFrozen();
 
-        final Role role = getRole();
+        final Role<?> role = getRole();
 
         if (!role.isValid(newNode)) {
             throw new IllegalArgumentException(
-                String.format(
-                    "The new node '%s' is not valid for role '%s'.",
-                    newNode.getClass().getName(),
-                    role.toString()
-                )
+                String.format("The new node '%s' is not valid for role '%s'.", newNode.getClass().getName(), role)
             );
         }
 
@@ -638,7 +633,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
         final AstNode oldParent = _parent;
         final AstNode oldSuccessor = _nextSibling;
-        final Role oldRole = this.getRole();
+        final Role<?> oldRole = this.getRole();
 
         remove();
 
@@ -751,7 +746,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
     @Override
     public boolean matchesCollection(
-        final Role role,
+        final Role<?> role,
         final INode position,
         final Match match,
         final BacktrackingInfo backtrackingInfo) {
@@ -797,7 +792,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
         }
 
         @Override
-        public boolean matchesCollection(final Role role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
+        public boolean matchesCollection(final Role<?> role, final INode position, final Match match, final BacktrackingInfo backtrackingInfo) {
             return child.matchesCollection(role, position, match, backtrackingInfo);
         }
     }

@@ -210,14 +210,14 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
                     new AstTypeMatch(noClassDefFoundError)
                         .toType()
                         .makeNew()
-                        .invoke("initCause", new IdentifierExpressionBackReference("catch").toExpression().cast(throwable))
+                        .invoke("initCause", new IdentifierBackReference("catch").toExpression().cast(throwable))
                         .makeThrow()
                 ),
                 // Java 1.2 Pattern: throw new NoClassDefFoundError(ex.getMessage());
                 new BlockStatement(
                     new AstTypeMatch(noClassDefFoundError)
                         .toType()
-                        .makeNew(new IdentifierExpressionBackReference("catch").toExpression().invoke("getMessage"))
+                        .makeNew(new IdentifierBackReference("catch").toExpression().invoke("getMessage"))
                         .makeThrow()
                 )
             ).toBlockStatement();
