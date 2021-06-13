@@ -41,6 +41,8 @@ public final class TransformationPipeline {
             new LabelCleanupTransform(context),
             new TryWithResourcesTransform(context),
             new DeclareVariablesTransform(context),
+            new NewTryWithResourcesTransform(context),
+            new MergeResourceTryStatementsVisitor(context),
             new StringSwitchRewriterTransform(context),
             new EclipseStringSwitchRewriterTransform(context),
             new SimplifyAssignmentsTransform(context),

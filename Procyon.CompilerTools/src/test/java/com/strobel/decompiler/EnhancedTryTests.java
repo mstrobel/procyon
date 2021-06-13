@@ -308,22 +308,20 @@ public class EnhancedTryTests extends DecompilerTest {
     }
 
     @Test
-    @Ignore
     public void testEnhancedTryEmptyBody() throws Throwable {
         verifyOutput(
             J.class,
             defaultSettings(),
             "private static final class J {\n" +
             "    public void test() throws IOException {\n" +
-            "        try (final StringWriter writer1 = new StringWriter()) {\n" +
-            "        }\n" +
+            "        final StringWriter writer1 = new StringWriter();\n" +
+            "        writer1.close();\n" +
             "    }\n" +
             "}\n"
         );
     }
 
     @Test
-    @Ignore
     public void testEnhancedTryTwoResourcesEmptyBody() throws Throwable {
         verifyOutput(
             K.class,
@@ -331,8 +329,7 @@ public class EnhancedTryTests extends DecompilerTest {
             "private static final class K {\n" +
             "    public void test() throws IOException {\n" +
             "        try (final StringWriter writer1 = new StringWriter();\n" +
-            "             final StringWriter writer2 = new StringWriter()) {\n" +
-            "        }\n" +
+            "             final StringWriter writer2 = new StringWriter()) {}\n" +
             "    }\n" +
             "}\n"
         );

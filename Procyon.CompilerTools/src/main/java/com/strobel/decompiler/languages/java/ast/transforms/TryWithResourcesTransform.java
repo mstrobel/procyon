@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerContext;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.AnyNode;
@@ -27,15 +28,14 @@ import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.semantics.ResolveResult;
 
 import javax.lang.model.element.Modifier;
-import java.util.ArrayList;
-import java.util.List;
 
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.languages.java.ast.transforms.ConvertLoopsTransform.*;
+import static com.strobel.decompiler.languages.java.ast.transforms.NewTryWithResourcesTransform.isDefinitelyNotCloseable;
 
 public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
-    private final static INode RESOURCE_INIT_PATTERN;
-    private final static INode CLEAR_SAVED_EXCEPTION_PATTERN;
+    private final static INode J7_RESOURCE_INIT_PATTERN;
+    private final static INode J7_CLEAR_SAVED_EXCEPTION_PATTERN;
 
     static {
         final Expression resource = new NamedNode(
@@ -48,7 +48,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
             new IdentifierExpression(Expression.MYSTERY_OFFSET, Pattern.ANY_STRING)
         ).toExpression();
 
-        RESOURCE_INIT_PATTERN = new ExpressionStatement(
+        J7_RESOURCE_INIT_PATTERN = new ExpressionStatement(
             new AssignmentExpression(
                 resource,
                 AssignmentOperatorType.ASSIGN,
@@ -56,7 +56,7 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
             )
         );
 
-        CLEAR_SAVED_EXCEPTION_PATTERN = new ExpressionStatement(
+        J7_CLEAR_SAVED_EXCEPTION_PATTERN = new ExpressionStatement(
             new AssignmentExpression(
                 savedException,
                 AssignmentOperatorType.ASSIGN,
@@ -169,8 +169,6 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
         }
 
         super.run(compilationUnit);
-
-        new MergeResourceTryStatementsVisitor(context).run(compilationUnit);
     }
 
     @Override
@@ -183,26 +181,26 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
         final BlockStatement parent = (BlockStatement) node.getParent();
 
-        final Statement p = node.getPreviousSibling(BlockStatement.STATEMENT_ROLE);
-        final Statement pp = p != null ? p.getPreviousSibling(BlockStatement.STATEMENT_ROLE) : null;
+        final Statement clearCaughtException = node.getPreviousSibling(BlockStatement.STATEMENT_ROLE);
+        final Statement initializeResource = clearCaughtException != null ? clearCaughtException.getPreviousSibling(BlockStatement.STATEMENT_ROLE) : null;
 
-        if (pp == null) {
+        if (initializeResource == null) {
             return null;
         }
 
-        final Statement initializeResource = pp;
-        final Statement clearCaughtException = p;
-
         final Match m = Match.createNew();
 
-        if (RESOURCE_INIT_PATTERN.matches(initializeResource, m) &&
-            CLEAR_SAVED_EXCEPTION_PATTERN.matches(clearCaughtException, m) &&
+        if (J7_RESOURCE_INIT_PATTERN.matches(initializeResource, m) &&
+            J7_CLEAR_SAVED_EXCEPTION_PATTERN.matches(clearCaughtException, m) &&
             _tryPattern.matches(node, m)) {
 
             final IdentifierExpression resource = first(m.<IdentifierExpression>get("resource"));
+
+            @SuppressWarnings("DuplicatedCode")
+            final TypeReference resourceType;
             final ResolveResult resourceResult = _resolver.apply(resource);
 
-            if (resourceResult == null || resourceResult.getType() == null) {
+            if (resourceResult == null || (resourceType = resourceResult.getType()) == null || isDefinitelyNotCloseable(resourceType)) {
                 return null;
             }
 
@@ -310,61 +308,5 @@ public class TryWithResourcesTransform extends ContextTrackingVisitor<Void> {
         }
 
         return null;
-    }
-
-    private final static class MergeResourceTryStatementsVisitor extends ContextTrackingVisitor<Void> {
-        MergeResourceTryStatementsVisitor(final DecompilerContext context) {
-            super(context);
-        }
-
-        @Override
-        public Void visitTryCatchStatement(final TryCatchStatement node, final Void data) {
-            super.visitTryCatchStatement(node, data);
-
-            if (node.getResources().isEmpty()) {
-                return null;
-            }
-
-            final List<VariableDeclarationStatement> resources = new ArrayList<>();
-
-            TryCatchStatement current = node;
-
-            while (current.getCatchClauses().isEmpty() &&
-                   current.getFinallyBlock().isNull()) {
-
-                final AstNode parent = current.getParent();
-
-                if (parent instanceof BlockStatement &&
-                    parent.getParent() instanceof TryCatchStatement) {
-
-                    final TryCatchStatement parentTry = (TryCatchStatement) parent.getParent();
-
-                    if (parentTry.getTryBlock().getStatements().hasSingleElement()) {
-                        if (!current.getResources().isEmpty()) {
-                            resources.addAll(0, current.getResources());
-                        }
-
-                        current = parentTry;
-                        continue;
-                    }
-                }
-
-                break;
-            }
-
-            final BlockStatement tryContent = node.getTryBlock();
-
-            if (current != node) {
-                for (final VariableDeclarationStatement resource : resources) {
-                    resource.remove();
-                    current.getResources().add(resource);
-                }
-
-                tryContent.remove();
-                current.setTryBlock(tryContent);
-            }
-
-            return null;
-        }
     }
 }
