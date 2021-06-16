@@ -64,6 +64,7 @@ public interface IAstVisitor<T, R> {
     R visitPackageDeclaration(PackageDeclaration node, T data);
     R visitArraySpecifier(ArraySpecifier node, T data);
     R visitComposedType(ComposedType node, T data);
+    R visitIntersectionType(IntersectionType node, T data);
     R visitWhileStatement(WhileStatement node, T data);
     R visitPrimitiveExpression(PrimitiveExpression node, T data);
     R visitCastExpression(CastExpression node, T data);
@@ -90,4 +91,6 @@ public interface IAstVisitor<T, R> {
     R visitAssertStatement(AssertStatement node, T data);
     R visitLambdaExpression(LambdaExpression node, T data);
     R visitLocalTypeDeclarationStatement(LocalTypeDeclarationStatement node, T data);
+    R visitInlinedBytecode(InlinedBytecodeExpression node, T data);
+    R visitBytecodeConstant(BytecodeConstant node, T data);
 }

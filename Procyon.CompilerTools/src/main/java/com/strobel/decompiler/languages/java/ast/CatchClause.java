@@ -24,6 +24,7 @@ import com.strobel.decompiler.patterns.Pattern;
 import com.strobel.decompiler.patterns.Role;
 
 public class CatchClause extends AstNode {
+    public final static CatchClause NULL = new NullCatchClause();
     public final static TokenRole CATCH_KEYWORD_ROLE = new TokenRole("catch", TokenRole.FLAG_KEYWORD);
 
     public CatchClause() {
@@ -138,4 +139,25 @@ public class CatchClause extends AstNode {
     }
 
     // </editor-fold>
+
+    private static final class NullCatchClause extends CatchClause {
+        public NullCatchClause() {
+            super();
+        }
+
+        @Override
+        public final boolean isNull() {
+            return true;
+        }
+
+        @Override
+        public <T, R> R acceptVisitor(final IAstVisitor<? super T, ? extends R> visitor, final T data) {
+            return null;
+        }
+
+        @Override
+        public boolean matches(final INode other, final Match match) {
+            return other == null || other.isNull();
+        }
+    }
 }

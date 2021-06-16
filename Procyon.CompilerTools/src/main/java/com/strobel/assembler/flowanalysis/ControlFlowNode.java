@@ -26,7 +26,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.PlainTextOutput;
-import com.strobel.functions.Block;
+import com.strobel.functions.Consumer;
 import com.strobel.functions.Function;
 import com.strobel.util.ContractUtils;
 
@@ -240,7 +240,7 @@ public final class ControlFlowNode implements Comparable<ControlFlowNode> {
 
     public final void traversePreOrder(
         final Function<ControlFlowNode, Iterable<ControlFlowNode>> children,
-        final Block<ControlFlowNode> visitAction) {
+        final Consumer<ControlFlowNode> visitAction) {
 
         if (_visited) {
             return;
@@ -256,7 +256,7 @@ public final class ControlFlowNode implements Comparable<ControlFlowNode> {
 
     public final void traversePostOrder(
         final Function<ControlFlowNode, Iterable<ControlFlowNode>> children,
-        final Block<ControlFlowNode> visitAction) {
+        final Consumer<ControlFlowNode> visitAction) {
 
         if (_visited) {
             return;

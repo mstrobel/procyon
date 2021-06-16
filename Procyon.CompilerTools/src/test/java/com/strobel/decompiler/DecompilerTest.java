@@ -13,7 +13,12 @@
 
 package com.strobel.decompiler;
 
+import com.strobel.annotations.NotNull;
 import com.strobel.assembler.InputTypeLoader;
+import com.strobel.assembler.metadata.CompilerTarget;
+import com.strobel.assembler.metadata.MetadataSystem;
+import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.ExceptionUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
@@ -140,5 +145,16 @@ public abstract class DecompilerTest {
             WHITESPACE.matcher(expectedOutput.trim()).replaceAll(" "),
             WHITESPACE.matcher(outputWithoutImports).replaceAll(" ")
         );
+    }
+
+    protected static CompilerTarget classVersion(final @NotNull Class<?> c) {
+        final TypeReference r = MetadataSystem.instance().lookupType(c.getName().replace('.', '/'));
+        final TypeDefinition d = r  != null ? r.resolve() : null;
+
+        if (d != null) {
+            return d.getCompilerTarget();
+        }
+
+        return CompilerTarget.DEFAULT;
     }
 }

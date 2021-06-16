@@ -46,7 +46,6 @@ public final class TypeAnalysis {
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     private final Map<Variable, List<ExpressionToInfer>> _assignmentExpressions = new LinkedHashMap<Variable, List<ExpressionToInfer>>() {
         @Override
-        @SuppressWarnings("unchecked")
         public List<ExpressionToInfer> get(final Object key) {
             List<ExpressionToInfer> value = super.get(key);
 
@@ -158,11 +157,13 @@ public final class TypeAnalysis {
             findNestedAssignments(expression, expressionToInfer);
 
             if (expression.getCode().isStore()) {
-                if (expression.getOperand() instanceof Variable &&
-                    shouldInferVariableType((Variable) expression.getOperand())) {
+                final Variable opVariable;
 
-                    _assignmentExpressions.get(expression.getOperand()).add(expressionToInfer);
-                    _allVariables.add((Variable) expression.getOperand());
+                if (expression.getOperand() instanceof Variable &&
+                    shouldInferVariableType((opVariable = (Variable) expression.getOperand()))) {
+
+                    _assignmentExpressions.get(opVariable).add(expressionToInfer);
+                    _allVariables.add(opVariable);
                 }
                 else if (matchLoad(expression.getArguments().get(0), v = new StrongBox<>()) &&
                          shouldInferVariableType(v.value)) {
@@ -333,7 +334,6 @@ public final class TypeAnalysis {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private void runInference() {
         _previouslyInferred.clear();
         _inferredVariableTypes.clear();
@@ -462,7 +462,6 @@ public final class TypeAnalysis {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private void inferTypesForVariables(final boolean assignVariableTypesBasedOnPartialInformation) {
         for (final Variable variable : _allVariables) {
             final List<ExpressionToInfer> expressionsToInfer = _assignmentExpressions.get(variable);
@@ -945,7 +944,7 @@ public final class TypeAnalysis {
                             }
 
                             if (mappingsToRemove != null) {
-                                mappings.keySet().removeAll(mappingsToRemove);
+                                removeAll(mappings, mappingsToRemove);
                             }
 
                             if (!mappings.isEmpty()) {
@@ -1503,7 +1502,10 @@ public final class TypeAnalysis {
                             );
                         }
 
-                        if (inferredType != null && MetadataHelper.isSubType(inferredType, MetadataHelper.eraseRecursive(castType))) {
+                        if (inferredType != null &&
+                            MetadataHelper.isBytecodeCastAssignable(inferredType, castType) &&
+                            MetadataHelper.isAssignableFrom(expectedType, inferredType)) {
+
                             expression.setOperand(inferredType);
                             return inferredType;
                         }
@@ -2028,7 +2030,6 @@ public final class TypeAnalysis {
         return inferredType;
     }
 
-    @SuppressWarnings("ConstantConditions")
     private TypeReference cleanTypeArguments(final TypeReference newType, final TypeReference alternateType) {
         if (!(alternateType instanceof IGenericInstance)) {
             return newType;
@@ -3206,7 +3207,7 @@ public final class TypeAnalysis {
         }
 
         @Override
-        public Void visitCompoundType(final CompoundTypeReference t, final Map<TypeReference, TypeReference> map) {
+        public <C extends TypeReference & ICompoundType> Void visitCompoundType(final C t, final Map<TypeReference, TypeReference> map) {
             return null;
         }
 

@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.strobel.assembler.metadata.MetadataHelper.isAssignableFrom;
 import static com.strobel.core.CollectionUtilities.*;
 import static com.strobel.decompiler.languages.java.utilities.TypeUtilities.*;
 
@@ -462,7 +463,7 @@ public final class RedundantCastUtility {
                         functionalInterfaceType = callSite.getMethodType().getReturnType();
                     }
 
-                    if (!MetadataHelper.isAssignableFrom(topCastType, functionalInterfaceType, false)) {
+                    if (!isAssignableFrom(topCastType, functionalInterfaceType, false)) {
                         return null;
                     }
                 }
@@ -528,7 +529,7 @@ public final class RedundantCastUtility {
                 return;
             }
             
-            if (MetadataHelper.isAssignableFrom(leftType, operandType, false)) {
+            if (isAssignableFrom(leftType, operandType, false)) {
                 addToResults((CastExpression) r, false);
                 return;
             }
@@ -751,6 +752,7 @@ public final class RedundantCastUtility {
                 );
 
                 if (sameMethod) {
+                    final ParameterDefinition oldParameter = parameters.get(i);
                     final ParameterDefinition newParameter = result.getMethod().getParameters().get(i);
 
                     if (castType.isPrimitive()) {
@@ -771,10 +773,10 @@ public final class RedundantCastUtility {
 
                     //
                     // Make sure we didn't change the call semantics; the target parameter type should still
-                    // be assignable from the original cast type.
+                    // be assignable from the original cast type.  (Unless the original wasn't valid anyway).
                     //
 
-                    if (MetadataHelper.isAssignableFrom(newParameter.getParameterType(), castType)) {
+                    if (isAssignableFrom(newParameter.getParameterType(), castType) || !isAssignableFrom(oldParameter.getParameterType(), castType)) {
                         addToResults(cast, false);
                     }
                 }
@@ -854,13 +856,13 @@ public final class RedundantCastUtility {
             }
 
             if (arrayAccessAtTheLeftSideOfAssignment(parent)) {
-                if (MetadataHelper.isAssignableFrom(operandType, castTo, false) &&
+                if (isAssignableFrom(operandType, castTo, false) &&
                     MetadataHelper.getArrayRank(operandType) == MetadataHelper.getArrayRank(castTo)) {
 
                     addToResults(cast, false);
                 }
             }
-            else if (MetadataHelper.isAssignableFrom(castTo, operandType, false)) {
+            else if (isAssignableFrom(castTo, operandType, false)) {
                 addToResults(cast, false);
             }
         }
@@ -1061,28 +1063,27 @@ public final class RedundantCastUtility {
                 }
             }
             else if (castType instanceof IGenericInstance) {
-                if (MetadataHelper.isRawType(opType) && !MetadataHelper.isAssignableFrom(castType, opType/*, false*/)) {
+                if (MetadataHelper.isRawType(opType) && !isAssignableFrom(castType, opType/*, false*/)) {
                     return true;
                 }
             }
             else if (MetadataHelper.isRawType(castType)) {
-                if (opType instanceof IGenericInstance && !MetadataHelper.isAssignableFrom(castType, opType/*, false*/)) {
+                if (opType instanceof IGenericInstance && !isAssignableFrom(castType, opType/*, false*/)) {
                     return true;
                 }
             }
 
             if (operand instanceof LambdaExpression || operand instanceof MethodGroupExpression) {
-                final MetadataParser parser = new MetadataParser(IMetadataResolver.EMPTY);
-                final TypeReference serializable = parser.parseTypeDescriptor("java/lang/Serializable");
+                final TypeReference serializable = CommonTypeReferences.Serializable;
 
                 if (!castType.isPrimitive() && MetadataHelper.isSubType(castType, serializable)) {
                     return true;
                 }
 
-                if (castType instanceof CompoundTypeReference) {
+                if (castType instanceof ICompoundType) {
                     boolean redundant = false;
 
-                    final CompoundTypeReference compoundType = (CompoundTypeReference) castType;
+                    final ICompoundType compoundType = (ICompoundType) castType;
                     final List<TypeReference> interfaces = compoundType.getInterfaces();
 
                     int start = 0;
@@ -1096,7 +1097,7 @@ public final class RedundantCastUtility {
                     for (int i = start; i < interfaces.size(); i++) {
                         final TypeReference conjunct = interfaces.get(i);
 
-                        if (MetadataHelper.isAssignableFrom(baseType, conjunct)) {
+                        if (isAssignableFrom(baseType, conjunct)) {
                             redundant = true;
                             break;
                         }

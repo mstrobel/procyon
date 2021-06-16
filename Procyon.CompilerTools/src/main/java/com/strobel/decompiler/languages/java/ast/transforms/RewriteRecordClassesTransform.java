@@ -5,6 +5,7 @@ import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.RecordAttribute;
 import com.strobel.assembler.ir.attributes.RecordComponentInfo;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
+import com.strobel.assembler.metadata.CommonTypeReferences;
 import com.strobel.assembler.metadata.DynamicCallSite;
 import com.strobel.assembler.metadata.MetadataHelper;
 import com.strobel.assembler.metadata.MethodDefinition;
@@ -14,6 +15,7 @@ import com.strobel.core.StringUtilities;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.ast.AstCode;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 
@@ -35,7 +37,7 @@ public class RewriteRecordClassesTransform extends ContextTrackingVisitor<Void> 
             new NamedNode(
                 "invocation",
                 new InvocationExpression(
-                    new IdentifierExpression(Expression.MYSTERY_OFFSET, "invokedynamic"),
+                    new InlinedBytecodeExpression(AstCode.InvokeDynamic, new TypedNode(BytecodeConstant.class).toExpression()),
                     new Repeat(new AnyNode()).toExpression()
                 )
             ).toExpression()
@@ -157,7 +159,7 @@ public class RewriteRecordClassesTransform extends ContextTrackingVisitor<Void> 
 
             final DynamicCallSite callSite = first(indyMatch.<InvocationExpression>get("invocation")).getUserData(Keys.DYNAMIC_CALL_SITE);
 
-            if (callSite != null && "java/lang/runtime/ObjectMethods".equals(callSite.getBootstrapMethod().getDeclaringType().getInternalName())) {
+            if (callSite != null && CommonTypeReferences.ObjectMethods.isEquivalentTo(callSite.getBootstrapMethod().getDeclaringType())) {
                 recordState.removableMethods.add(node);
                 return null;
             }

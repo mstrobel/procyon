@@ -20,6 +20,7 @@ public final class ConvertTypeOptions {
     private boolean _includePackage/* = true*/;
     private boolean _includeTypeArguments = true;
     private boolean _includeTypeParameterDefinitions = true;
+    private boolean _includeIntersectionTypes = true;
     private boolean _allowWildcards = true;
     private boolean _addImports = true;
 
@@ -45,6 +46,14 @@ public final class ConvertTypeOptions {
 
     public void setIncludeTypeParameterDefinitions(final boolean value) {
         _includeTypeParameterDefinitions = value;
+    }
+
+    public boolean getIncludeIntersectionTypes() {
+        return _includeIntersectionTypes;
+    }
+
+    public void setIncludeIntersectionTypes(final boolean includeIntersectionTypes) {
+        _includeIntersectionTypes = includeIntersectionTypes;
     }
 
     public boolean getAllowWildcards() {

@@ -738,14 +738,13 @@ final class Inlining {
             case Load:
 //            case LoadElement:
             case AConstNull:
-            case LdC:
+            case LdC: {
                 return true;
+            }
 
             case Add:
             case Sub:
             case Mul:
-            case Div:
-            case Rem:
             case Shl:
             case Shr:
             case UShr:
@@ -755,15 +754,42 @@ final class Inlining {
                 return hasNoSideEffect(expression.getArguments().get(0)) &&
                        hasNoSideEffect(expression.getArguments().get(1));
 
+            case Rem:
+            case Div: {
+                final Expression l = expression.getArguments().get(0);
+                final Expression r = expression.getArguments().get(1);
+
+                if (hasNoSideEffect(l) && hasNoSideEffect(r)) {
+                    final StrongBox<Object> c = new StrongBox<>();
+
+                    if (matchLoad(l, c, IS_FLOAT_VARIABLE) || matchLoad(r, c, IS_FLOAT_VARIABLE)) {
+                        return true;
+                    }
+
+                    if (matchNumericConstant(r, c)) {
+                        Number n = (Number) c.get();
+
+                        return n instanceof Float ||
+                               n instanceof Double ||
+                               n.longValue() != 0L ||
+                               matchNumericConstant(l, c) && ((n = (Number) c.get()) instanceof Float || n instanceof Double);
+                    }
+                }
+
+                return false;
+            }
+
             case Not:
-            case Neg:
+            case Neg: {
                 return hasNoSideEffect(expression.getArguments().get(0));
+            }
 
 //            case Store:
 //                return hasNoSideEffect(expression.getArguments().get(0));
 
-            default:
+            default: {
                 return false;
+            }
         }
     }
 
@@ -853,6 +879,17 @@ final class Inlining {
             }
         };
     }
+
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="Function Objects">
+
+    private static final Predicate<Variable> IS_FLOAT_VARIABLE = new Predicate<Variable>() {
+        @Override
+        public boolean test(final Variable variable) {
+            return variable.getType().getSimpleType().isFloating();
+        }
+    };
 
     // </editor-fold>
 }

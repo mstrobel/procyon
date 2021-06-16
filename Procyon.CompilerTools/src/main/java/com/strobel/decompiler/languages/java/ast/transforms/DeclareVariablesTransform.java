@@ -48,7 +48,6 @@ public class DeclareVariablesTransform implements IAstTransform {
     }
 
     @Override
-    @SuppressWarnings("ConstantConditions")
     public void run(final AstNode node) {
         run(node, null);
 
@@ -259,7 +258,6 @@ public class DeclareVariablesTransform implements IAstTransform {
         }
     }
 
-    @SuppressWarnings("ConstantConditions")
     private void declareVariableInBlock(
         final DefiniteAssignmentAnalysis analysis,
         final BlockStatement block,
@@ -432,6 +430,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         return true;
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean canMoveVariableIntoSubBlock(
         final DefiniteAssignmentAnalysis analysis,
         final BlockStatement block,
@@ -533,8 +532,8 @@ public class DeclareVariablesTransform implements IAstTransform {
             // into the resource list.
             //
 
-            if (!tryCatch.getResources().isEmpty()) {
-                for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+            if (!tryCatch.getDeclaredResources().isEmpty()) {
+                for (final VariableDeclarationStatement resource : tryCatch.getDeclaredResources()) {
                     if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
                         return true;
                     }
@@ -624,7 +623,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         if (node instanceof TryCatchStatement) {
             final TryCatchStatement tryCatch = (TryCatchStatement) node;
 
-            for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+            for (final VariableDeclarationStatement resource : tryCatch.getDeclaredResources()) {
                 if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
                     //
                     // No need to introduce the variable here.
@@ -706,7 +705,7 @@ public class DeclareVariablesTransform implements IAstTransform {
         if (node instanceof TryCatchStatement) {
             final TryCatchStatement tryCatch = (TryCatchStatement) node;
 
-            for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+            for (final VariableDeclarationStatement resource : tryCatch.getDeclaredResources()) {
                 if (StringUtilities.equals(first(resource.getVariables()).getName(), variableName)) {
                     return true;
                 }
@@ -868,7 +867,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
     // <editor-fold defaultstate="collapsed" desc="IsSingleAssignmentVisitor Class">
 
-    private final class IsSingleAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
+    private static final class IsSingleAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
         private final String _variableName;
         private final AssignmentExpression _replacedAssignment;
         private boolean _abort;
@@ -1086,7 +1085,7 @@ public class DeclareVariablesTransform implements IAstTransform {
 
     // <editor-fold defaultstate="collapsed" desc="ParameterAssignmentVisitor Class">
 
-    private final class ParameterAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
+    private static final class ParameterAssignmentVisitor extends DepthFirstAstVisitor<Void, Boolean> {
         private final Set<ParameterDefinition> _unassignedParameters;
         private final Map<String, ParameterDefinition> _parametersByName;
 

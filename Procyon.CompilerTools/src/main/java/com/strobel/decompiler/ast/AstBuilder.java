@@ -1045,6 +1045,7 @@ public final class AstBuilder {
 //        extendHandlers();
         mergeSharedHandlers();
         alignFinallyBlocksWithSiblingCatchBlocks();
+        removeTryIntersectionsWithPreviousCatch();
         ensureDesiredProtectedRanges();
 
         for (int i = 0; i < handlers.size(); i++) {
@@ -1768,6 +1769,63 @@ public final class AstBuilder {
 //            }
 //        }
 //    }
+
+    private void removeTryIntersectionsWithPreviousCatch() {
+        final List<ExceptionHandler> handlers = _exceptionHandlers;
+
+    outer:
+        for (int i = 0; i < handlers.size(); i++) {
+            final ExceptionHandler handler = handlers.get(i);
+            final InstructionBlock tryBlock = handler.getTryBlock();
+            final InstructionBlock handlerBlock = handler.getHandlerBlock();
+
+            for (int j = 0; j < handlers.size(); j++) {
+                if (i == j) {
+                    continue;
+                }
+
+                final ExceptionHandler other = handlers.get(j);
+                final InstructionBlock otherHandler = other.getHandlerBlock();
+
+                if (tryBlock.intersects(otherHandler) &&
+                    !tryBlock.contains(otherHandler) &&
+                    !otherHandler.contains(tryBlock) &&
+                    otherHandler.contains(tryBlock.getFirstInstruction()) &&
+                    !otherHandler.contains(tryBlock.getLastInstruction()) &&
+                    otherHandler.getLastInstruction().getNext() != null &&
+                    tryBlock.contains(otherHandler.getLastInstruction().getNext())) {
+
+                    if (handler.isCatch()) {
+                        handlers.set(
+                            i--,
+                            ExceptionHandler.createCatch(
+                                new InstructionBlock(
+                                    otherHandler.getLastInstruction().getNext(),
+                                    tryBlock.getLastInstruction()
+                                ),
+                                handlerBlock,
+                                handler.getCatchType()
+                            )
+                        );
+                    }
+                    else {
+                        handlers.set(
+                            i--,
+                            ExceptionHandler.createFinally(
+                                new InstructionBlock(
+                                    otherHandler.getLastInstruction().getNext(),
+                                    tryBlock.getLastInstruction()
+                                ),
+                                handlerBlock
+                            )
+                        );
+                    }
+
+                    continue outer;
+                }
+            }
+        }
+    }
 
     private static ExceptionHandler findFirstHandler(final InstructionBlock tryBlock, final Collection<ExceptionHandler> handlers) {
         ExceptionHandler result = null;

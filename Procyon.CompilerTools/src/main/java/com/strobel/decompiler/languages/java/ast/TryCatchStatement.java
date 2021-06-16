@@ -23,10 +23,11 @@ import com.strobel.decompiler.patterns.Role;
 public class TryCatchStatement extends Statement {
     public static final TokenRole TRY_KEYWORD_ROLE = new TokenRole("try", TokenRole.FLAG_KEYWORD);
     public static final Role<BlockStatement> TRY_BLOCK_ROLE = new Role<>("TryBlock", BlockStatement.class, BlockStatement.NULL);
-    public static final Role<CatchClause> CATCH_CLAUSE_ROLE = new Role<>("CatchClause", CatchClause.class);
+    public static final Role<CatchClause> CATCH_CLAUSE_ROLE = new Role<>("CatchClause", CatchClause.class, CatchClause.NULL);
     public static final TokenRole FINALLY_KEYWORD_ROLE = new TokenRole("finally", TokenRole.FLAG_KEYWORD);
     public static final Role<BlockStatement> FINALLY_BLOCK_ROLE = new Role<>("FinallyBlock", BlockStatement.class, BlockStatement.NULL);
-    public static final Role<VariableDeclarationStatement> TRY_RESOURCE_ROLE = new Role<>("TryResource", VariableDeclarationStatement.class);
+    public static final Role<VariableDeclarationStatement> TRY_DECLARED_RESOURCE_ROLE = new Role<>("TryDeclaredResource", VariableDeclarationStatement.class);
+    public static final Role<IdentifierExpression> TRY_EXTERNAL_RESOURCE_ROLE = new Role<>("TryExternalResource", IdentifierExpression.class);
 
     public TryCatchStatement() {
         super(Expression.MYSTERY_OFFSET);
@@ -48,8 +49,12 @@ public class TryCatchStatement extends Statement {
         return getChildrenByRole(CATCH_CLAUSE_ROLE);
     }
 
-    public final AstNodeCollection<VariableDeclarationStatement> getResources() {
-        return getChildrenByRole(TRY_RESOURCE_ROLE);
+    public final AstNodeCollection<VariableDeclarationStatement> getDeclaredResources() {
+        return getChildrenByRole(TRY_DECLARED_RESOURCE_ROLE);
+    }
+
+    public final AstNodeCollection<IdentifierExpression> getExternalResources() {
+        return getChildrenByRole(TRY_EXTERNAL_RESOURCE_ROLE);
     }
 
     public final BlockStatement getTryBlock() {

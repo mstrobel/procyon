@@ -27,7 +27,7 @@ import java.util.Objects;
  * <p>All of the returned predicates are serializable if given serializable
  * parameters.
  */
-@SuppressWarnings("unchecked")
+@SuppressWarnings({ "unchecked", "DuplicatedCode" })
 public final class Predicates {
 
     /**
@@ -222,7 +222,7 @@ public final class Predicates {
      * @return A predicate who's result is the logical inverse of the provided
      * predicate.
      */
-    public static <T, P extends Predicate<? super T>> Predicate<T> negate(final P predicate) {
+    public static <T> Predicate<T> negate(final Predicate<? super T> predicate) {
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
@@ -243,7 +243,7 @@ public final class Predicates {
      * @return A predicate who's result is {@code true} iff all component
      * predicates are {@code true}.
      */
-    public static <T, P extends Predicate<? super T>> Predicate<T> and(final Predicate<T> first,  final P second) {
+    public static <T> Predicate<T> and(final Predicate<T> first,  final Predicate<? super T> second) {
         if(first != null && first == second) {
             return first;
         }
@@ -254,7 +254,6 @@ public final class Predicates {
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
-                //noinspection ConstantConditions
                 return first.test(t) && second.test(t);
             }
         };
@@ -271,8 +270,8 @@ public final class Predicates {
      * @return A predicate who's result is {@code true} iff all component
      * predicates are {@code true}.
      */
-    public static <T, P extends Predicate<? super T>> Predicate<T> and(final Iterable<P> components) {
-        final List<P> predicates = safeCopyOf(components);
+    public static <T> Predicate<T> and(final Iterable<Predicate<? super T>> components) {
+        final List<Predicate<? super T>> predicates = safeCopyOf(components);
 
         if(predicates.isEmpty()) {
             throw new IllegalArgumentException("no predicates");
@@ -281,7 +280,7 @@ public final class Predicates {
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
-                for (final P predicate : predicates) {
+                for (final Predicate<? super T> predicate : predicates) {
                     if (!predicate.test(t)) {
                         return false;
                     }
@@ -302,13 +301,13 @@ public final class Predicates {
      * @return A predicate who's result is {@code true} iff all component
      * predicates are {@code true}.
      */
-    static <T, P extends Predicate<? super T>> Predicate<T> and(final P first, final Iterable<P> components) {
-        final List<P> predicates = safeCopyOf(first, components);
+    static <T> Predicate<T> and(final Predicate<? super T> first, final Iterable<Predicate<? super T>> components) {
+        final List<Predicate<? super T>> predicates = safeCopyOf(first, components);
 
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
-                for (final P predicate : predicates) {
+                for (final Predicate<? super T> predicate : predicates) {
                     if (!predicate.test(t)) {
                         return false;
                     }
@@ -331,8 +330,8 @@ public final class Predicates {
      * predicates are {@code true}.
      */
     @SafeVarargs
-    public static <T, P extends Predicate<? super T>> Predicate<T> and(final P... components) {
-        final P[] predicates = safeCopyOf(components);
+    public static <T> Predicate<T> and(final Predicate<? super T>... components) {
+        final Predicate<? super T>[] predicates = safeCopyOf(components);
 
         if(0 == predicates.length) {
             throw new IllegalArgumentException("no predicates");
@@ -341,7 +340,7 @@ public final class Predicates {
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
-                for (final P predicate : predicates) {
+                for (final Predicate<? super T> predicate : predicates) {
                     if (!predicate.test(t)) {
                         return false;
                     }
@@ -365,8 +364,8 @@ public final class Predicates {
      * predicates are {@code true}.
      */
     @SafeVarargs
-    static <T, P extends Predicate<? super T>> Predicate<T> and(final P first, final P... components) {
-        final P[] predicates = safeCopyOf(first, components);
+    static <T> Predicate<T> and(final Predicate<? super T> first, final Predicate<? super T>... components) {
+        final Predicate<? super T>[] predicates = safeCopyOf(first, components);
 
         if(0 == predicates.length) {
             throw new IllegalArgumentException("no predicates");
@@ -375,7 +374,7 @@ public final class Predicates {
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
-                for (final P predicate : predicates) {
+                for (final Predicate<? super T> predicate : predicates) {
                     if (!predicate.test(t)) {
                         return false;
                     }
@@ -397,7 +396,7 @@ public final class Predicates {
      * @return A predicate who's result is {@code true} if any component
      * predicate's result is {@code true}.
      */
-    public static <T, P extends Predicate<? super T>> Predicate<T> or(final Predicate<T> first,  final P second) {
+    public static <T> Predicate<T> or(final Predicate<T> first,  final Predicate<? super T> second) {
         if(first != null && first == second) {
             return first;
         }
@@ -408,7 +407,6 @@ public final class Predicates {
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
-                //noinspection ConstantConditions
                 return first.test(t) || second.test(t);
             }
         };
@@ -426,8 +424,8 @@ public final class Predicates {
      * @return A predicate who's result is {@code true} if any component
      * predicate's result is {@code true}.
      */
-    public static <T, P extends Predicate<? super T>> Predicate<T> or(final Iterable<P> components) {
-        final List<P> predicates = safeCopyOf(components);
+    public static <T> Predicate<T> or(final Iterable<Predicate<? super T>> components) {
+        final List<Predicate<? super T>> predicates = safeCopyOf(components);
 
         if(predicates.isEmpty()) {
             throw new IllegalArgumentException("no predicates");
@@ -436,7 +434,7 @@ public final class Predicates {
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
-                for (final P predicate : predicates) {
+                for (final Predicate<? super T> predicate : predicates) {
                     if (predicate.test(t)) {
                         return true;
                     }
@@ -458,13 +456,13 @@ public final class Predicates {
      * @return A predicate who's result is {@code true} if any component
      * predicate's result is {@code true}.
      */
-    static <T, P extends Predicate<? super T>> Predicate<T> or(final P first, final Iterable<P> components) {
-        final List<P> predicates = safeCopyOf(first, components);
+    static <T> Predicate<T> or(final Predicate<? super T> first, final Iterable<Predicate<? super T>> components) {
+        final List<Predicate<? super T>> predicates = safeCopyOf(first, components);
 
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
-                for (final P predicate : predicates) {
+                for (final Predicate<? super T> predicate : predicates) {
                     if (predicate.test(t)) {
                         return true;
                     }
@@ -487,8 +485,8 @@ public final class Predicates {
      * predicate's result is {@code true}.
      */
     @SafeVarargs
-    public static <T, P extends Predicate<? super T>> Predicate<T> or(final P... components) {
-        final P[] predicates = safeCopyOf(components);
+    public static <T> Predicate<T> or(final Predicate<? super T>... components) {
+        final Predicate<? super T>[] predicates = safeCopyOf(components);
 
         if(0 == predicates.length) {
             throw new IllegalArgumentException("no predicates");
@@ -497,7 +495,7 @@ public final class Predicates {
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
-                for (final P predicate : predicates) {
+                for (final Predicate<? super T> predicate : predicates) {
                     if (predicate.test(t)) {
                         return true;
                     }
@@ -520,13 +518,13 @@ public final class Predicates {
      * predicate's result is {@code true}.
      */
     @SafeVarargs
-    static <T, P extends Predicate<? super T>> Predicate<T> or(final Predicate<T> first, final P... components) {
-        final P[] predicates = safeCopyOf((P) first, components);
+    static <T> Predicate<T> or(final Predicate<T> first, final Predicate<? super T>... components) {
+        final Predicate<? super T>[] predicates = safeCopyOf(first, components);
 
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
-                for (final P predicate : predicates) {
+                for (final Predicate<? super T> predicate : predicates) {
                     if (predicate.test(t)) {
                         return true;
                     }
@@ -548,7 +546,7 @@ public final class Predicates {
      * @return  a predicate that evaluates to {@code true} if all or none of the
      * component predicates evaluate to {@code true}
      */
-    public static <T, P extends Predicate<? super T>> Predicate<T> xor(final Predicate<T> first, final P second) {
+    public static <T> Predicate<T> xor(final Predicate<T> first, final Predicate<? super T> second) {
         if(null != first && first == second) {
             return alwaysFalse();
         }
@@ -559,158 +557,7 @@ public final class Predicates {
         return new Predicate<T>() {
             @Override
             public boolean test(final T t) {
-                //noinspection ConstantConditions
                 return first.test(t) ^ second.test(t);
-            }
-        };
-    }
-
-    /**
-     * Returns a predicate that evaluates to {@code false} if all or none of the
-     * component predicates evaluate to {@code true}. The components are
-     * evaluated in order, and evaluation will end if a predicate result
-     * fails to match the first predicate's result.
-     *
-     * @param <T> the type of values evaluated by the predicates.
-     * @param components The predicates to be evaluated. A copy is made of the
-     * components.
-     * @return  a predicate that evaluates to {@code false} if all or none of the
-     * component predicates evaluate to {@code true}
-     */
-    public static <T, P extends Predicate<? super T>> Predicate<T> xor(final Iterable<P> components) {
-        final List<P> predicates = safeCopyOf(components);
-
-        if(predicates.isEmpty()) {
-            throw new IllegalArgumentException("no predicates");
-        }
-
-        return new Predicate<T>() {
-            @Override
-            public boolean test(final T t) {
-                Boolean initial = null;
-
-                for (final P predicate : predicates) {
-                    if (null == initial) {
-                        initial = predicate.test(t);
-                    }
-                    else {
-                        if (!(initial ^ predicate.test(t))) {
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            }
-        };
-    }
-
-    /**
-     * Returns a predicate that evaluates to {@code false} if all or none of the
-     * component predicates evaluate to {@code true}. The components are
-     * evaluated in order, and evaluation will terminate if a predicate result
-     * fails to match the first predicate's result.
-     *
-     * @param <T> the type of values evaluated by the predicates.
-     * @param components The predicates to be evaluated. A copy is made of the
-     * components.
-     * @return  a predicate that evaluates to {@code false} if all or none of the
-     * component predicates evaluate to {@code true}
-     */
-    @SafeVarargs
-    public static <T, P extends Predicate<? super T>> Predicate<T> xor(final P... components) {
-        final P[] predicates = safeCopyOf(components);
-
-        if(0 == predicates.length) {
-            throw new IllegalArgumentException("no predicates");
-        }
-
-        return new Predicate<T>() {
-            @Override
-            public boolean test(final T t) {
-                Boolean initial = null;
-
-                for (final P predicate : predicates) {
-                    if (null == initial) {
-                        initial = predicate.test(t);
-                    }
-                    else {
-                        if (!(initial ^ predicate.test(t))) {
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            }
-        };
-    }
-
-    /**
-     * Returns a predicate that evaluates to {@code false} if all or none of the
-     * component predicates evaluate to {@code true}. The components are
-     * evaluated in order, and evaluation will end if a predicate result
-     * fails to match the first predicate's result.
-     *
-     * @param <T> the type of values evaluated by the predicates.
-     * @param components The predicates to be evaluated. A copy is made of the
-     * components.
-     * @return  a predicate that evaluates to {@code false} if all or none of the
-     * component predicates evaluate to {@code true}
-     */
-    @SafeVarargs
-    static <T, P extends Predicate<? super T>> Predicate<T> xor(final Predicate<T> first, final P... components) {
-        final P[] predicates = safeCopyOf((P) first, components);
-
-        return new Predicate<T>() {
-            @Override
-            public boolean test(final T t) {
-                Boolean initial = null;
-
-                for (final P predicate : predicates) {
-                    if (null == initial) {
-                        initial = predicate.test(t);
-                    }
-                    else {
-                        if (!(initial ^ predicate.test(t))) {
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            }
-        };
-    }
-
-    /**
-     * Returns a predicate that evaluates to {@code false} if all or none of the
-     * component predicates evaluate to {@code true}. The components are
-     * evaluated in order, and evaluation will end if a predicate result
-     * fails to match the first predicate's result.
-     *
-     * @param <T> the type of values evaluated by the predicates.
-     * @param components The predicates to be evaluated. A copy is made of the
-     * components.
-     * @return  a predicate that evaluates to {@code false} if all or none of the
-     * component predicates evaluate to {@code true}
-     */
-    static <T, P extends Predicate<? super T>> Predicate<T> xor(final Predicate<T> first, final Iterable<P> components) {
-        final List<P> predicates = safeCopyOf((P) first, components);
-
-        return new Predicate<T>() {
-            @Override
-            public boolean test(final T t) {
-                Boolean initial = null;
-
-                for (final P predicate : predicates) {
-                    if (null == initial) {
-                        initial = predicate.test(t);
-                    }
-                    else {
-                        if (!(initial ^ predicate.test(t))) {
-                            return true;
-                        }
-                    }
-                }
-                return false;
             }
         };
     }

@@ -883,7 +883,7 @@ public abstract class AstNode extends Freezable implements INode, UserDataStore,
 
         final String text = StringUtilities.trimRight(getText())/*.replace("\t", "").replace("\n", " ")*/;
 
-        return text.length() > 1000 ? text.substring(0, 97) + "..." : text;
+        return text.length() > 10000 ? text.substring(0, 9997) + "..." : text; // TODO: <== REVERT THIS
     }
 
     @Override

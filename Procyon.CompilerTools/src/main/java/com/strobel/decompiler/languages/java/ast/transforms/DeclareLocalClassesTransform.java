@@ -510,7 +510,7 @@ public class DeclareLocalClassesTransform implements IAstTransform {
         if (node instanceof TryCatchStatement) {
             final TryCatchStatement tryCatch = (TryCatchStatement) node;
 
-            for (final VariableDeclarationStatement resource : tryCatch.getResources()) {
+            for (final VariableDeclarationStatement resource : tryCatch.getDeclaredResources()) {
                 if (referencesType(resource.getType(), localType)) {
                     return true;
                 }

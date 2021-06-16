@@ -50,28 +50,28 @@ public class NameVariables {
         final Map<String, String> methodNameMappings = new LinkedHashMap<>();
 
         builtInTypeNames.put(BuiltinTypes.Boolean.getInternalName(), "b");
-        builtInTypeNames.put("java/lang/Boolean", "b");
+        builtInTypeNames.put(CommonTypeReferences.Boolean.getInternalName(), "b");
         builtInTypeNames.put(BuiltinTypes.Byte.getInternalName(), "b");
-        builtInTypeNames.put("java/lang/Byte", "b");
+        builtInTypeNames.put(CommonTypeReferences.Byte.getInternalName(), "b");
         builtInTypeNames.put(BuiltinTypes.Short.getInternalName(), "n");
-        builtInTypeNames.put("java/lang/Short", "n");
+        builtInTypeNames.put(CommonTypeReferences.Short.getInternalName(), "n");
         builtInTypeNames.put(BuiltinTypes.Integer.getInternalName(), "n");
-        builtInTypeNames.put("java/lang/Integer", "n");
+        builtInTypeNames.put(CommonTypeReferences.Integer.getInternalName(), "n");
         builtInTypeNames.put(BuiltinTypes.Long.getInternalName(), "n");
-        builtInTypeNames.put("java/lang/Long", "n");
+        builtInTypeNames.put(CommonTypeReferences.Long.getInternalName(), "n");
         builtInTypeNames.put(BuiltinTypes.Float.getInternalName(), "n");
-        builtInTypeNames.put("java/lang/Float", "n");
+        builtInTypeNames.put(CommonTypeReferences.Float.getInternalName(), "n");
         builtInTypeNames.put(BuiltinTypes.Double.getInternalName(), "n");
-        builtInTypeNames.put("java/lang/Double", "n");
+        builtInTypeNames.put(CommonTypeReferences.Double.getInternalName(), "n");
         builtInTypeNames.put(BuiltinTypes.Character.getInternalName(), "c");
-        builtInTypeNames.put("java/lang/Number", "n");
+        builtInTypeNames.put(CommonTypeReferences.Number.getInternalName(), "n");
         builtInTypeNames.put("java/io/Serializable", "s");
-        builtInTypeNames.put("java/lang/Character", "c");
-        builtInTypeNames.put("java/lang/Object", "o");
-        builtInTypeNames.put("java/lang/String", "s");
-        builtInTypeNames.put("java/lang/StringBuilder", "sb");
-        builtInTypeNames.put("java/lang/StringBuffer", "sb");
-        builtInTypeNames.put("java/lang/Class", "clazz");
+        builtInTypeNames.put(CommonTypeReferences.Character.getInternalName(), "c");
+        builtInTypeNames.put(CommonTypeReferences.Object.getInternalName(), "o");
+        builtInTypeNames.put(CommonTypeReferences.String.getInternalName(), "s");
+        builtInTypeNames.put(CommonTypeReferences.StringBuilder.getInternalName(), "sb");
+        builtInTypeNames.put(CommonTypeReferences.StringBuffer.getInternalName(), "sb");
+        builtInTypeNames.put(CommonTypeReferences.Class.getInternalName(), "clazz");
 
         BUILT_IN_TYPE_NAMES = Collections.unmodifiableMap(builtInTypeNames);
 
@@ -124,7 +124,7 @@ public class NameVariables {
         return name;
     }
 
-    public static void assignNamesToVariables(
+    public static NameVariables assignNamesToVariables(
         final DecompilerContext context,
         final Iterable<Variable> parameters,
         final Iterable<Variable> variables,
@@ -198,6 +198,8 @@ public class NameVariables {
                 varDef.setName(nv.generateNameForVariable(varDef, methodBody));
             }
         }
+
+        return nv;
     }
 
     static boolean isValidName(final String name) {
@@ -530,7 +532,7 @@ public class NameVariables {
         return null;
     }
 
-    private String getNameForType(final TypeReference type) {
+    public String getNameForType(final TypeReference type) {
 
         TypeReference nameSource = type;
 
@@ -539,7 +541,7 @@ public class NameVariables {
         if (nameSource.isArray()) {
             name = "array";
         }
-        else if (StringUtilities.equals(nameSource.getInternalName(), "java/lang/Throwable")) {
+        else if (CommonTypeReferences.Throwable.isEquivalentTo(nameSource)) {
             name = "t";
         }
         else if (StringUtilities.endsWith(nameSource.getName(), "Exception")) {

@@ -13,7 +13,7 @@
 
 package com.strobel.decompiler;
 
-import org.junit.Ignore;
+import com.strobel.assembler.metadata.CompilerTarget;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -309,6 +309,9 @@ public class EnhancedTryTests extends DecompilerTest {
 
     @Test
     public void testEnhancedTryEmptyBody() throws Throwable {
+        if (classVersion(J.class).compareTo(CompilerTarget.JDK13) < 0) {
+            return;
+        }
         verifyOutput(
             J.class,
             defaultSettings(),
@@ -323,6 +326,9 @@ public class EnhancedTryTests extends DecompilerTest {
 
     @Test
     public void testEnhancedTryTwoResourcesEmptyBody() throws Throwable {
+        if (classVersion(K.class).compareTo(CompilerTarget.JDK13) < 0) {
+            return;
+        }
         verifyOutput(
             K.class,
             defaultSettings(),

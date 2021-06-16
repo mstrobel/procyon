@@ -32,6 +32,8 @@ import com.strobel.decompiler.patterns.INode;
 import com.strobel.decompiler.semantics.ResolveResult;
 import com.strobel.functions.Function;
 
+import java.util.ArrayDeque;
+
 import static com.strobel.core.CollectionUtilities.*;
 
 public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<Void> {
@@ -48,10 +50,12 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
     }
 
     private final JavaResolver _resolver;
+    private final ArrayDeque<INode> _stack;
 
     public InsertNecessaryConversionsTransform(final DecompilerContext context) {
         super(context);
         _resolver = new JavaResolver(context);
+        _stack = new ArrayDeque<>();
     }
 
     @Override
@@ -571,12 +575,19 @@ public class InsertNecessaryConversionsTransform extends ContextTrackingVisitor<
 
     private void recurse(final AstNode replacement) {
         final AstNode parent = replacement.getParent();
+        final AstNode toRecurse = parent != null ? parent : replacement;
 
-        if (parent != null) {
-            parent.acceptVisitor(this, null);
+        if (_stack.contains(toRecurse)) {
+            return;
         }
-        else {
-            replacement.acceptVisitor(this, null);
+
+        _stack.addFirst(toRecurse);
+
+        try {
+            toRecurse.acceptVisitor(this, null);
+        }
+        finally {
+            _stack.removeFirst();
         }
     }
 }

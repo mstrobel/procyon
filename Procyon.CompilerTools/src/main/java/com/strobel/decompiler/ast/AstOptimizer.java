@@ -3607,23 +3607,23 @@ public final class AstOptimizer {
                 nodes.addAll(AstBuilder.build(methodBody, true, innerContext));
                 body.getBody().addAll(nodes);
 
-                for (final Expression e : body.getSelfAndChildrenRecursive(Expression.class)) {
-                    final Object operand = e.getOperand();
-
-                    if (operand instanceof Variable) {
-                        final Variable oldVariable = (Variable) operand;
-
-                        if (oldVariable.isParameter() &&
-                            oldVariable.getOriginalParameter().getMethod() == resolvedMethod) {
-
-                            final Variable newVariable = parameterMap[oldVariable.getOriginalParameter().getSlot()];
-
-                            if (newVariable != null) {
-                                e.setOperand(newVariable);
-                            }
-                        }
-                    }
-                }
+//                for (final Expression e : body.getSelfAndChildrenRecursive(Expression.class)) {
+//                    final Object operand = e.getOperand();
+//
+//                    if (operand instanceof Variable) {
+//                        final Variable oldVariable = (Variable) operand;
+//
+//                        if (oldVariable.isParameter() &&
+//                            oldVariable.getOriginalParameter().getMethod() == resolvedMethod) {
+//
+//                            final Variable newVariable = parameterMap[oldVariable.getOriginalParameter().getSlot()];
+//
+//                            if (newVariable != null) {
+//                                e.setOperand(newVariable);
+//                            }
+//                        }
+//                    }
+//                }
 
                 AstOptimizer.optimize(innerContext, body, AstOptimizationStep.InlineVariables2);
 

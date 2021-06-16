@@ -21,6 +21,7 @@ import com.strobel.core.Comparer;
 import com.strobel.core.Predicate;
 import com.strobel.core.StrongBox;
 import com.strobel.core.VerifyArgument;
+import com.strobel.functions.Consumer;
 import com.strobel.util.ContractUtils;
 
 import java.util.ArrayList;
@@ -44,19 +45,20 @@ public final class PatternMatching {
                match(node, AstCode.EndFinally);
     }
 
-    public static <T> boolean matchGetOperand(final Node node, final AstCode code, final StrongBox<? super T> operand) {
+    public static <T> boolean matchGetOperand(final Node node, final AstCode code, final Consumer<? super T> operand) {
         if (node instanceof Expression) {
             final Expression expression = (Expression) node;
 
             if (expression.getCode() == code &&
                 expression.getArguments().isEmpty()) {
 
-                operand.set(expression.getOperand());
+                final @SuppressWarnings("unchecked") T typedOperand = (T) expression.getOperand();
+                operand.accept(typedOperand);
                 return true;
             }
         }
 
-        operand.set(null);
+        operand.accept(null);
         return false;
     }
 
@@ -575,12 +577,11 @@ public final class PatternMatching {
         );
     }
 
-    public static boolean matchLoad(final Node node, final StrongBox<Variable> variable) {
+    public static boolean matchLoad(final Node node, final Consumer<? super Variable> variable) {
         return matchGetOperand(node, AstCode.Load, variable);
     }
 
-    public static boolean matchNumericLdC(final Node node, final StrongBox<Number> value) {
-        //noinspection ConstantConditions
+    public static boolean matchNumericLdC(final Node node, final StrongBox<? super Number> value) {
         if (matchGetOperand(node, AstCode.LdC, value) &&
             value.get() instanceof Number) {
 
@@ -594,13 +595,12 @@ public final class PatternMatching {
     public static boolean matchVariableIncDec(final Node node, final StrongBox<Variable> variable) {
         if (node instanceof Expression) {
             final Expression e = (Expression) node;
-            final List<Expression> a = e.getArguments();
             final AstCode code = e.getCode();
 
             if (code.isIncDec()) {
                 final Variable v;
 
-                @SuppressWarnings("unchecked")
+                @SuppressWarnings({ "unchecked", "rawtypes" })
                 final StrongBox<Number> valueBox = (StrongBox)variable;
                 final StrongBox<Expression> argument = new StrongBox<>();
 
@@ -871,6 +871,41 @@ public final class PatternMatching {
         return Boolean.FALSE.equals(matchBooleanConstant(node));
     }
 
+    public static boolean matchIntegralConstant(final Node node, final Consumer<? super Long> constant) {
+        if (match(node, AstCode.LdC)) {
+            final Object operand = ((Expression) node).getOperand();
+
+            if (operand instanceof Number && !(operand instanceof Float || operand instanceof Double)) {
+                constant.accept(((Number) operand).longValue());
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean matchNumericConstant(final Node node, final Consumer<? super Number> constant) {
+        if (match(node, AstCode.LdC)) {
+            final Object operand = ((Expression) node).getOperand();
+
+            if (operand instanceof Number) {
+                constant.accept((Number) operand);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean matchLoad(final Node node, final Predicate<? super Variable> condition) {
+        final StrongBox<Variable> v = new StrongBox<>();
+        return matchLoad(node, v) && condition.test(v.get());
+    }
+
+    public static boolean matchLoad(final Node node, final StrongBox<? super Object> temp, final Predicate<? super Variable> condition) {
+        return matchLoad(node, temp) && condition.test((Variable) temp.get());
+    }
+
     public static Boolean matchBooleanConstant(final Node node) {
         if (match(node, AstCode.LdC)) {
             final Object operand = ((Expression) node).getOperand();
@@ -915,27 +950,27 @@ public final class PatternMatching {
         return null;
     }
 
-    public static boolean matchBooleanConstant(final Node node, final StrongBox<Boolean> value) {
+    public static boolean matchBooleanConstant(final Node node, final Consumer<? super Boolean> value) {
         final Boolean booleanConstant = matchBooleanConstant(node);
 
         if (booleanConstant != null) {
-            value.set(booleanConstant);
+            value.accept(booleanConstant);
             return true;
         }
 
-        value.set(null);
+        value.accept(null);
         return false;
     }
 
-    public static boolean matchCharacterConstant(final Node node, final StrongBox<Character> value) {
+    public static boolean matchCharacterConstant(final Node node, final Consumer<? super Character> value) {
         final Character characterConstant = matchCharacterConstant(node);
 
         if (characterConstant != null) {
-            value.set(characterConstant);
+            value.accept(characterConstant);
             return true;
         }
 
-        value.set(null);
+        value.accept(null);
         return false;
     }
 
@@ -944,11 +979,11 @@ public final class PatternMatching {
                ((Expression) node).getCode().isUnconditionalControlFlow();
     }
 
-    public static boolean matchLock(final List<Node> body, final int position, final StrongBox<LockInfo> result) {
+    public static boolean matchLock(final List<Node> body, final int position, final Consumer<? super LockInfo> result) {
         VerifyArgument.notNull(body, "body");
         VerifyArgument.notNull(result, "result");
 
-        result.set(null);
+        result.accept(null);
 
         int head = position;
 
@@ -976,7 +1011,7 @@ public final class PatternMatching {
                 return false;
             }
 
-            result.set(new LockInfo(leadingLabel, (Expression) body.get(head)));
+            result.accept(new LockInfo(leadingLabel, (Expression) body.get(head)));
             return true;
         }
 
@@ -1017,7 +1052,7 @@ public final class PatternMatching {
                     }
                 }
 
-                result.set(
+                result.accept(
                     new LockInfo(
                         leadingLabel,
                         lockInit,
