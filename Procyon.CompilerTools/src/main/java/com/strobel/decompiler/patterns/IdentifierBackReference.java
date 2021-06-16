@@ -16,11 +16,9 @@
 
 package com.strobel.decompiler.patterns;
 
-import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
 import com.strobel.decompiler.languages.java.ast.AstNode;
 import com.strobel.decompiler.languages.java.ast.Identifier;
-import com.strobel.decompiler.languages.java.ast.IdentifierExpression;
 import com.strobel.decompiler.languages.java.ast.Roles;
 
 import static com.strobel.core.CollectionUtilities.*;
@@ -48,10 +46,8 @@ public final class IdentifierBackReference extends Pattern {
                 final INode referenced = lastOrDefault(match.get(_referencedGroupName));
 
                 return referenced instanceof AstNode &&
-                       StringUtilities.equals(
-                           identifier.getName(),
-                           ((AstNode) referenced).getChildByRole(Roles.IDENTIFIER).getName()
-                       );
+                       (Pattern.matchString(identifier.getName(), ((AstNode) referenced).getChildByRole(Roles.IDENTIFIER).getName()) ||
+                        Pattern.matchString(((AstNode) referenced).getChildByRole(Roles.IDENTIFIER).getName(), identifier.getName()));
             }
         }
 

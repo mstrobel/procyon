@@ -29,6 +29,7 @@ import com.strobel.core.VerifyArgument;
 import java.util.*;
 
 import static com.strobel.core.CollectionUtilities.*;
+import static com.strobel.core.Comparer.*;
 
 public final class MetadataHelper {
     public static boolean areGenericsSupported(final TypeDefinition t) {
@@ -295,9 +296,67 @@ public final class MetadataHelper {
 //        return current;
     }
 
-    public static ConversionType getConversionType(final TypeReference target, final TypeReference source) {
+    public static ConversionType getConversionType(final ICompoundType targetType, final TypeReference source) {
+        VerifyArgument.notNull(targetType, "targetType");
         VerifyArgument.notNull(source, "source");
+
+        ConversionType bestConversion = ConversionType.EXPLICIT;
+
+        final TypeReference baseType = targetType.getBaseType();
+
+        if (baseType != null) {
+            bestConversion = min(bestConversion, conversionType0(baseType, source, false));
+
+            if (bestConversion == ConversionType.IDENTITY) {
+                return bestConversion;
+            }
+        }
+
+        for (final TypeReference ifType : targetType.getInterfaces()) {
+            bestConversion = min(bestConversion, conversionType0(ifType, source, false));
+
+            if (bestConversion == ConversionType.IDENTITY) {
+                return bestConversion;
+            }
+        }
+
+        return bestConversion;
+    }
+
+    public static ConversionType getConversionType(final TypeReference targetType, final ICompoundType source) {
+        VerifyArgument.notNull(targetType, "targetType");
+        VerifyArgument.notNull(source, "source");
+
+        ConversionType bestConversion = ConversionType.EXPLICIT;
+
+        final TypeReference baseType = source.getBaseType();
+
+        if (baseType != null) {
+            bestConversion = min(bestConversion, conversionType0(targetType, baseType, true));
+
+            if (bestConversion == ConversionType.IDENTITY) {
+                return bestConversion;
+            }
+        }
+
+        for (final TypeReference ifType : source.getInterfaces()) {
+            bestConversion = min(bestConversion, conversionType0(targetType, ifType, true));
+
+            if (bestConversion == ConversionType.IDENTITY) {
+                return bestConversion;
+            }
+        }
+
+        return bestConversion;
+    }
+
+    public static ConversionType getConversionType(final TypeReference target, final TypeReference source) {
+        return conversionType0(target, source, true);
+    }
+
+    private static ConversionType conversionType0(final TypeReference target, final TypeReference source, final boolean processCompoundTypes) {
         VerifyArgument.notNull(target, "target");
+        VerifyArgument.notNull(source, "source");
 
         final TypeReference underlyingTarget = getUnderlyingPrimitiveTypeOrSelf(target);
         final TypeReference underlyingSource = getUnderlyingPrimitiveTypeOrSelf(source);
@@ -316,6 +375,27 @@ public final class MetadataHelper {
 
         if (isAssignableFrom(target, source, false)) {
             return ConversionType.IMPLICIT;
+        }
+
+        if (processCompoundTypes) {
+            if (underlyingTarget.isCompoundType() && underlyingTarget instanceof ICompoundType) {
+                return getConversionType((ICompoundType) underlyingTarget, underlyingSource);
+            }
+            if (underlyingSource.isCompoundType() && underlyingSource instanceof ICompoundType) {
+                return getConversionType(underlyingTarget, (ICompoundType) underlyingSource);
+            }
+        }
+
+        if (source.isGenericParameter()) {
+            final TypeReference bound = source.getExtendsBound();
+
+            if (bound != null && !BuiltinTypes.Object.isEquivalentTo(bound) && !isSameType(source, bound)) {
+                final ConversionType boundConversion = conversionType0(target, bound, processCompoundTypes);
+
+                if (compare(boundConversion, ConversionType.EXPLICIT) < 0) {
+                    return boundConversion;
+                }
+            }
         }
 
         int targetRank = 0;
@@ -568,6 +648,32 @@ public final class MetadataHelper {
         return isSubType(type, baseType, true);
     }
 
+    public static boolean isBytecodeCastAssignable(final TypeReference target, final TypeReference castType) {
+        final TypeReference erasedCast = eraseRecursive(castType);
+        final TypeReference upper = getUpperBound(target);
+
+        if (upper instanceof ICompoundType) {
+            final ICompoundType c = (ICompoundType) upper;
+            final TypeReference baseType = c.getBaseType();
+
+            if (baseType != null && (baseType != BuiltinTypes.Null || castType == BuiltinTypes.Null)) {
+                if (isSubType(erasedCast, baseType, true)) {
+                    return true;
+                }
+            }
+
+            for (final TypeReference ifType : c.getInterfaces()) {
+                if (isSubType(erasedCast, ifType, true)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        return isSubType(erasedCast, upper, true);
+    }
+
     public static boolean isPrimitiveBoxType(final TypeReference type) {
         VerifyArgument.notNull(type, "type");
 
@@ -727,7 +833,6 @@ public final class MetadataHelper {
         return AS_SUPER_VISITOR.visit(subType, type);
     }
 
-    @SuppressWarnings("ConstantConditions")
     public static Map<TypeReference, TypeReference> getGenericSubTypeMappings(final TypeReference type, final TypeReference baseType) {
         VerifyArgument.notNull(type, "type");
         VerifyArgument.notNull(baseType, "baseType");
@@ -1277,10 +1382,11 @@ public final class MetadataHelper {
             return false;
         }
 
-        if (baseType instanceof CompoundTypeReference) {
-            final CompoundTypeReference c = (CompoundTypeReference) baseType;
+        if (baseType instanceof ICompoundType) {
+            final ICompoundType c = (ICompoundType) baseType;
+            final TypeReference superType = getSuperType(baseType);
 
-            if (!isSubType(type, getSuperType(c), capture)) {
+            if (!isSameType(superType, (TypeReference) c) && !isSubType(type, superType, capture)) {
                 return false;
             }
 
@@ -1551,7 +1657,8 @@ public final class MetadataHelper {
                 if (serializable != null) {
                     return new CompoundTypeReference(
                         null,
-                        ArrayUtilities.asUnmodifiableList(cloneable, serializable)
+                        ArrayUtilities.asUnmodifiableList(cloneable, serializable),
+                        resolved.getResolver()
                     );
                 }
                 return cloneable;
@@ -1860,13 +1967,25 @@ public final class MetadataHelper {
                    //     Vector<? extends Object> vec = new Vector<String>();
                    // which means that subtype checking must be done
                    // here instead of same-type checking (via containsType).
-                   (!(s instanceof IGenericInstance) || containsTypeRecursive(s, superType)) &&
+                   (!(s instanceof IGenericInstance) || containsTypeRecursive(s, superType) || isRawType(superType)) &&
                    isSubTypeNoCapture(superType.getDeclaringType(), s.getDeclaringType());
         }
 
         @Override
-        public Boolean visitCompoundType(final CompoundTypeReference t, final TypeReference s) {
-            return super.visitCompoundType(t, s);
+        public <C extends TypeReference & ICompoundType> Boolean visitCompoundType(final C t, final TypeReference s) {
+            final TypeReference baseType = t.getBaseType();
+
+            if (baseType != null && isSubTypeNoCapture(baseType, s)) {
+                return true;
+            }
+
+            for (final TypeReference ifType : t.getInterfaces()) {
+                if (isSubTypeNoCapture(ifType, s)) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         @Override
@@ -2095,7 +2214,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public TypeReference visitCompoundType(final CompoundTypeReference t, final Void ignored) {
+        public <C extends TypeReference & ICompoundType> TypeReference visitCompoundType(final C t, final Void ignored) {
             //
             // TODO: Is this correct?
             //
@@ -2387,7 +2506,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public Boolean visitCompoundType(final CompoundTypeReference t, final TypeReference s) {
+        public <C extends TypeReference & ICompoundType> Boolean visitCompoundType(final C t, final TypeReference s) {
             if (!s.isCompoundType()) {
                 return false;
             }
@@ -2686,6 +2805,11 @@ public final class MetadataHelper {
 
                 return Collections.emptyList();
             }
+
+            @Override
+            public <C extends TypeReference & ICompoundType> List<TypeReference> visitCompoundType(final C t, final Void unused) {
+                return t.getInterfaces();
+            }
         };
 
     private final static TypeMapper<TypeReference> AS_SUBTYPE_VISITOR = new TypeMapper<TypeReference>() {
@@ -2787,7 +2911,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public TypeReference visitCompoundType(final CompoundTypeReference t, final Boolean recurse) {
+        public <C extends TypeReference & ICompoundType> TypeReference visitCompoundType(final C t, final Boolean recurse) {
             final TypeReference baseType = t.getBaseType();
             return erase(baseType != null ? baseType : first(t.getInterfaces()), recurse);
         }
@@ -2853,7 +2977,7 @@ public final class MetadataHelper {
         }
 
         @Override
-        public Boolean visitCompoundType(final CompoundTypeReference t, final Void ignored) {
+        public <C extends TypeReference & ICompoundType> Boolean visitCompoundType(final C t, final Void ignored) {
             return false;
         }
 

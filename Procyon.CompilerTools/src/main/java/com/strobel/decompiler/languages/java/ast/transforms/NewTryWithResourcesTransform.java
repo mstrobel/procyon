@@ -16,13 +16,13 @@
 
 package com.strobel.decompiler.languages.java.ast.transforms;
 
-import com.strobel.assembler.metadata.IMetadataResolver;
-import com.strobel.assembler.metadata.MetadataHelper;
-import com.strobel.assembler.metadata.TypeDefinition;
+import com.strobel.assembler.metadata.LanguageFeature;
+import com.strobel.assembler.metadata.ParameterDefinition;
 import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.core.Predicate;
 import com.strobel.core.StringUtilities;
 import com.strobel.decompiler.DecompilerContext;
+import com.strobel.decompiler.ast.Variable;
 import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.*;
 import com.strobel.decompiler.semantics.ResolveResult;
@@ -30,6 +30,8 @@ import com.strobel.decompiler.semantics.ResolveResult;
 import javax.lang.model.element.Modifier;
 
 import static com.strobel.core.CollectionUtilities.*;
+import static com.strobel.core.Comparer.coalesce;
+import static com.strobel.decompiler.languages.java.ast.transforms.ConvertLoopsTransform.*;
 
 public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
     private final Statement _resourceDeclaration;
@@ -52,11 +54,12 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
         rv.setAnyModifiers(true);
 
         _resourceDeclaration = new Choice(new NamedNode("resource", rv),
-                                          new ExpressionStatement(
-                                              new AssignmentExpression(new NamedNode("resource",
-                                                                                     new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
-                                                                       new AnyNode().toExpression())
-                                          )).toStatement();
+                                          new NamedNode("assignment",
+                                                        new ExpressionStatement(
+                                                            new AssignmentExpression(new NamedNode("resource",
+                                                                                                   new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                                                                                     new NamedNode("resourceInitializer", new AnyNode()).toExpression())
+                                                        ))).toStatement();
 
         final TryCatchStatement tryPattern = new TryCatchStatement(Expression.MYSTERY_OFFSET);
 
@@ -66,7 +69,7 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
         nestedTryWithResourceDisposal.getCatchClauses().add(new Repeat(new AnyNode()).toCatchClause());
 
         final Expression resourceReference = new Choice(new DeclaredVariableBackReference("resource"),
-                                                        new IdentifierExpressionBackReference("resource")).toExpression();
+                                                        new IdentifierBackReference("resource")).toExpression();
 
         nestedTryWithResourceDisposal.setFinallyBlock(
             new BlockStatement(
@@ -117,7 +120,7 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                                                                            new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
                                                              BinaryOperatorType.INEQUALITY,
                                                              new NullReferenceExpression()),
-                                new BlockStatement(new ExpressionStatement(new IdentifierExpressionBackReference("otherId").toExpression().invoke("close")))
+                                new BlockStatement(new ExpressionStatement(new IdentifierBackReference("otherId").toExpression().invoke("close")))
                             ),
                             new ExpressionStatement(new IdentifierExpression(Pattern.ANY_STRING).invoke("close"))
                         ).toStatement()
@@ -131,7 +134,11 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
         final TryCatchStatement disposeTry = new TryCatchStatement(Expression.MYSTERY_OFFSET);
 
-        disposeTry.setTryBlock(new BlockStatement(new ExpressionStatement(resourceReference.clone().invoke("close"))));
+        disposeTry.setTryBlock(
+            new BlockStatement(
+                new ExpressionStatement(new NamedNode("resourceToDispose", resourceReference.clone()).toExpression().invoke("close"))
+            )
+        );
 
         final Expression outerException = new NamedNode("error", new IdentifierExpression(Pattern.ANY_STRING)).toExpression();
 
@@ -153,7 +160,7 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
             new BlockStatement(
                 new Choice(new NamedNode("disposeTry", disposeTry),
                            new IfElseStatement(Expression.MYSTERY_OFFSET,
-                                               new BinaryOperatorExpression(resourceReference.clone(),
+                                               new BinaryOperatorExpression(new NamedNode("resourceToDispose", resourceReference.clone()).toExpression(),
                                                                             BinaryOperatorType.INEQUALITY,
                                                                             new NullReferenceExpression()),
                                                new BlockStatement(new NamedNode("disposeTry", disposeTry).toStatement()))).toStatement(),
@@ -186,6 +193,7 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
 
         try {
             super.run(compilationUnit);
+            new EmptyTryWithResourcesRewriter().run(compilationUnit); // check for empty patterns last.
         }
         finally {
             _builder = oldBuilder;
@@ -196,38 +204,80 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
     public Void visitTryCatchStatement(final TryCatchStatement node, final Void data) {
         super.visitTryCatchStatement(node, data);
 
-        if (!(node.getParent() instanceof BlockStatement)) {
+        if (!(node.getParent() instanceof BlockStatement) || node.getCatchClauses().firstOrNullObject().isNull()) {
             return null;
         }
 
         final BlockStatement parent = (BlockStatement) node.getParent();
-        final Statement initializeResource = node.getPreviousSibling(BlockStatement.STATEMENT_ROLE);
+        final Statement initResource = node.getPreviousSibling(BlockStatement.STATEMENT_ROLE);
 
-        if (initializeResource == null) {
-            return null;
-        }
+        Match m = Match.createNew();
 
-        final Match m = Match.createNew();
+        m.add("resource", new IdentifierExpression(Pattern.ANY_STRING));
 
-        if (_resourceDeclaration.matches(initializeResource, m) &&
-            _tryPattern.matches(node, m)) {
+        if (_tryPattern.getCatchClauses().firstOrNullObject().matches(node.getCatchClauses().firstOrNullObject(), m)) {
+            final AstNode declaration;
+            final boolean isParameter;
 
-            final AstNode declaration = first(m.<AstNode>get("resource"));
+            final IdentifierExpression resource = firstOrDefault(m.<IdentifierExpression>get("resourceToDispose"));
 
-            if (!(declaration instanceof VariableDeclarationStatement || declaration instanceof IdentifierExpression)) {
+            if (resource == null) {
                 return null;
             }
 
-            final Statement declarationStatement = declaration instanceof Statement ? (Statement) declaration : declaration.getParent(Statement.class);
+            m = Match.createNew();
+            m.add("resource", resource);
 
-            if (declarationStatement == null || declarationStatement.isNull() || !(declarationStatement.getParent() instanceof BlockStatement)) {
+            if (!_tryPattern.matches(node, m)) {
                 return null;
             }
 
+            if (initResource != null && _resourceDeclaration.matches(initResource, m)) {
+                declaration = firstOrDefault(skip(m.<AstNode>get("resource"), 1));
+                isParameter = false;
+            }
+            else {
+                final ParameterDeclaration p = findDeclaration(resource, node);
+
+                if (p == null || !context.isSupported(LanguageFeature.TRY_EXPRESSION_RESOURCE)) {
+                    return null;
+                }
+
+                declaration = p;
+                isParameter = true;
+            }
+
+            final Statement declarationStatement;
             final TypeReference resourceType;
-            final ResolveResult resourceResult = _resolver.apply(declaration);
 
-            if (resourceResult == null || (resourceType = resourceResult.getType()) == null || isDefinitelyNotCloseable(resourceType)) {
+            if (isParameter) {
+                declarationStatement = null;
+                resourceType = ((ParameterDeclaration) declaration).getType().toTypeReference();
+            }
+            else {
+                if (!(declaration instanceof VariableDeclarationStatement || declaration instanceof IdentifierExpression)) {
+                    return null;
+                }
+
+                declarationStatement = declaration instanceof Statement ? (Statement) declaration : declaration.getParent(Statement.class);
+
+                if (declarationStatement == null ||
+                    declarationStatement.isNull() ||
+                    !(declarationStatement.getParent() instanceof BlockStatement) ||
+                    !canMoveVariableDeclaration(declarationStatement, resource, node)) {
+                    return null;
+                }
+
+                final ResolveResult resourceResult = _resolver.apply(declaration);
+
+                if (resourceResult == null) {
+                    return null;
+                }
+
+                resourceType = resourceResult.getType();
+            }
+
+            if (resourceType == null) {
                 return null;
             }
 
@@ -255,53 +305,50 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
                 return null;
             }
 
-            final Statement lastStatement;
-            final Statement firstStatement = firstOrDefault(tryContent.getStatements());
-
-            if (firstStatement != null && (lastStatement = lastOrDefault(tryContent.getStatements())) != null) {
-                final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, tryContent);
-
-                analysis.setAnalyzedRange(firstStatement, lastStatement);
-
-                final String resourceName;
-
-                if (declaration instanceof VariableDeclarationStatement) {
-                    resourceName = ((VariableDeclarationStatement) declaration).getVariables().firstOrNullObject().getName();
-                }
-                else {
-                    resourceName = ((IdentifierExpression) declaration).getIdentifier();
-                }
-
-                analysis.analyze(resourceName, DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
-
-                if (analysis.isPotentiallyAssigned()) {
-                    // Resource declarations are effectively final; if it's reassigned, we can't rewrite.
-                    return null;
-                }
+            if (notEffectivelyFinal(resource.getIdentifier(), tryContent, null)) {
+                return null;
             }
 
             final VariableDeclarationStatement vd;
 
-            if (declaration instanceof VariableDeclarationStatement) {
-                vd = (VariableDeclarationStatement) declaration;
-            }
-            else {
-                final IdentifierExpression identifier = (IdentifierExpression) declaration;
-                final AssignmentExpression assignment = declaration.getParent(AssignmentExpression.class);
+            if (isParameter) {
+                final ParameterDeclaration pd = (ParameterDeclaration) declaration;
+                final IdentifierExpression resourceId = new IdentifierExpression(pd.getName());
+                final ParameterDefinition p = pd.getUserData(Keys.PARAMETER_DEFINITION);
+                final Variable v = pd.getUserData(Keys.VARIABLE);
 
-                if (assignment == null || assignment.isNull()) {
-                    return null;
+                if (p != null) {
+                    resourceId.putUserData(Keys.PARAMETER_DEFINITION, p);
+                }
+                if (v != null) {
+                    resourceId.putUserData(Keys.VARIABLE, v);
                 }
 
-                final Expression initializer = assignment.getRight();
+                node.getExternalResources().add(resourceId);
+            }
+            else {
+                if (declaration instanceof VariableDeclarationStatement) {
+                    vd = (VariableDeclarationStatement) declaration;
+                }
+                else {
+                    final IdentifierExpression identifier = (IdentifierExpression) declaration;
+                    final AssignmentExpression assignment = declaration.getParent(AssignmentExpression.class);
 
-                initializer.remove();
-                vd = new VariableDeclarationStatement(_builder.convertType(resourceType), identifier.getIdentifier(), initializer);
+                    if (assignment == null || assignment.isNull()) {
+                        return null;
+                    }
+
+                    final Expression initializer = assignment.getRight();
+
+                    initializer.remove();
+                    vd = new VariableDeclarationStatement(_builder.convertType(resourceType), identifier.getIdentifier(), initializer);
+                }
+
+                vd.addModifier(Modifier.FINAL);
+                declarationStatement.remove();
+                node.getDeclaredResources().add(vd);
             }
 
-            vd.addModifier(Modifier.FINAL);
-            declarationStatement.remove();
-            node.getResources().add(vd);
             caughtParent.remove();
 
             final AstNode resourceDisposal = firstOrDefault(m.<AstNode>get("resourceDisposal"));
@@ -319,24 +366,197 @@ public class NewTryWithResourcesTransform extends ContextTrackingVisitor<Void> {
         return null;
     }
 
-    static boolean isDefinitelyNotCloseable(final TypeReference t) {
-        if (t == null) {
-            return true;
-        }
+    private boolean notEffectivelyFinal(final String resourceName, final BlockStatement scope, final Statement startingPoint) {
+        final Statement lastStatement;
+        final Statement firstStatement = coalesce(startingPoint, firstOrDefault(scope.getStatements()));
 
-        final TypeDefinition resolved = t.resolve();
-
-        if (resolved == null) {
+        if (firstStatement == null || (lastStatement = lastOrDefault(scope.getStatements())) == null) {
             return false;
         }
 
-        final IMetadataResolver resolver = resolved.getResolver();
-        final TypeReference autoCloseable = resolver.lookupType("java/lang/AutoCloseable");
-        final TypeDefinition acResolved;
+        final DefiniteAssignmentAnalysis analysis = new DefiniteAssignmentAnalysis(context, scope);
 
-        return autoCloseable != null &&
-               (acResolved = autoCloseable.resolve()) != null &&
-               !MetadataHelper.isAssignableFrom(acResolved, resolved);
+        analysis.setAnalyzedRange(firstStatement, lastStatement);
+        analysis.analyze(resourceName, DefiniteAssignmentStatus.DEFINITELY_NOT_ASSIGNED);
+
+        // Resource declarations are effectively final; if it's reassigned, we can't rewrite.
+        return analysis.isPotentiallyAssigned();
+    }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    private boolean canMoveVariableDeclaration(final Statement initializeResource, final IdentifierExpression resource, final Statement node) {
+        final AstNode parent = node.getParent();
+        final VariableDeclarationStatement resourceDeclaration = findVariableDeclaration(node, resource.getIdentifier());
+
+        if (resourceDeclaration == null || !(resourceDeclaration.getParent() instanceof BlockStatement) || !(parent instanceof BlockStatement)) {
+            return false;
+        }
+
+        final BlockStatement outerTemp = new BlockStatement();
+        final BlockStatement temp = new BlockStatement();
+        final BlockStatement placeholder = new BlockStatement();
+
+        initializeResource.replaceWith(placeholder);
+
+        node.replaceWith(outerTemp);
+
+        temp.add(initializeResource);
+        temp.add(node);
+
+        outerTemp.add(temp);
+
+        //
+        // Now verify that we can move the variable declaration into the 'try'.
+        //
+
+        final Statement declarationPoint = canMoveVariableDeclarationIntoStatement(context, resourceDeclaration, node);
+
+        node.remove();
+        outerTemp.replaceWith(node);
+
+        initializeResource.remove();
+        placeholder.replaceWith(initializeResource);
+
+        //
+        // Can we move the declaration into the 'try' block?
+        //
+        return declarationPoint == outerTemp;
+    }
+
+    private static ParameterDeclaration findDeclaration(final IdentifierExpression id, final AstNode source) {
+        if (id == null || StringUtilities.isNullOrEmpty(id.getIdentifier()) || Pattern.ANY_STRING.equals(id.getIdentifier())) {
+            return null;
+        }
+
+        final NameResolveResult rr = JavaNameResolver.resolve(id.getIdentifier(), source);
+
+        if (!rr.hasMatch() || rr.isAmbiguous()) {
+            return null;
+        }
+
+        final Object c = first(rr.getCandidates());
+        final boolean isParameter = c instanceof ParameterDefinition;
+
+        if (!isParameter) {
+            return null;
+        }
+
+        for (final MethodDeclaration md : source.getAncestors(MethodDeclaration.class)) {
+            for (final ParameterDeclaration pd : md.getParameters()) {
+                if (pd.getUserData(Keys.PARAMETER_DEFINITION) == c) {
+                    return pd;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    protected final class EmptyTryWithResourcesRewriter extends ContextTrackingVisitor<Void> {
+        private final IfElseStatement _emptyPattern = new IfElseStatement(
+            new BinaryOperatorExpression(new NamedNode("resource", new IdentifierExpression(Pattern.ANY_STRING)).toExpression(),
+                                         BinaryOperatorType.INEQUALITY,
+                                         new NullReferenceExpression()),
+            new BlockStatement(
+                new ExpressionStatement(new IdentifierBackReference("resource").toExpression().invoke("close"))
+            )
+        );
+
+        public EmptyTryWithResourcesRewriter() {
+            super(NewTryWithResourcesTransform.this.context);
+        }
+
+        @Override
+        public Void visitIfElseStatement(final IfElseStatement node, final Void data) {
+            super.visitIfElseStatement(node, data);
+
+            final Match m = Match.createNew();
+
+            if (!_emptyPattern.matches(node, m)) {
+                return null;
+            }
+
+            final IdentifierExpression resource = first(m.<IdentifierExpression>get("resource"));
+            final String resourceId = resource.getIdentifier();
+
+            final MethodDeclaration md = node.getParent(MethodDeclaration.class);
+            final BlockStatement body = md != null ? md.getBody() : null;
+
+            if (body == null || body.isNull()) {
+                return null;
+            }
+
+            final VariableDeclarationStatement vd = findVariableDeclaration(node, resourceId);
+            final Statement declaration;
+            final boolean isExternal;
+
+            Expression initializer = null;
+
+            if (vd != null) {
+                final Statement prev = node.getPreviousStatement();
+                final Match m2 = Match.createNew();
+
+                if (_resourceDeclaration.matches(prev, m2)) {
+                    declaration = coalesce(firstOrDefault(m2.<Statement>get("assignment")), firstOrDefault(m2.<Statement>get("resource")));
+                    initializer = firstOrDefault(m2.<Expression>get("resourceInitializer"));
+                }
+                else {
+                    declaration = vd;
+                }
+
+                if (!canMoveVariableDeclaration(declaration, resource, node) || notEffectivelyFinal(resourceId, body, node)) {
+                    return null;
+                }
+
+                isExternal = false;
+            }
+            else {
+                if (!context.isSupported(LanguageFeature.TRY_EXPRESSION_RESOURCE)) {
+                    return null;
+                }
+
+                final NameResolveResult rr = JavaNameResolver.resolve(resourceId, node);
+
+                if (!rr.hasMatch() || rr.isAmbiguous()) {
+                    return null;
+                }
+
+                final Object d = first(rr.getCandidates());
+
+                if (!(d instanceof ParameterDefinition) || notEffectivelyFinal(resourceId, body, null)) {
+                    return null;
+                }
+
+                declaration = null;
+                isExternal = true;
+            }
+
+            resource.remove();
+
+            if (declaration != null) {
+                declaration.remove();
+            }
+
+            final TryCatchStatement tryCatch = new TryCatchStatement();
+
+            tryCatch.setTryBlock(new BlockStatement());
+
+            if (isExternal) {
+                tryCatch.getExternalResources().add(resource);
+            }
+            else {
+                if (initializer != null) {
+                    initializer.remove();
+                    vd.getVariables().firstOrNullObject().setInitializer(initializer);
+                }
+
+                vd.remove();
+                vd.addModifier(Modifier.FINAL);
+                tryCatch.getDeclaredResources().add(vd);
+            }
+
+            node.replaceWith(tryCatch);
+            return null;
+        }
     }
 }
-

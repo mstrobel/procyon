@@ -557,8 +557,8 @@ public final class DecompilerHelpers {
             }
         }
 
-        if (type instanceof CompoundTypeReference) {
-            final CompoundTypeReference compoundType = (CompoundTypeReference) type;
+        if (type instanceof ICompoundType) {
+            final ICompoundType compoundType = (ICompoundType) type;
             final TypeReference baseType = compoundType.getBaseType();
             final List<TypeReference> interfaces = compoundType.getInterfaces();
 

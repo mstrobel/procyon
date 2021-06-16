@@ -1,13 +1,9 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.decompiler.DecompilerContext;
-import com.strobel.decompiler.languages.java.ast.AstNode;
-import com.strobel.decompiler.languages.java.ast.BlockStatement;
-import com.strobel.decompiler.languages.java.ast.ContextTrackingVisitor;
-import com.strobel.decompiler.languages.java.ast.ExpressionStatement;
-import com.strobel.decompiler.languages.java.ast.TryCatchStatement;
-import com.strobel.decompiler.languages.java.ast.VariableDeclarationStatement;
+import com.strobel.decompiler.languages.java.ast.*;
 import com.strobel.decompiler.patterns.AnyNode;
+import com.strobel.decompiler.patterns.Choice;
 import com.strobel.decompiler.patterns.DeclaredVariableBackReference;
 import com.strobel.decompiler.patterns.Match;
 import com.strobel.decompiler.patterns.NamedNode;
@@ -33,10 +29,17 @@ public class MergeResourceTryStatementsVisitor extends ContextTrackingVisitor<Vo
 
         rv.addModifier(Modifier.FINAL);
 
+        final Expression rr = new DeclaredVariableBackReference("resourceDeclaration").toExpression();
+
         _emptyResource = new BlockStatement(
             new NamedNode("resourceDeclaration", rv).toStatement(),
             new NamedNode("resourceDisposal",
-                          new ExpressionStatement(new DeclaredVariableBackReference("resourceDeclaration").toExpression().invoke("close"))).toStatement()
+                          new Choice(new ExpressionStatement(rr.clone().invoke("close")),
+                                     new IfElseStatement(Expression.MYSTERY_OFFSET,
+                                                         new BinaryOperatorExpression(rr.clone(),
+                                                                                      BinaryOperatorType.INEQUALITY,
+                                                                                      new NullReferenceExpression()),
+                                                         new BlockStatement(new ExpressionStatement(rr.clone().invoke("close")))))).toStatement()
         );
     }
 
@@ -44,11 +47,11 @@ public class MergeResourceTryStatementsVisitor extends ContextTrackingVisitor<Vo
     public Void visitTryCatchStatement(final TryCatchStatement node, final Void data) {
         super.visitTryCatchStatement(node, data);
 
-        if (node.getResources().isEmpty()) {
+        if (node.getDeclaredResources().isEmpty() && node.getExternalResources().isEmpty()) {
             return null;
         }
 
-        final List<VariableDeclarationStatement> resources = new ArrayList<>();
+        final List<AstNode> resources = new ArrayList<>();
 
         TryCatchStatement current = node;
 
@@ -61,7 +64,7 @@ public class MergeResourceTryStatementsVisitor extends ContextTrackingVisitor<Vo
                 final VariableDeclarationStatement innerResource = first(m.<VariableDeclarationStatement>get("resourceDeclaration"));
 
                 current.getTryBlock().getStatements().clear();
-                current.getResources().add(innerResource);
+                current.getDeclaredResources().add(innerResource);
             }
 
             final AstNode parent = current.getParent();
@@ -72,8 +75,11 @@ public class MergeResourceTryStatementsVisitor extends ContextTrackingVisitor<Vo
                 final TryCatchStatement parentTry = (TryCatchStatement) parent.getParent();
 
                 if (parentTry.getTryBlock().getStatements().hasSingleElement()) {
-                    if (!current.getResources().isEmpty()) {
-                        resources.addAll(0, current.getResources());
+                    if (!current.getDeclaredResources().isEmpty()) {
+                        resources.addAll(0, current.getDeclaredResources());
+                    }
+                    if (!current.getExternalResources().isEmpty()) {
+                        resources.addAll(0, current.getExternalResources());
                     }
 
                     current = parentTry;
@@ -87,9 +93,15 @@ public class MergeResourceTryStatementsVisitor extends ContextTrackingVisitor<Vo
         final BlockStatement tryContent = node.getTryBlock();
 
         if (current != node) {
-            for (final VariableDeclarationStatement resource : resources) {
+            for (final AstNode resource : resources) {
                 resource.remove();
-                current.getResources().add(resource);
+
+                if (resource instanceof VariableDeclarationStatement) {
+                    current.getDeclaredResources().add((VariableDeclarationStatement) resource);
+                }
+                else {
+                    current.getExternalResources().add((IdentifierExpression) resource);
+                }
             }
 
             tryContent.remove();

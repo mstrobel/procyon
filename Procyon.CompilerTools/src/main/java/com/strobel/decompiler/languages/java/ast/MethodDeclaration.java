@@ -67,6 +67,12 @@ public class MethodDeclaration extends EntityDeclaration {
     }
 
     public final void setBody(final BlockStatement value) {
+        final NameVariables nv = value != null ? value.getUserData(Keys.NAME_VARIABLES) : null;
+
+        if (nv != null) {
+            putUserData(Keys.NAME_VARIABLES, nv);
+        }
+
         setChildByRole(Roles.BODY, value);
     }
 

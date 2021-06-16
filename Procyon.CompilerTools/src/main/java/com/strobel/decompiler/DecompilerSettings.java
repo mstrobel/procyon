@@ -16,6 +16,7 @@
 
 package com.strobel.decompiler;
 
+import com.strobel.assembler.metadata.CompilerTarget;
 import com.strobel.assembler.metadata.ITypeLoader;
 import com.strobel.decompiler.languages.BytecodeOutputOptions;
 import com.strobel.decompiler.languages.Language;
@@ -45,6 +46,9 @@ public class DecompilerSettings {
     private String _outputDirectory;
     private boolean _showDebugLineNumbers;
     private boolean _simplifyMemberReferences;
+    private int _minLinesForTextBlocks = 3;
+    private CompilerTarget _forcedCompilerTarget;
+    private boolean _arePreviewFeaturesEnabled;
 
     public DecompilerSettings() {
     }
@@ -213,12 +217,36 @@ public class DecompilerSettings {
         _disableForEachTransforms = disableForEachTransforms;
     }
 
-    public boolean getForceFullyQualifiedReferences() {
+    public final boolean getForceFullyQualifiedReferences() {
         return _forceFullyQualifiedReferences;
     }
 
-    public void setForceFullyQualifiedReferences(final boolean forceFullyQualifiedReferences) {
+    public final void setForceFullyQualifiedReferences(final boolean forceFullyQualifiedReferences) {
         _forceFullyQualifiedReferences = forceFullyQualifiedReferences;
+    }
+
+    public final int getMinLinesForTextBlocks() {
+        return _minLinesForTextBlocks;
+    }
+
+    public final void setMinLinesForTextBlocks(final int minLinesForTextBlocks) {
+        _minLinesForTextBlocks = minLinesForTextBlocks;
+    }
+
+    public final CompilerTarget getForcedCompilerTarget() {
+        return _forcedCompilerTarget;
+    }
+
+    public final void setForcedCompilerTarget(final CompilerTarget forcedCompilerTarget) {
+        _forcedCompilerTarget = forcedCompilerTarget;
+    }
+
+    public final boolean arePreviewFeaturesEnabled() {
+        return _arePreviewFeaturesEnabled;
+    }
+
+    public final void setPreviewFeaturesEnabled(final boolean arePreviewFeaturesEnabled) {
+        _arePreviewFeaturesEnabled = arePreviewFeaturesEnabled;
     }
 
     public static DecompilerSettings javaDefaults() {

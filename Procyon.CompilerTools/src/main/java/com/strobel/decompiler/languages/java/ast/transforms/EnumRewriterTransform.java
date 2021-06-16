@@ -300,7 +300,7 @@ public class EnumRewriterTransform implements IAstTransform {
 
                                 final ParameterDefinition pd = method.getParameters().get(0);
 
-                                if ("java/lang/String".equals(pd.getParameterType().getInternalName())) {
+                                if (CommonTypeReferences.String.isEquivalentTo(pd.getParameterType())) {
                                     node.remove();
                                 }
                             }

@@ -180,8 +180,8 @@ public class RewriteLegacyClassConstantsTransform implements IAstTransform {
             final MethodDeclaration method = new MethodDeclaration();
             final MetadataParser parser = new MetadataParser();
 
-            final TypeReference classNotFoundException = parser.parseTypeDescriptor("java/lang/ClassNotFoundException");
-            final TypeReference noClassDefFoundError = parser.parseTypeDescriptor("java/lang/NoClassDefFoundError");
+            final TypeReference classNotFoundException = CommonTypeReferences.ClassNotFoundException;
+            final TypeReference noClassDefFoundError = CommonTypeReferences.NoClassDefFoundError;
 
             final AstType classType = new AstTypeMatch(CommonTypeReferences.Class).toType();
             final AstType throwable = new AstTypeMatch(CommonTypeReferences.Throwable).toType();

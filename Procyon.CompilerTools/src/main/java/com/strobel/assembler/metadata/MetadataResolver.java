@@ -319,18 +319,18 @@ public abstract class MetadataResolver implements IMetadataResolver, IGenericCon
             return false;
         }
 
-        if (a instanceof CompoundTypeReference) {
-            if (!(b instanceof CompoundTypeReference)) {
+        if (a instanceof ICompoundType) {
+            if (!(b instanceof ICompoundType)) {
                 return false;
             }
 
-            final CompoundTypeReference cA = (CompoundTypeReference) a;
-            final CompoundTypeReference cB = (CompoundTypeReference) b;
+            final ICompoundType cA = (ICompoundType) a;
+            final ICompoundType cB = (ICompoundType) b;
 
             return areEquivalent(cA.getBaseType(), cB.getBaseType()) &&
                    areEquivalent(cA.getInterfaces(), cB.getInterfaces());
         }
-        else if (b instanceof CompoundTypeReference) {
+        else if (b instanceof ICompoundType) {
             return false;
         }
 

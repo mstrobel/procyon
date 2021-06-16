@@ -20,16 +20,12 @@ import com.strobel.assembler.ir.attributes.AttributeNames;
 import com.strobel.assembler.ir.attributes.LineNumberTableAttribute;
 import com.strobel.assembler.ir.attributes.ModuleAttribute;
 import com.strobel.assembler.ir.attributes.SourceAttribute;
-import com.strobel.assembler.metadata.FieldDefinition;
-import com.strobel.assembler.metadata.Flags;
-import com.strobel.assembler.metadata.MethodDefinition;
-import com.strobel.assembler.metadata.MethodReference;
-import com.strobel.assembler.metadata.ParameterDefinition;
-import com.strobel.assembler.metadata.TypeDefinition;
-import com.strobel.assembler.metadata.TypeReference;
+import com.strobel.assembler.metadata.*;
 import com.strobel.core.ArrayUtilities;
+import com.strobel.core.CollectionUtilities;
 import com.strobel.core.StringUtilities;
 import com.strobel.core.VerifyArgument;
+import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.DecompilerSettings;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.languages.BytecodeLanguage;
@@ -37,6 +33,7 @@ import com.strobel.decompiler.languages.LineNumberPosition;
 import com.strobel.decompiler.languages.TextLocation;
 import com.strobel.decompiler.languages.java.TextOutputFormatter.LineNumberMode;
 import com.strobel.decompiler.languages.java.ast.*;
+import com.strobel.decompiler.languages.java.ast.WildcardType;
 import com.strobel.decompiler.languages.java.utilities.TypeUtilities;
 import com.strobel.decompiler.patterns.*;
 import com.strobel.util.ContractUtils;
@@ -1556,6 +1553,33 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
     }
 
     @Override
+    public Void visitInlinedBytecode(final InlinedBytecodeExpression node, final Void data) {
+        output.writeReference(node.getCode().getName(), node.getCode());
+
+        final AstNodeCollection<Expression> operands = node.getOperands();
+
+        if (!operands.isEmpty()) {
+            writeCommaSeparatedListInParenthesis(operands, false);
+        }
+
+        return null;
+    }
+
+    @Override
+    public Void visitBytecodeConstant(final BytecodeConstant node, final Void data) {
+        final Object constantValue = node.getConstantValue();
+
+        if (constantValue instanceof AstNode) {
+            ((AstNode) constantValue).acceptVisitor(this, data);
+        }
+        else {
+            DecompilerHelpers.writeOperand(output, constantValue);
+        }
+
+        return null;
+    }
+
+    @Override
     @SuppressWarnings("DuplicatedCode")
     public Void visitTypeDeclaration(final TypeDeclaration node, final Void ignored) {
         startNode(node);
@@ -1614,7 +1638,7 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
                     for (final AstType t : node.getInterfaces()) {
                         final TypeReference r = t.getUserData(Keys.TYPE_REFERENCE);
 
-                        if (r != null && "java/lang/annotation/Annotation".equals(r.getInternalName())) {
+                        if (r != null && CommonTypeReferences.Annotation.isEquivalentTo(r)) {
                             continue;
                         }
 
@@ -1813,6 +1837,36 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
             else {
                 specifier.acceptVisitor(this, ignored);
             }
+        }
+
+        endNode(node);
+        return null;
+    }
+
+    @Override
+    public Void visitIntersectionType(final IntersectionType node, final Void data) {
+        startNode(node);
+
+        final AstType baseType = node.getBaseType();
+
+        boolean needToken = true;
+
+        if (baseType.isNull()) {
+            needToken = false;
+        }
+        else {
+            baseType.acceptVisitor(this, data);
+        }
+
+        for (final AstType ifType : node.getInterfaces()) {
+            if (needToken) {
+                space();
+                writeToken(IntersectionType.INTERSECTION_TOKEN);
+                space();
+            }
+
+            ifType.acceptVisitor(this, data);
+            needToken = true;
         }
 
         endNode(node);
@@ -2509,25 +2563,31 @@ public final class JavaOutputVisitor implements IAstVisitor<Void, Void> {
         startNode(node);
         writeKeyword(TryCatchStatement.TRY_KEYWORD_ROLE);
 
-        final AstNodeCollection<VariableDeclarationStatement> resources = node.getResources();
+        final boolean hasResources = !node.getDeclaredResources().isEmpty() || !node.getExternalResources().isEmpty();
+        final List<AstNode> resources = hasResources ? CollectionUtilities.<AstNode>toList(node.getExternalResources()) : Collections.<AstNode>emptyList();
 
-        if (!resources.isEmpty()) {
+        if (hasResources) {
+            resources.addAll(node.getDeclaredResources());
             space();
             leftParenthesis();
 
-            final VariableDeclarationStatement firstResource = resources.firstOrNullObject();
+            for (int i = 0, n = resources.size(); i < n; i++) {
+                final AstNode r = resources.get(i);
 
-            for (VariableDeclarationStatement resource = firstResource;
-                 resource != null;
-                 resource = resource.getNextSibling(TryCatchStatement.TRY_RESOURCE_ROLE)) {
-
-                if (resource != firstResource) {
+                if (i != 0) {
                     semicolon();
                     // indent additional resources with 5 spaces, i.e., the length of `try (`.
+                    // @formatter:off
                     space(); space(); space(); space(); space();
+                    // @formatter:on
                 }
 
-                writeVariableDeclaration(resource, false);
+                if (r instanceof VariableDeclarationStatement) {
+                    writeVariableDeclaration((VariableDeclarationStatement) r, false);
+                }
+                else {
+                    r.acceptVisitor(this, ignored);
+                }
             }
 
             rightParenthesis();

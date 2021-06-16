@@ -143,7 +143,7 @@ public class CoreMetadataFactory implements MetadataFactory {
 
         interfaceTypes = ArrayUtilities.asUnmodifiableList(it);
 
-        return new CompoundTypeReference(baseType, interfaceTypes);
+        return new CompoundTypeReference(baseType, interfaceTypes, _resolver);
     }
 
     public TypeReference makeParameterizedType(

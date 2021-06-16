@@ -234,6 +234,28 @@ public final class AstBuilder {
             return AstType.NULL;
         }
 
+        if (type instanceof ICompoundType) {
+            final ICompoundType cType = (ICompoundType) type;
+
+            if (options.getIncludeIntersectionTypes()) {
+                final List<TypeReference> ifReferences = cType.getInterfaces();
+
+                final AstType baseType = cType.getBaseType() == BuiltinTypes.Null ? AstType.NULL
+                                                                                  : convertType(cType.getBaseType(), typeIndex, options);
+                final AstType[] ifTypes = new AstType[ifReferences.size()];
+
+                for (int i = 0; i < ifReferences.size(); i++) {
+                    ifTypes[i] = convertType(ifReferences.get(i), typeIndex, options);
+                }
+
+                final IntersectionType isType = new IntersectionType(baseType, ifTypes);
+                isType.putUserData(Keys.TYPE_REFERENCE, type);
+                return isType;
+            }
+
+            return convertType(cType.getBaseType(), typeIndex, options).makeArrayType();
+        }
+
         if (type.isArray()) {
             return convertType(type.getElementType(), typeIndex.increment(), options).makeArrayType();
         }
@@ -423,6 +445,10 @@ public final class AstBuilder {
             }
         }
 
+        if (name == null) {
+            name = nameSource.getSimpleName();
+        }
+
         final SimpleType astType = new SimpleType(name);
 
         astType.putUserData(Keys.TYPE_REFERENCE, type);
@@ -538,7 +564,7 @@ public final class AstBuilder {
         }
 
         for (final TypeReference interfaceType : type.getExplicitInterfaces()) {
-            if (type.isAnnotation() && "java/lang/annotations/Annotation".equals(interfaceType.getInternalName())) {
+            if (type.isAnnotation() && CommonTypeReferences.Annotation.isEquivalentTo(interfaceType)) {
                 continue;
             }
             astType.addChild(convertType(interfaceType), Roles.IMPLEMENTED_INTERFACE);

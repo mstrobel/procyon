@@ -46,7 +46,7 @@ public abstract class DefaultTypeVisitor<P, R> implements TypeMetadataVisitor<P,
     }
 
     @Override
-    public R visitCompoundType(final CompoundTypeReference t, final P p) {
+    public <C extends TypeReference & ICompoundType> R visitCompoundType(final C t, final P p) {
         return visitType(t, p);
     }
 

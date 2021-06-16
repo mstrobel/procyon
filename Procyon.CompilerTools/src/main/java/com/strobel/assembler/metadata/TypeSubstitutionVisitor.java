@@ -124,7 +124,7 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
     }
 
     @Override
-    public TypeReference visitCompoundType(final CompoundTypeReference t, final Map<TypeReference, TypeReference> map) {
+    public <C extends TypeReference & ICompoundType> TypeReference visitCompoundType(final C t, final Map<TypeReference, TypeReference> map) {
         final TypeReference oldBaseType = t.getBaseType();
         final TypeReference newBaseType = oldBaseType != null ? visit(oldBaseType, map) : null;
 
@@ -153,7 +153,9 @@ public final class TypeSubstitutionVisitor extends DefaultTypeVisitor<Map<TypeRe
             return new CompoundTypeReference(
                 newBaseType,
                 newInterfaces != null ? ArrayUtilities.asUnmodifiableList(newInterfaces)
-                                      : t.getInterfaces()
+                                      : t.getInterfaces(),
+                t.getResolver()
+
             );
         }
 

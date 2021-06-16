@@ -23,12 +23,16 @@ import com.strobel.assembler.metadata.TypeReference;
 import com.strobel.decompiler.DecompilerHelpers;
 import com.strobel.decompiler.ITextOutput;
 import com.strobel.decompiler.NameSyntax;
+import com.strobel.util.EmptyArrayCache;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Lambda extends Node {
     private final Collection<Variable> _parameters = new Collection<>();
+    private Variable[] _variableMap = Variable.EMPTY_VARIABLES;
 
     private DynamicCallSite _callSite;
     private MethodReference _method;
@@ -100,6 +104,14 @@ public class Lambda extends Node {
 
     public final void setInferredReturnType(final TypeReference inferredReturnType) {
         _inferredReturnType = inferredReturnType;
+    }
+
+    public final Variable[] getVariableMap() {
+        return _variableMap;
+    }
+
+    public final void setVariableMap(final Variable[] variableMap) {
+        _variableMap = variableMap;
     }
 
     @Override

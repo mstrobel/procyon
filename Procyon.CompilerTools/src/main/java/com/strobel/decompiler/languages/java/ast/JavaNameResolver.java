@@ -560,6 +560,11 @@ public final class JavaNameResolver {
         }
 
         @Override
+        public Set<Object> visitIntersectionType(final IntersectionType node, final String data) {
+            return Collections.emptySet();
+        }
+
+        @Override
         public Set<Object> visitMethodDeclaration(final MethodDeclaration node, final String name) {
             Set<Object> results = null;
 
@@ -734,6 +739,16 @@ public final class JavaNameResolver {
                 new LinkedHashSet<String>(),
                 true
             );
+        }
+
+        @Override
+        public Set<Object> visitInlinedBytecode(final InlinedBytecodeExpression node, final String data) {
+            return Collections.emptySet();
+        }
+
+        @Override
+        public Set<Object> visitBytecodeConstant(final BytecodeConstant node, final String data) {
+            return Collections.emptySet();
         }
 
         @Override

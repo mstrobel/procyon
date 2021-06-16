@@ -42,6 +42,7 @@ public final class Keys {
     public final static Key<DynamicCallSite> DYNAMIC_CALL_SITE = Key.create("DynamicCallSite");
     public final static Key<AstBuilder> AST_BUILDER = Key.create("AstBuilder");
     public final static Key<Object> CONSTANT_VALUE = Key.create("ConstantValue");
+    public final static Key<NameVariables> NAME_VARIABLES = Key.create("NameVariables");
 
     public final static List<Key<?>> ALL_KEYS;
 
