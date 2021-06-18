@@ -17,6 +17,7 @@
 package com.strobel.decompiler.languages.java.ast.transforms;
 
 import com.strobel.assembler.metadata.FieldDefinition;
+import com.strobel.assembler.metadata.FieldReference;
 import com.strobel.assembler.metadata.Flags;
 import com.strobel.assembler.metadata.MemberReference;
 import com.strobel.assembler.metadata.MethodDefinition;
@@ -35,6 +36,62 @@ import static com.strobel.core.CollectionUtilities.*;
 public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
     public RemoveHiddenMembersTransform(final DecompilerContext context) {
         super(context);
+    }
+
+    static boolean isHiddenMemberReference(final AstNode node, final DecompilerContext context) {
+        if (node == null || node.isNull()) {
+            return false;
+        }
+
+        if (isHiddenMemberReference(node.getUserData(Keys.MEMBER_REFERENCE), context)) {
+            return true;
+        }
+
+        AstNode n = node;
+
+        while (n instanceof InvocationExpression) {
+            n = ((InvocationExpression) n).getTarget();
+        }
+
+        if (n instanceof MemberReferenceExpression) {
+            do {
+                if (!isHiddenMemberReference(n.getUserData(Keys.MEMBER_REFERENCE), context)) {
+                    return false;
+                }
+                n = ((MemberReferenceExpression) n).getTarget();
+            } while (n instanceof MemberReferenceExpression);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    static boolean isHiddenMemberReference(final MemberReference reference, final DecompilerContext context) {
+        if (reference instanceof MethodReference) {
+            final MethodDefinition md = ((MethodReference) reference).resolve();
+            return md != null && AstBuilder.isMemberHidden(md, context);
+        }
+        if (reference instanceof FieldReference) {
+            final FieldDefinition fd = ((FieldReference) reference).resolve();
+            return fd != null && AstBuilder.isMemberHidden(fd, context);
+        }
+        return false;
+    }
+
+    @Override
+    public Void visitAssignmentExpression(final AssignmentExpression node, final Void data) {
+        final Expression left = node.getLeft();
+        final Expression right = node.getRight();
+
+        if (node.getParent() instanceof ExpressionStatement &&
+            isHiddenMemberReference(left, context) && isHiddenMemberReference(right, context)) {
+
+            node.getParent().remove();
+            return null;
+        }
+
+        return super.visitAssignmentExpression(node, data);
     }
 
     @Override
@@ -65,6 +122,8 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
 
     @Override
     protected Void visitMethodDeclarationOverride(final MethodDeclaration node, final Void p) {
+        super.visitMethodDeclarationOverride(node, p);
+
         final MethodDefinition method = node.getUserData(Keys.METHOD_DEFINITION);
 
         if (method != null) {
@@ -81,7 +140,7 @@ public class RemoveHiddenMembersTransform extends ContextTrackingVisitor<Void> {
             }
         }
 
-        return super.visitMethodDeclarationOverride(node, p);
+        return null;
     }
 
     private final static INode DEFAULT_CONSTRUCTOR_BODY;

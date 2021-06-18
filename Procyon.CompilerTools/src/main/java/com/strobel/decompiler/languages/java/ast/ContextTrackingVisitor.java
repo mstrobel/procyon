@@ -38,6 +38,11 @@ public abstract class ContextTrackingVisitor<TResult> extends DepthFirstAstVisit
         return currentMethod != null && currentMethod.isConstructor();
     }
 
+    protected final boolean inStaticInitializer() {
+        final MethodDefinition currentMethod = context.getCurrentMethod();
+        return currentMethod != null && currentMethod.isTypeInitializer();
+    }
+
     protected final boolean inMethod() {
         return context.getCurrentMethod() != null;
     }
