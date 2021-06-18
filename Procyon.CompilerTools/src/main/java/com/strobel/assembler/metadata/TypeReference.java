@@ -332,9 +332,9 @@ public abstract class TypeReference extends MemberReference implements IGenericP
     @Override
     protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
         final String simpleName = getSimpleName();
-        final TypeReference declaringType = getDeclaringType();
+        final TypeReference declaringType;
 
-        if (dottedName && simpleName != null && declaringType != null) {
+        if (dottedName && simpleName != null && (declaringType = getDeclaringType()) != null) {
             return declaringType.appendName(sb, fullName, true).append('.').append(simpleName);
         }
 

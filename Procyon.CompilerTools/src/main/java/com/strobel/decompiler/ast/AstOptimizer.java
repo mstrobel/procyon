@@ -127,7 +127,7 @@ public final class AstOptimizer {
 
                 modified = false;
 
-                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveInnerClassInitSecurityChecks)) {
+                if (!shouldPerformStep(abortBeforeStep, AstOptimizationStep.RemoveInnerClassAccessNullChecks)) {
                     done = true;
                     break;
                 }
@@ -1446,7 +1446,7 @@ public final class AstOptimizer {
                         if (resolvedConstructorTargetType != null &&
                             resolvedConstructorArgumentType != null &&
                             resolvedConstructorTargetType.isNested() &&
-                            !resolvedConstructorTargetType.isStatic() &&
+//                            !resolvedConstructorTargetType.isStatic() &&
                             (!resolvedConstructorArgumentType.isNested() ||
                              isEnclosedBy(resolvedConstructorTargetType, resolvedConstructorArgumentType))) {
 

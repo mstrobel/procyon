@@ -27,6 +27,8 @@ import com.strobel.core.VerifyArgument;
 import java.util.Collections;
 import java.util.List;
 
+import static com.strobel.core.StringUtilities.isNullOrEmpty;
+
 public class TypeDefinition extends TypeReference implements IMemberDefinition {
     private final GenericParameterCollection _genericParameters;
     private final Collection<TypeDefinition> _declaredTypes;
@@ -272,8 +274,19 @@ public class TypeDefinition extends TypeReference implements IMemberDefinition {
 
     @Override
     protected StringBuilder appendName(final StringBuilder sb, final boolean fullName, final boolean dottedName) {
-        if (fullName && dottedName && isNested() && !isAnonymous() && _simpleName != null) {
-            return getDeclaringType().appendName(sb, true, true).append('.').append(_simpleName);
+        if (fullName && dottedName && isNested()) {
+            if (isAnonymous()) {
+                final String packageName = getDeclaringType().getPackageName();
+
+                if (!isNullOrEmpty(packageName)) {
+                    sb.append(packageName).append('.');
+                }
+
+                appendName(sb, false, false);
+            }
+            else if (_simpleName != null) {
+                return getDeclaringType().appendName(sb, true, true).append('.').append(_simpleName);
+            }
         }
 
         return super.appendName(sb, fullName, dottedName);
